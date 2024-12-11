@@ -950,10 +950,7 @@ namespace Voron
                         case TempBufferType.Scratch:
                             tempBuffers += file.AllocatedSpaceInBytes;
                             break;
-                        case TempBufferType.RecyclableJournal:
-                            tempRecyclableJournals += file.AllocatedSpaceInBytes;
-                            break;
-                        default:
+                           default:
                             throw new InvalidOperationException($"Unknown temp file type: {file.Type}");
                     }
                 }
@@ -1622,15 +1619,7 @@ namespace Voron
             return Hashing.Streamed.XXHash64.End(ref ctx);
         }
 
-        public void Cleanup(bool tryCleanupRecycledJournals = false)
-        {
-            CleanupMappedMemory();
-
-            if (tryCleanupRecycledJournals)
-                Options.TryCleanupRecycledJournals();
-        }
-
-        public void CleanupMappedMemory()
+        public void Cleanup()
         {
             Journal.TryReduceSizeOfCompressionBufferIfNeeded();
             ScratchBufferPool.Cleanup();
