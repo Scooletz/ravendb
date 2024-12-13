@@ -46,6 +46,10 @@ namespace Corax.Indexing
         private FixedSizeTree _documentBoost;
         private Tree _indexMetadata;
         private long _numberOfTermModifications;
+        
+        private long[] _persistedVectorRootPages;
+        private HashSet<long> _newVectorRootPages;
+        
         private CompactKeyCacheScope _compactKeyScope;
 
         private bool _ownsTransaction;
@@ -90,7 +94,8 @@ namespace Corax.Indexing
             _encodingBufferHandler = Analyzer.BufferPool.Rent(fieldsMapping.MaximumOutputSize);
             _tokensBufferHandler = Analyzer.TokensPool.Rent(fieldsMapping.MaximumTokenSize);
             _utf8ConverterBufferHandler = Analyzer.BufferPool.Rent(fieldsMapping.MaximumOutputSize * 10);
-
+            _dynamicFieldsTerms = []; // avoids NRE in cases where the index does not contain a dynamic field
+            
             var bufferSize = fieldsMapping!.Count;
             _knownFieldsTerms = new IndexedField[bufferSize];
             for (int i = 0; i < bufferSize; ++i)
@@ -146,6 +151,7 @@ namespace Corax.Indexing
             _entriesForTermsAdditionsBuffer = new NativeList<(long EntryId, long TermId)>();
 
             _pforDecoder = new FastPForDecoder(_entriesAllocator);
+            ReadPersistedVectorRootPages(out _persistedVectorRootPages);
         }
         
         private void InitializeFieldRootPage(IndexedField field)
@@ -291,9 +297,9 @@ namespace Corax.Indexing
             if (_dynamicFieldsMapping?.TryGetByFieldName(clonedFieldName, out var binding) is true)
             {
                 indexedField = source?.CreateVirtualIndexedField(binding) 
-                               ?? new IndexedField(Constants.IndexWriter.DynamicField, binding.FieldName, binding.FieldNameLong,
+                               ?? new IndexedField(Constants.IndexWriter.DynamicField, binding.FieldName,  binding.FieldNameLong,
                     binding.FieldNameDouble, binding.FieldTermTotalSumField, binding.Analyzer,
-                    binding.FieldIndexingMode, binding.HasSuggestions, binding.ShouldStore, _supportedFeatures);
+                    binding.FieldIndexingMode, binding.HasSuggestions, binding.ShouldStore, _supportedFeatures, binding.VectorOptions);
             }
             else
             {
@@ -310,7 +316,7 @@ namespace Corax.Indexing
                 IndexFieldsMappingBuilder.GetFieldNameForDoubles(context, clonedFieldName, out var fieldNameDouble);
                 IndexFieldsMappingBuilder.GetFieldForTotalSum(context, clonedFieldName, out var nameSum);
                 var field = source is null 
-                    ? new IndexedField(Constants.IndexWriter.DynamicField, clonedFieldName, fieldNameLong, fieldNameDouble, nameSum, analyzer, mode, hasSuggestions: false, shouldStore: false, _supportedFeatures)
+                    ? new IndexedField(Constants.IndexWriter.DynamicField, clonedFieldName, fieldNameLong, fieldNameDouble, nameSum, analyzer, mode, hasSuggestions: false, shouldStore: false, _supportedFeatures, vectorOptions: null)
                     : source.CreateVirtualIndexedField(new IndexFieldBinding(Constants.IndexWriter.DynamicField, clonedFieldName, fieldNameLong, fieldNameDouble, nameSum, true, analyzer, hasSuggestions: false, FieldIndexingMode.Normal));
                 return field;
             }
@@ -459,7 +465,7 @@ namespace Corax.Indexing
         private void RecordTermDeletionsForEntry(Container.Item entryTerms, LowLevelTransaction llt, Dictionary<long, IndexedField> fieldsByRootPage, HashSet<long> nullTermMarkers, HashSet<long> nonExistingTermMarkers, long dicId, long entryToDelete, int termsPerEntryIndex)
         {
             using var _ = llt.AcquireCompactKey(out var key);
-            var reader = new EntryTermsReader(llt, nullTermMarkers, nonExistingTermMarkers, entryTerms.Address, entryTerms.Length, dicId, key);
+            var reader = new EntryTermsReader(llt, nullTermMarkers, nonExistingTermMarkers, entryTerms.Address, entryTerms.Length, dicId, _persistedVectorRootPages, key);
             
             reader.Reset();
             while (reader.MoveNextStoredField())
@@ -467,9 +473,19 @@ namespace Corax.Indexing
                 // Null/empty is not stored in container, just exists as marker.
                 if (reader.TermId == -1)
                     continue;
+
+                if (reader.IsVectorHash)
+                {
+                    bool exists = fieldsByRootPage.TryGetValue(reader.FieldRootPage, out var field);
+                    PortableExceptions.ThrowIfNot<InvalidOperationException>(exists, "Tried to remove vector but couldn't find the associated indexed field.");
+                    var vectorIndexer = field!.GetVectorIndexer(_transaction.LowLevelTransaction);
+                    Debug.Assert(vectorIndexer != null && reader.StoredField is { Length: 32 });
+                    vectorIndexer.Remove(entryToDelete, reader.StoredField.Value.ToSpan());
+                }
                 
                 Container.Delete(llt, _storedFieldsContainerId, reader.TermId);
             }
+            
             reader.Reset();
             while (reader.MoveNext())
             {
@@ -478,7 +494,7 @@ namespace Corax.Indexing
                     PortableExceptions.Throw<InvalidOperationException>(
                         $"Unable to find matching field for {reader.FieldRootPage} with root page:  {reader.FieldRootPage}. Term: '{reader.Current}'");
                 }
-
+                
                 if (reader.IsNull)
                 {
                     RemoveMarkerTerm(field, reader, Constants.NullValueSlice, entryToDelete, termsPerEntryIndex);
@@ -490,6 +506,9 @@ namespace Corax.Indexing
                     RemoveMarkerTerm(field, reader, Constants.NonExistingValueSlice, entryToDelete, termsPerEntryIndex);
                     continue;
                 }
+
+                if (reader.IsVectorHash)
+                    PortableExceptions.Throw<InvalidOperationException>($"Field with vector object should not have any textual/numerical/etc values!");
                 
                 var decodedKey = reader.Current.Decoded();
                 var scope = Slice.From(_entriesAllocator, decodedKey, out Slice termSlice);
@@ -565,6 +584,37 @@ namespace Corax.Indexing
             return pageToField;
         }
 
+        private void ReadPersistedVectorRootPages(out long[] persistedVectorRootPages)
+        {
+            persistedVectorRootPages = _indexMetadata?.Read(Constants.IndexWriter.VectorFieldsRootPagesSlice)?.Reader.ToUnmanagedSpan<long>().ToSpan().ToArray() ?? [];
+        }
+
+        private void PersistVectorRootPages()
+        {
+            if (_newVectorRootPages is null)
+                return;
+
+            foreach (var vf in _persistedVectorRootPages)
+                _newVectorRootPages.Add(vf);
+
+            var newList = _newVectorRootPages.ToArray();
+            Sort.Run(newList);
+
+            using (_indexMetadata.DirectAdd(Constants.IndexWriter.VectorFieldsRootPagesSlice, newList.Length * sizeof(long), out var destination))
+                newList.CopyTo(new Span<long>(destination, newList.Length));
+
+            _newVectorRootPages = null;
+            _persistedVectorRootPages = null;
+        }
+
+        private void RegisterVectorRootPage(long rootPage)
+        {
+            if (_persistedVectorRootPages.AsSpan().Contains(rootPage)) 
+                return;
+            
+            _newVectorRootPages ??= new();
+            _newVectorRootPages.Add(rootPage);
+        }
 
         private Dictionary<long, IndexedField> GetIndexedFieldByRootPage(Tree fieldsTree)
         {
@@ -712,6 +762,7 @@ namespace Corax.Indexing
             _numberOfModifications = 0;
             _numberOfTermModifications = 0;
             _initialNumberOfEntries = _indexMetadata?.ReadInt64(Constants.IndexWriter.NumberOfEntriesSlice) ?? 0;
+             ReadPersistedVectorRootPages(out _persistedVectorRootPages);
 
             _pforDecoder = new FastPForDecoder(_entriesAllocator);
         }
@@ -880,6 +931,13 @@ namespace Corax.Indexing
                 
                 using var staticFieldScope = stats.For(indexedField.NameForStatistics);
 
+                if (indexedField.VectorIndexer != null)
+                {
+                    using var __ = staticFieldScope.For(CommitOperation.VectorValues);
+                    RegisterVectorRootPage(indexedField.FieldRootPage);
+                    indexedField.VectorIndexer.Commit();
+                }
+                
                 if (indexedField.Textual.Count == 0)
                     continue;
 
@@ -910,6 +968,8 @@ namespace Corax.Indexing
             _pForEncoder.Dispose();
             _pForEncoder = null;
 
+            PersistVectorRootPages();
+            
             // Check if we have suggestions to deal with. 
             if (_hasSuggestions)
             {
@@ -1720,7 +1780,7 @@ namespace Corax.Indexing
             int capacity = Math.Max(256, count + entries.Additions.Count + entries.Removals.Count);
             _entriesToTermsBuffer.EnsureCapacityFor(capacity);
             _pforDecoder.Init(item.Address + offset, item.Length - offset);
-            Debug.Assert(_entriesToTermsBuffer.Capacity > 0 && _entriesToTermsBuffer.Capacity % 256 ==0, "The buffer must be multiple of 256 for PForDecoder.REad");
+            Debug.Assert(_entriesToTermsBuffer.Capacity > 0 && _entriesToTermsBuffer.Capacity % 256 ==0, "The buffer must be multiple of 256 for PForDecoder.Read");
             _entriesToTermsBuffer.Count = _pforDecoder.Read(_entriesToTermsBuffer.RawItems, _entriesToTermsBuffer.Capacity);
             entries.GetEncodedAdditionsAndRemovals(_entriesAllocator, out long* additions, out long* removals);
 
@@ -2095,6 +2155,13 @@ namespace Corax.Indexing
             _pforDecoder.Dispose();
             _entriesAllocator.Dispose();
             _jsonOperationContext?.Dispose();
+            
+            foreach (var indexedField in _knownFieldsTerms)
+                indexedField.VectorIndexer?.Dispose();
+            
+            foreach (var (_,indexedField) in _dynamicFieldsTerms)
+                indexedField.VectorIndexer?.Dispose();
+            
             if (_ownsTransaction)
                 _transaction?.Dispose();
 

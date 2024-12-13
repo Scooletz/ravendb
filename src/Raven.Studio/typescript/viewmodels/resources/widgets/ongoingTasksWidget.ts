@@ -71,6 +71,11 @@ class ongoingTasksWidget extends websocketBasedWidget<Raven.Server.Dashboard.Clu
             icon: "icon-azure-queue-storage-etl",
             colorClass: "azure-queue-storage-etl",
         },
+        "AmazonSqsQueueEtl": {
+            nameForUI: "Amazon SQS ETL",
+            icon: "icon-amazon-sqs-etl",
+            colorClass: "amazon-sqs-etl",
+        },
         "KafkaQueueSink": {
             nameForUI: "Kafka Sink",
             icon: "icon-kafka-sink",
@@ -306,6 +311,8 @@ class ongoingTasksWidget extends websocketBasedWidget<Raven.Server.Dashboard.Clu
                 return "RabbitQueueEtl";
             case "AzureQueueStorageEtlCount":
                 return "AzureQueueStorageQueueEtl";
+            case "AmazonSqsEtlCount":
+                return "AmazonSqsQueueEtl";
             case "KafkaSinkCount":
                 return "KafkaQueueSink";
             case "RabbitMqSinkCount":
@@ -329,8 +336,9 @@ class ongoingTasksWidget extends websocketBasedWidget<Raven.Server.Dashboard.Clu
         data.Items.forEach(x => {
             for (const key in x) {
                 // eslint-disable-next-line no-prototype-builtins
-                if (!x.hasOwnProperty(key))
+                if (!x.hasOwnProperty(key)) {
                     continue;
+                }
 
                 const value = (x as any)[key];
                 

@@ -91,6 +91,10 @@ namespace FastTests.Issues
                 
                 "Storage.DisableSparseRegions",
 
+                "Indexing.Corax.VectorSearch.DefaultMinimumSimilarity",
+                "Indexing.Corax.VectorSearch.DefaultNumberOfEdges",
+                "Indexing.Corax.VectorSearch.DefaultNumberOfCandidatesForIndexing",
+                "Indexing.Corax.VectorSearch.DefaultNumberOfCandidatesForQuerying",
                 //Obsolete studio keys:
                 "Indexing.Static.SearchEngineType",
                 "Indexing.Analyzers.NGram.MaxGram",

@@ -4,50 +4,68 @@ import endpoints = require("endpoints");
 export interface RevisionsPreviewResultItem {
     Id: string;
     Etag: string;
+    Collection: string;
     LastModified: string;
     ChangeVector: string;
     Flags: string;
     ShardNumber: number;
+    _meta: {
+        uniqueId: string;
+    };
+}
+
+interface Parameters {
+    databaseName: string;
+    start: number;
+    pageSize: number;
+    continuationToken?: string;
+    type?: Raven.Server.Documents.Revisions.RevisionsStorage.RevisionType;
+    collection?: string;
 }
 
 export default class getRevisionsPreviewCommand extends commandBase {
-    private readonly databaseName: string;
-    private readonly start: number;
-    private readonly pageSize: number;
-    private readonly continuationToken?: string;
+    private readonly parameters: Parameters;
 
-    constructor(databaseName: string, start: number, pageSize: number, continuationToken?: string) {
+    constructor(parameters: Parameters) {
         super();
-        this.databaseName = databaseName;
-        this.start = start;
-        this.pageSize = pageSize;
-        this.continuationToken = continuationToken;
+        this.parameters = parameters;
     }
 
     execute(): JQueryPromise<pagedResultWithToken<RevisionsPreviewResultItem>> {
         const url = endpoints.databases.studioCollections.studioRevisionsPreview + this.urlEncodeArgs(this.getArgsToUse());
 
-        return this.query(url, null, this.databaseName, this.resultsSelector).fail((response: JQueryXHR) => {
+        return this.query(url, null, this.parameters.databaseName, this.resultsSelector).fail((response: JQueryXHR) => {
             this.reportError("Failed to get revisions preview", response.responseText, response.statusText);
         });
     }
 
     private getArgsToUse() {
-        if (this.continuationToken) {
+        const { start, pageSize, continuationToken, type, collection } = this.parameters;
+        
+        if (continuationToken) {
             return {
-                continuationToken: this.continuationToken
+                continuationToken,
+                type,
+                collection
             };
         }
 
         return {
-            start: this.start,
-            pageSize: this.pageSize
+            start,
+            pageSize,
+            type,
+            collection
         };
     }
 
     private resultsSelector(dto: resultsWithCountAndToken<RevisionsPreviewResultItem>): pagedResultWithToken<RevisionsPreviewResultItem> {
         return {
-            items: dto.Results,
+            items: dto.Results.map((x) => ({
+                ...x,
+                _meta: {
+                    uniqueId: _.uniqueId(),
+                },
+            })),
             totalResultCount: dto.TotalResults,
             continuationToken: dto.ContinuationToken,
         };

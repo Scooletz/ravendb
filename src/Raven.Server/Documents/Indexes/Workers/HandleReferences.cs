@@ -35,6 +35,11 @@ namespace Raven.Server.Documents.Indexes.Workers
             return GetDocumentItem(databaseContext, key);
         }
 
+        protected override string GetNextItemId(IndexItem indexItem)
+        {
+            return indexItem.LowerId;
+        }
+
         public static IndexItem GetDocumentItem(DocumentsOperationContext databaseContext, Slice key)
         {
             // when there is conflict, we need to apply same behavior as if the document would not exist
@@ -246,7 +251,7 @@ namespace Raven.Server.Documents.Indexes.Workers
                                                 if (CanContinueReferenceBatch() == false)
                                                 {
                                                     // updating the last reference state in order to continue from the place we left off
-                                                    referenceState = new ReferenceState(referencedItem.Key, referencedItem.Etag, current.LowerSourceDocumentId ?? current.Id, lastIndexedParentEtag);
+                                                    referenceState = new ReferenceState(referencedItem.Key, referencedItem.Etag, GetNextItemId(current), lastIndexedParentEtag);
 
                                                     if (batchContinuationResult != Index.CanContinueBatchResult.RenewTransaction)
                                                     {
@@ -511,6 +516,8 @@ namespace Raven.Server.Documents.Indexes.Workers
         }
 
         protected abstract IndexItem GetItem(DocumentsOperationContext databaseContext, Slice key);
+
+        protected abstract string GetNextItemId(IndexItem indexItem);
 
         protected virtual void DeleteReferences(string collection, IndexingStatsScope stats, DocumentsOperationContext databaseContext, TransactionOperationContext indexContext)
         {

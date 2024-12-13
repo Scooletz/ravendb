@@ -59,7 +59,7 @@ namespace Raven.Server.Documents.Indexes
         private readonly TableSchema _errorsSchema = new TableSchema();
 
         private readonly Dictionary<string, CollectionName> _referencedCollections;
-
+        
         private StorageEnvironment _environment;
 
         private long _lastDatabaseEtagOnIndexCreation;
@@ -192,8 +192,14 @@ namespace Raven.Server.Documents.Indexes
                     string configurationKey = nameof(SearchEngineType);
                     string configurationName = _index.Type.IsAuto() ? RavenConfiguration.GetKey(x => x.Indexing.AutoIndexingEngineType) : RavenConfiguration.GetKey(x => x.Indexing.StaticIndexingEngineType);
 
-                    SearchEngineType defaultEngineType =
-                        _index.Type.IsAuto() ? _index.Configuration.AutoIndexingEngineType : _index.Configuration.StaticIndexingEngineType;
+                    SearchEngineType defaultEngineType = _index.Type.IsAuto() switch
+                    {
+                        // We only support Vectors in Corax, so if an auto-index is using it, let's already set it up as such, regardless
+                        // of what type of default storage engine is configured.
+                        true when _index.Definition.IndexFields.Any(x=> x.Value.Vector != null) => SearchEngineType.Corax,
+                        true => _index.Configuration.AutoIndexingEngineType,
+                        false => _index.Configuration.StaticIndexingEngineType
+                    };
 
                     if (defaultEngineType == SearchEngineType.None)
                         throw new InvalidDataException($"Default search engine is {SearchEngineType.None}. Please set {configurationName}.");
@@ -1197,6 +1203,41 @@ namespace Raven.Server.Documents.Indexes
             }
         }
 
+        internal Dictionary<string, int> ReadVectorDimensions()
+        {
+            // (string FieldName, int VectorSizeInBytes)
+            Dictionary<string, int> container = new();
+
+            using (var tx = _environment.ReadTransaction())
+            {
+                var vectorDimensionsTree = tx.ReadTree(IndexSchema.VectorDimensionsTree);
+                
+                if (vectorDimensionsTree != null)
+                {
+                    using (var it = vectorDimensionsTree.Iterate(prefetch: false))
+                    {
+                        if (it.Seek(Slices.BeforeAllKeys))
+                        {
+                            do
+                            {
+                                container.Add(it.CurrentKey.ToString(), Convert.ToInt32(it.CreateReaderForCurrent().ToStringValue()));
+                            } while (it.MoveNext());
+                        }
+                    }
+                }
+            }
+
+            return container;
+        }
+
+        internal static void WriteVectorDimensions(RavenTransaction tx, Dictionary<string, int> vectorDimensionsToAdd)
+        {
+            var fieldsTree = tx.InnerTransaction.CreateTree(IndexSchema.VectorDimensionsTree);
+            
+            foreach (var kvp in vectorDimensionsToAdd)
+                fieldsTree.Add(kvp.Key, kvp.Value.ToString());
+        }
+
         internal sealed class IndexSchema
         {
             public const string ConfigurationTree = "Configuration";
@@ -1216,6 +1257,8 @@ namespace Raven.Server.Documents.Indexes
             public const string ReferencesForCompareExchange = "ReferencesForCompareExchange";
 
             public const string LastDocumentEtagOnIndexCreationTree = "LastDocumentEtagOnIndexCreation";
+
+            public const string VectorDimensionsTree = "VectorDimensions";
 
             public static readonly Slice TypeSlice;
 

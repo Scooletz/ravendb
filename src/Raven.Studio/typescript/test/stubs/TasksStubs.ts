@@ -37,6 +37,7 @@ export class TasksStubs {
                 TasksStubs.getKafkaEtl(),
                 TasksStubs.getRabbitEtl(),
                 TasksStubs.getAzureQueueStorageEtl(),
+                TasksStubs.getAmazonSqsEtl(),
                 TasksStubs.getKafkaSink(),
                 TasksStubs.getRabbitSink(),
                 TasksStubs.getReplicationSink(),
@@ -60,6 +61,7 @@ export class TasksStubs {
                 TasksStubs.getKafkaProgress(),
                 TasksStubs.getRabbitProgress(),
                 TasksStubs.getAzureQueueStorageProgress(),
+                TasksStubs.getAmazonSqsProgress(),
             ],
         };
     }
@@ -167,6 +169,11 @@ export class TasksStubs {
 
     static getAzureQueueStorageProgress(): EtlTaskProgress {
         const taskName = TasksStubs.getAzureQueueStorageEtl().TaskName;
+        return TasksStubs.getEtlProgress(taskName, "Queue");
+    }
+
+    static getAmazonSqsProgress(): EtlTaskProgress {
+        const taskName = TasksStubs.getAmazonSqsEtl().TaskName;
         return TasksStubs.getEtlProgress(taskName, "Queue");
     }
 
@@ -345,6 +352,24 @@ export class TasksStubs {
             MentorNode: null,
             Url: "localhost:6056",
             BrokerType: "AzureQueueStorage",
+            PinToMentorNode: false,
+            Configuration: null,
+        };
+    }
+
+    static getAmazonSqsEtl(): OngoingTaskQueueEtl {
+        return {
+            TaskName: "AmazonSqsTask",
+            TaskId: 305,
+            TaskType: "QueueEtl",
+            ConnectionStringName: "AQS-CS",
+            ResponsibleNode: TasksStubs.getResponsibleNode(),
+            TaskState: "Enabled",
+            Error: null,
+            TaskConnectionStatus: "Active",
+            MentorNode: null,
+            Url: "https://queue.amazonaws.com",
+            BrokerType: "AmazonSqs",
             PinToMentorNode: false,
             Configuration: null,
         };

@@ -1381,8 +1381,9 @@ class ongoingTasksStats extends shardViewModelBase {
                 const startDateAsInt = startDate.getTime();
 
                 const endDateAsInt = startDateAsInt + perf.DurationInMs;
-                if (endDateAsInt < visibleStartDateAsInt || visibleEndDateAsInt < startDateAsInt)
+                if (endDateAsInt < visibleStartDateAsInt || visibleEndDateAsInt < startDateAsInt) {
                     continue;
+                }
 
                 const yOffset = isOpened ? ongoingTasksStats.trackHeight + ongoingTasksStats.stackPadding : 0;
                 const stripesYStart = yStart + (isOpened ? yOffset : 0);
@@ -1437,8 +1438,9 @@ class ongoingTasksStats extends shardViewModelBase {
                 const startDateAsInt = perfWithCache.StartedAsDate.getTime();
                 const endDateAsInt = startDateAsInt + connPerf.DurationInMs;
                 
-                if (endDateAsInt < visibleStartDateAsInt || visibleEndDateAsInt < startDateAsInt)
+                if (endDateAsInt < visibleStartDateAsInt || visibleEndDateAsInt < startDateAsInt) {
                     continue;
+                }
                 
                 const workerId = perfWithCache.WorkerId;
                 const workerIndex = workerIdToWorkerIndex.get(workerId);
@@ -1539,8 +1541,9 @@ class ongoingTasksStats extends shardViewModelBase {
                 const startDateAsInt = startDate.getTime();
 
                 const endDateAsInt = startDateAsInt + batchPerf.DurationInMs;
-                if (endDateAsInt < visibleStartDateAsInt || visibleEndDateAsInt < startDateAsInt)
+                if (endDateAsInt < visibleStartDateAsInt || visibleEndDateAsInt < startDateAsInt) {
                     continue;
+                }
 
                 const yOffset = isOpened ? ongoingTasksStats.trackHeight + ongoingTasksStats.stackPadding : 0;
                 const stripesYStart = yStart + (isOpened ? yOffset + ongoingTasksStats.trackHeight * 2 + (workerIndex * ongoingTasksStats.openedSubscriptionWorkerTrackHeight) + 3 : 0);
@@ -1578,8 +1581,9 @@ class ongoingTasksStats extends shardViewModelBase {
                 const startDateAsInt = perfWithCache.StartedAsDate.getTime();
                 const endDateAsInt = startDateAsInt + connPerf.DurationInMs;
 
-                if (endDateAsInt < visibleStartDateAsInt || visibleEndDateAsInt < startDateAsInt)
+                if (endDateAsInt < visibleStartDateAsInt || visibleEndDateAsInt < startDateAsInt) {
                     continue;
+                }
 
                 context.save();
 
@@ -1788,6 +1792,8 @@ class ongoingTasksStats extends shardViewModelBase {
                 return "RabbitMQ ETL";
             case "AzureQueueStorage":
                 return "Azure Queue Storage";
+            case "AmazonSqs":
+                return "Amazon SQS";
             case "SubscriptionConnection":
                 return "Subscription";
             case "SubscriptionBatch":
@@ -2088,6 +2094,7 @@ class ongoingTasksStats extends shardViewModelBase {
                 type === "ElasticSearch" || 
                 type === "Kafka" || 
                 type === "AzureQueueStorage" ||
+                type === "AmazonSqs" ||
                 type === "RabbitMQ";
             
             const isSubscription = type === "SubscriptionConnection" || type === "SubscriptionBatch" || type === "AggregatedBatchesInfo";
@@ -2154,6 +2161,7 @@ class ongoingTasksStats extends shardViewModelBase {
                     case "Olap":
                     case "ElasticSearch":
                     case "AzureQueueStorage":
+                    case "AmazonSqs":
                     case "Kafka":
                     case "RabbitMQ": { 
                         const elementWithData = context.rootStats as EtlPerformanceBaseWithCache;

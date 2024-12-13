@@ -300,6 +300,7 @@ class indexPerformance extends shardViewModelBase {
             "TextualValues": undefined as string,
             "FloatingValues": undefined as string,
             "IntegerValues": undefined as string,
+            "VectorValues": undefined as string,
             "Deletions": undefined as string,
             "DynamicFields": undefined as string,
             "SpatialValues": undefined as string,
@@ -994,8 +995,9 @@ class indexPerformance extends shardViewModelBase {
                         continue;
                     }
 
-                    if (startDateAsInt + perf.DurationInMs < visibleStartDateAsInt)
+                    if (startDateAsInt + perf.DurationInMs < visibleStartDateAsInt) {
                         continue;
+                    }
                     
                     if (perfWithCache.WaitOperation && perfWithCache.WaitOperation.DurationInMs > 1) {
                         this.drawWaitTime(context, xScale(perfWithCache.StartedAsDate), stripesYStart, extentFunc, yOffset !== 0, perfWithCache.WaitOperation);
@@ -1271,10 +1273,12 @@ class indexPerformance extends shardViewModelBase {
                 luceneMergeDetails = `<div class="tooltip-header">Lucene Merge Details</div>`;
                 luceneMergeDetails += `<div class="tooltip-li">Total merges: <div class="value">${element.LuceneMergeDetails.TotalMergesCount.toLocaleString()}</div></div>`;
                 luceneMergeDetails += `<div class="tooltip-li">Executed merges: <div class="value">${element.LuceneMergeDetails.ExecutedMergesCount.toLocaleString()}</div></div>`;
-                if (element.LuceneMergeDetails.MergedFilesCount > 0)
+                if (element.LuceneMergeDetails.MergedFilesCount > 0) {
                     luceneMergeDetails += `<div class="tooltip-li">Merged files: <div class="value">${element.LuceneMergeDetails.MergedFilesCount.toLocaleString()}</div></div>`;
-                if (element.LuceneMergeDetails.MergedDocumentsCount > 0)
+                }
+                if (element.LuceneMergeDetails.MergedDocumentsCount > 0) {
                     luceneMergeDetails += `<div class="tooltip-li">Merged documents: <div class="value">${element.LuceneMergeDetails.MergedDocumentsCount.toLocaleString()}</div></div>`;
+                }
                 tooltipHtml += luceneMergeDetails;
             }
             

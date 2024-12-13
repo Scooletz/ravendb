@@ -358,6 +358,10 @@ namespace Raven.Server.Dashboard
             long snowflakeEtlCountOnNode = GetTaskCountOnNode<SnowflakeEtlConfiguration>(database, dbRecord, serverStore, database.EtlLoader.SnowflakeDestinations,
                 task => EtlLoader.GetProcessState(task.Transforms, database, task.Name));
             
+            var amazonSqsEtlCount = database.EtlLoader.GetQueueDestinationCountByBroker(QueueBrokerType.AmazonSqs);
+            long amazonSqsEtlCountOnNode = GetTaskCountOnNode<QueueEtlConfiguration>(database, dbRecord, serverStore, database.EtlLoader.QueueDestinations,
+                task => EtlLoader.GetProcessState(task.Transforms, database, task.Name), task => task.BrokerType == QueueBrokerType.AmazonSqs);
+            
             var periodicBackupCount = database.PeriodicBackupRunner.PeriodicBackups.Count;
             long periodicBackupCountOnNode = BackupUtils.GetTasksCountOnNode(serverStore, database.Name, context);
 
@@ -374,8 +378,8 @@ namespace Raven.Server.Dashboard
 
             ongoingTasksCount = extRepCount + replicationHubCount + replicationSinkCount +
                                 ravenEtlCount + sqlEtlCount + elasticSearchEtlCount + olapEtlCount + kafkaEtlCount +
-                                rabbitMqEtlCount + azureQueueStorageEtlCount + periodicBackupCount + subscriptionCount +
-                                kafkaSinkCount + rabbitMqSinkCount;
+                                rabbitMqEtlCount + azureQueueStorageEtlCount + amazonSqsEtlCount + periodicBackupCount +
+                                subscriptionCount + kafkaSinkCount + rabbitMqSinkCount;
 
             return new DatabaseOngoingTasksInfoItem
             {
@@ -390,6 +394,7 @@ namespace Raven.Server.Dashboard
                 KafkaEtlCount = kafkaEtlCountOnNode,
                 RabbitMqEtlCount = rabbitMqEtlCountOnNode,
                 AzureQueueStorageEtlCount = azureQueueStorageEtlCountOnNode,
+                AmazonSqsEtlCount = amazonSqsEtlCountOnNode,
                 PeriodicBackupCount = periodicBackupCountOnNode,
                 SubscriptionCount = subscriptionCountOnNode,
                 KafkaSinkCount = kafkaSinkCountOnNode,

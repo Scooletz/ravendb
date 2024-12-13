@@ -1,10 +1,8 @@
 using System;
-using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using System.Runtime.Intrinsics.X86;
 using System.Text;
 using Corax.Analyzers;
 using Corax.Mappings;
@@ -22,12 +20,10 @@ using Voron.Data.CompactTrees;
 using Voron.Data.Containers;
 using Voron.Data.Fixed;
 using Voron.Data.Lookups;
-using Voron.Data.PostingLists;
 using Voron.Impl;
 using InvalidOperationException = System.InvalidOperationException;
 using static Voron.Data.CompactTrees.CompactTree;
 using Voron.Util;
-using System.Runtime.Intrinsics;
 
 namespace Corax.Querying;
 
@@ -39,9 +35,10 @@ public sealed unsafe partial class IndexSearcher : IDisposable
     private readonly IndexFieldsMapping _fieldMapping;
     private HashSet<long> _nullTermsMarkers;
     private HashSet<long> _nonExistingTermsMarkers;
+    private long[] _vectorFieldsMarkers;
     private Tree _persistedDynamicTreeAnalyzer;
     private long? _numberOfEntries;
-    public bool _nullTermsMarkersLoaded;
+    private bool _nullTermsMarkersLoaded;
     private bool _nonExistingTermsMarkersLoaded;
 
     /// <summary>
@@ -50,7 +47,7 @@ public sealed unsafe partial class IndexSearcher : IDisposable
     /// </summary>
     public bool ForceNonAccelerated { get; set; }
 
-    public bool IsAccelerated => Vector256.IsHardwareAccelerated && !ForceNonAccelerated;
+    public bool IsAccelerated => AdvInstructionSet.IsAcceleratedVector256 && !ForceNonAccelerated;
 
     public long NumberOfEntries => _numberOfEntries ??= _metadataTree?.ReadInt64(Constants.IndexWriter.NumberOfEntriesSlice) ?? 0;
     
@@ -131,7 +128,7 @@ public sealed unsafe partial class IndexSearcher : IDisposable
         InitializeSpecialTermsMarkers();
         
         var item = Container.MaybeGetFromSamePage(_transaction.LowLevelTransaction, ref p, loc);
-        reader = new EntryTermsReader(_transaction.LowLevelTransaction, _nullTermsMarkers, _nonExistingTermsMarkers, item.Address, item.Length, _dictionaryId, existingKey);
+        reader = new EntryTermsReader(_transaction.LowLevelTransaction, _nullTermsMarkers, _nonExistingTermsMarkers, item.Address, item.Length, _dictionaryId, _vectorFieldsMarkers, existingKey);
     }
 
     public LowLevelTransaction.CompactKeyScope GetEntryTermsReader(long id, ref Page p, out EntryTermsReader reader)
@@ -145,7 +142,7 @@ public sealed unsafe partial class IndexSearcher : IDisposable
         var scope = llt.AcquireCompactKey(out var key);
         
         var item = Container.MaybeGetFromSamePage(_transaction.LowLevelTransaction, ref p, loc);
-        reader = new EntryTermsReader(_transaction.LowLevelTransaction, _nullTermsMarkers, _nonExistingTermsMarkers, item.Address, item.Length, _dictionaryId, key);
+        reader = new EntryTermsReader(_transaction.LowLevelTransaction, _nullTermsMarkers, _nonExistingTermsMarkers, item.Address, item.Length, _dictionaryId, _vectorFieldsMarkers, key);
         
         return scope;
     }
@@ -595,8 +592,10 @@ public sealed unsafe partial class IndexSearcher : IDisposable
             if (_nonExistingPostingListsTree != null)
                 LoadSpecialTermMarkers(_nonExistingPostingListsTree, _nonExistingTermsMarkers);
         }
-    }
 
+        _vectorFieldsMarkers ??= _metadataTree?.Read(Constants.IndexWriter.VectorFieldsRootPagesSlice)?.Reader.ToUnmanagedSpan<long>().ToSpan().ToArray() ?? [];
+    }
+    
     public static void LoadSpecialTermMarkers(Tree postingList, HashSet<long> termsMarkers)
     {
         using (var it = postingList.Iterate(prefetch: false))
@@ -612,18 +611,20 @@ public sealed unsafe partial class IndexSearcher : IDisposable
         }
     }
 
-    private long GetRootPageByFieldName(Slice fieldName)
+    private bool TryGetRootPageByFieldName(Slice fieldName, out long rootPage)
     {
-        var it = _fieldsTree.Iterate(false);
-
-        if (_fieldsTree.TryRead(fieldName, out var reader) == false)
-            return -1;
+        var result = _fieldsTree?.Read(fieldName);
+        if (result is null)
+        {
+            rootPage = -1;
+            return false;
+        }
         
-        var state = (LookupState*)reader.Base;
+        var state = (LookupState*)result.Reader.Base;
         Debug.Assert(state->RootObjectType is RootObjectType.Lookup, "state->RootObjectType is RootObjectType.Lookup");
-        return state->RootPage;
+        rootPage = state->RootPage;
+        return true;
     }
-    
     
     private Dictionary<long, Slice> _pageToField;
     public Dictionary<long, Slice> GetIndexedFieldNamesByRootPage()

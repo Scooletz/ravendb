@@ -3,8 +3,6 @@ using Corax.Mappings;
 using Corax.Querying.Matches;
 using Corax.Querying.Matches.Meta;
 using Voron;
-using Voron.Data.CompactTrees;
-using static Voron.Global.Constants;
 
 namespace Corax.Querying;
 
@@ -14,17 +12,18 @@ public partial class IndexSearcher
         where TInner : IQueryMatch
     {
         if (_fieldsTree == null || _fieldsTree.TryGetCompactTreeFor(field.FieldName, out var compactTree) == false)
-            return default;
+            return TermMatch.CreateEmpty(this, this.Allocator);
 
         Allocator.Allocate(terms.Length * sizeof(long), out var sequenceBuffer);
         Span<long> sequence = sequenceBuffer.ToSpan<long>();
-        
+
         var termsVectorFieldName = field.GetPhraseQueryContainerName(Allocator);
-        var vectorRootPage = GetRootPageByFieldName(termsVectorFieldName);
-        var rootPage = GetRootPageByFieldName(field.FieldName);
+
+        if (TryGetRootPageByFieldName(termsVectorFieldName, out var vectorRootPage) == false || TryGetRootPageByFieldName(field.FieldName, out var rootPage) == false)
+            return TermMatch.CreateEmpty(this, Allocator);
 
         using var _ = _fieldsTree.Llt.AcquireCompactKey(out var termKey);
-        
+
         for (var i = 0; i < terms.Length; ++i)
         {
             termKey.Set(terms[i]);
@@ -35,7 +34,7 @@ public partial class IndexSearcher
 
             sequence[i] = termContainerId;
         }
-        
+
         return new PhraseMatch<TInner>(this, inner, sequenceBuffer, vectorRootPage, rootPage: rootPage);
     }
 }

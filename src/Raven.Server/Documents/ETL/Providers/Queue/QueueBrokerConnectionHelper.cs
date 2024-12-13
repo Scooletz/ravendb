@@ -1,18 +1,17 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
-using Azure.Core.Pipeline;
+using Amazon;
+using Amazon.SQS;
 using Azure.Identity;
 using Azure.Storage.Queues;
-using Azure.Storage.Queues.Models;
 using Confluent.Kafka;
-using NetTopologySuite.IO;
 using Org.BouncyCastle.Utilities.IO.Pem;
 using RabbitMQ.Client;
 using Raven.Client.Documents.Operations.ETL.Queue;
 using Raven.Server.Utils;
-using Sparrow.Logging;
 using Sparrow.Server.Logging;
+using ClientConfig = Confluent.Kafka.ClientConfig;
 using PemWriter = Org.BouncyCastle.OpenSsl.PemWriter;
 
 namespace Raven.Server.Documents.ETL.Providers.Queue;
@@ -112,7 +111,7 @@ public static class QueueBrokerConnectionHelper
                     azureQueueStorageConnectionSettings.EntraId.ClientId,
                     azureQueueStorageConnectionSettings.EntraId.ClientSecret));
         }
-        else if(azureQueueStorageConnectionSettings.Passwordless != null)
+        else if (azureQueueStorageConnectionSettings.Passwordless != null)
         {
             var queueUri = new Uri($"{azureQueueStorageConnectionSettings.GetStorageUrl()}{queueName}");
             queueClient = new QueueClient(queueUri, new DefaultAzureCredential());
@@ -143,12 +142,42 @@ public static class QueueBrokerConnectionHelper
                     azureQueueStorageConnectionSettings.EntraId.ClientId,
                     azureQueueStorageConnectionSettings.EntraId.ClientSecret));
         }
-        else if(azureQueueStorageConnectionSettings.Passwordless != null)
+        else if (azureQueueStorageConnectionSettings.Passwordless != null)
         {
             var queueUri = new Uri($"{azureQueueStorageConnectionSettings.GetStorageUrl()}");
             queueServiceClient = new QueueServiceClient(queueUri, new DefaultAzureCredential());
         }
 
         return queueServiceClient;
+    }
+
+    public static IAmazonSQS CreateAmazonSqsClient(AmazonSqsConnectionSettings connectionSettings)
+    {
+        AmazonSQSClient sqsClient = null;
+
+        if (connectionSettings.Basic != null)
+        {
+            var region = RegionEndpoint.GetBySystemName(connectionSettings.Basic.RegionName);
+            sqsClient = new AmazonSQSClient(connectionSettings.Basic.AccessKey, connectionSettings.Basic.SecretKey,
+                region);
+        }
+        else if (connectionSettings.Passwordless)
+        {
+            sqsClient = new AmazonSQSClient();
+        }
+        else if (connectionSettings.UseEmulator)
+        {
+            var emulatorUrl = Environment.GetEnvironmentVariable(AmazonSqsConnectionSettings.EmulatorUrlEnvironmentVariable);
+            if (string.IsNullOrEmpty(emulatorUrl))
+            {
+                throw new InvalidOperationException(
+                    $"The environment variable '{AmazonSqsConnectionSettings.EmulatorUrlEnvironmentVariable}' is required when using the Amazon SQS emulator.");
+            }
+
+            sqsClient = new AmazonSQSClient("dummy-access-key", "dummy-secret-key",
+                new AmazonSQSConfig { ServiceURL = emulatorUrl, UseHttp = true });
+        }
+
+        return sqsClient;
     }
 }

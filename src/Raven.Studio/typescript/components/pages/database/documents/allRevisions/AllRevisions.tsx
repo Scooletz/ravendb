@@ -1,144 +1,144 @@
-import { useReactTable, getCoreRowModel, ColumnDef } from "@tanstack/react-table";
-import { databaseSelectors } from "components/common/shell/databaseSliceSelectors";
 import SizeGetter from "components/common/SizeGetter";
-import { virtualTableUtils } from "components/common/virtualTable/utils/virtualTableUtils";
+import { Label } from "reactstrap";
+import RichAlert from "components/common/RichAlert";
+import SelectCreatable from "components/common/select/SelectCreatable";
+import AllRevisionsWithSize from "components/pages/database/documents/allRevisions/partials/AllRevisionsWithSize";
+import { allRevisionsUtils } from "components/pages/database/documents/allRevisions/common/allRevisionsUtils";
+import {
+    OptionWithCount,
+    SelectOptionWithCount,
+    SingleValueWithCount,
+} from "components/pages/database/documents/allRevisions/partials/AllRevisionsSelectComponents";
+import useAllRevisionsFilters from "components/pages/database/documents/allRevisions/hooks/useAllRevisionsFilters";
+import { RevisionsPreviewResultItem } from "commands/database/documents/getRevisionsPreviewCommand";
+import { useEffect, useRef, useState } from "react";
+import useConfirm from "components/common/ConfirmDialog";
+import { useAsyncCallback } from "react-async-hook";
+import ButtonWithSpinner from "components/common/ButtonWithSpinner";
 import { useServices } from "components/hooks/useServices";
 import { useAppSelector } from "components/store";
-import CellDocumentValue from "components/common/virtualTable/cells/CellDocumentValue";
-import { CellWithCopyWrapper } from "components/common/virtualTable/cells/CellWithCopy";
-import { Icon } from "components/common/Icon";
-import VirtualTable from "components/common/virtualTable/VirtualTable";
-import { useVirtualTableWithToken } from "components/common/virtualTable/hooks/useVirtualTableWithToken";
-import VirtualTableWithLazyLoading from "components/common/virtualTable/VirtualTableWithLazyLoading";
-import { RevisionsPreviewResultItem } from "commands/database/documents/getRevisionsPreviewCommand";
-import { useMemo } from "react";
-import { useVirtualTableWithLazyLoading } from "components/common/virtualTable/hooks/useVirtualTableWithLazyLoading";
+import { databaseSelectors } from "components/common/shell/databaseSliceSelectors";
+import messagePublisher from "common/messagePublisher";
+import { AllRevisionsFetcherRef } from "components/pages/database/documents/allRevisions/common/allRevisionsTypes";
+import { MultiRadioToggle } from "components/common/MultiRadioToggle";
+import collectionsTracker from "common/helpers/database/collectionsTracker";
+import { HStack } from "components/common/utilities/HStack";
+import { VStack } from "components/common/utilities/VStack";
 
-interface AllRevisionsWithSizeProps {
-    width: number;
-    height: number;
-}
+type RevisionType = Raven.Server.Documents.Revisions.RevisionsStorage.RevisionType;
 
 export default function AllRevisions() {
-    return (
-        <div className="content-padding">
-            <SizeGetter
-                isHeighRequired
-                render={({ width, height }) => <AllRevisionsWithSize width={width} height={height} />}
-            />
-        </div>
-    );
-}
+    const { type, collection, reload: reloadOptions } = useAllRevisionsFilters();
+    const [selectedRows, setSelectedRows] = useState<RevisionsPreviewResultItem[]>([]);
 
-function AllRevisionsWithSize({ width, height }: AllRevisionsWithSizeProps) {
-    const isSharded = useAppSelector(databaseSelectors.activeDatabase)?.isSharded;
+    const fetcherRef = useRef<AllRevisionsFetcherRef>(null);
 
-    const tableProps = {
-        width: virtualTableUtils.getTableBodyWidth(width),
-        height: height,
-    };
-
-    return isSharded ? <AllRevisionsTableSharded {...tableProps} /> : <AllRevisionsTableNonSharded {...tableProps} />;
-}
-
-function AllRevisionsTableNonSharded({ width, height }: AllRevisionsWithSizeProps) {
-    const databaseName = useAppSelector(databaseSelectors.activeDatabaseName);
+    const confirm = useConfirm();
     const { databasesService } = useServices();
+    const activeDatabaseName = useAppSelector(databaseSelectors.activeDatabaseName);
 
-    const { dataPreview, componentProps } = useVirtualTableWithLazyLoading({
-        fetchData: (skip: number, take: number) => {
-            if (databaseName) {
-                return databasesService.getRevisionsPreview(databaseName, skip, take);
-            }
-        },
+    // Reset selected rows when filters change
+    useEffect(() => {
+        setSelectedRows([]);
+    }, [type.value, collection.value]);
+
+    const asyncRemoveRevisions = useAsyncCallback(async () => {
+        const uniqueIds = Array.from(new Set(selectedRows.map((x) => x.Id)));
+
+        for (const id of uniqueIds) {
+            await databasesService.deleteRevisionsForDocuments(activeDatabaseName, {
+                DocumentIds: [id],
+                RevisionsChangeVectors: selectedRows.filter((x) => x.Id === id).map((x) => x.ChangeVector),
+                RemoveForceCreatedRevisions: false,
+            });
+        }
+
+        messagePublisher.reportSuccess(`Successfully removed ${selectedRows.length} revisions`);
+        setSelectedRows([]);
+        await reloadOptions();
+
+        collectionsTracker.default
+            .getAllRevisionsCollection()
+            .documentCount(
+                collectionsTracker.default.getAllRevisionsCollection().documentCount() - selectedRows.length
+            );
     });
 
-    const columns = useMemo(() => getColumnDefs(databaseName, width, false), [databaseName, width]);
-
-    const table = useReactTable({
-        defaultColumn: {
-            enableSorting: false,
-        },
-        columns,
-        data: dataPreview,
-        columnResizeMode: "onChange",
-        getCoreRowModel: getCoreRowModel(),
-    });
-
-    return <VirtualTableWithLazyLoading {...componentProps} table={table} heightInPx={height} />;
-}
-
-function AllRevisionsTableSharded({ width, height }: AllRevisionsWithSizeProps) {
-    const databaseName = useAppSelector(databaseSelectors.activeDatabaseName);
-    const { databasesService } = useServices();
-
-    const { dataArray, componentProps } = useVirtualTableWithToken({
-        fetchData: (skip: number, take: number, continuationToken?: string) =>
-            databasesService.getRevisionsPreview(databaseName, skip, take, continuationToken),
-    });
-
-    const columns = useMemo(() => getColumnDefs(databaseName, width, true), [databaseName, width]);
-
-    const table = useReactTable({
-        defaultColumn: {
-            enableSorting: false,
-        },
-        columns,
-        data: dataArray,
-        columnResizeMode: "onChange",
-        getCoreRowModel: getCoreRowModel(),
-    });
-
-    return <VirtualTable {...componentProps} table={table} heightInPx={height} />;
-}
-
-const getColumnDefs = (
-    databaseName: string,
-    tableBodyWidth: number,
-    isSharded?: boolean
-): ColumnDef<RevisionsPreviewResultItem>[] => {
-    const sizeProvider = virtualTableUtils.getCellSizeProvider(tableBodyWidth);
-
-    const columns: ColumnDef<RevisionsPreviewResultItem>[] = [
-        {
-            accessorKey: "Id",
-            cell: ({ getValue }) => (
-                <CellDocumentValue value={getValue<string>()} databaseName={databaseName} hasHyperlinkForIds />
-            ),
-            size: sizeProvider(30),
-        },
-        {
-            accessorKey: "Etag",
-            cell: CellWithCopyWrapper,
-            size: sizeProvider(10),
-        },
-        {
-            header: "Change Vector",
-            accessorKey: "ChangeVector",
-            cell: CellWithCopyWrapper,
-            size: sizeProvider(25),
-        },
-        {
-            header: "Last Modified",
-            accessorKey: "LastModified",
-            cell: CellWithCopyWrapper,
-            size: sizeProvider(25),
-        },
-    ];
-
-    if (isSharded) {
-        columns.push({
-            id: "ShardNumber",
-            header: () => (
+    const handleRemoveConfirmation = async () => {
+        const isConfirmed = await confirm({
+            title: (
                 <span>
-                    <Icon icon="shard" /> Shard
+                    Delete selected <strong>({selectedRows.length})</strong> revisions?
                 </span>
             ),
-            accessorKey: "ShardNumber",
-            cell: CellWithCopyWrapper,
-            size: sizeProvider(10),
+            icon: "trash",
+            actionColor: "danger",
+            confirmText: "Delete",
         });
-    }
 
-    return columns;
-};
+        if (isConfirmed) {
+            await asyncRemoveRevisions.execute();
+            await fetcherRef.current?.reload();
+        }
+    };
+
+    return (
+        <VStack className="content-padding" gap={2}>
+            <VStack>
+                <ButtonWithSpinner
+                    color="danger"
+                    onClick={handleRemoveConfirmation}
+                    disabled={selectedRows.length === 0}
+                    isSpinning={asyncRemoveRevisions.loading}
+                    icon="trash"
+                    className="w-fit-content rounded-pill"
+                >
+                    Remove {selectedRows.length != 0 && selectedRows.length} revisions
+                </ButtonWithSpinner>
+                <HStack gap={2} className="my-3">
+                    <div>
+                        <Label className="small-label">Filter by collection</Label>
+                        <SelectCreatable
+                            options={collection.options}
+                            isLoading={collection.isLoading}
+                            placeholder="Select collection"
+                            value={collection.options.find((x) => x.value === collection.value)}
+                            onChange={(x: SelectOptionWithCount<string>) => collection.setValue(x?.value ?? "")}
+                            isClearable
+                            components={{ Option: OptionWithCount, SingleValue: SingleValueWithCount }}
+                        />
+                    </div>
+                    <div>
+                        <Label className="small-label">Filter by type</Label>
+                        <MultiRadioToggle<RevisionType>
+                            inputItems={type.options}
+                            selectedItem={type.value}
+                            setSelectedItem={type.setValue}
+                        />
+                    </div>
+                </HStack>
+            </VStack>
+            {type.value !== "All" && collection.value && (
+                <RichAlert variant="warning">
+                    The table contains only part of the results. When the selected revision type is other than
+                    &quot;All&quot; and a collection is selected, only the first {allRevisionsUtils.smallSampleSize}{" "}
+                    results are visible.
+                </RichAlert>
+            )}
+            <SizeGetter
+                isHeighRequired
+                render={({ width, height }) => (
+                    <AllRevisionsWithSize
+                        width={width}
+                        height={height}
+                        selectedType={type.value}
+                        selectedCollectionName={collection.value}
+                        fetcherRef={fetcherRef}
+                        selectedRows={selectedRows}
+                        setSelectedRows={setSelectedRows}
+                    />
+                )}
+            />
+        </VStack>
+    );
+}

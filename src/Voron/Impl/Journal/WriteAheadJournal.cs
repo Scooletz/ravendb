@@ -648,7 +648,7 @@ namespace Voron.Impl.Journal
                     long uptoTxIdExclusive = _waj._env.ActiveTransactions.OldestTransaction;
 
                     var sparseRegionsToFlush = _waj._env.TryGetLatestSparseRegionsToFlush(uptoTxIdExclusive);
-                    if (sparseRegionsToFlush != null)
+                    if (sparseRegionsToFlush != Span<(long Start, long Count)>.Empty)
                     {
                         // This needs to happen _before_ we actually write to the disk
                         // because we _first_ zero a range and then we may write data to that range (filling some of it up).

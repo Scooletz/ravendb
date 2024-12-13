@@ -78,9 +78,10 @@ public unsafe struct EntryTermsReader
     private readonly LowLevelTransaction _llt;
     private readonly HashSet<long> _nullTermsMarkers;
     private readonly HashSet<long> _nonExistingTermsMarkers;
+    private readonly long[] _vectorFieldsMarkers;
     private readonly long _dicId;
     private byte* _cur;
-    private readonly byte* _end, _start;
+    private byte* _end, _start;
     private long _prevTerm;
     private long _prevLong;
 
@@ -97,14 +98,16 @@ public unsafe struct EntryTermsReader
     public bool IsRaw;
     public bool IsList;
     public bool IsNull;
+    public bool IsVectorHash;
     public bool IsNonExisting;
 
     //rootPages has to be sorted.
-    public EntryTermsReader(LowLevelTransaction llt, HashSet<long> nullTermsMarkers, HashSet<long> nonExistingTermsMarkers, byte* cur, int size, long dicId, CompactKey key)
+    public EntryTermsReader(LowLevelTransaction llt, HashSet<long> nullTermsMarkers, HashSet<long> nonExistingTermsMarkers, byte* cur, int size, long dicId, long[] vectorFieldsMarkers, CompactKey key)
     {
         _llt = llt;
         _nullTermsMarkers = nullTermsMarkers;
         _nonExistingTermsMarkers = nonExistingTermsMarkers;
+        _vectorFieldsMarkers = vectorFieldsMarkers;
         _start = _cur;
         _cur = cur;
         _start = cur;
@@ -121,11 +124,15 @@ public unsafe struct EntryTermsReader
     {
         IsNull = false;
         IsNonExisting = false;
-
+        IsVectorHash = false;
+        
         while (MoveNextStoredField())
         {
             if (FieldRootPage == fieldRootPage)
+            {
+                IsVectorHash = _vectorFieldsMarkers != null && _vectorFieldsMarkers.Contains(fieldRootPage);
                 return true;
+            }
         }
         return false;
     }
@@ -143,6 +150,7 @@ public unsafe struct EntryTermsReader
     {        
         IsNull = false;
         IsNonExisting = false;
+        IsVectorHash = false;
 
         while (MoveNextSpatial())
         {
@@ -160,6 +168,8 @@ public unsafe struct EntryTermsReader
 
         IsNull = false;
         IsNonExisting = false;
+        IsVectorHash = false;
+
         var termContainerId = VariableSizeEncoding.Read<long>(_cur, out var offset) + _prevTerm;
         _prevTerm = termContainerId;
         _cur += offset;
@@ -205,6 +215,8 @@ public unsafe struct EntryTermsReader
 
         IsNull = false;
         IsNonExisting = false;
+        IsVectorHash = false;
+
         var termContainerId = VariableSizeEncoding.Read<long>(_cur, out var offset) + _prevTerm;
         _prevTerm = termContainerId;
         _cur += offset;
@@ -218,6 +230,8 @@ public unsafe struct EntryTermsReader
         HandleSpecialTerm(termContainerId, skipStoredFieldLoad: false);
         if((termContainerId & 0b110) != 0b110) // spatial field, need to skip
             goto Start; 
+        
+        IsVectorHash = _vectorFieldsMarkers.Contains(FieldRootPage);
         return true;
     }
 
@@ -237,6 +251,7 @@ public unsafe struct EntryTermsReader
 
         IsNull = _nullTermsMarkers.Contains(TermId);
         IsNonExisting = _nonExistingTermsMarkers.Contains(TermId);
+        IsVectorHash = false;
         
         Container.Get(_llt, TermId, out var termItem);
         FieldRootPage = termItem.PageLevelMetadata;
@@ -331,6 +346,7 @@ public unsafe struct EntryTermsReader
         _prevTerm = 0;
         IsNull = false;
         IsNonExisting = false;
+        IsVectorHash = false;
     }
 
     public string Debug(Indexing.IndexWriter w)
@@ -409,6 +425,10 @@ public unsafe struct EntryTermsReader
                 continue;
             }
 
+            if (IsVectorHash)
+            {
+                sb.Append($" vector hash: base64({Convert.ToBase64String(StoredField.Value.ToReadOnlySpan())})").AppendLine();
+            }
             if (IsRaw)
             {
                 using var ctx = JsonOperationContext.ShortTermSingleUse();

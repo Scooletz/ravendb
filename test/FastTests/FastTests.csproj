@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
-    <RuntimeFrameworkVersion>8.0.11</RuntimeFrameworkVersion>
+    <TargetFramework>net9.0</TargetFramework>
+    <RuntimeFrameworkVersion>9.0.0</RuntimeFrameworkVersion>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <AssemblyName>FastTests</AssemblyName>
     <PackageId>FastTests</PackageId>
@@ -52,6 +52,9 @@
     <EmbeddedResource Include="Corax\Bugs\PostListSplit.txt" />
     <None Remove="Corax\Bugs\page-base64.txt" />
     <EmbeddedResource Include="Corax\Bugs\page-base64.txt" />
+    <None Update="Data\output.json.gz">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <Compile Remove="Sparrow\BitVectors.cs" />

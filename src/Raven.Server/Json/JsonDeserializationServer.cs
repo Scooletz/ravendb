@@ -4,6 +4,7 @@ using Raven.Client.Documents.Indexes;
 using Raven.Client.Documents.Indexes.Analysis;
 using Raven.Client.Documents.Indexes.Spatial;
 using Raven.Client.Documents.Indexes.TimeSeries;
+using Raven.Client.Documents.Indexes.Vector;
 using Raven.Client.Documents.Operations.Backups;
 using Raven.Client.Documents.Operations.Configuration;
 using Raven.Client.Documents.Operations.ETL.Snowflake;
@@ -78,6 +79,7 @@ using BackupConfiguration = Raven.Client.Documents.Operations.Backups.BackupConf
 using DatabasesInfo = Raven.Client.ServerWide.Operations.DatabasesInfo;
 using MigrationConfiguration = Raven.Server.Smuggler.Migration.MigrationConfiguration;
 using StudioConfiguration = Raven.Client.Documents.Operations.Configuration.StudioConfiguration;
+using RevisionsHandler = Raven.Server.Documents.Handlers.RevisionsHandler;
 
 namespace Raven.Server.Json
 {
@@ -280,6 +282,7 @@ namespace Raven.Server.Json
         public static readonly Func<BlittableJsonReaderObject, TestIndexParameters> TestIndexParameters = GenerateJsonDeserializationRoutine<TestIndexParameters>();
 
         internal static readonly Func<BlittableJsonReaderObject, AutoSpatialOptions> AutoSpatialOptions = GenerateJsonDeserializationRoutine<AutoSpatialOptions>();
+        internal static readonly Func<BlittableJsonReaderObject, AutoVectorOptions> AutoVectorOptions = GenerateJsonDeserializationRoutine<AutoVectorOptions>();
 
         public static readonly Func<BlittableJsonReaderObject, BlockingTombstoneDetails> BlockingTombstoneDetails = GenerateJsonDeserializationRoutine<BlockingTombstoneDetails>();
 
@@ -328,6 +331,8 @@ namespace Raven.Server.Json
             public static readonly Func<BlittableJsonReaderObject, DeleteDatabasesOperation.Parameters> DeleteDatabasesParameters = GenerateJsonDeserializationRoutine<DeleteDatabasesOperation.Parameters>();
 
             public static readonly Func<BlittableJsonReaderObject, ReorderDatabaseMembersOperation.Parameters> MembersOrder = GenerateJsonDeserializationRoutine<ReorderDatabaseMembersOperation.Parameters>();
+
+            public static readonly Func<BlittableJsonReaderObject, RevisionsHandler.GetRevisionsSizeParameters> GetRevisionsSizeParameters = GenerateJsonDeserializationRoutine<RevisionsHandler.GetRevisionsSizeParameters>();
 
             public static readonly Func<BlittableJsonReaderObject, ToggleDatabasesStateOperation.Parameters> DisableDatabaseToggleParameters = GenerateJsonDeserializationRoutine<ToggleDatabasesStateOperation.Parameters>();
 

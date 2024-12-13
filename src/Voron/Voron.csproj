@@ -2,8 +2,8 @@
   <PropertyGroup>
     <Description>Voron - Low level storage engine</Description>
     <Authors>Hibernating Rhinos</Authors>
-    <TargetFramework>net8.0</TargetFramework>
-    <RuntimeFrameworkVersion>8.0.11</RuntimeFrameworkVersion>
+    <TargetFramework>net9.0</TargetFramework>
+    <RuntimeFrameworkVersion>9.0.0</RuntimeFrameworkVersion>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <AssemblyName>Voron</AssemblyName>
     <PackageId>Voron</PackageId>
@@ -31,6 +31,10 @@
   <ItemGroup>
     <ProjectReference Include="..\Sparrow.Server\Sparrow.Server.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="System.Numerics.Tensors" />
+  </ItemGroup>
+
   <PropertyGroup Condition=" '$(Configuration)' == 'Validate' ">
     <DefineConstants>$(DefineConstants);VALIDATE;VALIDATE_PAGES</DefineConstants>
     <Optimize>true</Optimize>
