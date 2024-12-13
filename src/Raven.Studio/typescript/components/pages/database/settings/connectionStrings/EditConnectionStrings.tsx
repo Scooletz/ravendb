@@ -23,6 +23,7 @@ import LicenseRestrictedBadge, { LicenseBadgeText } from "components/common/Lice
 import { components, OptionProps } from "react-select";
 import AzureQueueStorageConnectionString from "components/pages/database/settings/connectionStrings/editForms/AzureQueueStorageConnectionString";
 import SnowflakeConnectionString from "components/pages/database/settings/connectionStrings/editForms/SnowflakeConnectionString";
+import AmazonSqsConnectionString from "components/pages/database/settings/connectionStrings/editForms/AmazonSqsConnectionString";
 
 export interface EditConnectionStringsProps {
     initialConnection?: Connection;
@@ -148,6 +149,8 @@ function getEditConnectionStringComponent(type: StudioEtlType): (props: EditConn
             return RabbitMqConnectionString;
         case "AzureQueueStorage":
             return AzureQueueStorageConnectionString;
+        case "AmazonSqs":
+            return AmazonSqsConnectionString;
         default:
             return null;
     }
@@ -173,13 +176,6 @@ function getAvailableConnectionStringsOptions(features: ConnectionStringsLicense
             icon: "table",
             licenseRequired: "Professional +",
             isDisabled: !features.hasSqlEtl,
-        },
-        {
-            value: "Snowflake",
-            label: "Snowflake",
-            icon: "snowflake",
-            licenseRequired: "Enterprise",
-            isDisabled: !features.hasSnowflakeEtl,
         },
         {
             value: "Olap",
@@ -212,7 +208,7 @@ function getAvailableConnectionStringsOptions(features: ConnectionStringsLicense
         {
             value: "AzureQueueStorage",
             label: "Azure Queue Storage",
-            icon: "azure-queue-storage-etl",
+            icon: "azure-queue-storage",
             licenseRequired: "Enterprise",
             isDisabled: !features.hasQueueEtl,
         },
@@ -222,6 +218,13 @@ function getAvailableConnectionStringsOptions(features: ConnectionStringsLicense
             icon: "snowflake",
             licenseRequired: "Enterprise",
             isDisabled: !features.hasSnowflakeEtl,
+        },
+        {
+            value: "AmazonSqs",
+            label: "Amazon SQS",
+            icon: "amazon-sqs",
+            licenseRequired: "Enterprise",
+            isDisabled: !features.hasQueueEtl,
         },
     ];
 }

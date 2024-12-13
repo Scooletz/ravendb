@@ -6,16 +6,26 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+using Corax.Utils;
+using Jint;
+using Jint.Native;
 using Lucene.Net.Documents;
 using Raven.Client;
 using Raven.Client.Documents.Indexes;
+using Raven.Client.Documents.Indexes.Vector;
+using Raven.Client.Documents.Linq.Indexing;
 using Raven.Server.Documents.Indexes.Persistence.Corax;
 using Raven.Server.Documents.Indexes.Persistence.Lucene.Documents;
 using Raven.Server.Documents.Indexes.Static.Spatial;
 using Raven.Server.Logging;
+using Raven.Server.Documents.Indexes.VectorSearch;
 using Raven.Server.NotificationCenter.Notifications;
+using Raven.Server.Rachis.Commands;
+using Sparrow;
 using Sparrow.Json;
 using Sparrow.Logging;
+using Sparrow.Server;
 using Sparrow.Server.Logging;
 using Spatial4n.Shapes;
 
@@ -330,6 +340,236 @@ namespace Raven.Server.Documents.Indexes.Static
             }
         }
 
+        public object CreateVector(string fieldName, object value)
+        {
+            if (value is null or DynamicNullObject)
+                return null;
+            
+            // We're supporting two defaults:
+            // when Options are not set, we'll decide what is configuration in following manner:
+            // - value is textual or array of textual we're treating them as text input
+            // - otherwise, we will write as array of numerical values
+            var currentIndexingScope = CurrentIndexingScope.Current;
+
+            var fieldExists = currentIndexingScope.Index.Definition.IndexFields.TryGetValue(fieldName, out var indexField);
+            if (fieldExists == false || indexField?.Vector is null)
+            {
+                var isText = value is LazyStringValue or LazyCompressedStringValue or string or DynamicNullObject;
+                if (isText == false && value is IEnumerable enumerable)
+                {
+                    foreach (var item in enumerable)
+                    {
+                        isText = item is LazyStringValue or LazyCompressedStringValue or string or DynamicNullObject;
+                        break;
+                    }
+                }
+                
+                indexField = currentIndexingScope.GetOrCreateVectorField(fieldName, isText);
+            }
+
+            PortableExceptions.ThrowIf<InvalidDataException>(indexField?.Vector is null,
+                $"Field '{fieldName}' does not exist in this indexing scope. Cannot index as vector.");
+
+            indexField!.Vector!.ValidateDebug();
+
+            return indexField.Vector.SourceEmbeddingType switch
+            {
+                VectorEmbeddingType.Text => VectorFromText(indexField, value),
+                _ => VectorFromEmbedding(indexField, value)
+            };
+        }
+
+        /// <summary>
+        /// Create vector field object. This method is used by AutoIndexes.
+        /// </summary>
+        /// <param name="indexField">IndexField from IndexDefinition</param>
+        /// <param name="value">Data source to create vector field.</param>
+        /// <returns></returns>
+        internal static object CreateVector(IndexField indexField, object value)
+        {
+            return indexField!.Vector!.SourceEmbeddingType switch
+            {
+                VectorEmbeddingType.Text => VectorFromText(indexField, value),
+                _ => VectorFromEmbedding(indexField, value)
+            };
+        }
+
+        private static object VectorFromEmbedding(IndexField currentIndexingField, object value)
+        {
+            if (value is null)
+                return null;
+            
+            var vectorOptions = currentIndexingField.Vector;
+            var allocator = CurrentIndexingScope.Current.IndexContext.Allocator;
+            if (value is LazyStringValue or LazyCompressedStringValue or string or DynamicNullObject)
+                return Base64ToVector(value);
+
+            if (value is BlittableJsonReaderArray || value is DynamicArray { Inner: BlittableJsonReaderArray })
+            {
+                var bjra = value as BlittableJsonReaderArray ?? (BlittableJsonReaderArray)((DynamicArray)value).Inner;
+                return HandleBlittableJsonReaderArray(bjra);
+            }
+
+            if (value is JsArray js)
+                return HandleJsArray(js);
+
+            throw new InvalidOperationException($"Unknown type. Value type: {value.GetType().FullName}");
+
+            object Base64ToVector(object base64)
+            {
+                var str = base64.ToString();
+                return GenerateEmbeddings.FromArray(vectorOptions, allocator, str);
+            }
+            object HandleBlittableJsonReaderArray(BlittableJsonReaderArray data)
+            {
+                var first = data[0];
+                
+                //Array of base64s
+                if (IsBase64(first))
+                {
+                    var values = new object[data.Length];
+                    for (var i = 0; i < data.Length; i++)
+                        values[i] = Base64ToVector(data[i].ToString());
+
+                    return values;
+                }
+                
+                //Array of arrays
+                if (first is BlittableJsonReaderArray)
+                {
+                    var values = new object[data.Length];
+                    for (var i = 0; i < data.Length; i++)
+                        values[i] = HandleBlittableJsonReaderArray((BlittableJsonReaderArray)data[i]);
+
+                    return values;
+                }
+
+                var len = data.Length;
+                var bufferSize = data.Length * (vectorOptions.SourceEmbeddingType) switch
+                {
+                    VectorEmbeddingType.Single => sizeof(float),
+                    _ => sizeof(byte)
+                };
+
+                var memScope = allocator.Allocate(bufferSize, out ByteString mem);
+                ref var floatRef = ref MemoryMarshal.GetReference(mem.ToSpan<float>());
+                ref var sbyteRef = ref MemoryMarshal.GetReference(mem.ToSpan<sbyte>());
+                ref var byteRef = ref MemoryMarshal.GetReference(mem.ToSpan<byte>());
+                
+                for (int i = 0; i < len; ++i)
+                {
+                    switch (vectorOptions.SourceEmbeddingType)
+                    {
+                        case VectorEmbeddingType.Single:
+                            Unsafe.Add(ref floatRef, i) = data.GetByIndex<float>(i);
+                            break;
+                        case VectorEmbeddingType.Int8:
+                            Unsafe.Add(ref sbyteRef, i) = data.GetByIndex<sbyte>(i);
+                            break;
+                        default:
+                            Unsafe.AddByteOffset(ref byteRef, i) = data.GetByIndex<byte>(i);
+                            break;
+                    }
+                }
+
+                return GenerateEmbeddings.FromArray(vectorOptions, memScope, mem, bufferSize);
+            }
+
+            object HandleJsArray(JsArray jsArray)
+            {
+                var firstItem = jsArray[0];
+                if (firstItem.IsString())
+                {
+                    var values = new object[jsArray.Length];
+                    for (var i = 0; i < jsArray.Length; i++)
+                        values[i] = GenerateEmbeddings.FromArray(vectorOptions, allocator, jsArray[i].AsString());
+
+                    return values;
+                }
+
+                if (firstItem is JsArray)
+                {
+                    var values = new object[jsArray.Length];
+                    for (var i = 0; i < jsArray.Length; i++)
+                        values[i] = HandleJsArray(jsArray[i] as JsArray);
+
+                    return values;
+                }
+
+                var len = (int)jsArray.Length;
+                var bufferSize = len * (vectorOptions.SourceEmbeddingType) switch
+                {
+                    VectorEmbeddingType.Single => sizeof(float),
+                    _ => sizeof(byte)
+                };
+
+                var memScope = allocator.Allocate(bufferSize, out ByteString mem);
+                ref var floatRef = ref MemoryMarshal.GetReference(mem.ToSpan<float>());
+                ref var sbyteRef = ref MemoryMarshal.GetReference(mem.ToSpan<sbyte>());
+                ref var byteRef = ref MemoryMarshal.GetReference(mem.ToSpan<byte>());
+                
+                for (int i = 0; i < len; ++i)
+                {
+                    var num = jsArray[i].AsNumber();
+                    switch (vectorOptions.SourceEmbeddingType)
+                    {
+                        case VectorEmbeddingType.Single:
+                            Unsafe.Add(ref floatRef, i) = (float)num;
+                            break;
+                        case VectorEmbeddingType.Int8:
+                            Unsafe.Add(ref sbyteRef, i) = Convert.ToSByte(num);
+                            break;
+                        default:
+                            Unsafe.AddByteOffset(ref byteRef, i) = Convert.ToByte(num);
+                            break;
+                    }
+                }
+                
+                
+                return GenerateEmbeddings.FromArray(vectorOptions, memScope, mem, bufferSize);
+            }
+            
+            bool IsBase64(object val) => val is LazyStringValue or LazyCompressedStringValue or string or DynamicNullObject or JsString;
+        }
+
+        private static object VectorFromText(IndexField indexField, object value)
+        {
+            if (value is null)
+                return null;
+            
+            object embedding = null;
+            if (value is LazyStringValue or LazyCompressedStringValue or string or DynamicNullObject)
+                embedding = CreateVectorValue(value);
+            else if (value is IEnumerable enumerable)
+            {
+                var vectorList = new List<VectorValue>();
+                foreach (var item in enumerable)
+                    vectorList.Add(CreateVectorValue(item));
+                embedding = vectorList;
+            }
+
+            PortableExceptions.ThrowIf<InvalidDataException>(embedding is null, $"Tried to convert text into embeddings but got type {value?.GetType().FullName} which is not supported.");
+            return embedding;
+
+            VectorValue CreateVectorValue(object valueToProcess)
+            {
+                var str = valueToProcess switch
+                {
+                    LazyStringValue lsv => (string)lsv,
+                    LazyCompressedStringValue lcsv => lcsv,
+                    string s => s,
+                    DynamicNullObject => null,
+                    null => null,
+                    _ => throw new NotSupportedException("Only strings are supported, but got: " + valueToProcess.GetType().FullName)
+                };
+
+                if (str == null)
+                    throw new InvalidDataException($"Unsupported vector value type: {valueToProcess?.GetType().FullName}");
+
+                return GenerateEmbeddings.FromText(indexField.Vector, str);
+            }
+        }
+
         public dynamic LoadDocument<TIgnored>(object keyOrEnumerable, string collectionName)
         {
             return LoadDocument(keyOrEnumerable, collectionName);
@@ -439,7 +679,7 @@ namespace Raven.Server.Documents.Indexes.Static
             {
                 mapIndexDefinition.IndexDefinition.Fields.TryGetValue(Constants.Documents.Indexing.Fields.AllFields, out allFields);
             }
-            
+
             var field = IndexField.Create(name, new IndexFieldOptions
             {
                 Storage = options?.Storage,

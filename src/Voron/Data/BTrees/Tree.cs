@@ -26,7 +26,7 @@ using FixedSizeTree = Voron.Data.Fixed.FixedSizeTree;
 
 namespace Voron.Data.BTrees
 {
-    public unsafe partial class Tree 
+    public unsafe partial class Tree
     {
         private int _directAddUsage;
 
@@ -55,7 +55,7 @@ namespace Voron.Data.BTrees
             HeaderModified = true;
             return ref _header;
         }
-        
+
 
         private readonly LowLevelTransaction _llt;
         private readonly Transaction _tx;
@@ -98,7 +98,7 @@ namespace Voron.Data.BTrees
             }
 
             _recentlyFoundPages = FoundPagesPool.Allocate();
-            
+
             llt.RegisterDisposable(new TreeDisposable(this));
         }
 
@@ -135,7 +135,7 @@ namespace Voron.Data.BTrees
         {
             return new Tree(llt, name, in parentHeader);
         }
-        
+
         public static Tree Open(LowLevelTransaction llt, Transaction tx, Slice name, in TreeRootHeader header, bool isIndexTree = false, NewPageAllocator newPageAllocator = null)
         {
             var tree = new Tree(llt, tx, header, name, isIndexTree, newPageAllocator);
@@ -221,8 +221,8 @@ namespace Voron.Data.BTrees
         /// </summary>
         public long Increment(Slice key, long delta)
         {
-            Debug.Assert((_header.Flags & TreeFlags.MultiValue) == TreeFlags.None,"(State.Flags & TreeFlags.MultiValue) == TreeFlags.None");
-            
+            Debug.Assert((_header.Flags & TreeFlags.MultiValue) == TreeFlags.None, "(State.Flags & TreeFlags.MultiValue) == TreeFlags.None");
+
             long currentValue = 0;
 
             if (TryRead(key, out var reader))
@@ -259,7 +259,7 @@ namespace Voron.Data.BTrees
             return *(int*)reader.Base;
 
         }
-        
+
         /// <summary>
         /// This is using little endian
         /// </summary>
@@ -282,7 +282,7 @@ namespace Voron.Data.BTrees
 
         public void Add(Slice key, long value)
         {
-            Debug.Assert((_header.Flags & TreeFlags.MultiValue) == TreeFlags.None,"(State.Flags & TreeFlags.MultiValue) == TreeFlags.None");
+            Debug.Assert((_header.Flags & TreeFlags.MultiValue) == TreeFlags.None, "(State.Flags & TreeFlags.MultiValue) == TreeFlags.None");
             using (DirectAdd(key, sizeof(long), out byte* ptr))
                 *(long*)ptr = value;
         }
@@ -316,8 +316,8 @@ namespace Voron.Data.BTrees
         public void Add(Slice key, Slice value)
         {
             VoronExceptions.ThrowIfNull(value);
-            
-            Debug.Assert((ReadHeader().Flags & TreeFlags.MultiValue) == TreeFlags.None,"(State.Flags & TreeFlags.MultiValue) == TreeFlags.None");
+
+            Debug.Assert((ReadHeader().Flags & TreeFlags.MultiValue) == TreeFlags.None, "(State.Flags & TreeFlags.MultiValue) == TreeFlags.None");
 
             if (!value.HasValue)
                 throw new NullReferenceException();
@@ -325,7 +325,7 @@ namespace Voron.Data.BTrees
             using (DirectAdd(key, value.Size, out byte* ptr))
                 value.CopyTo(ptr);
         }
-        
+
 
         public static int CalcSizeOfEmbeddedEntry(int keySize, int entrySize)
         {
@@ -354,7 +354,7 @@ namespace Voron.Data.BTrees
             {
                 if ((nodeType & TreeNodeFlags.NewOnly) == TreeNodeFlags.NewOnly)
                     ThrowConcurrencyException();
-                
+
                 node = page.GetNode(page.LastSearchPosition);
 
 #if DEBUG
@@ -392,9 +392,9 @@ namespace Voron.Data.BTrees
                 ref var state = ref ModifyHeader();
                 state.NumberOfEntries++;
             }
-            
+
             nodeType &= ~TreeNodeFlags.NewOnly;
-            
+
             ThrowIfOnDebug<InvalidOperationException>(nodeType != TreeNodeFlags.Data && nodeType != TreeNodeFlags.MultiValuePageRef,
                 $"Node should be either {nameof(TreeNodeFlags.Data)} or {nameof(TreeNodeFlags.MultiValuePageRef)}");
 
@@ -1289,7 +1289,7 @@ namespace Voron.Data.BTrees
                     {
                         if (_header.RootObjectType == RootObjectType.Table) // tables might have mixed values, fixed size trees inside have dedicated handling
                             continue;
-                        
+
                         if ((_header.Flags & TreeFlags.FixedSizeTrees) == TreeFlags.FixedSizeTrees)
                         {
                             var valueReader = GetValueReaderFromHeader(node);
@@ -1336,7 +1336,8 @@ namespace Voron.Data.BTrees
 
         internal void PrepareForCommit()
         {
-            if (_prepareLocator == null) return;
+            if (_prepareLocator == null)
+                return;
             foreach (var ct in _prepareLocator.Values)
                 ct.PrepareForCommit();
         }
@@ -1451,7 +1452,7 @@ namespace Voron.Data.BTrees
                 lookup = Lookup<TKey>.InternalCreate(this, key);
                 if (lookup == null)
                     return false;
-                
+
                 var keyClone = key.Clone(_llt.Allocator);
                 _prepareLocator.Add(keyClone, lookup);
                 prep = lookup;

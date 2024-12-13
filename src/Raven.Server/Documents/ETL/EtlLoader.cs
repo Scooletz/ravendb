@@ -19,6 +19,7 @@ using Raven.Client.ServerWide;
 using Raven.Server.Documents.ETL.Providers.ElasticSearch;
 using Raven.Server.Documents.ETL.Providers.OLAP;
 using Raven.Server.Documents.ETL.Providers.Queue;
+using Raven.Server.Documents.ETL.Providers.Queue.AmazonSqs;
 using Raven.Server.Documents.ETL.Providers.Queue.AzureQueueStorage;
 using Raven.Server.Documents.ETL.Providers.Queue.Kafka;
 using Raven.Server.Documents.ETL.Providers.Queue.RabbitMq;
@@ -751,6 +752,29 @@ namespace Raven.Server.Documents.ETL
 
                             break;
                         }
+                    case AmazonSqsEtl amazonSqsEtl:
+                    {
+                        QueueEtlConfiguration existing = null;
+
+                        foreach (var config in myQueueEtl)
+                        {
+                            var diff = amazonSqsEtl.Configuration.Compare(config);
+
+                            if (diff == EtlConfigurationCompareDifferences.None)
+                            {
+                                existing = config;
+                                break;
+                            }
+                        }
+
+                        if (existing != null)
+                        {
+                            toRemove.Remove(processesPerConfig.Key);
+                            myQueueEtl.Remove(existing);
+                        }
+                        
+                        break;
+                    }
                     default:
                         throw new InvalidOperationException($"Unknown ETL process type: {process.GetType()}");
                 }
@@ -893,6 +917,13 @@ namespace Raven.Server.Documents.ETL
 
                 if (existing != null)
                     differences = snowflakeEtl.Configuration.Compare(existing, transformationDiffs);
+            }
+            else if (process is AmazonSqsEtl amazonSqsEtl)
+            {
+                var existing = myQueueEtl.FirstOrDefault(x => x.Name.Equals(amazonSqsEtl.ConfigurationName, StringComparison.OrdinalIgnoreCase));
+
+                if (existing != null)
+                    differences = amazonSqsEtl.Configuration.Compare(existing, transformationDiffs);
             }
             else
             {

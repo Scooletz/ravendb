@@ -11,6 +11,7 @@ import {
     OlapConnection,
     ConnectionFormData,
     SnowflakeConnection,
+    AmazonSqsConnection,
 } from "../connectionStringsTypes";
 import assertUnreachable from "components/utils/assertUnreachable";
 import ApiKeyAuthentication = Raven.Client.Documents.Operations.ETL.ElasticSearch.ApiKeyAuthentication;
@@ -156,6 +157,31 @@ export function mapAzureQueueStorageConnectionStringSettingsToDto(
     }
 }
 
+export function mapAmazonSqsConnectionStringSettingsToDto(
+    connection: Omit<AmazonSqsConnection, "type" | "usedByTasks">
+): Raven.Client.Documents.Operations.ETL.Queue.AmazonSqsConnectionSettings {
+    switch (connection.authType) {
+        case "basic": {
+            return {
+                Basic: {
+                    SecretKey: connection.settings.basic.secretKey,
+                    AccessKey: connection.settings.basic.accessKey,
+                    RegionName: connection.settings.basic.regionName,
+                },
+                Passwordless: false,
+            };
+        }
+        case "passwordless": {
+            return {
+                Basic: null,
+                Passwordless: true,
+            };
+        }
+        default:
+            return assertUnreachable(connection.authType);
+    }
+}
+
 export function mapAzureQueueStorageConnectionStringToDto(
     connection: AzureQueueStorageConnection
 ): ConnectionStringDto {
@@ -164,6 +190,15 @@ export function mapAzureQueueStorageConnectionStringToDto(
         BrokerType: "AzureQueueStorage",
         Name: connection.name,
         AzureQueueStorageConnectionSettings: mapAzureQueueStorageConnectionStringSettingsToDto(connection),
+    };
+}
+
+export function mapAmazonSqsConnectionStringToDto(connection: AmazonSqsConnection): ConnectionStringDto {
+    return {
+        Type: "Queue",
+        BrokerType: "AmazonSqs",
+        Name: connection.name,
+        AmazonSqsConnectionSettings: mapAmazonSqsConnectionStringSettingsToDto(connection),
     };
 }
 
@@ -187,6 +222,8 @@ export function mapConnectionStringToDto(connection: Connection): ConnectionStri
             return mapRabbitMqStringToDto(connection);
         case "AzureQueueStorage":
             return mapAzureQueueStorageConnectionStringToDto(connection);
+        case "AmazonSqs":
+            return mapAmazonSqsConnectionStringToDto(connection);
         default:
             return assertUnreachable(type);
     }

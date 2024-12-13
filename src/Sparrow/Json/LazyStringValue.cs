@@ -923,6 +923,13 @@ namespace Sparrow.Json
             return ToString().Split(separator, count, options);
         }
 
+#if NET9_0_OR_GREATER
+        public string[] Split(scoped ReadOnlySpan<char> separator)
+        {
+            return ToString().Split(separator);
+        }
+#endif
+
         public bool StartsWith(string value)
         {
             DisposableExceptions.ThrowIfDisposed(this);

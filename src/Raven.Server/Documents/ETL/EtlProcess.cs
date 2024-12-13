@@ -24,6 +24,7 @@ using Raven.Server.Documents.ETL.Providers.ElasticSearch;
 using Raven.Server.Documents.ETL.Providers.OLAP;
 using Raven.Server.Documents.ETL.Providers.OLAP.Test;
 using Raven.Server.Documents.ETL.Providers.Queue;
+using Raven.Server.Documents.ETL.Providers.Queue.AmazonSqs;
 using Raven.Server.Documents.ETL.Providers.Queue.AzureQueueStorage;
 using Raven.Server.Documents.ETL.Providers.Queue.Kafka;
 using Raven.Server.Documents.ETL.Providers.Queue.RabbitMq;
@@ -1372,11 +1373,27 @@ namespace Raven.Server.Documents.ETL
                                     result.DebugOutput = debugOutput;
 
                                         return result;
-                                    }
-                                default:
-                                    throw new NotSupportedException($"Unknown Queue ETL type in script test: {queueEtl.GetType().FullName}");
+                                }
+                            case AmazonSqsEtl amazonSqsEtl:
+                                using (amazonSqsEtl.EnterTestMode(out debugOutput))
+                                {
+                                    amazonSqsEtl.EnsureThreadAllocationStats();
+
+                                    var queueItem = new QueueItem(document, docCollection);
+
+                                    var results = amazonSqsEtl.Transform(new[] { queueItem }, context,
+                                        new EtlStatsScope(new EtlRunStats()),
+                                        new EtlProcessState());
+
+                                    var result = amazonSqsEtl.RunTest(results, context);
+                                    result.DebugOutput = debugOutput;
+
+                                    return result;
+                                }
+                            default:
+                                throw new NotSupportedException($"Unknown Queue ETL type in script test: {queueEtl.GetType().FullName}");
                             }
-                        }
+                    }
                         
                     case EtlType.Snowflake:
                         using (var snowflakeEtl = new SnowflakeEtl(testScript.Configuration.Transforms[0], testScript.Configuration as SnowflakeEtlConfiguration, database,

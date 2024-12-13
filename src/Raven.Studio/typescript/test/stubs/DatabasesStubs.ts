@@ -525,6 +525,7 @@ export class DatabasesStubs {
                     },
                     RabbitMqConnectionSettings: null,
                     AzureQueueStorageConnectionSettings: null,
+                    AmazonSqsConnectionSettings: null,
                 },
                 "rabbitmq-name": {
                     Type: "Queue",
@@ -535,6 +536,7 @@ export class DatabasesStubs {
                         ConnectionString: "some-connection-string",
                     },
                     AzureQueueStorageConnectionSettings: null,
+                    AmazonSqsConnectionSettings: null,
                 },
                 "azure-queue-storage-name": {
                     Type: "Queue",
@@ -546,6 +548,23 @@ export class DatabasesStubs {
                         ConnectionString: "some-connection-string",
                         EntraId: null,
                         Passwordless: null,
+                    },
+                    AmazonSqsConnectionSettings: null,
+                },
+                "azure-sqs-name": {
+                    Type: "Queue",
+                    Name: "azure-sqs-name",
+                    BrokerType: "AmazonSqs",
+                    KafkaConnectionSettings: null,
+                    RabbitMqConnectionSettings: null,
+                    AzureQueueStorageConnectionSettings: null,
+                    AmazonSqsConnectionSettings: {
+                        Basic: {
+                            AccessKey: "AKIA123",
+                            SecretKey: "this is secret",
+                            RegionName: "us-west-2",
+                        },
+                        Passwordless: false,
                     },
                 },
             },
@@ -968,19 +987,27 @@ return docs[0];`,
             items: [
                 {
                     ChangeVector: "A:2568-F9I6Egqwm0Kz+K0oFVIR9Q",
+                    Collection: "Docs",
                     Id: "doc/1-A",
                     Etag: "2568",
-                    Flags: "HasRevisions",
+                    Flags: "HasRevisions, DeleteRevision",
                     LastModified: "2018-07-27T12:11:53.0447651Z",
                     ShardNumber: null,
+                    _meta: {
+                        uniqueId: "1",
+                    },
                 },
                 {
                     ChangeVector: "A:2569-F9I6Egqwm0Kz+K0oFVIR9Q",
+                    Collection: "Docs",
                     Id: "doc/2-A",
                     Etag: "2569",
                     Flags: "HasRevisions",
                     LastModified: "2018-07-27T12:11:53.0451613Z",
                     ShardNumber: null,
+                    _meta: {
+                        uniqueId: "2",
+                    },
                 },
             ],
             totalResultCount: 2,

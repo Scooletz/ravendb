@@ -17,6 +17,7 @@ using Raven.Client.Documents.Changes;
 using Raven.Client.Documents.DataArchival;
 using Raven.Client.Documents.Indexes;
 using Raven.Client.Documents.Indexes.Spatial;
+using Raven.Client.Documents.Indexes.Vector;
 using Raven.Client.Documents.Operations;
 using Raven.Client.Documents.Queries;
 using Raven.Client.Exceptions.Documents.Indexes;
@@ -248,7 +249,8 @@ namespace Raven.Server.Documents.Indexes
         private readonly MultipleUseFlag _definitionChanged = new MultipleUseFlag();
         private Size _initialManagedAllocations;
 
-        private readonly ConcurrentDictionary<string, SpatialField> _spatialFields = new ConcurrentDictionary<string, SpatialField>(StringComparer.OrdinalIgnoreCase);
+        private readonly ConcurrentDictionary<string, SpatialField> _spatialFields = new(StringComparer.OrdinalIgnoreCase);
+        private readonly ConcurrentDictionary<string, IndexField> _vectorFields = new(StringComparer.OrdinalIgnoreCase);
 
         internal readonly QueryBuilderFactories _queryBuilderFactories;
 
@@ -692,7 +694,7 @@ namespace Raven.Server.Documents.Indexes
 
         public CurrentIndexingScope CreateIndexingScope(TransactionOperationContext indexContext, QueryOperationContext queryContext)
         {
-            return new CurrentIndexingScope(this, DocumentDatabase.DocumentsStorage, queryContext, Definition, indexContext, GetOrAddSpatialField, _unmanagedBuffersPool);
+            return new CurrentIndexingScope(this, DocumentDatabase.DocumentsStorage, queryContext, Definition, indexContext, GetOrAddSpatialField, GetOrAddVectorField, _unmanagedBuffersPool);
         }
 
         private StorageEnvironmentOptions CreateStorageEnvironmentOptions(DocumentDatabase documentDatabase, IndexingConfiguration configuration)
@@ -5214,6 +5216,57 @@ namespace Raven.Server.Documents.Indexes
 
                 return new SpatialField(name, new SpatialOptions());
             });
+        }
+
+        private IndexField GetOrAddVectorField(string name, bool isText)
+        {
+            return _vectorFields.GetOrAdd(name, _ =>
+            {
+                if (Definition.MapFields.TryGetValue(name, out var field) == false)
+                {
+                    return IndexField.Create(name, new IndexFieldOptions()
+                        {
+                            Vector = CreateVectorOptionsBasedOnConfiguration()
+                        }, null, Corax.Constants.IndexWriter.DynamicField);
+                }
+
+                // When field doesn't contain vector options we've to create it manually by default values.
+                if (field is IndexField { Vector: null } indexField)
+                {
+                    indexField.Vector = CreateVectorOptionsBasedOnConfiguration();
+                }
+                
+                return field switch
+                {
+                    AutoIndexField => throw new InvalidOperationException($"{nameof(AutoIndexField)} should be created via AutoIndex builder. Cannot create vector field '{name}' dynamically for {(isText ? "numerical" : "textual")} values."),
+                    IndexField staticField => staticField,
+                    _ => throw new InvalidOperationException($"Unknown configuration error. Cannot create vector field '{name}' dynamically for {(isText ? "numerical" : "textual")} values.")
+                };
+            });
+
+            VectorOptions CreateVectorOptionsBasedOnConfiguration()
+            {
+                if (isText)
+                {
+                    return new VectorOptions()
+                    {
+                        SourceEmbeddingType = VectorOptions.DefaultText.SourceEmbeddingType,
+                        DestinationEmbeddingType = VectorOptions.DefaultText.DestinationEmbeddingType,
+                        Dimensions = VectorOptions.DefaultText.Dimensions,
+                        NumberOfEdges = Configuration.CoraxVectorDefaultNumberOfEdges,
+                        NumberOfCandidatesForIndexing = Configuration.CoraxVectorDefaultNumberOfCandidatesForIndexing,
+                    };
+                }
+                
+                return new VectorOptions()
+                {
+                    SourceEmbeddingType = VectorOptions.Default.SourceEmbeddingType,
+                    DestinationEmbeddingType = VectorOptions.Default.DestinationEmbeddingType,
+                    Dimensions = VectorOptions.Default.Dimensions,
+                    NumberOfEdges = Configuration.CoraxVectorDefaultNumberOfEdges,
+                    NumberOfCandidatesForIndexing = Configuration.CoraxVectorDefaultNumberOfCandidatesForIndexing,
+                };
+            }
         }
 
         private static bool TryFindIndexDefinition(string directoryName, RawDatabaseRecord record, out IndexDefinition staticDef, out AutoIndexDefinition autoDef)

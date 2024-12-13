@@ -2,8 +2,8 @@
   <PropertyGroup>
     <Description>Raven.Server is the database server for RavenDB</Description>
     <Authors>Hibernating Rhinos</Authors>
-    <TargetFramework>net8.0</TargetFramework>
-    <RuntimeFrameworkVersion>8.0.11</RuntimeFrameworkVersion>
+    <TargetFramework>net9.0</TargetFramework>
+    <RuntimeFrameworkVersion>9.0.0</RuntimeFrameworkVersion>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <AssemblyName>Raven.Server</AssemblyName>
     <OutputType>Exe</OutputType>
@@ -126,6 +126,7 @@
     <PackageReference Include="Raven.CodeAnalysis">
       <PrivateAssets>All</PrivateAssets>
     </PackageReference>
+    <PackageReference Include="SmartComponents.LocalEmbeddings" />
     <PackageReference Include="Snappier" />
     <PackageReference Include="Snowflake.Data" />
     <PackageReference Include="System.Collections.Immutable" />

@@ -46,7 +46,7 @@ class collection {
     get isAllRevisions() {
         return this.name === collection.allRevisionsCollectionName;
     }
-    
+
     get isRevisionsBin() {
         return this.name === collection.revisionsBinCollectionName;
     }

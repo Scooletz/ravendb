@@ -37,6 +37,7 @@ export const docsHashes: Record<string, StringWithAutocomplete<"MISSING_DOCS">> 
     "databases/tasks/editKafkaEtlTask": "S45O2Y",
     "databases/tasks/editRabbitMqEtlTask": "KFKQM7",
     "databases/tasks/editAzureQueueStorageEtlTask": "VV1B95",
+    "databases/tasks/editAmazonSqsEtlTask": "GWG3JT",
     "databases/tasks/editKafkaSinkTask": "I4L8MF",
     "databases/tasks/editRabbitMqSinkTask": "WH5IOA",
     "databases/settings/databaseSettings": "XVA22M",
@@ -94,6 +95,6 @@ export const docsHashes: Record<string, StringWithAutocomplete<"MISSING_DOCS">> 
     "admin/settings/debug/advanced/recordTransactionCommands": "MISSING_DOCS",
     "admin/settings/debug/advanced/replayTransactionCommands": "MISSING_DOCS",
     about: "MISSING_DOCS",
-    "databases/documents/revisions/all": "MISSING_DOCS",
     "databases/tasks/editSnowflakeEtlTask": "MISSING_DOCS",
+    "databases/documents/revisions/all": "MISSING_DOCS",
 };

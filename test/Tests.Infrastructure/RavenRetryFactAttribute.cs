@@ -25,13 +25,15 @@ public class RavenRetryFactAttribute : RetryFactAttribute, ITraitAttribute
 
     public bool SnowflakeRequired { get; set; }
     
+    public bool AmazonSqsRequired { get; set; }
+
     public bool NightlyBuildRequired { get; set; }
 
     public override string Skip
     {
         get
         {
-            return RavenFactAttribute.ShouldSkip(_skip, _category, licenseRequired: LicenseRequired, nightlyBuildRequired: MsSqlRequired, msSqlRequired: ElasticSearchRequired, elasticSearchRequired: NightlyBuildRequired, azureQueueStorageRequired: AzureQueueStorageRequired, snowflakeRequired: SnowflakeRequired);
+            return RavenFactAttribute.ShouldSkip(_skip, _category, licenseRequired: LicenseRequired, nightlyBuildRequired: MsSqlRequired, msSqlRequired: ElasticSearchRequired, elasticSearchRequired: NightlyBuildRequired, azureQueueStorageRequired: AzureQueueStorageRequired, snowflakeRequired: SnowflakeRequired, amazonSqsRequired: AmazonSqsRequired);
         }
 
         set => _skip = value;

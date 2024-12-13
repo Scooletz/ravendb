@@ -1,6 +1,8 @@
 using System;
 using System.Diagnostics;
+using System.Diagnostics.Tracing;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using Tests.Infrastructure;
 using Raven.Server.Utils;
@@ -12,6 +14,7 @@ using FastTests.Sparrow;
 using FastTests.Voron.FixedSize;
 using FastTests.Client.Indexing;
 using FastTests;
+using FastTests.Voron.Graphs;
 using Sparrow.Server.Platform;
 using SlowTests.Authentication;
 using SlowTests.Issues;

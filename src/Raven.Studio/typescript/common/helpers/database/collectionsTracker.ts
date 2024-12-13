@@ -4,6 +4,7 @@ import database = require("models/resources/database");
 import getCollectionsStatsCommand = require("commands/database/documents/getCollectionsStatsCommand");
 import collectionsStats = require("models/database/documents/collectionsStats");
 import generalUtils = require("common/generalUtils");
+import getRevisionsPreviewCommand from "commands/database/documents/getRevisionsPreviewCommand";
 
 class collectionsTracker {
 
@@ -13,8 +14,8 @@ class collectionsTracker {
 
     collections = ko.observableArray<collection>();
 
-    revisionsBin = ko.observable<collection>();
     allRevisions = ko.observable<collection>();
+    revisionsBin = ko.observable<collection>();
 
     conflictsCount = ko.observable<number>();
 
@@ -39,21 +40,22 @@ class collectionsTracker {
         return this.loadStatsTask;
     }
 
-    configureRevisions(db: database) {
-        if (db.hasRevisionsConfiguration()) {
-            this.revisionsBin(new collection(collection.revisionsBinCollectionName));
-            this.allRevisions(new collection(collection.allRevisionsCollectionName));
-        } else {
-            this.revisionsBin(null);
-            this.allRevisions(null);
-        }
+    async configureRevisions(db: database) {
+        const revisionsPreview = await new getRevisionsPreviewCommand({
+            databaseName: db.name,
+            start: 0,
+            pageSize: 0,
+            type: "All",
+        }).execute();
+
+        this.allRevisions(new collection(collection.allRevisionsCollectionName, revisionsPreview.totalResultCount));
+        this.revisionsBin(new collection(collection.revisionsBinCollectionName));
     }
 
     private collectionsLoaded(collectionsStats: collectionsStats) {
         const collections = collectionsStats.collections.filter(x => x.documentCount());
         
         collections.sort((a, b) => this.sortAlphaNumericCollection(a.name, b.name));
-
         const allDocsCollection = collection.createAllDocumentsCollection(collectionsStats.numberOfDocuments());
         this.collections([allDocsCollection].concat(collections));
 
@@ -83,6 +85,10 @@ class collectionsTracker {
         // update all collections
         const allDocs = this.collections().find(x => x.isAllDocuments);
         allDocs.documentCount(totalCount);
+        
+        if (this.allRevisions()) {
+            this.allRevisions().documentCount(notification.CountOfRevisions);
+        }
 
         removedCollections.forEach(c => {
             const toRemove = this.collections().find(x => x.name.toLocaleLowerCase() === c.Name.toLocaleLowerCase());
@@ -111,12 +117,12 @@ class collectionsTracker {
             .map(x => x.name);
     }
 
-    getRevisionsBinCollection() {
-        return this.revisionsBin();
-    }
-
     getAllRevisionsCollection() {
         return this.allRevisions();
+    }
+
+    getRevisionsBinCollection() {
+        return this.revisionsBin();
     }
 
     getAllDocumentsCollection() {
