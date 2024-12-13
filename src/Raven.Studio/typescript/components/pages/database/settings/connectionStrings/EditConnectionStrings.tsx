@@ -178,13 +178,6 @@ function getAvailableConnectionStringsOptions(features: ConnectionStringsLicense
             isDisabled: !features.hasSqlEtl,
         },
         {
-            value: "Snowflake",
-            label: "Snowflake",
-            icon: "snowflake",
-            licenseRequired: "Enterprise",
-            isDisabled: !features.hasSnowflakeEtl,
-        },
-        {
             value: "Olap",
             label: "OLAP",
             icon: "olap",

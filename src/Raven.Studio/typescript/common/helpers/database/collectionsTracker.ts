@@ -16,7 +16,6 @@ class collectionsTracker {
 
     allRevisions = ko.observable<collection>();
     revisionsBin = ko.observable<collection>();
-    allRevisions = ko.observable<collection>();
 
     conflictsCount = ko.observable<number>();
 
@@ -124,10 +123,6 @@ class collectionsTracker {
 
     getRevisionsBinCollection() {
         return this.revisionsBin();
-    }
-
-    getAllRevisionsCollection() {
-        return this.allRevisions();
     }
 
     getAllDocumentsCollection() {

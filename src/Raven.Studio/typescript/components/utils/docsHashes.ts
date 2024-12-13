@@ -95,7 +95,6 @@ export const docsHashes: Record<string, StringWithAutocomplete<"MISSING_DOCS">> 
     "admin/settings/debug/advanced/recordTransactionCommands": "MISSING_DOCS",
     "admin/settings/debug/advanced/replayTransactionCommands": "MISSING_DOCS",
     about: "MISSING_DOCS",
-    "databases/documents/revisions/all": "MISSING_DOCS",
     "databases/tasks/editSnowflakeEtlTask": "MISSING_DOCS",
     "databases/documents/revisions/all": "MISSING_DOCS",
 };
