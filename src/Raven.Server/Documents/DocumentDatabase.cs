@@ -1929,7 +1929,7 @@ namespace Raven.Server.Documents
 
                 var sizeOnDisk = environment.Environment.GenerateSizeReport(includeTempBuffers: true);
                 dataInBytes += sizeOnDisk.DataFileInBytes + sizeOnDisk.JournalsInBytes;
-                tempBuffersInBytes += sizeOnDisk.TempBuffersInBytes + sizeOnDisk.TempRecyclableJournalsInBytes;
+                tempBuffersInBytes += sizeOnDisk.TempBuffersInBytes;
             }
 
             return (new Size(dataInBytes), new Size(tempBuffersInBytes));
