@@ -24,6 +24,7 @@ import { MultiRadioToggle } from "components/common/MultiRadioToggle";
 import collectionsTracker from "common/helpers/database/collectionsTracker";
 import { HStack } from "components/common/utilities/HStack";
 import { VStack } from "components/common/utilities/VStack";
+import AllRevisionsAboutView from "components/pages/database/documents/allRevisions/partials/AllRevisionsAboutView";
 
 type RevisionType = Raven.Server.Documents.Revisions.RevisionsStorage.RevisionType;
 
@@ -85,16 +86,19 @@ export default function AllRevisions() {
     return (
         <VStack className="content-padding" gap={2}>
             <VStack>
-                <ButtonWithSpinner
-                    color="danger"
-                    onClick={handleRemoveConfirmation}
-                    disabled={selectedRows.length === 0}
-                    isSpinning={asyncRemoveRevisions.loading}
-                    icon="trash"
-                    className="w-fit-content rounded-pill"
-                >
-                    Remove {selectedRows.length != 0 && selectedRows.length} revisions
-                </ButtonWithSpinner>
+                <HStack className="justify-content-between">
+                    <ButtonWithSpinner
+                        color="danger"
+                        onClick={handleRemoveConfirmation}
+                        disabled={selectedRows.length === 0}
+                        isSpinning={asyncRemoveRevisions.loading}
+                        icon="trash"
+                        className="w-fit-content rounded-pill"
+                    >
+                        Remove {selectedRows.length != 0 && selectedRows.length} revisions
+                    </ButtonWithSpinner>
+                    <AllRevisionsAboutView />
+                </HStack>
                 <HStack gap={2} className="my-3">
                     <div>
                         <Label className="small-label">Filter by collection</Label>
@@ -106,6 +110,7 @@ export default function AllRevisions() {
                             onChange={(x: SelectOptionWithCount<string>) => collection.setValue(x?.value ?? "")}
                             isClearable
                             components={{ Option: OptionWithCount, SingleValue: SingleValueWithCount }}
+                            isRoundedPill
                         />
                     </div>
                     <div>
