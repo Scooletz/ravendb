@@ -168,6 +168,7 @@ public static class RavenDnsRecordHelper
         }
     }
 
+#if !RVN
     public static async Task AssertDnsUpdatedSuccessfully(string serverUrl, IPEndPoint[] expectedAddresses, CancellationToken token)
     {
         var hostname = new Uri(serverUrl).Host;
@@ -340,6 +341,7 @@ public static class RavenDnsRecordHelper
             }       
         }
     }
+#endif
 
     public static async Task<bool> CanResolveHostNameLocally(string serverUrl, IPEndPoint[] expectedAddresses)
     {
