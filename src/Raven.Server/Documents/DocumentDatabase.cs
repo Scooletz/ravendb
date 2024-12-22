@@ -87,7 +87,7 @@ namespace Raven.Server.Documents
         private readonly DisposeOnce<SingleAttempt> _disposeOnce;
         internal TestingStuff ForTestingPurposes;
 
-        private readonly CancellationTokenSource _databaseShutdown;
+        private readonly CancellationTokenSource _databaseShutdown, _txMergerShutdown;
 
         private readonly object _idleLocker = new object();
 
@@ -145,6 +145,7 @@ namespace Raven.Server.Documents
             Is32Bits = PlatformDetails.Is32Bits || Configuration.Storage.ForceUsing32BitsPager;
 
             _databaseShutdown = CancellationTokenSource.CreateLinkedTokenSource(serverStore.ServerShutdown);
+            _txMergerShutdown = CancellationTokenSource.CreateLinkedTokenSource(serverStore.ServerShutdown);
             _disposeOnce = new DisposeOnce<SingleAttempt>(DisposeInternal);
 
             _databaseStateChange = new DatabasesLandlord.StateChange(ServerStore, name, _logger, UpdateOnStateChange, 0, _databaseShutdown.Token);
@@ -298,6 +299,8 @@ namespace Raven.Server.Documents
         public QueryRunner QueryRunner { get; }
 
         public CancellationToken DatabaseShutdown => _databaseShutdown.Token;
+
+        public CancellationToken TransactionMergerShutdown => _txMergerShutdown.Token;
 
         public AsyncManualResetEvent DatabaseShutdownCompleted { get; } = new AsyncManualResetEvent();
 
@@ -1087,6 +1090,7 @@ namespace Raven.Server.Documents
             DisposeBackgroundWorkers(exceptionAggregator);
             
             ForTestingPurposes?.DisposeLog?.Invoke(Name, "Disposing TxMerger");
+            _txMergerShutdown.Cancel();
             exceptionAggregator.Execute(() =>
             {
                 // Note that we want to dispose the TxMerger *after* we disposed
