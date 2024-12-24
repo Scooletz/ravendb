@@ -177,7 +177,7 @@ namespace SlowTests.Smuggler
                     var snowflakeConnectionString = new SnowflakeConnectionString
                     {
                         Name = "connection",
-                        ConnectionString = global::Tests.Infrastructure.ConnectionString.SnowflakeConnectionString.Instance.VerifiedConnectionString.Value,
+                        ConnectionString = "ACCOUNT = SnowflakeAccount; USER = SnowflakeUser; PASSWORD = SnowflakePassword",
                     };
 
                     var result3 = store1.Maintenance.Send(new PutConnectionStringOperation<SnowflakeConnectionString>(snowflakeConnectionString));
@@ -1206,7 +1206,7 @@ namespace SlowTests.Smuggler
                 var snowflakeConnectionString = new SnowflakeConnectionString
                 {
                     Name = "connection",
-                    ConnectionString = global::Tests.Infrastructure.ConnectionString.SnowflakeConnectionString.Instance.VerifiedConnectionString.Value,
+                    ConnectionString = "ACCOUNT = SnowflakeAccount; USER = SnowflakeUser; PASSWORD = SnowflakePassword",
                 };
 
                 var result3 = store.Maintenance.Send(new PutConnectionStringOperation<SnowflakeConnectionString>(snowflakeConnectionString));
