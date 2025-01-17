@@ -1,12 +1,13 @@
 ﻿using System.IO;
 using FastTests.Voron;
 using Sparrow.Utils;
+using Tests.Infrastructure;
 using Voron;
 using Voron.Impl.Journal;
 using Xunit;
 using Xunit.Abstractions;
 
-namespace SlowTests.Voron
+namespace StressTests.Issues
 {
     public class RavenDB_19471 : StorageTest
     {
@@ -22,7 +23,7 @@ namespace SlowTests.Voron
         }
 
 
-        [Fact]
+        [NightlyBuildFact]
         public void ValidPagesShouldNotChangeOnPageOrChecksumInvalidException()
         {
             var options = StorageEnvironmentOptions.ForPathForTests(DataDir);

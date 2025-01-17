@@ -18,17 +18,16 @@ import documentMetadata = require("models/database/documents/documentMetadata");
 import getDocumentsMetadataByIDPrefixCommand = require("commands/database/documents/getDocumentsMetadataByIDPrefixCommand");
 import getDocumentWithMetadataCommand = require("commands/database/documents/getDocumentWithMetadataCommand");
 import { highlight, languages } from "prismjs";
-import shardViewModelBase from "viewmodels/shardViewModelBase";
-import licenseModel from "models/auth/licenseModel";
+import shardViewModelBase = require("viewmodels/shardViewModelBase");
+import licenseModel = require("models/auth/licenseModel");
 import { sortBy } from "common/typeUtils";
 import SnowflakeEtlConfiguration = Raven.Client.Documents.Operations.ETL.Snowflake.SnowflakeEtlConfiguration;
 import SnowflakeConnectionString = Raven.Client.Documents.Operations.ETL.Snowflake.SnowflakeConnectionString;
-import connectionStringSnowflakeEtlModel from "models/database/settings/connectionStringSnowflakeEtlModel";
-import testSnowflakeReplicationCommand from "commands/database/tasks/testSnowflakeEtlCommand";
-import ongoingTaskSnowflakeEtlTransformationModel
-    from "models/database/tasks/ongoingTaskSnowflakeEtlTransformationModel";
-import ongoingTaskSnowflakeEtlTableModel from "models/database/tasks/ongoingTaskSnowflakeEtlTableModel";
-import ongoingTaskSnowflakeEtlEditModel from "models/database/tasks/ongoingTaskSnowflakeEtlEditModel";
+import connectionStringSnowflakeEtlModel = require("models/database/settings/connectionStringSnowflakeEtlModel");
+import testSnowflakeReplicationCommand = require("commands/database/tasks/testSnowflakeEtlCommand");
+import ongoingTaskSnowflakeEtlTransformationModel = require("models/database/tasks/ongoingTaskSnowflakeEtlTransformationModel");
+import ongoingTaskSnowflakeEtlTableModel = require("models/database/tasks/ongoingTaskSnowflakeEtlTableModel");
+import ongoingTaskSnowflakeEtlEditModel = require("models/database/tasks/ongoingTaskSnowflakeEtlEditModel");
 import { EditSnowflakeEtlInfoHub } from "viewmodels/database/tasks/EditSnowflakeEtlInfoHub";
 
 class snowflakeTaskTestMode {

@@ -5,8 +5,8 @@ import additionalAssembly = require("models/database/index/additionalAssemblyMod
 import configurationItem = require("models/database/index/configurationItem");
 import validateNameCommand = require("commands/resources/validateNameCommand");
 import generalUtils = require("common/generalUtils");
-import compoundField from "models/database/index/compoundField";
-import vectorOptions from "models/database/index/vectorOptions";
+import compoundField = require("models/database/index/compoundField");
+import vectorOptions = require("models/database/index/vectorOptions");
 
 class mapItem {
     map = ko.observable<string>();

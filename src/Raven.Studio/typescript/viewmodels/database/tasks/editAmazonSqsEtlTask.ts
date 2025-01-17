@@ -21,10 +21,10 @@ import getDocumentWithMetadataCommand = require("commands/database/documents/get
 import testQueueEtlCommand = require("commands/database/tasks/testQueueEtlCommand");
 import document = require("models/database/documents/document");
 import { highlight, languages } from "prismjs";
-import licenseModel from "models/auth/licenseModel";
+import licenseModel = require("models/auth/licenseModel");
 import popoverUtils = require("common/popoverUtils");
-import ongoingTaskAmazonSqsEtlEditModel from "models/database/tasks/ongoingTaskAmazonSqsEtlEditModel";
-import connectionStringAmazonSqsModel from "models/database/settings/connectionStringAmazonSqsModel";
+import ongoingTaskAmazonSqsEtlEditModel = require("models/database/tasks/ongoingTaskAmazonSqsEtlEditModel");
+import connectionStringAmazonSqsModel = require("models/database/settings/connectionStringAmazonSqsModel");
 import { EditAmazonSqsEtlInfoHub } from "viewmodels/database/tasks/EditAmazonSqsEtlInfoHub";
 
 class amazonSqsTaskTestMode {

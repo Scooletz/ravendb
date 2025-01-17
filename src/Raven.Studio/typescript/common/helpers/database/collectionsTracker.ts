@@ -4,7 +4,7 @@ import database = require("models/resources/database");
 import getCollectionsStatsCommand = require("commands/database/documents/getCollectionsStatsCommand");
 import collectionsStats = require("models/database/documents/collectionsStats");
 import generalUtils = require("common/generalUtils");
-import getRevisionsPreviewCommand from "commands/database/documents/getRevisionsPreviewCommand";
+import getRevisionsPreviewCommand = require("commands/database/documents/getRevisionsPreviewCommand");
 
 class collectionsTracker {
 
