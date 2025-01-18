@@ -7,6 +7,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq.Expressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -178,22 +179,6 @@ namespace Raven.Client.Documents.Indexes
         }
         
         /// <summary>
-        /// Generates a vector field in the index, generating embeddings from the provided value
-        /// </summary>
-        /// <param name="value">Source of text to generate tokens</param>
-        public object VectorSearch(string value)
-        {
-            throw new NotSupportedException("This method is provided solely to allow query translation on the server");
-        }
-
-        /// <inheritdoc cref="VectorSearch(string)"/>
-        /// <param name="values">Enumerable of text to generate tokens</param>
-        public object VectorSearch(IEnumerable<string> values)
-        {
-            throw new NotSupportedException("This method is provided solely to allow query translation on the server");
-        }
-        
-        /// <summary>
         /// Generates a spatial field in the index, generating a Point from the provided lat/lng coordinates
         /// </summary>
         /// <param name="lat">Latitude</param>
@@ -217,6 +202,18 @@ namespace Raven.Client.Documents.Indexes
         /// </summary>
         /// <param name="value">Source of embedding</param>
         public object CreateVector(IEnumerable<float> value) => throw new NotSupportedException("This method is provided solely to allow query translation on the server");
+        
+        /// <summary>
+        /// Creates a vector field in the index from the provided value
+        /// </summary>
+        /// <param name="value">Source of embedding</param>
+        public object CreateVector(Stream value) => throw new NotSupportedException("This method is provided solely to allow query translation on the server");
+        
+        /// <summary>
+        /// Creates a vector field in the index from the provided values
+        /// </summary>
+        /// <param name="value">Source of embedding</param>
+        public object CreateVector(IEnumerable<Stream> values) => throw new NotSupportedException("This method is provided solely to allow query translation on the server");
         
         /// <summary>
         /// Creates a vector field in the index from the provided values

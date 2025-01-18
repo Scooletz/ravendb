@@ -1,4 +1,4 @@
-import { compareSets, isBoolean, range } from "./typeUtils";
+import { capitalize, compareSets, isBoolean, range } from "./typeUtils";
 
 describe("typeUtils", () => {
     describe("isBoolean", () => {
@@ -49,6 +49,20 @@ describe("typeUtils", () => {
             expect(compareSets([1, 1], [1, 2])).toBe(false);
             expect(compareSets([1, 2], [1, 2, 3])).toBe(false);
             expect(compareSets([1, 2, 3], [1, 2])).toBe(false);
+        });
+    });
+
+    describe("capitalize", () => {
+        it("should capitalize the first letter of a string and lowercase the rest", () => {
+            expect(capitalize(undefined)).toEqual("");
+            expect(capitalize(null)).toEqual("");
+            expect(capitalize("")).toEqual("");
+            expect(capitalize(" ")).toEqual(" ");
+            expect(capitalize("hello")).toEqual("Hello");
+            expect(capitalize("HeLLO")).toEqual("Hello");
+            expect(capitalize("Hello")).toEqual("Hello");
+            expect(capitalize("hello world")).toEqual("Hello world");
+            expect(capitalize(123 as unknown as string)).toEqual("123");
         });
     });
 });
