@@ -1,7 +1,9 @@
 import { createAsyncThunk, createSelector, createSlice, PayloadAction } from "@reduxjs/toolkit";
+import { capitalize } from "common/typeUtils";
 import { services } from "components/hooks/useServices";
 import { loadStatus } from "components/models/common";
 import { RootState } from "components/store";
+import { logLevelRelevances } from "components/utils/common";
 
 export interface AdminLogsMessage {
     Date: string;
@@ -159,16 +161,25 @@ export const adminLogsActions = {
 };
 
 const selectFilteredLogs = createSelector(
-    [(store: RootState) => store.adminLogs.logs, (store: RootState) => store.adminLogs.filter],
-    (logs, filter) =>
-        logs.filter((log) =>
-            Object.entries(log).some(
+    [
+        (store: RootState) => store.adminLogs.logs,
+        (store: RootState) => store.adminLogs.filter,
+        (store: RootState) => store.adminLogs.configs?.adminLogsConfig?.AdminLogs?.CurrentMinLevel,
+    ],
+    (logs, filter, minLevel) =>
+        logs.filter((log) => {
+            const isMatchingFilter = Object.entries(log).some(
                 (entry) =>
                     entry[0] !== "_meta" &&
                     typeof entry[1] === "string" &&
-                    entry[1].toLowerCase().includes(filter.toLocaleLowerCase())
-            )
-        )
+                    entry[1].toLowerCase().includes(filter.toLowerCase())
+            );
+
+            const capitalizedLogLevel = capitalize(log.Level);
+            const isMatchingMinLevel = logLevelRelevances[capitalizedLogLevel] >= logLevelRelevances[minLevel];
+
+            return isMatchingFilter && isMatchingMinLevel;
+        })
 );
 
 export const adminLogsSelectors = {
