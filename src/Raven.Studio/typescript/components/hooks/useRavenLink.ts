@@ -1,4 +1,3 @@
-import { todo } from "common/developmentHelper";
 import { clusterSelectors } from "components/common/shell/clusterSlice";
 import { useAppSelector } from "components/store";
 
@@ -37,7 +36,7 @@ export function useGetRavenLink(): (props: UseRavenLinkProps) => string {
             }
         }
 
-        todo("Feature", "ANY", "Add utm source");
+        // TODO Add utm source
 
         return link;
     };

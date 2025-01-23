@@ -65,6 +65,8 @@ import getDocumentsPreviewCommand = require("commands/database/documents/getDocu
 import getDocumentsMetadataByIDPrefixCommand = require("commands/database/documents/getDocumentsMetadataByIDPrefixCommand");
 import getIdentitiesCommand from "commands/database/identities/getIdentitiesCommand";
 import seedIdentityCommand from "commands/database/identities/seedIdentityCommand";
+import getRevisionsBinCleanerConfigurationCommand from "commands/database/settings/getRevisionsBinCleanerConfigurationCommand";
+import saveRevisionsBinCleanerConfigurationCommand from "commands/database/settings/saveRevisionsBinCleanerConfigurationCommand";
 import getRevisionsPreviewCommand from "commands/database/documents/getRevisionsPreviewCommand";
 import deleteRevisionsForDocumentsCommand = require("commands/database/documents/deleteRevisionsForDocumentsCommand");
 import getRevisionsIdsCommand from "commands/database/documents/getRevisionsIdsCommand";
@@ -180,6 +182,18 @@ export default class DatabasesService {
 
     async saveRevisionsConfiguration(databaseName: string, dto: RevisionsConfiguration) {
         return new saveRevisionsConfigurationCommand(databaseName, dto).execute();
+    }
+
+    async getRevisionsBinCleanerConfiguration(
+        ...args: ConstructorParameters<typeof getRevisionsBinCleanerConfigurationCommand>
+    ) {
+        return new getRevisionsBinCleanerConfigurationCommand(...args).execute();
+    }
+
+    async saveRevisionsBinCleanerConfiguration(
+        ...args: ConstructorParameters<typeof saveRevisionsBinCleanerConfigurationCommand>
+    ) {
+        return new saveRevisionsBinCleanerConfigurationCommand(...args).execute();
     }
 
     async enforceRevisionsConfiguration(

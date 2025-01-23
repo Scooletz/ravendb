@@ -6,6 +6,7 @@ import configurationItem = require("models/database/index/configurationItem");
 import validateNameCommand = require("commands/resources/validateNameCommand");
 import generalUtils = require("common/generalUtils");
 import compoundField = require("models/database/index/compoundField");
+import indexingDatabaseSettingsTypes = require("models/database/index/types")
 import vectorOptions = require("models/database/index/vectorOptions");
 
 class mapItem {
@@ -75,8 +76,9 @@ class indexDefinition {
     searchEngine = ko.observable<Raven.Client.Documents.Indexes.SearchEngineType>();
 
     validationGroup: KnockoutValidationGroup;
+    indexingDatabaseSettings = ko.observable<indexingDatabaseSettingsTypes.IndexingDatabaseSettingsType>();
 
-    constructor(dto: Raven.Client.Documents.Indexes.IndexDefinition) {
+    constructor(dto: Raven.Client.Documents.Indexes.IndexDefinition, indexingDatabaseSettings?: indexingDatabaseSettingsTypes.IndexingDatabaseSettingsType) {
         this.isAutoIndex(dto.Type.startsWith("Auto"));
 
         this.name(dto.Name);
@@ -85,7 +87,7 @@ class indexDefinition {
         this.hasReduce(!!dto.Reduce);
         this.deploymentMode(dto.DeploymentMode);
         //this.isTestIndex(dto.IsTestIndex);
-        
+        this.indexingDatabaseSettings(indexingDatabaseSettings);
         this.outputReduceToCollection(!!dto.OutputReduceToCollection);
         this.reduceOutputCollectionName(dto.OutputReduceToCollection);
         
@@ -96,7 +98,7 @@ class indexDefinition {
         this.collectionNameForReferenceDocuments(dto.PatternReferencesCollectionName);
 
         this.fields(Object.entries(dto.Fields ?? []).map(([indexName, fieldDto]) =>
-            new indexFieldOptions(indexName, fieldDto, this.hasReduce, this.searchEngine, indexFieldOptions.defaultFieldOptions(this.hasReduce, this.searchEngine))));
+            new indexFieldOptions(indexName, fieldDto, this.hasReduce, this.searchEngine, indexFieldOptions.defaultFieldOptions(this.hasReduce, this.searchEngine, dto.Configuration, indexingDatabaseSettings), dto.Configuration, indexingDatabaseSettings )));
 
         if (dto.CompoundFields) {
             this.compoundFields(dto.CompoundFields.map(compoundField.fromDto));
@@ -108,7 +110,7 @@ class indexDefinition {
         if (defaultFieldOptions) {
             this.defaultFieldOptions(defaultFieldOptions);
             
-            defaultFieldOptions.parent(indexFieldOptions.globalDefaults(this.hasReduce, this.searchEngine));
+            defaultFieldOptions.parent(indexFieldOptions.globalDefaults(this.hasReduce, this.searchEngine, dto.Configuration, indexingDatabaseSettings));
             this.fields.remove(defaultFieldOptions);
 
             this.fields().forEach(field => {
@@ -337,7 +339,7 @@ class indexDefinition {
     }
 
     addField() {
-        const field = indexFieldOptions.empty(this.hasReduce, this.searchEngine);
+        const field = indexFieldOptions.empty(this.hasReduce, this.searchEngine, this.configurationToDto(), this.indexingDatabaseSettings());
         
         field.addCustomAnalyzers(this.customAnalyzers());
         
@@ -349,7 +351,7 @@ class indexDefinition {
     }
 
     addDefaultField() {
-        const fieldOptions = indexFieldOptions.defaultFieldOptions(this.hasReduce, this.searchEngine);
+        const fieldOptions = indexFieldOptions.defaultFieldOptions(this.hasReduce, this.searchEngine, this.configurationToDto(), this.indexingDatabaseSettings());
         fieldOptions.addCustomAnalyzers(this.customAnalyzers());
         this.defaultFieldOptions(fieldOptions);
 
@@ -401,7 +403,7 @@ class indexDefinition {
         }
     }
     
-    static empty(): indexDefinition {
+    static createDefaultIndexDefinition(indexingDatabaseSettings?: indexingDatabaseSettingsTypes.IndexingDatabaseSettingsType): indexDefinition {
         return new indexDefinition({
             Fields: {},
             Maps: [""],
@@ -420,7 +422,7 @@ class indexDefinition {
             PatternForOutputReduceToCollectionReferences: null,
             PatternReferencesCollectionName: null,
             CompoundFields: []
-        });
+        }, indexingDatabaseSettings);
     }
 }
 
