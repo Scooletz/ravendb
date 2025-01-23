@@ -59,6 +59,10 @@ import licenseLimitsUtils = require("components/utils/licenseLimitsUtils");
 import getClusterLicenseLimitsUsage = require("commands/licensing/getClusterLicenseLimitsUsage");
 import convertToStaticDialog = require("viewmodels/database/indexes/convertToStaticDialog");
 import convertedIndexesToStaticStorage = require("common/storage/convertedIndexesToStaticStorage");
+import getDatabaseSettingsCommand = require("commands/database/settings/getDatabaseSettingsCommand");
+import models = require("models/database/settings/databaseSettingsModels");
+import indexingDatabaseSettingsTypes = require("models/database/index/types")
+import genUtils = require("common/generalUtils");
 
 class editIndex extends shardViewModelBase {
     
@@ -142,6 +146,7 @@ class editIndex extends shardViewModelBase {
 
     infoHubView: ReactInKnockout<typeof EditIndexInfoHub.EditIndexInfoHub>;
     isAddingNewIndex = ko.observable<boolean>(true);
+    indexingAnalyzerSettings = ko.observable<indexingDatabaseSettingsTypes.IndexingDatabaseSettingsType>();
 
     constructor(db: database) {
         super(db);
@@ -347,7 +352,8 @@ class editIndex extends shardViewModelBase {
         const indexToEditName = indexToEdit || undefined;
         
         return $.when<any>(super.canActivate(indexToEditName))
-            .then(() => {
+            .then(async () => {
+                await this.fetchDatabaseSettings();
                 const db = this.db;
 
                 if (indexToEditName) {
@@ -358,7 +364,7 @@ class editIndex extends shardViewModelBase {
                         const merged = mergedIndexesStorage.getMergedIndex(db, indexToEditName);
                         if (merged) {
                             this.indexesToDeleteAfterMerge(merged.indexesToDelete);
-                            this.editedIndex(new indexDefinition(merged.definition));
+                            this.editedIndex(new indexDefinition(merged.definition, this.indexingAnalyzerSettings()));
                             this.initIndex();
                             this.originalIndexName = indexToEditName;
                             
@@ -368,7 +374,7 @@ class editIndex extends shardViewModelBase {
 
                         const convertedToStatic = convertedIndexesToStaticStorage.getIndex(db.name, indexToEditName);
                         if (convertedToStatic) {
-                            this.editedIndex(new indexDefinition(convertedToStatic.definition));
+                            this.editedIndex(new indexDefinition(convertedToStatic.definition, this.indexingAnalyzerSettings()));
                             this.initIndex();
 
                             canActivateResult.resolve({ can: true });
@@ -391,7 +397,7 @@ class editIndex extends shardViewModelBase {
                         });
                     return canActivateResult;
                 } else {
-                    this.editedIndex(indexDefinition.empty());
+                    this.editedIndex(indexDefinition.createDefaultIndexDefinition(this.indexingAnalyzerSettings()));
                 }
 
                 return $.Deferred<canActivateResultDto>().resolve({ can: true });
@@ -544,6 +550,29 @@ class editIndex extends shardViewModelBase {
             });
     }
 
+    private fetchDatabaseSettings() {
+        return new getDatabaseSettingsCommand(this.db)
+          .execute()
+          .done((result: Raven.Server.Config.SettingsResult) => {
+              const indexingAnalyzersDefaultsDatabaseSettingsKeys = genUtils.exhaustiveStringTuple<indexingDatabaseSettingsTypes.IndexingDatabaseSetting>()(
+                  "Indexing.Analyzers.Default", "Indexing.Analyzers.Exact.Default", "Indexing.Analyzers.Search.Default"
+              )
+              const settingsEntries = result.Settings.map(x => {
+                  const rawEntry = x as Raven.Server.Config.ConfigurationEntryDatabaseValue;
+                  return models.settingsEntry.getEntry(rawEntry);
+              });
+              
+              
+              const indexingAnalyzerSettings = Object.fromEntries(
+                  indexingAnalyzersDefaultsDatabaseSettingsKeys.map(key => [
+                      key,
+                      settingsEntries.find(entry => entry.keyName() === key)
+                  ])
+              ) as indexingDatabaseSettingsTypes.IndexingDatabaseSettingsType
+              this.indexingAnalyzerSettings(indexingAnalyzerSettings);
+          });
+    }
+    
     private fetchClusterLicenseLimitsUsage() {
         new getClusterLicenseLimitsUsage()
             .execute()
@@ -611,7 +640,7 @@ class editIndex extends shardViewModelBase {
     loadFullIndexDefinitionFromHistory() {
         const currentIndexName = this.editedIndex().name();
         
-        const newIndexDefinition = new indexDefinition(this.previewItem().Definition);
+        const newIndexDefinition = new indexDefinition(this.previewItem().Definition, this.indexingAnalyzerSettings());
 
         if (!this.isEditingExistingIndex()) {
             // if editing a clone then keep the clone name
@@ -626,7 +655,7 @@ class editIndex extends shardViewModelBase {
         const mapsFromPreview = previewItem.Definition.Maps;
         const reduceFromPreview = previewItem.Definition.Reduce;
         
-        const newIndexDefinition = new indexDefinition(this.editedIndex().toDto());
+        const newIndexDefinition = new indexDefinition(this.editedIndex().toDto(), this.indexingAnalyzerSettings());
         newIndexDefinition.setMapsAndReduce(mapsFromPreview, reduceFromPreview);
 
         this.loadIndexDefinition(newIndexDefinition);
@@ -941,7 +970,7 @@ class editIndex extends shardViewModelBase {
                 if (result.Type.startsWith("Auto")) {
                     this.editedIndex(new autoIndexDefinition(result));
                 } else {
-                    this.editedIndex(new indexDefinition(result));
+                    this.editedIndex(new indexDefinition(result, this.indexingAnalyzerSettings()));
                 }
 
                 this.initIndex();
@@ -1104,7 +1133,7 @@ class editIndex extends shardViewModelBase {
         return new getIndexesDefinitionsCommand(db, { skip: 0, take: 1024 * 1024 })
             .execute()
             .done((indexDefinitions) => {
-                const matchedIndexes = indexDefinitions.filter(x => toDelete.includes(x.Name)).map(x => new indexDefinition(x));
+                const matchedIndexes = indexDefinitions.filter(x => toDelete.includes(x.Name)).map(x => new indexDefinition(x, this.indexingAnalyzerSettings()));
 
                 const deleteViewModel = new deleteIndexesConfirm(matchedIndexes, db);
                 deleteViewModel.deleteTask.done((done) => {

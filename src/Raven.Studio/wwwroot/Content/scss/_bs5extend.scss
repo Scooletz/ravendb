@@ -647,6 +647,16 @@ $filtering-input-bg: $toggle-bg !default;
     }
 }
 
+// Lower opacity for disabled inputs and text addons
+.form-control {
+    &:disabled {
+        opacity: 0.5;
+        + .input-group-text {
+            opacity: 0.5;
+        }
+    }
+}
+
 .content-padding {
     width: 100%;
     height: 100%;

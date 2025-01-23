@@ -21,7 +21,6 @@ import { delay } from "components/utils/common";
 import { useServices } from "hooks/useServices";
 import { useEventsCollector } from "hooks/useEventsCollector";
 import { useChanges } from "hooks/useChanges";
-import { shardingTodo } from "common/developmentHelper";
 import IndexRunningStatus = Raven.Client.Documents.Indexes.IndexRunningStatus;
 import collection from "models/database/documents/collection";
 import IndexLockMode = Raven.Client.Documents.Indexes.IndexLockMode;
@@ -119,7 +118,7 @@ export function useIndexesPage(stale: boolean, isImportOpen: boolean) {
         }
     });
 
-    shardingTodo("ANY");
+    // TODO sharding
     const globalIndexingStatus: IndexRunningStatus = "Running"; //TODO:
 
     const [selectedIndexes, setSelectedIndexes] = useState<string[]>([]);

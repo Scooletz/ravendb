@@ -190,6 +190,7 @@ namespace Raven.Server.ServerWide
             [nameof(AddPrefixedShardingSettingCommand)] = 62_000,
             [nameof(DeletePrefixedShardingSettingCommand)] = 62_000,
             [nameof(UpdatePrefixedShardingSettingCommand)] = 62_000,
+            [nameof(RevisionsBinConfigurationCommand)] = 62_001,
 
             [nameof(AddSnowflakeEtlCommand)] = 62_000,
             [nameof(UpdateSnowflakeEtlCommand)] = 62_000,
