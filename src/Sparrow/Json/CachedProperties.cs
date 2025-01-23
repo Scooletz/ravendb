@@ -64,12 +64,27 @@ namespace Sparrow.Json
             public readonly LazyStringValue Comparer = comparer;
             public int GlobalSortOrder = globalSortOrder;
             public int PropertyId = propertyId;
+            public bool IsVectorProperty;
+
+            public PropertyName(int hash, LazyStringValue comparer, int globalSortOrder, int propertyId)
+            {
+                HashCode = hash;
+                Comparer = comparer;
+                GlobalSortOrder = globalSortOrder;
+                PropertyId = propertyId;
+                IsVectorProperty = Comparer.AsReadOnlySpan().SequenceEqual(Global.Constants.Naming.VectorPropertyNameAsSpan);
+            }
 
             public int CompareTo(PropertyName other)
             {
                 return Comparer.CompareTo(other.Comparer);
             }
 
+            public bool EqualsPropertyNameToBytes(ReadOnlySpan<byte> other)
+            {
+                return Comparer.AsReadOnlySpan().SequenceEqual(other);
+            }
+            
             public override string ToString()
             {
                 return $"Value: {Comparer}, GlobalSortOrder: {GlobalSortOrder}, PropertyId: {PropertyId}";

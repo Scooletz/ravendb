@@ -6,10 +6,10 @@ import connectionStringSqlEtlModel = require("models/database/settings/connectio
 import connectionStringSnowflakeEtlModel = require("models/database/settings/connectionStringSnowflakeEtlModel");
 import connectionStringOlapEtlModel = require("models/database/settings/connectionStringOlapEtlModel");
 import connectionStringElasticSearchEtlModel = require("models/database/settings/connectionStringElasticSearchEtlModel");
-import connectionStringKafkaModel from "models/database/settings/connectionStringKafkaModel";
-import connectionStringRabbitMqModel from "models/database/settings/connectionStringRabbitMqModel";
-import connectionStringAzureQueueStorageModel from "models/database/settings/connectionStringAzureQueueStorageModel";
-import connectionStringAmazonSqsModel from "models/database/settings/connectionStringAmazonSqsModel";
+import connectionStringKafkaModel = require("models/database/settings/connectionStringKafkaModel");
+import connectionStringRabbitMqModel = require("models/database/settings/connectionStringRabbitMqModel");
+import connectionStringAzureQueueStorageModel = require("models/database/settings/connectionStringAzureQueueStorageModel");
+import connectionStringAmazonSqsModel = require("models/database/settings/connectionStringAmazonSqsModel");
 
 class saveConnectionStringCommand_OLD extends commandBase {
 

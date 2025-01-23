@@ -9,9 +9,8 @@ import { Checkbox } from "components/common/Checkbox";
 import { NodeSet, NodeSetLabel, NodeSetList, NodeSetItem } from "components/common/NodeSet";
 import { useAppSelector } from "components/store";
 import { clusterSelectors } from "components/common/shell/clusterSlice";
-import { todo } from "common/developmentHelper";
 
-todo("Feature", "Damian", "Add Auto fill button");
+// TODO Add Auto fill button
 
 export default function CreateDatabaseRegularStepNodeSelection() {
     const { control, setValue, formState } = useFormContext<CreateDatabaseRegularFormData>();

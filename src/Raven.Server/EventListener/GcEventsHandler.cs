@@ -12,6 +12,7 @@ public class GcEventsHandler : AbstractEventsHandler<GcEventsHandler.GCEventBase
     private EventWrittenEventArgs _suspendData;
     private DateTime? _timeGcRestartStart;
     private DateTime? _timeGcFinalizersStart;
+    private GCEvent.MarkDetails _markDetails = new();
 
     protected override HashSet<EventType> DefaultEventTypes => EventListenerToLog.GcEvents;
 
@@ -35,7 +36,7 @@ public class GcEventsHandler : AbstractEventsHandler<GcEventsHandler.GCEventBase
                     var reason = (uint)eventData.Payload[2];
                     _timeGcStartByIndex[startIndex] = (eventData.TimeStamp, generation, reason);
                 }
-                
+
                 return true;
 
             case EventListener.Constants.EventNames.GC.GCEnd:
@@ -45,14 +46,15 @@ public class GcEventsHandler : AbstractEventsHandler<GcEventsHandler.GCEventBase
 
                     if (_timeGcStartByIndex.TryGetValue(endIndex, out var tuple))
                     {
-                        var @event = new GCEvent(tuple.DateTime, eventData, endIndex, tuple.Generation, tuple.Reason);
+                        var @event = new GCEvent(tuple.DateTime, eventData, endIndex, tuple.Generation, tuple.Reason, _markDetails);
                         if (@event.DurationInMs >= MinimumDurationInMs)
                             OnEvent.Invoke(@event);
 
                         _timeGcStartByIndex.Remove(endIndex);
+                        _markDetails = new GCEvent.MarkDetails();
                     }
                 }
-                
+
                 return true;
 
             case EventListener.Constants.EventNames.GC.GCSuspendBegin:
@@ -117,11 +119,28 @@ public class GcEventsHandler : AbstractEventsHandler<GcEventsHandler.GCEventBase
                 }
 
                 return true;
-            
+
             case EventListener.Constants.EventNames.GC.GCHeapStats:
                 if (EventTypes.Contains(EventType.GCHeapStats))
                 {
                     OnEvent.Invoke(new GCHeapStatsEvent(EventType.GCHeapStats, eventData));
+                }
+
+                return true;
+
+            case EventListener.Constants.EventNames.GC.GCMarkWithType:
+                if (EventTypes.Contains(EventType.GC))
+                {
+                    if (_markDetails.First == null)
+                    {
+                        _markDetails.First = eventData.TimeStamp;
+                    }
+                    else
+                    {
+                        _markDetails.Last = eventData.TimeStamp;
+                    }
+
+                    _markDetails.TotalBytes += (ulong)eventData.Payload[3];
                 }
 
                 return true;
@@ -183,12 +202,24 @@ public class GcEventsHandler : AbstractEventsHandler<GcEventsHandler.GCEventBase
 
         private string Reason { get; }
 
-        public GCEvent(DateTime start, EventWrittenEventArgs eventData, long index, uint generation, uint reason)
+        private MarkDetails MarkInfo { get; }
+
+        internal struct MarkDetails
+        {
+            public DateTime? First;
+
+            public DateTime? Last;
+
+            public ulong TotalBytes;
+        }
+
+        public GCEvent(DateTime start, EventWrittenEventArgs eventData, long index, uint generation, uint reason, MarkDetails markDetails)
             : base(EventType.GC, start, eventData)
         {
             Index = index;
             Generation = generation;
             Reason = GetGcReason(reason);
+            MarkInfo = markDetails;
         }
 
         public override DynamicJsonValue ToJson()
@@ -203,32 +234,48 @@ public class GcEventsHandler : AbstractEventsHandler<GcEventsHandler.GCEventBase
         public override string ToString()
         {
             var str = base.ToString();
-            return $"{str}, index: {Index}, generation: {Generation}, reason: {Reason}";
+            var output = $"{str}, index: {Index}, generation: {Generation}, reason: {Reason}";
+            if (MarkInfo.First != null && MarkInfo.Last != null)
+            {
+                double markDurationInMs = (MarkInfo.Last - MarkInfo.First).Value.TotalMilliseconds;
+                output += $", mark duration: {markDurationInMs}ms, {(markDurationInMs / DurationInMs * 100):F2}% of GC time, total marked: {new Size((long)MarkInfo.TotalBytes, SizeUnit.Bytes)}";
+            }
+
+            return output;
         }
 
+        // https://github.com/dotnet/runtime/blob/a78ec96f3f474615d4c850482134bd291f1b1384/src/coreclr/inc/eventtrace.h#L215
         private static string GetGcReason(uint valueReason)
         {
             switch (valueReason)
             {
                 case 0x0:
-                    return "Small object heap allocation";
+                    return "Small object heap allocation"; // SOH Allocation
                 case 0x1:
-                    return "Induced";
+                    return "Induced"; // Manually triggered GC (GC.Collect)
                 case 0x2:
-                    return "Low memory";
+                    return "Low memory"; // GC triggered by low system memory
                 case 0x3:
-                    return "Empty";
+                    return "Empty"; // No specific reason, sometimes used internally
                 case 0x4:
-                    return "Large object heap allocation";
+                    return "Large object heap allocation"; // LOH Allocation
                 case 0x5:
-                    return "Out of space (for small object heap)";
+                    return "Out of space (for small object heap)"; // SOH OOM
                 case 0x6:
-                    return "Out of space (for large object heap)";
+                    return "Out of space (for large object heap)"; // LOH OOM
                 case 0x7:
-                    return "Induced but not forced as blocking";
+                    return "Induced but not forced as blocking"; // Non-blocking induced GC
+                case 0x8:
+                    return "GC stress testing mode"; // GC triggered by GCStress testing mode
+                case 0x9:
+                    return "Low memory blocking"; // Low memory situation requiring a blocking collection
+                case 0xA:
+                    return "Induced GC with forced compacting"; // Induced GC that must be compacting
+                case 0xB:
+                    return "Low memory reported by the host"; // Low memory reported by host
 
                 default:
-                    return null;
+                    return $"Unknown reason: {valueReason}";
             }
         }
     }
@@ -260,7 +307,8 @@ public class GcEventsHandler : AbstractEventsHandler<GcEventsHandler.GCEventBase
             return $"{str}, index: {Index}, reason: {Reason}";
         }
 
-        private static string GetSuspendReason(uint? suspendReason)
+        //https://github.com/dotnet/runtime/blob/a78ec96f3f474615d4c850482134bd291f1b1384/src/coreclr/vm/threadsuspend.h#L169
+        private static string GetSuspendReason(uint suspendReason)
         {
             switch (suspendReason)
             {
@@ -280,9 +328,11 @@ public class GcEventsHandler : AbstractEventsHandler<GcEventsHandler.GCEventBase
                     return "Suspend for GC Prep";
                 case 0x7:
                     return "Suspend for debugger sweep";
+                case 0x8:
+                    return "Suspend for profiler";
 
                 default:
-                    return null;
+                    return $"Unknown reason: {suspendReason}";
             }
         }
     }

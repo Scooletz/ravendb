@@ -63,6 +63,10 @@ import distributeSecretCommand = require("commands/database/secrets/distributeSe
 import saveCustomAnalyzerCommand from "commands/database/settings/saveCustomAnalyzerCommand";
 import getDocumentsPreviewCommand = require("commands/database/documents/getDocumentsPreviewCommand");
 import getDocumentsMetadataByIDPrefixCommand = require("commands/database/documents/getDocumentsMetadataByIDPrefixCommand");
+import getIdentitiesCommand from "commands/database/identities/getIdentitiesCommand";
+import seedIdentityCommand from "commands/database/identities/seedIdentityCommand";
+import getRevisionsBinCleanerConfigurationCommand from "commands/database/settings/getRevisionsBinCleanerConfigurationCommand";
+import saveRevisionsBinCleanerConfigurationCommand from "commands/database/settings/saveRevisionsBinCleanerConfigurationCommand";
 import getRevisionsPreviewCommand from "commands/database/documents/getRevisionsPreviewCommand";
 import deleteRevisionsForDocumentsCommand = require("commands/database/documents/deleteRevisionsForDocumentsCommand");
 import getRevisionsIdsCommand from "commands/database/documents/getRevisionsIdsCommand";
@@ -178,6 +182,18 @@ export default class DatabasesService {
 
     async saveRevisionsConfiguration(databaseName: string, dto: RevisionsConfiguration) {
         return new saveRevisionsConfigurationCommand(databaseName, dto).execute();
+    }
+
+    async getRevisionsBinCleanerConfiguration(
+        ...args: ConstructorParameters<typeof getRevisionsBinCleanerConfigurationCommand>
+    ) {
+        return new getRevisionsBinCleanerConfigurationCommand(...args).execute();
+    }
+
+    async saveRevisionsBinCleanerConfiguration(
+        ...args: ConstructorParameters<typeof saveRevisionsBinCleanerConfigurationCommand>
+    ) {
+        return new saveRevisionsBinCleanerConfigurationCommand(...args).execute();
     }
 
     async enforceRevisionsConfiguration(
@@ -297,6 +313,14 @@ export default class DatabasesService {
 
     async getDocumentsMetadataByIDPrefix(...args: ConstructorParameters<typeof getDocumentsMetadataByIDPrefixCommand>) {
         return new getDocumentsMetadataByIDPrefixCommand(...args).execute();
+    }
+
+    async getIdentities(...args: ConstructorParameters<typeof getIdentitiesCommand>) {
+        return new getIdentitiesCommand(...args).execute();
+    }
+
+    async seedIdentity(...args: ConstructorParameters<typeof seedIdentityCommand>) {
+        return new seedIdentityCommand(...args).execute();
     }
 
     async getRevisionsPreview(...args: ConstructorParameters<typeof getRevisionsPreviewCommand>) {

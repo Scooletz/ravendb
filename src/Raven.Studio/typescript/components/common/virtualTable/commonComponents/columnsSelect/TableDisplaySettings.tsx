@@ -7,13 +7,7 @@ import { useTableDisplaySettings } from "components/common/virtualTable/commonCo
 import { ClassNameProps } from "components/models/common";
 import classNames from "classnames";
 
-import { todo } from "common/developmentHelper";
-todo(
-    "Feature",
-    "Damian",
-    "Add custom column and reorder with dnd",
-    "https://issues.hibernatingrhinos.com/issue/RavenDB-22509"
-);
+// TODO Add custom column and reorder with dnd https://issues.hibernatingrhinos.com/issue/RavenDB-22509
 
 interface TableColumnsSelectProps<T> extends ClassNameProps {
     table: TanstackTable<T>;

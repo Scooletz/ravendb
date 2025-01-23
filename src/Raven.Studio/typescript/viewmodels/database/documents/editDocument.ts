@@ -43,10 +43,11 @@ import studioSettings = require("common/settings/studioSettings");
 import globalSettings = require("common/settings/globalSettings");
 import fileDownloader = require("common/fileDownloader");
 import moment = require("moment");
-import shardViewModelBase from "viewmodels/shardViewModelBase";
-import shard from "models/resources/shard";
-import shardedDatabase from "models/resources/shardedDatabase";
-import assertUnreachable from "components/utils/assertUnreachable";
+import shardViewModelBase = require("viewmodels/shardViewModelBase");
+import shard = require("models/resources/shard");
+import shardedDatabase = require("models/resources/shardedDatabase");
+import assertUnreachable = require("components/utils/assertUnreachable");
+import deleteRevisionsForDocumentsCommand = require("commands/database/documents/deleteRevisionsForDocumentsCommand");
 
 class editDocument extends shardViewModelBase {
 
@@ -88,7 +89,8 @@ class editDocument extends shardViewModelBase {
     lastModifiedAsAgo: KnockoutComputed<string>;
     latestRevisionUrl: KnockoutComputed<string>;
     rawJsonUrl: KnockoutComputed<string>;
-    
+
+    isRevision: KnockoutComputed<boolean>;
     isDeleteRevision: KnockoutComputed<boolean>;
     isConflictRevision: KnockoutComputed<boolean>;
     isResolvedRevision: KnockoutComputed<boolean>;
@@ -454,6 +456,15 @@ class editDocument extends shardViewModelBase {
             const hasRevisions = this.document()?.__metadata.hasFlag("HasRevisions");
             
             return !diffMode && !isClone && !creatingNewDocument && !deleteRevision && hasRevisions;
+        })
+
+        this.isRevision = ko.pureComputed(() => {
+            const doc = this.document();
+            if (doc) {
+                return doc.__metadata.hasFlag("Revision");
+            } else {
+                return false;
+            }
         })
 
         this.isDeleteRevision = ko.pureComputed(() => {
@@ -1218,7 +1229,7 @@ class editDocument extends shardViewModelBase {
                         break;
                     }
                     default:
-                        assertUnreachable(direction);
+                        assertUnreachable.default(direction);
                 }
                 break;
             }
@@ -1235,12 +1246,12 @@ class editDocument extends shardViewModelBase {
                         break;
                     }
                     default:
-                        assertUnreachable(direction);
+                        assertUnreachable.default(direction);
                 }
                 break;
             }
             default:
-                assertUnreachable(tab);
+                assertUnreachable.default(tab);
         }
         
     }
@@ -1264,7 +1275,7 @@ class editDocument extends shardViewModelBase {
                             return currentRevisionIndex < this.revisionsToCompare().length - 1;
                         }
                         default:
-                            return assertUnreachable(direction);
+                            return assertUnreachable.default(direction);
                     }
                 }
                 case "left": {
@@ -1281,12 +1292,12 @@ class editDocument extends shardViewModelBase {
                         case "older":
                             return currentRevisionIndex < this.revisionsToCompare().length - 1;
                         default:
-                            return assertUnreachable(direction);
+                            return assertUnreachable.default(direction);
                     }
                 }
 
                 default:
-                    return assertUnreachable(tab);
+                    return assertUnreachable.default(tab);
             }
         });
     }
@@ -1413,6 +1424,27 @@ class editDocument extends shardViewModelBase {
         this.dirtyFlag().reset();
         this.connectedDocuments.onDocumentDeleted();
         this.displayDocumentDeleted(false);
+    }
+
+    deleteRevision() {
+        const doc = this.document();
+
+        const parameters: Raven.Client.Documents.Operations.Revisions.DeleteRevisionsOperation.Parameters = {
+            DocumentIds: [doc.getId()],
+            RevisionsChangeVectors: [doc.__metadata.changeVector()],
+            RemoveForceCreatedRevisions: true,
+        };
+
+        this.confirmationMessage("Are you sure?", "Do you want to delete current revision?", {
+            buttons: ["Cancel", "Yes, delete"],
+        }).done((result) => {
+            if (result.can) {
+                new deleteRevisionsForDocumentsCommand(this.db.name, parameters).execute().done(() => {
+                    messagePublisher.reportSuccess(`Deleted revision ${doc.__metadata.changeVector()}`);
+                    router.navigate(appUrl.forAllRevisions(this.db));
+                });
+            }
+        });
     }
 
     deleteDocument() {

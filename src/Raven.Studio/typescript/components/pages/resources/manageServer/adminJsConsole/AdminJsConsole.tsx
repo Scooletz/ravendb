@@ -1,9 +1,7 @@
-import React from "react";
 import { Card, CardHeader, CardBody, Row, Col, Form } from "reactstrap";
 import { Icon } from "components/common/Icon";
 import { AboutViewAnchored, AboutViewHeading, AccordionItemWrapper } from "components/common/AboutView";
 import AceEditor from "components/common/AceEditor";
-import { todo } from "common/developmentHelper";
 import { SubmitHandler, useForm } from "react-hook-form";
 import { tryHandleSubmit } from "components/utils/common";
 import { AdminJsConsoleFormData, adminJsConsoleYupResolver } from "./AdminJsConsoleValidation";
@@ -27,9 +25,9 @@ import RichAlert from "components/common/RichAlert";
 
 const serverTargetValue = "Server";
 
-export default function AdminJSConsole() {
-    todo("Feature", "Damian", "issue: RavenDB-7588");
+// TODO https://issues.hibernatingrhinos.com/issue/RavenDB-7588
 
+export default function AdminJSConsole() {
     const { value: isScriptValid, setValue: setIsScriptValid } = useBoolean(true);
     const { manageServerService } = useServices();
     const { reportEvent } = useEventsCollector();

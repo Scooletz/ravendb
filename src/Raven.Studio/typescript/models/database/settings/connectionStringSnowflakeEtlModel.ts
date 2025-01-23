@@ -3,7 +3,7 @@ import connectionStringModel = require("models/database/settings/connectionStrin
 import database = require("models/resources/database");
 import saveConnectionStringCommand_OLD = require("commands/database/settings/saveConnectionStringCommand_OLD");
 import jsonUtil = require("common/jsonUtil");
-import testSnowflakeConnectionStringCommand from "commands/database/cluster/testSnowflakeConnectionStringCommand";
+import testSnowflakeConnectionStringCommand = require("commands/database/cluster/testSnowflakeConnectionStringCommand");
 
 class connectionStringSnowflakeEtlModel extends connectionStringModel {
 

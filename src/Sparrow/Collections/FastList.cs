@@ -205,7 +205,7 @@ namespace Sparrow.Collections
             if (size <= 0 || RuntimeHelpers.IsReferenceOrContainsReferences<T>() == false)
                 return;
 #endif
-            
+
             Array.Clear(_items, 0, size); // Clear the elements so that the gc can reclaim the references.
         }
 

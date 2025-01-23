@@ -1,4 +1,4 @@
-import { compareSets, isBoolean, range } from "./typeUtils";
+import { capitalize, compareSets, isBoolean, range, isEmpty } from "./typeUtils";
 
 describe("typeUtils", () => {
     describe("isBoolean", () => {
@@ -49,6 +49,40 @@ describe("typeUtils", () => {
             expect(compareSets([1, 1], [1, 2])).toBe(false);
             expect(compareSets([1, 2], [1, 2, 3])).toBe(false);
             expect(compareSets([1, 2, 3], [1, 2])).toBe(false);
+        });
+    });
+    
+    describe("isEmpty", () => {
+        it("should return true for empty values", () => {
+            expect(isEmpty(undefined)).toBe(true);
+            expect(isEmpty(null)).toBe(true);
+            expect(isEmpty("")).toBe(true);
+            expect(isEmpty([])).toBe(true);
+            expect(isEmpty({})).toBe(true);
+            expect(isEmpty(0)).toBe(true);
+            expect(isEmpty(false)).toBe(true);
+            expect(isEmpty(true)).toBe(true);
+        });
+        
+        it("should return false for non-empty values", () => {
+            expect(isEmpty("hello")).toBe(false);
+            expect(isEmpty(" ")).toBe(false);
+            expect(isEmpty([0, false, "test"])).toBe(false);
+            expect(isEmpty({ key: "value" })).toBe(false);
+        });
+    });
+
+    describe("capitalize", () => {
+        it("should capitalize the first letter of a string and lowercase the rest", () => {
+            expect(capitalize(undefined)).toEqual("");
+            expect(capitalize(null)).toEqual("");
+            expect(capitalize("")).toEqual("");
+            expect(capitalize(" ")).toEqual(" ");
+            expect(capitalize("hello")).toEqual("Hello");
+            expect(capitalize("HeLLO")).toEqual("Hello");
+            expect(capitalize("Hello")).toEqual("Hello");
+            expect(capitalize("hello world")).toEqual("Hello world");
+            expect(capitalize(123 as unknown as string)).toEqual("123");
         });
     });
 });

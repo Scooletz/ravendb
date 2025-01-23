@@ -246,7 +246,8 @@ namespace Sparrow.Collections
             _version++;
             return ref item;
 
-            Grow: return ref PushUnlikelyByRef();
+        Grow:
+            return ref PushUnlikelyByRef();
         }
 
         private ref T PushUnlikelyByRef()
@@ -254,10 +255,10 @@ namespace Sparrow.Collections
             Array.Resize(ref _array, (_array.Length == 0) ? DefaultCapacity : 2 * _array.Length);
             ref var item = ref _array[_size++];
             _version++;
-            
+
             return ref item;
         }
-        
+
         private void PushUnlikely(T item)
         {
             Array.Resize(ref _array, (_array.Length == 0) ? DefaultCapacity : 2 * _array.Length);

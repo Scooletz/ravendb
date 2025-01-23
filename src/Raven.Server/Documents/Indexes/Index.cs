@@ -629,6 +629,7 @@ namespace Raven.Server.Documents.Indexes
         }
 
         public virtual bool HasBoostedFields => false;
+        public virtual bool HasVectorFields => false;
 
         public virtual bool IsMultiMap => false;
 
@@ -5225,18 +5226,13 @@ namespace Raven.Server.Documents.Indexes
         {
             return _vectorFields.GetOrAdd(name, _ =>
             {
-                if (Definition.MapFields.TryGetValue(name, out var field) == false)
+                if (Definition.MapFields.TryGetValue(name, out var field) == false || field is IndexField { Vector: null })
                 {
+                    var isTextual = IsFieldTextualAndPersistConfigurationOnDisk();
                     return IndexField.Create(name, new IndexFieldOptions()
                         {
-                            Vector = CreateVectorOptionsBasedOnConfiguration()
+                            Vector = CreateVectorOptionsBasedOnConfiguration(isTextual)
                         }, null, Corax.Constants.IndexWriter.DynamicField);
-                }
-
-                // When field doesn't contain vector options we've to create it manually by default values.
-                if (field is IndexField { Vector: null } indexField)
-                {
-                    indexField.Vector = CreateVectorOptionsBasedOnConfiguration();
                 }
                 
                 return field switch
@@ -5247,11 +5243,32 @@ namespace Raven.Server.Documents.Indexes
                 };
             });
 
-            VectorOptions CreateVectorOptionsBasedOnConfiguration()
+            bool IsFieldTextualAndPersistConfigurationOnDisk()
             {
-                if (isText)
+                var isAlreadyPersisted = IndexFieldsPersistence.TryReadVectorSourceEmbeddingType(name, out var sourceEmbeddingType);
+                if (isAlreadyPersisted)
                 {
-                    return new VectorOptions()
+                    return sourceEmbeddingType switch
+                    {
+                        VectorEmbeddingType.Single => false,
+                        VectorEmbeddingType.Text => true,
+                        _ => throw new InvalidOperationException(
+                            $"Unknown persist vector source embedding type '{sourceEmbeddingType}'. Implicit configuration only allows to store {VectorEmbeddingType.Single} or {VectorEmbeddingType.Text}.")
+                    };
+                }
+
+                IndexFieldsPersistence.SetVectorSourceEmbeddingType(name, 
+                    isText ? VectorEmbeddingType.Text : VectorEmbeddingType.Single);
+
+                return isText;
+            }
+            
+            VectorOptions CreateVectorOptionsBasedOnConfiguration(bool isTextualValue)
+            {
+                VectorOptions vectorOptions;
+                if (isTextualValue)
+                {
+                    vectorOptions =  new VectorOptions()
                     {
                         SourceEmbeddingType = VectorOptions.DefaultText.SourceEmbeddingType,
                         DestinationEmbeddingType = VectorOptions.DefaultText.DestinationEmbeddingType,
@@ -5260,15 +5277,20 @@ namespace Raven.Server.Documents.Indexes
                         NumberOfCandidatesForIndexing = Configuration.CoraxVectorDefaultNumberOfCandidatesForIndexing,
                     };
                 }
-                
-                return new VectorOptions()
+                else
                 {
-                    SourceEmbeddingType = VectorOptions.Default.SourceEmbeddingType,
-                    DestinationEmbeddingType = VectorOptions.Default.DestinationEmbeddingType,
-                    Dimensions = VectorOptions.Default.Dimensions,
-                    NumberOfEdges = Configuration.CoraxVectorDefaultNumberOfEdges,
-                    NumberOfCandidatesForIndexing = Configuration.CoraxVectorDefaultNumberOfCandidatesForIndexing,
-                };
+                    vectorOptions = new VectorOptions()
+                    {
+                        SourceEmbeddingType = VectorOptions.Default.SourceEmbeddingType,
+                        DestinationEmbeddingType = VectorOptions.Default.DestinationEmbeddingType,
+                        Dimensions = VectorOptions.Default.Dimensions,
+                        NumberOfEdges = Configuration.CoraxVectorDefaultNumberOfEdges,
+                        NumberOfCandidatesForIndexing = Configuration.CoraxVectorDefaultNumberOfCandidatesForIndexing,
+                    };
+                }
+                
+                IndexFieldsPersistence.SetVectorSourceEmbeddingType(name, vectorOptions.SourceEmbeddingType);
+                return vectorOptions;
             }
         }
 

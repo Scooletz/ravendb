@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using Sparrow.Collections;
@@ -67,9 +67,9 @@ namespace Sparrow.Json
                 throw new ObjectDisposedException(GetType().Name);
         }
 
-        protected struct BuildingState
+        protected struct BuildingState(ContinuationState state, bool partialRead = false)
         {
-            public ContinuationState State;
+            public ContinuationState State = state;
             public int MaxPropertyId;
             public CachedProperties.PropertyName CurrentProperty;
             public FastList<PropertyTag> Properties;
@@ -99,20 +99,31 @@ namespace Sparrow.Json
             }
         }
 
-        protected enum ContinuationState
+        protected const int AllowedAllStates = 0xFF;
+        protected const int DisallowBufferedStates = 0x7F;
+        protected const int Buffered = 0x80;
+
+        protected enum ContinuationState : int
         {
-            ReadPropertyName,
-            ReadPropertyValue,
-            ReadArray,
-            ReadArrayValue,
-            ReadObject,
-            ReadValue,
-            CompleteReadingPropertyValue,
-            ReadObjectDocument,
-            ReadArrayDocument,
-            CompleteDocumentArray,
-            CompleteArray,
-            CompleteArrayValue
+            ReadObject = 0x01,
+            ReadArray = 0x02,
+            ReadObjectDocument = 0x03,
+            ReadArrayDocument = 0x04,
+            ReadPropertyName = 0x05,
+            ReadPropertyValue = 0x06,
+            CompleteDocumentArray = 0x07,
+            CompleteReadingPropertyValue = 0x08,
+
+            ReadArrayValue = 0x09,
+            ReadValue = 0x0A,
+            CompleteArray = 0x0B,
+            CompleteArrayValue = 0x0C,
+
+            // Support for vector type.
+            ReadBufferedArrayValue = ReadArrayValue | Buffered,
+            ReadBufferedValue = ReadValue | Buffered,
+            CompleteBufferedArray = CompleteArray | Buffered,
+            CompleteBufferedArrayValue = CompleteArrayValue | Buffered,
         }
 
         public readonly struct PropertyTag(byte type = 0, CachedProperties.PropertyName property = null, int position = 0)

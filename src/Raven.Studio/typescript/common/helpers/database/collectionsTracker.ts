@@ -4,7 +4,7 @@ import database = require("models/resources/database");
 import getCollectionsStatsCommand = require("commands/database/documents/getCollectionsStatsCommand");
 import collectionsStats = require("models/database/documents/collectionsStats");
 import generalUtils = require("common/generalUtils");
-import getRevisionsPreviewCommand from "commands/database/documents/getRevisionsPreviewCommand";
+import getRevisionsPreviewCommand = require("commands/database/documents/getRevisionsPreviewCommand");
 
 class collectionsTracker {
 
@@ -41,7 +41,7 @@ class collectionsTracker {
     }
 
     async configureRevisions(db: database) {
-        const revisionsPreview = await new getRevisionsPreviewCommand({
+        const revisionsPreview = await new getRevisionsPreviewCommand.default({
             databaseName: db.name,
             start: 0,
             pageSize: 0,

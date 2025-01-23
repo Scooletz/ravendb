@@ -804,12 +804,11 @@ namespace Raven.Server.Documents
             if (DatabasesCache.TryGetValue(databaseName, out database))
             {
                 if (database.IsFaulted)
-                {
                     // If a database was unloaded, this is what we get from DatabasesCache.
                     // We want to keep the exception there until UnloadAndLockDatabase is disposed.
                     if (IsLockedDatabase(database.Exception))
                         return true;
-                }
+
 
                 if (database.IsFaulted || database.IsCanceled)
                 {
@@ -1311,12 +1310,9 @@ namespace Raven.Server.Documents
 
                 // DateTime should be only null in tests
                 if (idleDatabaseActivity is { DateTime: not null })
-                    _wakeupTimers.TryAdd(databaseName.Value, new Timer(
-                        callback: _ => NextScheduledActivityCallback(databaseName.Value, idleDatabaseActivity),
-                        state: null,
-                        // in case the DueTime is negative or zero, the callback will be called immediately and database will be loaded.
-                        dueTime: idleDatabaseActivity.DueTime > 0 ? idleDatabaseActivity.DueTime : 0,
-                        period: Timeout.Infinite));
+                {
+                    AddOrUpdateWakeupTimer(databaseName.Value, idleDatabaseActivity);
+                }
 
                 if (_logger.IsDebugEnabled)
                 {
@@ -1348,24 +1344,35 @@ namespace Raven.Server.Documents
             }
         }
 
-        private void LogUnloadFailureReason(StringSegment databaseName, string reason)
+        private void AddOrUpdateWakeupTimer(string databaseName, IdleDatabaseActivity idleDatabaseActivity)
         {
-            if (_logger.IsErrorEnabled)
-                _logger.Error($"Could not unload database '{databaseName}', reason: {reason}");
+            // in case the DueTime is negative or zero, the callback will be called immediately and database will be loaded.
+            _wakeupTimers.AddOrUpdate(databaseName,
+                _ => new Timer(_ => NextScheduledActivityCallback(databaseName, idleDatabaseActivity), state: null, dueTime: idleDatabaseActivity.DueTime, period: Timeout.Infinite),
+                (_, timer) =>
+                {
+                    timer.Change(idleDatabaseActivity.DueTime, Timeout.Infinite);
+                    return timer;
+                });
+        }
+
+        private static void LogUnloadFailureReason(StringSegment databaseName, string reason)
+        {
+            if (_logger.IsDebugEnabled)
+                _logger.Debug($"Could not unload database '{databaseName}', reason: {reason}");
         }
 
         public void RescheduleNextIdleDatabaseActivity(string databaseName, IdleDatabaseActivity idleDatabaseActivity)
         {
-            if (_wakeupTimers.TryGetValue(databaseName, out var oldTimer))
+            if (idleDatabaseActivity == null)
             {
-                oldTimer.Dispose();
+                if (_wakeupTimers.TryRemove(databaseName, out var oldTimer))
+                    oldTimer.Dispose();
+
+                return;
             }
 
-            if (idleDatabaseActivity == null)
-                return;
-
-            var newTimer = new Timer(_ => NextScheduledActivityCallback(databaseName, idleDatabaseActivity), null, idleDatabaseActivity.DueTime, Timeout.Infinite);
-            _wakeupTimers.AddOrUpdate(databaseName, _ => newTimer, (_, __) => newTimer);
+            AddOrUpdateWakeupTimer(databaseName, idleDatabaseActivity);
         }
 
         private void NextScheduledActivityCallback(string databaseName, IdleDatabaseActivity nextIdleDatabaseActivity)
@@ -1462,7 +1469,7 @@ namespace Raven.Server.Documents
             if (SkipShouldContinueDisposeCheck)
                 return true;
 
-            // if we have a small value or even a negative one, simply don't dispose the database.
+            // if we have a small value, simply don't dispose the database.
             return idleDatabaseActivity.DueTime > TimeSpan.FromMinutes(5).TotalMilliseconds;
         }
 
@@ -1677,7 +1684,7 @@ namespace Raven.Server.Documents
         public DateTime? DateTime { get; internal set; }
         public long TaskId { get; }
         public int DueTime => DateTime.HasValue
-            ? (int)Math.Min(int.MaxValue, (DateTime.Value - System.DateTime.UtcNow).TotalMilliseconds)
+            ? (int)Math.Min(int.MaxValue, Math.Max(0, (DateTime.Value - System.DateTime.UtcNow).TotalMilliseconds))
             : 0;
 
         public IdleDatabaseActivity(IdleDatabaseActivityType type)

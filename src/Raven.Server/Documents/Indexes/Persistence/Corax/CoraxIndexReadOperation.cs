@@ -1363,7 +1363,8 @@ namespace Raven.Server.Documents.Indexes.Persistence.Corax
             int read;
             long i = Skip();
             Page page = default;
-
+            var alreadySeenDocuments = new HashSet<long>();
+            
             using var _ = documentsContext.Transaction.InnerTransaction.LowLevelTransaction.AcquireCompactKey(out var existingKey);
             
             while (true)
@@ -1371,9 +1372,13 @@ namespace Raven.Server.Documents.Indexes.Persistence.Corax
                 token.ThrowIfCancellationRequested();
                 for (; docsToLoad != 0 && i < read; ++i, --docsToLoad)
                 {
+                    var coraxInternalEntryId = ids[i];
+                    if (alreadySeenDocuments.Add(coraxInternalEntryId) == false)
+                        continue;
+                    
                     token.ThrowIfCancellationRequested();
-                    IndexSearcher.GetEntryTermsReader(ids[i], ref page, out var reader, existingKey);
-                    var id = _documentIdReader.GetTermFor(ids[i]);
+                    var reader = IndexSearcher.GetEntryTermsReader(coraxInternalEntryId, ref page);
+                    var id = _documentIdReader.GetTermFor(coraxInternalEntryId);
 
                     var dynamicJsonValue = coraxEntryReader.GetDocument(ref reader);
                     yield return documentsContext.ReadObject(dynamicJsonValue, id);

@@ -1,5 +1,4 @@
 import { ColumnDef } from "@tanstack/react-table";
-import { todo } from "common/developmentHelper";
 import { databaseSelectors } from "components/common/shell/databaseSliceSelectors";
 import CellDocumentValue from "components/common/virtualTable/cells/CellDocumentValue";
 import { columnCheckbox, columnPreview } from "components/common/virtualTable/utils/commonColumnDefs";
@@ -7,7 +6,7 @@ import { columnDocumentFlags } from "components/common/virtualTable/utils/docume
 import { useAppSelector } from "components/store";
 import document from "models/database/documents/document";
 
-todo("Feature", "Damian", "Add Time Series column");
+// TODO Add Time Series column
 
 interface UseDocumentColumnsProviderProps {
     documents: document[];

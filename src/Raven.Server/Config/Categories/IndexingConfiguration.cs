@@ -91,6 +91,14 @@ namespace Raven.Server.Config.Categories
             
             EncryptedTransactionSizeLimit = defaultEncryptedTransactionSizeLimit;
             MaxAllocationsAtDictionaryTraining = defaultMaxAllocationsAtDictionaryTraining;
+
+            MaxNumberOfThreadsForLocalEmbeddingsGeneration = Environment.ProcessorCount switch
+            {
+                <= 2 => 1,
+                <= 8 => 2,
+                <= 16 => 4,
+                _ => 6
+            };
         }
         
         private static HashSet<string> GetValidIndexingConfigurationKeys()
@@ -413,12 +421,14 @@ namespace Raven.Server.Config.Categories
         [DefaultValue("Packages/NuGet/Indexing")]
         [IndexUpdateType(IndexUpdateType.Reset)]
         [ConfigurationEntry("Indexing.NuGetPackagesPath", ConfigurationEntryScope.ServerWideOnly)]
+        [ConfigurationEntry("Indexing.NuGet.PackagesPath", ConfigurationEntryScope.ServerWideOnly)]
         public PathSetting NuGetPackagesPath { get; set; }
 
         [Description("Default NuGet source URL")]
         [DefaultValue("https://api.nuget.org/v3/index.json")]
         [IndexUpdateType(IndexUpdateType.Reset)]
         [ConfigurationEntry("Indexing.NuGetPackageSourceUrl", ConfigurationEntryScope.ServerWideOnly)]
+        [ConfigurationEntry("Indexing.NuGet.PackageSourceUrl", ConfigurationEntryScope.ServerWideOnly)]
         public string NuGetPackageSourceUrl { get; set; }
 
         [Description("Allow installation of NuGet prerelease packages")]
@@ -426,6 +436,8 @@ namespace Raven.Server.Config.Categories
         [IndexUpdateType(IndexUpdateType.Reset)]
         [ConfigurationEntry("Indexing.NuGetAllowPreReleasePackages", ConfigurationEntryScope.ServerWideOnly)]
         [ConfigurationEntry("Indexing.NuGetAllowPreleasePackages", ConfigurationEntryScope.ServerWideOnly)]
+        [ConfigurationEntry("Indexing.NuGet.AllowPreReleasePackages", ConfigurationEntryScope.ServerWideOnly)]
+        [ConfigurationEntry("Indexing.NuGet.AllowPreleasePackages", ConfigurationEntryScope.ServerWideOnly)]
         public bool NuGetAllowPreReleasePackages { get; set; }
         
         [Description("Number of index history revisions to keep per index")]
@@ -609,6 +621,18 @@ namespace Raven.Server.Config.Categories
         [IndexUpdateType(IndexUpdateType.None)]
         [ConfigurationEntry("Indexing.Corax.VectorSearch.DefaultNumberOfCandidatesForQuerying", ConfigurationEntryScope.ServerWideOrPerDatabaseOrPerIndex)]
         public int CoraxVectorDefaultNumberOfCandidatesForQuerying { get; protected set; }
+        
+        [Description("Order by score automatically when vector.search is inside query.")]
+        [DefaultValue(true)]
+        [IndexUpdateType(IndexUpdateType.Refresh)]
+        [ConfigurationEntry("Indexing.Corax.VectorSearch.OrderByScoreAutomatically", ConfigurationEntryScope.ServerWideOrPerDatabaseOrPerIndex)]
+        public bool CoraxVectorSearchOrderByScoreAutomatically { get; set; }
+        
+        [Description("Maximum number of threads that will be used for generating embedding from text locally.")]
+        [DefaultValue(DefaultValueSetInConstructor)]
+        [IndexUpdateType(IndexUpdateType.None)]
+        [ConfigurationEntry("Indexing.Corax.VectorSearch.MaxNumberOfThreadsForLocalEmbeddingsGeneration", ConfigurationEntryScope.ServerWideOnly)]
+        public int MaxNumberOfThreadsForLocalEmbeddingsGeneration { get; set; }
         
         protected override void ValidateProperty(PropertyInfo property)
         {

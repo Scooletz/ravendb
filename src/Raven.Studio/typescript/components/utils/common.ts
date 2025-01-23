@@ -2,7 +2,7 @@
 import { SelectOption } from "components/common/select/Select";
 import { loadableData } from "components/models/common";
 import { StoryFn } from "@storybook/react";
-import { sortBy } from "common/typeUtils";
+import typeUtils = require("common/typeUtils");
 
 export function withPreventDefault(action: (...args: any[]) => void): MouseEventHandler<HTMLElement> {
     return (e: MouseEvent<HTMLElement>) => {
@@ -109,7 +109,7 @@ export const availableGlacierRegions: SelectOption<string>[] = [
     { label: "US West (Oregon) - us-west-2", value: "us-west-2" },
 ];
 
-export const availableS3Regions: SelectOption<string>[] = sortBy(
+export const availableS3Regions: SelectOption<string>[] = typeUtils.sortBy(
     [
         ...availableGlacierRegions,
         { label: "Asia Pacific (Hyderabad) - ap-south-2", value: "ap-south-2" },
@@ -128,23 +128,23 @@ export type OmitIndexSignature<T> = {
 export type StringWithAutocomplete<T> = T | (string & NonNullable<unknown>);
 
 export const allLogLevels = exhaustiveStringTuple<Sparrow.Logging.LogLevel>()(
-    "Off",
     "Trace",
     "Debug",
     "Info",
     "Warn",
     "Error",
-    "Fatal"
+    "Fatal",
+    "Off"
 );
 
 export const logLevelRelevances: Record<Sparrow.Logging.LogLevel, number> = {
-    Off: 0,
-    Trace: 1,
-    Debug: 2,
-    Info: 3,
-    Warn: 4,
-    Error: 5,
-    Fatal: 6,
+    Trace: 0,
+    Debug: 1,
+    Info: 2,
+    Warn: 3,
+    Error: 4,
+    Fatal: 5,
+    Off: 6,
 };
 
 export const allLogFilterActions = exhaustiveStringTuple<Sparrow.Logging.LogFilterAction>()(

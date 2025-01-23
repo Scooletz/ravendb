@@ -8,7 +8,6 @@ import { Icon } from "./Icon";
 import { SelectOption } from "./select/Select";
 import { FieldPath, FieldValues, Control } from "react-hook-form";
 import { GroupBase } from "react-select";
-import { todo } from "common/developmentHelper";
 
 interface FormCollectionsSelectProps<TFieldValues extends FieldValues, TName extends FieldPath<TFieldValues>> {
     control: Control<TFieldValues>;
@@ -72,7 +71,7 @@ export default function FormCollectionsSelect<TFieldValues extends FieldValues, 
         maxMenuHeight: 300,
     };
 
-    todo("Styling", "Matteo", "Fix 'Add all' button height, when validation error occurs.");
+    // TODO Fix 'Add all' button height, when validation error occurs.
 
     return (
         <div className="vstack gap-2">

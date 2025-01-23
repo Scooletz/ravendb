@@ -1,6 +1,4 @@
-﻿import React from "react";
-import { shardingTodo } from "common/developmentHelper";
-import { IndexStatus, IndexFilterCriteria, IndexType, IndexGroupBy, IndexSortBy } from "components/models/indexes";
+﻿import { IndexStatus, IndexFilterCriteria, IndexType, IndexGroupBy, IndexSortBy } from "components/models/indexes";
 import { Button, Input, PopoverBody, UncontrolledPopover } from "reactstrap";
 import { produce } from "immer";
 import { Icon } from "components/common/Icon";
@@ -20,7 +18,7 @@ interface IndexFilterProps {
 export default function IndexFilter(props: IndexFilterProps) {
     const { filter, setFilter, filterByStatusOptions, filterByTypeOptions, indexesCount } = props;
 
-    shardingTodo();
+    // TODO sharding
 
     /* TODO
     let totalProcessedPerSecond = 0;

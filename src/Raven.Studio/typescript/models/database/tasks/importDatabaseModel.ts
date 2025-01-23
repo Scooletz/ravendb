@@ -1,12 +1,16 @@
 ﻿/// <reference path="../../../../typings/tsd.d.ts"/>
 import smugglerDatabaseRecord = require("models/database/tasks/smugglerDatabaseRecord");
 import genUtils = require("common/generalUtils");
+import accessManager = require("common/shell/accessManager");
+import activeDatabaseTracker = require("common/shell/activeDatabaseTracker");
 
 class importDatabaseModel {
+    private isAdminAccessOrAbove = ko.pureComputed(() => accessManager.default.adminAccessOrAboveForDatabase(activeDatabaseTracker.default.database()));
+
     includeDatabaseRecord = ko.observable(true);
     includeDocuments = ko.observable(true);
     includeConflicts = ko.observable(true);
-    includeIndexes = ko.observable(true);
+    includeIndexes = ko.observable(this.isAdminAccessOrAbove());
     includeIdentities = ko.observable(true);
     includeCompareExchange = ko.observable(true);
     includeCounters = ko.observable(true);

@@ -1,9 +1,9 @@
 /// <reference path="../../typings/tsd.d.ts" />
 import abstractWebSocketClient = require("common/abstractWebSocketClient");
 import endpoints = require("endpoints");
-import { AdminLogsMessage } from "components/pages/resources/manageServer/adminLogs/store/adminLogsSlice";
+import adminLogsSlice = require("components/pages/resources/manageServer/adminLogs/store/adminLogsSlice");
 
-type AdminLogsServerMessage = Omit<AdminLogsMessage, "_meta">;
+type AdminLogsServerMessage = Omit<adminLogsSlice.AdminLogsMessage, "_meta">;
 
 class adminLogsWebSocketClient extends abstractWebSocketClient<AdminLogsServerMessage> {
 

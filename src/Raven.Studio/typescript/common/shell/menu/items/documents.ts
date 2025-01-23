@@ -2,8 +2,9 @@
 import leafMenuItem = require("common/shell/menu/leafMenuItem");
 import collectionMenuItem = require("common/shell/menu/collectionMenuItem");
 import collectionsTracker = require("common/helpers/database/collectionsTracker");
-import AllRevisions from "components/pages/database/documents/allRevisions/AllRevisions";
-import { bridgeToReact } from "common/reactUtils";
+import DocumentIdentities = require("components/pages/database/documents/identities/DocumentIdentities");
+import reactUtils = require("common/reactUtils");
+import AllRevisions = require("components/pages/database/documents/allRevisions/AllRevisions");
 
 export = getDocumentsMenuItem;
 
@@ -23,7 +24,7 @@ function getDocumentsMenuItem(appUrls: computedAppUrls) {
         }),
         new leafMenuItem({
             route: "databases/documents/revisions/all",
-            moduleId: bridgeToReact(AllRevisions, "shardedView"),
+            moduleId: reactUtils.bridgeToReact(AllRevisions.default, "shardedView"),
             shardingMode: "allShards",
             title: "All Revisions",
             nav: false,
@@ -92,7 +93,7 @@ function getDocumentsMenuItem(appUrls: computedAppUrls) {
         }),
         new leafMenuItem({
             route: "databases/identities",
-            moduleId: require("viewmodels/database/identities/identities"),
+            moduleId: reactUtils.bridgeToReact(DocumentIdentities.default, "nonShardedView"),
             shardingMode: "allShards",
             title: "Identities",
             nav: true,
