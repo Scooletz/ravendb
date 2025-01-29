@@ -12,7 +12,7 @@ namespace Sparrow.Json
         private UsageMode _mode;
         private WriteToken _writeToken;
 
-        private static readonly StringSegment UnderscoreSegment = new("_");
+        private static readonly StringSegment UnderscoreSegment = new StringSegment("_");
 
         /// <summary>
         /// Allows incrementally building json document
@@ -32,22 +32,27 @@ namespace Sparrow.Json
 
         public void StartWriteObjectDocument()
         {
-            ref var state = ref _continuationState.PushByRef();
-            state = new BuildingState(state: ContinuationState.ReadObjectDocument);
+            _continuationState.Push(new BuildingState
+            {
+                State = ContinuationState.ReadObjectDocument
+            });
         }
 
         public void StartArrayDocument()
         {
+            var currentState = new BuildingState
+            {
+                State = ContinuationState.ReadArrayDocument,
+            };
+
             var fakeFieldName = _context.GetLazyStringForFieldWithCaching(UnderscoreSegment);
             var prop = _writer.CachedProperties.GetProperty(fakeFieldName);
-            
-            ref var state = ref _continuationState.PushByRef();
-            state = new BuildingState(state: ContinuationState.ReadArrayDocument, 
-                currentProperty: prop,
-                maxPropertyId: prop.PropertyId, firstWrite: _writer.Position, 
-                properties: _propertiesCache.Allocate());
-
-            state.Properties.AddByRef(new PropertyTag(property: prop));
+            currentState.CurrentProperty = prop;
+            currentState.MaxPropertyId = prop.PropertyId;
+            currentState.FirstWrite = _writer.Position;
+            currentState.Properties = _propertiesCache.Allocate();
+            currentState.Properties.Add(new PropertyTag { Property = prop });
+            _continuationState.Push(currentState);
         }
 
         public void WritePropertyName(string propertyName)
@@ -58,23 +63,23 @@ namespace Sparrow.Json
 
         public void WritePropertyName(LazyStringValue property)
         {
-            // PERF: We are going to be popping and pushing, which is essentially modifying the top.
-            ref var currentState = ref _continuationState.TopByRef();
+            var currentState = _continuationState.Pop();
 
             if (currentState.State != ContinuationState.ReadPropertyName)
             {
                 ThrowIllegalStateException(currentState.State, "WritePropertyName");
             }
 
-            currentState.CurrentProperty = _writer.CachedProperties.GetProperty(property);
+            var newPropertyId = _writer.CachedProperties.GetProperty(property);
+            currentState.CurrentProperty = newPropertyId;
             currentState.MaxPropertyId = Math.Max(currentState.MaxPropertyId, currentState.CurrentProperty.PropertyId);
             currentState.State = ContinuationState.ReadPropertyValue;
+            _continuationState.Push(currentState);
         }
 
         public void StartWriteObject()
         {
-            // PERF: We are going to be popping and pushing, which is essentially modifying the top.
-            ref var previousState = ref _continuationState.TopByRef();
+            var previousState = _continuationState.Pop();
 
             if (previousState.State != ContinuationState.ReadObjectDocument &&
                 previousState.State != ContinuationState.ReadPropertyValue &&
@@ -82,15 +87,21 @@ namespace Sparrow.Json
                 ThrowIllegalStateException(previousState.State, "WriteObject");
 
             previousState.State = previousState.State == ContinuationState.ReadPropertyValue ? ContinuationState.ReadPropertyName : previousState.State;
+            _continuationState.Push(previousState);
 
-            ref var state = ref _continuationState.PushByRef();
-            state = new BuildingState(state: ContinuationState.ReadPropertyName, properties: _propertiesCache.Allocate(), firstWrite: -1);
+            _continuationState.Push(new BuildingState()
+            {
+                State = ContinuationState.ReadPropertyName,
+                Properties = _propertiesCache.Allocate(),
+                FirstWrite = -1
+            });
         }
 
         public void WriteObjectEnd()
         {
             var currentState = _continuationState.Pop();
-            long start = _writer.Position;
+            long start = 0;
+            start = _writer.Position;
             switch (currentState.State)
             {
                 case ContinuationState.ReadPropertyName:
@@ -104,8 +115,7 @@ namespace Sparrow.Json
                         // here we know that the last item in the stack is the keep the last ReadObjectDocument
                         if (_continuationState.Count > 1)
                         {
-                            // PERF: We are going to be popping and pushing, which is essentially modifying the top.
-                            ref var outerState = ref _continuationState.TopByRef();
+                            var outerState = _continuationState.Pop();
                             if (outerState.State == ContinuationState.ReadArray)
                             {
                                 outerState.Types.Add(_writeToken.WrittenToken);
@@ -113,7 +123,7 @@ namespace Sparrow.Json
                             }
                             else
                             {
-                                outerState.Properties.AddByRef(new PropertyTag(
+                                outerState.Properties.Add(new PropertyTag(
                                     type: (byte)_writeToken.WrittenToken,
                                     property: outerState.CurrentProperty,
                                     position: _writeToken.ValuePos
@@ -122,6 +132,7 @@ namespace Sparrow.Json
 
                             if (outerState.FirstWrite == -1)
                                 outerState.FirstWrite = start;
+                            _continuationState.Push(outerState);
                         }
                     }
                     break;
@@ -149,16 +160,17 @@ namespace Sparrow.Json
 
                 case ContinuationState.ReadObjectDocument:
                     {
-                        currentState.Properties.AddByRef(new PropertyTag(
-                            position: _writeToken.ValuePos,
-                            type: (byte)_writeToken.WrittenToken,
-                            property: currentState.CurrentProperty)
-                        );
-                        
+                        currentState.Properties.Add(new PropertyTag
+                        {
+                            Position = _writeToken.ValuePos,
+                            Type = (byte)_writeToken.WrittenToken,
+                            Property = currentState.CurrentProperty
+                        });
                         if (currentState.FirstWrite == -1)
                             currentState.FirstWrite = start;
 
-                        _writeToken = _writer.WriteObjectMetadata(currentState.Properties, currentState.FirstWrite, currentState.MaxPropertyId);
+                        _writeToken = _writer.WriteObjectMetadata(currentState.Properties, currentState.FirstWrite,
+                                            currentState.MaxPropertyId);
                         _propertiesCache.Return(ref currentState.Properties);
                     }
                     break;
@@ -171,11 +183,12 @@ namespace Sparrow.Json
 
         public void StartWriteArray()
         {
-            _continuationState.Push(new BuildingState(
-                state: ContinuationState.ReadArray,
-                types: _tokensCache.Allocate(),
-                positions: _positionsCache.Allocate())
-            );
+            _continuationState.Push(new BuildingState
+            {
+                State = ContinuationState.ReadArray,
+                Types = _tokensCache.Allocate(),
+                Positions = _positionsCache.Allocate()
+            });
         }
 
         public void WriteArrayEnd()
@@ -185,10 +198,12 @@ namespace Sparrow.Json
             switch (currentState.State)
             {
                 case ContinuationState.ReadArrayDocument:
-                    currentState.Properties[0] = new PropertyTag(
-                        property: currentState.Properties[0].Property,
-                        type: (byte)_writeToken.WrittenToken,
-                        position: _writeToken.ValuePos);
+                    currentState.Properties[0] = new PropertyTag
+                    {
+                        Property = currentState.Properties[0].Property,
+                        Type = (byte)_writeToken.WrittenToken,
+                        Position = _writeToken.ValuePos
+                    };
 
                     // Register property position, name id (PropertyId) and type (object type and metadata)
                     _writeToken = _writer.WriteObjectMetadata(currentState.Properties, currentState.FirstWrite, currentState.MaxPropertyId);
@@ -201,45 +216,53 @@ namespace Sparrow.Json
                     _positionsCache.Return(ref currentState.Positions);
                     _tokensCache.Return(ref currentState.Types);
 
-                    _writeToken = new WriteToken(valuePosition: arrayInfoStart, token: arrayToken);
+                    _writeToken = new WriteToken
+                    {
+                        ValuePos = arrayInfoStart,
+                        WrittenToken = arrayToken
+                    };
 
                     if (_continuationState.Count >= 1)
                     {
-                        // PERF: We are going to be popping and pushing, which is essentially modifying the top.
-                        ref var outerState = ref _continuationState.TopByRef();
+                        var outerState = _continuationState.Pop();
 
                         if (outerState.FirstWrite == -1)
                             outerState.FirstWrite = arrayInfoStart;
 
-                        switch (outerState.State)
+                        if (outerState.State == ContinuationState.ReadPropertyName ||
+                            outerState.State == ContinuationState.ReadPropertyValue)
                         {
-                            case ContinuationState.ReadPropertyName:
-                            case ContinuationState.ReadPropertyValue:
-                                outerState.Properties.AddByRef(new PropertyTag(
-                                    type: (byte)_writeToken.WrittenToken,
-                                    property: outerState.CurrentProperty,
-                                    position: _writeToken.ValuePos
-                                ));
-                                outerState.State = ContinuationState.ReadPropertyName;
-                                break;
-                            case ContinuationState.ReadArray:
-                                outerState.Types.Add(_writeToken.WrittenToken);
-                                outerState.Positions.Add(_writeToken.ValuePos);
-                                break;
-                            case ContinuationState.ReadArrayDocument:
-                                outerState.Properties[0] = new PropertyTag(
-                                    type: (byte)_writeToken.WrittenToken,
-                                    property: outerState.Properties[0].Property,
-                                    position: _writeToken.ValuePos
-                                );
-
-                                // Register property position, name id (PropertyId) and type (object type and metadata)
-                                _writeToken = _writer.WriteObjectMetadata(outerState.Properties, outerState.FirstWrite, outerState.MaxPropertyId);
-                                break;
-                            default:
-                                throw new InvalidOperationException($"Cannot perform {outerState.State} when encountered the ReadEndArray state");
+                            outerState.Properties.Add(new PropertyTag(
+                                type: (byte)_writeToken.WrittenToken,
+                                property: outerState.CurrentProperty,
+                                position: _writeToken.ValuePos
+                            ));
+                            outerState.State = ContinuationState.ReadPropertyName;
                         }
+                        else if (outerState.State == ContinuationState.ReadArray)
+                        {
+                            outerState.Types.Add(_writeToken.WrittenToken);
+                            outerState.Positions.Add(_writeToken.ValuePos);
+                        }
+                        else if (outerState.State == ContinuationState.ReadArrayDocument)
+                        {
+                            outerState.Properties[0] = new PropertyTag(
+                                type: (byte)_writeToken.WrittenToken,
+                                property: outerState.Properties[0].Property,
+                                position: _writeToken.ValuePos
+                            );
+
+                            // Register property position, name id (PropertyId) and type (object type and metadata)
+                            _writeToken = _writer.WriteObjectMetadata(outerState.Properties, outerState.FirstWrite, outerState.MaxPropertyId);
+                        }
+                        else
+                        {
+                            ThrowIllegalStateException(outerState.State, "ReadEndArray");
+                        }
+
+                        _continuationState.Push(outerState);
                     }
+
                     break;
 
                 default:
@@ -250,11 +273,13 @@ namespace Sparrow.Json
 
         public void WriteValueNull()
         {
-            // PERF: We are going to be popping and pushing, which is essentially modifying the top.
-            ref var currentState = ref _continuationState.TopByRef();
-
+            var currentState = _continuationState.Pop();
             var valuePos = _writer.WriteNull();
-            _writeToken = new WriteToken(valuePosition: valuePos, token: BlittableJsonToken.Null);
+            _writeToken = new WriteToken
+            {
+                ValuePos = valuePos,
+                WrittenToken = BlittableJsonToken.Null
+            };
 
             if (currentState.FirstWrite == -1)
                 currentState.FirstWrite = valuePos;
@@ -351,7 +376,7 @@ namespace Sparrow.Json
                             WriteVector(vector.ReadArray<Half>());
                             break;
 #endif
-                default:
+                        default:
                             throw new ArgumentOutOfRangeException(nameof(vector.Type), vector.Type, $"Cannot write vector of {vector.Type}.");
                     }
                     break;
@@ -363,11 +388,13 @@ namespace Sparrow.Json
 
         public void WriteValue(bool value)
         {
-            // PERF: We are going to be popping and pushing, which is essentially modifying the top.
-            ref var currentState = ref _continuationState.TopByRef();
-
+            var currentState = _continuationState.Pop();
             var valuePos = _writer.WriteValue(value);
-            _writeToken = new WriteToken(valuePosition: valuePos, BlittableJsonToken.Boolean);
+            _writeToken = new WriteToken
+            {
+                ValuePos = valuePos,
+                WrittenToken = BlittableJsonToken.Boolean
+            };
 
             if (currentState.FirstWrite == -1)
                 currentState.FirstWrite = valuePos;
@@ -378,11 +405,13 @@ namespace Sparrow.Json
 
         public void WriteValue(long value)
         {
-            // PERF: We are going to be popping and pushing, which is essentially modifying the top.
-            ref var currentState = ref _continuationState.TopByRef();
-
+            var currentState = _continuationState.Pop();
             var valuePos = _writer.WriteValue(value);
-            _writeToken = new WriteToken(valuePosition: valuePos, BlittableJsonToken.Integer);
+            _writeToken = new WriteToken
+            {
+                ValuePos = valuePos,
+                WrittenToken = BlittableJsonToken.Integer
+            };
 
             if (currentState.FirstWrite == -1)
                 currentState.FirstWrite = valuePos;
@@ -393,11 +422,13 @@ namespace Sparrow.Json
 
         public void WriteValue(float value)
         {
-            // PERF: We are going to be popping and pushing, which is essentially modifying the top.
-            ref var currentState = ref _continuationState.TopByRef();
-
+            var currentState = _continuationState.Pop();
             var valuePos = _writer.WriteValue(value);
-            _writeToken = new WriteToken(valuePosition: valuePos, BlittableJsonToken.LazyNumber);
+            _writeToken = new WriteToken
+            {
+                ValuePos = valuePos,
+                WrittenToken = BlittableJsonToken.LazyNumber
+            };
 
             if (currentState.FirstWrite == -1)
                 currentState.FirstWrite = valuePos;
@@ -408,11 +439,13 @@ namespace Sparrow.Json
 
         public void WriteValue(ulong value)
         {
-            // PERF: We are going to be popping and pushing, which is essentially modifying the top.
-            ref var currentState = ref _continuationState.TopByRef();
-
+            var currentState = _continuationState.Pop();
             var valuePos = _writer.WriteValue(value);
-            _writeToken = new WriteToken(valuePosition: valuePos, BlittableJsonToken.LazyNumber);
+            _writeToken = new WriteToken
+            {
+                ValuePos = valuePos,
+                WrittenToken = BlittableJsonToken.LazyNumber
+            };
 
             if (currentState.FirstWrite == -1)
                 currentState.FirstWrite = valuePos;
@@ -423,11 +456,13 @@ namespace Sparrow.Json
 
         public void WriteValue(double value)
         {
-            // PERF: We are going to be popping and pushing, which is essentially modifying the top.
-            ref var currentState = ref _continuationState.TopByRef();
-            
+            var currentState = _continuationState.Pop();
             var valuePos = _writer.WriteValue(value);
-            _writeToken = new WriteToken(valuePosition: valuePos, BlittableJsonToken.LazyNumber);
+            _writeToken = new WriteToken
+            {
+                ValuePos = valuePos,
+                WrittenToken = BlittableJsonToken.LazyNumber
+            };
 
             if (currentState.FirstWrite == -1)
                 currentState.FirstWrite = valuePos;
@@ -438,11 +473,13 @@ namespace Sparrow.Json
 
         public void WriteValue(decimal value)
         {
-            // PERF: We are going to be popping and pushing, which is essentially modifying the top.
-            ref var currentState = ref _continuationState.TopByRef();
-
+            var currentState = _continuationState.Pop();
             var valuePos = _writer.WriteValue(value);
-            _writeToken = new WriteToken(valuePosition: valuePos, BlittableJsonToken.LazyNumber);
+            _writeToken = new WriteToken
+            {
+                ValuePos = valuePos,
+                WrittenToken = BlittableJsonToken.LazyNumber
+            };
 
             if (currentState.FirstWrite == -1)
                 currentState.FirstWrite = valuePos;
@@ -453,11 +490,13 @@ namespace Sparrow.Json
 
         public void WriteValue(LazyNumberValue value)
         {
-            // PERF: We are going to be popping and pushing, which is essentially modifying the top.
-            ref var currentState = ref _continuationState.TopByRef();
-
+            var currentState = _continuationState.Pop();
             var valuePos = _writer.WriteValue(value);
-            _writeToken = new WriteToken(valuePosition: valuePos, BlittableJsonToken.LazyNumber);
+            _writeToken = new WriteToken
+            {
+                ValuePos = valuePos,
+                WrittenToken = BlittableJsonToken.LazyNumber
+            };
 
             if (currentState.FirstWrite == -1)
                 currentState.FirstWrite = valuePos;
@@ -475,9 +514,6 @@ namespace Sparrow.Json
                 ValuePos = valuePos,
                 WrittenToken = stringToken
             };
-            
-            var valuePos = _writer.WriteValue(value, out BlittableJsonToken stringToken, _mode);
-            _writeToken = new WriteToken(valuePosition: valuePos, stringToken);
 
             if (currentState.FirstWrite == -1)
                 currentState.FirstWrite = valuePos;
@@ -531,11 +567,13 @@ namespace Sparrow.Json
 
         public unsafe void WriteRawBlob(byte* ptr, int size)
         {
-            // PERF: We are going to be popping and pushing, which is essentially modifying the top.
-            ref var currentState = ref _continuationState.TopByRef();
-            
+            var currentState = _continuationState.Pop();
             var valuePos = _writer.WriteValue(ptr, size, out _, UsageMode.None, null);
-            _writeToken = new WriteToken(valuePosition: valuePos, BlittableJsonToken.RawBlob);
+            _writeToken = new WriteToken
+            {
+                ValuePos = valuePos,
+                WrittenToken = BlittableJsonToken.RawBlob
+            };
 
             if (currentState.FirstWrite == -1)
                 currentState.FirstWrite = valuePos;
@@ -546,11 +584,13 @@ namespace Sparrow.Json
 
         public unsafe void WriteEmbeddedBlittableDocument(byte* ptr, int size)
         {
-            // PERF: We are going to be popping and pushing, which is essentially modifying the top.
-            ref var currentState = ref _continuationState.TopByRef();
-            
+            var currentState = _continuationState.Pop();
             var valuePos = _writer.WriteValue(ptr, size, out _, UsageMode.None, null);
-            _writeToken = new WriteToken(valuePosition: valuePos, BlittableJsonToken.EmbeddedBlittable);
+            _writeToken = new WriteToken
+            {
+                ValuePos = valuePos,
+                WrittenToken = BlittableJsonToken.EmbeddedBlittable
+            };
 
             if (currentState.FirstWrite == -1)
                 currentState.FirstWrite = valuePos;
@@ -578,11 +618,12 @@ namespace Sparrow.Json
             switch (currentState.State)
             {
                 case ContinuationState.ReadPropertyValue:
-                    currentState.Properties.AddByRef(new PropertyTag(
-                        position: _writeToken.ValuePos,
-                        type: (byte)_writeToken.WrittenToken,
-                        property: currentState.CurrentProperty
-                    ));
+                    currentState.Properties.Add(new PropertyTag
+                    {
+                        Position = _writeToken.ValuePos,
+                        Type = (byte)_writeToken.WrittenToken,
+                        Property = currentState.CurrentProperty
+                    });
 
                     currentState.State = ContinuationState.ReadPropertyName;
                     break;
@@ -627,9 +668,9 @@ namespace Sparrow.Json
         public BlittableJsonReaderArray CreateArrayReader()
         {
             var reader = CreateReader();
-            if (reader.TryGet("_", out BlittableJsonReaderArray array))
+            BlittableJsonReaderArray array;
+            if (reader.TryGet("_", out array))
                 return array;
-            
             throw new InvalidOperationException("Couldn't find array");
         }
 

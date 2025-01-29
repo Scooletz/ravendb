@@ -1,5 +1,4 @@
 ﻿using Sparrow.Json.Parsing;
-using static Sparrow.DisposableExceptions;
 
 namespace Sparrow.Json
 {
@@ -23,7 +22,7 @@ namespace Sparrow.Json
 
             internal void EnsureNotDisposed()
             {
-                ThrowIfDisposed(Context);
+                Context.EnsureNotDisposed();
             }
 
             internal JsonParserState JsonParserState => Context._jsonParserState;

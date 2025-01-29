@@ -144,7 +144,7 @@ namespace Sparrow.Collections
                 dest.Capacity = size;
 
             dest._size = (uint)size;
-            Array.Copy( _items, dest._items, size);
+            Array.Copy(_items, dest._items, size);
             dest._version++;
         }
 
@@ -268,7 +268,7 @@ namespace Sparrow.Collections
         {
             throw new NotSupportedException();
         }
-    
+
         public bool Remove(T item)
         {
             int index = IndexOf(item);
@@ -298,7 +298,7 @@ namespace Sparrow.Collections
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void RemoveAt(int index)
         {
-            if ((uint) index >= _size)
+            if ((uint)index >= _size)
                 ThrowWhenIndexIsOutOfRange(index);
 
             _size--;
@@ -325,7 +325,7 @@ namespace Sparrow.Collections
             if (count <= 0)
                 return;
 
-            _size -= (uint) count;
+            _size -= (uint)count;
             if (index < _size)
             {
                 Array.Copy(_items, index + count, _items, index, (int)_size - index);
@@ -337,12 +337,12 @@ namespace Sparrow.Collections
                 typeof(T) == typeof(short) || typeof(T) == typeof(long) || typeof(T) == typeof(ulong) ||
                 typeof(T) == typeof(nint) || typeof(T) == typeof(nuint) || typeof(T) == typeof(IntPtr))
                 return;
-            
+
 #if NET6_0_OR_GREATER
             if (RuntimeHelpers.IsReferenceOrContainsReferences<T>() == false)
                 return;
 #endif
-            
+
             Array.Clear(_items, (int)_size, count);
         }
 
@@ -364,13 +364,13 @@ namespace Sparrow.Collections
         IEnumerator<T> IEnumerable<T>.GetEnumerator()
         {
             return new Enumerator(this);
-        }        
+        }
 
         public struct Enumerator : IEnumerator<T>
         {
             private readonly FastList<T> _list;
             private readonly uint _version;
-            private uint _index;            
+            private uint _index;
             private T _current;
 
             internal Enumerator(FastList<T> list)

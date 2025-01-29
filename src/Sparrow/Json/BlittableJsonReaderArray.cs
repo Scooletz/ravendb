@@ -5,7 +5,6 @@ using System.Diagnostics;
 using System.IO;
 using System.Runtime.CompilerServices;
 using Sparrow.Json.Parsing;
-using static Sparrow.DisposableExceptions;
 
 namespace Sparrow.Json
 {
@@ -46,7 +45,7 @@ namespace Sparrow.Json
             if (_parent._mem == null)
                 return "Disposed";
 
-            ThrowIfDisposedOnDebug(this);
+            AssertContextNotDisposed();
 
             using (var memoryStream = RecyclableMemoryStreamFactory.GetRecyclableStream())
             {
@@ -68,15 +67,14 @@ namespace Sparrow.Json
 
         public void BlittableValidation()
         {
-            ThrowIfDisposedOnDebug(this);
+            AssertContextNotDisposed();
             _parent?.BlittableValidation();
         }
 
         //Todo Fixing the clone implementation to support this situation or throw clear error
         public BlittableJsonReaderArray Clone(JsonOperationContext context, BlittableJsonDocumentBuilder.UsageMode usageMode = BlittableJsonDocumentBuilder.UsageMode.None)
         {
-            ThrowIfDisposedOnDebug(this);
-            
+            AssertContextNotDisposed();
             using (var builder = new ManualBlittableJsonDocumentBuilder<UnmanagedWriteBuffer>(context))
             {
                 builder.Reset(usageMode);
@@ -123,7 +121,7 @@ namespace Sparrow.Json
 
         public void Dispose()
         {
-            ThrowIfDisposedOnDebug(this);
+            AssertContextNotDisposed();
 
             // this is required only in cases that we get a BlittableJsonReaderArray, which is an only child of an BlittableJsonReaderObject and we lose track of it's parent,
             // like in BlittableJsonDocumentBuilder.CreateArrayReader.
@@ -133,8 +131,7 @@ namespace Sparrow.Json
 
         public BlittableJsonToken GetArrayType()
         {
-            ThrowIfDisposedOnDebug(this);
-            
+            AssertContextNotDisposed();
             var blittableJsonToken = (BlittableJsonToken)(*(_metadataPtr + _currentOffsetSize)) & TypesMask;
             Debug.Assert(blittableJsonToken != 0);
             return blittableJsonToken;
@@ -144,8 +141,7 @@ namespace Sparrow.Json
 
         public int BinarySearch(string key, StringComparison comparison)
         {
-            ThrowIfDisposedOnDebug(this);
-            
+            AssertContextNotDisposed();
             int min = 0;
             int max = Length - 1;
 
@@ -172,8 +168,7 @@ namespace Sparrow.Json
 
         public T GetByIndex<T>(int index)
         {
-            ThrowIfDisposedOnDebug(this);
-            
+            AssertContextNotDisposed();
             var obj = GetValueTokenTupleByIndex(index).Item1;
             BlittableJsonReaderObject.ConvertType(obj, out T result);
             return result;
@@ -181,8 +176,7 @@ namespace Sparrow.Json
 
         public string GetStringByIndex(int index)
         {
-            ThrowIfDisposedOnDebug(this);
-            
+            AssertContextNotDisposed();
             var obj = GetValueTokenTupleByIndex(index).Item1;
             if (obj == null)
                 return null;
@@ -197,8 +191,7 @@ namespace Sparrow.Json
 
         public void AddItemsToStream<T>(ManualBlittableJsonDocumentBuilder<T> writer) where T : struct, IUnmanagedWriteBuffer
         {
-            ThrowIfDisposedOnDebug(this);
-            
+            AssertContextNotDisposed();
             for (var i = 0; i < _count; i++)
             {
                 var (value, token) = GetValueTokenTupleByIndex(i);
@@ -208,7 +201,7 @@ namespace Sparrow.Json
 
         public (object, BlittableJsonToken) GetValueTokenTupleByIndex(int index)
         {
-            ThrowIfDisposedOnDebug(this);
+            AssertContextNotDisposed();
 
             // try get value from cache, works only with Blittable types, other objects are not stored for now
             if (NoCache == false && _cache != null && _cache.TryGetValue(index, out (object, BlittableJsonToken) result))
@@ -241,8 +234,7 @@ namespace Sparrow.Json
         {
             get
             {
-                ThrowIfDisposedOnDebug(this);
-                
+                AssertContextNotDisposed();
                 return new BlittableJsonArrayEnumerator(this);
             }
         }
@@ -310,14 +302,14 @@ namespace Sparrow.Json
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         BlittableJsonArrayEnumerator GetEnumerator()
         {
-            ThrowIfDisposedOnDebug(this);
+            AssertContextNotDisposed();
 
             return new BlittableJsonArrayEnumerator(this);
         }
 
         public override bool Equals(object obj)
         {
-            ThrowIfDisposedOnDebug(this);
+            AssertContextNotDisposed();
 
             if (ReferenceEquals(null, obj))
                 return false;
@@ -333,7 +325,7 @@ namespace Sparrow.Json
 
         public bool Equals(BlittableJsonReaderArray other)
         {
-            ThrowIfDisposedOnDebug(this);
+            AssertContextNotDisposed();
 
             if (_count != other._count)
                 return false;
@@ -355,8 +347,7 @@ namespace Sparrow.Json
 
         public override int GetHashCode()
         {
-            ThrowIfDisposedOnDebug(this);
-            
+            AssertContextNotDisposed();
             return _count;
         }
 

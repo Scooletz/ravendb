@@ -18,7 +18,7 @@ namespace Sparrow.Json.Parsing
         public JsonParserTokenContinuation Continuation;
 
         public readonly FastList<int> EscapePositions = new();
-       
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void WriteVariableSizeInt(ref byte* dest, int value)
         {
@@ -239,7 +239,7 @@ namespace Sparrow.Json.Parsing
             _minLong = long.MaxValue;
             _maxDoubleMagnitude = double.MinValue;
             IsBufferedFloat = false;
-    }
+        }
 
         internal BlittableVectorType GetBufferedOptimalType()
         {
@@ -255,7 +255,7 @@ namespace Sparrow.Json.Parsing
                     <= float.MaxValue => BlittableVectorType.Float,
                     _ => BlittableVectorType.Double,
                 };
-}
+            }
 
             // At this point we know we are only working with integers.
             // Also, we're prioritizing signed types over unsigned for parsing purposes

@@ -82,7 +82,7 @@ namespace Sparrow.Utils
             if (hashCode < 0)
                 hashCode = -hashCode;
 
-            return hashCode % _size;
+            return hashCode % size;
     }
 }
 }

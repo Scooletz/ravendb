@@ -6,9 +6,6 @@ using System.Runtime.InteropServices;
 using Sparrow.Binary;
 using Sparrow.Json.Parsing;
 
-using static Sparrow.DisposableExceptions;
-using static Sparrow.PortableExceptions;
-
 namespace Sparrow.Json
 {
     public unsafe interface IUnmanagedWriteBuffer : IDisposableQueryable, IDisposable
@@ -155,7 +152,7 @@ namespace Sparrow.Json
         public bool IsDisposed => _isDisposed;
     }
 
-    public unsafe struct UnmanagedWriteBuffer : IUnmanagedWriteBuffer, IDisposableQueryable
+    public unsafe struct UnmanagedWriteBuffer : IUnmanagedWriteBuffer
     {
         private readonly JsonOperationContext _context;
 
@@ -213,7 +210,7 @@ namespace Sparrow.Json
         {
             get
             {
-                ThrowIfDisposedOnDebug(this);
+                ThrowOnDisposed();
                 return _head.AccumulatedSizeInBytes;
             }
         }
@@ -259,11 +256,21 @@ namespace Sparrow.Json
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void ThrowOnDisposed()
+        {
+#if DEBUG
+            // PERF: This check will only happen in debug mode because it will fail with a NRE anyways on release.
+            if (IsDisposed)
+                throw new ObjectDisposedException(nameof(UnmanagedWriteBuffer));
+#endif
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Write(byte* buffer, int count)
         {
             Debug.Assert(count >= 0); // count is a size
             Debug.Assert(buffer + count >= buffer); // overflow check
-            ThrowIfDisposedOnDebug(this);
+            ThrowOnDisposed();
 
             if (count == 0)
                 return;
@@ -404,10 +411,8 @@ namespace Sparrow.Json
             Debug.Assert(required > 0);
 
             if (required > ArenaMemoryAllocator.MaxArenaSize)
-            {
-                Throw<InvalidOperationException>($"Tried to allocate {new Size(required, SizeUnit.Bytes)}, which exceeds maximum allocation size of {new Size(ArenaMemoryAllocator.MaxArenaSize, SizeUnit.Bytes)}");
-            }
-            
+                ThrowOnAllocationSizeExceeded(required, ArenaMemoryAllocator.MaxArenaSize);
+
             // Grow by doubling segment size until we get to 1 MB, then just use 1 MB segments
             // otherwise a document with 17 MB will waste 15 MB and require very big allocations
             var requiredPowerOfTwo = Bits.PowerOf2(required);
@@ -428,10 +433,7 @@ namespace Sparrow.Json
             var allocation = _context.GetMemory(segmentSize);
 
             if (allocation.SizeInBytes < required)
-            {
-                Throw<InvalidOperationException>($"Allocated {new Size(allocation.SizeInBytes, SizeUnit.Bytes)} but we requested at least {new Size(required, SizeUnit.Bytes)}");
-            }
-
+                ThrowOnAllocationSizeMismatch(allocation.SizeInBytes, required);
 
             // Copy the head
             Segment previousHead = _head.ShallowCopy();
@@ -446,10 +448,21 @@ namespace Sparrow.Json
             _head.AccumulatedSizeInBytes = previousHead.AccumulatedSizeInBytes;
         }
 
+        private static void ThrowOnAllocationSizeExceeded(int required, int maxSizeInBytes)
+        {
+            throw new InvalidOperationException($"Tried to allocate {new Size(required, SizeUnit.Bytes)}, which exceeds maximum allocation size of {new Size(maxSizeInBytes, SizeUnit.Bytes)}");
+        }
+
+        private static void ThrowOnAllocationSizeMismatch(int allocationSizeInBytes, int required)
+        {
+            throw new InvalidOperationException($"Allocated {new Size(allocationSizeInBytes, SizeUnit.Bytes)}" +
+                                                $" but we requested at least {new Size(required, SizeUnit.Bytes)}");
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void WriteByte(byte data)
         {
-            ThrowIfDisposedOnDebug(this);
+            ThrowOnDisposed();
 
             var head = _head;
             if (head.Used == head.Allocation.SizeInBytes)
@@ -475,7 +488,7 @@ namespace Sparrow.Json
 
         public int CopyTo(byte* pointer)
         {
-            ThrowIfDisposedOnDebug(this);
+            ThrowOnDisposed();
 
             var whereToWrite = pointer + _head.AccumulatedSizeInBytes;
             var copiedBytes = 0;
@@ -505,7 +518,7 @@ namespace Sparrow.Json
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Clear()
         {
-            ThrowIfDisposedOnDebug(this);
+            ThrowOnDisposed();
 
             _head.Used = 0;
             _head.AccumulatedSizeInBytes = 0;
@@ -546,7 +559,7 @@ namespace Sparrow.Json
 #endif
 
                 // `next` is used to keep a reference to the previous Segment.
-                // Since `next` lives only within this for loop, and we clear up
+                // Since `next` lives only within this for loop and we clear up
                 // all other references, non-head Segments should be GC'd.
                 next = head.DeallocationPendingPrevious;
                 head.Previous = null;
@@ -562,8 +575,6 @@ namespace Sparrow.Json
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void EnsureSingleChunk(JsonParserState state)
         {
-            ThrowIfDisposedOnDebug(this);
-            
             EnsureSingleChunk(out var buffer, out var size);
             state.StringBuffer = buffer;
             state.StringSize = size;
@@ -572,7 +583,7 @@ namespace Sparrow.Json
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void EnsureSingleChunk(out byte* ptr, out int size)
         {
-            ThrowIfDisposedOnDebug(this);
+            ThrowOnDisposed();
 
             if (_head.Previous == null)
             {
@@ -620,7 +631,7 @@ namespace Sparrow.Json
             var realHead = _head;
             _head = realHead.Previous;
 
-            // Copy all the data structure into the new chunk's memory
+            // Copy all of the data structure into the new chunk's memory
             CopyTo(realHead.Address);
             realHead.Used = totalSize;
             realHead.AccumulatedSizeInBytes = totalSize;
