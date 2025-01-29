@@ -92,11 +92,13 @@ public sealed class ReadContinuationState : IDisposable
             return true;
         }
 
-        if (_builderContext.CachedProperties.NeedClearPropertiesCache() == false) 
-            return false;
-        
-        _builderContext.CachedProperties.Reset();
-        return true;
+        if (_builderContext.CachedProperties.NeedClearPropertiesCache())
+        {
+            _builderContext.CachedProperties.ClearRenew();
+            return true;
+        }
+
+        return false;
     }
 
     public void Dispose()

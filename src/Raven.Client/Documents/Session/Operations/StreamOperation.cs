@@ -654,7 +654,7 @@ namespace Raven.Client.Documents.Session.Operations
 
                 if (_builderContext.CachedProperties.NeedClearPropertiesCache())
                 {
-                    _builderContext.CachedProperties.Reset();
+                    _builderContext.CachedProperties.ClearRenew();
                     return;
                 }
 
