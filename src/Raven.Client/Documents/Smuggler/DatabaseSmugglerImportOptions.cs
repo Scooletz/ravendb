@@ -1,4 +1,6 @@
-﻿namespace Raven.Client.Documents.Smuggler
+﻿using Sparrow.Json.Parsing;
+
+namespace Raven.Client.Documents.Smuggler
 {
     public sealed class DatabaseSmugglerImportOptions : DatabaseSmugglerOptions, IDatabaseSmugglerImportOptions
     {
@@ -18,6 +20,13 @@
         }
 
         public bool SkipRevisionCreation { get; set; }
+        
+        public override DynamicJsonValue ToAuditJson()
+        {
+            var json = base.ToAuditJson();
+            json[nameof(SkipRevisionCreation)] = SkipRevisionCreation;
+            return json;
+        }
     }
 
     internal interface IDatabaseSmugglerImportOptions : IDatabaseSmugglerOptions

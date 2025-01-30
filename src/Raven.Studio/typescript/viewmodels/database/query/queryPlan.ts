@@ -1,7 +1,6 @@
 ﻿import d3 = require("d3");
-import genUtils from "common/generalUtils";
-import { parseInt } from "lodash";
-import icomoonHelpers from "common/helpers/view/icomoonHelpers";
+import genUtils = require("common/generalUtils");
+import icomoonHelpers = require("common/helpers/view/icomoonHelpers");
 
 type parameterFrame = {
     label: string;
@@ -91,6 +90,8 @@ class executionInfo {
             return "corax-unary-match";
         } else if (operationName.startsWith("PhraseMatch")) {
             return "corax-phrase-query";
+        } else if (operationName.startsWith("VectorSearchMatch")) {
+            return "vector-search";
         } else {
             return "corax-fallback"; 
         }

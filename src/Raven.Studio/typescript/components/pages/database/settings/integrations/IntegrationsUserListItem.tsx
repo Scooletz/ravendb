@@ -24,19 +24,13 @@ import { tryHandleSubmit } from "components/utils/common";
 import * as yup from "yup";
 import { yupResolver } from "@hookform/resolvers/yup";
 import copyToClipboard from "common/copyToClipboard";
-import { todo } from "common/developmentHelper";
 
 interface IntegrationsUserListProps {
     initialUsername: string;
     removeUser: () => void;
 }
 
-todo(
-    "Feature",
-    "Damian",
-    "Implement Test Connection button when server-side is ready.",
-    "https://issues.hibernatingrhinos.com/issue/RavenDB-22189/PostgreSQL-test-credentials"
-);
+// TODO Implement Test Connection button when server-side is ready. https://issues.hibernatingrhinos.com/issue/RavenDB-22189/PostgreSQL-test-credentials
 
 export default function IntegrationsUserList(props: IntegrationsUserListProps) {
     const { initialUsername, removeUser } = props;

@@ -26,7 +26,7 @@ namespace Sparrow.Collections
     // A simple stack of objects.  Internally it is implemented as an array,
     // so Push can be O(n).  Pop is O(1).
     [DebuggerDisplay("Count = {Count}")]
-    public sealed class FastStack<T> : IEnumerable<T>       
+    public sealed class FastStack<T> : IEnumerable<T>
     {
         private T[] _array;     // Storage for stack elements
         private int _size;           // Number of items in the stack.
@@ -112,7 +112,7 @@ namespace Sparrow.Collections
         public void CopyTo(FastStack<T> srcStack)
         {
             Debug.Assert(srcStack._array != _array);
-           
+
             int srcSize = srcStack._size;
             int dstIndex = _size;
             if (dstIndex + srcSize > _array.Length)
@@ -153,7 +153,7 @@ namespace Sparrow.Collections
 
             return _array[_size - 1];
 
-            Error:
+        Error:
             return ThrowForEmptyStack();
         }
 
@@ -232,7 +232,7 @@ namespace Sparrow.Collections
             _version++;
             return;
 
-            Grow:
+        Grow:
             PushUnlikely(item);
         }
 
@@ -246,7 +246,8 @@ namespace Sparrow.Collections
             _version++;
             return ref item;
 
-            Grow: return ref PushUnlikelyByRef();
+        Grow:
+            return ref PushUnlikelyByRef();
         }
 
         private ref T PushUnlikelyByRef()
@@ -254,10 +255,10 @@ namespace Sparrow.Collections
             Array.Resize(ref _array, (_array.Length == 0) ? DefaultCapacity : 2 * _array.Length);
             ref var item = ref _array[_size++];
             _version++;
-            
+
             return ref item;
         }
-        
+
         private void PushUnlikely(T item)
         {
             Array.Resize(ref _array, (_array.Length == 0) ? DefaultCapacity : 2 * _array.Length);

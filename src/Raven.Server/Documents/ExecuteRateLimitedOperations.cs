@@ -72,7 +72,7 @@ namespace Raven.Server.Documents
 
                 if (context.CachedProperties.NeedClearPropertiesCache())
                 {
-                    context.CachedProperties.Reset();
+                    context.CachedProperties.ClearRenew();
                 }
             }
 

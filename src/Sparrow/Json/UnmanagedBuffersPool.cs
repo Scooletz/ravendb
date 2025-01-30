@@ -7,11 +7,10 @@ using Sparrow.LowMemory;
 using Sparrow.Platform;
 #endif
 using Sparrow.Utils;
-using static Sparrow.DisposableExceptions;
 
 namespace Sparrow.Json
 {
-    public unsafe class UnmanagedBuffersPool : IDisposable, IDisposableQueryable
+    public unsafe class UnmanagedBuffersPool : IDisposable
     {
         private readonly IRavenLogger _logger;
 
@@ -22,7 +21,6 @@ namespace Sparrow.Json
         private readonly ConcurrentStack<AllocatedMemoryData>[] _freeSegments;
 
         private bool _isDisposed;
-        bool IDisposableQueryable.IsDisposed => _isDisposed;
 
         public UnmanagedBuffersPool(IRavenLogger logger, string debugTag, string databaseName = null)
         {
@@ -87,15 +85,14 @@ namespace Sparrow.Json
 
         ~UnmanagedBuffersPool()
         {
-            // There is no reason why we want to pay try..catch overhead where the object has been already been disposed.
-            if (_isDisposed)
-                return;
-
-            try
+            if (_isDisposed == false)
             {
                 if (_logger.IsErrorEnabled)
                     _logger.Error($"UnmanagedBuffersPool for {_debugTag} wasn't properly disposed");
+            }
 
+            try
+            {
                 Dispose();
             }
             catch (ObjectDisposedException)
@@ -107,9 +104,6 @@ namespace Sparrow.Json
 
         public void Dispose()
         {
-            // We may not want to execute `.Dispose()` more than once in release, but we want to fail fast in debug if it happens.
-            ThrowIfDisposedOnDebug(this);
-            
             if (_isDisposed)
                 return;
 

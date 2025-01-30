@@ -19,16 +19,17 @@ using Sparrow.Server.Utils;
 using Sparrow.Utils;
 using BackupUtils = Raven.Server.Utils.BackupUtils;
 using System.Diagnostics;
+using Sparrow.Json.Parsing;
 using Voron.Impl.Backup;
 
 namespace Raven.Server.Documents.PeriodicBackup.Restore
 {
     public static class RestoreUtils
     {
-        public static RestoreBackupConfigurationBase GetRestoreConfigurationAndSource(ServerStore serverStore, BlittableJsonReaderObject restoreConfiguration, out IRestoreSource restoreSource, OperationCancelToken token)
+        public static RestoreBackupConfigurationBase GetRestoreConfigurationAndSource(ServerStore serverStore, BlittableJsonReaderObject restoreConfiguration, out IRestoreSource restoreSource, out DynamicJsonValue configurationJsonForAudit, out RestoreType restoreType, OperationCancelToken token)
         {
             RestoreBackupConfigurationBase configuration;
-            RestoreType restoreType = default;
+            restoreType = default;
             if (restoreConfiguration.TryGet("Type", out string typeAsString))
             {
                 if (Enum.TryParse(typeAsString, out restoreType) == false)
@@ -39,24 +40,28 @@ namespace Raven.Server.Documents.PeriodicBackup.Restore
             {
                 case RestoreType.Local:
                     var localConfiguration = JsonDeserializationCluster.RestoreBackupConfiguration(restoreConfiguration);
+                    configurationJsonForAudit = localConfiguration.ToAuditJson();
                     configuration = localConfiguration;
                     restoreSource = new RestoreFromLocal(localConfiguration);
                     break;
 
                 case RestoreType.S3:
                     var s3Configuration = JsonDeserializationCluster.RestoreS3BackupConfiguration(restoreConfiguration);
+                    configurationJsonForAudit = s3Configuration.ToAuditJson();
                     configuration = s3Configuration;
                     restoreSource = new RestoreFromS3(serverStore, s3Configuration, token.Token);
                     break;
 
                 case RestoreType.Azure:
                     var azureConfiguration = JsonDeserializationCluster.RestoreAzureBackupConfiguration(restoreConfiguration);
+                    configurationJsonForAudit = azureConfiguration.ToAuditJson();
                     configuration = azureConfiguration;
                     restoreSource = new RestoreFromAzure(serverStore, azureConfiguration, token.Token);
                     break;
 
                 case RestoreType.GoogleCloud:
                     var googleCloudConfiguration = JsonDeserializationCluster.RestoreGoogleCloudBackupConfiguration(restoreConfiguration);
+                    configurationJsonForAudit = googleCloudConfiguration.ToAuditJson();
                     configuration = googleCloudConfiguration;
                     restoreSource = new RestoreFromGoogleCloud(serverStore, googleCloudConfiguration, token.Token);
                     break;

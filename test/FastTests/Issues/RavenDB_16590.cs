@@ -95,6 +95,7 @@ namespace FastTests.Issues
                 "Indexing.Corax.VectorSearch.DefaultNumberOfEdges",
                 "Indexing.Corax.VectorSearch.DefaultNumberOfCandidatesForIndexing",
                 "Indexing.Corax.VectorSearch.DefaultNumberOfCandidatesForQuerying",
+                "Indexing.Corax.VectorSearch.OrderByScoreAutomatically",
                 //Obsolete studio keys:
                 "Indexing.Static.SearchEngineType",
                 "Indexing.Analyzers.NGram.MaxGram",

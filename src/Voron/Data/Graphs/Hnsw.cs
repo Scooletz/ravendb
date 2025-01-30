@@ -196,7 +196,7 @@ public unsafe partial class Hnsw
         
         var options = new Options
         {
-            Version = 1,
+            Version = Constants.Graphs.HnswVersion.CurrentVersion,
             VectorSizeBytes = vectorSizeBytes,
             CountOfVectors = 0,
             Container = storage,
@@ -297,6 +297,7 @@ public unsafe partial class Hnsw
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public float DistanceToScore(float score)
         {
             switch (Options.SimilarityMethod)
@@ -306,6 +307,23 @@ public unsafe partial class Hnsw
                     return 1 - score;
                 case SimilarityMethod.HammingDistance:
                     return ((Options.VectorSizeBytes * 8) - score) / (8f * Options.VectorSizeBytes);  // number_of_bits * minimum_similarity
+                default:
+                    throw new InvalidDataException($"Unknown similarity method {Options.SimilarityMethod}");
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void DistancesToScores(Span<float> distances)
+        {
+            switch (Options.SimilarityMethod)
+            {
+                case SimilarityMethod.CosineSimilaritySingles:
+                case SimilarityMethod.CosineSimilarityI8:
+                    DistanceToScoreCosineSimilarity(distances);
+                    break;
+                case SimilarityMethod.HammingDistance:
+                    DistanceToScoreHammingSimilarity(distances, Options.VectorSizeBytes);
+                    break;
                 default:
                     throw new InvalidDataException($"Unknown similarity method {Options.SimilarityMethod}");
             }
@@ -440,8 +458,11 @@ public unsafe partial class Hnsw
         {
             var smallPostingList = Container.Get(Llt, rawPostingListId);
             var count = VariableSizeEncoding.Read<int>(smallPostingList.Address, out var offset);
-            listBuffer.EnsureCapacityFor(Math.Max(256, count + listBuffer.Count));
+            
+            var requiredSize = Math.Max(256, 256 * (int)Math.Ceiling((count + listBuffer.Count) / 256f));
+            listBuffer.EnsureCapacityFor(requiredSize);
             Debug.Assert(listBuffer.Capacity > 0 && listBuffer.Capacity % 256 ==0, "The buffer must be multiple of 256 for PForDecoder.Read");
+            
             pforDecoder.Init(smallPostingList.Address + offset, smallPostingList.Length - offset);
             listBuffer.Count += pforDecoder.Read(listBuffer.RawItems + listBuffer.Count, listBuffer.Capacity - listBuffer.Count);
             postingListSize = smallPostingList.Length;
@@ -656,6 +677,8 @@ public unsafe partial class Hnsw
         private readonly long _globalVectorsContainerId;
         private PostingList _largePostingListSet;
 
+        public int AmountOfModifiedVectorsInTransaction => _vectorHashCache.Count;
+        
         public Registration(LowLevelTransaction llt, Slice name, Random random = null)
         {
             Random = random ?? Random.Shared;
@@ -1254,11 +1277,11 @@ public unsafe partial class Hnsw
         }
         
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public float MinimumSimilarityToMaximumDistance(float min) => _searchState.MinimumSimilarityToDistance(min);
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public float DistanceToScore(float distance) => _searchState.DistanceToScore(distance);
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void DistancesToScores(Span<float> distances) => _searchState.DistancesToScores(distances);
+        
         public int Fill(Span<long> matches, Span<float> distances)
         {
             int index = 0;

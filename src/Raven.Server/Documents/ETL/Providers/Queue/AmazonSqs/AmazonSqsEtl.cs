@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Amazon.SQS;
 using Amazon.SQS.Model;
@@ -13,12 +15,14 @@ using Raven.Server.Exceptions.ETL.QueueEtl;
 using Raven.Server.NotificationCenter.Notifications.Details;
 using Raven.Server.ServerWide;
 using Raven.Server.ServerWide.Context;
+using Sparrow;
 
 namespace Raven.Server.Documents.ETL.Providers.Queue.AmazonSqs;
 
 public sealed class AmazonSqsEtl : QueueEtl<AmazonSqsItem>
 {
     private const string FifoQueueIdentifier = ".fifo";
+    private static readonly Regex NonAlphanumericRegex = new Regex("[^a-zA-Z0-9]", RegexOptions.Compiled);
     private readonly Dictionary<string, string> _alreadyCreatedQueues = new();
     private IAmazonSQS _queueClient;
 
@@ -55,7 +59,7 @@ public sealed class AmazonSqsEtl : QueueEtl<AmazonSqsItem>
 
         foreach (QueueWithItems<AmazonSqsItem> queue in itemsPerQueue)
         {
-            string queueName = queue.Name.ToLower();
+            string queueName = queue.Name;
             bool isFifoQueue = queueName.EndsWith(FifoQueueIdentifier);
 
             if (_queueClient == null)
@@ -71,6 +75,7 @@ public sealed class AmazonSqsEtl : QueueEtl<AmazonSqsItem>
             }
 
             var batchMessages = new List<SendMessageBatchRequestEntry>();
+            var documentIdToMessageId = new Dictionary<string, string>();
 
             foreach (AmazonSqsItem queueItem in queue.Items)
             {
@@ -78,7 +83,8 @@ public sealed class AmazonSqsEtl : QueueEtl<AmazonSqsItem>
 
                 try
                 {
-                    string message = SerializeCloudEvent(queueItem, out string messageId, out string messageGroupId);
+                    string message = SerializeCloudEvent(queueItem, out string messageGroupId);
+                    var messageId = CreateBatchMessageId(queueItem.DocumentId);
                     
                     var sendMessageEntry = new SendMessageBatchRequestEntry
                     {
@@ -88,16 +94,17 @@ public sealed class AmazonSqsEtl : QueueEtl<AmazonSqsItem>
 
                     if (isFifoQueue)
                     {
-                        sendMessageEntry.MessageDeduplicationId = messageId;
+                        sendMessageEntry.MessageDeduplicationId = CreateMessageDeduplicationId(queueItem.ChangeVector);
                         sendMessageEntry.MessageGroupId = messageGroupId;
                     }
 
                     batchMessages.Add(sendMessageEntry);
+                    documentIdToMessageId[queueItem.DocumentId] = messageId;
 
                     if (batchMessages.Count == 10)
                     {
-                        ProcessBatchMessages(queueName, batchMessages, queue, ref count, ref idsToDelete,
-                            ref tooLargeDocsErrors);
+                        ProcessBatchMessages(queueName, batchMessages, documentIdToMessageId, queue, ref count,
+                            ref idsToDelete, ref tooLargeDocsErrors);
                     }
                 }
                 catch (Exception ex)
@@ -109,7 +116,7 @@ public sealed class AmazonSqsEtl : QueueEtl<AmazonSqsItem>
             // handle remaining messages in batch
             if (batchMessages.Count > 0)
             {
-                ProcessBatchMessages(queueName, batchMessages, queue, ref count, ref idsToDelete,
+                ProcessBatchMessages(queueName, batchMessages, documentIdToMessageId, queue, ref count, ref idsToDelete,
                     ref tooLargeDocsErrors);
             }
 
@@ -127,13 +134,14 @@ public sealed class AmazonSqsEtl : QueueEtl<AmazonSqsItem>
     
     private void ProcessBatchMessages(string queueName,
         List<SendMessageBatchRequestEntry> batchMessages,
+        Dictionary<string, string> documentIdToMessageId,
         QueueWithItems<AmazonSqsItem> queue, ref int count, ref List<string> idsToDelete,
         ref Queue<EtlErrorInfo> tooLargeDocsErrors)
     {
         if (TrySendBatchMessages(queueName, batchMessages) == false)
         {
             // If batch sending failed, send each message individually
-            SendMessagesOneByOne(queueName, batchMessages, queue, ref idsToDelete, ref tooLargeDocsErrors);
+            SendMessagesOneByOne(queueName, batchMessages, documentIdToMessageId, queue, ref idsToDelete, ref tooLargeDocsErrors);
         }
         else
         {
@@ -142,16 +150,23 @@ public sealed class AmazonSqsEtl : QueueEtl<AmazonSqsItem>
             {
                 foreach (var entry in batchMessages)
                 {
-                    var originalItem = queue.Items.FirstOrDefault(item => item.ChangeVector == entry.Id);
-                    if (originalItem != null)
-                    {
-                        idsToDelete.Add(originalItem.DocumentId);
-                    }
+                    HandleIdForDeletion(documentIdToMessageId, ref idsToDelete, entry);
                 }
             }
         }
 
         batchMessages.Clear();
+    }
+
+    private static void HandleIdForDeletion(Dictionary<string, string> documentIdToMessageId,
+        ref List<string> idsToDelete,
+        SendMessageBatchRequestEntry message)
+    {
+        string documentId = documentIdToMessageId.FirstOrDefault(doc => doc.Value == message.Id).Key;
+        if (string.IsNullOrWhiteSpace(documentId) == false)
+        {
+            idsToDelete.Add(documentId);
+        }
     }
 
 
@@ -176,8 +191,12 @@ public sealed class AmazonSqsEtl : QueueEtl<AmazonSqsItem>
         }
     }
 
-    private void SendMessagesOneByOne(string queueName, List<SendMessageBatchRequestEntry> batchMessages,
-        QueueWithItems<AmazonSqsItem> queue, ref List<string> idsToDelete, ref Queue<EtlErrorInfo> tooLargeDocsErrors)
+    private void SendMessagesOneByOne(string queueName,
+        List<SendMessageBatchRequestEntry> batchMessages,
+        Dictionary<string, string> documentIdToMessageId,
+        QueueWithItems<AmazonSqsItem> queue,
+        ref List<string> idsToDelete,
+        ref Queue<EtlErrorInfo> tooLargeDocsErrors)
     {
         foreach (var message in batchMessages)
         {
@@ -187,18 +206,15 @@ public sealed class AmazonSqsEtl : QueueEtl<AmazonSqsItem>
                 {
                     MessageGroupId = message.MessageGroupId,
                     QueueUrl = GetQueueUrl(_queueClient, queueName),
-                    MessageBody = message.MessageBody
+                    MessageBody = message.MessageBody,
+                    MessageDeduplicationId = message.MessageDeduplicationId
                 };
 
                 AsyncHelpers.RunSync(() => _queueClient.SendMessageAsync(sendMessageRequest));
 
                 if (queue.DeleteProcessedDocuments)
                 {
-                    var originalItem = queue.Items.FirstOrDefault(item => item.ChangeVector == message.Id);
-                    if (originalItem != null)
-                    {
-                        idsToDelete.Add(originalItem.DocumentId);
-                    }
+                    HandleIdForDeletion(documentIdToMessageId, ref idsToDelete, message);
                 }
             }
             catch (AmazonSQSException sqsEx)
@@ -227,12 +243,45 @@ public sealed class AmazonSqsEtl : QueueEtl<AmazonSqsItem>
     }
 
 
-    private string SerializeCloudEvent(AmazonSqsItem queueItem, out string messageId, out string messageGroupId)
+    private string SerializeCloudEvent(AmazonSqsItem queueItem, out string messageGroupId)
     {
         var cloudEvent = CreateCloudEvent(queueItem);
-        messageId = cloudEvent.Id;
         messageGroupId = cloudEvent.Type;
         return JsonSerializer.Serialize(cloudEvent, JsonSerializerOptions);
+    }
+    
+    private static string CreateMessageId(string input, int maxLength, bool applyReplacement)
+    {
+        string processedString = input;
+
+        if (applyReplacement)
+        {
+            processedString = NonAlphanumericRegex.Replace(input, "-");
+        }
+
+        if (processedString.Length > maxLength)
+        {
+            int truncateLength = maxLength - 10; // Reserve 10 characters for hash suffix
+            if (truncateLength < 0)
+            {
+                throw new ArgumentException("Maximum length must be at least 10 to allow for a hash suffix.", nameof(maxLength));
+            }
+
+            processedString = processedString.Substring(0, truncateLength) + "-" +
+                              $"{(Hashing.XXHash64.Calculate(processedString, Encoding.UTF8) % 1_000_000_000)}";
+        }
+
+        return processedString;
+    }
+    
+    private static string CreateBatchMessageId(string documentId)
+    {
+        return CreateMessageId(documentId, 80, true);
+    }
+    
+    private static string CreateMessageDeduplicationId(string changeVector)
+    {
+        return CreateMessageId(changeVector, 128, true);
     }
 
     protected override void OnProcessStopped()

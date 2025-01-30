@@ -17,19 +17,18 @@ import viewHelpers = require("common/helpers/view/viewHelpers");
 import documentMetadata = require("models/database/documents/documentMetadata");
 import getDocumentsMetadataByIDPrefixCommand = require("commands/database/documents/getDocumentsMetadataByIDPrefixCommand");
 import getDocumentWithMetadataCommand = require("commands/database/documents/getDocumentWithMetadataCommand");
-import { highlight, languages } from "prismjs";
-import shardViewModelBase from "viewmodels/shardViewModelBase";
-import licenseModel from "models/auth/licenseModel";
-import { sortBy } from "common/typeUtils";
+import prismjs = require("prismjs");
+import shardViewModelBase = require("viewmodels/shardViewModelBase");
+import licenseModel = require("models/auth/licenseModel");
+import typeUtils = require("common/typeUtils");
 import SnowflakeEtlConfiguration = Raven.Client.Documents.Operations.ETL.Snowflake.SnowflakeEtlConfiguration;
 import SnowflakeConnectionString = Raven.Client.Documents.Operations.ETL.Snowflake.SnowflakeConnectionString;
-import connectionStringSnowflakeEtlModel from "models/database/settings/connectionStringSnowflakeEtlModel";
-import testSnowflakeReplicationCommand from "commands/database/tasks/testSnowflakeEtlCommand";
-import ongoingTaskSnowflakeEtlTransformationModel
-    from "models/database/tasks/ongoingTaskSnowflakeEtlTransformationModel";
-import ongoingTaskSnowflakeEtlTableModel from "models/database/tasks/ongoingTaskSnowflakeEtlTableModel";
-import ongoingTaskSnowflakeEtlEditModel from "models/database/tasks/ongoingTaskSnowflakeEtlEditModel";
-import { EditSnowflakeEtlInfoHub } from "viewmodels/database/tasks/EditSnowflakeEtlInfoHub";
+import connectionStringSnowflakeEtlModel = require("models/database/settings/connectionStringSnowflakeEtlModel");
+import testSnowflakeReplicationCommand = require("commands/database/tasks/testSnowflakeEtlCommand");
+import ongoingTaskSnowflakeEtlTransformationModel = require("models/database/tasks/ongoingTaskSnowflakeEtlTransformationModel");
+import ongoingTaskSnowflakeEtlTableModel = require("models/database/tasks/ongoingTaskSnowflakeEtlTableModel");
+import ongoingTaskSnowflakeEtlEditModel = require("models/database/tasks/ongoingTaskSnowflakeEtlEditModel");
+import EditSnowflakeEtlInfoHub = require("viewmodels/database/tasks/EditSnowflakeEtlInfoHub");
 
 class snowflakeTaskTestMode {
     
@@ -123,7 +122,7 @@ class snowflakeTaskTestMode {
                             const metaDto = docDto["@metadata"];
                             documentMetadata.filterMetadata(metaDto);
                             const text = JSON.stringify(docDto, null, 4);
-                            this.loadedDocument(highlight(text, languages.javascript, "js"));
+                            this.loadedDocument(prismjs.highlight(text, prismjs.languages.javascript, "js"));
                             this.loadedDocumentId(doc.getId());
 
                             $('.test-container a[href="#documentPreview"]').tab('show');
@@ -220,7 +219,7 @@ class editSnowflakeEtlTask extends shardViewModelBase {
     newConnectionString = ko.observable<connectionStringSnowflakeEtlModel>();
     
     hasSnowflakeEtl = licenseModel.getStatusValue("HasSnowflakeEtl");
-    infoHubView: ReactInKnockout<typeof EditSnowflakeEtlInfoHub>;
+    infoHubView: ReactInKnockout<typeof EditSnowflakeEtlInfoHub.EditSnowflakeEtlInfoHub>;
 
     constructor(db: database) {
         super(db);
@@ -240,7 +239,7 @@ class editSnowflakeEtlTask extends shardViewModelBase {
 
         aceEditorBindingHandler.install();
         this.infoHubView = ko.pureComputed(() => ({
-            component: EditSnowflakeEtlInfoHub
+            component: EditSnowflakeEtlInfoHub.EditSnowflakeEtlInfoHub
         }))
     }
 
@@ -304,7 +303,7 @@ class editSnowflakeEtlTask extends shardViewModelBase {
             .execute()
             .done((result: Raven.Client.Documents.Operations.ConnectionStrings.GetConnectionStringsResult) => {
                 const connectionStringsNames = Object.keys(result.SnowflakeConnectionStrings);
-                this.snowflakeEtlConnectionStringsNames(sortBy(connectionStringsNames, (x: string) => x.toUpperCase()));
+                this.snowflakeEtlConnectionStringsNames(typeUtils.sortBy(connectionStringsNames, (x: string) => x.toUpperCase()));
             });
     }
 

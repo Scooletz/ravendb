@@ -1,7 +1,9 @@
 import { createAsyncThunk, createSelector, createSlice, PayloadAction } from "@reduxjs/toolkit";
+import { capitalize } from "common/typeUtils";
 import { services } from "components/hooks/useServices";
 import { loadStatus } from "components/models/common";
 import { RootState } from "components/store";
+import { logLevelRelevances } from "components/utils/common";
 
 export interface AdminLogsMessage {
     Date: string;
@@ -38,6 +40,7 @@ export interface AdminLogsState {
     isDownloadDiskLogsOpen: boolean;
     isAllExpanded: boolean;
     filter: string;
+    isBufferFullAlertOpen: boolean;
 }
 
 const initialState: AdminLogsState = {
@@ -53,6 +56,7 @@ const initialState: AdminLogsState = {
     isDownloadDiskLogsOpen: false,
     isAllExpanded: false,
     filter: "",
+    isBufferFullAlertOpen: false,
 };
 
 export const adminLogsSlice = createSlice({
@@ -69,7 +73,7 @@ export const adminLogsSlice = createSlice({
             state.logs = action.payload;
         },
         logsManyAppended: (state, action: PayloadAction<Omit<AdminLogsMessage, "_meta">[]>) => {
-            let newLogs: AdminLogsMessage[] = [
+            const newLogs: AdminLogsMessage[] = [
                 ...state.logs,
                 ...action.payload.map((message) => ({
                     ...message,
@@ -77,14 +81,13 @@ export const adminLogsSlice = createSlice({
                 })),
             ];
 
-            if (newLogs.length > state.maxLogsCount) {
-                newLogs = newLogs.slice(newLogs.length - state.maxLogsCount);
-            }
-
             state.logs = newLogs;
         },
         maxLogsCountSet: (state, action: PayloadAction<number>) => {
             state.maxLogsCount = action.payload;
+        },
+        isPausedSet: (state, action: PayloadAction<boolean>) => {
+            state.isPaused = action.payload;
         },
         isPausedToggled: (state) => {
             state.isPaused = !state.isPaused;
@@ -117,6 +120,9 @@ export const adminLogsSlice = createSlice({
                     : logItem
             );
             state.logs = newLogs;
+        },
+        isBufferFullAlertOpenSet: (state, action: PayloadAction<boolean>) => {
+            state.isBufferFullAlertOpen = action.payload;
         },
         reset: () => initialState,
     },
@@ -155,16 +161,25 @@ export const adminLogsActions = {
 };
 
 const selectFilteredLogs = createSelector(
-    [(store: RootState) => store.adminLogs.logs, (store: RootState) => store.adminLogs.filter],
-    (logs, filter) =>
-        logs.filter((log) =>
-            Object.entries(log).some(
+    [
+        (store: RootState) => store.adminLogs.logs,
+        (store: RootState) => store.adminLogs.filter,
+        (store: RootState) => store.adminLogs.configs?.adminLogsConfig?.AdminLogs?.CurrentMinLevel,
+    ],
+    (logs, filter, minLevel) =>
+        logs.filter((log) => {
+            const isMatchingFilter = Object.entries(log).some(
                 (entry) =>
                     entry[0] !== "_meta" &&
                     typeof entry[1] === "string" &&
-                    entry[1].toLowerCase().includes(filter.toLocaleLowerCase())
-            )
-        )
+                    entry[1].toLowerCase().includes(filter.toLowerCase())
+            );
+
+            const capitalizedLogLevel = capitalize(log.Level);
+            const isMatchingMinLevel = logLevelRelevances[capitalizedLogLevel] >= logLevelRelevances[minLevel];
+
+            return isMatchingFilter && isMatchingMinLevel;
+        })
 );
 
 export const adminLogsSelectors = {
@@ -181,4 +196,6 @@ export const adminLogsSelectors = {
     isDownloadDiskLogsOpen: (store: RootState) => store.adminLogs.isDownloadDiskLogsOpen,
     isAllExpanded: (store: RootState) => store.adminLogs.isAllExpanded,
     filter: (store: RootState) => store.adminLogs.filter,
+    isBufferFull: (store: RootState) => store.adminLogs.logs.length >= store.adminLogs.maxLogsCount,
+    isBufferFullAlertOpen: (store: RootState) => store.adminLogs.isBufferFullAlertOpen,
 };

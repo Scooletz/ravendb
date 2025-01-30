@@ -35,9 +35,9 @@ public class AzureQueueStorageEtlTests : AzureQueueStorageEtlTestBase
             var config = SetupQueueEtlToAzureQueueStorageOnline(store, DefaultScript, DefaultCollections);
             var etlDone = Etl.WaitForEtlToComplete(store);
 
-            using (var session = store.OpenSession())
+            using (var session = store.OpenAsyncSession())
             {
-                session.Store(new Order
+                await session.StoreAsync(new Order
                 {
                     Id = "orders/1-A",
                     OrderLines = new List<OrderLine>
@@ -46,10 +46,10 @@ public class AzureQueueStorageEtlTests : AzureQueueStorageEtlTestBase
                         new OrderLine { Cost = 4, Product = "Bear", Quantity = 1 },
                     }
                 });
-                session.SaveChanges();
+                await session.SaveChangesAsync();
             }
 
-            await AssertEtlDone(etlDone, TimeSpan.FromMinutes(1), store.Database, config);
+            await AssertEtlDoneAsync(etlDone, TimeSpan.FromMinutes(1), store.Database, config);
 
             QueueClient queueClient = CreateAzureQueueStorageClient(AzureQueueStorageConnectionString, OrdersQueueName);
             var message = ReceiveAndDeleteMessages(queueClient).Single();
@@ -143,9 +143,9 @@ public class AzureQueueStorageEtlTests : AzureQueueStorageEtlTestBase
             var config = SetupQueueEtlToAzureQueueStorageOnline(store, DefaultScript, DefaultCollections);
             var etlDone = Etl.WaitForEtlToComplete(store);
 
-            using (var session = store.OpenSession())
+            using (var session = store.OpenAsyncSession())
             {
-                session.Store(new Order
+                await session.StoreAsync(new Order
                 {
                     Id = "orders/1-A",
                     OrderLines = new List<OrderLine>
@@ -154,10 +154,10 @@ public class AzureQueueStorageEtlTests : AzureQueueStorageEtlTestBase
                         new OrderLine { Cost = 4, Product = "Bear", Quantity = 1 },
                     }
                 });
-                session.SaveChanges();
+                await session.SaveChangesAsync();
             }
 
-            await AssertEtlDone(etlDone, TimeSpan.FromMinutes(1), store.Database, config);
+            await AssertEtlDoneAsync(etlDone, TimeSpan.FromMinutes(1), store.Database, config);
 
             QueueClient queueClient = CreateAzureQueueStorageClient(AzureQueueStorageConnectionString, OrdersQueueName);
             var message = ReceiveAndDeleteMessages(queueClient).Single();
@@ -184,7 +184,7 @@ public class AzureQueueStorageEtlTests : AzureQueueStorageEtlTestBase
 
         for (int i = 0; i < numberOfOrders; i++)
         {
-            using (var session = store.OpenSession())
+            using (var session = store.OpenAsyncSession())
             {
                 Order order = new Order { OrderLines = new List<OrderLine>() };
 
@@ -198,13 +198,12 @@ public class AzureQueueStorageEtlTests : AzureQueueStorageEtlTestBase
                     });
                 }
 
-                session.Store(order, "orders/" + i);
-
-                session.SaveChanges();
+                await session.StoreAsync(order, "orders/" + i);
+                await session.SaveChangesAsync();
             }
         }
 
-        await AssertEtlDone(etlDone, TimeSpan.FromMinutes(1), store.Database, config);
+        await AssertEtlDoneAsync(etlDone, TimeSpan.FromMinutes(1), store.Database, config);
 
         QueueClient queueClient = CreateAzureQueueStorageClient(AzureQueueStorageConnectionString, OrdersQueueName);
         QueueMessage[] messages = ReceiveAndDeleteMessages(queueClient, numberOfOrders);
@@ -331,16 +330,16 @@ public class AzureQueueStorageEtlTests : AzureQueueStorageEtlTestBase
 
             var etlDone = Etl.WaitForEtlToComplete(store);
 
-            using (var session = store.OpenSession())
+            using (var session = store.OpenAsyncSession())
             {
-                session.Store(new User { Id = "users/1", Name = "Arek" });
-                session.SaveChanges();
+                await session.StoreAsync(new User { Id = "users/1", Name = "Arek" });
+                await session.SaveChangesAsync();
             }
 
-            await AssertEtlDone(etlDone, TimeSpan.FromMinutes(1), store.Database, config);
+            await AssertEtlDoneAsync(etlDone, TimeSpan.FromMinutes(1), store.Database, config);
 
             QueueClient queueClient = CreateAzureQueueStorageClient(AzureQueueStorageConnectionString, "users");
-            var message = queueClient.ReceiveMessage();
+            var message = await queueClient.ReceiveMessageAsync();
             var user = JsonConvert.DeserializeObject<CloudEventUserData>(message.Value.MessageText).Data;
 
             Assert.NotNull(user);

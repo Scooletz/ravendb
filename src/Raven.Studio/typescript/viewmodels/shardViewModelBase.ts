@@ -1,7 +1,6 @@
 import viewModelBase = require("viewmodels/viewModelBase");
-import database from "models/resources/database";
-import { shardingTodo } from "common/developmentHelper";
-import accessManager from "common/shell/accessManager";
+import database = require("models/resources/database");
+import accessManager = require("common/shell/accessManager");
 
 abstract class shardViewModelBase extends viewModelBase {
     
@@ -40,7 +39,7 @@ abstract class shardViewModelBase extends viewModelBase {
      * Allows to sort
      */
     getViewState(): any {
-        shardingTodo("Marcin");
+        // TODO sharding
         return null;
     }
     

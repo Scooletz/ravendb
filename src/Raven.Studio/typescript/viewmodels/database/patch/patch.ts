@@ -21,9 +21,9 @@ import queryCommand = require("commands/database/query/queryCommand");
 import queryCriteria = require("models/database/query/queryCriteria");
 import rqlLanguageService = require("common/rqlLanguageService");
 import activeDatabaseTracker = require("common/shell/activeDatabaseTracker");
-import getIndexNamesCommand from "commands/database/index/getIndexNamesCommand";
-import clusterTopologyManager from "common/shell/clusterTopologyManager";
-import shardViewModelBase from "viewmodels/shardViewModelBase";
+import getIndexNamesCommand = require("commands/database/index/getIndexNamesCommand");
+import clusterTopologyManager = require("common/shell/clusterTopologyManager");
+import shardViewModelBase = require("viewmodels/shardViewModelBase");
 
 class patchList {
 
@@ -217,7 +217,7 @@ class patch extends shardViewModelBase {
 
         this.loadLastQuery();
 
-        this.disableAutoIndexCreation(activeDatabaseTracker.default.settings().disableAutoIndexCreation.getValue());
+        this.fetchStudioConfiguration().done((settings) => this.disableAutoIndexCreation(settings.disableAutoIndexCreation.getValue()));
         
         return $.when<any>(this.fetchIndexNames(this.db), this.savedPatches.loadAll(this.db));
     }
@@ -478,6 +478,10 @@ class patch extends shardViewModelBase {
                         });
                 }
             });
+    }
+
+    private fetchStudioConfiguration() {
+        return activeDatabaseTracker.default.settings().load();
     }
 
     private fetchIndexNames(db: database): JQueryPromise<any> {

@@ -1,4 +1,6 @@
-using System;
+﻿using System;
+using System.Buffers.Text;
+using System.Diagnostics;
 using System.IO;
 using System.Runtime.CompilerServices;
 using Sparrow.Exceptions;
@@ -7,23 +9,25 @@ using Sparrow.Threading;
 
 namespace Sparrow.Json
 {
-    public sealed class BlittableJsonDocumentBuilder : AbstractBlittableJsonDocumentBuilder, IDisposableQueryable
+    public sealed class BlittableJsonDocumentBuilder : AbstractBlittableJsonDocumentBuilder
     {
+        private static readonly StringSegment UnderscoreSegment = new StringSegment("_");
+
         private readonly JsonOperationContext _context;
         private UsageMode _mode;
         private readonly IJsonParser _reader;
+
+        public IBlittableDocumentModifier _modifier;
         private readonly BlittableWriter<UnmanagedWriteBuffer> _writer;
         private readonly JsonParserState _state;
-        internal IBlittableDocumentModifier _modifier;
-
-        private static readonly StringSegment UnderscoreSegment = new("_");
-        private LazyStringValue _underscoreSegment;
         private LazyStringValue _fakeFieldName;
 
-        private readonly SingleUseFlag _disposed = new();
+        private readonly SingleUseFlag _disposed = new SingleUseFlag();
 
         private WriteToken _writeToken;
         private string _debugTag;
+
+        private bool _isVectorProperty;
 
         public BlittableJsonDocumentBuilder(JsonOperationContext context, JsonParserState state, IJsonParser reader,
             BlittableWriter<UnmanagedWriteBuffer> writer = null,
@@ -46,13 +50,10 @@ namespace Sparrow.Json
             Renew(debugTag, mode);
         }
 
-        public BlittableJsonDocumentBuilder(JsonOperationContext context, JsonParserState state, UsageMode mode, string debugTag, IJsonParser reader,
-            BlittableWriter<UnmanagedWriteBuffer> writer = null) : this(context, state, reader, writer)
+        public BlittableJsonDocumentBuilder(JsonOperationContext context, JsonParserState state, UsageMode mode, string debugTag, IJsonParser reader, BlittableWriter<UnmanagedWriteBuffer> writer = null) : this(context, state, reader, writer)
         {
             Renew(debugTag, mode);
         }
-
-        bool IDisposableQueryable.IsDisposed => _disposed.IsRaised();
 
         public void Reset()
         {
@@ -65,12 +66,6 @@ namespace Sparrow.Json
 
             _writeToken = default;
             _writer.Reset();
-        }
-
-        public void Renew(string debugTag, UsageMode mode, IBlittableDocumentModifier modifier)
-        {
-            _modifier = modifier;
-            Renew(debugTag, mode);
         }
 
         public void Renew(string debugTag, UsageMode mode)
@@ -86,37 +81,42 @@ namespace Sparrow.Json
             _writer.ResetAndRenew();
             _modifier?.Reset(_context);
 
-            _underscoreSegment ??= _context.GetLazyStringForFieldWithCaching(UnderscoreSegment);
-            _fakeFieldName = _underscoreSegment;
+            _fakeFieldName = _context.GetLazyStringForFieldWithCaching(UnderscoreSegment);
         }
 
         public void ReadArrayDocument()
         {
-            ref var item = ref _continuationState.PushByRef();
-            item = new BuildingState(ContinuationState.ReadArrayDocument);
+            AssertNotDisposed();
+
+            _continuationState.Push(new BuildingState(ContinuationState.ReadArrayDocument));
         }
 
         public void ReadObjectDocument()
         {
-            ref var item = ref _continuationState.PushByRef();
-            item = new BuildingState(ContinuationState.ReadObjectDocument);
+            AssertNotDisposed();
+
+            _continuationState.Push(new BuildingState(ContinuationState.ReadObjectDocument));
         }
 
         public void ReadNestedObject()
         {
-            ref var item = ref _continuationState.PushByRef();
-            item = new BuildingState(ContinuationState.ReadObject);
+            AssertNotDisposed();
+
+            _continuationState.Push(new BuildingState(ContinuationState.ReadObject));
         }
 
         public void ReadProperty()
         {
-            ref var item = ref _continuationState.PushByRef();
-            item = new BuildingState(ContinuationState.ReadPropertyName, partialRead: true)
+            AssertNotDisposed();
+
+            var state = new BuildingState(ContinuationState.ReadPropertyName)
             {
                 State = ContinuationState.ReadPropertyName,
                 Properties = _propertiesCache.Allocate(),
                 FirstWrite = _writer.Position,
+                PartialRead = true
             };
+            _continuationState.Push(state);
         }
 
         public int SizeInBytes
@@ -131,9 +131,6 @@ namespace Sparrow.Json
 
         public override void Dispose()
         {
-            // We may not want to execute `.Dispose()` more than once in release, but we want to fail fast in debug if it happens.
-            DisposableExceptions.ThrowIfDisposedOnDebug(this);
-            
             if (_disposed.Raise() == false)
                 return;
 
@@ -141,12 +138,11 @@ namespace Sparrow.Json
             base.Dispose();
         }
 
-        private bool ReadInternal<TWriteStrategy, TReader>(TReader reader) 
-            where TWriteStrategy : IWriteStrategy
-            where TReader : IJsonParser
+        private unsafe bool ReadInternal<TWriteStrategy>() where TWriteStrategy : IWriteStrategy
         {
             var continuationState = _continuationState;
             var currentState = continuationState.Pop();
+            var reader = _reader;
             var state = _state;
             while (true)
             {
@@ -156,7 +152,7 @@ namespace Sparrow.Json
                         if (reader.Read() == false)
                         {
                             continuationState.Push(currentState);
-                            return false;
+                            goto ReturnFalse;
                         }
                         currentState.State = ContinuationState.ReadObject;
                         continue;
@@ -164,7 +160,7 @@ namespace Sparrow.Json
                         if (reader.Read() == false)
                         {
                             continuationState.Push(currentState);
-                            return false;
+                            goto ReturnFalse;
                         }
 
                         var fakeProperty = _context.CachedProperties.GetProperty(_fakeFieldName);
@@ -172,7 +168,7 @@ namespace Sparrow.Json
                         currentState.MaxPropertyId = fakeProperty.PropertyId;
                         currentState.FirstWrite = _writer.Position;
                         currentState.Properties = _propertiesCache.Allocate();
-                        currentState.Properties.AddByRef(new PropertyTag( property: fakeProperty ));
+                        currentState.Properties.Add(new PropertyTag { Property = fakeProperty });
                         currentState.State = ContinuationState.CompleteDocumentArray;
                         continuationState.Push(currentState);
                         currentState = new BuildingState(ContinuationState.ReadArray);
@@ -188,7 +184,7 @@ namespace Sparrow.Json
                         // Register property position, name id (PropertyId) and type (object type and metadata)
                         _writeToken = _writer.WriteObjectMetadata(currentState.Properties, currentState.FirstWrite, currentState.MaxPropertyId);
                         _propertiesCache.Return(ref currentState.Properties);
-                        return true;
+                        goto ReturnTrue;
 
                     case ContinuationState.ReadObject:
                         if (state.CurrentTokenType == JsonParserToken.StartObject)
@@ -199,24 +195,30 @@ namespace Sparrow.Json
                             continue;
                         }
 
-                        throw new InvalidStartOfObjectException("Expected start of object, but got " + _state.CurrentTokenType + _reader.GenerateErrorState());
+                        goto ErrorExpectedStartOfObject;
 
                     case ContinuationState.ReadArray:
-                        if (state.CurrentTokenType == JsonParserToken.StartArray)
+                        if (state.CurrentTokenType != JsonParserToken.StartArray)
+                            goto ErrorExpectedStartOfArray;
+
+                        currentState.Types = _tokensCache.Allocate();
+                        currentState.Positions = _positionsCache.Allocate();
+                        
+                        if (_isVectorProperty == false)
                         {
-                            currentState.Types = _tokensCache.Allocate();
-                            currentState.Positions = _positionsCache.Allocate();
                             currentState.State = ContinuationState.ReadArrayValue;
-                            continue;
+                            goto case ContinuationState.ReadArrayValue;
                         }
 
-                        throw new InvalidStartOfObjectException("Expected start of array, but got " + _state.CurrentTokenType + _reader.GenerateErrorState());
+                        _isVectorProperty = false;
+                        currentState.State = ContinuationState.ReadBufferedArrayValue;
+                        goto case ContinuationState.ReadBufferedArrayValue;
 
                     case ContinuationState.ReadArrayValue:
                         if (reader.Read() == false)
                         {
                             continuationState.Push(currentState);
-                            return false;
+                            goto ReturnFalse;
                         }
 
                         if (state.CurrentTokenType == JsonParserToken.EndArray)
@@ -249,7 +251,7 @@ namespace Sparrow.Json
                         if (ReadMaybeModifiedPropertyName() == false)
                         {
                             continuationState.Push(currentState);
-                            return false;
+                            goto ReturnFalse;
                         }
 
                         if (state.CurrentTokenType == JsonParserToken.EndObject)
@@ -259,17 +261,19 @@ namespace Sparrow.Json
                             _propertiesCache.Return(ref currentState.Properties);
 
                             if (continuationState.Count == 0)
-                                return true;
+                                goto ReturnTrue;
 
                             currentState = continuationState.Pop();
                             continue;
                         }
 
                         if (state.CurrentTokenType != JsonParserToken.String)
-                            throw new InvalidDataException("Expected property, but got " + _state.CurrentTokenType + _reader.GenerateErrorState());
+                            goto ErrorExpectedProperty;
 
                         var property = CreateLazyStringValueFromParserState();
                         currentState.CurrentProperty = _context.CachedProperties.GetProperty(property);
+                        _isVectorProperty = currentState.CurrentProperty.IsVectorProperty;
+
                         currentState.MaxPropertyId = Math.Max(currentState.MaxPropertyId, currentState.CurrentProperty.PropertyId);
                         currentState.State = ContinuationState.ReadPropertyValue;
                         continue;
@@ -277,7 +281,7 @@ namespace Sparrow.Json
                         if (reader.Read() == false)
                         {
                             continuationState.Push(currentState);
-                            return false;
+                            goto ReturnFalse;
                         }
                         currentState.State = ContinuationState.CompleteReadingPropertyValue;
                         continuationState.Push(currentState);
@@ -285,7 +289,7 @@ namespace Sparrow.Json
                         continue;
                     case ContinuationState.CompleteReadingPropertyValue:
                         // Register property position, name id (PropertyId) and type (object type and metadata)
-                        currentState.Properties.AddByRef(new PropertyTag(
+                        currentState.Properties.Add(new PropertyTag(
                             position: _writeToken.ValuePos,
                             type: (byte)_writeToken.WrittenToken,
                             property: currentState.CurrentProperty));
@@ -297,18 +301,210 @@ namespace Sparrow.Json
                                 _modifier?.EndObject();
                                 _writeToken = _writer.WriteObjectMetadata(currentState.Properties, currentState.FirstWrite, currentState.MaxPropertyId);
                                 _propertiesCache.Return(ref currentState.Properties);
-                                return true;
+                                goto ReturnTrue;
                             }
                         }
 
                         currentState.State = ContinuationState.ReadPropertyName;
                         continue;
+                    case ContinuationState.ReadBufferedArrayValue:
+
+                        if (reader.Read() == false)
+                        {
+                            continuationState.Push(currentState);
+                            return false;
+                        }
+
+                        if (state.CurrentTokenType == JsonParserToken.EndArray)
+                        {
+                            if (_state._bufferedSequence?.Count > 0)
+                            {
+                                currentState.State = ContinuationState.CompleteBufferedArray;
+                                goto case ContinuationState.CompleteBufferedArray;
+                            }
+
+                            currentState.State = ContinuationState.CompleteArray;
+                            goto case ContinuationState.CompleteArray;
+                        }
+
+                        bool processed = false;
+
+                        // We try to read integers and doubles, if the value is a decimal (which can happen)
+                        // then we bail out because we cannot handle it as a vector (as least for now). 
+                        JsonParserToken current = _state.CurrentTokenType;
+
+                        switch (current)
+                        {
+                            case JsonParserToken.Integer:
+                                _state.AddBuffered(_state.Long);
+                                processed = true;
+                                break;
+                            case JsonParserToken.Float:
+                                var numberString = new ReadOnlySpan<byte>(_state.StringBuffer, _state.StringSize);
+                                if (Utf8Parser.TryParse(numberString, out decimal value, out int bytesConsumed) == false)
+                                {
+                                    //We suspect the underlying value might be a double with large values or exponents, so let's verify it again before moving to classic array.
+                                    if (Utf8Parser.TryParse(numberString, out double dValue, out bytesConsumed) == false)
+                                    {
+                                        break;
+                                    }
+                                    
+                                    _state.AddBuffered(dValue);
+                                    processed = true;
+                                    break;
+                                }
+
+                                Debug.Assert(bytesConsumed == _state.StringSize);
+#if NET7_0_OR_GREATER
+                                // This will only be executed on the server, so no problem on this regard as vector
+                                // representations are not supported on older systems.
+                                if (decimal.IsInteger(value) && decimal.Abs(value) < long.MaxValue)
+                                {
+                                    _state.AddBuffered(decimal.ToInt64(value));
+                                }
+                                else
+                                {
+                                    if ((_mode & UsageMode.ValidateDouble) == UsageMode.ValidateDouble)
+                                        _reader.ValidateFloat();
+
+                                    _state.AddBuffered(decimal.ToDouble(value));
+                                }
+                                processed = true;
+                                break;
+
+#else
+                                throw new NotSupportedException("Vector representations are only supported for .NET versions greater than 7.0");
+#endif
+                        }
+
+                        if (processed)
+                            goto case ContinuationState.ReadBufferedArrayValue; // Successfully read a buffered value, continue buffering
+
+                        // Process the buffered sequence
+                        if (_state._bufferedSequence is { Count: > 0 })
+                        {
+                            // Write out buffered values
+                            foreach ((var token, long asLong) in _state._bufferedSequence)
+                            {
+                                int position;
+                                BlittableJsonToken tokenToWrite;
+
+                                switch (token)
+                                {
+                                    case JsonParserToken.Integer:
+                                        position = _writer.WriteValue(asLong);
+                                        tokenToWrite = BlittableJsonToken.Integer;
+                                        break;
+                                    case JsonParserToken.Float:
+                                        long asRef = asLong;
+                                        position = _writer.WriteValue(Unsafe.As<long, double>(ref asRef));
+                                        tokenToWrite = BlittableJsonToken.LazyNumber;
+                                        break;
+                                    default:
+                                        throw new NotSupportedException($"Unsupported token type: {token}");
+                                }
+
+                                currentState.Types.Add(tokenToWrite);
+                                currentState.Positions.Add(position);
+                            }
+
+                            // Clear the buffered sequence
+                            _state.ClearBuffered();
+                        }
+
+                        // Now handle the current value that couldn't be buffered.
+
+                        // The change of the current state must happen before as ReadJsonValue may return a new instance.
+                        currentState.State = ContinuationState.CompleteArrayValue;
+                        ReadJsonValue<TWriteStrategy>();
+
+                        // Allow the loop to continue to the next iteration
+                        continue;
+
+                    case ContinuationState.CompleteBufferedArray:
+                        int startPos = WriteBufferedVector();
+                        _writeToken = new WriteToken(startPos, BlittableJsonToken.Vector);
+
+                        state.ClearBuffered();
+                        currentState = _continuationState.Pop();
+                        continue;
+
                     case ContinuationState.ReadValue:
                         ReadJsonValue<TWriteStrategy>();
                         currentState = _continuationState.Pop();
                         break;
                 }
             }
+
+        ReturnTrue:
+            return true;
+        ReturnFalse:
+            return false;
+
+        ErrorExpectedProperty:
+            ThrowExpectedProperty();
+        ErrorExpectedStartOfObject:
+            ThrowExpectedStartOfObject();
+        ErrorExpectedStartOfArray:
+            ThrowExpectedStartOfArray();
+            return false; // Will never execute.
+        }
+
+        private struct VectorProcessor<T> where T : unmanaged
+        {
+            internal static unsafe int ProcessVector(byte* buffer, int size, JsonParserState state, BlittableWriter<UnmanagedWriteBuffer> writer)
+            {
+                Span<T> st = new(buffer, size);
+                int count = state.FillVector(st);
+                return writer.WriteVector<T>(st.Slice(0, count));
+            }
+        }
+
+        private unsafe int WriteBufferedVector()
+        {
+            int count = _state._bufferedSequence.Count;
+            int size = count * sizeof(long);
+            using var _ = _context.GetMemoryBuffer(size, out var buffer);
+
+            var type = _state.GetBufferedOptimalType();
+            switch (type)
+            {
+                case BlittableVectorType.Double:
+                    return VectorProcessor<double>.ProcessVector(buffer.Address, count, _state, _writer);
+
+                case BlittableVectorType.Float:
+                    return VectorProcessor<float>.ProcessVector(buffer.Address, count, _state, _writer);
+
+#if NET6_0_OR_GREATER
+                case BlittableVectorType.Half:
+                    return VectorProcessor<Half>.ProcessVector(buffer.Address, count, _state, _writer);
+#endif
+                case BlittableVectorType.Byte:
+                    return VectorProcessor<byte>.ProcessVector(buffer.Address, count, _state, _writer);
+
+                case BlittableVectorType.SByte:
+                    return VectorProcessor<sbyte>.ProcessVector(buffer.Address, count, _state, _writer);
+
+                case BlittableVectorType.Int16:
+                    return VectorProcessor<short>.ProcessVector(buffer.Address, count, _state, _writer);
+
+                case BlittableVectorType.UInt16:
+                    return VectorProcessor<ushort>.ProcessVector(buffer.Address, count, _state, _writer);
+
+                case BlittableVectorType.Int32:
+                    return VectorProcessor<int>.ProcessVector(buffer.Address, count, _state, _writer);
+
+                case BlittableVectorType.UInt32:
+                    return VectorProcessor<uint>.ProcessVector(buffer.Address, count, _state, _writer);
+
+                case BlittableVectorType.Int64:
+                    return VectorProcessor<long>.ProcessVector(buffer.Address, count, _state, _writer);
+
+                case BlittableVectorType.UInt64:
+                    return VectorProcessor<ulong>.ProcessVector(buffer.Address, count, _state, _writer);
+            }
+
+            throw new NotSupportedException($"The type {type} is not supported.");
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -319,19 +515,14 @@ namespace Sparrow.Json
             if (_continuationState.Count == 0)
                 return false; //nothing to do
 
-            switch (_reader)
+            if (_mode == UsageMode.None)
             {
-                case ObjectJsonParser ojp when _mode == UsageMode.None: return ReadInternal<WriteNone, ObjectJsonParser>(ojp);
-                case ObjectJsonParser ojp when _mode != UsageMode.None: return ReadInternal<WriteFull, ObjectJsonParser>(ojp);
-
-                case UnmanagedJsonParser ujp when _mode == UsageMode.None: return ReadInternal<WriteNone, UnmanagedJsonParser>(ujp);
-                case UnmanagedJsonParser ujp when _mode != UsageMode.None: return ReadInternal<WriteFull, UnmanagedJsonParser>(ujp);
+                return ReadInternal<WriteNone>();
             }
-            
-            return _mode == UsageMode.None ? ReadInternal<WriteNone, IJsonParser>(_reader) : ReadInternal<WriteFull, IJsonParser>(_reader);
+
+            return ReadInternal<WriteFull>();
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private bool ReadMaybeModifiedPropertyName()
         {
             if (_modifier != null)
@@ -339,6 +530,21 @@ namespace Sparrow.Json
                 return _modifier.AboutToReadPropertyName(_reader, _state);
             }
             return _reader.Read();
+        }
+
+        private void ThrowExpectedProperty()
+        {
+            throw new InvalidDataException("Expected property, but got " + _state.CurrentTokenType + _reader.GenerateErrorState());
+        }
+
+        private void ThrowExpectedStartOfArray()
+        {
+            throw new InvalidStartOfObjectException("Expected start of array, but got " + _state.CurrentTokenType + _reader.GenerateErrorState());
+        }
+
+        private void ThrowExpectedStartOfObject()
+        {
+            throw new InvalidStartOfObjectException("Expected start of object, but got " + _state.CurrentTokenType + _reader.GenerateErrorState());
         }
 
         private interface IWriteStrategy { }
@@ -391,11 +597,11 @@ namespace Sparrow.Json
             }
             else if (current != JsonParserToken.EndObject)
             {
-                ReadJsonValueUnlikely(current);
+                ReadJsonValueUnlikely<TWriteStrategy>(current);
             }
         }
 
-        private unsafe void ReadJsonValueUnlikely(JsonParserToken current) 
+        private unsafe void ReadJsonValueUnlikely<TWriteStrategy>(JsonParserToken current) where TWriteStrategy : IWriteStrategy
         {
             int start;
             switch (current)
@@ -427,7 +633,12 @@ namespace Sparrow.Json
                     return;
             }
 
-            throw new InvalidDataException("Expected a value, but got " + current);
+            ThrowExpectedValue(current);
+        }
+
+        private void ThrowExpectedValue(JsonParserToken token)
+        {
+            throw new InvalidDataException("Expected a value, but got " + token);
         }
 
         [Flags]
@@ -440,10 +651,16 @@ namespace Sparrow.Json
             ToDisk = ValidateDouble | CompressStrings
         }
 
-        public readonly struct WriteToken(int valuePosition, BlittableJsonToken token)
+        public struct WriteToken
         {
-            public readonly int ValuePos = valuePosition;
-            public readonly BlittableJsonToken WrittenToken = token;
+            public int ValuePos;
+            public BlittableJsonToken WrittenToken;
+
+            public WriteToken(int position, BlittableJsonToken token)
+            {
+                ValuePos = position;
+                WrittenToken = token;
+            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

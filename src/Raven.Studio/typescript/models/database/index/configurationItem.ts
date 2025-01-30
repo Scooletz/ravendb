@@ -6,8 +6,8 @@ class configurationItem {
         "Indexing.AllowStringCompilation",
         "Indexing.Analyzers.Default",
         "Indexing.Analyzers.Exact.Default",
-        "Indexing.Analyzers.Lucene.NGram.MaxGram",
-        "Indexing.Analyzers.Lucene.NGram.MinGram",
+        "Indexing.Lucene.Analyzers.NGram.MaxGram",
+        "Indexing.Lucene.Analyzers.NGram.MinGram",
         "Indexing.Analyzers.Search.Default",
         "Indexing.QueryClauseCache.Disabled",
         "Indexing.QueryClauseCache.RepeatedQueriesTimeFrameInSec",
@@ -48,7 +48,8 @@ class configurationItem {
         "Indexing.Corax.VectorSearch.DefaultMinimumSimilarity",
         "Indexing.Corax.VectorSearch.DefaultNumberOfEdges",
         "Indexing.Corax.VectorSearch.DefaultNumberOfCandidatesForIndexing",
-        "Indexing.Corax.VectorSearch.DefaultNumberOfCandidatesForQuerying"
+        "Indexing.Corax.VectorSearch.DefaultNumberOfCandidatesForQuerying",
+        "Indexing.Corax.VectorSearch.OrderByScoreAutomatically"
         // "Indexing.Static.SearchEngineType" - ignoring as we have dedicated widget to set that
         /*
             Obsolete keys:

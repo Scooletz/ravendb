@@ -452,6 +452,8 @@ namespace Raven.Server.Documents
                 {
                     Tombstones = _tombstones,
                     MinAllDocsEtag = _minAllDocsEtag,
+                    MinAllCountersEtag = _minAllCountersEtag,
+                    MinAllTimeSeriesEtag = _minAllTimeSeriesEtag,
                     NumberOfTombstonesToDeleteInBatch = _numberOfTombstonesToDeleteInBatch
                 };
             }

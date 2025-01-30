@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using Sparrow.Collections;
@@ -67,63 +67,63 @@ namespace Sparrow.Json
                 throw new ObjectDisposedException(GetType().Name);
         }
 
-        protected struct BuildingState
+        protected struct BuildingState(ContinuationState state, bool partialRead = false)
         {
-            public ContinuationState State;
+            public ContinuationState State = state;
             public int MaxPropertyId;
             public CachedProperties.PropertyName CurrentProperty;
             public FastList<PropertyTag> Properties;
             public FastList<BlittableJsonToken> Types;
             public FastList<int> Positions;
             public long FirstWrite;
-            internal readonly bool PartialRead;
 
-            public BuildingState(ContinuationState state)
-            {
-                State = state;
-            }
-            
-            public BuildingState(ContinuationState state, int maxPropertyId = 0,
-                CachedProperties.PropertyName currentProperty = null,
-                FastList<PropertyTag> properties = null, FastList<BlittableJsonToken> types = null, FastList<int> positions = null,
-                int firstWrite = 0, bool partialRead = false)
-            {
-                State = state;
-                MaxPropertyId = maxPropertyId;
-                CurrentProperty = currentProperty;
-                Properties = properties;
-                Types = types;
-                Positions = positions;
-                FirstWrite = firstWrite;
-                PartialRead = partialRead;
-            }
+            internal bool PartialRead = partialRead;
         }
 
-        protected enum ContinuationState
+        protected const int AllowedAllStates = 0xFF;
+        protected const int DisallowBufferedStates = 0x7F;
+        protected const int Buffered = 0x80;
+
+        protected enum ContinuationState : int
         {
-            ReadPropertyName,
-            ReadPropertyValue,
-            ReadArray,
-            ReadArrayValue,
-            ReadObject,
-            ReadValue,
-            CompleteReadingPropertyValue,
-            ReadObjectDocument,
-            ReadArrayDocument,
-            CompleteDocumentArray,
-            CompleteArray,
-            CompleteArrayValue
+            ReadObject = 0x01,
+            ReadArray = 0x02,
+            ReadObjectDocument = 0x03,
+            ReadArrayDocument = 0x04,
+            ReadPropertyName = 0x05,
+            ReadPropertyValue = 0x06,
+            CompleteDocumentArray = 0x07,
+            CompleteReadingPropertyValue = 0x08,
+
+            ReadArrayValue = 0x09,
+            ReadValue = 0x0A,
+            CompleteArray = 0x0B,
+            CompleteArrayValue = 0x0C,
+
+            // Support for vector type.
+            ReadBufferedArrayValue = ReadArrayValue | Buffered,
+            ReadBufferedValue = ReadValue | Buffered,
+            CompleteBufferedArray = CompleteArray | Buffered,
+            CompleteBufferedArrayValue = CompleteArrayValue | Buffered,
         }
 
-        public readonly struct PropertyTag(byte type = 0, CachedProperties.PropertyName property = null, int position = 0)
+        public struct PropertyTag
         {
-            public readonly int Position = position;
-            public readonly CachedProperties.PropertyName Property = property;
-            public readonly byte Type = type;
+            public int Position;
 
             public override string ToString()
             {
                 return $"{nameof(Position)}: {Position}, {nameof(Property)}: {Property.Comparer} {Property.PropertyId}, {nameof(Type)}: {(BlittableJsonToken)Type}";
+            }
+
+            public CachedProperties.PropertyName Property;
+            public byte Type;
+
+            public PropertyTag(byte type, CachedProperties.PropertyName property, int position)
+            {
+                Type = type;
+                Property = property;
+                Position = position;
             }
         }
 

@@ -35,7 +35,7 @@ function GetUbuntuImageTags($repo, $version, $arch) {
     switch ($arch) {
         "x64" { 
             return @(
-#                "$($repo):ubuntu-latest",
+                "$($repo):ubuntu-latest",
                 "$($repo):7.1-ubuntu-latest",
                 "$($repo):$($version)-ubuntu.24.04-x64"
             )
@@ -43,7 +43,7 @@ function GetUbuntuImageTags($repo, $version, $arch) {
         }
         "arm32v7" {
             return @(
-#                "$($repo):ubuntu-arm32v7-latest",
+                "$($repo):ubuntu-arm32v7-latest",
                 "$($repo):7.1-ubuntu-arm32v7-latest",
                 "$($repo):$($version)-ubuntu.24.04-arm32v7"
             )
@@ -51,7 +51,7 @@ function GetUbuntuImageTags($repo, $version, $arch) {
         }
         "arm64v8" {
             return @(
-#                "$($repo):ubuntu-arm64v8-latest",
+                "$($repo):ubuntu-arm64v8-latest",
                 "$($repo):7.1-ubuntu-arm64v8-latest",
                 "$($repo):$($version)-ubuntu.24.04-arm64v8"
                 )
@@ -97,7 +97,7 @@ function GetManifestTags {
     )
 
     return @(
-#        "${repo}:latest",
+        "${repo}:latest",
         "${repo}:7.1-latest"
     )
 }

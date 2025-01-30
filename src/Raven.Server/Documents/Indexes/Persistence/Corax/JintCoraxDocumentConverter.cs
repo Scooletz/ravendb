@@ -10,12 +10,10 @@ using Jint.Native.Object;
 using Jint.Runtime.Descriptors;
 using Raven.Client;
 using Raven.Client.Documents.Indexes;
-using Raven.Client.Documents.Indexes.Vector;
 using Raven.Client.Exceptions.Corax;
 using Raven.Server.Documents.Indexes.MapReduce.Static;
 using Raven.Server.Documents.Indexes.Static;
 using Raven.Server.Documents.Indexes.Static.Spatial;
-using Raven.Server.Documents.Indexes.VectorSearch;
 using Raven.Server.Documents.Patch;
 using Raven.Server.Utils;
 using Sparrow;
@@ -255,9 +253,10 @@ public abstract class CoraxJintDocumentConverterBase : CoraxDocumentConverterBas
                         PortableExceptions.Throw<InvalidDataException>("Name field doesn't exist but is required.");
                     }
 
-                    var indexField = GetFieldObjectForProcessing(field.Name, indexingScope);
-                    object objectForIndexing = AbstractStaticIndexBase.CreateVector(indexField, valueJsv.IsString() ? valueJsv.AsString() : (object)valueJsv);
-
+                    var underlyingValue = valueJsv.IsString() ? valueJsv.AsString() : (object)valueJsv;
+    
+                    var indexField = AbstractStaticIndexBase.RetrieveVectorField(field.Name, underlyingValue);
+                    object objectForIndexing = AbstractStaticIndexBase.CreateVector(indexField, underlyingValue, isAutoIndex: false);
                     InsertRegularField(indexField, objectForIndexing, indexContext, builder, sourceDocument, out shouldSkip);
                     shouldProcessAsBlittable = false;
                     return;
@@ -267,6 +266,7 @@ public abstract class CoraxJintDocumentConverterBase : CoraxDocumentConverterBas
 
             shouldProcessAsBlittable = true;
         }
+
         
         void HandleCompoundFields()
         {
@@ -313,7 +313,7 @@ public abstract class CoraxJintDocumentConverterBase : CoraxDocumentConverterBas
         }
     }
     
-    private IndexField GetFieldObjectForProcessing(in string propertyAsString, CurrentIndexingScope indexingScope)
+    private IndexField GetFieldObjectForProcessing(in string propertyAsString, CurrentIndexingScope indexingScope, bool isVector = false)
     {
         if (_fields.TryGetValue(propertyAsString, out var field) == false)
         {

@@ -20,12 +20,11 @@ import documentMetadata = require("models/database/documents/documentMetadata");
 import getDocumentWithMetadataCommand = require("commands/database/documents/getDocumentWithMetadataCommand");
 import testQueueEtlCommand = require("commands/database/tasks/testQueueEtlCommand");
 import document = require("models/database/documents/document");
-import { highlight, languages } from "prismjs";
-import licenseModel from "models/auth/licenseModel";
-import popoverUtils = require("common/popoverUtils");
-import ongoingTaskAmazonSqsEtlEditModel from "models/database/tasks/ongoingTaskAmazonSqsEtlEditModel";
-import connectionStringAmazonSqsModel from "models/database/settings/connectionStringAmazonSqsModel";
-import { EditAmazonSqsEtlInfoHub } from "viewmodels/database/tasks/EditAmazonSqsEtlInfoHub";
+import prismjs = require("prismjs");
+import licenseModel = require("models/auth/licenseModel");
+import ongoingTaskAmazonSqsEtlEditModel = require("models/database/tasks/ongoingTaskAmazonSqsEtlEditModel");
+import connectionStringAmazonSqsModel = require("models/database/settings/connectionStringAmazonSqsModel");
+import EditAmazonSqsEtlInfoHub = require("viewmodels/database/tasks/EditAmazonSqsEtlInfoHub");
 
 class amazonSqsTaskTestMode {
     documentId = ko.observable<string>();
@@ -110,7 +109,7 @@ class amazonSqsTaskTestMode {
                             const metaDto = docDto["@metadata"];
                             documentMetadata.filterMetadata(metaDto);
                             const text = JSON.stringify(docDto, null, 4);
-                            this.loadedDocument(highlight(text, languages.javascript, "js"));
+                            this.loadedDocument(prismjs.highlight(text, prismjs.languages.javascript, "js"));
                             this.loadedDocumentId(doc.getId());
 
                             $('.test-container a[href="#documentPreview"]').tab('show');
@@ -200,7 +199,7 @@ class editAmazonSqsEtlTask extends viewModelBase {
     });
 
     hasQueueEtl = licenseModel.getStatusValue("HasQueueEtl");
-    infoHubView: ReactInKnockout<typeof EditAmazonSqsEtlInfoHub>;
+    infoHubView: ReactInKnockout<typeof EditAmazonSqsEtlInfoHub.EditAmazonSqsEtlInfoHub>;
 
     constructor() {
         super();
@@ -210,7 +209,7 @@ class editAmazonSqsEtlTask extends viewModelBase {
             "cancelEditedTransformation", "saveEditedTransformation", "syntaxHelp",
             "toggleTestArea", "toggleAdvancedArea", "setState");
         this.infoHubView = ko.pureComputed(() => ({
-            component: EditAmazonSqsEtlInfoHub
+            component: EditAmazonSqsEtlInfoHub.EditAmazonSqsEtlInfoHub
         }))
     }
 

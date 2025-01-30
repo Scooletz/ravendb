@@ -49,18 +49,18 @@ import studioSetting = require("common/settings/studioSetting");
 import detectBrowser = require("viewmodels/common/detectBrowser");
 import genUtils = require("common/generalUtils");
 import leafMenuItem = require("common/shell/menu/leafMenuItem");
-import connectionStatus from "models/resources/connectionStatus";
-import shard from "models/resources/shard";
-import moment from "moment";
-import databasesManager from "common/shell/databasesManager";
-import { globalDispatch } from "components/storeCompat";
-import { accessManagerActions } from "components/common/shell/accessManagerSlice";
-import UpgradeModal from "./shell/UpgradeModal";
-import getStudioBootstrapCommand from "commands/resources/getStudioBootstrapCommand";
-import serverSettings from "common/settings/serverSettings";
+import connectionStatus = require("models/resources/connectionStatus");
+import shard = require("models/resources/shard");
+import moment = require("moment");
+import databasesManager = require("common/shell/databasesManager");
+import storeCompat = require("components/storeCompat");
+import accessManagerSlice = require("components/common/shell/accessManagerSlice");
+import UpgradeModal = require("./shell/UpgradeModal");
+import getStudioBootstrapCommand = require("commands/resources/getStudioBootstrapCommand");
+import serverSettings = require("common/settings/serverSettings");
 import getLatestVersionInfoCommand = require("commands/version/getLatestVersionInfoCommand");
-import StudioSearchWithDatabaseSwitcher from "components/shell/studioSearchWithDatabaseSelector/StudioSearchWithDatabaseSwitcher";
-import { HelpAndResourcesWidget } from "components/common/helpAndResources/HelpAndResourcesWidget";
+import StudioSearchWithDatabaseSwitcher = require("components/shell/studioSearchWithDatabaseSelector/StudioSearchWithDatabaseSwitcher");
+import HelpAndResourcesWidget = require("components/common/helpAndResources/HelpAndResourcesWidget");
 
 class shell extends viewModelBase {
 
@@ -130,8 +130,8 @@ class shell extends viewModelBase {
     upgradeModalView: ReactInKnockout<typeof UpgradeModal>;
     isUpgradeModalVisible = ko.observable<boolean>(false);
 
-    studioSearchWithDatabaseSwitcherView: ReactInKnockout<typeof StudioSearchWithDatabaseSwitcher>;
-    helpAndResourcesWidgetView: ReactInKnockout<typeof HelpAndResourcesWidget>;
+    studioSearchWithDatabaseSwitcherView: ReactInKnockout<typeof StudioSearchWithDatabaseSwitcher.default>;
+    helpAndResourcesWidgetView: ReactInKnockout<typeof HelpAndResourcesWidget.HelpAndResourcesWidget>;
     
     constructor() {
         super();
@@ -236,7 +236,7 @@ class shell extends viewModelBase {
         
         this.studioSearchWithDatabaseSwitcherView = ko.computed(() => {
             return {
-                component: StudioSearchWithDatabaseSwitcher,
+                component: StudioSearchWithDatabaseSwitcher.default,
                 props: {
                     menuItems: this.mainMenu.items(),
                 },
@@ -273,7 +273,7 @@ class shell extends viewModelBase {
             }
         });
         
-        this.helpAndResourcesWidgetView = ko.pureComputed(() => ({ component: HelpAndResourcesWidget }));
+        this.helpAndResourcesWidgetView = ko.pureComputed(() => ({ component: HelpAndResourcesWidget.HelpAndResourcesWidget }));
     }
     
     // Override canActivate: we can always load this page, regardless of any system db prompt.
@@ -358,7 +358,7 @@ class shell extends viewModelBase {
                             databasesAccess[`${key}`] = `Database${access}` as databaseAccessLevel;
                         }
                         accessManager.databasesAccess = databasesAccess;
-                        globalDispatch(accessManagerActions.onDatabaseAccessLoaded(databasesAccess));
+                        storeCompat.globalDispatch(accessManagerSlice.accessManagerActions.onDatabaseAccessLoaded(databasesAccess));
                         this.accessManager.secureServer(true);
                         
                     } else {

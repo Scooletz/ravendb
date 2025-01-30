@@ -207,6 +207,7 @@ module.exports = (env, args) => {
                                     "corax-backward": 0xf14F,
                                     "corax-sort-az": 0xf150,
                                     "corax-sort-za": 0xf151,
+                                    "vector-search": 0xf154,
                                     "close": 0xf162,
                                 },
                                 cssTemplate: path.resolve(__dirname, "wwwroot/Content/css/fonts/icomoon.template.css.hbs")
@@ -259,7 +260,10 @@ module.exports = (env, args) => {
                         {
                             loader: "sass-loader",
                             options: {
-                                sourceMap: true, 
+                                sourceMap: true,
+                                sassOptions: {
+                                    quietDeps: true,
+                                },
                             }
                         }
                     ]
@@ -283,10 +287,7 @@ module.exports = (env, args) => {
                 {
                     test: /\.tsx?$/,
                     use: {
-                        loader: 'ts-loader',
-                        options: {
-                            transpileOnly: true,
-                        },
+                        loader: 'swc-loader'
                     },
                 },
                 {

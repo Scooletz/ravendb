@@ -97,7 +97,7 @@
                         <h4>Cluster Entities:</h4>
                         <div class="margin-left">
                             <div class="toggle">
-                                <input id="importIndexes" type="checkbox" data-bind="checked: includeIndexes" />
+                                <input id="importIndexes" type="checkbox" data-bind="checked: includeIndexes, requiredAccess: 'DatabaseAdmin', requiredAccessOptions: { strategy: 'disable' }" />
                                 <label for="importIndexes">Include Indexes</label>
                             </div>
                             <div class="margin-left">

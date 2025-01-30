@@ -1,5 +1,4 @@
 import { ColumnDef } from "@tanstack/react-table";
-import { todo } from "common/developmentHelper";
 import { Checkbox } from "components/common/Checkbox";
 import { CellDocumentPreviewWrapper } from "components/common/virtualTable/cells/CellDocumentPreview";
 
@@ -14,7 +13,7 @@ export const columnPreview: ColumnDef<unknown> = {
     enableColumnFilter: false,
 };
 
-todo("Feature", "Damian", "Selecting many rows when holding shift");
+// TODO Selecting many rows when holding shift
 
 export const columnCheckbox: ColumnDef<unknown> = {
     id: "Checkbox",

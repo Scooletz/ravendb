@@ -3,8 +3,8 @@ import database = require("models/resources/database");
 import connectionStringModel = require("models/database/settings/connectionStringModel");
 import saveConnectionStringCommand_OLD = require("commands/database/settings/saveConnectionStringCommand_OLD");
 import jsonUtil = require("common/jsonUtil");
-import assertUnreachable from "components/utils/assertUnreachable";
-import testAmazonSqsServerConnectionCommand from "commands/database/cluster/testAmazonSqsServerConnectionCommand";
+import assertUnreachable = require("components/utils/assertUnreachable");
+import testAmazonSqsServerConnectionCommand = require("commands/database/cluster/testAmazonSqsServerConnectionCommand");
 
 class AmazonSqsBasicModel {
     accessKey = ko.observable<string>();
@@ -85,7 +85,7 @@ class connectionStringAmazonSqsModel extends connectionStringModel {
             case "passwordless":
                 return "Passwordless";
             default:
-                assertUnreachable(authenticationType);
+                assertUnreachable.default(authenticationType);
         }
     }
     
@@ -149,7 +149,7 @@ class connectionStringAmazonSqsModel extends connectionStringModel {
                     Passwordless: true,
                 }
             default:
-                assertUnreachable(authenticationType);
+                assertUnreachable.default(authenticationType);
         }
     }
     

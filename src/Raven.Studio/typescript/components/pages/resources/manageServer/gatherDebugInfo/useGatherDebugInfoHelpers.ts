@@ -17,7 +17,6 @@ import endpoints = require("endpoints");
 import { useDirtyFlag } from "components/hooks/useDirtyFlag";
 import { useAsyncCallback } from "react-async-hook";
 import viewHelpers = require("common/helpers/view/viewHelpers");
-import { todo } from "common/developmentHelper";
 
 const adminDebugInfoPackage = endpoints.global.serverWideDebugInfoPackage.adminDebugInfoPackage;
 const adminDebugClusterInfoPackage = endpoints.global.serverWideDebugInfoPackage.adminDebugClusterInfoPackage;
@@ -129,7 +128,7 @@ const defaultValues: Required<GatherDebugInfoFormData> = {
 function confirmLeavingPage(): JQueryDeferred<confirmDialogResult> {
     const abortResult = $.Deferred<confirmDialogResult>();
 
-    todo("Feature", "Damian", "Use a react component if the dirty flag is already moved");
+    // TODO Use a react component if the dirty flag is already moved
 
     const confirmation = viewHelpers.confirmationMessage(
         "Abort Debug Package Creation",

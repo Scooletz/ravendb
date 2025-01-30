@@ -39,26 +39,30 @@ import getServerWideCustomAnalyzersCommand = require("commands/serverWide/analyz
 import getIndexDefaultsCommand = require("commands/database/index/getIndexDefaultsCommand");
 import optimizeDialog = require("viewmodels/database/indexes/optimizeDialog");
 import moment = require("moment");
-import { highlight, languages } from "prismjs";
-import IndexUtils from "components/utils/IndexUtils";
-import shardViewModelBase from "viewmodels/shardViewModelBase";
-import database from "models/resources/database";
-import clusterTopologyManager from "common/shell/clusterTopologyManager";
-import viewModelBase from "viewmodels/viewModelBase";
-import configurationConstants from "configuration";
-import mergedIndexesStorage from "common/storage/mergedIndexesStorage";
+import prismjs = require("prismjs");
+import IndexUtils = require("components/utils/IndexUtils");
+import shardViewModelBase = require("viewmodels/shardViewModelBase");
+import database = require("models/resources/database");
+import clusterTopologyManager = require("common/shell/clusterTopologyManager");
+import viewModelBase = require("viewmodels/viewModelBase");
+import configurationConstants = require("configuration");
+import mergedIndexesStorage = require("common/storage/mergedIndexesStorage");
 import getIndexesDefinitionsCommand = require("commands/database/index/getIndexesDefinitionsCommand");
 import testIndex = require("models/database/index/testIndex");
-import inlineShardSelector from "viewmodels/common/sharding/inlineShardSelector";
-import assertUnreachable from "components/utils/assertUnreachable";
-import licenseModel from "models/auth/licenseModel";
-import { EditIndexInfoHub } from "viewmodels/database/indexes/EditIndexInfoHub";
-import compoundField from "models/database/index/compoundField";
+import inlineShardSelector = require("viewmodels/common/sharding/inlineShardSelector");
+import assertUnreachable = require("components/utils/assertUnreachable");
+import licenseModel = require("models/auth/licenseModel");
+import EditIndexInfoHub = require("viewmodels/database/indexes/EditIndexInfoHub");
+import compoundField = require("models/database/index/compoundField");
 import getDatabaseLicenseLimitsUsage = require("commands/licensing/getDatabaseLicenseLimitsUsage");
-import { LicenseLimitReachStatus, getLicenseLimitReachStatus } from "components/utils/licenseLimitsUtils";
+import licenseLimitsUtils = require("components/utils/licenseLimitsUtils");
 import getClusterLicenseLimitsUsage = require("commands/licensing/getClusterLicenseLimitsUsage");
 import convertToStaticDialog = require("viewmodels/database/indexes/convertToStaticDialog");
 import convertedIndexesToStaticStorage = require("common/storage/convertedIndexesToStaticStorage");
+import getDatabaseSettingsCommand = require("commands/database/settings/getDatabaseSettingsCommand");
+import models = require("models/database/settings/databaseSettingsModels");
+import indexingDatabaseSettingsTypes = require("models/database/index/types")
+import genUtils = require("common/generalUtils");
 
 class editIndex extends shardViewModelBase {
     
@@ -79,11 +83,11 @@ class editIndex extends shardViewModelBase {
     indexAutoCompleter: indexAceAutoCompleteProvider;
     nameChanged: KnockoutComputed<boolean>;
     canEditIndexName: KnockoutComputed<boolean>;
-    canUseCompoundFields: KnockoutComputed<boolean>;
+    canUseCoraxSearchEngine: KnockoutComputed<boolean>;
 
     cloneButtonTitle: KnockoutComputed<string>;
-    clusterLimitStatus: KnockoutComputed<LicenseLimitReachStatus>;
-    databaseLimitStatus: KnockoutComputed<LicenseLimitReachStatus>;     
+    clusterLimitStatus: KnockoutComputed<licenseLimitsUtils.LicenseLimitReachStatus>;
+    databaseLimitStatus: KnockoutComputed<licenseLimitsUtils.LicenseLimitReachStatus>;     
     databaseLicenseLimitsUsage = ko.observable<Raven.Server.Commercial.DatabaseLicenseLimitsUsage>();
     clusterLicenseLimitsUsage = ko.observable<Raven.Server.Commercial.LicenseLimitsUsage>();
 
@@ -140,8 +144,9 @@ class editIndex extends shardViewModelBase {
     maxNumberOfStaticIndexesPerCluster = licenseModel.getStatusValue("MaxNumberOfStaticIndexesPerCluster");
     maxNumberOfStaticIndexesPerDatabase = licenseModel.getStatusValue("MaxNumberOfStaticIndexesPerDatabase");
 
-    infoHubView: ReactInKnockout<typeof EditIndexInfoHub>;
+    infoHubView: ReactInKnockout<typeof EditIndexInfoHub.EditIndexInfoHub>;
     isAddingNewIndex = ko.observable<boolean>(true);
+    indexingAnalyzerSettings = ko.observable<indexingDatabaseSettingsTypes.IndexingDatabaseSettingsType>();
 
     constructor(db: database) {
         super(db);
@@ -175,7 +180,7 @@ class editIndex extends shardViewModelBase {
         this.shardSelector = db.isSharded() ? new inlineShardSelector(db, { dropup: true }) : null;
 
         this.infoHubView = ko.pureComputed(() => ({
-            component: EditIndexInfoHub
+            component: EditIndexInfoHub.EditIndexInfoHub
         }))
     }
     
@@ -197,7 +202,7 @@ class editIndex extends shardViewModelBase {
             case "ExcludeArchived":
                 return "=> Only non-archived documents will be included";
             default:
-                assertUnreachable(mode);
+                assertUnreachable.default(mode);
         }
     }
 
@@ -213,7 +218,7 @@ class editIndex extends shardViewModelBase {
             case "ExcludeArchived":
                 return "Exclude Archived";
             default:
-                assertUnreachable(mode);
+                assertUnreachable.default(mode);
         }
     }
     
@@ -243,7 +248,7 @@ class editIndex extends shardViewModelBase {
             return !this.isEditingExistingIndex();
         });
         
-        this.canUseCompoundFields = ko.pureComputed(() => {
+        this.canUseCoraxSearchEngine = ko.pureComputed(() => {
             if (this.searchEngineConfiguration()) {
                 return this.searchEngineConfiguration() === "Corax";
             }
@@ -262,7 +267,7 @@ class editIndex extends shardViewModelBase {
             const source = this.selectedSourcePreview();
             
             if (source) {
-                return '<pre class="form-control sourcePreview">' + highlight(source.code(), languages.csharp, "csharp") + '</pre>';
+                return '<pre class="form-control sourcePreview">' + prismjs.highlight(source.code(), prismjs.languages.csharp, "csharp") + '</pre>';
             }
             
             const hasAdditionalSources = this.editedIndex().additionalSources().length > 0;
@@ -324,11 +329,11 @@ class editIndex extends shardViewModelBase {
         });
 
         this.databaseLimitStatus = ko.pureComputed(() => {
-            return getLicenseLimitReachStatus(this.databaseLicenseLimitsUsage()?.NumberOfStaticIndexes, this.maxNumberOfStaticIndexesPerDatabase);
+            return licenseLimitsUtils.getLicenseLimitReachStatus(this.databaseLicenseLimitsUsage()?.NumberOfStaticIndexes, this.maxNumberOfStaticIndexesPerDatabase);
         });
         
         this.clusterLimitStatus = ko.pureComputed(() => {
-            return getLicenseLimitReachStatus(this.clusterLicenseLimitsUsage()?.NumberOfStaticIndexesInCluster, this.maxNumberOfStaticIndexesPerCluster);
+            return licenseLimitsUtils.getLicenseLimitReachStatus(this.clusterLicenseLimitsUsage()?.NumberOfStaticIndexesInCluster, this.maxNumberOfStaticIndexesPerCluster);
         });
 
         this.cloneButtonTitle = ko.pureComputed(() => {
@@ -347,7 +352,8 @@ class editIndex extends shardViewModelBase {
         const indexToEditName = indexToEdit || undefined;
         
         return $.when<any>(super.canActivate(indexToEditName))
-            .then(() => {
+            .then(async () => {
+                await this.fetchDatabaseSettings();
                 const db = this.db;
 
                 if (indexToEditName) {
@@ -358,7 +364,7 @@ class editIndex extends shardViewModelBase {
                         const merged = mergedIndexesStorage.getMergedIndex(db, indexToEditName);
                         if (merged) {
                             this.indexesToDeleteAfterMerge(merged.indexesToDelete);
-                            this.editedIndex(new indexDefinition(merged.definition));
+                            this.editedIndex(new indexDefinition(merged.definition, this.indexingAnalyzerSettings()));
                             this.initIndex();
                             this.originalIndexName = indexToEditName;
                             
@@ -368,7 +374,7 @@ class editIndex extends shardViewModelBase {
 
                         const convertedToStatic = convertedIndexesToStaticStorage.getIndex(db.name, indexToEditName);
                         if (convertedToStatic) {
-                            this.editedIndex(new indexDefinition(convertedToStatic.definition));
+                            this.editedIndex(new indexDefinition(convertedToStatic.definition, this.indexingAnalyzerSettings()));
                             this.initIndex();
 
                             canActivateResult.resolve({ can: true });
@@ -391,7 +397,7 @@ class editIndex extends shardViewModelBase {
                         });
                     return canActivateResult;
                 } else {
-                    this.editedIndex(indexDefinition.empty());
+                    this.editedIndex(indexDefinition.createDefaultIndexDefinition(this.indexingAnalyzerSettings()));
                 }
 
                 return $.Deferred<canActivateResultDto>().resolve({ can: true });
@@ -544,6 +550,29 @@ class editIndex extends shardViewModelBase {
             });
     }
 
+    private fetchDatabaseSettings() {
+        return new getDatabaseSettingsCommand(this.db)
+          .execute()
+          .done((result: Raven.Server.Config.SettingsResult) => {
+              const indexingAnalyzersDefaultsDatabaseSettingsKeys = genUtils.exhaustiveStringTuple<indexingDatabaseSettingsTypes.IndexingDatabaseSetting>()(
+                  "Indexing.Analyzers.Default", "Indexing.Analyzers.Exact.Default", "Indexing.Analyzers.Search.Default"
+              )
+              const settingsEntries = result.Settings.map(x => {
+                  const rawEntry = x as Raven.Server.Config.ConfigurationEntryDatabaseValue;
+                  return models.settingsEntry.getEntry(rawEntry);
+              });
+              
+              
+              const indexingAnalyzerSettings = Object.fromEntries(
+                  indexingAnalyzersDefaultsDatabaseSettingsKeys.map(key => [
+                      key,
+                      settingsEntries.find(entry => entry.keyName() === key)
+                  ])
+              ) as indexingDatabaseSettingsTypes.IndexingDatabaseSettingsType
+              this.indexingAnalyzerSettings(indexingAnalyzerSettings);
+          });
+    }
+    
     private fetchClusterLicenseLimitsUsage() {
         new getClusterLicenseLimitsUsage()
             .execute()
@@ -611,7 +640,7 @@ class editIndex extends shardViewModelBase {
     loadFullIndexDefinitionFromHistory() {
         const currentIndexName = this.editedIndex().name();
         
-        const newIndexDefinition = new indexDefinition(this.previewItem().Definition);
+        const newIndexDefinition = new indexDefinition(this.previewItem().Definition, this.indexingAnalyzerSettings());
 
         if (!this.isEditingExistingIndex()) {
             // if editing a clone then keep the clone name
@@ -626,7 +655,7 @@ class editIndex extends shardViewModelBase {
         const mapsFromPreview = previewItem.Definition.Maps;
         const reduceFromPreview = previewItem.Definition.Reduce;
         
-        const newIndexDefinition = new indexDefinition(this.editedIndex().toDto());
+        const newIndexDefinition = new indexDefinition(this.editedIndex().toDto(), this.indexingAnalyzerSettings());
         newIndexDefinition.setMapsAndReduce(mapsFromPreview, reduceFromPreview);
 
         this.loadIndexDefinition(newIndexDefinition);
@@ -708,7 +737,7 @@ class editIndex extends shardViewModelBase {
         new getIndexFieldsFromMapCommand(this.db, map, additionalSourcesDto, additionalAssembliesDto)
             .execute()
             .done((fields: resultsDto<string>) => {
-                this.fieldNames(fields.Results.filter(x => !IndexUtils.FieldsToHideOnUi.includes(x)));
+                this.fieldNames(fields.Results.filter(x => !IndexUtils.default.FieldsToHideOnUi.includes(x)));
             });
     }
 
@@ -767,6 +796,7 @@ class editIndex extends shardViewModelBase {
             indexDef.reduce, 
             indexDef.numberOfFields,
             indexDef.numberOfCompoundFields,
+            indexDef.numberOfVectorFields,
             indexDef.numberOfConfigurationFields,
             indexDef.outputReduceToCollection,
             indexDef.createReferencesToResultsCollection,
@@ -940,7 +970,7 @@ class editIndex extends shardViewModelBase {
                 if (result.Type.startsWith("Auto")) {
                     this.editedIndex(new autoIndexDefinition(result));
                 } else {
-                    this.editedIndex(new indexDefinition(result));
+                    this.editedIndex(new indexDefinition(result, this.indexingAnalyzerSettings()));
                 }
 
                 this.initIndex();
@@ -1040,7 +1070,7 @@ class editIndex extends shardViewModelBase {
 
     save() {
         const editedIndex = this.editedIndex();
-        
+
         viewHelpers.asyncValidationCompleted(editedIndex.validationGroup, () => {
             if (!this.validate()) {
                 return;
@@ -1072,19 +1102,19 @@ class editIndex extends shardViewModelBase {
     private saveIndex(indexDto: Raven.Client.Documents.Indexes.IndexDefinition): JQueryPromise<string> {
         eventsCollector.default.reportEvent("index", "save");
 
-        if (indexDto.Name.startsWith(IndexUtils.SideBySideIndexPrefix)) {
+        if (indexDto.Name.startsWith(IndexUtils.default.SideBySideIndexPrefix)) {
             // trim side by side prefix
-            indexDto.Name = indexDto.Name.substr(IndexUtils.SideBySideIndexPrefix.length);
+            indexDto.Name = indexDto.Name.substr(IndexUtils.default.SideBySideIndexPrefix.length);
         }
 
         const db = this.db;
         const indexName = this.editedIndex().name();
-        
+
         return new detectIndexTypeCommand(indexDto, db)
             .execute()
             .then((typeInfo) => {
                 indexDto.SourceType = typeInfo.IndexSourceType;
-                return new saveIndexDefinitionCommand([indexDto], IndexUtils.isJavaScriptIndex(typeInfo.IndexType), db)
+                return new saveIndexDefinitionCommand([indexDto], IndexUtils.default.isJavaScriptIndex(typeInfo.IndexType), db)
                     .execute()
                     .done(() => {
                         this.resetDirtyFlag();
@@ -1103,7 +1133,7 @@ class editIndex extends shardViewModelBase {
         return new getIndexesDefinitionsCommand(db, { skip: 0, take: 1024 * 1024 })
             .execute()
             .done((indexDefinitions) => {
-                const matchedIndexes = indexDefinitions.filter(x => toDelete.includes(x.Name)).map(x => new indexDefinition(x));
+                const matchedIndexes = indexDefinitions.filter(x => toDelete.includes(x.Name)).map(x => new indexDefinition(x, this.indexingAnalyzerSettings()));
 
                 const deleteViewModel = new deleteIndexesConfirm(matchedIndexes, db);
                 deleteViewModel.deleteTask.done((done) => {
@@ -1303,10 +1333,17 @@ class editIndex extends shardViewModelBase {
         this.setupDisableReasons();
         
         popoverUtils.longWithHover($(".js-add-compound-field-btn"), {
-            content: () => this.canUseCompoundFields() ? "" : `Compound fields are only available for Corax Search Engine. 
+            content: () => this.canUseCoraxSearchEngine() ? "" : `Compound fields are only available for Corax Search Engine. 
                     <a class="btn btn-primary js-change-to-corax" href="#">Change to Corax</a>`,
             html: true,
             placement: "right"
+        });
+
+        popoverUtils.longWithHover($(".js-add-vector-field-btn"), {
+            content: () => this.canUseCoraxSearchEngine() ? "" : `Vector search is only available for Corax Search Engine. 
+                    <a class="btn btn-primary js-change-to-corax" href="#">Change to Corax</a>`,
+            html: true,
+            placement: "bottom"
         });
 
         popoverUtils.longWithHover($(".js-store-field-info"), 

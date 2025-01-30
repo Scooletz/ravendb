@@ -934,6 +934,8 @@ namespace Raven.Server.Documents.Revisions
                 }
                 writeTable.DeleteByKey(changeVectorSlice);
             }
+
+            revision.Dispose();
         }
 
         public static bool ShouldSkipForceCreated(bool skipForceCreated, DocumentFlags revisionFlags)
@@ -2064,6 +2066,46 @@ namespace Raven.Server.Documents.Revisions
                 (table, result) => GetAllRevisions(context, table, prefixSlice, maxDeletesUponUpdate, shouldSkip, result), tombstoneFlags);
         }
 
+        private (bool MoreWork, long Deleted) ForceDeleteAllRevisionsFor(DocumentsOperationContext context, Slice lowerId, Slice prefixSlice, CollectionName collectionName, long maxDeletesUponUpdate,
+            long etagBarrier, DocumentFlags tombstoneFlags = DocumentFlags.None)
+        {
+            return ForceDeleteAllRevisionsFor(context, lowerId, prefixSlice, collectionName, GetRevisions, tombstoneFlags);
+
+            IEnumerable<Document> GetRevisions(Table table, DeleteOldRevisionsResult result)
+            {
+                var revisions = GetAllRevisions(context, table, prefixSlice, maxDeletesUponUpdate, shouldSkip: null, result);
+                foreach (var r in revisions)
+                {
+                    var etag = r.Etag;
+                    if (etag > etagBarrier)
+                    {
+                        r.Dispose();
+                        yield break;
+                    }
+
+                    yield return r;
+
+                    if (etag == etagBarrier)
+                    {
+                        /*
+                        for not stopping on maxDeletesUponUpdate instead of etagBarrier
+                        in case of the last revision is the 1024's revision,
+                        otherwise the original GetAllRevisions(context, table, prefixSlice, maxDeletesUponUpdate, shouldSkip: null, result)
+                        will try to get the 1025 revision (altought it isnt relevant for us because it etag is greater then the etagBarrier)
+                        and will yield break with `result.HasMore` true, when it should be false
+                        */
+                        yield break;
+                    }
+
+                    if (context.CanContinueTransaction == false)
+                    {
+                        result.HasMore = true;
+                        yield break;
+                    }
+                }
+            }
+        }
+
         private (bool MoreWork, long Deleted) ForceDeleteAllRevisionsFor(DocumentsOperationContext context, Slice lowerId, Slice prefixSlice, CollectionName collectionName,
             Func<Table, DeleteOldRevisionsResult, IEnumerable<Document>> getRevisions, DocumentFlags tombstoneFlags = DocumentFlags.None)
         {
@@ -2645,8 +2687,62 @@ namespace Raven.Server.Documents.Revisions
             }
         }
 
+        public List<(string Id, long Etag)> GetDeletedRevisionsIds(DocumentsOperationContext context, DateTime before,
+            long batchSize, ref long lastEtag, CancellationToken token)
+        {
+            var ids = new List<(string Id, long Etag)>();
+            var count = 0L;
+            var table = new Table(RevisionsSchema, context.Transaction.InnerTransaction);
+            using var _ = GetEtagAsSlice(context, lastEtag, out var startSlice);
+
+            foreach (var result in table.SeekForwardFrom(RevisionsSchema.Indexes[DeleteRevisionEtagSlice], startSlice, 0))
+            {
+                ref var reader = ref result.Result.Reader;
+                var deleteRevision = TableValueToRevision(context, ref reader, DocumentFields.Id);
+                var deletedEtag = TableValueToEtag((int)RevisionsTable.DeletedEtag, ref reader);
+                lastEtag = deletedEtag;
+                if (deleteRevision.LastModified >= before)
+                    break;
+
+                ids.Add((deleteRevision.Id, deletedEtag));
+
+                if (count++ > batchSize || token.IsCancellationRequested)
+                    break;
+            }
+
+            return ids;
+        }
+
+        public static long ReadLastRevisionsBinCleanerLastEtag(Transaction tx)
+        {
+            if (tx == null)
+                throw new InvalidOperationException("No active transaction found in the context, and at least read transaction is needed");
+            var tree = tx.ReadTree(DocumentsStorage.GlobalTreeSlice);
+            var readResult = tree.Read(DocumentsStorage.RevisionsBinCleanerLastEtag);
+            if (readResult == null)
+            {
+                // When we start passing the revisions (forward - from the oldest) on DeleteRevisionEtagSlice index,
+                // we want to skip the revisions with key 0, because they are not relevant (not 'Delete Revisions').
+                // so we start from etag (key) 1.
+                return 1;
+            }
+
+            return readResult.Reader.Read<long>();
+        }
+
+        public static unsafe void SetLastRevisionsBinCleanerLastEtag(DocumentsOperationContext context, long etag)
+        {
+            var tree = context.Transaction.InnerTransaction.CreateTree(GlobalTreeSlice);
+            using (Slice.External(context.Allocator, (byte*)&etag, sizeof(long), out Slice etagSlice))
+                tree.Add(RevisionsBinCleanerLastEtag, etagSlice);
+        }
+
         private bool IsRevisionsBinEntry(DocumentsOperationContext context, Table table, Slice lowerId, long revisionsBinEntryEtag)
         {
+            var local = _documentsStorage.Get(context, lowerId, fields: DocumentFields.Default, throwOnConflict: false);
+            if (local != null) // doc isn't deleted, so it shouldnt be on the revisions bin
+                return false;
+
             using (GetKeyPrefix(context, lowerId, out Slice prefixSlice))
             using (GetLastKey(context, lowerId, out Slice lastKey))
             {
@@ -2659,6 +2755,9 @@ namespace Raven.Server.Documents.Revisions
 
                 var etag = TableValueToEtag((int)RevisionsTable.Etag, ref tvr.Reader);
                 var flags = TableValueToFlags((int)RevisionsTable.Flags, ref tvr.Reader);
+
+                context.Transaction.InnerTransaction.ForgetAbout(tvr.Reader.Id);
+
                 Debug.Assert(revisionsBinEntryEtag <= etag, $"Revisions bin entry for '{lowerId}' etag candidate ({etag}) cannot meet a bigger etag ({revisionsBinEntryEtag}).");
                 return (flags & DocumentFlags.DeleteRevision) == DocumentFlags.DeleteRevision && revisionsBinEntryEtag >= etag;
             }

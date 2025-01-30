@@ -6,12 +6,8 @@ using Xunit.Abstractions;
 
 namespace FastTests.Server;
 
-public class DebugMemoryTests : NoDisposalNeeded
+public class DebugMemoryTests(ITestOutputHelper output) : NoDisposalNeeded(output)
 {
-    public DebugMemoryTests(ITestOutputHelper output) : base(output)
-    {
-    }
-
     [RavenFact(RavenTestCategory.Core)]
     public void Debug_Events()
     {
@@ -19,6 +15,9 @@ public class DebugMemoryTests : NoDisposalNeeded
             "Check if GCStart event was updated: https://github.com/dotnet/runtime/blob/main/src/coreclr/gc/gcevents.h");
 
         Assert.True(Environment.Version.Major == 9 && EventListener.Constants.EventNames.GC.GCEnd == "GCEnd_V1",
+            "Check if GCEnd event was updated: https://github.com/dotnet/runtime/blob/main/src/coreclr/gc/gcevents.h");
+
+        Assert.True(Environment.Version.Major == 9 && EventListener.Constants.EventNames.GC.GCMarkWithType == "GCMarkWithType",
             "Check if GCEnd event was updated: https://github.com/dotnet/runtime/blob/main/src/coreclr/gc/gcevents.h");
 
         Assert.True(Environment.Version.Major == 9 && EventListener.Constants.EventNames.GC.GCSuspendBegin == "GCSuspendEEBegin_V1",

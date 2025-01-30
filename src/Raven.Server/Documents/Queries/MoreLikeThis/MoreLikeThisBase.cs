@@ -391,7 +391,7 @@ namespace Raven.Server.Documents.Queries.MoreLikeThis
                    !token.HasFlag(BlittableJsonToken.String) &&
                    !token.HasFlag(BlittableJsonToken.Boolean) &&
                    !token.HasFlag(BlittableJsonToken.EmbeddedBlittable) &&
-                   !token.HasFlag(BlittableJsonToken.Reserved2) &&
+                   !token.HasFlag(BlittableJsonToken.Reserved3) &&
                    !token.HasFlag(BlittableJsonToken.Reserved4) &&
                    !token.HasFlag(BlittableJsonToken.Reserved6);
         }
@@ -406,8 +406,9 @@ namespace Raven.Server.Documents.Queries.MoreLikeThis
 
         protected void RetrieveTerms(BlittableJsonReaderObject json, Dictionary<string, int> words)
         {
-            var prop = new BlittableJsonReaderObject.PropertyDetails();
+            if (json is null) return;
 
+            var prop = new BlittableJsonReaderObject.PropertyDetails();
             for (int i = 0; i < json.Count; i++)
             {
                 json.GetPropertyByIndex(i, ref prop);

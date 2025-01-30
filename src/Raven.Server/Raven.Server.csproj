@@ -104,6 +104,7 @@
     <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Json" />
     <PackageReference Include="Microsoft.Extensions.Configuration.UserSecrets" />
+    <PackageReference Include="Microsoft.SemanticKernel.Connectors.Onnx" />
     <PackageReference Include="Microsoft.Win32.Registry" />
     <PackageReference Include="MySqlConnector" />
     <PackageReference Include="NCrontab.Advanced" />
@@ -126,7 +127,6 @@
     <PackageReference Include="Raven.CodeAnalysis">
       <PrivateAssets>All</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="SmartComponents.LocalEmbeddings" />
     <PackageReference Include="Snappier" />
     <PackageReference Include="Snowflake.Data" />
     <PackageReference Include="System.Collections.Immutable" />
@@ -187,4 +187,6 @@
       <ResolvedFileToPublish ExcludeFromSingleFile="true" Condition="'%(ResolvedFileToPublish.Identity)' == '$(ProjectRuntimeConfigFilePath)'" />
     </ItemGroup>
   </Target>
+
+  <Import Project="../DownloadEmbeddings.targets"/>
 </Project>

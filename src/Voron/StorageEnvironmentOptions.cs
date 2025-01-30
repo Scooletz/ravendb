@@ -318,8 +318,8 @@ namespace Voron
             }
             else
             {
-                if (_log.IsInfoEnabled)
-                    _log.Info($"Recoverable failure in {this}. Error: {failureMessage}.", e);
+                if (_log.IsDebugEnabled)
+                    _log.Debug($"Recoverable failure in {this}. Error: {failureMessage}.", e);
             }
         }
 
@@ -338,8 +338,8 @@ namespace Voron
 
             void AssertNoCatastrophicFailureUnlikely()
             {
-                if (_log.IsInfoEnabled)
-                    _log.Info($"CatastrophicFailure state, about to throw. Originally was set in the following stack trace : {_catastrophicFailureStack}");
+                if (_log.IsFatalEnabled)
+                    _log.Fatal($"CatastrophicFailure state, about to throw. Originally was set in the following stack trace : {_catastrophicFailureStack}");
 
                 _catastrophicFailure.Throw(); // force re-throw of error
             }
@@ -494,8 +494,8 @@ namespace Voron
                     }
                     catch (Exception ex)
                     {
-                        if (_log.IsInfoEnabled)
-                            _log.Info("On Storage Environment Options : Can't store journal for reuse : " + reusableFile, ex);
+                        if (_log.IsDebugEnabled)
+                            _log.Debug("On Storage Environment Options : Can't store journal for reuse : " + reusableFile, ex);
                         TryDelete(reusableFile);
                     }
                 }
@@ -600,8 +600,8 @@ namespace Voron
                 }
                 catch (Exception ex)
                 {
-                    if (_log.IsInfoEnabled)
-                        _log.Info(ShouldRemoveJournal() ? "Can't remove" : "Can't store" + " journal for reuse : " + filename, ex);
+                    if (_log.IsDebugEnabled)
+                        _log.Debug(ShouldRemoveJournal() ? "Can't remove" : "Can't store" + " journal for reuse : " + filename, ex);
                     try
                     {
                         if (File.Exists(filename.FullPath))
@@ -655,8 +655,8 @@ namespace Voron
                         {
                             TryDelete(filename);
 
-                            if (_log.IsInfoEnabled)
-                                _log.Info("Failed to rename " + filename + " to " + desiredPath, ex);
+                            if (_log.IsDebugEnabled)
+                                _log.Debug("Failed to rename " + filename + " to " + desiredPath, ex);
                         }
                     }
 
@@ -1225,8 +1225,8 @@ namespace Voron
             }
             catch (Exception ex)
             {
-                if (_log.IsInfoEnabled)
-                    _log.Info("Failed to delete " + file, ex);
+                if (_log.IsDebugEnabled)
+                    _log.Debug("Failed to delete " + file, ex);
             }
         }
 
@@ -1248,8 +1248,8 @@ namespace Voron
                     }
                     catch (Exception ex)
                     {
-                        if (_log.IsInfoEnabled)
-                            _log.Info($"Couldn't delete recyclable journal: {recyclableJournal.Value}", ex);
+                        if (_log.IsDebugEnabled)
+                            _log.Debug($"Couldn't delete recyclable journal: {recyclableJournal.Value}", ex);
                     }
                 }
 
@@ -1281,16 +1281,16 @@ namespace Voron
                 {
                     case PalFlags.FailCodes.FailOpenFile:
                         {
-                            if (_log.IsInfoEnabled)
-                                _log.Info(
+                            if (_log.IsDebugEnabled)
+                                _log.Debug(
                                     $"Failed to create test file at '{testFile}'. Error:'{PalHelper.GetNativeErrorString(errorCode, "Failed to open test file", out _)}'. Cannot determine if O_DIRECT supported by the file system. Assuming it is");
                         }
                         break;
 
                     case PalFlags.FailCodes.FailAllocFile:
                         {
-                            if (_log.IsInfoEnabled)
-                                _log.Info(
+                            if (_log.IsDebugEnabled)
+                                _log.Debug(
                                     $"Failed to allocate test file at '{testFile}'. Error:'{PalHelper.GetNativeErrorString(errorCode, "Failed to allocate space for test file", out _)}'. Cannot determine if O_DIRECT supported by the file system. Assuming it is");
                         }
                         break;
@@ -1309,8 +1309,8 @@ namespace Voron
                     case PalFlags.FailCodes.Success:
                         break;
                     default:
-                        if (_log.IsInfoEnabled)
-                            _log.Info(
+                        if (_log.IsDebugEnabled)
+                            _log.Debug(
                                 $"Unknown failure on test file at '{testFile}'. Error:'{PalHelper.GetNativeErrorString(errorCode, "Unknown error while testing O_DIRECT", out _)}'. Cannot determine if O_DIRECT supported by the file system. Assuming it is");
                         break;
                 }

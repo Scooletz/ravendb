@@ -1,5 +1,6 @@
 ﻿using Sparrow.Json;
 ﻿using System.Collections.Generic;
+using Sparrow.Json.Parsing;
 
 namespace Raven.Client.Documents.Smuggler
 {
@@ -105,6 +106,20 @@ namespace Raven.Client.Documents.Smuggler
 
         [ForceJsonSerialization]
         internal bool IsShard { get; set; }
+        
+        public virtual DynamicJsonValue ToAuditJson() =>
+            new()
+            {
+                [nameof(OperateOnTypes)] = OperateOnTypes.ToString(),
+                [nameof(OperateOnDatabaseRecordTypes)] = OperateOnDatabaseRecordTypes.ToString(),
+                [nameof(IncludeExpired)] = IncludeExpired,
+                [nameof(IncludeArtificial)] = IncludeArtificial,
+                [nameof(RemoveAnalyzers)] = RemoveAnalyzers,
+                [nameof(TransformScript)] = TransformScript,
+                [nameof(MaxStepsForTransformScript)] = MaxStepsForTransformScript,
+                [nameof(Collections)] = Collections,
+                [nameof(SkipCorruptedData)] = SkipCorruptedData
+            };
     }
 
     internal interface IDatabaseSmugglerOptions
@@ -118,6 +133,7 @@ namespace Raven.Client.Documents.Smuggler
         string TransformScript { get; set; }
         int MaxStepsForTransformScript { get; set; }
         List<string> Collections { get; set; }
+        DynamicJsonValue ToAuditJson();
     }
 
     public enum ExportCompressionAlgorithm

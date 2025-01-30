@@ -65,3 +65,32 @@ export function compareSets<T extends string | number>(set1: T[], set2: T[]): bo
     }
     return true;
 }
+
+export function isEmpty(obj: any): boolean {
+    if (obj?.length || obj?.size) {
+        return false;
+    }
+    if (typeof obj !== "object") {
+        return true;
+    }
+    for (const key in obj) {
+        // eslint-disable-next-line no-prototype-builtins
+        if (obj.hasOwnProperty(key)) {
+            return false;
+        }
+    }
+    return true;
+};
+export function capitalize<Value extends string, Result extends Capitalize<Lowercase<Value>>>(value: Value): Result {
+    if (value == null) {
+        return "" as Result;
+    }
+
+    const stringValue = String(value);
+
+    if (!stringValue.length) {
+        return "" as Result;
+    }
+
+    return (stringValue.toLowerCase()[0].toUpperCase() + stringValue.slice(1).toLowerCase()) as Result;
+}

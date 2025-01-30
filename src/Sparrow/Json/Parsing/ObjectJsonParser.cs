@@ -8,7 +8,6 @@ using System.Linq;
 using Sparrow.Collections;
 using Sparrow.Extensions;
 using Sparrow.Utils;
-using static Sparrow.DisposableExceptions;
 
 namespace Sparrow.Json.Parsing
 {
@@ -220,7 +219,7 @@ namespace Sparrow.Json.Parsing
         }
     }
 
-    public sealed unsafe class ObjectJsonParser : IJsonParser, IDisposableQueryable
+    public sealed unsafe class ObjectJsonParser : IJsonParser
     {
         private readonly JsonParserState _state;
         private readonly JsonOperationContext _ctx;
@@ -254,12 +253,8 @@ namespace Sparrow.Json.Parsing
 
         public void Dispose()
         {
-            // We may not want to execute `.Dispose()` more than once in release, but we want to fail fast in debug if it happens.
-            ThrowIfDisposedOnDebug(this);
-
             if (_disposed)
                 return;
-            
             _disposed = true;
             if (_currentStateBuffer != null)
                 _ctx.ReturnMemory(_currentStateBuffer);
@@ -267,7 +262,8 @@ namespace Sparrow.Json.Parsing
 
         public bool Read()
         {
-            ThrowIfDisposed(this);
+            if (_disposed)
+                ThrowOnDisposed();
 
             if (_elements.Count == 0)
                 throw new EndOfStreamException();
@@ -276,6 +272,12 @@ namespace Sparrow.Json.Parsing
 
             while (true)
             {
+                if (current == null)
+                {
+                    _state.CurrentTokenType = JsonParserToken.Null;
+                    return true;
+                }
+
                 if (current is IDynamicJson idj)
                 {
                     current = idj.ToJson();
@@ -336,8 +338,8 @@ namespace Sparrow.Json.Parsing
 
                 if (current is BlittableJsonReaderObject bjro)
                 {
-                    if (bjro.Modifications == null)
-                        bjro.Modifications = new DynamicJsonValue(bjro);
+                    bjro.Modifications ??= new DynamicJsonValue(bjro);
+
                     if (_seenValues.Add(bjro.Modifications))
                     {
                         _elements.Push(bjro);
@@ -371,8 +373,7 @@ namespace Sparrow.Json.Parsing
 
                 if (current is BlittableJsonReaderArray bjra)
                 {
-                    if (bjra.Modifications == null)
-                        bjra.Modifications = new DynamicJsonArray();
+                    bjra.Modifications ??= new DynamicJsonArray();
 
                     if (_seenValues.Add(bjra.Modifications))
                     {
@@ -396,6 +397,37 @@ namespace Sparrow.Json.Parsing
                         _elements.Push(bjra);
                         continue;
                     }
+                    current = modifications;
+                    continue;
+                }
+                
+                if (current is BlittableJsonReaderVector bjrv)
+                {
+                    bjrv.Modifications ??= new DynamicJsonArray();
+                    
+                    if (_seenValues.Add(bjrv.Modifications))
+                    {
+                        _elements.Push(bjrv);
+                        bjrv.Modifications.SourceIndex = bjrv.Modifications.SkipOriginalArray ? bjrv.Length : -1;
+                        bjrv.Modifications.ModificationsIndex = 0;
+                        _state.CurrentTokenType = JsonParserToken.StartArray;
+                        return true;
+                    }
+                    
+                    var modifications = bjrv.Modifications;
+                    modifications.SourceIndex++;
+                    if (modifications.SourceIndex < bjrv.Length)
+                    {
+                        if (modifications.Removals != null && modifications.Removals.Contains(modifications.SourceIndex))
+                        {
+                            continue;
+                        }
+
+                        current = bjrv[modifications.SourceIndex];
+                        _elements.Push(bjrv);
+                        continue;
+                    }
+                    
                     current = modifications;
                     continue;
                 }
@@ -443,6 +475,9 @@ namespace Sparrow.Json.Parsing
 
                 if (current is LazyNumberValue ldv)
                 {
+                    // RavenDB-22076: Notice here we are forcing the token type to Float, this is not correct for
+                    // proper handling when we are dealing with Vector so we will need to pay the cost to adjust
+                    // at the level of vector handling because of compatibility concerns. 
                     _state.StringBuffer = ldv.Inner.Buffer;
                     _state.StringSize = ldv.Inner.Size;
                     _state.CompressedSize = null;// don't even try
@@ -514,7 +549,15 @@ namespace Sparrow.Json.Parsing
                     _state.CurrentTokenType = JsonParserToken.Float;
                     return true;
                 }
-
+#if NET6_0_OR_GREATER
+                if (current is Half h)
+                {
+                    var s = EnsureDecimalPlace((double)h, h.ToString("R", CultureInfo.InvariantCulture));
+                    SetStringBuffer(s);
+                    _state.CurrentTokenType = JsonParserToken.Float;
+                    return true;              
+                }
+#endif
                 if (current is DateTime dateTime1)
                 {
                     var s = dateTime1.GetDefaultRavenFormat();
@@ -614,12 +657,6 @@ namespace Sparrow.Json.Parsing
                     continue;
                 }
 
-                if (current == null)
-                {
-                    _state.CurrentTokenType = JsonParserToken.Null;
-                    return true;
-                }
-
                 if (current is Enum)
                 {
                     current = current.ToString();
@@ -707,7 +744,5 @@ namespace Sparrow.Json.Parsing
             var last = _elements.LastOrDefault();
             return last?.ToString() ?? string.Empty;
         }
-
-        bool IDisposableQueryable.IsDisposed => _disposed;
     }
 }

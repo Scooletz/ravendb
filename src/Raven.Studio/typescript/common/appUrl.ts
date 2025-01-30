@@ -3,7 +3,7 @@ import database = require("models/resources/database");
 import activeDatabase = require("common/shell/activeDatabaseTracker");
 import router = require("plugins/router");
 import messagePublisher = require("common/messagePublisher");
-import { DatabaseSharedInfo } from "components/models/databases";
+import databases = require("components/models/databases");
 
 class appUrl {
 
@@ -115,6 +115,7 @@ class appUrl {
         integrations: ko.pureComputed(() => appUrl.forIntegrations(appUrl.currentDatabase())),
         connectionStrings: ko.pureComputed(() => appUrl.forConnectionStrings(appUrl.currentDatabase())),
         conflictResolution: ko.pureComputed(() => appUrl.forConflictResolution(appUrl.currentDatabase())),
+        revisionsBinCleaner: ko.pureComputed(() => appUrl.forRevisionsBinCleaner(appUrl.currentDatabase())),
 
         statusStorageReport: ko.pureComputed(() => appUrl.forStatusStorageReport(appUrl.currentDatabase())),
         statusBucketsReport: ko.pureComputed(() => appUrl.forStatusBucketsReport(appUrl.currentDatabase())),
@@ -420,6 +421,10 @@ class appUrl {
     static forIntegrations(db: database): string {
         return "#databases/settings/integrations?" + appUrl.getEncodedDbPart(db);
     }
+    
+    static forRevisionsBinCleaner(db: database | string): string {
+        return "#databases/settings/revisionsBinCleaner?" + appUrl.getEncodedDbPart(db);
+    }
 
     static forConnectionStrings(db: database | string, type?: StudioEtlType, name?: string): string {
         const databaseUrlPart = appUrl.getEncodedDbPart(db);
@@ -455,7 +460,7 @@ class appUrl {
         return "#databases/documents?" + collectionPart + appUrl.getEncodedDbPart(db);
     }
 
-    static forAllRevisions(db: database): string {
+    static forAllRevisions(db: database | string): string {
         const databasePart = appUrl.getEncodedDbPart(db);
         return "#databases/documents/revisions/all?" + databasePart;
     }
@@ -810,7 +815,7 @@ class appUrl {
         });
     }
     
-    static toExternalDatabaseUrl(db: DatabaseSharedInfo, url: string) {
+    static toExternalDatabaseUrl(db: databases.DatabaseSharedInfo, url: string) {
         // we have to redirect to different node, let's find first member where selected database exists
         const firstNode = db.nodes[0];
         if (!firstNode) {
