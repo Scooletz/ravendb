@@ -6,6 +6,7 @@ using Raven.Server.Json;
 using Raven.Server.Logging;
 using Raven.Server.NotificationCenter.Notifications;
 using Raven.Server.NotificationCenter.Notifications.Details;
+using Raven.Server.Rachis.Commands;
 using Raven.Server.ServerWide;
 using Raven.Server.ServerWide.Context;
 using Sparrow;
@@ -21,19 +22,22 @@ namespace Raven.Server.NotificationCenter
 {
     public sealed unsafe class NotificationsStorage
     {
+        private readonly ServerStore _serverStore;
+
         private readonly string _tableName;
 
-        private readonly RavenLogger Logger;
+        private readonly RavenLogger _logger;
 
         private StorageEnvironment _environment;
 
         private TransactionContextPool _contextPool;
 
-        public NotificationsStorage(string resourceName = null)
+        public NotificationsStorage(ServerStore serverStore, string resourceName = null)
         {
+            _serverStore = serverStore ?? throw new ArgumentNullException(nameof(serverStore));
             _tableName = GetTableName(resourceName);
 
-            Logger = resourceName == null
+            _logger = resourceName == null
                 ? RavenLogManager.Instance.GetLoggerForServer(GetType())
                 : RavenLogManager.Instance.GetLoggerForDatabase(GetType(), resourceName);
         }
@@ -50,7 +54,6 @@ namespace Raven.Server.NotificationCenter
 
                 tx.Commit();
             }
-
             Cleanup();
         }
 
@@ -77,14 +80,13 @@ namespace Raven.Server.NotificationCenter
                     }
                 }
 
-                if (Logger.IsDebugEnabled)
-                    Logger.Debug($"Saving notification '{notification.Id}'.");
+                if (_logger.IsDebugEnabled)
+                    _logger.Debug($"Saving notification '{notification.Id}'.");
 
                 using (var json = context.ReadObject(notification.ToJson(), "notification", BlittableJsonDocumentBuilder.UsageMode.ToDisk))
-                using (var tx = context.OpenWriteTransaction())
                 {
-                    Store(context.GetLazyString(notification.Id), notification.CreatedAt, postponeUntil, json, tx);
-                    tx.Commit();
+                    var command = new StoreNotificationCommand(context.GetLazyString(notification.Id), notification.CreatedAt, postponeUntil, json, this);
+                    _serverStore.Engine.TxMerger.EnqueueSync(command);
                 }
             }
 
@@ -233,31 +235,27 @@ namespace Raven.Server.NotificationCenter
 
             if (existingTransaction != null)
             {
-                deleteResult = DeleteFromTable(existingTransaction);
+                deleteResult = DeleteFromTable(id, existingTransaction);
             }
             else
             {
-                using (_contextPool.AllocateOperationContext(out TransactionOperationContext context))
-                using (var tx = context.OpenWriteTransaction())
-                {
-                    deleteResult = DeleteFromTable(tx);
-                    tx.Commit();
-                }
+                var command = new DeleteNotificationCommand(id, this);
+                _serverStore.Engine.TxMerger.EnqueueSync(command);
+                deleteResult = command.Deleted;
             }
 
-            if (deleteResult && Logger.IsInfoEnabled)
-                Logger.Info($"Deleted notification '{id}'.");
-
+            if (deleteResult && _logger.IsInfoEnabled)
+                _logger.Info($"Deleted notification '{id}'.");
             return deleteResult;
+        }
 
-            bool DeleteFromTable(RavenTransaction tx)
+        public bool DeleteFromTable(string id, RavenTransaction tx)
+        {
+            var table = tx.InnerTransaction.OpenTable(Documents.Schemas.Notifications.Current, _tableName);
+
+            using (Slice.From(tx.InnerTransaction.Allocator, id, out Slice alertSlice))
             {
-                var table = tx.InnerTransaction.OpenTable(Documents.Schemas.Notifications.Current, _tableName);
-
-                using (Slice.From(tx.InnerTransaction.Allocator, id, out Slice alertSlice))
-                {
-                    return table.DeleteByKey(alertSlice);
-                }
+                return table.DeleteByKey(alertSlice);
             }
         }
 
@@ -348,7 +346,7 @@ namespace Raven.Server.NotificationCenter
         public void ChangePostponeDate(string id, DateTime? postponeUntil)
         {
             using (_contextPool.AllocateOperationContext(out TransactionOperationContext context))
-            using (var tx = context.OpenWriteTransaction())
+            using (var tx = context.OpenReadTransaction())
             {
                 using (var item = Get(id, context, tx))
                 {
@@ -359,12 +357,8 @@ namespace Raven.Server.NotificationCenter
 
                     Memory.Copy(itemCopy.Address, item.Json.BasePointer, item.Json.Size);
 
-                    Store(context.GetLazyString(id), item.CreatedAt, postponeUntil,
-                        //we create a copy because we can't update directly from mutated memory
-                        new BlittableJsonReaderObject(itemCopy.Address, item.Json.Size, context)
-                        , tx);
-
-                    tx.Commit();
+                    var command = new StoreNotificationCommand(context.GetLazyString(id), item.CreatedAt, postponeUntil, new BlittableJsonReaderObject(itemCopy.Address, item.Json.Size, context), this);
+                    _serverStore.Engine.TxMerger.EnqueueSync(command);
                 }
             }
         }
@@ -438,7 +432,7 @@ namespace Raven.Server.NotificationCenter
             if (database == null)
                 throw new ArgumentNullException(nameof(database));
 
-            var storage = new NotificationsStorage(database);
+            var storage = new NotificationsStorage(_serverStore, database);
             storage.Initialize(_environment, _contextPool);
 
             return storage;
