@@ -107,7 +107,7 @@ namespace Raven.Server.Documents.Replication.Incoming
 
         protected virtual string ReplaceUnknownEntriesWithSinkIfNeeded(DocumentsOperationContext context, string changeVector)
         {
-           return changeVector;
+            return changeVector;
         }
 
         protected virtual DocumentMergedTransactionCommand GetMergeDocumentsCommand(DocumentsOperationContext context,
@@ -276,7 +276,22 @@ namespace Raven.Server.Documents.Replication.Incoming
                 // be able to tell (roughly) where it is at on the entire cluster.
                 databaseChangeVector = DocumentsStorage.GetDatabaseChangeVector(documentsContext);
                 currentLastEtagMatchingChangeVector = _database.DocumentsStorage.ReadLastEtag(documentsContext.Transaction.InnerTransaction);
+
+                if (currentLastEtagMatchingChangeVector > lastDocumentEtag)
+                {
+                    // RavenDB-19152
+                    // preventing the potential risk of skipping documents in internal replication:
+                    // if this database's current Etag is higher than the one received from the source, we avoid sending it as-is.
+                    // otherwise, when this database later replicates back to the source, it may skip sending 
+                    // certain documents—particularly conflicted revisions when 'ResolveToLatest' is `true` 
+                    // (which is the default setting) in the Conflict Resolution Configuration—because the 
+                    // resolved change vector is a merged result of the original conflicting documents' 
+                    // change vectors, while this database’s Etag continues increasing.
+                    var etagFromChangeVector = ChangeVectorUtils.GetEtagById(databaseChangeVector, _database.DbBase64Id);
+                    currentLastEtagMatchingChangeVector = etagFromChangeVector > 0 ? etagFromChangeVector : lastDocumentEtag;
+                }
             }
+
             if (Logger.IsDebugEnabled)
             {
                 Logger.Debug($"Sending heartbeat ok => {FromToString} with last document etag = {lastDocumentEtag}, " +
@@ -425,7 +440,7 @@ namespace Raven.Server.Documents.Replication.Incoming
                                 if (ChangeVectorUtils.GetConflictStatus(incomingChangeVector, local2) == ConflictStatus.AlreadyMerged)
                                     continue;
 
-                                string documentId = CompoundKeyHelper.ExtractDocumentId(attachmentTombstone.Key); 
+                                string documentId = CompoundKeyHelper.ExtractDocumentId(attachmentTombstone.Key);
                                 pendingAttachmentsTombstoneUpdates ??= new();
                                 pendingAttachmentsTombstoneUpdates.Add((documentId, incomingChangeVector, attachmentTombstone.LastModifiedTicks));
 
@@ -445,7 +460,7 @@ namespace Raven.Server.Documents.Replication.Incoming
 
                                 RevisionTombstoneReplicationItem.TryExtractDocumentIdAndChangeVectorFromKey(revisionTombstone.Id, out string id, out string revisionChangeVector);
                                 HandleRevisionTombstone(context, id, revisionChangeVector, out var changeVectorSlice, out var idKeySlice, toDispose);
-                                
+
                                 database.DocumentsStorage.RevisionsStorage.DeleteRevision(context, idKeySlice, revisionTombstone.Collection,
                                     changeVectorVersion, revisionTombstone.LastModifiedTicks, changeVectorSlice, fromReplication: true);
                                 break;
@@ -476,7 +491,7 @@ namespace Raven.Server.Documents.Replication.Incoming
                                     To = deletedRange.To
                                 };
                                 tss.DeleteTimestampRange(context, deletionRangeRequest, incomingChangeVector, updateMetadata: false);
-                               
+
                                 break;
 
                             case TimeSeriesReplicationItem segment:
@@ -498,7 +513,7 @@ namespace Raven.Server.Documents.Replication.Incoming
                                     throw new LegacyReplicationViolationException(msg);
                                 }
                                 UpdateTimeSeriesNameIfNeeded(context, docId, segment, tss);
-                                
+
                                 if (tss.TryAppendEntireSegment(context, segment, docId, segment.Name, incomingChangeVector, baseline))
                                 {
                                     var databaseChangeVector = context.LastDatabaseChangeVector ?? DocumentsStorage.GetDatabaseChangeVector(context);
@@ -685,7 +700,7 @@ namespace Raven.Server.Documents.Replication.Incoming
                                 continue;
                             }
 
-                            if (ChangeVector.GetConflictStatus(context, cv, doc.ChangeVector) != ConflictStatus.AlreadyMerged || 
+                            if (ChangeVector.GetConflictStatus(context, cv, doc.ChangeVector) != ConflictStatus.AlreadyMerged ||
                                 doc.Flags.Contain(DocumentFlags.HasAttachments | DocumentFlags.Resolved))
                             {
                                 // have to load the full document

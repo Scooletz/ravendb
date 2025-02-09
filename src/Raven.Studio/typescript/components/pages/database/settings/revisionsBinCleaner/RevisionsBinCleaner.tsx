@@ -2,7 +2,7 @@ import React from "react";
 import { useAppSelector } from "components/store";
 import { databaseSelectors } from "components/common/shell/databaseSliceSelectors";
 import { useServices } from "hooks/useServices";
-import { Card, CardBody, Col, Collapse, Form, FormGroup, Row } from "reactstrap";
+import { Card, CardBody, Col, Collapse, Form, FormGroup, Row, UncontrolledPopover } from "reactstrap";
 import { SubmitHandler, useForm, useWatch } from "react-hook-form";
 import {
     RevisionsBinCleanerFormData,
@@ -14,13 +14,14 @@ import { useEventsCollector } from "hooks/useEventsCollector";
 import { tryHandleSubmit } from "components/utils/common";
 import { AboutViewHeading } from "components/common/AboutView";
 import ButtonWithSpinner from "components/common/ButtonWithSpinner";
-import { FormInput, FormSwitch } from "components/common/Form";
+import { FormDurationPicker, FormInput, FormSwitch } from "components/common/Form";
 import { RevisionsBinCleanerInfoHub } from "components/pages/database/settings/revisionsBinCleaner/RevisionsBinCleanerInfoHub";
 import { LoadingView } from "components/common/LoadingView";
 import { LoadError } from "components/common/LoadError";
 import { accessManagerSelectors } from "components/common/shell/accessManagerSliceSelectors";
 import useRevisionsBinCleanerFormSideEffects from "components/pages/database/settings/revisionsBinCleaner/useRevisionsBinCleanerFormSideEffects";
 import { revisionsBinCleanerUtils } from "components/pages/database/settings/revisionsBinCleaner/RevisionsBinCleanerUtils";
+import { Icon } from "components/common/Icon";
 
 export default function RevisionsBinCleaner() {
     const databaseName = useAppSelector(databaseSelectors.activeDatabaseName);
@@ -103,7 +104,7 @@ export default function RevisionsBinCleaner() {
                                                 Enable Revisions Bin Cleaner
                                             </FormSwitch>
                                         </FormGroup>
-                                        <FormGroup>
+                                        <FormGroup className="d-flex gap-2 align-items-center">
                                             <FormSwitch
                                                 name="isMinimumEntriesAgeToKeepEnabled"
                                                 control={control}
@@ -116,24 +117,51 @@ export default function RevisionsBinCleaner() {
                                             >
                                                 Set minimum entries age to keep
                                             </FormSwitch>
+                                            {formValues.isRevisionsBinCleanerEnabled &&
+                                                !formValues.isMinimumEntriesAgeToKeepEnabled && (
+                                                    <>
+                                                        <Icon
+                                                            id="setMinimumEntriesAgeToKeep"
+                                                            icon="warning"
+                                                            color="warning"
+                                                        />
+                                                        <UncontrolledPopover
+                                                            target="setMinimumEntriesAgeToKeep"
+                                                            trigger="hover"
+                                                            container="PopoverContainer"
+                                                            placement="right"
+                                                        >
+                                                            <div className="p-3">
+                                                                All items in the Revisions Bin will be deleted when
+                                                                &#39;Set minimum entries age to keep&#39; is toggled
+                                                                off.
+                                                            </div>
+                                                        </UncontrolledPopover>
+                                                    </>
+                                                )}
                                         </FormGroup>
                                         <Collapse
+                                            data-testid="collapse"
                                             isOpen={
                                                 formValues.isMinimumEntriesAgeToKeepEnabled &&
                                                 formValues.isRevisionsBinCleanerEnabled
                                             }
                                         >
-                                            <FormGroup>
-                                                <FormInput
-                                                    name="minimumEntriesAgeToKeepInMin"
+                                            <FormGroup data-testid="durationPicker">
+                                                <FormDurationPicker
                                                     control={control}
-                                                    type="number"
                                                     disabled={
                                                         !hasDatabaseAdminAccess ||
                                                         formState.isSubmitting ||
                                                         !formValues.isMinimumEntriesAgeToKeepEnabled
                                                     }
-                                                    addon="minutes"
+                                                    placeholder={{
+                                                        days: "Default (30)",
+                                                        hours: "Default (0)",
+                                                        minutes: "Default (0)",
+                                                    }}
+                                                    name="minimumEntriesAgeToKeep"
+                                                    showDays
                                                 />
                                             </FormGroup>
                                         </Collapse>
@@ -149,7 +177,7 @@ export default function RevisionsBinCleaner() {
                                                     !formValues.isRevisionsBinCleanerEnabled
                                                 }
                                             >
-                                                Set custom refresh frequency
+                                                Set custom cleaner frequency
                                             </FormSwitch>
                                             <FormInput
                                                 name="refreshFrequencyInSec"
@@ -167,11 +195,11 @@ export default function RevisionsBinCleaner() {
                                     </CardBody>
                                 </Card>
                             </Col>
+                            <div id="PopoverContainer"></div>
                         </Form>
                     </Col>
                     <Col sm={12} lg={4}>
-                        {/*TODO: Until Danielle adds the text, this component will remain disabled so as not to block the possibility of it being merged.*/}
-                        {false && <RevisionsBinCleanerInfoHub />}
+                        <RevisionsBinCleanerInfoHub />
                     </Col>
                 </Row>
             </Col>
