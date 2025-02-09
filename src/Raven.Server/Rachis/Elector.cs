@@ -166,11 +166,8 @@ namespace Raven.Server.Rachis
 
 
                             if (rv.IsForcedElection == false &&
-                                (
-                                    _engine.CurrentState == RachisState.Leader ||
-                                    _engine.CurrentState == RachisState.LeaderElect
-                                )
-                            )
+                                (_engine.CurrentState == RachisState.Leader || _engine.CurrentState == RachisState.LeaderElect) && 
+                                _engine.CurrentLeader?.Running == true)
                             {
                                 _connection.Send(context, new RequestVoteResponse
                                 {

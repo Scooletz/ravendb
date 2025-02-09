@@ -16,6 +16,8 @@ export default {
 interface StoryArgs {
     hasMenuItems: boolean;
     isDatabaseSelected: boolean;
+    isNewVersionAvailable: boolean;
+    isWhatsNewVisible: boolean;
 }
 
 export const DefaultStory: StoryObj<StoryArgs> = {
@@ -51,12 +53,20 @@ export const DefaultStory: StoryObj<StoryArgs> = {
 
         databases.withDatabases([db1, db2, db3]);
 
-        const menuItems = args.hasMenuItems ? generateMenuItems(null) : [];
+        const menuItems = args.hasMenuItems
+            ? generateMenuItems({
+                  db: args.isDatabaseSelected ? db1.name : "",
+                  isNewVersionAvailable: args.isNewVersionAvailable,
+                  isWhatsNewVisible: args.isWhatsNewVisible,
+              })
+            : [];
 
         return <StudioSearchWithDatabaseSwitcher menuItems={menuItems} />;
     },
     args: {
         hasMenuItems: true,
+        isNewVersionAvailable: false,
+        isWhatsNewVisible: false,
         isDatabaseSelected: true,
     },
 };
