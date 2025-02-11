@@ -1,7 +1,7 @@
 import React, { ComponentProps, ReactNode, useRef, useState } from "react";
 import genUtils from "common/generalUtils";
 import { Checkbox, CheckboxProps, Radio, Switch } from "components/common/Checkbox";
-import { Control, ControllerProps, FieldPath, FieldValues, useController } from "react-hook-form";
+import { Control, ControllerProps, FieldPath, FieldValues, useController, UseControllerProps } from "react-hook-form";
 import InputGroup from "react-bootstrap/InputGroup";
 import { Input, InputProps } from "reactstrap";
 import Button from "react-bootstrap/Button";
@@ -60,10 +60,7 @@ type FormRadioToggleWithIconProps<
 > = FormElementProps<TFieldValues, TName> &
     Omit<ComponentProps<typeof RadioToggleWithIcon>, "name" | "selectedValue" | "setSelectedValue">;
 
-export function FormInput<
-    TFieldValues extends FieldValues = FieldValues,
-    TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>,
->(props: FormElementProps<TFieldValues, TName> & FormInputProps) {
+export function FormInput<T extends FieldValues>(props: UseControllerProps<T> & FormInputProps) {
     return <FormInputGeneral {...props} />;
 }
 
@@ -416,10 +413,7 @@ export function FormDatePicker<
     );
 }
 
-function FormInputGeneral<
-    TFieldValues extends FieldValues = FieldValues,
-    TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>,
->(props: FormElementProps<TFieldValues, TName> & FormInputProps) {
+function FormInputGeneral<T extends FieldValues>(props: UseControllerProps<T> & FormInputProps) {
     const { name, control, defaultValue, rules, shouldUnregister, children, type, addon, passwordPreview, ...rest } =
         props;
 

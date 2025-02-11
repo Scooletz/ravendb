@@ -19,6 +19,7 @@ import { databaseSelectors } from "components/common/shell/databaseSliceSelector
 import { accessManagerSelectors } from "components/common/shell/accessManagerSliceSelectors";
 import Button from "react-bootstrap/Button";
 import PopoverWithHoverWrapper from "components/common/PopoverWithHoverWrapper";
+import AzureOpenAiSettings from "components/pages/database/settings/connectionStrings/editForms/aiFields/AzureOpenAiSettings";
 
 type FormData = ConnectionFormData<KafkaConnection>;
 
@@ -96,6 +97,7 @@ export default function KafkaConnectionString({
                     autoComplete="off"
                 />
             </div>
+            <AzureOpenAiSettings isUsedByAnyTask={false} />
             <div className="mb-2">
                 <Label className="d-flex align-items-center gap-1">
                     Bootstrap Servers
