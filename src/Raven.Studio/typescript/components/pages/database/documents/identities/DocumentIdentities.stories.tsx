@@ -6,8 +6,14 @@ import { mockStore } from "test/mocks/store/MockStore";
 import { DatabasesStubs } from "test/stubs/DatabasesStubs";
 
 export default {
-    title: "Pages/Documents/Document Identities",
+    title: "Pages/Documents/Identities",
     decorators: [withStorybookContexts, withBootstrap5],
+    parameters: {
+        design: {
+            type: "figma",
+            url: "https://www.figma.com/design/wSVoBtBHbk3qPgeYZ69co1/Pages---Identities?node-id=0-1&t=4iEd4mFqhniULAiu-1",
+        },
+    },
 } satisfies Meta<typeof DocumentIdentities>;
 
 interface DocumentIdentitiesStoryArgs {
@@ -16,7 +22,7 @@ interface DocumentIdentitiesStoryArgs {
 }
 
 export const DocumentIdentitiesStory: StoryObj<DocumentIdentitiesStoryArgs> = {
-    name: "DocumentIdentities",
+    name: "Identities",
     render: (args) => {
         const { accessManager, databases } = mockStore;
 

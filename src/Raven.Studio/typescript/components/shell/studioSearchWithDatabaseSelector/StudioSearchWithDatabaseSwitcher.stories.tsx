@@ -9,8 +9,14 @@ import { DatabaseSharedInfo } from "components/models/databases";
 import generateMenuItems from "common/shell/menu/generateMenuItems";
 
 export default {
-    title: "Shell/StudioSearchWithDatabaseSwitcher",
+    title: "Shell/Studio Search With Database Switcher",
     decorators: [withStorybookContexts, withBootstrap5, withForceRerender],
+    parameters: {
+        design: {
+            type: "figma",
+            url: "https://www.figma.com/design/ITHbe2U19Ok7cjbEzYa4cb/Design-System-RavenDB-Studio?node-id=20-73",
+        },
+    },
 } satisfies Meta;
 
 interface StoryArgs {

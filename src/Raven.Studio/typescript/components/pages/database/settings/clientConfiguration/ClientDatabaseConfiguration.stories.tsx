@@ -6,9 +6,15 @@ import { mockServices } from "test/mocks/services/MockServices";
 import { mockStore } from "test/mocks/store/MockStore";
 
 export default {
-    title: "Pages/Database/Settings/ClientConfiguration",
+    title: "Pages/Settings/Client Configuration",
     component: ClientDatabaseConfiguration,
     decorators: [withStorybookContexts, withBootstrap5],
+    parameters: {
+        design: {
+            type: "figma",
+            url: "https://www.figma.com/design/TOJ0FF1XExPQIpoNeQiLw0/Pages---Client-Configuration?node-id=0-1&t=gNtHEztMYTI77w0T-1",
+        },
+    },
 } satisfies Meta<typeof ClientDatabaseConfiguration>;
 
 function commonInit() {

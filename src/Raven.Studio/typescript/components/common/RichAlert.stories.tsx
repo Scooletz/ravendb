@@ -1,5 +1,5 @@
 import React from "react";
-import RichAlert from "components/common/RichAlert";
+import RichAlert, { richAlertColors } from "components/common/RichAlert";
 import { Button } from "reactstrap";
 import { withBootstrap5, withStorybookContexts } from "test/storybookTestUtils";
 
@@ -7,21 +7,13 @@ export default {
     title: "Bits/Rich Alert",
     component: RichAlert,
     decorators: [withStorybookContexts, withBootstrap5],
+    parameters: {
+        design: {
+            type: "figma",
+            url: "https://www.figma.com/design/ITHbe2U19Ok7cjbEzYa4cb/Design-System-RavenDB-Studio?node-id=12-18",
+        },
+    },
 };
-
-const colors = [
-    "primary",
-    "secondary",
-    "success",
-    "warning",
-    "danger",
-    "info",
-    "progress",
-    "node",
-    "shard",
-    "dark",
-    "light",
-];
 
 export const Variants = () => {
     return (
@@ -56,7 +48,7 @@ export const Variants = () => {
 function AllRichAlertColors() {
     return (
         <div className="vstack gap-1">
-            {colors.map((variant) => (
+            {richAlertColors.map((variant) => (
                 <RichAlert key={variant} variant={variant}>
                     This is an example of a {variant} alert without a title.
                 </RichAlert>

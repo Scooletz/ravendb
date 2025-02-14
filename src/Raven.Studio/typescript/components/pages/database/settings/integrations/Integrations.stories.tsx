@@ -13,8 +13,14 @@ import { DatabaseSharedInfo } from "components/models/databases";
 import { DatabasesStubs } from "test/stubs/DatabasesStubs";
 
 export default {
-    title: "Pages/Database/Settings/Integrations",
+    title: "Pages/Settings/Integrations",
     decorators: [withStorybookContexts, withBootstrap5, withForceRerender],
+    parameters: {
+        design: {
+            type: "figma",
+            url: "https://www.figma.com/design/VCQM6MOuGpbzDRjqi46Dw0/Pages---Integrations?node-id=0-1&t=6ANVvRyQ0duJ25uq-1",
+        },
+    },
 } satisfies Meta;
 
 interface IntegrationsStoryArgs {

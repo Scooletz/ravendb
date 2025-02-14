@@ -6,8 +6,14 @@ import { mockServices } from "test/mocks/services/MockServices";
 import { ManageServerStubs } from "test/stubs/ManageServerStubs";
 
 export default {
-    title: "Pages/ManageServer/Server Settings",
+    title: "Pages/Manage Server/Server Settings",
     decorators: [withStorybookContexts, withBootstrap5],
+    parameters: {
+        design: {
+            type: "figma",
+            url: "https://www.figma.com/design/INHXEQ02UfwTbkR1xWr2Cn/Pages---Server-Settings?node-id=0-1&t=QvtWOXALpTc79aQQ-1",
+        },
+    },
 } satisfies Meta;
 
 interface DefaultServerSettingsProps {

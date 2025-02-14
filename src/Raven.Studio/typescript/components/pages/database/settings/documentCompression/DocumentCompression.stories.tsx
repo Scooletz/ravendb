@@ -6,11 +6,17 @@ import { mockServices } from "test/mocks/services/MockServices";
 import { mockStore } from "test/mocks/store/MockStore";
 
 export default {
-    title: "Pages/Database/Settings",
+    title: "Pages/Settings/Document Compression",
     decorators: [withStorybookContexts, withBootstrap5],
     argTypes: {
         licenseType: licenseArgType,
         databaseAccess: databaseAccessArgType,
+    },
+    parameters: {
+        design: {
+            type: "figma",
+            url: "https://www.figma.com/design/fbVInhrQXVWIkiz87rzZYc/Pages---Document-Compression?node-id=0-1&t=MMtfJckScMcT0jwB-1",
+        },
     },
 } satisfies Meta;
 

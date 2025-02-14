@@ -6,10 +6,16 @@ import { mockStore } from "test/mocks/store/MockStore";
 import { mockServices } from "test/mocks/services/MockServices";
 
 export default {
-    title: "Pages/Database/Settings",
+    title: "Pages/Settings/Database Record",
     decorators: [withStorybookContexts, withBootstrap5],
     argTypes: {
         securityClearance: securityClearanceArgType,
+    },
+    parameters: {
+        design: {
+            type: "figma",
+            url: "https://www.figma.com/design/xN3y9G7Pv4eTd7kVdrUtLQ/Pages---Database-Record?node-id=0-1&t=1iorEaSrk2c9vDX7-1",
+        },
     },
 } satisfies Meta;
 

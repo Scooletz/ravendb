@@ -5,9 +5,15 @@ import StudioDatabaseConfiguration from "./StudioDatabaseConfiguration";
 import { mockStore } from "test/mocks/store/MockStore";
 
 export default {
-    title: "Pages/Database/Settings/Studio Configuration",
+    title: "Pages/Settings/Studio Configuration",
     component: StudioDatabaseConfiguration,
     decorators: [withStorybookContexts, withBootstrap5],
+    parameters: {
+        design: {
+            type: "figma",
+            url: "https://www.figma.com/design/oLRwBtzo0fN6pVBccyK2kb/Pages---Studio-Configuration?node-id=0-1&t=R8lX6pqEzDWm0R6u-1",
+        },
+    },
 } satisfies Meta<typeof StudioDatabaseConfiguration>;
 
 function commonInit() {
@@ -15,7 +21,7 @@ function commonInit() {
     databases.withActiveDatabase_NonSharded_SingleNode();
 }
 
-export const StudioConfiguration: StoryFn<typeof StudioDatabaseConfiguration> = () => {
+export const LicenseAllowed: StoryFn<typeof StudioDatabaseConfiguration> = () => {
     commonInit();
 
     const { license } = mockStore;

@@ -23,13 +23,18 @@ internal sealed class EnforceRevisionConfigurationCommand : RevisionsScanningOpe
     protected override long ExecuteCmd(DocumentsOperationContext context)
     {
         MoreWork = false;
-        foreach (var id in _ids)
+        for (int i = _ids.Count - 1; i >= 0; i--)
         {
             _token.ThrowIfCancellationRequested();
-            _result.RemovedRevisions += (int)_revisionsStorage.EnforceConfigurationFor(context, id, _includeForceCreatedRevisionsOnDeleteInCaseOfNoConfiguration == false, ref MoreWork);
+            var moreWork = false;
+            _result.RemovedRevisions += (int)_revisionsStorage.EnforceConfigurationFor(context, _ids[i], _includeForceCreatedRevisionsOnDeleteInCaseOfNoConfiguration == false, ref moreWork);
+            if (moreWork == false)
+                _ids.RemoveAt(i);
+            else
+                MoreWork = true;
         }
 
-        return _ids.Count;
+        return 1;
     }
 
     public override IReplayableCommandDto<DocumentsOperationContext, DocumentsTransaction, MergedTransactionCommand<DocumentsOperationContext, DocumentsTransaction>> ToDto(DocumentsOperationContext context)

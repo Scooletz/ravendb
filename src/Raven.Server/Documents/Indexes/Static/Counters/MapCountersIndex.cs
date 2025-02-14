@@ -32,7 +32,7 @@ namespace Raven.Server.Documents.Indexes.Static.Counters
         private HandleCompareExchangeCountersReferences _handleCompareExchangeReferences;
 
         private MapCountersIndex(MapIndexDefinition definition, AbstractStaticIndexBase compiled)
-            : base(definition.IndexDefinition.Type, definition.IndexDefinition.SourceType, definition)
+            : base(definition.IndexDefinition.Type, definition.IndexDefinition.SourceType, definition, compiled)
         {
             _compiled = compiled;
 
@@ -81,7 +81,7 @@ namespace Raven.Server.Documents.Indexes.Static.Counters
                 return;
             }
 
-            if (_referencedCollections.Contains(change.CollectionName))
+            if (HandleAllDocs || _referencedCollections.Contains(change.CollectionName))
             {
                 _mre.Set();
             }
