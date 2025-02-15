@@ -991,7 +991,6 @@ type databaseLocationSpecifier = {
     nodeTag: string;
 }
 
-
 interface PopoverUtilsOptions extends PopoverOptions {
     rounded?: boolean;
 }

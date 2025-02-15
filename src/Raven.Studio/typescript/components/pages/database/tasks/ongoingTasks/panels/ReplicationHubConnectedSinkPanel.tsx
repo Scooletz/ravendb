@@ -9,6 +9,7 @@ import {
     RichPanelInfo,
 } from "components/common/RichPanel";
 import { OngoingTaskName, OngoingTaskResponsibleNode } from "../../shared/shared";
+import { ExternalReplicationTaskDistribution } from "../partials/ExternalReplicationTaskDistribution";
 
 interface ReplicationHubConnectedSinkPanelProps {
     data: OngoingTaskReplicationHubInfo;
@@ -38,6 +39,7 @@ export function ReplicationHubConnectedSinkPanel(props: ReplicationHubConnectedS
                     </RichPanelDetailItem>
                 )}
             </RichPanelDetails>
+            <ExternalReplicationTaskDistribution task={data} />
         </RichPanel>
     );
 }
