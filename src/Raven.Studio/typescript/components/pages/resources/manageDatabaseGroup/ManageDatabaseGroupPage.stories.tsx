@@ -8,8 +8,14 @@ import { mockStore } from "test/mocks/store/MockStore";
 import { mockServices } from "test/mocks/services/MockServices";
 
 export default {
-    title: "Pages/Manage Database Group",
+    title: "Pages/Settings/Manage Database Group",
     decorators: [withStorybookContexts, withBootstrap5],
+    parameters: {
+        design: {
+            type: "figma",
+            url: "https://www.figma.com/design/O4Tg7zOZsZQsOmDNLO5vRm/Pages---Manage-Database-Group?node-id=0-1&t=LLFtBPycOfoBjnKS-1",
+        },
+    },
 } satisfies Meta;
 
 function commonInit() {

@@ -159,6 +159,8 @@ namespace Raven.Server.ServerWide
 
         private bool IsClusterRequestExecutorCreated => _clusterRequestExecutor.IsValueCreated;
 
+        private readonly List<AlertRaised> _storeAlertForLateRaise;
+
         public ServerStore(RavenConfiguration configuration, RavenServer server)
         {
             // we want our servers to be robust get early errors about such issues
@@ -184,7 +186,7 @@ namespace Raven.Server.ServerWide
 
             DatabasesLandlord = new DatabasesLandlord(this);
 
-            _notificationsStorage = new NotificationsStorage(this);
+            _notificationsStorage = new ServerStoreNotificationStorage(this);
 
             NotificationCenter = new ServerNotificationCenter(this, _notificationsStorage);
 
@@ -207,6 +209,8 @@ namespace Raven.Server.ServerWide
             Secrets = new SecretProtection(configuration.Security);
 
             InitializationCompleted = new AsyncManualResetEvent(_shutdownNotification.Token);
+
+            _storeAlertForLateRaise = new List<AlertRaised>();
 
             if (Configuration.Indexing.GlobalScratchSpaceLimit != null)
                 GlobalIndexingScratchSpaceMonitor = new GlobalIndexingScratchSpaceMonitor(Configuration.Indexing.GlobalScratchSpaceLimit.Value);
@@ -637,7 +641,6 @@ namespace Raven.Server.ServerWide
                 Logger.Debug("Starting to open server store for " + (Configuration.Core.RunInMemory ? "<memory>" : Configuration.Core.DataDirectory.FullPath));
 
             var path = Configuration.Core.DataDirectory.Combine("System");
-            var storeAlertForLateRaise = new List<AlertRaised>();
 
             IoChanges = new IoChangesNotifications
             {
@@ -709,7 +712,7 @@ namespace Raven.Server.ServerWide
                 }
                 else
                 {
-                    storeAlertForLateRaise.Add(alert);
+                    _storeAlertForLateRaise.Add(alert);
                 }
             };
 
@@ -734,7 +737,7 @@ namespace Raven.Server.ServerWide
                 }
                 else
                 {
-                    storeAlertForLateRaise.Add(alert);
+                    _storeAlertForLateRaise.Add(alert);
                 }
             };
 
@@ -759,7 +762,7 @@ namespace Raven.Server.ServerWide
                 }
                 else
                 {
-                    storeAlertForLateRaise.Add(alert);
+                    _storeAlertForLateRaise.Add(alert);
                 }
             };
 
@@ -781,7 +784,7 @@ namespace Raven.Server.ServerWide
                     }
                     else
                     {
-                        storeAlertForLateRaise.Add(alert);
+                        _storeAlertForLateRaise.Add(alert);
                     }
                 }
             }
@@ -850,14 +853,6 @@ namespace Raven.Server.ServerWide
             _notificationsStorage.Initialize(_env, ContextPool);
             _operationsStorage.Initialize(_env, ContextPool);
             DatabaseInfoCache.Initialize(_env, ContextPool);
-
-            NotificationCenter.Initialize();
-            foreach (var alertRaised in storeAlertForLateRaise)
-            {
-                NotificationCenter.Add(alertRaised);
-            }
-
-            CheckSwapOrPageFileAndRaiseNotification();
         }
 
         public void Initialize()
@@ -868,6 +863,15 @@ namespace Raven.Server.ServerWide
 
             var myUrl = GetNodeHttpServerUrl();
             _engine.Initialize(_env, Configuration, clusterChanges, myUrl, Server.Time, out _lastClusterTopologyIndex, ServerShutdown);
+
+            NotificationCenter.Initialize();
+            foreach (var alertRaised in _storeAlertForLateRaise)
+            {
+                NotificationCenter.Add(alertRaised);
+            }
+
+            CheckSwapOrPageFileAndRaiseNotification();
+            _storeAlertForLateRaise.Clear();
 
             using (Engine.ContextPool.AllocateOperationContext(out ClusterOperationContext context))
             using (context.OpenReadTransaction())

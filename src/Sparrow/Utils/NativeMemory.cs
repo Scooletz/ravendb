@@ -114,31 +114,22 @@ namespace Sparrow.Utils
             }
         }
 
-        public static void Free(byte* ptr, long size, ThreadStats stats)
+        public static void Free(byte* ptr, long size)
         {
             Debug.Assert(ptr != null);
-
-            UpdateMemoryStatsForThread(stats, size);
             Interlocked.Add(ref _totalAllocatedMemory, -size);
-
             Marshal.FreeHGlobal((IntPtr)ptr);
         }
 
-        public static void Free(byte* ptr, long size)
+        public static void Free(byte* ptr, long size, ThreadStats stats)
         {
-            Free(ptr, size, ThreadAllocations.Value);
+            Free(ptr, size);
+
+            UpdateMemoryStatsForThread(stats, size);
         }
 
         public static byte* AllocateMemory(long size)
         {
-            ThreadStats _;
-            return AllocateMemory(size, out _);
-        }
-
-        public static byte* AllocateMemory(long size, out ThreadStats thread)
-        {
-            thread = ThreadAllocations.Value;
-
             // Allocating when there isn't enough commit charge available is dangerous, on Linux, the OOM
             // will try to kill us. On Windows, we might get into memory allocation failures that are not
             // fun, so let's try to avoid it explicitly.
@@ -149,14 +140,21 @@ namespace Sparrow.Utils
             try
             {
                 var ptr = (byte*)Marshal.AllocHGlobal((IntPtr)size).ToPointer();
-                thread.Allocations += size;
                 Interlocked.Add(ref _totalAllocatedMemory, size);
                 return ptr;
             }
             catch (OutOfMemoryException e)
             {
-                return ThrowFailedToAllocate(size, thread, e);
+                return ThrowFailedToAllocate(size, ThreadAllocations.Value, e);
             }
+        }
+
+        public static byte* AllocateMemory(long size, out ThreadStats thread)
+        {
+            thread = ThreadAllocations.Value;
+            var ptr = AllocateMemory(size);
+            thread.Allocations += size;
+            return ptr;
         }
 
         public static void IncrementLuceneManagedAllocations(long size)
@@ -172,25 +170,25 @@ namespace Sparrow.Utils
         public static byte* AllocateMemoryForLuceneTermCache(long size)
         {
             Interlocked.Add(ref _totalLuceneUnmanagedAllocationsForTermCache, size);
-            return AllocateMemory(size, out _);
+            return AllocateMemory(size);
         }
 
         public static byte* AllocateMemoryForLuceneSorting(long size)
         {
             Interlocked.Add(ref _totalLuceneUnmanagedAllocationsForSorting, size);
-            return AllocateMemory(size, out _);
+            return AllocateMemory(size);
         }
 
         public static void FreeMemoryByLuceneTermCache(byte* ptr, long size)
         {
             Interlocked.Add(ref _totalLuceneUnmanagedAllocationsForTermCache, -size);
-            Free(ptr, size, ThreadAllocations.Value);
+            Free(ptr, size);
         }
 
         public static void FreeMemoryByLuceneSorting(byte* ptr, long size)
         {
             Interlocked.Add(ref _totalLuceneUnmanagedAllocationsForSorting, -size);
-            Free(ptr, size, ThreadAllocations.Value);
+            Free(ptr, size);
         }
 
         private static byte* ThrowFailedToAllocate(long size, ThreadStats thread, OutOfMemoryException e)
