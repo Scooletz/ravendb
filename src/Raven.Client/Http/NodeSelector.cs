@@ -75,7 +75,7 @@ namespace Raven.Client.Http
 
         public Topology Topology => _state.Topology;
 
-        private Timer _updateFastestNodeTimer;
+        internal Timer _updateFastestNodeTimer;
 
         internal NodeSelectorState _state;
 
@@ -240,6 +240,25 @@ namespace Raven.Client.Http
             Array.Clear(state.FastestRecords,0, state.Failures.Length);
 
             Interlocked.Increment(ref state.SpeedTestMode);
+        }
+
+        internal void DisableFastestNodeReadBalance()
+        {
+            if (_updateFastestNodeTimer == null)
+                return;
+
+            lock (_timerCreationLocker)
+            {
+                if (_updateFastestNodeTimer == null)
+                    return;
+
+                _updateFastestNodeTimer.Dispose();
+                _updateFastestNodeTimer = null;
+
+                var state = _state;
+                Interlocked.Exchange(ref state.SpeedTestMode, 0);
+                Array.Clear(state.FastestRecords, index: 0, state.FastestRecords.Length);
+            }
         }
 
         public bool InSpeedTestPhase => _state.SpeedTestMode > 1;

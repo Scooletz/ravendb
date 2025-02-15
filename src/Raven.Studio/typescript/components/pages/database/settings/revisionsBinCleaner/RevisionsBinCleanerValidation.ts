@@ -4,7 +4,7 @@ import { yupResolver } from "@hookform/resolvers/yup";
 const schema = yup.object({
     isRevisionsBinCleanerEnabled: yup.boolean(),
     isMinimumEntriesAgeToKeepEnabled: yup.boolean(),
-    minimumEntriesAgeToKeepInMin: yup
+    minimumEntriesAgeToKeep: yup
         .number()
         .nullable()
         .positive()

@@ -23,7 +23,7 @@ class licenseKeyModel {
 
         this.key.extend({
             required: true,
-            validLicense: true 
+            validLicense: true
         });
     }
 }
@@ -53,7 +53,7 @@ class registrationDismissStorage {
 class registration extends dialogViewModelBase {
 
     view = require("views/shell/registration.html");
-    
+
     static readonly licenseDialogSelector = "#licenseModal";
 
     connectedToLicenseServer = ko.observable<boolean>();
@@ -62,7 +62,7 @@ class registration extends dialogViewModelBase {
     licenseExpired = ko.observable<boolean>(false);
     licenseType = ko.observable<Raven.Server.Commercial.LicenseType>();
     licenseId = ko.observable<string>();
-    
+
     dismissVisible = ko.observable<boolean>(true);
     canBeClosed = ko.observable<boolean>(false);
     daysToRegister: KnockoutComputed<number>;
@@ -72,8 +72,8 @@ class registration extends dialogViewModelBase {
     renewWhenNotExpired = ko.observable<boolean>(false);
 
     renewMessage = ko.observable<string>();
-    renewError= ko.observable<string>();
-    
+    renewError = ko.observable<string>();
+
     registrationUrl = ko.observable<string>();
     error = ko.observable<string>();
 
@@ -81,7 +81,7 @@ class registration extends dialogViewModelBase {
     private licenseStatus: LicenseStatus;
 
     private hasInvalidLicense = ko.observable<boolean>(false);
-    private letsEncryptMode = ko.observable<boolean>(false); 
+    private letsEncryptMode = ko.observable<boolean>(false);
 
     spinners = {
         forceLicenseUpdate: ko.observable<boolean>(false),
@@ -92,16 +92,16 @@ class registration extends dialogViewModelBase {
 
     constructor(licenseStatus: LicenseStatus, canBeDismissed: boolean, canBeClosed: boolean, renewNonExpiredLicense = false) {
         super();
-        
+
         this.licenseStatus = licenseStatus;
-        
+
         this.licenseExpired(licenseStatus.Expired);
         this.licenseType(licenseStatus.Type);
         this.licenseId(licenseStatus.Id);
 
         this.bindToCurrentInstance("dismiss");
 
-        this.dismissVisible(canBeDismissed);        
+        this.dismissVisible(canBeDismissed);
         this.canBeClosed(canBeClosed);
 
         let error: string = null;
@@ -111,40 +111,40 @@ class registration extends dialogViewModelBase {
                 error += `: ${licenseStatus.ErrorMessage}`;
             }
         } else if (licenseStatus.Expired) {
-            const expiration = moment(licenseStatus.SubscriptionExpiration);
+            const expiration = moment.utc(licenseStatus.SubscriptionExpiration);
             error = "License has expired";
             if (expiration.isValid()) {
-                error += ` on ${expiration.format("YYYY MMMM Do")}`;
+                error += ` on ${expiration.format("YYYY MMMM Do")} UTC ${license.getLicenseInfoIcon({ date: expiration, isExpired: true, isSmall: false })}`;
             }
         }
         this.error(error);
 
-        const firstStart = moment(licenseStatus.FirstServerStartDate)
+        const firstStart = moment.utc(licenseStatus.FirstServerStartDate)
             .add("1", "week").add("1", "day");
 
         this.daysToRegister = ko.pureComputed(() => {
-            const now = moment();
+            const now = moment.utc();
             return firstStart.diff(now, "days");
-        });        
-        
+        });
+
         this.forceUpdateWhenExpired = ko.pureComputed(() => {
             // Force Update is for: ALL licenses EXCEPT Developer and Community
-            return this.licenseExpired() && 
-                   this.licenseType() !== 'Developer' && this.licenseType() !== 'Community';
-            
+            return this.licenseExpired() &&
+                this.licenseType() !== 'Developer' && this.licenseType() !== 'Community';
+
         });
 
         this.renewWhenExpired = ko.pureComputed(() => {
             // Renew is only for: Developer and community 
             return this.licenseExpired() &&
-                   (this.licenseType() === 'Developer' || this.licenseType() === 'Community');
-            
+                (this.licenseType() === 'Developer' || this.licenseType() === 'Community');
+
         });
 
         this.renewWhenNotExpired(renewNonExpiredLicense);
 
         this.registrationUrl(license.generateLicenseRequestUrl());
-        
+
         this.registerDisposable(license.licenseStatus.subscribe(statusUpdated => {
             if (!statusUpdated.Expired && !statusUpdated.ErrorMessage && !this.renewWhenNotExpired()) {
                 app.closeDialog(this);
@@ -162,7 +162,7 @@ class registration extends dialogViewModelBase {
             })
             .always(() => this.spinners.checkConnectionToLicenseServer(false));
     }
-    
+
     getServerCertificateSetupMode() {
         return new getServerCertificateSetupModeCommand()
             .execute()
@@ -176,11 +176,11 @@ class registration extends dialogViewModelBase {
 
     activate() {
         return $.when<any>(
-            this.getServerCertificateSetupMode(), 
+            this.getServerCertificateSetupMode(),
             this.checkConnectionToLicenseServer()
         );
     }
-    
+
     compositionComplete(view?: any, parent?: any) {
         super.compositionComplete(view, parent);
 
@@ -198,7 +198,7 @@ class registration extends dialogViewModelBase {
             case "Invalid":
                 registration.showRegistrationDialog(license, false, false);
                 break;
-                
+
             case "None": {
                 if (skipIfNoLicense) {
                     return;
@@ -280,12 +280,12 @@ class registration extends dialogViewModelBase {
                         const licenseStatus = license.licenseStatus();
                         if (!licenseStatus.Expired &&
                             !licenseStatus.ErrorMessage &&
-                            !this.renewWhenNotExpired() ) {
-                                app.closeDialog(this);
+                            !this.renewWhenNotExpired()) {
+                            app.closeDialog(this);
                         }
                         license.fetchSupportCoverage();
                     });
-                
+
                 if (result.Error) {
                     this.renewError(result.Error);
                     this.renewMessage(null);
@@ -293,21 +293,21 @@ class registration extends dialogViewModelBase {
                     this.renewError(null);
                     this.renewMessage(this.composeRenewMessage(result.SentToEmail, result.NewExpirationDate));
                 }
-             })
+            })
             .always(() => this.spinners.renewLicense(false));
     }
 
-    private composeRenewMessage(sentToEmail: string, newExpirationDate: string) : string {
+    private composeRenewMessage(sentToEmail: string, newExpirationDate: string): string {
 
         let newExpirationDateFormatted: string;
         const newExpiration = moment(newExpirationDate);
         if (newExpiration.isValid()) {
             newExpirationDateFormatted = newExpiration.format("YYYY MMMM Do");
         }
-        
+
         return `The renewed license was sent to: <strong class="text-info">${sentToEmail}</strong><br/>The new expiration date is: <strong class="text-info">${newExpirationDateFormatted}</strong>`;
     }
-    
+
     dismiss(days: number) {
         registrationDismissStorage.dismissFor(days);
         app.closeDialog(this);
@@ -320,7 +320,7 @@ class registration extends dialogViewModelBase {
 
         super.close();
     }
-    
+
     submit() {
         if (!this.isValid(this.licenseKeyModel)) {
             return;
@@ -343,6 +343,5 @@ class registration extends dialogViewModelBase {
 }
 
 export = registration;
-
 
 

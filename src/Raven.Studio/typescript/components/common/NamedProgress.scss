@@ -11,8 +11,11 @@
 
 .named-progress {
     display: flex;
+    flex-wrap: wrap;
+    gap: sizes.$gutter-xs;
 
     .progress-item {
+        flex-grow: 1;
         font-size: 9px;
         text-transform: uppercase;
         letter-spacing: 0.15em;
@@ -36,10 +39,6 @@
                     background-color: colors.$success;
                 }
             }
-        }
-
-        & + .progress-item {
-            margin-left: sizes.$gutter-xs;
         }
     }
 }

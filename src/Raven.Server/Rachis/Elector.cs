@@ -166,11 +166,8 @@ namespace Raven.Server.Rachis
 
 
                             if (rv.IsForcedElection == false &&
-                                (
-                                    current.State == RachisState.Leader ||
-                                    current.State == RachisState.LeaderElect
-                                )
-                            )
+                                (current.State == RachisState.Leader || current.State == RachisState.LeaderElect) &&
+                                _engine.CurrentLeader?.Running == true)
                             {
                                 _connection.Send(context, new RequestVoteResponse
                                 {
@@ -290,8 +287,8 @@ namespace Raven.Server.Rachis
             }
             catch (Exception e)
             {
-                var logLevel = e is IOException 
-                    ? LogLevel.Debug 
+                var logLevel = e is IOException
+                    ? LogLevel.Debug
                     : LogLevel.Warn;
 
                 if (_engine.Log.IsEnabled(logLevel))

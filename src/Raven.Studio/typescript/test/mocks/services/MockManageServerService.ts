@@ -63,6 +63,10 @@ export default class MockManageServerService extends AutoMockService<ManageServe
         );
     }
 
+    withServerSettings(dto?: MockedValue<Raven.Server.Config.SettingsResult>) {
+        return this.mockResolvedValue(this.mocks.getServerSettings, dto, ManageServerStubs.serverSettings());
+    }
+
     withAdminLogsConfiguration(dto?: MockedValue<Raven.Client.ServerWide.Operations.Logs.GetLogsConfigurationResult>) {
         return this.mockResolvedValue(
             this.mocks.getAdminLogsConfiguration,

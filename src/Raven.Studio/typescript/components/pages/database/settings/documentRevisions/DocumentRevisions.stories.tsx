@@ -6,12 +6,18 @@ import { mockServices } from "test/mocks/services/MockServices";
 import { mockStore } from "test/mocks/store/MockStore";
 
 export default {
-    title: "Pages/Database/Settings/DocumentRevisions",
+    title: "Pages/Settings/Document Revisions",
     component: DocumentRevisions,
     decorators: [withStorybookContexts, withBootstrap5],
     argTypes: {
         licenseType: licenseArgType,
         databaseAccess: databaseAccessArgType,
+    },
+    parameters: {
+        design: {
+            type: "figma",
+            url: "https://www.figma.com/design/5d0deYLNJimwts5zvCDy1H/Pages---Document-Revisions?node-id=0-1",
+        },
     },
 } satisfies Meta;
 

@@ -60,14 +60,20 @@ public sealed class OngoingTasks : AbstractOngoingTasks<SubscriptionConnectionsS
             {
                 TaskId = ex.TaskId,
                 TaskName = ex.Name,
+                FromToString = handler.FromToString,
                 ResponsibleNode = new NodeId { NodeTag = tag, NodeUrl = clusterTopology.GetUrlFromTag(tag) },
                 TaskState = ex.Disabled ? OngoingTaskState.Disabled : OngoingTaskState.Enabled,
                 DestinationDatabase = ex.Database,
+                HandlerId = handler.HandlerId,
                 DestinationUrl = connectionResult.Url,
                 MentorNode = ex.MentorNode,
                 PinToMentorNode = ex.PinToMentorNode,
                 TaskConnectionStatus = connectionResult.Status,
-                DelayReplicationFor = ex.DelayReplicationFor
+                DelayReplicationFor = ex.DelayReplicationFor,
+                LastAcceptedChangeVectorFromDestination = handler.LastAcceptedChangeVector,
+                SourceDatabaseChangeVector = handler.LastSentChangeVector,
+                LastSentEtag = handler.LastSentDocumentEtag,
+                LastDatabaseEtag = _database.ReadLastEtag()
             };
         }
     }
@@ -135,22 +141,27 @@ public sealed class OngoingTasks : AbstractOngoingTasks<SubscriptionConnectionsS
         return connectionStatus;
     }
 
-    protected override (string Url, OngoingTaskConnectionStatus Status) GetReplicationTaskConnectionStatus<T>(DatabaseTopology databaseTopology, ClusterTopology clusterTopology, T replication,
-        Dictionary<string, RavenConnectionString> connectionStrings, out string responsibleNodeTag, out RavenConnectionString connection)
+    protected override (string Url, OngoingTaskConnectionStatus Status) GetReplicationTaskConnectionStatus<T>(DatabaseTopology databaseTopology, ClusterTopology clusterTopology, T replication, 
+        Dictionary<string, RavenConnectionString> connectionStrings, out ExternalReplicationState replicationState, out string responsibleNodeTag, out RavenConnectionString connection, out long lastDatabaseEtag, out string error)
     {
+        error = null;
         connectionStrings.TryGetValue(replication.ConnectionStringName, out connection);
         replication.Database = connection?.Database;
         replication.ConnectionString = connection;
+        lastDatabaseEtag = _database.ReadLastEtag();
 
-        var taskStatus = ReplicationLoader.GetExternalReplicationState(_server, _database.Name, replication.TaskId);
-        responsibleNodeTag = OngoingTasksUtils.WhoseTaskIsIt(_server, databaseTopology, replication, taskStatus, _database.NotificationCenter);
+        replicationState = ReplicationLoader.GetExternalReplicationState(_server, _database.Name, replication.TaskId);
+        responsibleNodeTag = OngoingTasksUtils.WhoseTaskIsIt(_server, databaseTopology, replication, replicationState, _database.NotificationCenter);
 
         (string Url, OngoingTaskConnectionStatus Status) result = (null, OngoingTaskConnectionStatus.None);
 
         if (replication is ExternalReplication)
         {
             if (responsibleNodeTag == _server.NodeTag)
-                result = _database.ReplicationLoader.GetExternalReplicationDestination(replication.TaskId);
+            {
+                result = _database.ReplicationLoader.GetExternalReplicationDestination(replication.TaskId, out var fromToString, out error);
+                replicationState.FromToString = fromToString;
+            }
             else
                 result.Status = OngoingTaskConnectionStatus.NotOnThisNode;
         }
@@ -170,6 +181,13 @@ public sealed class OngoingTasks : AbstractOngoingTasks<SubscriptionConnectionsS
                         result = (incoming.ConnectionInfo.SourceUrl, OngoingTaskConnectionStatus.Active);
                         break;
                     }
+                }
+
+                if (result.Status == OngoingTaskConnectionStatus.NotActive &&
+                    _database.ReplicationLoader.OutgoingFailureInfo.TryGetValue(sinkReplication, out var info))
+                {
+                    info.Errors.TryPeek(out var exception);
+                    error = exception?.ToString();
                 }
             }
             else

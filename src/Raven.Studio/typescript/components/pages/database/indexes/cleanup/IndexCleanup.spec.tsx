@@ -20,7 +20,7 @@ describe("IndexCleanup", function () {
     it("is license restricted", async () => {
         const { screen, fireClick } = await rtlRender_WithWaitForLoad(<LicenseRestricted />);
 
-        fireClick(screen.getByText("Info Hub"));
+        await fireClick(screen.getByText("Info Hub"));
 
         const licensingText = await screen.findByText(/Licensing/i);
         expect(licensingText).toBeInTheDocument();

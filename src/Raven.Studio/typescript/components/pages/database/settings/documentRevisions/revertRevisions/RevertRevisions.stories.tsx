@@ -5,10 +5,16 @@ import { withStorybookContexts, withBootstrap5, databaseAccessArgType } from "te
 import RevertRevisions from "./RevertRevisions";
 
 export default {
-    title: "Pages/Database/Settings/DocumentRevisions/RevertRevisions",
+    title: "Pages/Settings/Document Revisions/RevertRevisions",
     decorators: [withStorybookContexts, withBootstrap5],
     argTypes: {
         databaseAccess: databaseAccessArgType,
+    },
+    parameters: {
+        design: {
+            type: "figma",
+            url: "https://www.figma.com/design/5d0deYLNJimwts5zvCDy1H/Pages---Document-Revisions?node-id=349-2135",
+        },
     },
 } satisfies Meta;
 
