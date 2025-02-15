@@ -7,9 +7,10 @@ import React from "react";
 
 export const StoreDecorator = (Story, context) => {
     useTheme(context.globals.theme);
-    resetAllMocks();
 
     const [store] = useState(() => {
+        resetAllMocks();
+
         const storeConfiguration = createStoreConfiguration();
         setEffectiveTestStore(storeConfiguration);
         return storeConfiguration;

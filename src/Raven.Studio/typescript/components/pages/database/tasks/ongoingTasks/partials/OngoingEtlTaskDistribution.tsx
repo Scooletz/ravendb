@@ -3,8 +3,10 @@ import { DistributionItem, DistributionLegend, LocationDistribution } from "comp
 import classNames from "classnames";
 import { AnyEtlOngoingTaskInfo, OngoingEtlTaskNodeInfo, OngoingTaskInfo } from "components/models/tasks";
 import { ProgressCircle } from "components/common/ProgressCircle";
-import { OngoingEtlTaskProgressTooltip } from "../OngoingEtlTaskProgressTooltip";
+import { OngoingEtlTaskProgressTooltip } from "../partials/OngoingEtlTaskProgressTooltip";
 import { Icon } from "components/common/Icon";
+import { databaseLocationComparator, withPreventDefault } from "components/utils/common";
+import { ErrorModal } from "components/pages/database/tasks/ongoingTasks/partials/ErrorModal";
 
 interface OngoingEtlTaskDistributionProps {
     task: AnyEtlOngoingTaskInfo;
@@ -32,6 +34,12 @@ function ItemWithTooltip(props: ItemWithTooltipProps) {
         </div>
     );
 
+    const [errorToDisplay, setErrorToDisplay] = useState<string>(null);
+
+    const toggleErrorModal = () => {
+        setErrorToDisplay((error) => (error ? null : nodeInfo.details?.error));
+    };
+
     const key = taskNodeInfoKey(nodeInfo);
     const hasError = !!nodeInfo.details?.error;
     const [node, setNode] = useState<HTMLDivElement>();
@@ -46,17 +54,30 @@ function ItemWithTooltip(props: ItemWithTooltipProps) {
                     {nodeInfo.location.nodeTag}
                 </div>
                 <div>{nodeInfo.status === "success" ? nodeInfo.details.taskConnectionStatus : ""}</div>
-                <div>{hasError ? <Icon icon="warning" color="danger" margin="m-0" /> : "-"}</div>
+                <div>
+                    {hasError ? (
+                        <a href="#" onClick={withPreventDefault(toggleErrorModal)}>
+                            <Icon icon="warning" color="danger" margin="m-0" />
+                        </a>
+                    ) : (
+                        "-"
+                    )}
+                </div>
                 <OngoingEtlTaskProgress task={task} nodeInfo={nodeInfo} />
             </DistributionItem>
-            {node && (
-                <OngoingEtlTaskProgressTooltip
-                    target={node}
-                    nodeInfo={nodeInfo}
-                    task={task}
-                    showPreview={showPreview}
-                />
-            )}
+            {node &&
+                (errorToDisplay ? (
+                    <ErrorModal key="modal" toggleErrorModal={toggleErrorModal} error={errorToDisplay} />
+                ) : (
+                    <OngoingEtlTaskProgressTooltip
+                        hasError={!!nodeInfo.details?.error ?? false}
+                        toggleErrorModal={toggleErrorModal}
+                        target={node}
+                        progress={nodeInfo.etlProgress}
+                        status={nodeInfo.status}
+                        showPreview={showPreview}
+                    />
+                ))}
         </div>
     );
 }
@@ -65,7 +86,10 @@ export function OngoingEtlTaskDistribution(props: OngoingEtlTaskDistributionProp
     const { task, showPreview } = props;
     const sharded = task.nodesInfo.some((x) => x.location.shardNumber != null);
 
-    const visibleNodes = task.nodesInfo.filter((x) => x.location.nodeTag === task.shared.responsibleNodeTag);
+    const visibleNodes = task.nodesInfo.filter(
+        (nodeInfo) =>
+            nodeInfo.details && task.responsibleLocations.find((l) => databaseLocationComparator(l, nodeInfo.location))
+    );
 
     const items = visibleNodes.map((nodeInfo) => {
         const key = taskNodeInfoKey(nodeInfo);
@@ -108,8 +132,15 @@ interface OngoingEtlTaskProgressProps {
 
 export function OngoingEtlTaskProgress(props: OngoingEtlTaskProgressProps) {
     const { nodeInfo, task } = props;
-    if (!nodeInfo.etlProgress) {
-        return <ProgressCircle state="running" />;
+
+    const disabled = task.shared.taskState === "Disabled";
+
+    if (!nodeInfo.etlProgress || nodeInfo.etlProgress.length === 0) {
+        return (
+            <ProgressCircle icon={disabled ? "stop" : null} state="running">
+                {disabled ? "Disabled" : "?"}
+            </ProgressCircle>
+        );
     }
 
     if (nodeInfo.etlProgress.every((x) => x.completed) && task.shared.taskState === "Enabled") {
@@ -124,7 +155,7 @@ export function OngoingEtlTaskProgress(props: OngoingEtlTaskProgressProps) {
     const totalItems = nodeInfo.etlProgress.reduce((acc, current) => acc + current.global.total, 0);
     const totalProcessed = nodeInfo.etlProgress.reduce((acc, current) => acc + current.global.processed, 0);
 
-    const percentage = Math.floor((totalProcessed * 100) / totalItems) / 100;
+    const percentage = totalItems === 0 ? 1 : Math.floor((totalProcessed * 100) / totalItems) / 100;
     const anyDisabled = nodeInfo.etlProgress.some((x) => x.disabled);
 
     return (

@@ -27,6 +27,8 @@ import { ConnectionStringDto } from "components/pages/database/settings/connecti
 import getFolderPathOptionsCommand from "commands/resources/getFolderPathOptionsCommand";
 import getBackupLocationCommand from "commands/database/tasks/getBackupLocationCommand";
 import testAzureQueueStorageServerConnectionCommand from "commands/database/cluster/testAzureQueueStorageServerConnectionCommand";
+import replicationProgressCommand from "commands/database/tasks/replicationProgressCommand";
+import internalReplicationProgressCommand from "commands/database/tasks/internalReplicationProgressCommand";
 import testSnowflakeConnectionStringCommand from "commands/database/cluster/testSnowflakeConnectionStringCommand";
 import testAmazonSqsServerConnectionCommand from "commands/database/cluster/testAmazonSqsServerConnectionCommand";
 
@@ -68,8 +70,16 @@ export default class TasksService {
         return new toggleOngoingTaskCommand(databaseName, taskType, task.taskId, task.taskName, !enable).execute();
     }
 
-    async getProgress(databaseName: string, location: databaseLocationSpecifier) {
+    async getEtlProgress(databaseName: string, location: databaseLocationSpecifier) {
         return new etlProgressCommand(databaseName, location, false).execute();
+    }
+
+    async getReplicationProgress(databaseName: string, location: databaseLocationSpecifier) {
+        return new replicationProgressCommand(databaseName, location, false).execute();
+    }
+
+    async getInternalReplicationProgress(databaseName: string, location: databaseLocationSpecifier) {
+        return new internalReplicationProgressCommand(databaseName, location, false).execute();
     }
 
     async getManualBackup(databaseName: string) {
