@@ -30,6 +30,7 @@ const config: StorybookConfig = {
         "@storybook/addon-interactions",
         "@storybook/addon-webpack5-compiler-swc",
         "@storybook/addon-a11y",
+        "@storybook/addon-designs",
     ],
 
     framework: {
@@ -45,6 +46,22 @@ const config: StorybookConfig = {
                 ...webpackConfig.resolve.alias,
             };
         }
+
+        if (typeof config.entry === "object") {
+            // the default style is the last one so it's also initial
+            config.entry = {
+                ...config.entry,
+                "styles-light": path.resolve(__dirname, "../wwwroot/Content/css/styles-light.less"),
+                "styles-blue": path.resolve(__dirname, "../wwwroot/Content/css/styles-blue.less"),
+                "styles-classic": path.resolve(__dirname, "../wwwroot/Content/css/styles-classic.less"),
+                styles: path.resolve(__dirname, "../wwwroot/Content/css/styles.less"),
+                "bs5-styles-light": path.resolve(__dirname, "../wwwroot/Content/css/bs5-styles-light.scss"),
+                "bs5-styles-blue": path.resolve(__dirname, "../wwwroot/Content/css/bs5-styles-blue.scss"),
+                "bs5-styles-classic": path.resolve(__dirname, "../wwwroot/Content/css/bs5-styles-classic.scss"),
+                "bs5-styles": path.resolve(__dirname, "../wwwroot/Content/css/bs5-styles.scss"),
+            };
+        }
+
         config.watchOptions ??= {};
         config.watchOptions.ignored = /(node_modules|storybook-config-entry|storybook-stories)/;
 

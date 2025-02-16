@@ -33,6 +33,7 @@ namespace Voron.Impl.FileHeaders
 
         private FileHeader* _theHeader;
         private byte* _headerPtr;
+        private readonly NativeMemory.ThreadStats _stats;
 
         internal static string[] HeaderFileNames = { "headers.one", "headers.two" };
 
@@ -40,7 +41,7 @@ namespace Voron.Impl.FileHeaders
         {
             _env = env;
 
-            _headerPtr = NativeMemory.AllocateMemory(sizeof(FileHeader));
+            _headerPtr = NativeMemory.AllocateMemory(sizeof(FileHeader), out _stats);
             _theHeader = (FileHeader*)_headerPtr;
         }
 
@@ -306,7 +307,7 @@ namespace Voron.Impl.FileHeaders
             {
                 if (_headerPtr != null)
                 {
-                    NativeMemory.Free(_headerPtr, sizeof(FileHeader));
+                    NativeMemory.Free(_headerPtr, sizeof(FileHeader), _stats);
                     _headerPtr = null;
                     _theHeader = null;
                 }

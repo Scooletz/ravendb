@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Buffers;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -921,9 +921,9 @@ namespace Sparrow.Server
         private sealed class ByteStringMemoryManager<T>(ByteStringContext<TAllocator> context, ByteString str) : MemoryManager<T>
             where T : unmanaged
         {
-            public override Memory<T> Memory => CreateMemory(str.Length);
+            public override Memory<T> Memory => CreateMemory(str.Length / sizeof(T));
 
-            public override Span<T> GetSpan() => new(str.Ptr, str.Length);
+            public override Span<T> GetSpan() => new(str.Ptr, str.Length / sizeof(T));
 
             public override MemoryHandle Pin(int elementIndex = 0)
             {

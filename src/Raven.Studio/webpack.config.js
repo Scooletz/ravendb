@@ -287,7 +287,7 @@ module.exports = (env, args) => {
                 {
                     test: /\.tsx?$/,
                     use: {
-                        loader: 'swc-loader'
+                        loader: 'swc-loader',
                     },
                 },
                 {

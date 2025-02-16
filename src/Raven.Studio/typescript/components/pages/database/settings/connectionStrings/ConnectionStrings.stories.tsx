@@ -8,8 +8,14 @@ import { mockServices } from "test/mocks/services/MockServices";
 import { SharedStubs } from "test/stubs/SharedStubs";
 
 export default {
-    title: "Pages/Database/Settings",
+    title: "Pages/Settings/Connection Strings",
     decorators: [withStorybookContexts, withBootstrap5],
+    parameters: {
+        design: {
+            type: "figma",
+            url: "https://www.figma.com/design/S2r3Mrar3nB8OlZOGvHrlD/Pages---Connection-Strings?node-id=0-1&t=VTJvJLrCI0FvZpXO-1",
+        },
+    },
 } satisfies Meta;
 
 interface DefaultConnectionStringsProps {

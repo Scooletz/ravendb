@@ -465,6 +465,7 @@ const allIconNames = exhaustiveStringTuple<IconName>()(
     "tick",
     "timeseries-settings",
     "timeseries",
+    "tombstones",
     "toggle-off",
     "toggle-on",
     "topology",

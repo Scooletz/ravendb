@@ -23,6 +23,7 @@ import { Collapse, Input } from "reactstrap";
 import { databaseSelectors } from "components/common/shell/databaseSliceSelectors";
 import { useAppSelector } from "components/store";
 import { accessManagerSelectors } from "components/common/shell/accessManagerSliceSelectors";
+import { ExternalReplicationTaskDistribution } from "components/pages/database/tasks/ongoingTasks/partials/ExternalReplicationTaskDistribution";
 
 type ReplicationSinkPanelProps = BaseOngoingTaskPanelProps<OngoingTaskReplicationSinkInfo>;
 
@@ -103,6 +104,7 @@ export function ReplicationSinkPanel(props: ReplicationSinkPanelProps) {
             </RichPanelHeader>
             <Collapse isOpen={detailsVisible}>
                 <Details {...props} canEdit={canEdit} />
+                <ExternalReplicationTaskDistribution task={data} />
             </Collapse>
         </RichPanel>
     );

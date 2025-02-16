@@ -14,7 +14,7 @@ interface Progress {
     processed: number;
 }
 
-export interface OngoingTaskNodeProgressDetails {
+export interface OngoingTaskNodeEtlProgressDetails {
     global: Progress;
     documents: Progress;
     documentTombstones: Progress;
@@ -24,6 +24,27 @@ export interface OngoingTaskNodeProgressDetails {
     completed: boolean;
     processedPerSecond: number;
     transactionalId?: string;
+}
+
+export interface OngoingTaskNodeReplicationProgressDetails {
+    completed: boolean;
+    global: Progress;
+    documents: Progress;
+    documentTombstones: Progress;
+    counterGroups: Progress;
+    attachments: Progress;
+    revisions: Progress;
+    timeSeriesDeletedRanges: Progress;
+    timeSeries: Progress;
+}
+
+export interface OngoingTaskNodeInternalReplicationProgressDetails extends OngoingTaskNodeReplicationProgressDetails {
+    destinationNodeTag: string;
+    fromToString: string;
+    lastAcceptedChangeVectorFromDestination: string;
+    lastSentEtag: number;
+    lastDatabaseEtag: number;
+    sourceDatabaseChangeVector: string;
 }
 
 export interface OngoingTaskNodeInfoDetails {
@@ -40,8 +61,20 @@ export interface OngoingTaskNodeInfo<TNodeInfo extends OngoingTaskNodeInfoDetail
 
 export interface OngoingEtlTaskNodeInfo<TNodeInfo extends OngoingTaskNodeInfoDetails = OngoingTaskNodeInfoDetails>
     extends OngoingTaskNodeInfo<TNodeInfo> {
-    etlProgress: OngoingTaskNodeProgressDetails[];
+    etlProgress: OngoingTaskNodeEtlProgressDetails[];
 }
+
+export interface OngoingReplicationProgressAwareTaskNodeInfo<
+    TNodeInfo extends OngoingTaskNodeInfoHandlerAwareDetails = OngoingTaskNodeInfoHandlerAwareDetails,
+    TProgress extends OngoingTaskNodeReplicationProgressDetails = OngoingTaskNodeReplicationProgressDetails,
+> extends OngoingTaskNodeInfo<TNodeInfo> {
+    progress: TProgress[];
+}
+
+export type OngoingInternalReplicationNodeInfo = OngoingReplicationProgressAwareTaskNodeInfo<
+    never,
+    OngoingTaskNodeInternalReplicationProgressDetails
+> & { error?: string };
 
 export type OngoingSubscriptionTaskNodeInfo = OngoingTaskNodeInfo<OngoingTaskSubscriptionNodeInfoDetails>;
 
@@ -49,8 +82,8 @@ export interface OngoingTaskSharedInfo {
     taskName: string;
     taskId: number;
     taskType: StudioTaskType;
-    mentorNodeTag: string;
-    responsibleNodeTag: string;
+    mentorNodeTag: string; // available only for non-sharded databases
+    responsibleNodeTag: string; // available only for non-sharded databases
     taskState: OngoingTaskState;
     serverWide: boolean;
 }
@@ -146,7 +179,20 @@ export interface OngoingTaskSubscriptionSharedInfo extends OngoingTaskSharedInfo
 
 export type OngoingTaskElasticSearchEtlNodeInfoDetails = OngoingTaskNodeInfoDetails;
 
-export type OngoingTaskExternalReplicationNodeInfoDetails = OngoingTaskNodeInfoDetails;
+export interface OngoingTaskNodeInfoHandlerAwareDetails extends OngoingTaskNodeInfoDetails {
+    handlerId: string;
+}
+
+export interface OngoingTaskAbstractReplicationNodeInfoDetails extends OngoingTaskNodeInfoHandlerAwareDetails {
+    fromToString: string;
+    lastAcceptedChangeVectorFromDestination: string;
+    lastSentEtag: number;
+    lastDatabaseEtag: number;
+    sourceDatabaseChangeVector: string;
+}
+
+export type OngoingTaskExternalReplicationNodeInfoDetails = OngoingTaskAbstractReplicationNodeInfoDetails;
+export type OngoingTaskInternalReplicationNodeInfoDetails = OngoingTaskAbstractReplicationNodeInfoDetails;
 
 export type OngoingTaskOlapEtlNodeInfoDetails = OngoingTaskNodeInfoDetails;
 
@@ -156,9 +202,9 @@ export interface OngoingTaskPeriodicBackupNodeInfoDetails extends OngoingTaskNod
 
 export type OngoingTaskRavenEtlNodeInfoDetails = OngoingTaskNodeInfoDetails;
 
-export type OngoingTaskReplicationHubNodeInfoDetails = OngoingTaskNodeInfoDetails;
+export type OngoingTaskReplicationHubNodeInfoDetails = OngoingTaskAbstractReplicationNodeInfoDetails;
 
-export type OngoingTaskReplicationSinkNodeInfoDetails = OngoingTaskNodeInfoDetails;
+export type OngoingTaskReplicationSinkNodeInfoDetails = OngoingTaskAbstractReplicationNodeInfoDetails;
 
 export type OngoingTaskSqlEtlNodeInfoDetails = OngoingTaskNodeInfoDetails;
 
@@ -195,6 +241,7 @@ export interface OngoingTaskInfo<
 > {
     shared: TSharded;
     nodesInfo: TNodesInfo[];
+    responsibleLocations: databaseLocationSpecifier[];
 }
 
 export type OngoingTaskElasticSearchEtlInfo = OngoingTaskInfo<
@@ -204,7 +251,7 @@ export type OngoingTaskElasticSearchEtlInfo = OngoingTaskInfo<
 
 export type OngoingTaskExternalReplicationInfo = OngoingTaskInfo<
     OngoingTaskExternalReplicationSharedInfo,
-    OngoingTaskNodeInfo<OngoingTaskExternalReplicationNodeInfoDetails>
+    OngoingReplicationProgressAwareTaskNodeInfo<OngoingTaskExternalReplicationNodeInfoDetails>
 >;
 
 export type OngoingTaskOlapEtlInfo = OngoingTaskInfo<
@@ -224,14 +271,14 @@ export type OngoingTaskRavenEtlInfo = OngoingTaskInfo<
 
 export type OngoingTaskReplicationHubInfo = OngoingTaskInfo<
     OngoingTaskReplicationHubSharedInfo,
-    OngoingTaskNodeInfo<OngoingTaskReplicationHubNodeInfoDetails>
+    OngoingReplicationProgressAwareTaskNodeInfo<OngoingTaskReplicationHubNodeInfoDetails>
 >;
 
 export type OngoingTaskHubDefinitionInfo = OngoingTaskInfo<OngoingTaskHubDefinitionSharedInfo, never>;
 
 export type OngoingTaskReplicationSinkInfo = OngoingTaskInfo<
     OngoingTaskReplicationSinkSharedInfo,
-    OngoingTaskNodeInfo<OngoingTaskReplicationSinkNodeInfoDetails>
+    OngoingReplicationProgressAwareTaskNodeInfo<OngoingTaskReplicationSinkNodeInfoDetails>
 >;
 
 export type OngoingTaskSqlEtlInfo = OngoingTaskInfo<

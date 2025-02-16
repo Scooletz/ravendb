@@ -10,6 +10,7 @@ interface RichAlertProps extends AlertProps {
     title?: string;
     color?: never;
     onCancel?: () => void;
+    variant: (typeof richAlertColors)[number];
 }
 
 const defaultIcons: { [key: string]: IconName } = {
@@ -18,6 +19,20 @@ const defaultIcons: { [key: string]: IconName } = {
     warning: "warning",
     success: "check",
 };
+
+export const richAlertColors = [
+    "primary",
+    "secondary",
+    "success",
+    "warning",
+    "danger",
+    "info",
+    "progress",
+    "node",
+    "shard",
+    "dark",
+    "light",
+] as const;
 
 export function RichAlert({ className, variant, children, icon, iconAddon, title, onCancel, ...rest }: RichAlertProps) {
     const renderAlertIcon = icon ?? defaultIcons[variant] ?? "terms";

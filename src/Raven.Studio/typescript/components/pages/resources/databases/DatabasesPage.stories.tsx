@@ -12,6 +12,12 @@ export default {
     title: "Pages/Databases",
     component: DatabasesPage,
     decorators: [withStorybookContexts, withBootstrap5],
+    parameters: {
+        design: {
+            type: "figma",
+            url: "https://www.figma.com/design/qRXxVe9VARbMIfMjin9fr8/Pages---Databases?node-id=0-1",
+        },
+    },
 } satisfies Meta<typeof DatabasesPage>;
 
 function commonInit() {
@@ -135,7 +141,7 @@ export const CompactDatabaseAuto: StoryFn<typeof DatabasesPage> = () => {
 
     mockServices.databasesService.withGetDatabasesState((tag) => getDatabaseNamesForNode(tag, value));
 
-    return <DatabasesPage compact={value.name} />;
+    return <DatabasesPage queryParams={{ compact: value.name }} />;
 };
 
 function assignNodeType(tag: string): databaseGroupNodeType {

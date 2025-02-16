@@ -62,7 +62,10 @@ namespace Raven.Server.Documents.Indexes
                     {
                         foreach (var referencedCollection in referencedCollections)
                         {
-                            var lastDocEtag = queryContext.Documents.DocumentDatabase.DocumentsStorage.GetLastDocumentEtag(queryContext.Documents.Transaction.InnerTransaction, referencedCollection.Name);
+                            var lastDocEtag = referencedCollection.Name == Constants.Documents.Collections.AllDocumentsCollection
+                                ? DocumentsStorage.ReadLastDocumentEtag(queryContext.Documents.Transaction.InnerTransaction)
+                                : queryContext.Documents.DocumentDatabase.DocumentsStorage.GetLastDocumentEtag(queryContext.Documents.Transaction.InnerTransaction, referencedCollection.Name);
+
                             var lastProcessedReferenceEtag = index._indexStorage.ReferencesForDocuments.ReadLastProcessedReferenceEtag(indexContext.Transaction.InnerTransaction, collection, referencedCollection);
                             var lastProcessedTombstoneEtag = index._indexStorage.ReferencesForDocuments.ReadLastProcessedReferenceTombstoneEtag(indexContext.Transaction.InnerTransaction, collection, referencedCollection);
 
@@ -82,7 +85,9 @@ namespace Raven.Server.Documents.Indexes
                                                          $"but last processed document etag for that collection is '{lastProcessedReferenceEtag:#,#;;0}'.");
                                 }
 
-                                var lastTombstoneEtag = queryContext.Documents.DocumentDatabase.DocumentsStorage.GetLastTombstoneEtag(queryContext.Documents.Transaction.InnerTransaction, referencedCollection.Name);
+                                var lastTombstoneEtag = referencedCollection.Name == Constants.Documents.Collections.AllDocumentsCollection
+                                    ? DocumentsStorage.ReadLastTombstoneEtag(queryContext.Documents.Transaction.InnerTransaction)
+                                    : queryContext.Documents.DocumentDatabase.DocumentsStorage.GetLastTombstoneEtag(queryContext.Documents.Transaction.InnerTransaction, referencedCollection.Name);
 
                                 if (lastTombstoneEtag > lastProcessedTombstoneEtag)
                                 {

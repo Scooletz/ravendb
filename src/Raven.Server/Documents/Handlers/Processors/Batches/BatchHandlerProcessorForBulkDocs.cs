@@ -230,11 +230,8 @@ internal sealed class BatchHandlerProcessorForBulkDocs : AbstractBatchHandlerPro
                 if (index.State is IndexState.Disabled)
                     continue;
 
-                if (index.Collections.Contains(Constants.Documents.Collections.AllDocumentsCollection) ||
-                    index.WorksOnAnyCollection(modifiedCollections))
-                {
+                if (index.WorksOnAnyCollection(modifiedCollections))
                     indexesToCheck.Add(index);
-                }
             }
         }
         return indexesToCheck;

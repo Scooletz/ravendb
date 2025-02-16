@@ -6,9 +6,15 @@ import { mockServices } from "test/mocks/services/MockServices";
 import { mockStore } from "test/mocks/store/MockStore";
 
 export default {
-    title: "Pages/Database/Settings/Document Expiration",
+    title: "Pages/Settings/Document Expiration",
     component: DocumentExpiration,
     decorators: [withStorybookContexts, withBootstrap5],
+    parameters: {
+        design: {
+            type: "figma",
+            url: "https://www.figma.com/design/kec7ntviGEHpznlSWP2lUL/Pages---Document-Expiration?node-id=0-1&t=OcNE7Jesfi8J2s57-1",
+        },
+    },
 } satisfies Meta<typeof DocumentExpiration>;
 
 function commonInit(hasConfiguration: boolean) {

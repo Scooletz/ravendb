@@ -7,6 +7,9 @@ import GetPeriodicBackupStatusOperationResult = Raven.Client.Documents.Operation
 import collectionsStats = require("models/database/documents/collectionsStats");
 import { DatabasesStubs } from "test/stubs/DatabasesStubs";
 import { SharedStubs } from "test/stubs/SharedStubs";
+import ReplicationTaskProgress = Raven.Server.Documents.Replication.Stats.ReplicationTaskProgress;
+import InternalReplicationTaskProgress = Raven.Server.Documents.Replication.Stats.InternalReplicationTaskProgress;
+import { mockJQueryError } from "test/mocks/utils";
 
 export default class MockTasksService extends AutoMockService<TasksService> {
     constructor() {
@@ -17,8 +20,38 @@ export default class MockTasksService extends AutoMockService<TasksService> {
         return this.mockResolvedValue(this.mocks.getOngoingTasks, dto, TasksStubs.getTasksList());
     }
 
-    withGetProgress(dto?: MockedValue<resultsDto<EtlTaskProgress>>) {
-        return this.mockResolvedValue(this.mocks.getProgress, dto, TasksStubs.getTasksProgress());
+    withThrowingGetTasks(
+        shouldThrow: (databaseName: string, location: databaseLocationSpecifier) => boolean,
+        dto?: MockedValue<OngoingTasksResult>
+    ) {
+        const mockedValue = this.createValue(dto, TasksStubs.getTasksList());
+        return this.mocks.getOngoingTasks.mockImplementation(async (db, location) => {
+            if (shouldThrow(db, location)) {
+                throw mockJQueryError("This is error message");
+            } else {
+                return mockedValue;
+            }
+        });
+    }
+
+    withGetEtlProgress(dto?: MockedValue<resultsDto<EtlTaskProgress>>) {
+        return this.mockResolvedValue(this.mocks.getEtlProgress, dto, TasksStubs.getEtlTasksProgress());
+    }
+
+    withGetExternalReplicationProgress(dto?: MockedValue<resultsDto<ReplicationTaskProgress>>) {
+        return this.mockResolvedValue(
+            this.mocks.getReplicationProgress,
+            dto,
+            TasksStubs.getExternalReplicationTasksProgress()
+        );
+    }
+
+    withGetInternalReplicationProgress(dto?: MockedValue<resultsDto<InternalReplicationTaskProgress>>) {
+        return this.mockResolvedValue(
+            this.mocks.getInternalReplicationProgress,
+            dto,
+            TasksStubs.getInternalReplicationTasksProgress()
+        );
     }
 
     withGetManualBackup(dto?: MockedValue<GetPeriodicBackupStatusOperationResult>) {
