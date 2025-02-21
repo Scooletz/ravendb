@@ -11,11 +11,6 @@ namespace Voron.Data
             return false;
         }
 
-        public bool SeekBackward(Slice key)
-        {
-            return false;
-        }
-
         public bool DoRequireValidation
         {
             get { throw new InvalidOperationException("No current page"); }

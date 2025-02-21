@@ -86,7 +86,7 @@ namespace Voron.Data.BTrees
 
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public TreeNodeHeader* Search(LowLevelTransaction tx, Slice key, bool backward = false)
+        public TreeNodeHeader* Search(LowLevelTransaction tx, Slice key)
         {
             int numberOfEntries = NumberOfEntries;
             if (numberOfEntries == 0)
@@ -129,19 +129,12 @@ namespace Voron.Data.BTrees
                         high = position - 1;
                 }
 
-                if (backward)
+                if (lastMatch > 0) // found entry less than key
                 {
-                    if (lastMatch < 0)  // found entry greater than key
-                        position--;
-                }
-                else
-                {
-                    if (lastMatch > 0) // found entry less than key
-                        position++; // move to the smallest entry larger than the key
-
-                    Debug.Assert(position < ushort.MaxValue);
+                    position++; // move to the smallest entry larger than the key
                 }
 
+                Debug.Assert(position < ushort.MaxValue);
                 lastSearchPosition = position;
                 goto MultipleEntryKey;
             }
@@ -175,12 +168,7 @@ namespace Voron.Data.BTrees
                     LastMatch = SliceComparer.CompareInline(key, pageKey);
                 }
 
-                if (backward)
-                    LastSearchPosition = LastMatch < 0 ? -1 : 0;
-                else
-                    LastSearchPosition = LastMatch > 0 ? 1 : 0;
-                
-
+                LastSearchPosition = LastMatch > 0 ? 1 : 0;
                 return LastSearchPosition == 0 ? node : null;
             }
 
@@ -189,7 +177,7 @@ namespace Voron.Data.BTrees
                 LastMatch = lastMatch;
                 LastSearchPosition = lastSearchPosition;
 
-                if (lastSearchPosition<=-1 || lastSearchPosition >= numberOfEntries)
+                if (lastSearchPosition >= numberOfEntries)
                     return null;
 
                 return GetNode(lastSearchPosition);
