@@ -189,12 +189,7 @@ namespace Voron.Data.BTrees
                 LastMatch = lastMatch;
                 LastSearchPosition = lastSearchPosition;
 
-                if (backward)
-                {
-                    if (lastSearchPosition <= -1)
-                        return null;
-                }
-                else if (lastSearchPosition >= numberOfEntries)
+                if (lastSearchPosition<=-1 || lastSearchPosition >= numberOfEntries)
                     return null;
 
                 return GetNode(lastSearchPosition);
