@@ -132,7 +132,7 @@ namespace Voron.Data.BTrees
                 if (backward)
                 {
                     if (lastMatch < 0)  // found entry greater than key
-                        position--; // move to the largest entry smaller than the key
+                        position--;
                 }
                 else
                 {

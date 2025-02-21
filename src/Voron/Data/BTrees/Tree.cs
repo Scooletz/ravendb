@@ -724,9 +724,9 @@ namespace Voron.Data.BTrees
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private int SetLastSearchPosition(Slice key, TreePage p, ref bool leftmostPage, ref bool rightmostPage)
+        private int SetLastSearchPosition(Slice key, TreePage p, ref bool leftmostPage, ref bool rightmostPage, bool backward = false)
         {
-            if (p.Search(_llt, key) != null)
+            if (p.Search(_llt, key, backward) != null)
             {
                 if (p.LastMatch != 0)
                 {
@@ -774,7 +774,7 @@ namespace Voron.Data.BTrees
                 }
                 else
                 {
-                    nodePos = SetLastSearchPosition(key, p, ref leftmostPage, ref rightmostPage);
+                    nodePos = SetLastSearchPosition(key, p, ref leftmostPage, ref rightmostPage, backward);
                 }
 
                 var pageNode = p.GetNode(nodePos);
