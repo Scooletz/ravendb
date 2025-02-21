@@ -1373,11 +1373,17 @@ namespace Voron.Data.Tables
 
             using (var it = tree.Iterate(true))
             {
-                if (it.SeekBackward(last) == false)
+                if (it.Seek(last) == false && it.Seek(Slices.AfterAllKeys) == false)
                     yield break;
 
                 it.SetRequiredPrefix(prefix);
                 if (SliceComparer.StartWith(it.CurrentKey, it.RequiredPrefix) == false)
+                {
+                    if (it.MovePrev() == false)
+                        yield break;
+                }
+
+                if (SliceComparer.CompareInline(it.CurrentKey, last) > 0)
                 {
                     if (it.MovePrev() == false)
                         yield break;
@@ -1405,7 +1411,7 @@ namespace Voron.Data.Tables
 
             using (var it = tree.Iterate(true))
             {
-                if (it.SeekBackward(last) == false)
+                if (it.Seek(last) == false && it.Seek(Slices.AfterAllKeys) == false)
                     yield break;
 
                 do
@@ -1430,7 +1436,7 @@ namespace Voron.Data.Tables
 
             using (var it = tree.Iterate(true))
             {
-                if (it.SeekBackward(last) == false)
+                if (it.Seek(last) == false && it.Seek(Slices.AfterAllKeys) == false)
                     return null;
 
                 it.SetRequiredPrefix(prefix);
