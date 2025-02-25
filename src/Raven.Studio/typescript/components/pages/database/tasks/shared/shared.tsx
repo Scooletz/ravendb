@@ -8,14 +8,7 @@ import useBoolean from "hooks/useBoolean";
 import React, { useCallback, useState } from "react";
 import router from "plugins/router";
 import { RichPanelDetailItem, RichPanelName } from "components/common/RichPanel";
-import {
-    ButtonGroup,
-    DropdownItem,
-    DropdownMenu,
-    DropdownToggle,
-    Spinner,
-    UncontrolledDropdown,
-} from "reactstrap";
+import { ButtonGroup, DropdownItem, DropdownMenu, DropdownToggle, Spinner, UncontrolledDropdown } from "reactstrap";
 import { Icon } from "components/common/Icon";
 import { OngoingTaskOperationConfirmType } from "./OngoingTaskOperationConfirm";
 import assertUnreachable from "components/utils/assertUnreachable";
