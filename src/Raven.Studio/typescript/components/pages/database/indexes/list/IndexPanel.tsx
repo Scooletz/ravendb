@@ -21,18 +21,10 @@ import {
     RichPanelName,
     RichPanelSelect,
 } from "components/common/RichPanel";
-import {
-    Badge,
-    ButtonGroup,
-    Collapse,
-    DropdownItem,
-    DropdownMenu,
-    DropdownToggle,
-    Input,
-    Spinner,
-    UncontrolledDropdown,
-    UncontrolledTooltip,
-} from "reactstrap";
+import Spinner from "react-bootstrap/Spinner";
+import Badge from "react-bootstrap/Badge";
+import Collapse from "react-bootstrap/Collapse";
+import { ButtonGroup, DropdownItem, DropdownMenu, DropdownToggle, Input, UncontrolledDropdown } from "reactstrap";
 import Button from "react-bootstrap/Button";
 import assertUnreachable from "components/utils/assertUnreachable";
 import useUniqueId from "components/hooks/useUniqueId";
@@ -44,6 +36,8 @@ import { accessManagerSelectors } from "components/common/shell/accessManagerSli
 import ResetIndexesButton from "components/pages/database/indexes/list/partials/ResetIndexesButton";
 import { ExportIndexes } from "components/pages/database/indexes/list/migration/export/ExportIndexes";
 import { clusterSelectors } from "components/common/shell/clusterSlice";
+import OverlayTrigger from "react-bootstrap/OverlayTrigger";
+import Tooltip from "react-bootstrap/Tooltip";
 
 export interface IndexPanelProps {
     index: IndexSharedInfo;
@@ -412,59 +406,65 @@ export function IndexPanelInternal(props: IndexPanelProps, ref: ForwardedRef<HTM
                     </RichPanelDetailItem>
                     {(index.reduceOutputCollectionName || index.patternForReferencesToReduceOutputCollection) && (
                         <RichPanelDetailItem>
-                            <div className="index-type-icon" id={reduceOutputId}>
-                                {index.reduceOutputCollectionName &&
-                                    !index.patternForReferencesToReduceOutputCollection && (
-                                        <span>
-                                            <Icon icon="output-collection" margin="m-0" />
-                                        </span>
-                                    )}
-                                {index.patternForReferencesToReduceOutputCollection && (
-                                    <span>
-                                        <Icon icon="reference-pattern" margin="m-0" />
-                                    </span>
-                                )}
-                                <UncontrolledTooltip target={reduceOutputId} animation placement="right">
-                                    <>
-                                        {index.reduceOutputCollectionName && (
-                                            <span>
-                                                Reduce Results are saved in Collection:
-                                                <br />
-                                                <strong>{index.reduceOutputCollectionName}</strong>
-                                            </span>
-                                        )}
-                                        {index.collectionNameForReferenceDocuments && (
-                                            <span>
-                                                <br />
-                                                Referencing Documents are saved in Collection:
-                                                <br />
-                                                <strong>{index.collectionNameForReferenceDocuments}</strong>
-                                            </span>
-                                        )}
-                                        {!index.collectionNameForReferenceDocuments &&
-                                            index.patternForReferencesToReduceOutputCollection && (
+                            <OverlayTrigger
+                                placement="right"
+                                overlay={
+                                    <Tooltip id={reduceOutputId}>
+                                        <>
+                                            {index.reduceOutputCollectionName && (
+                                                <span>
+                                                    Reduce Results are saved in Collection:
+                                                    <br />
+                                                    <strong>{index.reduceOutputCollectionName}</strong>
+                                                </span>
+                                            )}
+                                            {index.collectionNameForReferenceDocuments && (
                                                 <span>
                                                     <br />
                                                     Referencing Documents are saved in Collection:
                                                     <br />
-                                                    <strong>{index.reduceOutputCollectionName}/References</strong>
+                                                    <strong>{index.collectionNameForReferenceDocuments}</strong>
                                                 </span>
                                             )}
-                                    </>
-                                </UncontrolledTooltip>
-                            </div>
+                                            {!index.collectionNameForReferenceDocuments &&
+                                                index.patternForReferencesToReduceOutputCollection && (
+                                                    <span>
+                                                        <br />
+                                                        Referencing Documents are saved in Collection:
+                                                        <br />
+                                                        <strong>{index.reduceOutputCollectionName}/References</strong>
+                                                    </span>
+                                                )}
+                                        </>
+                                    </Tooltip>
+                                }
+                            >
+                                <div className="index-type-icon" id={reduceOutputId}>
+                                    {index.reduceOutputCollectionName &&
+                                        !index.patternForReferencesToReduceOutputCollection && (
+                                            <span>
+                                                <Icon icon="output-collection" margin="m-0" />
+                                            </span>
+                                        )}
+                                    {index.patternForReferencesToReduceOutputCollection && (
+                                        <span>
+                                            <Icon icon="reference-pattern" margin="m-0" />
+                                        </span>
+                                    )}
+                                </div>
+                            </OverlayTrigger>
                         </RichPanelDetailItem>
                     )}
                     <ReferencedCollections collections={index.referencedCollections} />
                     {(hasReplacement || isReplacement) && (
                         <RichPanelDetailItem>
                             {hasReplacement && (
-                                <Badge pill color="warning" className="ms-3">
+                                <Badge pill bg="warning" className="ms-3">
                                     OLD
                                 </Badge>
                             )}
                             {isReplacement && (
-                                <Badge pill color="warning" className="ms-3">
+                                <Badge pill bg="warning" className="ms-3">
                                     NEW
                                 </Badge>
                             )}
@@ -489,13 +489,15 @@ export function IndexPanelInternal(props: IndexPanelProps, ref: ForwardedRef<HTM
                     )}
                 </RichPanelDetails>
                 <div className="px-3 pb-2">
-                    <Collapse isOpen={!panelCollapsed}>
-                        <IndexDistribution
-                            index={index}
-                            globalIndexingStatus={globalIndexingStatus}
-                            showStaleReason={(location) => showStaleReasons(index, location)}
-                            openFaulty={openFaulty}
-                        />
+                    <Collapse in={!panelCollapsed}>
+                        <div>
+                            <IndexDistribution
+                                index={index}
+                                globalIndexingStatus={globalIndexingStatus}
+                                showStaleReason={(location) => showStaleReasons(index, location)}
+                                openFaulty={openFaulty}
+                            />
+                        </div>
                     </Collapse>
                 </div>
             </RichPanel>
