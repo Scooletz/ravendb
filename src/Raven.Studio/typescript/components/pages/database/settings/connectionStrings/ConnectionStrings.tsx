@@ -1,5 +1,6 @@
 ﻿import React, { useEffect } from "react";
-import { Button, Col, Row, UncontrolledTooltip } from "reactstrap";
+import { Col, Row, UncontrolledTooltip } from "reactstrap";
+import Button from "react-bootstrap/Button";
 import { AboutViewHeading } from "components/common/AboutView";
 import { Icon } from "components/common/Icon";
 import { useAppDispatch, useAppSelector } from "components/store";
@@ -20,7 +21,7 @@ export interface ConnectionStringsUrlParameters {
     type?: StudioEtlType;
 }
 
-export default function ConnectionStrings(props: ReactProps<any, ConnectionStringsUrlParameters>) {
+export default function ConnectionStrings({ queryParams }: ReactQueryParamsProps<ConnectionStringsUrlParameters>) {
     const { hasNone: hasNoneInLicense } = useConnectionStringsLicense();
     const databaseName = useAppSelector(databaseSelectors.activeDatabaseName);
     const hasDatabaseAdminAccess = useAppSelector(accessManagerSelectors.getHasDatabaseAdminAccess)();
@@ -30,8 +31,8 @@ export default function ConnectionStrings(props: ReactProps<any, ConnectionStrin
     useEffect(() => {
         dispatch(
             connectionStringsActions.urlParametersLoaded({
-                name: props?.queryParams?.name,
-                type: props?.queryParams?.type,
+                name: queryParams?.name,
+                type: queryParams?.type,
             })
         );
         dispatch(connectionStringsActions.fetchData(databaseName));
@@ -67,7 +68,7 @@ export default function ConnectionStrings(props: ReactProps<any, ConnectionStrin
                         <>
                             <div id={addNewButtonId} style={{ width: "fit-content" }}>
                                 <Button
-                                    color="primary"
+                                    variant="primary"
                                     onClick={() => dispatch(connectionStringsActions.newConnectionModalOpened())}
                                     title="Add new connection string"
                                     disabled={hasNoneInLicense}

@@ -52,5 +52,121 @@ module.exports = {
                 },
             }
         }
-    }
+    },
+    "no-reactstrap-button-color-prop": {
+        meta: {
+            type: "problem",
+            fixable: "code",
+            schema: [],
+        },
+        create(context) {
+            return {
+                JSXOpeningElement(node) {
+                    const nodeName = node.name?.name;
+
+                    if (nodeName === "Button" || nodeName === "ButtonWithSpinner") {
+                        const hasVariantProp = node.attributes.some(attr => attr?.name?.name === "variant");
+                        const colorProp = node.attributes.find(attr => attr?.name?.name === "color");
+
+                        if (!hasVariantProp && !colorProp) {
+                            context.report({
+                                node,
+                                message: "Button is missing 'variant' prop. Defaulting to 'variant=\"secondary\"'.",
+                                fix(fixer) {
+                                    return fixer.insertTextAfter(
+                                        node.name,
+                                        ` variant="secondary"`
+                                    );
+                                },
+                            });
+                        } else if (colorProp?.value?.type === "Literal") {
+                            const colorValue = colorProp.value.value;
+                            context.report({
+                                node: colorProp,
+                                message: `'color' is deprecated. Replace with 'variant="${colorValue}"'.`,
+                                fix(fixer) {
+                                    return fixer.replaceText(
+                                        colorProp,
+                                        `variant="${colorValue}"`
+                                    );
+                                },
+                            });
+                        } else if (colorProp) {
+                            context.report({
+                                node: colorProp,
+                                message: `'color' is deprecated, but automatic fix is not possible as value is not Literal.`,
+                            });
+                        }
+                    }
+                },
+            };
+        },
+    },
+    "no-reactstrap-button": {
+        meta: {
+            type: "problem",
+            fixable: "code",
+            schema: [],
+        },
+        create: function (context) {
+            return {
+                ImportDeclaration(node) {
+                    if (node.source.value !== "reactstrap") {
+                        return;
+                    }
+
+                    const buttonSpecifiers = node.specifiers.filter(
+                        (specifier) =>
+                            specifier.type === "ImportSpecifier" &&
+                            specifier.imported.name === "Button"
+                    );
+
+                    if (buttonSpecifiers.length === 0) {
+                        return;
+                    }
+
+                    context.report({
+                        node: node,
+                        message: "Button import from reactstrap is deprecated. Use 'import Button from \"react-bootstrap/Button\"' instead.",
+                        fix(fixer) {
+                            const fixes = [];
+                            const sourceCode = context.getSourceCode();
+
+                            if (node.specifiers.length === buttonSpecifiers.length) {
+                                fixes.push(
+                                    fixer.replaceText(
+                                        node,
+                                        'import Button from "react-bootstrap/Button";'
+                                    )
+                                );
+                            } else {
+                                buttonSpecifiers.forEach((specifier) => {
+                                    let [start, end] = specifier.range;
+
+                                    const tokenBefore = sourceCode.getTokenBefore(specifier);
+                                    if (tokenBefore && tokenBefore.value === ",") {
+                                        start = tokenBefore.range[0];
+                                    } else {
+                                        const tokenAfter = sourceCode.getTokenAfter(specifier);
+                                        if (tokenAfter && tokenAfter.value === ",") {
+                                            end = tokenAfter.range[1];
+                                        }
+                                    }
+                                    fixes.push(fixer.removeRange([start, end]));
+                                });
+
+                                fixes.push(
+                                    fixer.insertTextBefore(
+                                        node,
+                                        'import Button from "react-bootstrap/Button";\n'
+                                    )
+                                );
+                            }
+                            return fixes;
+                        },
+                    });
+                },
+            };
+        },
+    },
 };
