@@ -1,5 +1,7 @@
 <div class="container">
-    <a class="btn btn-primary select-theme-btn" data-bind="click: $root.constructor.chooseTheme">
+    <div data-bind="react: $root.setupWizardView" class="bs5"></div>
+    <!-- TODO kalczur -->
+    <!-- <a class="btn btn-primary select-theme-btn" data-bind="click: $root.constructor.chooseTheme">
         <i class="icon-theme"></i>
         <span>Select Theme</span>
     </a>
@@ -52,9 +54,9 @@
         <form method="post" download target="hidden-form" id="setupForm">
             <input type="hidden" name="Options"/>
         </form>
-    </div>
+    </div> -->
 </div>
-
+<!-- 
 <footer class="bs3 status-footer">
     <div class="footer-right">
         <div class="footer-item">
@@ -68,4 +70,4 @@
             </div>
         </div>
     </div>
-</footer>
+</footer> -->

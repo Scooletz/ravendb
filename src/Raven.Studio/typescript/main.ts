@@ -17,6 +17,7 @@ import "eonasdan-bootstrap-datetimepicker/src/js/bootstrap-datetimepicker";
 
 import system from "durandal/system";
 import app from "durandal/app";
+import { bridgeToReact } from "common/reactUtils";
 
 require("prismjs/components/prism-javascript");
 require("prismjs/components/prism-csharp");
@@ -53,6 +54,8 @@ const shellSetup = require("components/common/shell/setup");
 
 shellSetup.commonInit();
 
+import SetupWizard from "components/setupWizard/SetupWizard";
+
 app.start().then(() => {
     if ("WebSocket" in window) {
         if (window.location.pathname.startsWith("/studio")) {
@@ -66,6 +69,7 @@ app.start().then(() => {
             app.setRoot(twoFactorShell);
         } else {
             const setupShell = require("viewmodels/wizard/setupShell");
+            // const setupShell = bridgeToReact(SetupWizard, "nonShardedView");
             app.setRoot(setupShell);
         }
     } else {

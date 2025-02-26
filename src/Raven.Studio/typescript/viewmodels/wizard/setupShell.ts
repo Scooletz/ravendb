@@ -14,6 +14,7 @@ import buildInfo = require("models/resources/buildInfo");
 import chooseTheme = require("viewmodels/shell/chooseTheme");
 import app = require("durandal/app");
 import serverSetup = require("models/wizard/serverSetup");
+import SetupWizard = require("components/setupWizard/SetupWizard");
 
 class setupShell extends viewModelBase {
 
@@ -27,6 +28,8 @@ class setupShell extends viewModelBase {
 
     showSplash = viewModelBase.showSplash;
 
+    setupWizardView: ReactInKnockout<typeof SetupWizard.default>;
+
     constructor() {
         super();
 
@@ -35,6 +38,10 @@ class setupShell extends viewModelBase {
         this.studioLoadingFakeRequest = protractedCommandsDetector.instance.requestStarted(0);
         
         extensions.install();
+
+        this.setupWizardView = ko.pureComputed(() => ({
+            component: SetupWizard.default
+        }))
     }
 
     // Override canActivate: we can always load this page, regardless of any system db prompt.
