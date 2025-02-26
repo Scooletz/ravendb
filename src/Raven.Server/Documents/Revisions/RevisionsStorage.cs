@@ -2641,6 +2641,7 @@ namespace Raven.Server.Documents.Revisions
             {
                 if (table.ReadByKey(cv, out TableValueReader tvr) == false)
                     return null;
+                
                 return GetMetrics(table, tvr);
             }
         }
