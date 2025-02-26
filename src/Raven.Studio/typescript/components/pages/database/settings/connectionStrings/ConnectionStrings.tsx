@@ -1,5 +1,6 @@
 ﻿import React, { useEffect } from "react";
-import { Button, Col, Row, UncontrolledTooltip } from "reactstrap";
+import { Col, Row, UncontrolledTooltip } from "reactstrap";
+import Button from "react-bootstrap/Button";
 import { AboutViewHeading } from "components/common/AboutView";
 import { Icon } from "components/common/Icon";
 import { useAppDispatch, useAppSelector } from "components/store";
@@ -67,7 +68,7 @@ export default function ConnectionStrings({ queryParams }: ReactQueryParamsProps
                         <>
                             <div id={addNewButtonId} style={{ width: "fit-content" }}>
                                 <Button
-                                    color="primary"
+                                    variant="primary"
                                     onClick={() => dispatch(connectionStringsActions.newConnectionModalOpened())}
                                     title="Add new connection string"
                                     disabled={hasNoneInLicense}

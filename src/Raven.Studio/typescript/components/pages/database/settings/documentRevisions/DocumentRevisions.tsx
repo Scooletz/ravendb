@@ -1,5 +1,5 @@
 ﻿import React, { useEffect, useState } from "react";
-import { Button, Col, Row, UncontrolledTooltip } from "reactstrap";
+import { Col, Row, UncontrolledTooltip } from "reactstrap";
 import { AboutViewAnchored, AboutViewHeading, AccordionItemWrapper } from "components/common/AboutView";
 import { Icon } from "components/common/Icon";
 import { HrHeader } from "components/common/HrHeader";
@@ -36,6 +36,7 @@ import FeatureAvailabilitySummaryWrapper, {
 import { useLimitedFeatureAvailability } from "components/utils/licenseLimitsUtils";
 import { databaseSelectors } from "components/common/shell/databaseSliceSelectors";
 import activeDatabaseTracker from "common/shell/activeDatabaseTracker";
+import Button from "react-bootstrap/Button";
 
 interface EditRevisionData {
     onConfirm: (config: DocumentRevisionsConfig) => void;
@@ -181,7 +182,7 @@ export default function DocumentRevisions() {
                                 <Row>
                                     <div className="d-flex flex-wrap gap-2">
                                         <ButtonWithSpinner
-                                            color="primary"
+                                            variant="primary"
                                             icon="save"
                                             disabled={isSaveDisabled}
                                             onClick={asyncSaveConfigs.execute}
@@ -210,7 +211,7 @@ export default function DocumentRevisions() {
                                         </UncontrolledTooltip>
                                         <div id="enforceConfiguration">
                                             <ButtonWithSpinner
-                                                color="secondary"
+                                                variant="secondary"
                                                 onClick={toggleEnforceConfigurationModal}
                                                 disabled={isAnyModified}
                                                 isSpinning={asyncEnforceRevisionsConfiguration.status === "loading"}
@@ -234,7 +235,7 @@ export default function DocumentRevisions() {
                                         <>
                                             <div id="add-default-config-button">
                                                 <Button
-                                                    color="info"
+                                                    variant="info"
                                                     size="sm"
                                                     className="rounded-pill"
                                                     title="Create a default revision configuration for all (non-conflicting) documents"
@@ -308,7 +309,7 @@ export default function DocumentRevisions() {
                                 right={
                                     hasDatabaseAdminAccess ? (
                                         <Button
-                                            color="info"
+                                            variant="info"
                                             size="sm"
                                             className="rounded-pill"
                                             title="Create a revision configuration for a specific collection"

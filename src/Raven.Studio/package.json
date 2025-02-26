@@ -23,6 +23,7 @@
     "private": true,
     "devDependencies": {
         "@hookform/devtools": "^4.3.1",
+        "@juggle/resize-observer": "^3.4.0",
         "@storybook/addon-a11y": "^8.4.7",
         "@storybook/addon-actions": "^8.4.7",
         "@storybook/addon-designs": "^8.2.0",
@@ -106,7 +107,6 @@
     },
     "dependencies": {
         "@hookform/resolvers": "^3.9.0",
-        "@juggle/resize-observer": "^3.4.0",
         "@reduxjs/toolkit": "^2.2.6",
         "@tanstack/react-table": "^8.19.3",
         "@tanstack/react-virtual": "^3.8.3",
@@ -153,6 +153,7 @@
         "react": "^18.3.1",
         "react-ace": "^12.0.0",
         "react-async-hook": "^4.0.0",
+        "react-bootstrap": "^2.10.9",
         "react-datepicker": "^4.25.0",
         "react-dnd": "^16.0.1",
         "react-dnd-html5-backend": "^16.0.1",
