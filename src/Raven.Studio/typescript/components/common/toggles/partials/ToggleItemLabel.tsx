@@ -1,6 +1,8 @@
+import { PopoverWithHover } from "components/common/PopoverWithHover";
 import ToggleLimitBadge from "components/common/toggles/partials/ToggleLimitBadge";
 import { InputItem } from "components/models/common";
-import { PopoverBody, UncontrolledPopover } from "reactstrap";
+import { useState } from "react";
+import Popover from "react-bootstrap/Popover";
 
 interface ToggleItemLabelProps<T extends string | number = string> {
     id: string;
@@ -11,25 +13,22 @@ export default function ToggleItemLabel<T extends string | number = string>({
     id,
     inputItem,
 }: ToggleItemLabelProps<T>) {
+    const [target, setTarget] = useState<HTMLElement>();
+
     return (
         <>
-            <label htmlFor={id}>
+            <label htmlFor={id} ref={setTarget}>
                 <span>{inputItem.label}</span>
                 {inputItem.count !== null && inputItem.limit ? (
-                    <ToggleLimitBadge target={id} count={inputItem.count} limit={inputItem.limit} />
+                    <ToggleLimitBadge count={inputItem.count} limit={inputItem.limit} />
                 ) : (
                     <span className="multi-toggle-item-count">{inputItem.count}</span>
                 )}
             </label>
             {inputItem.popover && (
-                <UncontrolledPopover
-                    target={id}
-                    trigger="hover"
-                    placement={inputItem.popoverPlacement ?? "top"}
-                    className="bs5"
-                >
-                    <PopoverBody>{inputItem.popover}</PopoverBody>
-                </UncontrolledPopover>
+                <PopoverWithHover target={target} placement={inputItem.popoverPlacement ?? "top"}>
+                    <Popover.Body>{inputItem.popover}</Popover.Body>
+                </PopoverWithHover>
             )}
         </>
     );

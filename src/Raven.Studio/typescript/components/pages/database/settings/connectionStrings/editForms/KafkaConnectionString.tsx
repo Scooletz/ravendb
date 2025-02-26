@@ -1,6 +1,7 @@
-﻿import { Badge, Form, Label, PopoverBody, UncontrolledPopover } from "reactstrap";
+﻿import Badge from "react-bootstrap/Badge";
+import { Form, Label } from "reactstrap";
 import { FormInput, FormSwitch } from "components/common/Form";
-import React, { useEffect } from "react";
+import { useEffect } from "react";
 import { SubmitHandler, useFieldArray, useForm, useWatch } from "react-hook-form";
 import { Icon } from "components/common/Icon";
 import { ConnectionFormData, EditConnectionStringFormProps, KafkaConnection } from "../connectionStringsTypes";
@@ -17,6 +18,7 @@ import { useAppSelector } from "components/store";
 import { databaseSelectors } from "components/common/shell/databaseSliceSelectors";
 import { accessManagerSelectors } from "components/common/shell/accessManagerSliceSelectors";
 import Button from "react-bootstrap/Button";
+import PopoverWithHoverWrapper from "components/common/PopoverWithHoverWrapper";
 
 type FormData = ConnectionFormData<KafkaConnection>;
 
@@ -98,12 +100,12 @@ export default function KafkaConnectionString({
                 <Label className="d-flex align-items-center gap-1">
                     Bootstrap Servers
                     {asyncTest.result?.Success ? (
-                        <Badge color="success" pill>
+                        <Badge bg="success" pill>
                             <Icon icon="check" />
                             Successfully connected
                         </Badge>
                     ) : asyncTest.result?.Error ? (
-                        <Badge color="danger" pill>
+                        <Badge bg="danger" pill>
                             <Icon icon="warning" />
                             Failed connection
                         </Badge>
@@ -138,10 +140,12 @@ export default function KafkaConnectionString({
                 <div className="mb-2">
                     <FormSwitch control={control} name="isUseRavenCertificate">
                         <span className="d-flex align-items-center gap-1">
-                            Use RavenDB Certificate <Icon icon="info" color="info" id="useCertInfo" />
+                            Use RavenDB Certificate{" "}
+                            <PopoverWithHoverWrapper message={<UseCertificateInfoPopoverBody />}>
+                                <Icon icon="info" color="info" id="useCertInfo" />
+                            </PopoverWithHoverWrapper>
                         </span>
                     </FormSwitch>
-                    <UseCertificateInfoPopover />
                 </div>
             )}
             <div className="mb-2">
@@ -263,26 +267,24 @@ function isMultiLineKey(key: string) {
     return multiLineKeys.includes(key);
 }
 
-function UseCertificateInfoPopover() {
+function UseCertificateInfoPopoverBody() {
     return (
-        <UncontrolledPopover placement="right" trigger="hover" target="useCertInfo">
-            <PopoverBody>
-                <div>
-                    The following <strong>configuration options</strong> will be set for you when using RavenDB server
-                    certificate:
-                </div>
-                <ul>
-                    <li>
-                        <code>security.protocol = SSL</code>
-                    </li>
-                    <li>
-                        <code>ssl.key.pem = &lt;RavenDB Server Private Key&gt;</code>
-                    </li>
-                    <li>
-                        <code>ssl.certificate.pem = &lt;RavenDB Server Public Key&gt;</code>
-                    </li>
-                </ul>
-            </PopoverBody>
-        </UncontrolledPopover>
+        <>
+            <div>
+                The following <strong>configuration options</strong> will be set for you when using RavenDB server
+                certificate:
+            </div>
+            <ul>
+                <li>
+                    <code>security.protocol = SSL</code>
+                </li>
+                <li>
+                    <code>ssl.key.pem = &lt;RavenDB Server Private Key&gt;</code>
+                </li>
+                <li>
+                    <code>ssl.certificate.pem = &lt;RavenDB Server Public Key&gt;</code>
+                </li>
+            </ul>
+        </>
     );
 }
