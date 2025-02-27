@@ -1418,7 +1418,7 @@ namespace Raven.Server.Documents
                             break;
 
                         case IdleDatabaseActivityType.WakeUpDatabase:
-                            if (_serverStore.ConcurrentBackupsCounter.CanRunBackup == false)
+                            if (_serverStore.ConcurrentBackupsCounter.CanRunBackup(ShardHelper.ToDatabaseName(databaseName)) == false)
                             {
                                 // reached max concurrent backups
                                 var delayInMs = RescheduleDatabaseWakeup();

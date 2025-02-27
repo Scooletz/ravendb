@@ -1,8 +1,96 @@
+const fixableMeta = {
+    type: "problem",
+    fixable: "code",
+    schema: [],
+};
+
+function createDeprecatedReactstrapImport({ context, name, reactBootstrapName = name, canFix = true }) {
+    return {
+        ImportDeclaration(node) {
+            if (node.source.value !== "reactstrap") {
+                return;
+            };
+
+            const specifiers = node.specifiers.filter(
+                (specifier) =>
+                    specifier.type === "ImportSpecifier" &&
+                    specifier.imported.name === name
+            );
+
+            if (specifiers.length === 0) {
+                return;
+            }
+
+            const fix = (fixer) => {
+                const fixes = [];
+                const sourceCode = context.getSourceCode();
+
+                if (node.specifiers.length === specifiers.length) {
+                    fixes.push(
+                        fixer.replaceText(
+                            node,
+                            `import ${name} from "react-bootstrap/${name}";`
+                        )
+                    );
+                } else {
+                    specifiers.forEach((specifier) => {
+                        let [start, end] = specifier.range;
+
+                        const tokenBefore = sourceCode.getTokenBefore(specifier);
+                        if (tokenBefore && tokenBefore.value === ",") {
+                            start = tokenBefore.range[0];
+                        } else {
+                            const tokenAfter = sourceCode.getTokenAfter(specifier);
+                            if (tokenAfter && tokenAfter.value === ",") {
+                                end = tokenAfter.range[1];
+                            }
+                        }
+                        fixes.push(fixer.removeRange([start, end]));
+                    });
+
+                    fixes.push(
+                        fixer.insertTextBefore(
+                            node,
+                            `import ${name} from "react-bootstrap/${name}";\n`
+                        )
+                    );
+                }
+                return fixes;
+            };
+
+            context.report({
+                node: node,
+                message: `${name} import from reactstrap is deprecated. Use 'import ${reactBootstrapName} from "react-bootstrap/${reactBootstrapName}"' instead.`,
+                fix: canFix ? fix : undefined,
+            });
+        },
+    };
+}
+
+function migrateProp({ attr, newProp, message, context }) {
+    context.report({
+        node: attr,
+        message,
+        fix(fixer) {
+            return fixer.replaceText(attr.name, newProp);
+        },
+    });
+}
+
+function removeProp({ attr, message, context }) {
+    context.report({
+        node: attr,
+        message,
+        fix(fixer) {
+            return fixer.remove(attr);
+        },
+    });
+}
+
 module.exports = {
     "no-reactstrap-alert": {
         create: function (context) {
             return {
-               
                 JSXIdentifier: function (node) {
                     if (node.name === "Alert") {
                         context.report({
@@ -15,11 +103,7 @@ module.exports = {
         },
     },
     "mixed-imports": {
-        meta: {
-            type: "problem",
-            fixable: "code",
-            schema: []
-        },
+        meta: fixableMeta,
         create: function (context) {
             return {
                 TSExportAssignment: function (node) {
@@ -53,12 +137,8 @@ module.exports = {
             }
         }
     },
-    "no-reactstrap-button-color-prop": {
-        meta: {
-            type: "problem",
-            fixable: "code",
-            schema: [],
-        },
+    "no-reactstrap-Button-color-prop": {
+        meta: fixableMeta,
         create(context) {
             return {
                 JSXOpeningElement(node) {
@@ -102,68 +182,123 @@ module.exports = {
             };
         },
     },
-    "no-reactstrap-button": {
-        meta: {
-            type: "problem",
-            fixable: "code",
-            schema: [],
-        },
-        create: function (context) {
+    "no-reactstrap-Button": {
+        meta: fixableMeta,
+        create: (context) => createDeprecatedReactstrapImport({ context, name: "Button" }),
+    },
+    "no-reactstrap-Spinner": {
+        meta: fixableMeta,
+        create: (context) => createDeprecatedReactstrapImport({ context, name: "Spinner" }),
+    },
+    "no-reactstrap-UncontrolledTooltip": {
+        create: (context) => createDeprecatedReactstrapImport({ context, name: "UncontrolledTooltip", reactBootstrapName: "OverlayTrigger", canFix: false }),
+    },
+    "no-reactstrap-UncontrolledPopover": {
+        create: (context) => createDeprecatedReactstrapImport({ context, name: "UncontrolledPopover", reactBootstrapName: "OverlayTrigger", canFix: false }),
+    },
+    "no-reactstrap-Tooltip": {
+        create: (context) => createDeprecatedReactstrapImport({ context, name: "Tooltip", canFix: false }),
+    },
+    "no-reactstrap-Popover": {
+        create: (context) => createDeprecatedReactstrapImport({ context, name: "Popover", canFix: false }),
+    },
+    "no-reactstrap-Badge": {
+        meta: fixableMeta,
+        create: (context) => createDeprecatedReactstrapImport({ context, name: "Badge" }),
+    },
+    "no-reactstrap-Badge-props": {
+        meta: fixableMeta,
+        create(context) {
+            const sourceCode = context.getSourceCode();
+
             return {
-                ImportDeclaration(node) {
-                    if (node.source.value !== "reactstrap") {
-                        return;
-                    }
+                JSXOpeningElement(node) {
+                    if (node.name?.name !== "Badge") return;
 
-                    const buttonSpecifiers = node.specifiers.filter(
-                        (specifier) =>
-                            specifier.type === "ImportSpecifier" &&
-                            specifier.imported.name === "Button"
-                    );
+                    let hasBg = false;
+                    node.attributes.forEach(attr => {
+                        if (!attr || !attr.name || !attr.name.name) return;
+                        const propName = attr.name.name;
 
-                    if (buttonSpecifiers.length === 0) {
-                        return;
-                    }
+                        if (propName === "bg" || propName === "color") {
+                            hasBg = true;
+                        }
 
-                    context.report({
-                        node: node,
-                        message: "Button import from reactstrap is deprecated. Use 'import Button from \"react-bootstrap/Button\"' instead.",
-                        fix(fixer) {
-                            const fixes = [];
-                            const sourceCode = context.getSourceCode();
-
-                            if (node.specifiers.length === buttonSpecifiers.length) {
-                                fixes.push(
-                                    fixer.replaceText(
-                                        node,
-                                        'import Button from "react-bootstrap/Button";'
-                                    )
-                                );
-                            } else {
-                                buttonSpecifiers.forEach((specifier) => {
-                                    let [start, end] = specifier.range;
-
-                                    const tokenBefore = sourceCode.getTokenBefore(specifier);
-                                    if (tokenBefore && tokenBefore.value === ",") {
-                                        start = tokenBefore.range[0];
-                                    } else {
-                                        const tokenAfter = sourceCode.getTokenAfter(specifier);
-                                        if (tokenAfter && tokenAfter.value === ",") {
-                                            end = tokenAfter.range[1];
-                                        }
-                                    }
-                                    fixes.push(fixer.removeRange([start, end]));
+                        switch (propName) {
+                            case "color":
+                                migrateProp({
+                                    attr,
+                                    newProp: "bg",
+                                    message: "'color' prop is deprecated. Use 'bg' prop instead.",
+                                    context,
                                 });
-
-                                fixes.push(
-                                    fixer.insertTextBefore(
-                                        node,
-                                        'import Button from "react-bootstrap/Button";\n'
-                                    )
+                                break;
+                            case "type":
+                                migrateProp({
+                                    attr,
+                                    newProp: "as",
+                                    message: "'type' prop is deprecated. Use 'as' prop instead.",
+                                    context,
+                                });
+                                break;
+                            case "node":
+                            case "cssModule":
+                            case "innerRef":
+                                removeProp(
+                                  {
+                                      context,
+                                      attr,
+                                      message: `'${propName}' prop is not supported in react-bootstrap Badge.`,
+                                  },
                                 );
-                            }
-                            return fixes;
-                        },
+                                break;
+                            default:
+                                break;
+                        }
+                    });
+
+                    if (!hasBg) {
+                        context.report({
+                            node,
+                            message: "'Badge' is missing 'bg' prop, defaulting to 'secondary'.",
+                            fix(fixer) {
+                                const lastToken = sourceCode.getLastToken(node);
+                                return fixer.insertTextBefore(lastToken, " bg=\"secondary\"");
+                            },
+                        });
+                    }
+                },
+            };
+        },
+    },
+    "no-reactstrap-Collapse": {
+        meta: fixableMeta,
+        create: (context) => createDeprecatedReactstrapImport({ context, name: "Collapse" }),
+    },
+    "no-reactstrap-Collapse-props": {
+        meta: fixableMeta,
+        create(context) {
+            return {
+                JSXOpeningElement(node) {
+                    if (node.name?.name !== "Collapse") {
+                        return;
+                    }
+
+                    node.attributes.forEach(attr => {
+                        if (!attr || !attr.name || !attr.name.name) {
+                            return;
+                        }
+
+                        const propName = attr.name.name;
+
+                        if (propName === "isOpen") {
+                            migrateProp({
+                                context,
+                                attr,
+                                message: "'isOpen' prop is deprecated. Use 'in' prop instead.",
+                                newProp: "in",
+                            });
+                        }
                     });
                 },
             };
