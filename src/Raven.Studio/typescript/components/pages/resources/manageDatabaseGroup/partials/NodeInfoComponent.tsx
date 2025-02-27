@@ -1,12 +1,6 @@
 ﻿import React from "react";
-import {
-    Button,
-    DropdownItem,
-    DropdownMenu,
-    DropdownToggle,
-    UncontrolledDropdown,
-    UncontrolledTooltip,
-} from "reactstrap";
+import { DropdownItem, DropdownMenu, DropdownToggle, UncontrolledDropdown } from "reactstrap";
+import Button from "react-bootstrap/Button";
 import useUniqueId from "components/hooks/useUniqueId";
 import { useDraggableItem } from "hooks/useDraggableItem";
 import { DatabaseSharedInfo, NodeInfo } from "components/models/databases";
@@ -25,6 +19,8 @@ import { useServices } from "components/hooks/useServices";
 import useConfirm from "components/common/ConfirmDialog";
 import { accessManagerSelectors } from "components/common/shell/accessManagerSliceSelectors";
 import { useAppSelector } from "components/store";
+import OverlayTrigger from "react-bootstrap/OverlayTrigger";
+import Tooltip from "react-bootstrap/Tooltip";
 
 interface OrchestratorInfoComponentProps {
     node: NodeInfo;
@@ -58,6 +54,7 @@ function PromoteButton({ databaseName, nodeTag }: PromoteButtonProps) {
 
     return (
         <ButtonWithSpinner
+            variant="secondary"
             className="rounded-pill justify-content-center"
             title="Promote to become a member"
             icon="promote"
@@ -80,8 +77,7 @@ export function OrchestratorInfoComponent(props: OrchestratorInfoComponentProps)
             <DatabaseGroupActions>
                 <Button
                     size="xs"
-                    color="danger"
-                    outline
+                    variant="outline-danger"
                     disabled={!canDelete}
                     className="rounded-pill"
                     onClick={() => deleteFromGroup(node.tag)}
@@ -150,7 +146,14 @@ export function NodeInfoComponent(props: NodeInfoComponentProps) {
                         </DropdownMenu>
                     </UncontrolledDropdown>
                 ) : (
-                    <React.Fragment key="cannot-delete">
+                    <OverlayTrigger
+                        key="cannot-delete"
+                        overlay={
+                            <Tooltip id={deleteLockId}>
+                                Database cannot be deleted from node because of the set lock mode
+                            </Tooltip>
+                        }
+                    >
                         <UncontrolledDropdown id={deleteLockId}>
                             <DropdownToggle color="danger" caret disabled size="xs" className="rounded-pill">
                                 {db.lockMode === "PreventDeletesError" && <Icon icon="trash" addon="exclamation" />}
@@ -158,10 +161,7 @@ export function NodeInfoComponent(props: NodeInfoComponentProps) {
                                 Delete from group
                             </DropdownToggle>
                         </UncontrolledDropdown>
-                        <UncontrolledTooltip target={deleteLockId} placeholder="top" color="danger">
-                            Database cannot be deleted from node because of the set lock mode
-                        </UncontrolledTooltip>
-                    </React.Fragment>
+                    </OverlayTrigger>
                 )}
             </DatabaseGroupActions>
             <DatabaseGroupError node={node} />
@@ -239,7 +239,14 @@ export function ShardInfoComponent(props: ShardInfoComponentProps) {
                         </DropdownMenu>
                     </UncontrolledDropdown>
                 ) : (
-                    <React.Fragment key="cannot-delete">
+                    <OverlayTrigger
+                        key="cannot-delete"
+                        overlay={
+                            <Tooltip id={deleteLockId}>
+                                Database cannot be deleted from node because of the set lock mode
+                            </Tooltip>
+                        }
+                    >
                         <UncontrolledDropdown id={deleteLockId}>
                             <DropdownToggle color="danger" caret disabled outline size="xs" className="rounded-pill">
                                 {db.lockMode === "PreventDeletesError" && <Icon icon="trash" addon="exclamation" />}
@@ -247,10 +254,7 @@ export function ShardInfoComponent(props: ShardInfoComponentProps) {
                                 Delete from group
                             </DropdownToggle>
                         </UncontrolledDropdown>
-                        <UncontrolledTooltip target={deleteLockId} placeholder="top" color="danger">
-                            Database cannot be deleted from node because of the set lock mode
-                        </UncontrolledTooltip>
-                    </React.Fragment>
+                    </OverlayTrigger>
                 )}
             </DatabaseGroupActions>
 

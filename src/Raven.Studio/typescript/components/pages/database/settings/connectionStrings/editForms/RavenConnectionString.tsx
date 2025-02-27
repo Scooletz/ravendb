@@ -1,4 +1,5 @@
-﻿import { Badge, Button, Form, Label } from "reactstrap";
+﻿import Badge from "react-bootstrap/Badge";
+import { Form, Label } from "reactstrap";
 import { FormInput } from "components/common/Form";
 import React from "react";
 import { Control, SubmitHandler, UseFormTrigger, UseFormWatch, useFieldArray, useForm } from "react-hook-form";
@@ -14,6 +15,7 @@ import ConnectionStringUsedByTasks from "./shared/ConnectionStringUsedByTasks";
 import ConnectionTestError from "../../../../../common/connectionTests/ConnectionTestError";
 import { yupObjectSchema } from "components/utils/yupUtils";
 import RichAlert from "components/common/RichAlert";
+import Button from "react-bootstrap/Button";
 
 type FormData = ConnectionFormData<RavenConnection>;
 
@@ -87,7 +89,7 @@ export default function RavenConnectionString({
                         />
                     ))}
                 </div>
-                <Button color="info" className="mt-3" onClick={() => urlFieldArray.append({ url: null })}>
+                <Button variant="info" className="mt-3" onClick={() => urlFieldArray.append({ url: null })}>
                     <Icon icon="plus" />
                     Add next discovery URL
                 </Button>
@@ -128,12 +130,12 @@ function DiscoveryUrl({ idx, control, isDeleteButtonVisible, trigger, watch, onD
             <Label className="mb-0 d-flex align-items-center gap-1">
                 <span className="small-label mb-0">URL #{idx + 1}</span>
                 {asyncTest.result?.Success ? (
-                    <Badge color="success" pill>
+                    <Badge bg="success" pill>
                         <Icon icon="check" />
                         Successfully connected
                     </Badge>
                 ) : asyncTest.result?.Error ? (
-                    <Badge color="danger" pill>
+                    <Badge bg="danger" pill>
                         <Icon icon="warning" />
                         Failed connection
                     </Badge>
@@ -148,12 +150,12 @@ function DiscoveryUrl({ idx, control, isDeleteButtonVisible, trigger, watch, onD
                     autoComplete="off"
                 />
                 {isDeleteButtonVisible && (
-                    <Button color="danger" title="Delete URL" onClick={onDelete} disabled={asyncTest.loading}>
+                    <Button variant="danger" title="Delete URL" onClick={onDelete} disabled={asyncTest.loading}>
                         <Icon icon="trash" margin="m-0" />
                     </Button>
                 )}
                 <ButtonWithSpinner
-                    color="secondary"
+                    variant="secondary"
                     onClick={asyncTest.execute}
                     isSpinning={asyncTest.loading}
                     title="Test connection"

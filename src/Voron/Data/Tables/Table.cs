@@ -1472,7 +1472,7 @@ namespace Voron.Data.Tables
 
             using (var it = tree.Iterate(true))
             {
-                if (it.Seek(last) == false && it.Seek(Slices.AfterAllKeys) == false)
+                if (it.SeekBackward(last) == false)
                     yield break;
 
                 if (prefix != null)
@@ -1514,17 +1514,11 @@ namespace Voron.Data.Tables
 
             using (var it = tree.Iterate(true))
             {
-                if (it.Seek(last) == false && it.Seek(Slices.AfterAllKeys) == false)
+                if (it.SeekBackward(last) == false)
                     yield break;
 
                 it.SetRequiredPrefix(prefix);
                 if (SliceComparer.StartWith(it.CurrentKey, it.RequiredPrefix) == false)
-                {
-                    if (it.MovePrev() == false)
-                        yield break;
-                }
-
-                if (SliceComparer.CompareInline(it.CurrentKey, last) > 0)
                 {
                     if (it.MovePrev() == false)
                         yield break;
@@ -1552,7 +1546,7 @@ namespace Voron.Data.Tables
 
             using (var it = tree.Iterate(true))
             {
-                if (it.Seek(last) == false && it.Seek(Slices.AfterAllKeys) == false)
+                if (it.SeekBackward(last) == false)
                     return null;
 
                 it.SetRequiredPrefix(prefix);
@@ -2075,8 +2069,7 @@ namespace Voron.Data.Tables
             var fst = GetFixedSizeTree(index);
             using (var it = fst.Iterate())
             {
-                if (it.Seek(key) == false &&
-                    it.SeekToLast() == false)
+                if (it.SeekBackward(key) == false)
                     yield break;
 
                 if (it.Skip(-skip) == false)
@@ -2085,8 +2078,6 @@ namespace Voron.Data.Tables
                 var result = new TableValueHolder();
                 do
                 {
-                    if (it.CurrentKey > key)
-                        continue;
 
                     GetTableValueReader(it, out result.Reader);
                     yield return result;

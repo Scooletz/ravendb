@@ -8,7 +8,9 @@ import {
     RichPanelDetails,
     RichPanelDetailItem,
 } from "components/common/RichPanel";
-import { Button, Collapse, Form, InputGroup, Label, UncontrolledTooltip } from "reactstrap";
+import Collapse from "react-bootstrap/Collapse";
+import { Form, InputGroup, Label } from "reactstrap";
+import Button from "react-bootstrap/Button";
 import { Icon } from "components/common/Icon";
 import { EditConflictResolutionSyntaxModal } from "components/pages/database/settings/conflictResolution/EditConflictResolutionSyntaxModal";
 import { useAppDispatch, useAppSelector } from "components/store";
@@ -26,6 +28,8 @@ import * as yup from "yup";
 import { FormAceEditor, FormSelectCreatable } from "components/common/Form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { accessManagerSelectors } from "components/common/shell/accessManagerSliceSelectors";
+import OverlayTrigger from "react-bootstrap/OverlayTrigger";
+import Tooltip from "react-bootstrap/Tooltip";
 
 interface ConflictResolutionConfigPanelProps {
     initialConfig: ConflictResolutionCollectionConfig;
@@ -78,14 +82,13 @@ export default function ConflictResolutionConfigPanel({ initialConfig }: Conflic
                         <RichPanelName>
                             {formValues.collectionName || "Collection name"}
                             {(initialConfig.isEdited || initialConfig.isNewUnsaved) && (
-                                <>
-                                    <span id={unsavedChangesId} className="text-warning">
+                                <OverlayTrigger
+                                    overlay={<Tooltip id={unsavedChangesId}>The script has not been saved yet</Tooltip>}
+                                >
+                                    <span id={unsavedChangesId} className="text-warning d-inline-block">
                                         *
                                     </span>
-                                    <UncontrolledTooltip target={unsavedChangesId}>
-                                        The script has not been saved yet
-                                    </UncontrolledTooltip>
-                                </>
+                                </OverlayTrigger>
                             )}
                         </RichPanelName>
                     </RichPanelInfo>
@@ -100,63 +103,67 @@ export default function ConflictResolutionConfigPanel({ initialConfig }: Conflic
                         </RichPanelActions>
                     </Form>
                 </RichPanelHeader>
-                <Collapse isOpen={!initialConfig.isInEditMode}>
-                    <RichPanelDetails>
-                        <RichPanelDetailItem
-                            label={
-                                <>
-                                    <Icon icon="clock" />
-                                    Last modified
-                                </>
-                            }
-                        >
-                            {initialConfig.lastModifiedTime
-                                ? genUtils.formatUtcDateAsLocal(initialConfig.lastModifiedTime)
-                                : "(new)"}
-                        </RichPanelDetailItem>
-                    </RichPanelDetails>
+                <Collapse in={!initialConfig.isInEditMode}>
+                    <div>
+                        <RichPanelDetails>
+                            <RichPanelDetailItem
+                                label={
+                                    <>
+                                        <Icon icon="clock" />
+                                        Last modified
+                                    </>
+                                }
+                            >
+                                {initialConfig.lastModifiedTime
+                                    ? genUtils.formatUtcDateAsLocal(initialConfig.lastModifiedTime)
+                                    : "(new)"}
+                            </RichPanelDetailItem>
+                        </RichPanelDetails>
+                    </div>
                 </Collapse>
-                <Collapse isOpen={initialConfig.isInEditMode}>
-                    <RichPanelDetails className="vstack gap-3 p-3">
-                        {!initialConfig.name && (
-                            <InputGroup className="vstack mb-1">
-                                <Label>Collection</Label>
-                                <FormSelectCreatable
+                <Collapse in={initialConfig.isInEditMode}>
+                    <div>
+                        <RichPanelDetails className="vstack gap-3 p-3">
+                            {!initialConfig.name && (
+                                <InputGroup className="vstack mb-1">
+                                    <Label>Collection</Label>
+                                    <FormSelectCreatable
+                                        control={control}
+                                        name="collectionName"
+                                        placeholder="Select collection (or enter a new one)"
+                                        options={collectionOptions}
+                                        isClearable={false}
+                                        maxMenuHeight={300}
+                                        isDisabled={!hasDatabaseAdminAccess}
+                                    />
+                                </InputGroup>
+                            )}
+                            <InputGroup className="vstack">
+                                <Label className="d-flex flex-wrap justify-content-between">
+                                    Script
+                                    <Button
+                                        variant="link"
+                                        size="xs"
+                                        onClick={toggleIsSyntaxModalOpen}
+                                        className="p-0 align-self-end"
+                                    >
+                                        Syntax
+                                        <Icon icon="help" margin="ms-1" />
+                                    </Button>
+                                </Label>
+                                {isSyntaxModalOpen && (
+                                    <EditConflictResolutionSyntaxModal toggle={toggleIsSyntaxModalOpen} />
+                                )}
+                                <FormAceEditor
                                     control={control}
-                                    name="collectionName"
-                                    placeholder="Select collection (or enter a new one)"
-                                    options={collectionOptions}
-                                    isClearable={false}
-                                    maxMenuHeight={300}
-                                    isDisabled={!hasDatabaseAdminAccess}
+                                    name="script"
+                                    mode="javascript"
+                                    height="400px"
+                                    readOnly={!hasDatabaseAdminAccess}
                                 />
                             </InputGroup>
-                        )}
-                        <InputGroup className="vstack">
-                            <Label className="d-flex flex-wrap justify-content-between">
-                                Script
-                                <Button
-                                    color="link"
-                                    size="xs"
-                                    onClick={toggleIsSyntaxModalOpen}
-                                    className="p-0 align-self-end"
-                                >
-                                    Syntax
-                                    <Icon icon="help" margin="ms-1" />
-                                </Button>
-                            </Label>
-                            {isSyntaxModalOpen && (
-                                <EditConflictResolutionSyntaxModal toggle={toggleIsSyntaxModalOpen} />
-                            )}
-                            <FormAceEditor
-                                control={control}
-                                name="script"
-                                mode="javascript"
-                                height="400px"
-                                readOnly={!hasDatabaseAdminAccess}
-                            />
-                        </InputGroup>
-                    </RichPanelDetails>
+                        </RichPanelDetails>
+                    </div>
                 </Collapse>
             </div>
         </RichPanel>
@@ -186,10 +193,10 @@ function PanelActions({
         if (isInEditMode) {
             return (
                 <React.Fragment key="actions-in-edit">
-                    <Button type="submit" color="success" title={isNewUnsaved ? "Add Script" : "Update Script"}>
+                    <Button type="submit" variant="success" title={isNewUnsaved ? "Add Script" : "Update Script"}>
                         <Icon icon="tick" margin="m-0" /> {isNewUnsaved ? "Add" : "Update"}
                     </Button>
-                    <Button type="button" color="secondary" title="Discard changes" onClick={discard}>
+                    <Button type="button" variant="secondary" title="Discard changes" onClick={discard}>
                         <Icon icon="cancel" margin="m-0" /> Discard
                     </Button>
                 </React.Fragment>
@@ -199,7 +206,7 @@ function PanelActions({
                 <React.Fragment key="actions-not-in-edit">
                     <Button
                         type="button"
-                        color="secondary"
+                        variant="secondary"
                         title="Edit this script"
                         onClick={() => dispatch(conflictResolutionActions.edited(configId))}
                     >
@@ -207,7 +214,7 @@ function PanelActions({
                     </Button>
                     <Button
                         type="button"
-                        color="danger"
+                        variant="danger"
                         title="Delete this script"
                         onClick={() => dispatch(conflictResolutionActions.deleted(configId))}
                     >
@@ -222,7 +229,7 @@ function PanelActions({
         return (
             <Button
                 type="button"
-                color="secondary"
+                variant="secondary"
                 title="Hide this script"
                 onClick={() => dispatch(conflictResolutionActions.editDiscarded(configId))}
             >
@@ -233,7 +240,7 @@ function PanelActions({
         return (
             <Button
                 type="button"
-                color="secondary"
+                variant="secondary"
                 title="Show this script"
                 onClick={() => dispatch(conflictResolutionActions.edited(configId))}
             >

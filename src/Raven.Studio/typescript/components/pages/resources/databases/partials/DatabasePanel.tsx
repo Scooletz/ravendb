@@ -2,17 +2,10 @@
 import { DatabaseLocalInfo, DatabaseSharedInfo } from "components/models/databases";
 import classNames from "classnames";
 import { useAppUrls } from "hooks/useAppUrls";
-import {
-    Button,
-    ButtonGroup,
-    Collapse,
-    DropdownItem,
-    DropdownMenu,
-    DropdownToggle,
-    Input,
-    Spinner,
-    UncontrolledDropdown,
-} from "reactstrap";
+import Spinner from "react-bootstrap/Spinner";
+import Collapse from "react-bootstrap/Collapse";
+import { ButtonGroup, DropdownItem, DropdownMenu, DropdownToggle, Input, UncontrolledDropdown } from "reactstrap";
+import Button from "react-bootstrap/Button";
 import {
     RichPanel,
     RichPanelActions,
@@ -337,6 +330,7 @@ export function DatabasePanel(props: DatabasePanelProps) {
                         <RichPanelActions>
                             {isOperatorOrAbove && (
                                 <Button
+                                    variant="secondary"
                                     href={manageGroupUrl}
                                     title="Manage the Database Group"
                                     target={db.currentNode.isRelevant ? undefined : "_blank"}
@@ -352,7 +346,7 @@ export function DatabasePanel(props: DatabasePanelProps) {
                                 <UncontrolledDropdown>
                                     <ButtonGroup>
                                         {isOperatorOrAbove && (
-                                            <Button onClick={onToggleDatabase}>
+                                            <Button variant="secondary" onClick={onToggleDatabase}>
                                                 {db.isDisabled ? (
                                                     <span>
                                                         <Icon icon="database" addon="play2" /> Enable
@@ -429,7 +423,7 @@ export function DatabasePanel(props: DatabasePanelProps) {
                                                     ? "Remove database"
                                                     : "Database cannot be deleted because of the set lock mode"
                                             }
-                                            color={db.lockMode === "Unlock" ? "danger" : "secondary"}
+                                            variant={db.lockMode === "Unlock" ? "danger" : "secondary"}
                                             disabled={db.lockMode !== "Unlock"}
                                         >
                                             {lockChanges && <Spinner size="sm" />}
@@ -479,15 +473,19 @@ export function DatabasePanel(props: DatabasePanelProps) {
                         togglePanelCollapsed={togglePanelCollapsed}
                     />
                     <div className="px-4 pb-2">
-                        <Collapse isOpen={!panelCollapsed}>
-                            <DatabaseDistribution db={db} />
+                        <Collapse in={!panelCollapsed}>
+                            <div>
+                                <DatabaseDistribution db={db} />
+                            </div>
                         </Collapse>
-                        <Collapse isOpen={panelCollapsed}>
-                            <DatabaseTopology
-                                db={db}
-                                localInfos={dbState}
-                                togglePanelCollapsed={togglePanelCollapsed}
-                            />
+                        <Collapse in={panelCollapsed}>
+                            <div>
+                                <DatabaseTopology
+                                    db={db}
+                                    localInfos={dbState}
+                                    togglePanelCollapsed={togglePanelCollapsed}
+                                />
+                            </div>
                         </Collapse>
                     </div>
                 </div>

@@ -1,21 +1,16 @@
-﻿import React, { ReactNode, useEffect, useState } from "react";
-import "./AboutView.scss";
-import {
-    AccordionBody,
-    AccordionHeader,
-    AccordionItem,
-    Badge,
-    Button,
-    PopoverBody,
-    UncontrolledAccordion,
-    UncontrolledPopover,
-} from "reactstrap";
+﻿import "./AboutView.scss";
+import { ReactNode } from "react";
+import Badge from "react-bootstrap/Badge";
+import { AccordionBody, AccordionHeader, AccordionItem, UncontrolledAccordion } from "reactstrap";
+import Button from "react-bootstrap/Button";
 import classNames from "classnames";
 import { Icon } from "./Icon";
 import IconName from "typings/server/icons";
 import { TextColor } from "components/models/common";
 import { uniqueId } from "lodash";
 import LicenseRestrictedBadge, { LicenseBadgeText } from "components/common/LicenseRestrictedBadge";
+import OverlayTrigger from "react-bootstrap/OverlayTrigger";
+import Popover from "react-bootstrap/Popover";
 
 interface AboutViewProps {
     children?: ReactNode | ReactNode[];
@@ -45,33 +40,37 @@ const aboutViewId = "about-view";
 
 const AboutViewFloating = (props: AboutViewProps) => {
     const { children, className, defaultOpen } = props;
-    const [target, setTarget] = useState<string>(null);
-
-    // If defaultOpen is true, the target cannot be found. To fix this, the render is conditional
-    useEffect(() => {
-        setTarget(aboutViewId);
-    }, []);
 
     return (
         <div className={classNames(className)}>
-            <Button id={aboutViewId} className="hub-btn" type="button">
-                Info Hub
-            </Button>
-
-            {target && (
-                <UncontrolledPopover
-                    placement="bottom"
-                    target={target}
-                    trigger="legacy"
-                    className="bs5 about-view-dropdown"
-                    offset={[-215, 10]}
-                    defaultOpen={!!defaultOpen}
-                >
-                    <PopoverBody className="p-0">
-                        <AboutViewAnchored defaultOpen={defaultOpen ? "licensing" : null}>{children}</AboutViewAnchored>
-                    </PopoverBody>
-                </UncontrolledPopover>
-            )}
+            <OverlayTrigger
+                defaultShow={!!defaultOpen}
+                placement="bottom"
+                trigger="click"
+                popperConfig={{
+                    modifiers: [
+                        {
+                            name: "offset",
+                            options: {
+                                offset: [-140, 10],
+                            },
+                        },
+                    ],
+                }}
+                overlay={
+                    <Popover id={aboutViewId} className="bs5 about-view-dropdown" style={{ width: "100%" }}>
+                        <Popover.Body className="p-1">
+                            <AboutViewAnchored defaultOpen={defaultOpen ? "licensing" : null}>
+                                {children}
+                            </AboutViewAnchored>
+                        </Popover.Body>
+                    </Popover>
+                }
+            >
+                <Button id={aboutViewId} variant="secondary" className="hub-btn" type="button">
+                    Info Hub
+                </Button>
+            </OverlayTrigger>
         </div>
     );
 };
@@ -100,7 +99,7 @@ const AccordionItemWrapper = (props: AccordionItemWrapperProps) => {
                     <div className="hstack flex-wrap gap-1">
                         <h4 className="m-0">{heading}</h4>
                         {pill && (
-                            <Badge color="warning" pill className="text-uppercase accordion-pill">
+                            <Badge bg="warning" pill className="text-uppercase accordion-pill">
                                 <Icon icon={pillIcon} />
                                 {pillText}
                             </Badge>
