@@ -2,7 +2,6 @@ import { ConditionalPopover } from "components/common/ConditionalPopover";
 import { InputItemLimit } from "components/models/common";
 import genUtils from "common/generalUtils";
 
-
 interface ToggleLimitBadgeProps {
     count: number;
     limit: InputItemLimit;

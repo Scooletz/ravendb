@@ -23,7 +23,9 @@ export default function ToggleItemLabel<T extends string | number = string>({
                 {inputItem.count !== null && inputItem.limit ? (
                     <ToggleLimitBadge count={inputItem.count} limit={inputItem.limit} />
                 ) : inputItem.count != null ? (
-                    <span className="multi-toggle-item-count">{genUtils.formatNumberToStringFixed(inputItem.count, 0)}</span>
+                    <span className="multi-toggle-item-count">
+                        {genUtils.formatNumberToStringFixed(inputItem.count, 0)}
+                    </span>
                 ) : null}
             </label>
             {inputItem.popover && (
