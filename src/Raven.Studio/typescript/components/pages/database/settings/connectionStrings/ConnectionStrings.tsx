@@ -16,10 +16,11 @@ import useConnectionStringsLicense from "./useConnectionStringsLicense";
 import { LoadError } from "components/common/LoadError";
 import { databaseSelectors } from "components/common/shell/databaseSliceSelectors";
 import { ConditionalPopover } from "components/common/ConditionalPopover";
+import { StudioConnectionType } from "./connectionStringsTypes";
 
 export interface ConnectionStringsUrlParameters {
     name?: string;
-    type?: StudioEtlType;
+    type?: StudioConnectionType;
 }
 
 export default function ConnectionStrings({ queryParams }: ReactQueryParamsProps<ConnectionStringsUrlParameters>) {
@@ -108,7 +109,7 @@ export default function ConnectionStrings({ queryParams }: ReactQueryParamsProps
     );
 }
 
-const allStudioEtlTypes = exhaustiveStringTuple<StudioEtlType>()(
+const allStudioEtlTypes = exhaustiveStringTuple<StudioConnectionType>()(
     "Ai",
     "Raven",
     "Sql",

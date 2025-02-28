@@ -4,7 +4,7 @@ import InputGroup from "react-bootstrap/InputGroup";
 import { Label, Modal, ModalBody, ModalFooter } from "reactstrap";
 import Button from "react-bootstrap/Button";
 import Select, { SelectOptionWithIcon, SingleValueWithIcon } from "components/common/select/Select";
-import { Connection, EditConnectionStringFormProps } from "./connectionStringsTypes";
+import { Connection, EditConnectionStringFormProps, StudioConnectionType } from "./connectionStringsTypes";
 import RavenConnectionString from "./editForms/RavenConnectionString";
 import { useDispatch } from "react-redux";
 import { connectionStringsActions, connectionStringSelectors } from "./store/connectionStringsSlice";
@@ -41,7 +41,7 @@ export default function EditConnectionStrings(props: EditConnectionStringsProps)
 
     const dispatch = useDispatch();
     const { tasksService } = useServices();
-    const [connectionStringType, setConnectionStringType] = useState<StudioEtlType>(initialConnection?.type);
+    const [connectionStringType, setConnectionStringType] = useState<StudioConnectionType>(initialConnection?.type);
     const { features: licenseFeatures } = useConnectionStringsLicense();
 
     const EditConnectionStringComponent = getEditConnectionStringComponent(connectionStringType);
@@ -94,7 +94,9 @@ export default function EditConnectionStrings(props: EditConnectionStringsProps)
                             <Select
                                 options={availableConnectionStringsOptions}
                                 value={availableConnectionStringsOptions.find((x) => x.value === connectionStringType)}
-                                onChange={(x: SelectOptionWithIcon<StudioEtlType>) => setConnectionStringType(x.value)}
+                                onChange={(x: SelectOptionWithIcon<StudioConnectionType>) =>
+                                    setConnectionStringType(x.value)
+                                }
                                 placeholder="Select a connection string type"
                                 isSearchable={false}
                                 isDisabled={!isForNewConnection}
@@ -145,7 +147,9 @@ export default function EditConnectionStrings(props: EditConnectionStringsProps)
     );
 }
 
-function getEditConnectionStringComponent(type: StudioEtlType): (props: EditConnectionStringFormProps) => JSX.Element {
+function getEditConnectionStringComponent(
+    type: StudioConnectionType
+): (props: EditConnectionStringFormProps) => JSX.Element {
     switch (type) {
         case "Raven":
             return RavenConnectionString;
@@ -172,7 +176,7 @@ function getEditConnectionStringComponent(type: StudioEtlType): (props: EditConn
     }
 }
 
-interface ConnectionStringOption extends SelectOptionWithIcon<StudioEtlType> {
+interface ConnectionStringOption extends SelectOptionWithIcon<StudioConnectionType> {
     isDisabled: boolean;
     licenseRequired: LicenseBadgeText;
 }
