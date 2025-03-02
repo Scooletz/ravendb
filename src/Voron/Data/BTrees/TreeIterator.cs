@@ -62,7 +62,7 @@ namespace Voron.Data.BTrees
 
             _currentPage = _tree.FindPageFor(key, node: out TreeNodeHeader* node, 
                 cursor: out TreeCursorConstructor constructor,
-                allowCompressed: _tree.IsLeafCompressionSupported);
+                allowCompressed: _tree.IsLeafCompressionSupported, backward: backward);
             
             if (_currentPage.IsCompressed)
             {
