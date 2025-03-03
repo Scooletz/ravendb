@@ -1,6 +1,10 @@
 import * as yup from "yup";
 
-const setupMethodStepSchema = yup.object({});
+export type SetupWizardSetupMethod = "newCluster" | "createPackage" | "usePackage";
+
+const setupMethodStepSchema = yup.object({
+    method: yup.string<SetupWizardSetupMethod>().nullable().required(),
+});
 
 const usePackageStepSchema = yup.object({});
 
@@ -16,7 +20,21 @@ const nodeAddressStepSchema = yup.object({});
 
 const additionalSettingsStepSchema = yup.object({});
 
+export type SetupWizardStepId =
+    | "Eula"
+    | "Setup method"
+    | "Use setup package"
+    | "License key"
+    | "Security"
+    | "Self-signed certificate"
+    | "Domain"
+    | "Node address"
+    | "Additional settings"
+    | "Summary"
+    | "Finish";
+
 export const setupWizardSchema = yup.object({
+    currentStep: yup.string<SetupWizardStepId>(),
     setupMethodStep: setupMethodStepSchema,
     usePackageStep: usePackageStepSchema,
     licenseKeyStep: licenseKeyStepSchema,

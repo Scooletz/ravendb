@@ -15,5 +15,9 @@ export const Default = () => {
 
     setupWizardService.withEula();
 
-    return <SetupWizard />;
+    return (
+        <div style={{ height: 800 }}>
+            <SetupWizard />
+        </div>
+    );
 };
