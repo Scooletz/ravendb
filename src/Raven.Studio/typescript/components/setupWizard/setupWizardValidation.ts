@@ -1,6 +1,7 @@
 import * as yup from "yup";
 
 export type SetupWizardSetupMethod = "newCluster" | "createPackage" | "usePackage";
+export type SetupWizardSecurityOption = "letsEncrypt" | "ownCertificate" | "none";
 
 const setupMethodStepSchema = yup.object({
     method: yup.string<SetupWizardSetupMethod>().nullable().required(),
@@ -10,7 +11,9 @@ const usePackageStepSchema = yup.object({});
 
 const licenseKeyStepSchema = yup.object({});
 
-const securityStepSchema = yup.object({});
+const securityStepSchema = yup.object({
+    securityOption: yup.string<SetupWizardSecurityOption>().nullable().required(),
+});
 
 const selfSignedCertificateStepSchema = yup.object({});
 

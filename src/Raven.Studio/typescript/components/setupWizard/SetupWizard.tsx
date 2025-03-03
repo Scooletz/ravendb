@@ -6,6 +6,7 @@ import {
     setupWizardSchema,
     SetupWizardSetupMethod,
     SetupWizardStepId,
+    SetupWizardSecurityOption,
 } from "./setupWizardValidation";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { NumberedList } from "components/common/NumberedList";
@@ -34,6 +35,9 @@ export default function SetupWizard() {
             setupMethodStep: {
                 method: "newCluster",
             },
+            securityStep: {
+                securityOption: "letsEncrypt",
+            },
         },
     });
 
@@ -42,8 +46,13 @@ export default function SetupWizard() {
     const formValues = useWatch({ control: form.control });
 
     const steps = useMemo(
-        () => getAvailableSteps(formValues.currentStep, formValues.setupMethodStep.method),
-        [formValues.currentStep, formValues.setupMethodStep.method]
+        () =>
+            getAvailableSteps(
+                formValues.currentStep,
+                formValues.setupMethodStep.method,
+                formValues.securityStep.securityOption
+            ),
+        [formValues.currentStep, formValues.setupMethodStep.method, formValues.securityStep.securityOption]
     );
 
     const currentStepIdx = steps.findIndex((x) => x.isCurrent);
@@ -109,7 +118,11 @@ interface Step {
     isVisible?: boolean;
 }
 
-function getAvailableSteps(currentStep: SetupWizardStepId, setupMethod: SetupWizardSetupMethod): Step[] {
+function getAvailableSteps(
+    currentStep: SetupWizardStepId,
+    setupMethod: SetupWizardSetupMethod,
+    securityOption: SetupWizardSecurityOption
+): Step[] {
     const getIsNotInStepIds = (stepIds: SetupWizardStepId[]) => !stepIds.some((x) => currentStep === x);
 
     const steps: Step[] = [
@@ -142,7 +155,7 @@ function getAvailableSteps(currentStep: SetupWizardStepId, setupMethod: SetupWiz
             description: "Enter your license key or generate a new one",
             component: <SetupWizardLicenseKeyStep />,
             isCurrent: currentStep === "License key",
-            isAvailable: setupMethod === "newCluster" || setupMethod === "createPackage",
+            isAvailable: setupMethod === "newCluster",
             isVisible: getIsNotInStepIds(["Eula", "Setup method"]),
         },
         {
@@ -150,7 +163,7 @@ function getAvailableSteps(currentStep: SetupWizardStepId, setupMethod: SetupWiz
             description: "Choose security option that fits your needs",
             component: <SetupWizardSecurityStep />,
             isCurrent: currentStep === "Security",
-            isAvailable: setupMethod === "newCluster" || setupMethod === "createPackage",
+            isAvailable: setupMethod === "newCluster",
             isVisible: getIsNotInStepIds(["Eula", "Setup method"]),
         },
         {
@@ -158,7 +171,9 @@ function getAvailableSteps(currentStep: SetupWizardStepId, setupMethod: SetupWiz
             description: "Generate a self-signed certificate",
             component: <SetupWizardSelfSignedCertificateStep />,
             isCurrent: currentStep === "Self-signed certificate",
-            isAvailable: setupMethod === "createPackage",
+            isAvailable:
+                (setupMethod === "newCluster" || setupMethod === "createPackage") &&
+                securityOption === "ownCertificate",
             isVisible: getIsNotInStepIds(["Eula", "Setup method", "Security"]),
         },
         {
@@ -166,7 +181,8 @@ function getAvailableSteps(currentStep: SetupWizardStepId, setupMethod: SetupWiz
             description: "Enter your domain",
             component: <SetupWizardDomainStep />,
             isCurrent: currentStep === "Domain",
-            isAvailable: setupMethod === "newCluster" || setupMethod === "createPackage",
+            isAvailable:
+                (setupMethod === "newCluster" || setupMethod === "createPackage") && securityOption === "letsEncrypt",
             isVisible: getIsNotInStepIds(["Eula", "Setup method", "License key", "Security"]),
         },
         {
@@ -191,7 +207,7 @@ function getAvailableSteps(currentStep: SetupWizardStepId, setupMethod: SetupWiz
             component: <SetupWizardSummaryStep />,
             isCurrent: currentStep === "Summary",
             isAvailable: true,
-            isVisible: getIsNotInStepIds(["Eula", "Setup method", "License key", "Security"]),
+            isVisible: getIsNotInStepIds(["Eula", "Setup method", "License key", "Security", "Use setup package"]),
         },
         {
             title: "Finish",
@@ -199,7 +215,7 @@ function getAvailableSteps(currentStep: SetupWizardStepId, setupMethod: SetupWiz
             component: <SetupWizardFinishStep />,
             isCurrent: currentStep === "Finish",
             isAvailable: true,
-            isVisible: getIsNotInStepIds(["Eula", "Setup method", "License key", "Security"]),
+            isVisible: getIsNotInStepIds(["Eula", "Setup method", "License key", "Security", "Use setup package"]),
         },
     ];
 
