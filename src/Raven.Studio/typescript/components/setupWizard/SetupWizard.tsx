@@ -65,16 +65,24 @@ export default function SetupWizard() {
         <FormProvider {...form}>
             <form onSubmit={handleSubmit(console.log)} className="h-100">
                 <div className="hstack h-100">
-                    <div className="vstack flex-grow-1 h-100">
-                        <div>
-                            <img src={ravenLogo} alt="RavenDB Logo" width="120" />
+                    <div className="flex-grow-1 h-100">
+                        <div className="hstack flex-grow-1 h-100 justify-content-center">
+                            <div className="d-flex flex-column h-100 w-75">
+                                <div>
+                                    <img src={ravenLogo} alt="RavenDB Logo" width="120" />
+                                </div>
+                                <div className="h-100 py-4">{steps[currentStepIdx].component}</div>
+                            </div>
                         </div>
-                        <div className="h-100">{steps[currentStepIdx].component}</div>
                         <hr />
-                        <div className="d-flex justify-content-end">
-                            <Button variant="primary" className="rounded-pill" onClick={handleContinue}>
-                                Continue <Icon icon="arrow-right" />
-                            </Button>
+                        <div className="hstack flex-grow-1 justify-content-center">
+                            <div className="w-75 d-flex justify-content-end">
+                                <div>
+                                    <Button variant="primary" className="rounded-pill" onClick={handleContinue}>
+                                        Continue <Icon icon="arrow-right" />
+                                    </Button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <div className="h-100 d-flex flex-column justify-content-between p-4" style={{ width: 300 }}>
