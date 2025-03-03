@@ -33,10 +33,10 @@ export default function SetupWizard() {
         defaultValues: {
             currentStep: "Eula",
             setupMethodStep: {
-                method: "newCluster",
+                method: null,
             },
             securityStep: {
-                securityOption: "letsEncrypt",
+                securityOption: null,
             },
         },
     });
@@ -89,16 +89,18 @@ export default function SetupWizard() {
                         <div>
                             <NumberedList>
                                 {steps.map((step, idx) => (
-                                    <SetupWizardStepItem
-                                        key={step.title}
-                                        isCurrent={step.isCurrent}
-                                        isChecked={idx < currentStepIdx}
-                                        isInactive={idx > currentStepIdx}
-                                        className={classNames({ "d-none": !step.isVisible })}
-                                    >
-                                        <h5 className="mb-0">{step.title}</h5>
-                                        <small>{step.description}</small>
-                                    </SetupWizardStepItem>
+                                    <div onClick={() => console.log("kalczur ")}>
+                                        <SetupWizardStepItem
+                                            key={step.title}
+                                            isCurrent={step.isCurrent}
+                                            isChecked={idx < currentStepIdx}
+                                            isInactive={idx > currentStepIdx}
+                                            className={classNames({ "d-none": !step.isVisible })}
+                                        >
+                                            <h5 className="mb-0">{step.title}</h5>
+                                            <small>{step.description}</small>
+                                        </SetupWizardStepItem>
+                                    </div>
                                 ))}
                             </NumberedList>
                         </div>

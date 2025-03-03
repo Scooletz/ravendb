@@ -7,9 +7,11 @@ export default function SetupWizardEulaStep() {
 
     const asyncGetEula = useAsync(setupWizardService.getEula, []);
 
+    // TODO enable Continue button when EULA is scrolled to the bottom
+
     return (
         <div>
-            <h1>Read the EULA (End-User License Agreement)</h1>
+            <h2>Read the EULA (End-User License Agreement)</h2>
             <p>The following license agreement must be accepted in order to use this software.</p>
             <div style={{ height: 300, overflow: "auto" }}>
                 <Code language="plaintext" code={asyncGetEula.result ?? "Loading"} />
