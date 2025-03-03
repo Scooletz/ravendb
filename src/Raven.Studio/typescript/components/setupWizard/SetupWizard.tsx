@@ -77,7 +77,7 @@ export default function SetupWizard() {
                                         isCurrent={step.isCurrent}
                                         isChecked={idx < currentStepIdx}
                                         isInactive={idx > currentStepIdx}
-                                        className={classNames({ "d-none": idx > currentStepIdx || step.isHidden })}
+                                        className={classNames({ "d-none": !step.isVisible })}
                                     >
                                         <h5 className="mb-0">{step.title}</h5>
                                         <small>{step.description}</small>
@@ -106,18 +106,11 @@ interface Step {
     component: React.ReactNode;
     isCurrent?: boolean;
     isAvailable?: boolean;
-    isHidden?: boolean;
+    isVisible?: boolean;
 }
 
 function getAvailableSteps(currentStep: SetupWizardStepId, setupMethod: SetupWizardSetupMethod): Step[] {
-    // const getisHidden = (stepIds: SetupWizardStepId[]) => {
-    //     const currentStepIdx = steps.findIndex((x) => x.isCurrent);
-
-    //     return stepIds.some((x) => currentStep === x);
-    // };
-
-    // TODO wszystkie kroki wstecz powinny być widoczne
-    // dodatkowo widoczne powinny być niektre kroki w zaleznosci od wyboru np security
+    const getIsNotInStepIds = (stepIds: SetupWizardStepId[]) => !stepIds.some((x) => currentStep === x);
 
     const steps: Step[] = [
         {
@@ -126,7 +119,7 @@ function getAvailableSteps(currentStep: SetupWizardStepId, setupMethod: SetupWiz
             component: <SetupWizardEulaStep />,
             isCurrent: currentStep === "Eula",
             isAvailable: true,
-            isHidden: false,
+            isVisible: false,
         },
         {
             title: "Setup method",
@@ -134,7 +127,7 @@ function getAvailableSteps(currentStep: SetupWizardStepId, setupMethod: SetupWiz
             component: <SetupWizardSetupMethodStep />,
             isCurrent: currentStep === "Setup method",
             isAvailable: true,
-            isHidden: false,
+            isVisible: getIsNotInStepIds(["Eula"]),
         },
         {
             title: "Use setup package",
@@ -142,7 +135,7 @@ function getAvailableSteps(currentStep: SetupWizardStepId, setupMethod: SetupWiz
             component: <SetupWizardUsePackageStep />,
             isCurrent: currentStep === "Use setup package",
             isAvailable: setupMethod === "usePackage",
-            isHidden: false,
+            isVisible: getIsNotInStepIds(["Eula", "Setup method"]),
         },
         {
             title: "License key",
@@ -150,7 +143,7 @@ function getAvailableSteps(currentStep: SetupWizardStepId, setupMethod: SetupWiz
             component: <SetupWizardLicenseKeyStep />,
             isCurrent: currentStep === "License key",
             isAvailable: setupMethod === "newCluster" || setupMethod === "createPackage",
-            isHidden: false,
+            isVisible: getIsNotInStepIds(["Eula", "Setup method"]),
         },
         {
             title: "Security",
@@ -158,15 +151,15 @@ function getAvailableSteps(currentStep: SetupWizardStepId, setupMethod: SetupWiz
             component: <SetupWizardSecurityStep />,
             isCurrent: currentStep === "Security",
             isAvailable: setupMethod === "newCluster" || setupMethod === "createPackage",
-            isHidden: currentStep === "Security",
+            isVisible: getIsNotInStepIds(["Eula", "Setup method"]),
         },
         {
             title: "Self-signed certificate",
             description: "Generate a self-signed certificate",
             component: <SetupWizardSelfSignedCertificateStep />,
             isCurrent: currentStep === "Self-signed certificate",
-            isAvailable: setupMethod === "newCluster" || setupMethod === "createPackage",
-            isHidden: true,
+            isAvailable: setupMethod === "createPackage",
+            isVisible: getIsNotInStepIds(["Eula", "Setup method", "Security"]),
         },
         {
             title: "Domain",
@@ -174,7 +167,7 @@ function getAvailableSteps(currentStep: SetupWizardStepId, setupMethod: SetupWiz
             component: <SetupWizardDomainStep />,
             isCurrent: currentStep === "Domain",
             isAvailable: setupMethod === "newCluster" || setupMethod === "createPackage",
-            isHidden: true,
+            isVisible: getIsNotInStepIds(["Eula", "Setup method", "License key", "Security"]),
         },
         {
             title: "Node address",
@@ -182,7 +175,7 @@ function getAvailableSteps(currentStep: SetupWizardStepId, setupMethod: SetupWiz
             component: <SetupWizardNodeAddressStep />,
             isCurrent: currentStep === "Node address",
             isAvailable: setupMethod === "newCluster" || setupMethod === "createPackage",
-            isHidden: true,
+            isVisible: getIsNotInStepIds(["Eula", "Setup method", "License key", "Security"]),
         },
         {
             title: "Additional settings",
@@ -190,7 +183,7 @@ function getAvailableSteps(currentStep: SetupWizardStepId, setupMethod: SetupWiz
             component: <SetupWizardAdditionalSettingsStep />,
             isCurrent: currentStep === "Additional settings",
             isAvailable: setupMethod === "newCluster" || setupMethod === "createPackage",
-            isHidden: true,
+            isVisible: getIsNotInStepIds(["Eula", "Setup method", "License key", "Security"]),
         },
         {
             title: "Summary",
@@ -198,7 +191,7 @@ function getAvailableSteps(currentStep: SetupWizardStepId, setupMethod: SetupWiz
             component: <SetupWizardSummaryStep />,
             isCurrent: currentStep === "Summary",
             isAvailable: true,
-            isHidden: true,
+            isVisible: getIsNotInStepIds(["Eula", "Setup method", "License key", "Security"]),
         },
         {
             title: "Finish",
@@ -206,7 +199,7 @@ function getAvailableSteps(currentStep: SetupWizardStepId, setupMethod: SetupWiz
             component: <SetupWizardFinishStep />,
             isCurrent: currentStep === "Finish",
             isAvailable: true,
-            isHidden: true,
+            isVisible: getIsNotInStepIds(["Eula", "Setup method", "License key", "Security"]),
         },
     ];
 

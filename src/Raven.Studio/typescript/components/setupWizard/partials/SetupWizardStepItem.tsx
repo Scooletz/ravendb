@@ -28,7 +28,14 @@ export function SetupWizardStepItem(props: SetupWizardStepItemProps) {
 
     return (
         <li className={classNames("setup-wizard-step-item", className)}>
-            <span className={classNames("dot", { inactive: isInactive })}>
+            <span
+                className={classNames(
+                    "dot",
+                    { inactive: isInactive },
+                    { "bg-light": isChecked },
+                    { "border-primary text-primary": isCurrent }
+                )}
+            >
                 {dotIcon && <Icon icon={dotIcon} margin="m-0" />}
             </span>
             {children}
