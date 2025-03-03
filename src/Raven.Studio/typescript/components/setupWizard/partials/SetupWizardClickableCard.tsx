@@ -1,16 +1,15 @@
 import classNames from "classnames";
 import { Icon } from "components/common/Icon";
 import IconName from "typings/server/icons";
-import { SetupWizardFormData } from "../setupWizardValidation";
 
 interface SetupWizardClickableCardProps {
     icon: IconName;
     addon?: IconName;
     title: string;
     description: string;
-    method: SetupWizardFormData["setupMethodStep"]["method"];
     isSelected: boolean;
     onClick: () => void;
+    className?: string;
 }
 
 export default function SetupWizardClickableCard(props: SetupWizardClickableCardProps) {
@@ -20,11 +19,12 @@ export default function SetupWizardClickableCard(props: SetupWizardClickableCard
         <div
             className={classNames(
                 "border rounded p-4  cursor-pointer",
+                props.className,
                 {
                     "bg-faded-primary border-primary": props.isSelected,
                 },
                 {
-                    "border-light": !props.isSelected,
+                    "border-secondary": !props.isSelected,
                 }
             )}
             onClick={props.onClick}

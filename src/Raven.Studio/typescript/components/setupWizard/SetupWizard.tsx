@@ -65,17 +65,17 @@ export default function SetupWizard() {
         <FormProvider {...form}>
             <form onSubmit={handleSubmit(console.log)} className="h-100">
                 <div className="hstack h-100">
-                    <div className="flex-grow-1 h-100">
-                        <div className="hstack flex-grow-1 h-100 justify-content-center">
+                    <div className="vstack flex-grow-1 h-100">
+                        <div className="hstack flex-grow-1 justify-content-center">
                             <div className="d-flex flex-column h-100 w-75">
-                                <div>
+                                <div className="mt-4">
                                     <img src={ravenLogo} alt="RavenDB Logo" width="120" />
                                 </div>
-                                <div className="h-100 py-4">{steps[currentStepIdx].component}</div>
+                                <div className="overflow-y-auto py-4">{steps[currentStepIdx].component}</div>
                             </div>
                         </div>
                         <hr />
-                        <div className="hstack flex-grow-1 justify-content-center">
+                        <div className="hstack justify-content-center">
                             <div className="w-75 d-flex justify-content-end">
                                 <div>
                                     <Button variant="primary" className="rounded-pill" onClick={handleContinue}>
@@ -85,22 +85,24 @@ export default function SetupWizard() {
                             </div>
                         </div>
                     </div>
-                    <div className="h-100 d-flex flex-column justify-content-between p-4" style={{ width: 300 }}>
+                    <div
+                        className="h-100 d-flex flex-column justify-content-between p-4 panel-bg-1"
+                        style={{ width: 400, minWidth: 400 }}
+                    >
                         <div>
                             <NumberedList>
                                 {steps.map((step, idx) => (
-                                    <div onClick={() => console.log("kalczur ")}>
-                                        <SetupWizardStepItem
-                                            key={step.title}
-                                            isCurrent={step.isCurrent}
-                                            isChecked={idx < currentStepIdx}
-                                            isInactive={idx > currentStepIdx}
-                                            className={classNames({ "d-none": !step.isVisible })}
-                                        >
-                                            <h5 className="mb-0">{step.title}</h5>
-                                            <small>{step.description}</small>
-                                        </SetupWizardStepItem>
-                                    </div>
+                                    <SetupWizardStepItem
+                                        key={step.title}
+                                        isCurrent={step.isCurrent}
+                                        isChecked={idx < currentStepIdx}
+                                        isInactive={idx > currentStepIdx}
+                                        className={classNames("cursor-pointer", { "d-none": !step.isVisible })}
+                                        onClick={() => console.log("kalczur go to step", step.title)}
+                                    >
+                                        <h5 className="mb-0">{step.title}</h5>
+                                        <small>{step.description}</small>
+                                    </SetupWizardStepItem>
                                 ))}
                             </NumberedList>
                         </div>

@@ -16,34 +16,30 @@ export default function SetupWizardSetupMethodStep() {
                 external configuration package, or continue with an existing setup package.
             </p>
             <div className="mt-4">
-                <span>I&apos;m just starting</span>
+                <h5 className="mb-1">I&apos;m just starting</h5>
                 <SetupWizardClickableCard
                     icon="server"
                     title="Set up new cluster"
                     description="Create a completely new cluster with fresh configurations"
-                    method="newCluster"
                     isSelected={selectedMethod === "newCluster"}
                     onClick={() => setValue("setupMethodStep.method", "newCluster")}
                 />
-                <div className="mt-2">
-                    <SetupWizardClickableCard
-                        icon="default"
-                        title="Create package for external setup"
-                        description="Generate an external setup package during configuration for customized deployment"
-                        method="createPackage"
-                        isSelected={selectedMethod === "createPackage"}
-                        onClick={() => setValue("setupMethodStep.method", "createPackage")}
-                    />
-                </div>
+                <SetupWizardClickableCard
+                    className="mt-2"
+                    icon="default"
+                    title="Create package for external setup"
+                    description="Generate an external setup package during configuration for customized deployment"
+                    isSelected={selectedMethod === "createPackage"}
+                    onClick={() => setValue("setupMethodStep.method", "createPackage")}
+                />
             </div>
             <div className="mt-4">
-                <span>I have some to working with</span>
+                <h5 className="mb-1">I have some to working with</h5>
                 <SetupWizardClickableCard
                     icon="default"
                     addon="arrow-up"
                     title="Use setup package"
                     description="Deploy the cluster using a predefined setup package with default or minimal configurations"
-                    method="usePackage"
                     isSelected={selectedMethod === "usePackage"}
                     onClick={() => setValue("setupMethodStep.method", "usePackage")}
                 />
