@@ -156,7 +156,7 @@ export default function RevisionsBinCleaner() {
                                         </Collapse>
                                         <FormGroup>
                                             <FormSwitch
-                                                name="isRefreshFrequencyEnabled"
+                                                name="isCleanerFrequencyInSecEnabled"
                                                 control={control}
                                                 color="primary"
                                                 className="mb-3"
@@ -169,14 +169,14 @@ export default function RevisionsBinCleaner() {
                                                 Set custom cleaner frequency
                                             </FormSwitch>
                                             <FormInput
-                                                name="refreshFrequencyInSec"
+                                                name="cleanerFrequencyInSec"
                                                 control={control}
                                                 type="number"
                                                 disabled={
                                                     !hasDatabaseAdminAccess ||
                                                     formState.isSubmitting ||
                                                     !formValues.isRevisionsBinCleanerEnabled ||
-                                                    !formValues.isRefreshFrequencyEnabled
+                                                    !formValues.isCleanerFrequencyInSecEnabled
                                                 }
                                                 placeholder="Default (300)"
                                                 addon="seconds"

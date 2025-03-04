@@ -25,7 +25,7 @@ export default function ButtonWithSpinner(props: ButtonWithSpinnerProps) {
                 <Icon {...icon} />
             );
     }
-
+    /* eslint-disable local-rules/no-reactstrap-Button-color-prop */
     return (
         <Button
             variant="secondary"
@@ -42,4 +42,5 @@ export default function ButtonWithSpinner(props: ButtonWithSpinnerProps) {
             {children}
         </Button>
     );
+    /* eslint-enable local-rules/no-reactstrap-Button-color-prop */
 }

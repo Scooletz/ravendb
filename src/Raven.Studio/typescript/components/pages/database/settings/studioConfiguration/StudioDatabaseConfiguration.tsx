@@ -1,4 +1,6 @@
-import { Card, CardBody, Col, Form, InputGroup, Label, Row } from "reactstrap";
+import Card from "react-bootstrap/Card";
+import InputGroup from "react-bootstrap/InputGroup";
+import { Col, Form, Label, Row } from "reactstrap";
 import { SubmitHandler, useForm } from "react-hook-form";
 import { FormSelect, FormSwitch } from "components/common/Form";
 import { tryHandleSubmit } from "components/utils/common";
@@ -122,7 +124,7 @@ export default function StudioDatabaseConfiguration() {
                         </div>
                         <div className={hasStudioConfiguration ? "" : "item-disabled pe-none"}>
                             <Card>
-                                <CardBody className="d-flex flex-center flex-column flex-wrap gap-4">
+                                <Card.Body className="d-flex flex-center flex-column flex-wrap gap-4">
                                     <InputGroup className="gap-1 flex-wrap flex-column">
                                         <Label className="mb-0 md-label">
                                             Database Environment{" "}
@@ -148,10 +150,10 @@ export default function StudioDatabaseConfiguration() {
                                             isSearchable={false}
                                         ></FormSelect>
                                     </InputGroup>
-                                </CardBody>
+                                </Card.Body>
                             </Card>
                             <Card className="mt-3" id="disableAutoIndexesContainer">
-                                <CardBody>
+                                <Card.Body>
                                     <div className="d-flex flex-column">
                                         <FormSwitch control={control} name="DisableAutoIndexCreation">
                                             Disable creating new Auto-Indexes{" "}
@@ -174,7 +176,7 @@ export default function StudioDatabaseConfiguration() {
                                             </PopoverWithHoverWrapper>
                                         </FormSwitch>
                                     </div>
-                                </CardBody>
+                                </Card.Body>
                             </Card>
                         </div>
                     </Form>
