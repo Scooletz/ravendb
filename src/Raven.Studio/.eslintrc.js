@@ -26,12 +26,34 @@ module.exports = {
     "@typescript-eslint/no-unused-vars": "warn",
     "react/react-in-jsx-scope": "off",
     "local-rules/no-reactstrap-alert": "warn",
-    "local-rules/mixed-imports": "error",
+    "local-rules/mixed-imports": "warn",
+    "local-rules/no-reactstrap-Button-color-prop": "warn",
+    "local-rules/no-reactstrap-Button": "warn",
+    "local-rules/no-reactstrap-Spinner": "warn",
+    "local-rules/no-reactstrap-UncontrolledTooltip": "warn",
+    "local-rules/no-reactstrap-UncontrolledPopover": "warn",
+    "local-rules/no-reactstrap-Tooltip": "warn",
+    "local-rules/no-reactstrap-Popover": "warn",
+    "local-rules/no-reactstrap-Badge": "warn",
+    "local-rules/no-reactstrap-Badge-props": "warn",
+    "local-rules/no-reactstrap-Collapse": "warn",
+    "local-rules/no-reactstrap-Collapse-props": "warn",
     "curly": "warn",
     "react/jsx-curly-brace-presence": [
       'warn',
       { props: 'never', children: 'never' },
     ],
+    "no-restricted-imports": [
+      "error",
+      {
+        "paths": [
+          {
+            "name": "react-bootstrap",
+            "message": "Please import individual components, e.g.: import Tooltip from 'react-bootstrap/Tooltip'"
+          }
+        ]
+      }
+    ]
   },
   "settings": {
     "react": {

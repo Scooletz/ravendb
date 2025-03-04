@@ -1,6 +1,6 @@
 import { Icon } from "components/common/Icon";
-import React from "react";
-import { Row, Col, Collapse, UncontrolledPopover, PopoverBody, Label } from "reactstrap";
+import Collapse from "react-bootstrap/Collapse";
+import { Row, Col, Label } from "reactstrap";
 import { useFormContext, useWatch } from "react-hook-form";
 import { CreateDatabaseFromBackupFormData as FormData } from "../../createDatabaseFromBackupValidation";
 import { FormInput, FormSelectAutocomplete, FormSwitch } from "components/common/Form";
@@ -13,6 +13,7 @@ import EncryptionField from "components/pages/resources/databases/partials/creat
 import RestorePointsFields, {
     RestorePointElementProps,
 } from "components/pages/resources/databases/partials/create/formBackup/steps/source/RestorePointsFields";
+import PopoverWithHoverWrapper from "components/common/PopoverWithHoverWrapper";
 
 export default function BackupSourceAmazonS3() {
     const { control } = useFormContext<FormData>();
@@ -37,38 +38,44 @@ export default function BackupSourceAmazonS3() {
                 </Col>
             </Row>
 
-            <Collapse isOpen={isUseCustomHost}>
-                <Row>
-                    <Col lg={{ offset: 3 }}>
-                        <FormSwitch
-                            color="primary"
-                            control={control}
-                            name="sourceStep.sourceData.amazonS3.isForcePathStyle"
-                        >
-                            Force path style <Icon icon="info" color="info" id="CloudBackupLinkInfo" margin="m-0" />
-                        </FormSwitch>
-                        <UncontrolledPopover target="CloudBackupLinkInfo" trigger="hover">
-                            <PopoverBody>
-                                Whether to force path style URLs for S3 objects (e.g.,{" "}
-                                <code>https://&#123;Server-URL&#125;/&#123;Bucket-Name&#125;</code> instead of{" "}
-                                <code>https://&#123;Bucket-Name&#125;.&#123;Server-URL&#125;</code>)
-                            </PopoverBody>
-                        </UncontrolledPopover>
-                    </Col>
-                </Row>
-                <Row className="mt-2">
-                    <Col lg="3">
-                        <Label className="col-form-label">Custom server URL</Label>
-                    </Col>
-                    <Col>
-                        <FormInput
-                            type="text"
-                            control={control}
-                            name="sourceStep.sourceData.amazonS3.customHost"
-                            placeholder="Enter custom server URL"
-                        />
-                    </Col>
-                </Row>
+            <Collapse in={isUseCustomHost}>
+                <div>
+                    <Row>
+                        <Col lg={{ offset: 3 }}>
+                            <FormSwitch
+                                color="primary"
+                                control={control}
+                                name="sourceStep.sourceData.amazonS3.isForcePathStyle"
+                            >
+                                Force path style{" "}
+                                <PopoverWithHoverWrapper
+                                    message={
+                                        <>
+                                            Whether to force path style URLs for S3 objects (e.g.,{" "}
+                                            <code>https://&#123;Server-URL&#125;/&#123;Bucket-Name&#125;</code> instead
+                                            of <code>https://&#123;Bucket-Name&#125;.&#123;Server-URL&#125;</code>)
+                                        </>
+                                    }
+                                >
+                                    <Icon icon="info" color="info" margin="m-0" />
+                                </PopoverWithHoverWrapper>
+                            </FormSwitch>
+                        </Col>
+                    </Row>
+                    <Row className="mt-2">
+                        <Col lg="3">
+                            <Label className="col-form-label">Custom server URL</Label>
+                        </Col>
+                        <Col>
+                            <FormInput
+                                type="text"
+                                control={control}
+                                name="sourceStep.sourceData.amazonS3.customHost"
+                                placeholder="Enter custom server URL"
+                            />
+                        </Col>
+                    </Row>
+                </div>
             </Collapse>
 
             <Row className="mt-2">

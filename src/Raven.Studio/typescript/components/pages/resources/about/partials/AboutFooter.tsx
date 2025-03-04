@@ -1,4 +1,4 @@
-﻿import { Icon } from "components/common/Icon";
+import { Icon } from "components/common/Icon";
 import React from "react";
 import { aboutPageUrls } from "components/pages/resources/about/partials/common";
 

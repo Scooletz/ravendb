@@ -1,5 +1,5 @@
-﻿import React, { useEffect, useState } from "react";
-import { Button, Col, Row, UncontrolledTooltip } from "reactstrap";
+﻿import { useEffect, useState } from "react";
+import { Col, Row, UncontrolledTooltip } from "reactstrap";
 import { AboutViewAnchored, AboutViewHeading, AccordionItemWrapper } from "components/common/AboutView";
 import { Icon } from "components/common/Icon";
 import { HrHeader } from "components/common/HrHeader";
@@ -36,6 +36,10 @@ import FeatureAvailabilitySummaryWrapper, {
 import { useLimitedFeatureAvailability } from "components/utils/licenseLimitsUtils";
 import { databaseSelectors } from "components/common/shell/databaseSliceSelectors";
 import activeDatabaseTracker from "common/shell/activeDatabaseTracker";
+import Button from "react-bootstrap/Button";
+import OverlayTrigger from "react-bootstrap/OverlayTrigger";
+import Tooltip from "react-bootstrap/Tooltip";
+import { ConditionalPopover } from "components/common/ConditionalPopover";
 
 interface EditRevisionData {
     onConfirm: (config: DocumentRevisionsConfig) => void;
@@ -184,7 +188,7 @@ export default function DocumentRevisions() {
                                 <Row>
                                     <div className="d-flex flex-wrap gap-2">
                                         <ButtonWithSpinner
-                                            color="primary"
+                                            variant="primary"
                                             icon="save"
                                             disabled={isSaveDisabled}
                                             onClick={asyncSaveConfigs.execute}
@@ -205,23 +209,27 @@ export default function DocumentRevisions() {
                                             <Icon icon="revert-revisions" />
                                             Revert revisions
                                         </a>
-
-                                        <UncontrolledTooltip target="enforceConfiguration">
-                                            {isSaveDisabled
-                                                ? "Enforce the defined revisions configuration on all documents per collection"
-                                                : "Save current configuration before enforcing"}
-                                        </UncontrolledTooltip>
-                                        <div id="enforceConfiguration">
-                                            <ButtonWithSpinner
-                                                color="secondary"
-                                                onClick={toggleEnforceConfigurationModal}
-                                                disabled={isAnyModified}
-                                                isSpinning={asyncEnforceRevisionsConfiguration.status === "loading"}
-                                            >
-                                                <Icon icon="rocket" />
-                                                Enforce configuration
-                                            </ButtonWithSpinner>
-                                        </div>
+                                        <OverlayTrigger
+                                            overlay={
+                                                <Tooltip id="enforceConfiguration">
+                                                    {isSaveDisabled
+                                                        ? "Enforce the defined revisions configuration on all documents per collection"
+                                                        : "Save current configuration before enforcing"}
+                                                </Tooltip>
+                                            }
+                                        >
+                                            <div>
+                                                <ButtonWithSpinner
+                                                    variant="secondary"
+                                                    onClick={toggleEnforceConfigurationModal}
+                                                    disabled={isAnyModified}
+                                                    isSpinning={asyncEnforceRevisionsConfiguration.status === "loading"}
+                                                >
+                                                    <Icon icon="rocket" />
+                                                    Enforce configuration
+                                                </ButtonWithSpinner>
+                                            </div>
+                                        </OverlayTrigger>
                                     </div>
                                     <div className="mt-3">
                                         <DocumentRevisionsSelectActions />
@@ -234,10 +242,15 @@ export default function DocumentRevisions() {
                             <HrHeader
                                 right={
                                     hasDatabaseAdminAccess && !defaultDocumentsConfig ? (
-                                        <>
+                                        <ConditionalPopover
+                                            conditions={{
+                                                isActive: !canSetupDefaultRevisionsConfiguration,
+                                                message: "Your license does not allow you to set up default policy.",
+                                            }}
+                                        >
                                             <div id="add-default-config-button">
                                                 <Button
-                                                    color="info"
+                                                    variant="info"
                                                     size="sm"
                                                     className="rounded-pill"
                                                     title="Create a default revision configuration for all (non-conflicting) documents"
@@ -255,14 +268,7 @@ export default function DocumentRevisions() {
                                                     Add new
                                                 </Button>
                                             </div>
-                                            {!canSetupDefaultRevisionsConfiguration && (
-                                                <UncontrolledTooltip target="add-default-config-button">
-                                                    <div className="p-3">
-                                                        Your license does not allow you to set up default policy.
-                                                    </div>
-                                                </UncontrolledTooltip>
-                                            )}
-                                        </>
+                                        </ConditionalPopover>
                                     ) : null
                                 }
                             >
@@ -311,7 +317,7 @@ export default function DocumentRevisions() {
                                 right={
                                     hasDatabaseAdminAccess ? (
                                         <Button
-                                            color="info"
+                                            variant="info"
                                             size="sm"
                                             className="rounded-pill"
                                             title="Create a revision configuration for a specific collection"

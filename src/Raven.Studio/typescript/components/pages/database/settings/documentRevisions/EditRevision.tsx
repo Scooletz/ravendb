@@ -1,5 +1,5 @@
 ﻿import { Icon } from "components/common/Icon";
-import { Button, Form, InputGroup, Label, Modal, ModalBody, ModalFooter } from "reactstrap";
+import { Form, InputGroup, Label, Modal, ModalBody, ModalFooter } from "reactstrap";
 import { FormDurationPicker, FormInput, FormSelectCreatable, FormSwitch } from "components/common/Form";
 import { SubmitHandler, useForm, useWatch } from "react-hook-form";
 import {
@@ -27,6 +27,7 @@ import RichAlert from "components/common/RichAlert";
 import useEditRevisionFormSideEffects from "components/pages/database/settings/documentRevisions/useEditRevisionFormSideEffects";
 import { useAppUrls } from "hooks/useAppUrls";
 import { databaseSelectors } from "components/common/shell/databaseSliceSelectors";
+import Button from "react-bootstrap/Button";
 
 const revisionsDelta = 100;
 const revisionsByAgeDelta = 604800; // 7 days
@@ -206,8 +207,8 @@ export default function EditRevision(props: EditRevisionProps) {
                     <RichAlert variant="primary" title="Summary" className="mt-2">
                         <ul className="m-0 ps-2 vstack gap-1">
                             <li>
-                                A revision will be created anytime a document is created, modified,
-                                {!formValues.isPurgeOnDeleteEnabled && <span> or deleted</span>}.
+                                A revision will be created anytime a document is created
+                                {formValues.isPurgeOnDeleteEnabled ? " or modified." : ", modified, or deleted."}
                             </li>
                             {formValues.isPurgeOnDeleteEnabled ? (
                                 <li>When a document is deleted all its revisions will be removed.</li>
@@ -268,10 +269,10 @@ export default function EditRevision(props: EditRevisionProps) {
                     </RichAlert>
                 </ModalBody>
                 <ModalFooter>
-                    <Button type="button" color="link" className="link-muted" onClick={toggle}>
+                    <Button type="button" variant="link" className="link-muted" onClick={toggle}>
                         Cancel
                     </Button>
-                    <Button type="submit" color="success" disabled={isLimitExceeded} title="Add this configuration">
+                    <Button type="submit" variant="success" disabled={isLimitExceeded} title="Add this configuration">
                         <Icon icon={getSubmitIcon(taskType)} />
                         {_.startCase(taskType)} config
                     </Button>

@@ -1,8 +1,10 @@
 ﻿import useBoolean from "hooks/useBoolean";
-import { Button, Col, Collapse, Form, FormGroup, Input, Label, Modal, ModalBody, ModalFooter, Row } from "reactstrap";
+import Collapse from "react-bootstrap/Collapse";
+import { CloseButton, Col, Form, FormGroup, Input, Label, Modal, ModalBody, ModalFooter, Row } from "reactstrap";
 import { Icon } from "components/common/Icon";
 import { Checkbox, Switch } from "components/common/Checkbox";
 import React from "react";
+import Button from "react-bootstrap/Button";
 
 interface RequestSupportModalProps {
     visible: boolean;
@@ -32,7 +34,7 @@ export function RequestSupportModal(props: RequestSupportModalProps) {
                 </div>
 
                 <div className="position-absolute m-2 end-0 top-0">
-                    <Button close onClick={toggle} />
+                    <CloseButton onClick={toggle} />
                 </div>
                 <div className="text-center lead">Request support</div>
 
@@ -70,12 +72,12 @@ export function RequestSupportModal(props: RequestSupportModalProps) {
                         <Checkbox size="lg" selected={includeDebugPackage} toggleSelection={toggleIncludeDebugPackage}>
                             Include debug package
                         </Checkbox>
-                        <Collapse isOpen={includeDebugPackage}>
+                        <Collapse in={includeDebugPackage}>
                             <div className="py-2">
                                 <Switch selected={includeAllDatabases} toggleSelection={toggleIncludeAllDatabases}>
                                     Include all databases
                                 </Switch>
-                                <Collapse isOpen={!includeAllDatabases}>
+                                <Collapse in={!includeAllDatabases}>
                                     <div className="vstack">
                                         <Checkbox selected={null} toggleSelection={null}>
                                             Database1
@@ -105,10 +107,10 @@ export function RequestSupportModal(props: RequestSupportModalProps) {
                 </Form>
             </ModalBody>
             <ModalFooter>
-                <Button color="secondary" outline onClick={toggle} className="rounded-pill px-3">
+                <Button variant="outline-secondary" onClick={toggle} className="rounded-pill px-3">
                     Close
                 </Button>
-                <Button color="primary" className="rounded-pill px-3">
+                <Button variant="primary" className="rounded-pill px-3">
                     <Icon icon="support" />
                     Request support
                 </Button>

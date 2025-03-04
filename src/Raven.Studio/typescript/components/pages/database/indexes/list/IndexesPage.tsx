@@ -1,19 +1,10 @@
-﻿import React from "react";
+﻿import "./IndexesPage.scss";
 import IndexFilter from "./IndexFilter";
 import IndexSelectActions from "./IndexSelectActions";
 import IndexUtils from "../../../../utils/IndexUtils";
 import { useAppUrls } from "hooks/useAppUrls";
-import "./IndexesPage.scss";
-import {
-    Button,
-    Col,
-    DropdownItem,
-    DropdownMenu,
-    DropdownToggle,
-    Row,
-    UncontrolledDropdown,
-    UncontrolledPopover,
-} from "reactstrap";
+import { Col, DropdownItem, DropdownMenu, DropdownToggle, Row, UncontrolledDropdown } from "reactstrap";
+import Button from "react-bootstrap/Button";
 import { LoadingView } from "components/common/LoadingView";
 import { StickyHeader } from "components/common/StickyHeader";
 import { BulkIndexOperationConfirm } from "components/pages/database/indexes/list/BulkIndexOperationConfirm";
@@ -35,6 +26,7 @@ import { accessManagerSelectors } from "components/common/shell/accessManagerSli
 import { databaseSelectors } from "components/common/shell/databaseSliceSelectors";
 import DatabaseUtils from "components/utils/DatabaseUtils";
 import { ImportIndexes } from "components/pages/database/indexes/list/migration/import/ImportIndexes";
+import { ConditionalPopover } from "components/common/ConditionalPopover";
 
 interface IndexesPageProps {
     stale?: boolean;
@@ -42,7 +34,7 @@ interface IndexesPageProps {
     isImportOpen?: boolean;
 }
 
-export function IndexesPage(props: ReactProps<any, IndexesPageProps>) {
+export function IndexesPage({ queryParams }: ReactQueryParamsProps<IndexesPageProps>) {
     const db = useAppSelector(databaseSelectors.activeDatabase);
     const hasDatabaseWriteAccess = useAppSelector(accessManagerSelectors.getHasDatabaseWriteAccess)();
     const { reportEvent } = useEventsCollector();
@@ -83,7 +75,7 @@ export function IndexesPage(props: ReactProps<any, IndexesPageProps>) {
         globalIndexingStatus,
         isImportIndexModalOpen,
         toggleIsImportIndexModalOpen,
-    } = useIndexesPage(props?.queryParams?.stale, props?.queryParams?.isImportOpen);
+    } = useIndexesPage(queryParams?.stale, queryParams?.isImportOpen);
 
     const deleteSelectedIndexes = () => {
         reportEvent("indexes", "delete-selected");
@@ -140,7 +132,7 @@ export function IndexesPage(props: ReactProps<any, IndexesPageProps>) {
     const indexesPageListCommonProps: Omit<IndexesPageListProps, "indexes"> = {
         replacements,
         selectedIndexes,
-        indexToHighlight: props?.queryParams?.indexName,
+        indexToHighlight: queryParams?.indexName,
         globalIndexingStatus,
         resetIndexData,
         swapSideBySideData,
@@ -178,10 +170,36 @@ export function IndexesPage(props: ReactProps<any, IndexesPageProps>) {
                     <Row>
                         <Col className="hstack">
                             {hasDatabaseWriteAccess && (
-                                <div id="NewIndexButton">
+                                <ConditionalPopover
+                                    conditions={{
+                                        isActive: isNewIndexDisabled,
+                                        message: (
+                                            <div className="text-center">
+                                                <Icon
+                                                    icon={
+                                                        staticClusterLimitStatus === "limitReached"
+                                                            ? "cluster"
+                                                            : "database"
+                                                    }
+                                                />
+                                                {staticClusterLimitStatus === "limitReached" ? "Cluster" : "Database"}{" "}
+                                                has reached the maximum number of static indexes allowed per{" "}
+                                                {staticClusterLimitStatus === "limitReached" ? "cluster" : "database"}{" "}
+                                                by your license.
+                                                <br />
+                                                Delete unused indexes or{" "}
+                                                <strong>
+                                                    <a href={upgradeLicenseLink} target="_blank">
+                                                        upgrade your license
+                                                    </a>
+                                                </strong>
+                                            </div>
+                                        ),
+                                    }}
+                                >
                                     <UncontrolledDropdown group className="button-dropdown-pill">
                                         <Button
-                                            color="primary"
+                                            variant="primary"
                                             href={newIndexUrl}
                                             disabled={isNewIndexDisabled}
                                             className="button-dropdown-btn"
@@ -203,33 +221,7 @@ export function IndexesPage(props: ReactProps<any, IndexesPageProps>) {
                                             </DropdownItem>
                                         </DropdownMenu>
                                     </UncontrolledDropdown>
-                                </div>
-                            )}
-
-                            {isNewIndexDisabled && (
-                                <UncontrolledPopover
-                                    trigger="hover"
-                                    target="NewIndexButton"
-                                    placement="top"
-                                    className="bs5"
-                                >
-                                    <div className="p-3 text-center">
-                                        <Icon
-                                            icon={staticClusterLimitStatus === "limitReached" ? "cluster" : "database"}
-                                        />
-                                        {staticClusterLimitStatus === "limitReached" ? "Cluster" : "Database"} has
-                                        reached the maximum number of static indexes allowed per{" "}
-                                        {staticClusterLimitStatus === "limitReached" ? "cluster" : "database"} by your
-                                        license.
-                                        <br />
-                                        Delete unused indexes or{" "}
-                                        <strong>
-                                            <a href={upgradeLicenseLink} target="_blank">
-                                                upgrade your license
-                                            </a>
-                                        </strong>
-                                    </div>
-                                </UncontrolledPopover>
+                                </ConditionalPopover>
                             )}
                         </Col>
                         <Col xs="auto">
