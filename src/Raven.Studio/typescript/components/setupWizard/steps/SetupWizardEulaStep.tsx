@@ -13,9 +13,7 @@ export default function SetupWizardEulaStep() {
         <div>
             <h2>Read the EULA (End-User License Agreement)</h2>
             <p>The following license agreement must be accepted in order to use this software.</p>
-            <div style={{ height: 300, overflow: "auto" }}>
-                <Code language="plaintext" code={asyncGetEula.result ?? "Loading"} />
-            </div>
+            <Code language="plaintext" code={asyncGetEula.result ?? "Loading"} />
         </div>
     );
 }

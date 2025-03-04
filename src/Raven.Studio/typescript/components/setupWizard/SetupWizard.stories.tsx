@@ -18,7 +18,7 @@ export const Eula: StoryObj = {
         setupWizardService.withEula();
 
         return (
-            <div style={{ height: 1000 }}>
+            <div style={{ height: 800 }}>
                 <SetupWizard />
             </div>
         );

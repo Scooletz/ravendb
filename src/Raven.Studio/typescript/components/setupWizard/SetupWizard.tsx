@@ -1,3 +1,4 @@
+import "./SetupWizard.scss";
 import Button from "react-bootstrap/Button";
 import { Icon } from "components/common/Icon";
 import { FormProvider, useForm, useWatch } from "react-hook-form";
@@ -64,32 +65,27 @@ export default function SetupWizard() {
     return (
         <FormProvider {...form}>
             <form onSubmit={handleSubmit(console.log)} className="h-100">
-                <div className="hstack h-100">
-                    <div className="vstack flex-grow-1 h-100">
-                        <div className="hstack flex-grow-1 justify-content-center">
-                            <div className="d-flex flex-column h-100 w-75">
-                                <div className="mt-4">
-                                    <img src={ravenLogo} alt="RavenDB Logo" width="120" />
-                                </div>
-                                <div className="overflow-y-auto py-4">{steps[currentStepIdx].component}</div>
+                <div className="setup-wizard-container">
+                    <div className="setup-wizard-main">
+                        <div className="d-flex flex-column h-100 w-75">
+                            <div className="mt-4">
+                                <img src={ravenLogo} alt="RavenDB Logo" width="120" />
                             </div>
+                            <div className="overflow-y-auto py-4">{steps[currentStepIdx].component}</div>
                         </div>
-                        <hr />
-                        <div className="hstack justify-content-center">
-                            <div className="w-75 d-flex justify-content-end">
-                                <div>
-                                    <Button variant="primary" className="rounded-pill" onClick={handleContinue}>
-                                        Continue <Icon icon="arrow-right" />
-                                    </Button>
-                                </div>
+                    </div>
+                    <div className="setup-wizard-footer">
+                        <hr className="my-2 w-100" />
+                        <div className="mb-2 w-75 d-flex justify-content-end">
+                            <div>
+                                <Button variant="primary" className="rounded-pill" onClick={handleContinue}>
+                                    Continue <Icon icon="arrow-right" />
+                                </Button>
                             </div>
                         </div>
                     </div>
-                    <div
-                        className="h-100 d-flex flex-column justify-content-between p-4 panel-bg-1"
-                        style={{ width: 400, minWidth: 400 }}
-                    >
-                        <div>
+                    <div className="setup-wizard-sidebar">
+                        <div className="flex-grow">
                             <NumberedList>
                                 {steps.map((step, idx) => (
                                     <SetupWizardStepItem
@@ -106,6 +102,7 @@ export default function SetupWizard() {
                                 ))}
                             </NumberedList>
                         </div>
+
                         <div>
                             <Icon icon="support" />
                             Having trouble?
