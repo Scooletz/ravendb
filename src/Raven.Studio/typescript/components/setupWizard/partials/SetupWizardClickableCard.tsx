@@ -29,9 +29,9 @@ export default function SetupWizardClickableCard(props: SetupWizardClickableCard
             )}
             onClick={props.onClick}
         >
-            <div className="text-emphasis hstack gap-2 ">
+            <div className="text-emphasis hstack gap-4">
                 <div>
-                    <Icon icon={props.icon} addon={props.addon} margin="m-0" />
+                    <Icon icon={props.icon} addon={props.addon} margin="m-0" style={{ fontSize: 24 }} />
                 </div>
                 <div className="flex-grow">
                     <h4 className="mb-0">{props.title}</h4>
