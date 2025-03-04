@@ -1,6 +1,8 @@
 import { useEffect, useRef } from "react";
 import Spinner from "react-bootstrap/Spinner";
-import { Form, Col, Card, Row, InputGroup } from "reactstrap";
+import Card from "react-bootstrap/Card";
+import InputGroup from "react-bootstrap/InputGroup";
+import { Form, Col, Row } from "reactstrap";
 import Button from "react-bootstrap/Button";
 import { SubmitHandler, useForm, useWatch } from "react-hook-form";
 import { FormCheckbox, FormInput, FormSelect, FormSwitch } from "components/common/Form";

@@ -5,7 +5,8 @@ import { useAppSelector } from "components/store";
 import { useEffect } from "react";
 import { useFormContext, useWatch } from "react-hook-form";
 import Collapse from "react-bootstrap/Collapse";
-import { Col, InputGroup, InputGroupText, Row } from "reactstrap";
+import InputGroup from "react-bootstrap/InputGroup";
+import { Col, Row } from "reactstrap";
 import { clusterSelectors } from "components/common/shell/clusterSlice";
 import { licenseSelectors } from "components/common/shell/licenseSlice";
 import { LicenseRestrictedMessage } from "components/common/LicenseRestrictedMessage";
@@ -172,7 +173,7 @@ export default function CreateDatabaseRegularStepReplicationAndSharding() {
                             <Collapse in={isReplicationFactorVisible}>
                                 <div>
                                     <InputGroup>
-                                        <InputGroupText>Replication Factor</InputGroupText>
+                                        <InputGroup.Text>Replication Factor</InputGroup.Text>
                                         <FormInput
                                             type="number"
                                             control={control}
@@ -196,18 +197,18 @@ export default function CreateDatabaseRegularStepReplicationAndSharding() {
                         <Col sm="6">
                             <Collapse in={isSharded}>
                                 <div>
-                                    <InputGroup>
-                                        <InputGroupText>Number of shards</InputGroupText>
-                                        <FormInput
-                                            type="number"
-                                            control={control}
-                                            name="replicationAndShardingStep.shardsCount"
-                                            className="replication-input"
-                                            min="1"
-                                            max="100"
-                                        />
-                                    </InputGroup>
-                                    <FormSwitch
+                                <InputGroup>
+                                    <InputGroup.Text>Number of shards</InputGroup.Text>
+                                    <FormInput
+                                        type="number"
+                                        control={control}
+                                        name="replicationAndShardingStep.shardsCount"
+                                        className="replication-input"
+                                        min="1"
+                                        max="100"
+                                    />
+                                </InputGroup>
+                                  <FormSwitch
                                         control={control}
                                         name="replicationAndShardingStep.isPrefixesForShards"
                                         color="primary"
