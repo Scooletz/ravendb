@@ -28,6 +28,10 @@ export const Eula: StoryObj = {
 export const SetupMethod: StoryObj = {
     ...Eula,
     play: async ({ canvas }) => {
+        // const eula = canvas.getByTestId("eula");
+        // console.log("kalczur eula", eula);
+        // eula.scroll(0, eula.scrollHeight);
+
         await userEvent.click(canvas.queryByRole("button", { name: /Continue/ }));
     },
 };

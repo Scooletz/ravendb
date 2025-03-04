@@ -11,10 +11,10 @@ import {
 } from "./setupWizardValidation";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { NumberedList } from "components/common/NumberedList";
-import SetupWizardEulaStep from "./steps/SetupWizardEulaStep";
+import SetupWizardEulaStep, { SetupWizardEulaStepFooter } from "./steps/SetupWizardEulaStep";
 import SetupWizardSetupMethodStep from "./steps/SetupWizardSetupMethodStep";
 import SetupWizardLicenseKeyStep from "./steps/SetupWizardLicenseKeyStep";
-import { useMemo } from "react";
+import { useRef } from "react";
 import classNames from "classnames";
 import { SetupWizardStepItem } from "./partials/SetupWizardStepItem";
 import SetupWizardSecurityStep from "./steps/SetupWizardSecurityStep";
@@ -42,25 +42,17 @@ export default function SetupWizard() {
         },
     });
 
-    const { setValue, handleSubmit } = form;
+    const { handleSubmit } = form;
 
     const formValues = useWatch({ control: form.control });
 
-    const steps = useMemo(
-        () =>
-            getAvailableSteps(
-                formValues.currentStep,
-                formValues.setupMethodStep.method,
-                formValues.securityStep.securityOption
-            ),
-        [formValues.currentStep, formValues.setupMethodStep.method, formValues.securityStep.securityOption]
+    const steps = useAvailableSteps(
+        formValues.currentStep,
+        formValues.setupMethodStep.method,
+        formValues.securityStep.securityOption
     );
 
     const currentStepIdx = steps.findIndex((x) => x.isCurrent);
-
-    const handleContinue = () => {
-        setValue("currentStep", steps[currentStepIdx + 1].title);
-    };
 
     return (
         <FormProvider {...form}>
@@ -76,13 +68,7 @@ export default function SetupWizard() {
                     </div>
                     <div className="setup-wizard-footer">
                         <hr className="my-2 w-100" />
-                        <div className="mb-2 w-75 d-flex justify-content-end">
-                            <div>
-                                <Button variant="primary" className="rounded-pill" onClick={handleContinue}>
-                                    Continue <Icon icon="arrow-right" />
-                                </Button>
-                            </div>
-                        </div>
+                        <div className="mb-2 w-75">{steps[currentStepIdx].footer}</div>
                     </div>
                     <div className="setup-wizard-sidebar">
                         <div className="flex-grow">
@@ -107,7 +93,7 @@ export default function SetupWizard() {
                             <Icon icon="support" />
                             Having trouble?
                             <p>Our documentation will guide you through the configuration process step by step</p>
-                            <Button variant="secondary" className="btn-outline-secondary">
+                            <Button variant="outline-secondary">
                                 See documentation <Icon icon="newtab" />
                             </Button>
                         </div>
@@ -122,23 +108,27 @@ interface Step {
     title: SetupWizardStepId;
     description: string;
     component: React.ReactNode;
+    footer?: React.ReactNode;
     isCurrent?: boolean;
     isAvailable?: boolean;
     isVisible?: boolean;
 }
 
-function getAvailableSteps(
+function useAvailableSteps(
     currentStep: SetupWizardStepId,
     setupMethod: SetupWizardSetupMethod,
     securityOption: SetupWizardSecurityOption
 ): Step[] {
+    const eulaRef = useRef<HTMLDivElement>(null);
+
     const getIsNotInStepIds = (stepIds: SetupWizardStepId[]) => !stepIds.some((x) => currentStep === x);
 
     const steps: Step[] = [
         {
             title: "Eula",
             description: "RavenDB Studio Eula",
-            component: <SetupWizardEulaStep />,
+            component: <SetupWizardEulaStep eulaRef={eulaRef} />,
+            footer: <SetupWizardEulaStepFooter eulaRef={eulaRef} />,
             isCurrent: currentStep === "Eula",
             isAvailable: true,
             isVisible: false,

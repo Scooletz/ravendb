@@ -798,6 +798,10 @@ class genUtils {
     static normalizeString(value: string) {
         return value.toLowerCase().trim();
     }
+
+    static isScrolledToBottom(element: HTMLElement) {
+        return Math.abs(element.scrollHeight - element.clientHeight - element.scrollTop) < 1;
+    }
 } 
 
 export = genUtils;
