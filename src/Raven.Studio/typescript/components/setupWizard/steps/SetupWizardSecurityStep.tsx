@@ -2,6 +2,9 @@ import { useFormContext, useWatch } from "react-hook-form";
 import { SetupWizardFormData } from "../setupWizardValidation";
 import { Icon } from "components/common/Icon";
 import SetupWizardClickableCard from "../partials/SetupWizardClickableCard";
+import { Button } from "react-bootstrap";
+import { FormCheckbox } from "components/common/Form";
+import assertUnreachable from "components/utils/assertUnreachable";
 
 export default function SetupWizardSecurityStep() {
     const { control, setValue } = useFormContext<SetupWizardFormData>();
@@ -49,6 +52,50 @@ export default function SetupWizardSecurityStep() {
                     isSelected={securityOption === "none"}
                     onClick={() => setValue("securityStep.securityOption", "none")}
                 />
+            </div>
+        </div>
+    );
+}
+
+export function SetupWizardSecurityStepFooter() {
+    const { control, setValue } = useFormContext<SetupWizardFormData>();
+
+    const {
+        securityStep: { securityOption },
+    } = useWatch({ control });
+
+    const handleBack = () => {
+        setValue("currentStep", "License key");
+    };
+
+    const handleContinue = () => {
+        switch (securityOption) {
+            case "letsEncrypt":
+                setValue("currentStep", "Self-signed certificate");
+                break;
+            case "ownCertificate":
+                setValue("currentStep", "Domain");
+                break;
+            case "none":
+                setValue("currentStep", "Node address");
+                break;
+            default:
+                assertUnreachable(securityOption);
+        }
+    };
+
+    return (
+        <div className="hstack justify-content-between">
+            <Button variant="secondary" className="rounded-pill" onClick={handleBack}>
+                <Icon icon="arrow-left" /> Back
+            </Button>
+            <div className="hstack gap-2">
+                <FormCheckbox control={control} name="securityStep.isLetsEncryptAgreementAccepted">
+                    I accept Let&apos;s Encrypt Subscriber Agreement
+                </FormCheckbox>
+                <Button variant="primary" className="rounded-pill" onClick={handleContinue}>
+                    Continue <Icon icon="arrow-right" margin="m-0" />
+                </Button>
             </div>
         </div>
     );

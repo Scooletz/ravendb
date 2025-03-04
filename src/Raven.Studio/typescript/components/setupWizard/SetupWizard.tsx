@@ -13,11 +13,11 @@ import { yupResolver } from "@hookform/resolvers/yup";
 import { NumberedList } from "components/common/NumberedList";
 import SetupWizardEulaStep, { SetupWizardEulaStepFooter } from "./steps/SetupWizardEulaStep";
 import SetupWizardSetupMethodStep, { SetupWizardSetupMethodStepFooter } from "./steps/SetupWizardSetupMethodStep";
-import SetupWizardLicenseKeyStep from "./steps/SetupWizardLicenseKeyStep";
+import SetupWizardLicenseKeyStep, { SetupWizardLicenseKeyStepFooter } from "./steps/SetupWizardLicenseKeyStep";
 import { useRef } from "react";
 import classNames from "classnames";
 import { SetupWizardStepItem } from "./partials/SetupWizardStepItem";
-import SetupWizardSecurityStep from "./steps/SetupWizardSecurityStep";
+import SetupWizardSecurityStep, { SetupWizardSecurityStepFooter } from "./steps/SetupWizardSecurityStep";
 import SetupWizardSelfSignedCertificateStep from "./steps/SetupWizardSelfSignedCertificateStep";
 import SetupWizardDomainStep from "./steps/SetupWizardDomainStep";
 import SetupWizardNodeAddressStep from "./steps/SetupWizardNodeAddressStep";
@@ -154,6 +154,7 @@ function useAvailableSteps(
             title: "License key",
             description: "Enter your license key or generate a new one",
             component: <SetupWizardLicenseKeyStep />,
+            footer: <SetupWizardLicenseKeyStepFooter />,
             isCurrent: currentStep === "License key",
             isAvailable: setupMethod === "newCluster",
             isVisible: getIsNotInStepIds(["Eula", "Setup method"]),
@@ -162,6 +163,7 @@ function useAvailableSteps(
             title: "Security",
             description: "Choose security option that fits your needs",
             component: <SetupWizardSecurityStep />,
+            footer: <SetupWizardSecurityStepFooter />,
             isCurrent: currentStep === "Security",
             isAvailable: setupMethod === "newCluster",
             isVisible: getIsNotInStepIds(["Eula", "Setup method"]),

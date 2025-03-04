@@ -13,6 +13,7 @@ const licenseKeyStepSchema = yup.object({});
 
 const securityStepSchema = yup.object({
     securityOption: yup.string<SetupWizardSecurityOption>().nullable().required(),
+    isLetsEncryptAgreementAccepted: yup.boolean(),
 });
 
 const selfSignedCertificateStepSchema = yup.object({});

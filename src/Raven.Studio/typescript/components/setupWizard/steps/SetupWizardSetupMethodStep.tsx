@@ -4,6 +4,7 @@ import SetupWizardClickableCard from "../partials/SetupWizardClickableCard";
 import { Button } from "react-bootstrap";
 import { Icon } from "components/common/Icon";
 import assertUnreachable from "components/utils/assertUnreachable";
+import { ConditionalPopover } from "components/common/ConditionalPopover";
 
 export default function SetupWizardSetupMethodStep() {
     const { control, setValue } = useFormContext<SetupWizardFormData>();
@@ -52,19 +53,13 @@ export default function SetupWizardSetupMethodStep() {
 }
 
 export function SetupWizardSetupMethodStepFooter() {
-    const { control, setValue, trigger } = useFormContext<SetupWizardFormData>();
+    const { control, setValue } = useFormContext<SetupWizardFormData>();
 
     const {
         setupMethodStep: { method: selectedMethod },
     } = useWatch({ control });
 
     const handleContinue = async () => {
-        const isValid = await trigger("setupMethodStep");
-
-        if (!isValid) {
-            return;
-        }
-
         switch (selectedMethod) {
             case "newCluster":
             case "createPackage":
@@ -86,9 +81,17 @@ export function SetupWizardSetupMethodStepFooter() {
                 <Icon icon="info" />
                 How can I setup manually?
             </small>
-            <Button variant="primary" className="rounded-pill" onClick={handleContinue}>
-                Continue <Icon icon="arrow-right" />
-            </Button>
+            <ConditionalPopover
+                conditions={{
+                    isActive: !selectedMethod,
+                    message: "You need to complete this step to go forward.",
+                }}
+                popoverPlacement="top"
+            >
+                <Button variant="primary" className="rounded-pill" onClick={handleContinue} disabled={!selectedMethod}>
+                    Continue <Icon icon="arrow-right" margin="m-0" />
+                </Button>
+            </ConditionalPopover>
         </div>
     );
 }

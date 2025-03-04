@@ -73,7 +73,7 @@ export function SetupWizardEulaStepFooter({ eulaRef }: { eulaRef: React.RefObjec
                     onClick={handleContinue}
                     // disabled={!isScrolledToBottom} // TODO uncomment after testing
                 >
-                    Continue <Icon icon="arrow-right" />
+                    Continue <Icon icon="arrow-right" margin="m-0" />
                 </Button>
             </ConditionalPopover>
         </div>
