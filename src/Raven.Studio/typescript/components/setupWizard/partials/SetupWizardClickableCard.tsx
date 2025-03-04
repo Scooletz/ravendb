@@ -18,7 +18,7 @@ export default function SetupWizardClickableCard(props: SetupWizardClickableCard
     return (
         <div
             className={classNames(
-                "border rounded p-4  cursor-pointer",
+                "border rounded p-4 cursor-pointer",
                 props.className,
                 {
                     "bg-faded-primary border-primary": props.isSelected,

@@ -12,7 +12,7 @@ import {
 import { yupResolver } from "@hookform/resolvers/yup";
 import { NumberedList } from "components/common/NumberedList";
 import SetupWizardEulaStep, { SetupWizardEulaStepFooter } from "./steps/SetupWizardEulaStep";
-import SetupWizardSetupMethodStep from "./steps/SetupWizardSetupMethodStep";
+import SetupWizardSetupMethodStep, { SetupWizardSetupMethodStepFooter } from "./steps/SetupWizardSetupMethodStep";
 import SetupWizardLicenseKeyStep from "./steps/SetupWizardLicenseKeyStep";
 import { useRef } from "react";
 import classNames from "classnames";
@@ -137,6 +137,7 @@ function useAvailableSteps(
             title: "Setup method",
             description: "Chose your setup method",
             component: <SetupWizardSetupMethodStep />,
+            footer: <SetupWizardSetupMethodStepFooter />,
             isCurrent: currentStep === "Setup method",
             isAvailable: true,
             isVisible: getIsNotInStepIds(["Eula"]),

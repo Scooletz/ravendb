@@ -1,6 +1,9 @@
 import { useFormContext, useWatch } from "react-hook-form";
 import { SetupWizardFormData } from "../setupWizardValidation";
 import SetupWizardClickableCard from "../partials/SetupWizardClickableCard";
+import { Button } from "react-bootstrap";
+import { Icon } from "components/common/Icon";
+import assertUnreachable from "components/utils/assertUnreachable";
 
 export default function SetupWizardSetupMethodStep() {
     const { control, setValue } = useFormContext<SetupWizardFormData>();
@@ -44,6 +47,48 @@ export default function SetupWizardSetupMethodStep() {
                     onClick={() => setValue("setupMethodStep.method", "usePackage")}
                 />
             </div>
+        </div>
+    );
+}
+
+export function SetupWizardSetupMethodStepFooter() {
+    const { control, setValue, trigger } = useFormContext<SetupWizardFormData>();
+
+    const {
+        setupMethodStep: { method: selectedMethod },
+    } = useWatch({ control });
+
+    const handleContinue = async () => {
+        const isValid = await trigger("setupMethodStep");
+
+        if (!isValid) {
+            return;
+        }
+
+        switch (selectedMethod) {
+            case "newCluster":
+            case "createPackage":
+                setValue("currentStep", "License key");
+                break;
+            case "usePackage":
+                setValue("currentStep", "Use setup package");
+                break;
+            default:
+                assertUnreachable(selectedMethod);
+        }
+    };
+
+    // TODO add popover
+
+    return (
+        <div className="d-flex justify-content-between">
+            <small className="text-info">
+                <Icon icon="info" />
+                How can I setup manually?
+            </small>
+            <Button variant="primary" className="rounded-pill" onClick={handleContinue}>
+                Continue <Icon icon="arrow-right" />
+            </Button>
         </div>
     );
 }
