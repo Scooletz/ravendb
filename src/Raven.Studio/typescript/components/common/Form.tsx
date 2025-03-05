@@ -2,7 +2,9 @@ import React, { ComponentProps, ReactNode, useRef, useState } from "react";
 import genUtils from "common/generalUtils";
 import { Checkbox, CheckboxProps, Radio, Switch } from "components/common/Checkbox";
 import { Control, ControllerProps, FieldPath, FieldValues, useController } from "react-hook-form";
-import { Button, Input, InputGroup, InputGroupText, InputProps } from "reactstrap";
+import InputGroup from "react-bootstrap/InputGroup";
+import { Input, InputProps } from "reactstrap";
+import Button from "react-bootstrap/Button";
 import { InputType } from "reactstrap/types/lib/Input";
 import { RadioToggleWithIcon } from "./toggles/RadioToggle";
 import AceEditor, { AceEditorProps } from "./AceEditor";
@@ -396,7 +398,7 @@ export function FormDatePicker<
     });
 
     return (
-        <div className="position-relative flex-grow-1">
+        <div className="position-relative flex-grow-1 z-2">
             <div className="d-flex flex-grow-1">
                 <InputGroup>
                     <DatePicker
@@ -406,7 +408,7 @@ export function FormDatePicker<
                         disabled={formState.isSubmitting}
                         {...rest}
                     />
-                    {addon && <InputGroupText>{addon}</InputGroupText>}
+                    {addon && <InputGroup.Text>{addon}</InputGroup.Text>}
                 </InputGroup>
             </div>
             {error && <FormValidationMessage>{error.message}</FormValidationMessage>}
@@ -467,10 +469,10 @@ function FormInputGeneral<
                         >
                             {children}
                         </Input>
-                        {addon && <InputGroupText>{addon}</InputGroupText>}
+                        {addon && <InputGroup.Text>{addon}</InputGroup.Text>}
                         {passwordPreview && (
                             <Button
-                                color="link-muted"
+                                variant="link-muted"
                                 onClick={() => setShowPassword(!showPassword)}
                                 className={classNames("input-btn", invalid && "me-3")}
                             >
@@ -551,7 +553,7 @@ export function FormPathSelector<
         shouldUnregister,
         selectorTitle,
         placeholder,
-        getPaths,
+        getPathsProvider,
         getPathDependencies,
         disabled,
     } = props;
@@ -592,7 +594,7 @@ export function FormPathSelector<
                         onFocus={handleInputFocus}
                     />
                     <PathSelector
-                        getPaths={getPaths}
+                        getPathsProvider={getPathsProvider}
                         getPathDependencies={getPathDependencies}
                         handleSelect={onChange}
                         defaultPath={formValuePath}

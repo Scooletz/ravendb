@@ -1,5 +1,5 @@
 ﻿import React, { useCallback } from "react";
-import { Button, CloseButton, Form, ModalBody, ModalFooter } from "reactstrap";
+import { CloseButton, Form, ModalBody, ModalFooter } from "reactstrap";
 import { FlexGrow } from "components/common/FlexGrow";
 import { Icon } from "components/common/Icon";
 import Steps from "components/common/steps/Steps";
@@ -38,6 +38,7 @@ import { createDatabaseRegularDataUtils } from "./createDatabaseRegularDataUtils
 import { CreateDatabaseStep, createDatabaseUtils } from "../shared/createDatabaseUtils";
 import { useEventsCollector } from "components/hooks/useEventsCollector";
 import { useCreateDatabaseShortcuts } from "../shared/useCreateDatabaseShortcuts";
+import Button from "react-bootstrap/Button";
 
 interface CreateDatabaseRegularProps {
     closeModal: () => void;
@@ -91,10 +92,9 @@ export default function CreateDatabaseRegular({ closeModal, changeCreateModeToBa
                 activeStepIds: activeSteps.map((x) => x.id),
                 trigger,
                 asyncDatabaseNameValidation,
-                databaseName: formValues.basicInfoStep.databaseName,
             });
         },
-        [activeSteps, asyncDatabaseNameValidation, currentStep, formValues.basicInfoStep.databaseName, trigger]
+        [activeSteps, asyncDatabaseNameValidation, currentStep, trigger]
     );
 
     const { reportEvent } = useEventsCollector();
@@ -133,21 +133,14 @@ export default function CreateDatabaseRegular({ closeModal, changeCreateModeToBa
 
     const handleQuickCreate = useCallback(async () => {
         if (activeSteps[currentStep].id === "basicInfoStep") {
-            const isNameValid = await asyncDatabaseNameValidation.execute(formValues.basicInfoStep.databaseName);
+            const isNameValid = await asyncDatabaseNameValidation.execute();
             if (!isNameValid) {
                 return;
             }
         }
 
         await handleSubmit(onFinish)();
-    }, [
-        activeSteps,
-        asyncDatabaseNameValidation,
-        currentStep,
-        formValues.basicInfoStep.databaseName,
-        handleSubmit,
-        onFinish,
-    ]);
+    }, [activeSteps, asyncDatabaseNameValidation, currentStep, handleSubmit, onFinish]);
 
     useCreateDatabaseShortcuts({
         submit: handleQuickCreate,
@@ -179,21 +172,28 @@ export default function CreateDatabaseRegular({ closeModal, changeCreateModeToBa
                             type="button"
                             onClick={changeCreateModeToBackup}
                             className="rounded-pill"
+                            variant="secondary"
                             disabled={formState.isSubmitting}
                         >
                             <Icon icon="database" addon="arrow-up" /> Restore from backup
                         </Button>
                     ) : (
-                        <Button type="button" onClick={prevStep} className="rounded-pill">
+                        <Button variant="secondary" type="button" onClick={prevStep} className="rounded-pill">
                             <Icon icon="arrow-thin-left" /> Back
                         </Button>
                     )}
                     <FlexGrow />
-                    {!isLastStep && <QuickCreateButton formValues={formValues} isSubmitting={formState.isSubmitting} />}
+                    {!isLastStep && (
+                        <QuickCreateButton
+                            formValues={formValues}
+                            isSubmitting={formState.isSubmitting}
+                            handleQuickCreate={handleQuickCreate}
+                        />
+                    )}
                     {isLastStep ? (
                         <ButtonWithSpinner
                             type="submit"
-                            color="success"
+                            variant="success"
                             className="rounded-pill"
                             icon="rocket"
                             isSpinning={formState.isSubmitting}
@@ -201,7 +201,7 @@ export default function CreateDatabaseRegular({ closeModal, changeCreateModeToBa
                             Finish
                         </ButtonWithSpinner>
                     ) : (
-                        <Button type="button" color="primary" className="rounded-pill" onClick={handleGoNext}>
+                        <Button type="button" variant="primary" className="rounded-pill" onClick={handleGoNext}>
                             Next <Icon icon="arrow-thin-right" margin="ms-1" />
                         </Button>
                     )}

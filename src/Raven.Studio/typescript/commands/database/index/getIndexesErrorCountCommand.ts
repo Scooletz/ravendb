@@ -1,7 +1,7 @@
 ﻿import commandBase = require("commands/commandBase");
 import database = require("models/resources/database");
 import endpoints = require("endpoints");
-import genUtils from "common/generalUtils";
+import genUtils = require("common/generalUtils");
 
 class getIndexesErrorCountCommand extends commandBase {
 
@@ -15,7 +15,7 @@ class getIndexesErrorCountCommand extends commandBase {
 
         const locationText = genUtils.formatLocation(this.location);
             
-        return this.query<any>(url, args, this.db)
+        return this.query<{Results: indexErrorsCount[]}>(url, args, this.db)
             .fail((result: JQueryXHR) => this.reportError(`Failed to get index errors count for ${locationText}`,
                 result.responseText, result.statusText));
     }

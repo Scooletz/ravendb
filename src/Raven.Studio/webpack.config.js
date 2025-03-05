@@ -260,6 +260,7 @@ module.exports = (env, args) => {
                                 sourceMap: true,
                                 sassOptions: {
                                     quietDeps: true,
+                                    silenceDeprecations: ['mixed-decls', 'color-functions', 'global-builtin', 'import'],
                                 },
                             }
                         }
@@ -284,10 +285,7 @@ module.exports = (env, args) => {
                 {
                     test: /\.tsx?$/,
                     use: {
-                        loader: 'ts-loader',
-                        options: {
-                            transpileOnly: true,
-                        },
+                        loader: 'swc-loader',
                     },
                 },
                 {

@@ -1,6 +1,7 @@
 import React from "react";
 import { useFormContext, useWatch } from "react-hook-form";
-import { InputGroup, InputGroupText, Spinner } from "reactstrap";
+import Spinner from "react-bootstrap/Spinner";
+import InputGroup from "react-bootstrap/InputGroup";
 import { FormCheckbox, FormPathSelector } from "components/common/Form";
 import { useAppSelector } from "components/store";
 import { clusterSelectors } from "components/common/shell/clusterSlice";
@@ -28,15 +29,19 @@ export default function CreateDatabaseStepPath({ manualSelectedNodes, isBackupFo
     const allNodeTags = useAppSelector(clusterSelectors.allNodeTags);
     const selectedNodeTags = manualSelectedNodes ?? allNodeTags;
 
-    const getFolderOptions = async (path: string, isBackupFolder: boolean) => {
-        const dto = await resourcesService.getFolderPathOptions_ServerLocal(path || "", isBackupFolder);
-        return dto?.List || [];
+    const getFolderOptionsProvider = (path: string) => {
+        return async () => {
+            const dto = await resourcesService.getFolderPathOptions_ServerLocal(path || "", isBackupFolder);
+            return dto?.List || [];
+        };
     };
 
     const asyncGetDatabaseLocation = useAsyncDebounce(
-        (databaseName, directory, isDefault) => {
-            return resourcesService.getDatabaseLocation(databaseName, isDefault ? "" : directory);
-        },
+        () =>
+            resourcesService.getDatabaseLocation(
+                databaseName,
+                dataDirectoryStep.isDefault ? "" : dataDirectoryStep.directory
+            ),
         [databaseName, dataDirectoryStep.directory, dataDirectoryStep.isDefault]
     );
 
@@ -44,18 +49,18 @@ export default function CreateDatabaseStepPath({ manualSelectedNodes, isBackupFo
         <div>
             <h2 className="text-center">Data Directory</h2>
             <InputGroup className="my-4">
-                <InputGroupText className="rounded-1 me-1">
+                <InputGroup.Text className="rounded-1 me-1">
                     <FormCheckbox control={control} name="dataDirectoryStep.isDefault">
                         Use server directory
                     </FormCheckbox>
-                </InputGroupText>
+                </InputGroup.Text>
 
                 <FormPathSelector
                     control={control}
                     name="dataDirectoryStep.directory"
                     selectorTitle="Select database directory"
                     placeholder="Enter database directory"
-                    getPaths={getFolderOptions}
+                    getPathsProvider={(path: string) => getFolderOptionsProvider(path)}
                     getPathDependencies={(path: string) => [path, isBackupFolder]}
                     disabled={dataDirectoryStep.isDefault}
                 />

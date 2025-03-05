@@ -1,4 +1,5 @@
-﻿import { Button, Card, CardBody, Col, Row, UncontrolledTooltip } from "reactstrap";
+﻿import Card from "react-bootstrap/Card";
+import { Col, Row } from "reactstrap";
 import classNames from "classnames";
 import { Icon } from "components/common/Icon";
 import React, { useState } from "react";
@@ -17,6 +18,12 @@ import licenseModel from "models/auth/licenseModel";
 import useConfirm from "components/common/ConfirmDialog";
 import useUniqueId from "components/hooks/useUniqueId";
 import { accessManagerSelectors } from "components/common/shell/accessManagerSliceSelectors";
+import moment from "moment";
+import genUtils = require("common/generalUtils");
+import Button from "react-bootstrap/Button";
+import OverlayTrigger from "react-bootstrap/OverlayTrigger";
+import Tooltip from "react-bootstrap/Tooltip";
+import PopoverWithHoverWrapper from "components/common/PopoverWithHoverWrapper";
 
 interface LicenseSummaryProps {
     asyncCheckLicenseServerConnectivity: AsyncState<ConnectivityStatus>;
@@ -33,8 +40,6 @@ export function LicenseSummary(props: LicenseSummaryProps) {
 
     const licenseStatus = useAppSelector(licenseSelectors.status);
     const isCloud = useAppSelector(licenseSelectors.statusValue("IsCloud"));
-    const isIsv = useAppSelector(licenseSelectors.statusValue("IsIsv"));
-    const expiration = licenseModel.formattedExpirationProvider(licenseStatus);
 
     const [refreshing, setRefreshing] = useState<boolean>(false);
 
@@ -49,7 +54,7 @@ export function LicenseSummary(props: LicenseSummaryProps) {
 
     return (
         <Card>
-            <CardBody>
+            <Card.Body>
                 <h4>License</h4>
                 <Row>
                     <OverallInfoItem icon="license" label="License type">
@@ -57,24 +62,7 @@ export function LicenseSummary(props: LicenseSummaryProps) {
                             {licenseModel.licenseTypeTextProvider(licenseStatus)}
                         </span>
                     </OverallInfoItem>
-                    {expiration && (
-                        <OverallInfoItem icon="calendar" label={isIsv ? "Updates Expiration" : "Expires"}>
-                            {expiration.formattedDate}
-                            <br />
-                            <small className={expiration.timeClass}>{expiration.relativeTime}</small>
-                            {isCloud && (
-                                <>
-                                    <UncontrolledTooltip target="cloudRenewalTooltip">
-                                        Cloud licenses are automatically renewed
-                                    </UncontrolledTooltip>
-                                    <small>
-                                        <Icon icon="info" className="text-info" id="cloudRenewalTooltip" />
-                                    </small>
-                                </>
-                            )}
-                        </OverallInfoItem>
-                    )}
-
+                    <LicenseExpiration />
                     <OverallInfoItem icon="raven" label="License server">
                         <ConnectivityStatusComponent
                             refreshing={refreshing}
@@ -84,7 +72,7 @@ export function LicenseSummary(props: LicenseSummaryProps) {
                     </OverallInfoItem>
                     <LicenseActions asyncGetConfigurationSettings={asyncGetConfigurationSettings} />
                 </Row>
-            </CardBody>
+            </Card.Body>
         </Card>
     );
 }
@@ -124,14 +112,20 @@ function ConnectivityStatusComponent(props: {
 
     return (
         <div>
-            <span className="text-warning" id={uniqueId}>
-                <Icon icon="warning" />
-                <small>
-                    Unable to reach the RavenDB License Server at <code>api.ravendb.net</code>
-                </small>
-                <UncontrolledTooltip target={uniqueId}>Exception: {status.result.exception}</UncontrolledTooltip>
-            </span>
-            <ButtonWithSpinner isSpinning={refreshing} outline className="mt-2 rounded-pill" onClick={refresh}>
+            <OverlayTrigger overlay={<Tooltip id={uniqueId}>Exception: {status.result.exception}</Tooltip>}>
+                <span className="text-warning">
+                    <Icon icon="warning" />
+                    <small>
+                        Unable to reach the RavenDB License Server at <code>api.ravendb.net</code>
+                    </small>
+                </span>
+            </OverlayTrigger>
+            <ButtonWithSpinner
+                isSpinning={refreshing}
+                variant="outline-secondary"
+                className="mt-2 rounded-pill"
+                onClick={refresh}
+            >
                 <Icon icon="refresh" title="Click to check connection" /> Test again
             </ButtonWithSpinner>
         </div>
@@ -199,66 +193,68 @@ function LicenseActions(props: LicenseActionsProps) {
             <Col className="d-flex flex-wrap gap-2 align-items-center justify-content-end">
                 {canRenewLicense(licenseStatus.Type) && (
                     <React.Fragment key="renew-container">
-                        <span id="renew-license-btn">
-                            <Button
-                                outline
-                                className="rounded-pill"
-                                onClick={renewLicense}
-                                disabled={!isRenewLicenseEnabled}
-                            >
-                                <Icon icon="reset" /> Renew license
-                            </Button>
-                        </span>
-
                         <LicenseTooltip
                             target="renew-license-btn"
                             operationEnabledInConfiguration={licenseConfiguration.CanRenew}
                             hasPrivileges={isClusterAdminOrClusterNode}
                             operationAction="Renew the current license (expiration date will be extended)"
                             operationTitle="Renew"
-                        />
+                        >
+                            <span>
+                                <Button
+                                    variant="outline-secondary"
+                                    className="rounded-pill"
+                                    onClick={renewLicense}
+                                    disabled={!isRenewLicenseEnabled}
+                                >
+                                    <Icon icon="reset" /> Renew license
+                                </Button>
+                            </span>
+                        </LicenseTooltip>
                     </React.Fragment>
                 )}
                 {!isCloud && (
                     <React.Fragment key="replace-container">
-                        <span id="replace-license-btn">
-                            <Button
-                                outline
-                                className="rounded-pill"
-                                onClick={registerLicense}
-                                disabled={!isReplaceLicenseEnabled}
-                            >
-                                <Icon icon="replace" /> Replace
-                            </Button>
-                        </span>
                         <LicenseTooltip
                             target="replace-license-btn"
                             operationEnabledInConfiguration={licenseConfiguration.CanActivate}
                             hasPrivileges={isClusterAdminOrClusterNode}
                             operationAction="Replace the current license with another"
                             operationTitle="Replacing license"
-                        />
+                        >
+                            <span>
+                                <Button
+                                    variant="outline-secondary"
+                                    className="rounded-pill"
+                                    onClick={registerLicense}
+                                    disabled={!isReplaceLicenseEnabled}
+                                >
+                                    <Icon icon="replace" /> Replace
+                                </Button>
+                            </span>
+                        </LicenseTooltip>
                     </React.Fragment>
                 )}
 
-                <span id="force-update-license-btn">
-                    <ButtonWithSpinner
-                        isSpinning={forcingUpdate}
-                        outline
-                        disabled={!isForceUpdateEnabled}
-                        className="rounded-pill"
-                        onClick={forceUpdate}
-                    >
-                        <Icon icon="force" /> Force Update
-                    </ButtonWithSpinner>
-                </span>
                 <LicenseTooltip
                     target="force-update-license-btn"
                     operationEnabledInConfiguration={licenseConfiguration.CanForceUpdate}
                     hasPrivileges={isClusterAdminOrClusterNode}
                     operationAction="Synchronize the current license with license server"
                     operationTitle="Force license update"
-                />
+                >
+                    <span>
+                        <ButtonWithSpinner
+                            isSpinning={forcingUpdate}
+                            disabled={!isForceUpdateEnabled}
+                            className="rounded-pill"
+                            variant="outline-secondary"
+                            onClick={forceUpdate}
+                        >
+                            <Icon icon="force" /> Force Update
+                        </ButtonWithSpinner>
+                    </span>
+                </LicenseTooltip>
             </Col>
         );
     }
@@ -267,34 +263,37 @@ function LicenseActions(props: LicenseActionsProps) {
 
     return (
         <Col className="d-flex flex-wrap gap-2 align-items-center justify-content-end">
-            <Button
-                color="primary"
-                className="rounded-pill"
-                onClick={registerLicense}
-                disabled={!isRegisterLicenseEnabled}
-                id="replace-license-btn"
-            >
-                <Icon icon="replace" /> Register license
-            </Button>
             <LicenseTooltip
                 target="replace-license-btn"
                 operationEnabledInConfiguration={licenseConfiguration.CanActivate}
                 hasPrivileges={isClusterAdminOrClusterNode}
                 operationAction="Register a new license"
                 operationTitle="Registering new license"
-            />
+            >
+                <div className="d-inline-block">
+                    <Button
+                        variant="primary"
+                        className="rounded-pill"
+                        onClick={registerLicense}
+                        disabled={!isRegisterLicenseEnabled}
+                    >
+                        <Icon icon="replace" /> Register license
+                    </Button>
+                </div>
+            </LicenseTooltip>
         </Col>
     );
 }
 
 function LicenseTooltip(props: {
+    children: React.ReactNode;
     target: string;
     operationEnabledInConfiguration: boolean;
     hasPrivileges: boolean;
     operationAction: string;
     operationTitle: string;
 }) {
-    const { target, operationEnabledInConfiguration, operationTitle, operationAction, hasPrivileges } = props;
+    const { children, target, operationEnabledInConfiguration, operationTitle, operationAction, hasPrivileges } = props;
 
     let msg = operationEnabledInConfiguration && hasPrivileges ? `${operationAction}` : "";
 
@@ -310,5 +309,77 @@ function LicenseTooltip(props: {
         return null;
     }
 
-    return <UncontrolledTooltip target={target}>{msg}</UncontrolledTooltip>;
+    return (
+        <OverlayTrigger overlay={<Tooltip id={target}>{msg}</Tooltip>}>
+            <span>{children}</span>
+        </OverlayTrigger>
+    );
+}
+
+function LicenseExpiration() {
+    const subscriptionExpiration = useAppSelector(licenseSelectors.statusValue("SubscriptionExpiration"));
+    const isIsv = useAppSelector(licenseSelectors.statusValue("IsIsv"));
+
+    if (!subscriptionExpiration) {
+        return null;
+    }
+
+    return (
+        <OverallInfoItem icon="calendar" label={isIsv ? "Updates Expiration" : "Expires"}>
+            <LicenseExpirationDetails />
+        </OverallInfoItem>
+    );
+}
+
+function LicenseExpirationDetails() {
+    const isExpired = useAppSelector(licenseSelectors.statusValue("Expired"));
+    const subscriptionExpiration = useAppSelector(licenseSelectors.statusValue("SubscriptionExpiration"));
+    const subscriptionExpirationUtc = moment.utc(subscriptionExpiration);
+
+    const dateFormat = "YYYY MMMM Do";
+    const nextMonth = moment.utc().add(1, "month");
+    const duration = genUtils.formatDurationByDate(subscriptionExpirationUtc, true);
+
+    return (
+        <div>
+            {subscriptionExpirationUtc.format(dateFormat)} UTC{" "}
+            <LicenseExpirationInfoPopover date={subscriptionExpirationUtc}>
+                <Icon icon="info" color="info" id="utc-info" />
+            </LicenseExpirationInfoPopover>
+            <br />
+            <small
+                className={classNames({
+                    "text-warning": !isExpired && subscriptionExpirationUtc.isBefore(nextMonth),
+                    "text-danger": isExpired,
+                })}
+            >
+                {duration}
+            </small>
+        </div>
+    );
+}
+
+function LicenseExpirationInfoPopover({ date, children }: { date: moment.Moment; children: React.ReactNode }) {
+    const isExpired = useAppSelector(licenseSelectors.statusValue("Expired"));
+    const isCloud = useAppSelector(licenseSelectors.statusValue("IsCloud"));
+
+    return (
+        <PopoverWithHoverWrapper
+            message={
+                <>
+                    Your license {isExpired ? "has expired on" : "will expire at the end of"}{" "}
+                    {date.format("YYYY-MM-DD")} UTC, which {isExpired ? "was" : "is"}{" "}
+                    {date.local().format("YYYY-MM-DD HH:mm:ss")} your local time.
+                    {isCloud && (
+                        <div>
+                            <br />
+                            <Icon icon="cloud" /> Cloud licenses are automatically renewed.
+                        </div>
+                    )}
+                </>
+            }
+        >
+            {children}
+        </PopoverWithHoverWrapper>
+    );
 }

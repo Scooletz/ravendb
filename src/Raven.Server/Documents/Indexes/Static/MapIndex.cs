@@ -28,7 +28,7 @@ namespace Raven.Server.Documents.Indexes.Static
         private HandleCompareExchangeReferences _handleCompareExchangeReferences;
 
         private MapIndex(MapIndexDefinition definition, AbstractStaticIndexBase compiled)
-            : base(definition.IndexDefinition.Type, definition.IndexDefinition.SourceType, definition)
+            : base(definition.IndexDefinition.Type, definition.IndexDefinition.SourceType, definition, compiled)
         {
             _compiled = compiled;
 

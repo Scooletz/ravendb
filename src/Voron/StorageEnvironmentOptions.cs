@@ -948,8 +948,8 @@ namespace Voron
             private readonly Dictionary<string, IJournalWriter> _logs =
                 new Dictionary<string, IJournalWriter>(StringComparer.OrdinalIgnoreCase);
 
-            private readonly Dictionary<string, IntPtr> _headers =
-                new Dictionary<string, IntPtr>(StringComparer.OrdinalIgnoreCase);
+            private readonly Dictionary<string, (IntPtr Pointer, NativeMemory.ThreadStats Stats)> _headers =
+                new Dictionary<string, (IntPtr, NativeMemory.ThreadStats stats)>(StringComparer.OrdinalIgnoreCase);
             private readonly int _instanceId;
 
 
@@ -1017,7 +1017,7 @@ namespace Voron
                 return 0;
             }
 
-            protected override void Disposing()
+            protected override unsafe void Disposing()
             {
                 if (Disposed)
                     return;
@@ -1031,7 +1031,7 @@ namespace Voron
 
                 foreach (var headerSpace in _headers)
                 {
-                    Marshal.FreeHGlobal(headerSpace.Value);
+                    NativeMemory.Free((byte*)headerSpace.Value.Pointer, sizeof(FileHeader), headerSpace.Value.Stats);
                 }
 
                 _headers.Clear();
@@ -1058,12 +1058,11 @@ namespace Voron
             {
                 if (Disposed)
                     throw new ObjectDisposedException("PureMemoryStorageEnvironmentOptions");
-                IntPtr ptr;
-                if (_headers.TryGetValue(filename, out ptr) == false)
+                if (_headers.TryGetValue(filename, out var tuple) == false)
                 {
                     return false;
                 }
-                *header = *((FileHeader*)ptr);
+                *header = *((FileHeader*)tuple.Pointer);
 
                 return header->Hash == HeaderAccessor.CalculateFileHeaderHash(header);
             }
@@ -1073,13 +1072,12 @@ namespace Voron
                 if (Disposed)
                     throw new ObjectDisposedException("PureMemoryStorageEnvironmentOptions");
 
-                IntPtr ptr;
-                if (_headers.TryGetValue(filename, out ptr) == false)
+                if (_headers.TryGetValue(filename, out var tuple) == false)
                 {
-                    ptr = (IntPtr)NativeMemory.AllocateMemory(sizeof(FileHeader));
-                    _headers[filename] = ptr;
+                    var ptr = (IntPtr)NativeMemory.AllocateMemory(sizeof(FileHeader), out NativeMemory.ThreadStats stats);
+                    _headers[filename] = tuple = (ptr, stats);
                 }
-                Memory.Copy((byte*)ptr, (byte*)header, sizeof(FileHeader));
+                Memory.Copy((byte*)tuple.Pointer, (byte*)header, sizeof(FileHeader));
             }
 
             private AbstractPager GetTempMemoryMapPager(PureMemoryStorageEnvironmentOptions options, VoronPathSetting path, long? intialSize, Win32NativeFileAttributes win32NativeFileAttributes)

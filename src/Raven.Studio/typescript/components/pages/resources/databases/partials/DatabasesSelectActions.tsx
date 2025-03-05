@@ -1,13 +1,8 @@
 ﻿import React, { useCallback, useState } from "react";
-import {
-    Button,
-    ButtonGroup,
-    DropdownItem,
-    DropdownMenu,
-    DropdownToggle,
-    Spinner,
-    UncontrolledDropdown,
-} from "reactstrap";
+import Spinner from "react-bootstrap/Spinner";
+import ButtonGroup from "react-bootstrap/ButtonGroup";
+import { DropdownItem, DropdownMenu, DropdownToggle, UncontrolledDropdown } from "reactstrap";
+import Button from "react-bootstrap/Button";
 import { useAppDispatch, useAppSelector } from "components/store";
 import { DatabaseSharedInfo } from "components/models/databases";
 import DatabaseLockMode = Raven.Client.ServerWide.DatabaseLockMode;
@@ -195,7 +190,7 @@ export function DatabasesSelectActions({
                         )}
                         {isOperatorOrAbove && (
                             <ButtonWithSpinner
-                                color="danger"
+                                variant="danger"
                                 onClick={onDelete}
                                 disabled={!canDeleteSelection || deleteChanges}
                                 className="rounded-pill flex-grow-0"
@@ -206,7 +201,7 @@ export function DatabasesSelectActions({
                             </ButtonWithSpinner>
                         )}
                     </ButtonGroup>
-                    <Button onClick={() => setSelectedDatabaseNames([])} color="link">
+                    <Button onClick={() => setSelectedDatabaseNames([])} variant="link">
                         Cancel
                     </Button>
                 </div>

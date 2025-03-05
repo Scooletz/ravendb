@@ -7,35 +7,39 @@ const { DocumentIdentitiesStory } = composeStories(stories);
 
 const selectors = {
     newIdentityBtn: "Add new identity",
+    documentIdPrefix: "Document ID Prefix",
     tableEditColumn: "Edit",
 };
 
 describe("DocumentIdentities", () => {
-    it("should be disabled 'Add New Identity' button when database access is read-only", () => {
+    it("should be disabled 'Add New Identity' button when database access is read-only", async () => {
         const { screen } = rtlRender(<DocumentIdentitiesStory databaseAccess="DatabaseRead" />);
 
-        const addNewIdentityBtn = screen.getByRole("button", { name: selectors.newIdentityBtn });
+        const addNewIdentityBtn = await screen.findByRole("button", { name: selectors.newIdentityBtn });
         expect(addNewIdentityBtn).toBeInTheDocument();
         expect(addNewIdentityBtn).toBeDisabled();
     });
 
-    it("should be enabled 'Add New Identity' button when database access is read-write", () => {
+    it("should be enabled 'Add New Identity' button when database access is read-write", async () => {
         const { screen } = rtlRender(<DocumentIdentitiesStory databaseAccess="DatabaseReadWrite" />);
 
-        const addNewIdentityBtn = screen.getByRole("button", { name: selectors.newIdentityBtn });
+        const addNewIdentityBtn = await screen.findByRole("button", { name: selectors.newIdentityBtn });
         expect(addNewIdentityBtn).toBeInTheDocument();
         expect(addNewIdentityBtn).not.toBeDisabled();
     });
 
-    it("should not display the edit column in table when database access is read-only", () => {
+    it("should not display the edit column in table when database access is read-only", async () => {
         const { screen } = rtlRender(<DocumentIdentitiesStory databaseAccess="DatabaseRead" />);
+
+        // wait for table load
+        expect(await screen.findByText(selectors.documentIdPrefix)).toBeInTheDocument();
 
         expect(screen.queryByText(selectors.tableEditColumn)).not.toBeInTheDocument();
     });
 
-    it("should display the edit column in table when database access is read-write", () => {
+    it("should display the edit column in table when database access is read-write", async () => {
         const { screen } = rtlRender(<DocumentIdentitiesStory databaseAccess="DatabaseReadWrite" />);
 
-        expect(screen.queryByText(selectors.tableEditColumn)).toBeInTheDocument();
+        expect(await screen.findByText(selectors.tableEditColumn)).toBeInTheDocument();
     });
 });

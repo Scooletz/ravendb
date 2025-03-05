@@ -20,8 +20,9 @@ import {
     RichPanelInfo,
     RichPanelSelect,
 } from "components/common/RichPanel";
-import { OngoingEtlTaskDistribution } from "./OngoingEtlTaskDistribution";
-import { Collapse, Input } from "reactstrap";
+import { OngoingEtlTaskDistribution } from "../partials/OngoingEtlTaskDistribution";
+import Collapse from "react-bootstrap/Collapse";
+import { Input } from "reactstrap";
 import { useAppSelector } from "components/store";
 import { databaseSelectors } from "components/common/shell/databaseSliceSelectors";
 import { accessManagerSelectors } from "components/common/shell/accessManagerSliceSelectors";
@@ -100,9 +101,11 @@ export function AzureQueueStorageEtlPanel(props: AzureQueueStorageEtlPanelProps 
                     />
                 </RichPanelActions>
             </RichPanelHeader>
-            <Collapse isOpen={detailsVisible}>
-                <Details {...props} canEdit={canEdit} />
-                <OngoingEtlTaskDistribution task={data} showPreview={showPreview} />
+            <Collapse in={detailsVisible}>
+                <div>
+                    <Details {...props} canEdit={canEdit} />
+                    <OngoingEtlTaskDistribution task={data} showPreview={showPreview} />
+                </div>
             </Collapse>
         </RichPanel>
     );

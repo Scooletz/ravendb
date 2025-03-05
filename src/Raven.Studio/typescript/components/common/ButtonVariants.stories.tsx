@@ -1,13 +1,19 @@
 ﻿import { Meta } from "@storybook/react";
 import React from "react";
 import { withBootstrap5, withStorybookContexts } from "test/storybookTestUtils";
-import { Button } from "reactstrap";
 import ButtonWithSpinner from "./ButtonWithSpinner";
+import Button from "react-bootstrap/Button";
 
 export default {
     title: "Bits/Buttons",
     decorators: [withStorybookContexts, withBootstrap5],
     component: Button,
+    parameters: {
+        design: {
+            type: "figma",
+            url: "https://www.figma.com/design/ITHbe2U19Ok7cjbEzYa4cb/Design-System-RavenDB-Studio?node-id=3-17352",
+        },
+    },
 } satisfies Meta<typeof Button>;
 
 const colors = [
@@ -99,7 +105,7 @@ function AllButtonColors(props: AllButtonColorsProps) {
     return (
         <div className="hstack gap-1">
             {colors.map((color) => (
-                <Button color={color} size={size} outline={outline} active={active} disabled={disabled}>
+                <Button variant={outline ? `outline-${color}` : color} size={size} active={active} disabled={disabled}>
                     {color}
                 </Button>
             ))}
@@ -111,7 +117,7 @@ function AllButtonWithSpinnerColors({ size }: AllButtonColorsProps) {
     return (
         <div className="hstack gap-1">
             {colors.map((color) => (
-                <ButtonWithSpinner color={color} size={size} isSpinning>
+                <ButtonWithSpinner variant={color} size={size} isSpinning>
                     {color}
                 </ButtonWithSpinner>
             ))}

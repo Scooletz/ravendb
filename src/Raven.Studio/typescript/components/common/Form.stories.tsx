@@ -1,25 +1,27 @@
 import { Meta } from "@storybook/react";
 import {
-    FormInput,
+    FormAceEditor,
     FormCheckbox,
     FormCheckboxes,
-    FormRadio,
     FormDatePicker,
     FormDurationPicker,
+    FormInput,
+    FormPathSelector,
+    FormRadio,
     FormRadioToggleWithIcon,
     FormSelect,
     FormSelectCreatable,
     FormSwitch,
-    FormAceEditor,
-    FormPathSelector,
 } from "./Form";
-import React, { useEffect } from "react";
+import { useEffect } from "react";
 import { withBootstrap5, withStorybookContexts } from "test/storybookTestUtils";
 import { useForm } from "react-hook-form";
 import * as yup from "yup";
 import { yupResolver } from "@hookform/resolvers/yup";
-import { Button, Input, InputGroup, InputGroupText, Label } from "reactstrap";
-import { Checkbox } from "components/common/Checkbox";
+import InputGroup from "react-bootstrap/InputGroup";
+import { Input, Label } from "reactstrap";
+import Button from "react-bootstrap/Button";
+import { Icon } from "components/common/Icon";
 
 export default {
     title: "Bits/Form",
@@ -27,6 +29,12 @@ export default {
     decorators: [withStorybookContexts, withBootstrap5],
     args: {
         isDefaultValid: true,
+    },
+    parameters: {
+        design: {
+            type: "figma",
+            url: "https://www.figma.com/design/ITHbe2U19Ok7cjbEzYa4cb/Design-System-RavenDB-Studio?node-id=8-2111",
+        },
     },
 } satisfies Meta;
 
@@ -52,28 +60,28 @@ export function Form({ isDefaultValid }: { isDefaultValid: boolean }) {
             </div>
             <div>
                 <InputGroup>
-                    <InputGroupText>@</InputGroupText>
+                    <InputGroup.Text>@</InputGroup.Text>
                     <Input placeholder="username" />
                 </InputGroup>
                 <br />
                 <InputGroup>
-                    <InputGroupText>
+                    <InputGroup.Text>
                         <FormCheckbox control={control} name="inputGroupCheckbox" />
-                    </InputGroupText>
+                    </InputGroup.Text>
                     <Input placeholder="Check it out" />
                 </InputGroup>
                 <br />
                 <InputGroup>
                     <Input placeholder="username" />
-                    <InputGroupText>@example.com</InputGroupText>
+                    <InputGroup.Text>@example.com</InputGroup.Text>
                 </InputGroup>
                 <br />
                 <InputGroup>
-                    <InputGroupText>$</InputGroupText>
-                    <InputGroupText>$</InputGroupText>
+                    <InputGroup.Text>$</InputGroup.Text>
+                    <InputGroup.Text>$</InputGroup.Text>
                     <Input placeholder="Dolla dolla billz yo!" />
-                    <InputGroupText>$</InputGroupText>
-                    <InputGroupText>$</InputGroupText>
+                    <InputGroup.Text>$</InputGroup.Text>
+                    <InputGroup.Text>$</InputGroup.Text>
                 </InputGroup>
             </div>
             <div>
@@ -156,7 +164,8 @@ export function Form({ isDefaultValid }: { isDefaultValid: boolean }) {
 
             <div className="input-group">
                 <FormInput type="text" control={control} name="inputText" />
-                <Button color="secondary" icon="rocket" title="Test connection">
+                <Button variant="secondary" title="Test connection">
+                    <Icon icon="rocket" />
                     Test connection
                 </Button>
             </div>
@@ -178,7 +187,7 @@ export function Form({ isDefaultValid }: { isDefaultValid: boolean }) {
                 <FormPathSelector
                     control={control}
                     name="inputPath"
-                    getPaths={() => Promise.resolve(["C:\\", "D:\\"])}
+                    getPathsProvider={() => () => Promise.resolve(["C:\\", "D:\\"])}
                     getPathDependencies={(path: string) => [path]}
                 />
             </div>

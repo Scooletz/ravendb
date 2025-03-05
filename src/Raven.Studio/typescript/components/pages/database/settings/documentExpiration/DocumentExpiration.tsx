@@ -1,5 +1,6 @@
 import React, { useEffect } from "react";
-import { Card, CardBody, Col, Form, Row } from "reactstrap";
+import Card from "react-bootstrap/Card";
+import { Col, Form, Row } from "reactstrap";
 import { AboutViewAnchored, AboutViewHeading, AccordionItemWrapper } from "components/common/AboutView";
 import { Icon } from "components/common/Icon";
 import { FormInput, FormSwitch } from "components/common/Form";
@@ -139,7 +140,7 @@ export default function DocumentExpiration() {
                             <AboutViewHeading title="Document Expiration" icon="document-expiration" />
                             <ButtonWithSpinner
                                 type="submit"
-                                color="primary"
+                                variant="primary"
                                 className="mb-3"
                                 icon="save"
                                 disabled={!formState.isDirty || isLimitWarningVisible}
@@ -149,7 +150,7 @@ export default function DocumentExpiration() {
                             </ButtonWithSpinner>
                             <Col>
                                 <Card>
-                                    <CardBody>
+                                    <Card.Body>
                                         <div className="vstack gap-2">
                                             <FormSwitch name="isDocumentExpirationEnabled" control={control}>
                                                 Enable Document Expiration
@@ -217,7 +218,7 @@ export default function DocumentExpiration() {
                                                 />
                                             </div>
                                         </div>
-                                    </CardBody>
+                                    </Card.Body>
                                 </Card>
                             </Col>
                         </Form>

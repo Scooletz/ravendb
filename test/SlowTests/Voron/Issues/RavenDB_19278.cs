@@ -6,6 +6,7 @@ using System.Threading;
 using FastTests.Voron;
 using Sparrow.Platform;
 using Sparrow.Utils;
+using Tests.Infrastructure;
 using Voron;
 using Voron.Global;
 using Voron.Impl.Journal;
@@ -146,7 +147,7 @@ public class RavenDB_19278 : StorageTest
         StartDatabase();
     }
 
-    [Theory]
+    [NightlyBuildTheory]
     [InlineData(true, false, false)]
     [InlineData(false, true, false)]
     [InlineData(false, false, false)]

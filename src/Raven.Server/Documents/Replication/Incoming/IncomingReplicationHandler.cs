@@ -275,7 +275,22 @@ namespace Raven.Server.Documents.Replication.Incoming
                 // be able to tell (roughly) where it is at on the entire cluster.
                 databaseChangeVector = DocumentsStorage.GetDatabaseChangeVector(documentsContext);
                 currentLastEtagMatchingChangeVector = _database.DocumentsStorage.ReadLastEtag(documentsContext.Transaction.InnerTransaction);
+
+                if (currentLastEtagMatchingChangeVector > lastDocumentEtag)
+                {
+                    // RavenDB-19152
+                    // preventing the potential risk of skipping documents in internal replication:
+                    // if this database's current Etag is higher than the one received from the source, we avoid sending it as-is.
+                    // otherwise, when this database later replicates back to the source, it may skip sending 
+                    // certain documents—particularly conflicted revisions when 'ResolveToLatest' is `true` 
+                    // (which is the default setting) in the Conflict Resolution Configuration—because the 
+                    // resolved change vector is a merged result of the original conflicting documents' 
+                    // change vectors, while this database’s Etag continues increasing.
+                    var etagFromChangeVector = ChangeVectorUtils.GetEtagById(databaseChangeVector, _database.DbBase64Id);
+                    currentLastEtagMatchingChangeVector = etagFromChangeVector > 0 ? etagFromChangeVector : lastDocumentEtag;
+                }
             }
+
             if (Logger.IsInfoEnabled)
             {
                 Logger.Info($"Sending heartbeat ok => {FromToString} with last document etag = {lastDocumentEtag}, " +

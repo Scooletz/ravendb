@@ -1,30 +1,20 @@
 import ButtonWithSpinner from "components/common/ButtonWithSpinner";
 import { Icon } from "components/common/Icon";
 import { PropSummary, PropSummaryItem, PropSummaryName, PropSummaryValue } from "components/common/PropSummary";
-import React from "react";
-import { UncontrolledPopover } from "reactstrap";
 import { CreateDatabaseRegularFormData } from "./createDatabaseRegularValidation";
+import PopoverWithHoverWrapper from "components/common/PopoverWithHoverWrapper";
 
 interface QuickCreateButtonProps {
     formValues: CreateDatabaseRegularFormData;
     isSubmitting: boolean;
+    handleQuickCreate: () => void;
 }
 
-export default function QuickCreateButton({ formValues, isSubmitting }: QuickCreateButtonProps) {
+export default function QuickCreateButton({ formValues, isSubmitting, handleQuickCreate }: QuickCreateButtonProps) {
     return (
-        <>
-            <ButtonWithSpinner
-                type="submit"
-                className="rounded-pill me-1"
-                id="quickCreateButton"
-                icon="star"
-                isSpinning={isSubmitting}
-                title="Quick Create (Ctrl + Enter)"
-            >
-                Quick Create
-            </ButtonWithSpinner>
-
-            <UncontrolledPopover placement="top" target="quickCreateButton" trigger="hover" className="bs5">
+        <PopoverWithHoverWrapper
+            isInPopoverBody={false}
+            message={
                 <PropSummary>
                     <PropSummaryItem>
                         <PropSummaryName>
@@ -82,7 +72,19 @@ export default function QuickCreateButton({ formValues, isSubmitting }: QuickCre
                         </PropSummaryName>
                     </PropSummaryItem>
                 </PropSummary>
-            </UncontrolledPopover>
-        </>
+            }
+        >
+            <ButtonWithSpinner
+                type="button"
+                onClick={handleQuickCreate}
+                className="rounded-pill me-1"
+                variant="secondary"
+                icon="star"
+                isSpinning={isSubmitting}
+                title="Quick Create (Ctrl + Enter)"
+            >
+                Quick Create
+            </ButtonWithSpinner>
+        </PopoverWithHoverWrapper>
     );
 }

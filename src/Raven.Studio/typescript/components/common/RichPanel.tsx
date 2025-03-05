@@ -1,7 +1,8 @@
-﻿import React, { HTMLAttributes, ReactNode } from "react";
+﻿import React, { ForwardedRef, forwardRef, HTMLAttributes, LegacyRef, ReactNode } from "react";
 import "./RichPanel.scss";
 import classNames from "classnames";
-import { Badge, Card, CardHeader } from "reactstrap";
+import Badge from "react-bootstrap/Badge";
+import Card from "react-bootstrap/Card";
 
 interface RichPanelProps {
     className?: string;
@@ -34,7 +35,7 @@ interface RichPanelStatusProps {
 export function RichPanelStatus(props: RichPanelStatusProps) {
     const { children, className, color, ...rest } = props;
     return (
-        <Badge className={classNames("rich-panel-status", className)} color={color} {...rest}>
+        <Badge className={classNames("rich-panel-status", className)} bg={color} {...rest}>
             <span className="position-sticky">{children}</span>
         </Badge>
     );
@@ -49,9 +50,9 @@ interface RichPanelHeaderProps extends HTMLAttributes<HTMLDivElement> {
 export function RichPanelHeader(props: RichPanelHeaderProps) {
     const { children, className, ...rest } = props;
     return (
-        <CardHeader className={classNames("rich-panel-header gap-2", className)} {...rest}>
+        <Card.Header className={classNames("rich-panel-header gap-2", className)} {...rest}>
             {children}
-        </CardHeader>
+        </Card.Header>
     );
 }
 
@@ -113,15 +114,18 @@ interface RichPanelDetailItemProps {
     className?: string;
     label?: ReactNode | ReactNode[];
     title?: string;
+    ref?: LegacyRef<HTMLDivElement>;
 }
 
-export function RichPanelDetailItem(props: RichPanelDetailItemProps) {
+function RichPanelDetailItemInternal(props: RichPanelDetailItemProps, ref: ForwardedRef<HTMLDivElement>) {
     const { children, className, size, label, ...rest } = props;
     const panelClass = size ? "rich-panel-detail-item" + "-" + size : "rich-panel-detail-item";
     return (
-        <div className={classNames(panelClass, className)} {...rest}>
+        <div className={classNames(panelClass, className)} ref={ref} {...rest}>
             {label && <div className="small-label">{label}</div>}
             <div className="detail-item-content">{children}</div>
         </div>
     );
 }
+
+export const RichPanelDetailItem = forwardRef(RichPanelDetailItemInternal);

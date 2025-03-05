@@ -1,9 +1,8 @@
-import React from "react";
-import { Card, CardHeader, CardBody, Row, Col, Form } from "reactstrap";
+import Card from "react-bootstrap/Card";
+import { Col, Form, Row } from "reactstrap";
 import { Icon } from "components/common/Icon";
 import { AboutViewAnchored, AboutViewHeading, AccordionItemWrapper } from "components/common/AboutView";
 import AceEditor from "components/common/AceEditor";
-import { todo } from "common/developmentHelper";
 import { SubmitHandler, useForm } from "react-hook-form";
 import { tryHandleSubmit } from "components/utils/common";
 import { AdminJsConsoleFormData, adminJsConsoleYupResolver } from "./AdminJsConsoleValidation";
@@ -27,9 +26,9 @@ import RichAlert from "components/common/RichAlert";
 
 const serverTargetValue = "Server";
 
-export default function AdminJSConsole() {
-    todo("Feature", "Damian", "issue: RavenDB-7588");
+// TODO https://issues.hibernatingrhinos.com/issue/RavenDB-7588
 
+export default function AdminJSConsole() {
     const { value: isScriptValid, setValue: setIsScriptValid } = useBoolean(true);
     const { manageServerService } = useServices();
     const { reportEvent } = useEventsCollector();
@@ -93,7 +92,7 @@ export default function AdminJSConsole() {
 
                             <Form onSubmit={handleSubmit(onSave)} autoComplete="off">
                                 <Card>
-                                    <CardHeader className="hstack gap-4 flex-wrap">
+                                    <Card.Header className="hstack gap-4 flex-wrap">
                                         <h3 className="m-0">Script target</h3>
                                         <FormSelect
                                             control={control}
@@ -109,8 +108,8 @@ export default function AdminJSConsole() {
                                             Accessible within the script under <code>{accessibleVariable}</code>{" "}
                                             variable
                                         </div>
-                                    </CardHeader>
-                                    <CardBody>
+                                    </Card.Header>
+                                    <Card.Body>
                                         <div className="admin-js-console-grid">
                                             <div>
                                                 <h3>Script</h3>
@@ -139,7 +138,7 @@ export default function AdminJSConsole() {
                                                 height="300px"
                                             />
                                         </div>
-                                    </CardBody>
+                                    </Card.Body>
                                 </Card>
                             </Form>
                         </Col>

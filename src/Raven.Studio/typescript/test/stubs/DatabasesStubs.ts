@@ -1,5 +1,7 @@
 ﻿import nonShardedDatabase from "models/resources/nonShardedDatabase";
 import shardedDatabase from "models/resources/shardedDatabase";
+import document from "models/database/documents/document";
+import { TimeInSeconds } from "common/constants/timeInSeconds";
 import DetailedDatabaseStatistics = Raven.Client.Documents.Operations.DetailedDatabaseStatistics;
 import EssentialDatabaseStatistics = Raven.Client.Documents.Operations.EssentialDatabaseStatistics;
 import StudioDatabaseInfo = Raven.Server.Web.System.Processors.Studio.StudioDatabasesHandlerForGetDatabases.StudioDatabaseInfo;
@@ -12,7 +14,6 @@ import RevisionsConfiguration = Raven.Client.Documents.Operations.Revisions.Revi
 import RevisionsCollectionConfiguration = Raven.Client.Documents.Operations.Revisions.RevisionsCollectionConfiguration;
 import SorterDefinition = Raven.Client.Documents.Queries.Sorting.SorterDefinition;
 import AnalyzerDefinition = Raven.Client.Documents.Indexes.Analysis.AnalyzerDefinition;
-import document from "models/database/documents/document";
 
 export class DatabasesStubs {
     private static genericDatabaseInfo(name: string): StudioDatabaseInfo {
@@ -962,5 +963,13 @@ return docs[0];`,
             Object.assign(object, identity);
         }
         return object;
+    }
+
+    static revisionsBinCleaner(): Raven.Client.Documents.Operations.Revisions.RevisionsBinConfiguration {
+        return {
+            Disabled: false,
+            MinimumEntriesAgeToKeepInMin: 1,
+            CleanerFrequencyInSec: 5 * TimeInSeconds.Minute,
+        };
     }
 }

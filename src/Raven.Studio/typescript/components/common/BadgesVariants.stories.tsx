@@ -1,7 +1,7 @@
 ﻿import { Meta } from "@storybook/react";
 import React from "react";
 import { withBootstrap5, withStorybookContexts } from "test/storybookTestUtils";
-import { Badge } from "reactstrap";
+import Badge from "react-bootstrap/Badge";
 import IconName from "../../../typings/server/icons";
 import { Icon } from "components/common/Icon";
 
@@ -9,6 +9,12 @@ export default {
     title: "Bits/Badges",
     decorators: [withStorybookContexts, withBootstrap5],
     component: Badge,
+    parameters: {
+        design: {
+            type: "figma",
+            url: "https://www.figma.com/design/ITHbe2U19Ok7cjbEzYa4cb/Design-System-RavenDB-Studio?node-id=3-16074",
+        },
+    },
 } satisfies Meta<typeof Badge>;
 
 const colors = [
@@ -58,7 +64,7 @@ function AllBadgeColors(props: AllBadgeColorsProps) {
     return (
         <div className="hstack flex-wrap gap-1">
             {colors.map((color) => (
-                <Badge color={color}>
+                <Badge bg={color}>
                     {icon && <Icon icon={icon} />}
                     {color}
                 </Badge>
@@ -76,7 +82,7 @@ function AllBadgeFadedColors(props: AllBadgeFadedColorsProps) {
     return (
         <div className="hstack flex-wrap gap-1">
             {fadedColors.map((color) => (
-                <Badge color={color}>
+                <Badge bg={color}>
                     {icon && <Icon icon={icon} />}
                     {color}
                 </Badge>

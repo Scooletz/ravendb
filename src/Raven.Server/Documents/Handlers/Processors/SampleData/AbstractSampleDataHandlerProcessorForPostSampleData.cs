@@ -7,9 +7,13 @@ using Microsoft.Extensions.Primitives;
 using Raven.Client.Documents.Operations.Revisions;
 using Raven.Client.Documents.Operations.TimeSeries;
 using Raven.Client.Documents.Smuggler;
+using Raven.Server.Documents.Operations;
 using Raven.Server.ServerWide.Commands;
 using Raven.Server.Web.Studio;
+using Raven.Server.Web.System;
 using Sparrow.Json;
+using Sparrow.Logging;
+using static Raven.Server.Utils.MetricCacher.Keys;
 using BackupUtils = Raven.Server.Utils.BackupUtils;
 
 namespace Raven.Server.Documents.Handlers.Processors.SampleData
@@ -82,6 +86,9 @@ namespace Raven.Server.Documents.Handlers.Processors.SampleData
                 {
                     await ExecuteSmugglerAsync(context, stream, operateOnTypes);
                 }
+
+                if (LoggingSource.AuditLog.IsInfoEnabled)
+                    RequestHandler.LogAuditFor(RequestHandler.DatabaseName, "IMPORT", $"{EnumHelper.GetDescription(OperationType.DatabaseImport)} from sample data");
 
                 await RequestHandler.NoContent();
             }

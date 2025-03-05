@@ -1,4 +1,5 @@
-﻿import { Badge, Button, Form, Label } from "reactstrap";
+﻿import Badge from "react-bootstrap/Badge";
+import { Form, Label } from "reactstrap";
 import { FormInput, FormSelect } from "components/common/Form";
 import React from "react";
 import { SubmitHandler, UseFormTrigger, useFieldArray, useForm, useWatch } from "react-hook-form";
@@ -28,6 +29,7 @@ import { useAppUrls } from "components/hooks/useAppUrls";
 import ElasticSearchCertificate from "./ElasticSearchCertificate";
 import { databaseSelectors } from "components/common/shell/databaseSliceSelectors";
 import { useAppSelector } from "components/store";
+import Button from "react-bootstrap/Button";
 
 type FormData = ConnectionFormData<ElasticSearchConnection>;
 
@@ -130,7 +132,7 @@ export default function ElasticSearchConnectionString({
                         />
                     ))}
                 </div>
-                <Button color="info" className="mt-4" onClick={() => urlFieldArray.append({ url: null })}>
+                <Button variant="info" className="mt-4" onClick={() => urlFieldArray.append({ url: null })}>
                     <Icon icon="plus" />
                     Add URL
                 </Button>
@@ -278,12 +280,12 @@ function NodeUrl({ idx, control, formValues, isDeleteButtonVisible, onDelete, tr
             <Label className="mb-0 d-flex align-items-center gap-1">
                 <span className="small-label mb-0">URL #{idx + 1}</span>
                 {asyncTest.result?.Success ? (
-                    <Badge color="success" pill>
+                    <Badge bg="success" pill>
                         <Icon icon="check" />
                         Successfully connected
                     </Badge>
                 ) : asyncTest.result?.Error ? (
-                    <Badge color="danger" pill>
+                    <Badge bg="danger" pill>
                         <Icon icon="warning" />
                         Failed connection
                     </Badge>
@@ -298,12 +300,12 @@ function NodeUrl({ idx, control, formValues, isDeleteButtonVisible, onDelete, tr
                     autoComplete="off"
                 />
                 {isDeleteButtonVisible && (
-                    <Button color="danger" onClick={onDelete} disabled={asyncTest.loading}>
+                    <Button variant="danger" onClick={onDelete} disabled={asyncTest.loading}>
                         <Icon icon="trash" margin="m-0" title="Delete URL" />
                     </Button>
                 )}
                 <ButtonWithSpinner
-                    color="secondary"
+                    variant="secondary"
                     onClick={asyncTest.execute}
                     isSpinning={asyncTest.loading}
                     icon={{

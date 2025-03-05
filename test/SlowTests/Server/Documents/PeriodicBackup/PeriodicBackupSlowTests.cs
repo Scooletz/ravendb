@@ -2940,75 +2940,6 @@ namespace SlowTests.Server.Documents.PeriodicBackup
             }
         }
 
-        // Performing backup Delay to the time:
-        [InlineData(1)] // until the next scheduled backup time.
-        [InlineData(5)] // after the next scheduled backup.
-        [NightlyBuildTheory, Trait("Category", "Smuggler")]
-        public async Task ShouldProperlyPlaceOriginalBackupTimePropertyWithDelay(int delayDurationInMinutes)
-        {
-            const string fullBackupFrequency = "*/2 * * * *";
-            var backupPath = NewDataPath(suffix: "BackupFolder");
-
-            using (var server = GetNewServer())
-            using (var store = GetDocumentStore(new Options { Server = server }))
-            {
-                using (var session = store.OpenAsyncSession())
-                    await Backup.FillDatabaseWithRandomDataAsync(databaseSizeInMb: 1, session);
-
-                var database = await server.ServerStore.DatabasesLandlord.TryGetOrCreateResourceStore(store.Database);
-                Assert.NotNull(database);
-                await Backup.HoldBackupExecutionIfNeededAndInvoke(database.PeriodicBackupRunner.ForTestingPurposesOnly(), async () =>
-                {
-                    WaitForValue(() =>
-                    {
-                        var now = DateTime.Now;
-                        return now.Minute % 2 == 0 && now.Second <= 10;
-                    },
-                       expectedVal: true,
-                       timeout: (int)TimeSpan.FromMinutes(2).TotalMilliseconds,
-                       interval: (int)TimeSpan.FromSeconds(1).TotalMilliseconds
-                   );
-
-                    var config = Backup.CreateBackupConfiguration(backupPath, fullBackupFrequency: fullBackupFrequency);
-                    var taskId = await Backup.UpdateConfigAndRunBackupAsync(server, config, store, opStatus: OperationStatus.InProgress);
-                    // Let's delay the backup task
-                    var taskBackupInfo = await store.Maintenance.SendAsync(new GetOngoingTaskInfoOperation(taskId, OngoingTaskType.Backup)) as OngoingTaskBackup;
-                    Assert.NotNull(taskBackupInfo);
-                    Assert.NotNull(taskBackupInfo.OnGoingBackup);
-                    Assert.NotNull(taskBackupInfo.OnGoingBackup.StartTime);
-
-                    var delayDuration = TimeSpan.FromMinutes(delayDurationInMinutes);
-                    var delayUntil = DateTime.Now + delayDuration;
-                    await store.Maintenance.SendAsync(new DelayBackupOperation(taskBackupInfo.OnGoingBackup.RunningBackupTaskId, delayDuration));
-
-                    // There should be no OnGoingBackup operation in the OngoingTaskBackup
-                    await WaitForValueAsync(async () =>
-                    {
-                        var afterDelayTaskBackupInfo = await store.Maintenance.SendAsync(new GetOngoingTaskInfoOperation(taskId, OngoingTaskType.Backup)) as OngoingTaskBackup;
-                        return afterDelayTaskBackupInfo is { OnGoingBackup: null };
-                    }, true);
-
-                    var backupStatus = (await store.Maintenance.SendAsync(new GetPeriodicBackupStatusOperation(taskId))).Status;
-                    Assert.NotNull(backupStatus);
-                    Assert.NotNull(backupStatus.DelayUntil);
-                    Assert.NotNull(backupStatus.OriginalBackupTime);
-
-                    var nextFullBackup = GetNextBackupOccurrence(new NextBackupOccurrenceParameters
-                    {
-                        BackupFrequency = fullBackupFrequency,
-                        Configuration = config,
-                        LastBackupUtc = taskBackupInfo.OnGoingBackup.StartTime.Value
-                    });
-                    Assert.NotNull(nextFullBackup);
-
-                    Assert.Equal(backupStatus.OriginalBackupTime,
-                        delayUntil < nextFullBackup
-                            ? taskBackupInfo.OnGoingBackup.StartTime    // until the next scheduled backup time.
-                            : nextFullBackup.Value.ToUniversalTime());  // after the next scheduled backup.
-                }, tcs: new TaskCompletionSource<object>(TaskCreationOptions.RunContinuationsAsynchronously));
-            }
-        }
-
         [Fact, Trait("Category", "Smuggler")]
         public async Task ShouldHaveFailoverForFirstBackupInNewBackupTask()
         {
@@ -3552,28 +3483,43 @@ namespace SlowTests.Server.Documents.PeriodicBackup
 
             var backupPath = NewDataPath(suffix: "BackupFolder");
 
-            using (var store = GetDocumentStore())
+            using (var server = GetNewServer(new ServerCreationOptions
+            {
+                CustomSettings = new Dictionary<string, string>
+                {
+                    [RavenConfiguration.GetKey(x => x.Backup.MaxNumberOfConcurrentBackups)] = 1.ToString()
+                }
+            }))
+            using (var store = GetDocumentStore(new Options
+            {
+                Server = server
+            }))
             {
                 using (var session = store.OpenAsyncSession())
                     await Backup.FillDatabaseWithRandomDataAsync(databaseSizeInMb: 1, session);
 
-                var database = await Server.ServerStore.DatabasesLandlord.TryGetOrCreateResourceStore(store.Database);
+                var database = await server.ServerStore.DatabasesLandlord.TryGetOrCreateResourceStore(store.Database);
                 Assert.NotNull(database);
 
                 await Backup.HoldBackupExecutionIfNeededAndInvoke(database.PeriodicBackupRunner.ForTestingPurposesOnly(), async () =>
                 {
                     var config = Backup.CreateBackupConfiguration(backupPath, fullBackupFrequency: "* * * * *");
-                    var taskId = await Backup.UpdateConfigAndRunBackupAsync(Server, config, store, opStatus: OperationStatus.InProgress);
+                    var taskId = await Backup.UpdateConfigAndRunBackupAsync(server, config, store, opStatus: OperationStatus.InProgress);
 
                     // The backup task is running, and the next backup should be scheduled for the next minute (based on the backup configuration)
                     var taskBackupInfo = await store.Maintenance.SendAsync(new GetOngoingTaskInfoOperation(taskId, OngoingTaskType.Backup)) as OngoingTaskBackup;
                     Assert.NotNull(taskBackupInfo);
                     Assert.NotNull(taskBackupInfo.OnGoingBackup);
 
-                    using (Server.ServerStore.ContextPool.AllocateOperationContext(out TransactionOperationContext context))
+                    using (server.ServerStore.ContextPool.AllocateOperationContext(out TransactionOperationContext context))
                     using (context.OpenReadTransaction())
                     {
                         AssertNumberOfConcurrentBackups(expectedNumber: 1);
+
+                        Assert.False(server.ServerStore.ConcurrentBackupsCounter.CanRunBackup(database.Name + "_Test"));
+
+                        // checking for the same database name (imitating a different shard for the same database).
+                        Assert.True(server.ServerStore.ConcurrentBackupsCounter.CanRunBackup(database.Name));
 
                         // Let's delay the backup task to 1 hour
                         var delayDuration = TimeSpan.FromHours(1);
@@ -3581,9 +3527,11 @@ namespace SlowTests.Server.Documents.PeriodicBackup
 
                         AssertNumberOfConcurrentBackups(expectedNumber: 0);
 
+                        Assert.True(server.ServerStore.ConcurrentBackupsCounter.CanRunBackup(database.Name + "_Test"));
+
                         void AssertNumberOfConcurrentBackups(int expectedNumber)
                         {
-                            int concurrentBackups = WaitForValue(() => Server.ServerStore.ConcurrentBackupsCounter.CurrentNumberOfRunningBackups,
+                            int concurrentBackups = WaitForValue(() => server.ServerStore.ConcurrentBackupsCounter.CurrentNumberOfRunningBackups,
                                 expectedVal: expectedNumber,
                                 timeout: Convert.ToInt32(TimeSpan.FromMinutes(1).TotalMilliseconds),
                                 interval: Convert.ToInt32(TimeSpan.FromSeconds(1).TotalMilliseconds));

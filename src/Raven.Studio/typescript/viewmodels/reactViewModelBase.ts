@@ -1,6 +1,7 @@
-﻿import React from "react";
-import viewModelBase from "viewmodels/viewModelBase";
-import { getReactDirtyFlag } from "common/reactViewModelUtils";
+﻿import React = require("react");
+import viewModelBase = require("viewmodels/viewModelBase");
+import reactViewModelUtils = require("common/reactViewModelUtils");
+import router = require("plugins/router");
 
 abstract class reactViewModelBase extends viewModelBase {
 
@@ -24,12 +25,13 @@ abstract class reactViewModelBase extends viewModelBase {
 
     activate(args: any, parameters?: any) {
         super.activate(args, parameters);
+        const { params, queryParams } = router.activeInstruction()
 
-        const reactDirtyFlag = getReactDirtyFlag(this.dirtyFlag, this.customDiscardStayResult);
-        const reactProps = {
-            ...args,
-            db: this.activeDatabase()
-        }
+        const reactDirtyFlag = reactViewModelUtils.getReactDirtyFlag(this.dirtyFlag, this.customDiscardStayResult);
+        const reactProps: ReactQueryParamsProps<typeof queryParams> & ReactPathParamsProps = {
+          pathParams: params.filter(x => typeof x === "string"),
+          queryParams: queryParams || {},
+        };
 
         this.reactOptions = this.createReactOptions(this.reactView, reactProps, reactDirtyFlag);
     }

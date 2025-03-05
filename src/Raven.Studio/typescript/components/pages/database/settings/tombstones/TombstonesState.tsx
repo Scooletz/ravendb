@@ -86,11 +86,11 @@ function TombstonesStateWithSize({ location, width }: TombstonesStateWithSizePro
 
     return (
         <>
-            <AboutViewHeading title="Tombstones" icon="revisions-bin" />
+            <AboutViewHeading title="Tombstones" icon="tombstones" />
             <div className="d-flex align-items-start gap-3 flex-wrap">
                 <ButtonWithSpinner
                     onClick={asyncGetTombstonesState.execute}
-                    color="primary"
+                    variant="primary"
                     isSpinning={asyncGetTombstonesState.loading}
                     icon="refresh"
                 >
@@ -98,7 +98,7 @@ function TombstonesStateWithSize({ location, width }: TombstonesStateWithSizePro
                 </ButtonWithSpinner>
                 <ButtonWithSpinner
                     onClick={forceCleanup}
-                    color="warning"
+                    variant="warning"
                     isSpinning={asyncForceTombstonesCleanup.loading}
                     disabled={asyncForceTombstonesCleanup.loading || asyncGetTombstonesState.loading}
                     icon="force"

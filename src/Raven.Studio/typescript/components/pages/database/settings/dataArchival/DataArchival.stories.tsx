@@ -6,9 +6,15 @@ import { mockServices } from "test/mocks/services/MockServices";
 import { mockStore } from "test/mocks/store/MockStore";
 
 export default {
-    title: "Pages/Database/Settings/Data Archival",
+    title: "Pages/Settings/Data Archival",
     component: DataArchival,
     decorators: [withStorybookContexts, withBootstrap5],
+    parameters: {
+        design: {
+            type: "figma",
+            url: "https://www.figma.com/design/5ryt9Wtcj14naThD3rzLFf/Pages---Data-Archival?node-id=2-7067&t=jWUQ1v9wdlLOItCv-1",
+        },
+    },
 } satisfies Meta<typeof DataArchival>;
 
 function commonInit() {
@@ -16,8 +22,7 @@ function commonInit() {
     databases.withActiveDatabase_NonSharded_SingleNode();
 }
 
-export const DefaultDataArchival: StoryObj<typeof DataArchival> = {
-    name: "Data Archival",
+export const LicenseAllowed: StoryObj<typeof DataArchival> = {
     render: () => {
         commonInit();
 

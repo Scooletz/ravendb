@@ -1,5 +1,8 @@
 ﻿import React from "react";
-import { Card, CardBody, Collapse, Label, Spinner } from "reactstrap";
+import Spinner from "react-bootstrap/Spinner";
+import Collapse from "react-bootstrap/Collapse";
+import Card from "react-bootstrap/Card";
+import { Label } from "reactstrap";
 import { FormSwitch, FormPathSelector } from "components/common/Form";
 import { useFormContext, useWatch } from "react-hook-form";
 import OverrideConfiguration from "./OverrideConfiguration";
@@ -19,9 +22,11 @@ export default function Local() {
     const databaseName = useAppSelector(databaseSelectors.activeDatabaseName);
     const { tasksService } = useServices();
 
-    const getLocalFolderPaths = async (folderPath: string, databaseName: string) => {
-        const dto = await tasksService.getLocalFolderPathOptions(folderPath, databaseName);
-        return dto?.List || [];
+    const getLocalFolderPathsProvider = (folderPath: string) => {
+        return async () => {
+            const dto = await tasksService.getLocalFolderPathOptions(folderPath, databaseName);
+            return dto?.List || [];
+        };
     };
 
     const asyncGetBackupLocation = useAsync(() => {
@@ -33,41 +38,43 @@ export default function Local() {
 
     return (
         <Card className="well">
-            <CardBody>
+            <Card.Body>
                 <FormSwitch name={getName("isEnabled")} control={control}>
                     Local
                 </FormSwitch>
-                <Collapse isOpen={formValues?.isEnabled} className="mt-2">
-                    <FormSwitch
-                        control={control}
-                        name={`${fieldBase}.config.isOverrideConfig`}
-                        className="ms-3 mb-2"
-                        color="secondary"
-                    >
-                        Override configuration via external script
-                    </FormSwitch>
+                <Collapse in={formValues?.isEnabled} className="mt-2">
+                    <div>
+                        <FormSwitch
+                            control={control}
+                            name={`${fieldBase}.config.isOverrideConfig`}
+                            className="ms-3 mb-2"
+                            color="secondary"
+                        >
+                            Override configuration via external script
+                        </FormSwitch>
 
-                    {formValues.config.isOverrideConfig ? (
-                        <OverrideConfiguration fieldBase={fieldBase} />
-                    ) : (
-                        <div className="mt-2">
-                            <Label>Folder path</Label>
-                            <FormPathSelector
-                                control={control}
-                                name={getName("folderPath")}
-                                selectorTitle="Select database directory"
-                                placeholder="Enter directory path"
-                                getPaths={getLocalFolderPaths}
-                                getPathDependencies={(path: string) => [path, databaseName]}
-                            />
-                            <PathInfo
-                                asyncGetBackupLocation={asyncGetBackupLocation}
-                                hasValue={!!formValues.folderPath}
-                            />
-                        </div>
-                    )}
+                        {formValues.config.isOverrideConfig ? (
+                            <OverrideConfiguration fieldBase={fieldBase} />
+                        ) : (
+                            <div className="mt-2">
+                                <Label>Folder path</Label>
+                                <FormPathSelector
+                                    control={control}
+                                    name={getName("folderPath")}
+                                    selectorTitle="Select database directory"
+                                    placeholder="Enter directory path"
+                                    getPathsProvider={(path: string) => getLocalFolderPathsProvider(path)}
+                                    getPathDependencies={(path: string) => [path, databaseName]}
+                                />
+                                <PathInfo
+                                    asyncGetBackupLocation={asyncGetBackupLocation}
+                                    hasValue={!!formValues.folderPath}
+                                />
+                            </div>
+                        )}
+                    </div>
                 </Collapse>
-            </CardBody>
+            </Card.Body>
         </Card>
     );
 }

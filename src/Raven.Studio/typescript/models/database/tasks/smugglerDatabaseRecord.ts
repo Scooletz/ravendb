@@ -1,9 +1,12 @@
 ﻿/// <reference path="../../../../typings/tsd.d.ts"/>
 
 import popoverUtils = require("common/popoverUtils");
+import accessManager = require("common/shell/accessManager");
+import activeDatabaseTracker = require("common/shell/activeDatabaseTracker");
 
 class smugglerDatabaseRecord {
-    
+    isAdminAccessOrAbove = ko.pureComputed(() => accessManager.default.adminAccessOrAboveForDatabase(activeDatabaseTracker.default.database()));
+
     static instanceCounter = 1;
     
     instanceCounter: number;
@@ -14,26 +17,26 @@ class smugglerDatabaseRecord {
     includeDocumentsCompression = ko.observable<boolean>(true);
     includeTimeSeries = ko.observable<boolean>(true);
     includeSettings = ko.observable<boolean>(true);
-    includeRevisions = ko.observable<boolean>(true);
+    includeRevisions = ko.observable<boolean>(this.isAdminAccessOrAbove());
     includeRefresh = ko.observable<boolean>(true);
-    includeExpiration = ko.observable<boolean>(true);
-    includePeriodicBackups = ko.observable<boolean>(true);
-    includeExternalReplications = ko.observable<boolean>(true);
-    includeRavenConnectionStrings = ko.observable<boolean>(true);
-    includeSqlConnectionStrings = ko.observable<boolean>(true);
-    includeOlapConnectionStrings = ko.observable<boolean>(true);
-    includeElasticSearchConnectionStrings = ko.observable<boolean>(true);
-    includeQueueConnectionStrings = ko.observable<boolean>(true);
-    includeRavenEtls = ko.observable<boolean>(true);
-    includeSqlEtls = ko.observable<boolean>(true);
-    includeOlapEtls = ko.observable<boolean>(true);
-    includeElasticSearchEtls = ko.observable<boolean>(true);
-    includeQueueEtls = ko.observable<boolean>(true);
-    includeClient = ko.observable<boolean>(true);
+    includeExpiration = ko.observable<boolean>(this.isAdminAccessOrAbove());
+    includePeriodicBackups = ko.observable<boolean>(this.isAdminAccessOrAbove());
+    includeExternalReplications = ko.observable<boolean>(this.isAdminAccessOrAbove());
+    includeRavenConnectionStrings = ko.observable<boolean>(this.isAdminAccessOrAbove());
+    includeSqlConnectionStrings = ko.observable<boolean>(this.isAdminAccessOrAbove());
+    includeOlapConnectionStrings = ko.observable<boolean>(this.isAdminAccessOrAbove());
+    includeElasticSearchConnectionStrings = ko.observable<boolean>(this.isAdminAccessOrAbove());
+    includeQueueConnectionStrings = ko.observable<boolean>(this.isAdminAccessOrAbove());
+    includeRavenEtls = ko.observable<boolean>(this.isAdminAccessOrAbove());
+    includeSqlEtls = ko.observable<boolean>(this.isAdminAccessOrAbove());
+    includeOlapEtls = ko.observable<boolean>(this.isAdminAccessOrAbove());
+    includeElasticSearchEtls = ko.observable<boolean>(this.isAdminAccessOrAbove());
+    includeQueueEtls = ko.observable<boolean>(this.isAdminAccessOrAbove());
+    includeClient = ko.observable<boolean>(this.isAdminAccessOrAbove());
     includeSorters = ko.observable<boolean>(true);
     includeAnalyzers = ko.observable<boolean>(true);
     includeHubReplications = ko.observable<boolean>(true);
-    includeSinkReplications = ko.observable<boolean>(true);
+    includeSinkReplications = ko.observable<boolean>(this.isAdminAccessOrAbove());
     includePostgreSqlIntegration = ko.observable<boolean>(true);
     includeIndexHistory = ko.observable<boolean>(false);
 

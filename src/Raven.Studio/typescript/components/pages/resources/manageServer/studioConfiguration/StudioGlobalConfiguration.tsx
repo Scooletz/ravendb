@@ -1,5 +1,5 @@
-import React from "react";
-import { Card, CardBody, Col, Form, Label, PopoverBody, Row, UncontrolledPopover } from "reactstrap";
+import Card from "react-bootstrap/Card";
+import { Col, Form, Label, Row } from "reactstrap";
 import { SubmitHandler, useForm } from "react-hook-form";
 import { FormInput, FormSelect, FormSwitch } from "components/common/Form";
 import { tryHandleSubmit } from "components/utils/common";
@@ -24,9 +24,14 @@ import FeatureAvailabilitySummaryWrapper, {
     FeatureAvailabilityData,
 } from "components/common/FeatureAvailabilitySummary";
 import { useLimitedFeatureAvailability } from "components/utils/licenseLimitsUtils";
-import FeatureNotAvailableInYourLicensePopover from "components/common/FeatureNotAvailableInYourLicensePopover";
+import FeatureNotAvailableInYourLicensePopoverBody from "components/common/FeatureNotAvailableInYourLicensePopoverBody";
+import PopoverWithHoverWrapper from "components/common/PopoverWithHoverWrapper";
+import { useRef } from "react";
+import { ConditionalPopover } from "components/common/ConditionalPopover";
 
 export default function StudioGlobalConfiguration() {
+    const popoverContainerRef = useRef<HTMLDivElement>(null);
+
     const asyncGlobalSettings = useAsyncCallback<StudioGlobalConfigurationFormData>(async () => {
         const settings = await studioSettings.default.globalSettings(true);
 
@@ -97,10 +102,15 @@ export default function StudioGlobalConfiguration() {
                         licenseBadgeText={hasStudioConfiguration ? null : "Professional +"}
                     />
                     <Form onSubmit={handleSubmit(onSave)} autoComplete="off">
-                        <div id="saveStudioConfiguration" className="w-fit-content">
+                        <ConditionalPopover
+                            conditions={{
+                                isActive: !hasStudioConfiguration,
+                                message: <FeatureNotAvailableInYourLicensePopoverBody />,
+                            }}
+                        >
                             <ButtonWithSpinner
                                 type="submit"
-                                color="primary"
+                                variant="primary"
                                 className="mb-3"
                                 icon="save"
                                 disabled={!formState.isDirty}
@@ -108,23 +118,14 @@ export default function StudioGlobalConfiguration() {
                             >
                                 Save
                             </ButtonWithSpinner>
-                        </div>
-                        {!hasStudioConfiguration && (
-                            <FeatureNotAvailableInYourLicensePopover target="saveStudioConfiguration" />
-                        )}
+                        </ConditionalPopover>
                         <div className={hasStudioConfiguration ? null : "item-disabled pe-none"}>
-                            <Card id="popoverContainer">
-                                <CardBody className="vstack gap-3">
+                            <Card ref={popoverContainerRef}>
+                                <Card.Body className="vstack gap-3">
                                     <div className="gap-1">
                                         <Label className="mb-0 md-label">
-                                            Server Environment <Icon icon="info" color="info" id="EnvironmentInfo" />
-                                            <UncontrolledPopover
-                                                target="EnvironmentInfo"
-                                                placement="right"
-                                                trigger="hover"
-                                                container="popoverContainer"
-                                            >
-                                                <PopoverBody>
+                                            <PopoverWithHoverWrapper
+                                                message={
                                                     <ul>
                                                         <li className="margin-bottom-xs">
                                                             Apply a <strong>tag</strong> to the Studio indicating the
@@ -132,8 +133,13 @@ export default function StudioGlobalConfiguration() {
                                                         </li>
                                                         <li>This does not affect any settings or features.</li>
                                                     </ul>
-                                                </PopoverBody>
-                                            </UncontrolledPopover>
+                                                }
+                                                placement="right"
+                                                overlayProps={{ container: popoverContainerRef.current }}
+                                            >
+                                                Server Environment{" "}
+                                                <Icon icon="info" color="info" id="EnvironmentInfo" />
+                                            </PopoverWithHoverWrapper>
                                         </Label>
                                         <FormSelect
                                             control={control}
@@ -145,14 +151,8 @@ export default function StudioGlobalConfiguration() {
                                     <div className="gap-1">
                                         <Label className="mb-0 md-label">
                                             Default Replication Factor{" "}
-                                            <Icon icon="info" color="info" id="ReplicationFactorInfo" />
-                                            <UncontrolledPopover
-                                                target="ReplicationFactorInfo"
-                                                placement="right"
-                                                trigger="hover"
-                                                container="popoverContainer"
-                                            >
-                                                <PopoverBody>
+                                            <PopoverWithHoverWrapper
+                                                message={
                                                     <ul>
                                                         <li className="margin-bottom-xs">
                                                             Set the default <strong>replication factor</strong> when
@@ -168,8 +168,12 @@ export default function StudioGlobalConfiguration() {
                                                             it is created.
                                                         </li>
                                                     </ul>
-                                                </PopoverBody>
-                                            </UncontrolledPopover>
+                                                }
+                                                placement="right"
+                                                overlayProps={{ container: popoverContainerRef.current }}
+                                            >
+                                                <Icon icon="info" color="info" id="ReplicationFactorInfo" />
+                                            </PopoverWithHoverWrapper>
                                         </Label>
                                         <FormInput
                                             control={control}
@@ -178,10 +182,10 @@ export default function StudioGlobalConfiguration() {
                                             placeholder="Cluster size (default)"
                                         ></FormInput>
                                     </div>
-                                </CardBody>
+                                </Card.Body>
                             </Card>
                             <Card className="mt-3">
-                                <CardBody>
+                                <Card.Body>
                                     <div className="d-flex flex-column">
                                         <FormSwitch control={control} name="isCollapseDocsWhenOpening">
                                             Collapse documents when opening
@@ -190,7 +194,7 @@ export default function StudioGlobalConfiguration() {
                                             Help improve the Studio by gathering anonymous usage statistics
                                         </FormSwitch>
                                     </div>
-                                </CardBody>
+                                </Card.Body>
                             </Card>
                         </div>
                     </Form>

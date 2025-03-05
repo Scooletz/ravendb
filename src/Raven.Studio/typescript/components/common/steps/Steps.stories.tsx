@@ -2,14 +2,21 @@
 import Steps from "./Steps";
 import React, { useState } from "react";
 import { withBootstrap5, withStorybookContexts } from "test/storybookTestUtils";
-import { Button, Card } from "reactstrap";
+import Card from "react-bootstrap/Card";
 import { FlexGrow } from "../FlexGrow";
 import { Icon } from "../Icon";
+import Button from "react-bootstrap/Button";
 
 export default {
     title: "Bits/Steps",
     component: Steps,
     decorators: [withStorybookContexts, withBootstrap5],
+    parameters: {
+        design: {
+            type: "figma",
+            url: "https://www.figma.com/design/ITHbe2U19Ok7cjbEzYa4cb/Design-System-RavenDB-Studio?node-id=15-507",
+        },
+    },
 } satisfies Meta<typeof Steps>;
 
 export function StepsExample() {
@@ -85,17 +92,17 @@ export function StepsExample() {
             </div>
             <div className="d-flex my-4">
                 {!isFirstStep && (
-                    <Button onClick={prevStep}>
+                    <Button variant="secondary" onClick={prevStep}>
                         <Icon icon="arrow-left" /> Back
                     </Button>
                 )}
                 <FlexGrow />
                 {isLastStep ? (
-                    <Button color="success">
+                    <Button variant="success">
                         <Icon icon="rocket" /> Finish
                     </Button>
                 ) : (
-                    <Button color="primary" onClick={nextStep} disabled={isLastStep}>
+                    <Button variant="primary" onClick={nextStep} disabled={isLastStep}>
                         Next <Icon icon="arrow-right" margin="ms-1" />
                     </Button>
                 )}

@@ -5,6 +5,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Threading;
 using Raven.Client;
 using Raven.Client.Documents.Changes;
@@ -80,7 +81,8 @@ namespace Raven.Server.Documents
         private static readonly Slice EtagsSlice;
         private static readonly Slice LastEtagSlice;
         private static readonly Slice LastCompletedClusterTransactionIndexSlice;
-        private static readonly Slice GlobalTreeSlice;
+        public static readonly Slice RevisionsBinCleanerLastEtag;
+        public static readonly Slice GlobalTreeSlice;
         private static readonly Slice GlobalChangeVectorSlice;
         private static readonly Slice GlobalFullChangeVectorSlice;
         private readonly Action<LogMode, string> _addToInitLog;
@@ -107,6 +109,7 @@ namespace Raven.Server.Documents
                 Slice.From(ctx, "LastEtag", ByteStringType.Immutable, out LastEtagSlice);
                 Slice.From(ctx, "LastReplicatedEtags", ByteStringType.Immutable, out LastReplicatedEtagsSlice);
                 Slice.From(ctx, "LastCompletedClusterTransactionIndex", ByteStringType.Immutable, out LastCompletedClusterTransactionIndexSlice);
+                Slice.From(ctx, "LastRevisionsBinCleanerState", ByteStringType.Immutable, out RevisionsBinCleanerLastEtag);
                 Slice.From(ctx, "GlobalTree", ByteStringType.Immutable, out GlobalTreeSlice);
                 Slice.From(ctx, "GlobalChangeVector", ByteStringType.Immutable, out GlobalChangeVectorSlice);
                 Slice.From(ctx, "GlobalFullChangeVector", ByteStringType.Immutable, out GlobalFullChangeVectorSlice);
@@ -2247,9 +2250,19 @@ namespace Raven.Server.Documents
             return GetNumberOfItemsToProcess(context, collection, afterEtag, tombstones: false, totalCount: out totalCount, overallDuration);
         }
 
+        public long GetNumberOfDocumentsToProcess(DocumentsOperationContext context, long afterEtag, out long totalCount, Stopwatch overallDuration)
+        {
+            return GetNumberOfItemsToProcess(context, afterEtag, tombstones: false, totalCount: out totalCount, overallDuration);
+        }
+
         public long GetNumberOfTombstonesToProcess(DocumentsOperationContext context, string collection, long afterEtag, out long totalCount, Stopwatch overallDuration)
         {
             return GetNumberOfItemsToProcess(context, collection, afterEtag, tombstones: true, totalCount: out totalCount, overallDuration);
+        }
+
+        public long GetNumberOfTombstonesToProcess(DocumentsOperationContext context, long afterEtag, out long totalCount, Stopwatch overallDuration)
+        {
+            return GetNumberOfItemsToProcess(context, afterEtag, tombstones: true, totalCount: out totalCount, overallDuration);
         }
 
         private long GetNumberOfItemsToProcess(DocumentsOperationContext context, string collection, long afterEtag, bool tombstones, out long totalCount,
@@ -2282,6 +2295,25 @@ namespace Raven.Server.Documents
             {
                 totalCount = 0;
                 return 0;
+            }
+
+            return table.GetNumberOfEntriesAfter(indexDef, afterEtag, out totalCount, overallDuration);
+        }
+
+        private long GetNumberOfItemsToProcess(DocumentsOperationContext context, long afterEtag, bool tombstones, out long totalCount,
+            Stopwatch overallDuration)
+        {
+            Table table;
+            TableSchema.FixedSizeKeyIndexDef indexDef;
+            if (tombstones)
+            {
+                table = new Table(TombstonesSchema, context.Transaction.InnerTransaction);
+                indexDef = TombstonesSchema.FixedSizeIndexes[AllTombstonesEtagsSlice];
+            }
+            else
+            {
+                table = new Table(DocsSchema, context.Transaction.InnerTransaction);
+                indexDef = DocsSchema.FixedSizeIndexes[AllDocsEtagsSlice];
             }
 
             return table.GetNumberOfEntriesAfter(indexDef, afterEtag, out totalCount, overallDuration);

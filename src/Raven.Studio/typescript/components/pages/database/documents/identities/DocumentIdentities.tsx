@@ -1,4 +1,5 @@
-import { Button, Col, Row } from "reactstrap";
+import Button from "react-bootstrap/Button";
+import { Col, Row } from "reactstrap";
 import React from "react";
 import { AboutViewHeading } from "components/common/AboutView";
 import VirtualTable from "components/common/virtualTable/VirtualTable";
@@ -22,7 +23,7 @@ export default function DocumentIdentities() {
     const { identities, reload, status, isLoading } = useGetIdentities();
 
     return (
-        <div className="content-padding">
+        <div className="content-padding h-100">
             <Row className="gy-sm h-100">
                 <Col>
                     <DocumentIdentitiesWithSize
@@ -68,7 +69,12 @@ function DocumentIdentitiesWithSize({
         <div className="h-100 vstack">
             <AboutViewHeading title="Identities" icon="identities" />
             <div className="d-flex mb-3">
-                <Button color="primary" onClick={setIsOpen} disabled={!hasDatabaseAccessWrite} title="Add new identity">
+                <Button
+                    variant="primary"
+                    onClick={setIsOpen}
+                    disabled={!hasDatabaseAccessWrite}
+                    title="Add new identity"
+                >
                     <Icon icon="plus" />
                     Add new identity
                 </Button>

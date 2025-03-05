@@ -15,6 +15,12 @@ export default {
     title: "Bits/Location Specific Details",
     decorators: [withStorybookContexts, withBootstrap5],
     component: LocationSpecificDetails,
+    parameters: {
+        design: {
+            type: "figma",
+            url: "https://www.figma.com/design/ITHbe2U19Ok7cjbEzYa4cb/Design-System-RavenDB-Studio?node-id=9-1906&t=ipd4AuT8v0is7yTp-4",
+        },
+    },
 } satisfies Meta<typeof LocationSpecificDetails>;
 
 const Template = (args: { withProgress: boolean; shardedLocation: boolean }) => {
@@ -27,7 +33,7 @@ const Template = (args: { withProgress: boolean; shardedLocation: boolean }) => 
             <LocationSpecificDetails location={location}>
                 <LocationSpecificDetailsItemsContainer>
                     <LocationSpecificDetailsItem>
-                        <StatePill color="success">I&apos;m feeling good!</StatePill>
+                        <StatePill bg="success">I&apos;m feeling good!</StatePill>
                     </LocationSpecificDetailsItem>
                     <LocationSpecificDetailsItem>
                         <Icon icon="list" /> 1,234,567 entries

@@ -1,12 +1,18 @@
 ﻿import { Meta } from "@storybook/react";
 import React from "react";
-import { Spinner } from "reactstrap";
 import { withBootstrap5, withStorybookContexts } from "test/storybookTestUtils";
+import Spinner from "react-bootstrap/Spinner";
 
 export default {
     title: "Bits/Spinners",
     decorators: [withStorybookContexts, withBootstrap5],
     component: Spinner,
+    parameters: {
+        design: {
+            type: "figma",
+            url: "https://www.figma.com/design/ITHbe2U19Ok7cjbEzYa4cb/Design-System-RavenDB-Studio?node-id=15-506",
+        },
+    },
 } satisfies Meta<typeof Spinner>;
 
 export function allSpinners() {
@@ -39,7 +45,7 @@ export function allSpinners() {
 }
 
 interface AllSpinnerColorsProps {
-    size?: string;
+    size?: Spinner.RavenSpinnerSizes;
 }
 
 function AllSpinnerColors(props: AllSpinnerColorsProps) {
@@ -56,13 +62,13 @@ function AllSpinnerColors(props: AllSpinnerColorsProps) {
         "shard",
         "dark",
         "light",
-    ];
+    ] as const;
     return (
         <div className="hstack gap-3">
             {colors.map((color) => (
                 <div className="d-flex flex-column align-items-center">
                     {color}
-                    <Spinner color={color} size={size}></Spinner>
+                    <Spinner variant={color} size={size}></Spinner>
                 </div>
             ))}
         </div>

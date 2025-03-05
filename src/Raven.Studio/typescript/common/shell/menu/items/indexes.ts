@@ -1,9 +1,12 @@
 ﻿import intermediateMenuItem = require("common/shell/menu/intermediateMenuItem");
 import leafMenuItem = require("common/shell/menu/leafMenuItem");
 import footer = require("common/shell/footer");
-import { bridgeToReact } from "common/reactUtils";
-import { IndexesPage } from "components/pages/database/indexes/list/IndexesPage";
-import { IndexCleanup } from "components/pages/database/indexes/cleanup/IndexCleanup";
+import reactUtils = require("common/reactUtils");
+import IndexesPage = require("components/pages/database/indexes/list/IndexesPage");
+import IndexCleanup = require("components/pages/database/indexes/cleanup/IndexCleanup");
+import IndexErrors = require("components/pages/database/indexes/errors/IndexErrors");
+import IndexTerms = require("components/pages/database/indexes/list/terms/IndexTerms");
+
 export = getIndexesMenuItem;
 
 function getIndexesMenuItem(appUrls: computedAppUrls) {
@@ -22,7 +25,7 @@ function getIndexesMenuItem(appUrls: computedAppUrls) {
             nav: true,
             shardingMode: "allShards",
             route: "databases/indexes",
-            moduleId: bridgeToReact(IndexesPage, "shardedView"),
+            moduleId: reactUtils.bridgeToReact(IndexesPage.IndexesPage, "shardedView"),
             css: 'icon-list-of-indexes',
             dynamicHash: appUrls.indexes(null, false, false),
             search: {
@@ -42,7 +45,7 @@ function getIndexesMenuItem(appUrls: computedAppUrls) {
             nav: false,
             shardingMode: "allShards",
             route: "databases/indexes",
-            moduleId: bridgeToReact(IndexesPage, "shardedView"),
+            moduleId: reactUtils.bridgeToReact(IndexesPage.IndexesPage, "shardedView"),
             css: 'icon-index-import',
             itemRouteToHighlight: 'databases/indexes',
             dynamicHash: appUrls.indexes(null, false, true),
@@ -77,7 +80,7 @@ function getIndexesMenuItem(appUrls: computedAppUrls) {
         }),
         new leafMenuItem({
             route: 'databases/indexes/cleanup',
-            moduleId: bridgeToReact(IndexCleanup, "nonShardedView"),
+            moduleId: reactUtils.bridgeToReact(IndexCleanup.IndexCleanup, "nonShardedView"),
             shardingMode: "allShards",
             title: 'Index Cleanup',
             nav: true,
@@ -95,7 +98,7 @@ function getIndexesMenuItem(appUrls: computedAppUrls) {
         new leafMenuItem({
             route: 'databases/indexes/indexErrors',
             shardingMode: "allShards",
-            moduleId: require('viewmodels/database/indexes/indexErrors'),
+            moduleId: reactUtils.bridgeToReact(IndexErrors.default, "nonShardedView"),
             title: 'Index Errors',
             nav: true,
             css: 'icon-index-errors',
@@ -130,7 +133,7 @@ function getIndexesMenuItem(appUrls: computedAppUrls) {
         new leafMenuItem({
             title: 'Terms',
             route: 'databases/indexes/terms/(:indexName)',
-            moduleId: require('viewmodels/database/indexes/indexTerms'),
+            moduleId: reactUtils.bridgeToReact(IndexTerms.default, "shardedView"),
             shardingMode: "allShards",
             css: 'icon-terms',
             nav: false,

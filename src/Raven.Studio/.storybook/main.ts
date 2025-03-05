@@ -17,33 +17,20 @@ customHooksToMock.forEach((name: string) => {
 });
 
 const config: StorybookConfig = {
-    babel: async (options) => {
-        options.plugins ??= [];
-        options.plugins.push((require as any).resolve("./import_plugin.js"));
-
-        return {
-            ...options,
-            presets: [
-                ...(options.presets ?? []),
-                [
-                    "@babel/preset-react",
-                    {
-                        runtime: "automatic",
-                    },
-                    "preset-react-jsx-transform",
-                ],
-            ],
-            sourceType: "unambiguous",
-        };
+    docs: {
+        docsMode: false,
     },
-
+    typescript: {
+        reactDocgen: false,
+    },
     stories: ["../typescript/**/*.stories.tsx"],
     addons: [
         "@storybook/addon-links",
         "@storybook/addon-essentials",
         "@storybook/addon-interactions",
-        "@storybook/addon-webpack5-compiler-babel",
+        "@storybook/addon-webpack5-compiler-swc",
         "@storybook/addon-a11y",
+        "@storybook/addon-designs",
     ],
 
     framework: {
@@ -59,6 +46,28 @@ const config: StorybookConfig = {
                 ...webpackConfig.resolve.alias,
             };
         }
+
+        // Ensure a shared runtime for all entries
+        config.optimization ??= {};
+        config.optimization.runtimeChunk = "single";
+
+        if (typeof config.entry === "object") {
+            // the default style is the last one so it's also initial
+            config.entry = {
+                ...config.entry,
+                "styles-light": path.resolve(__dirname, "../wwwroot/Content/css/styles-light.less"),
+                "styles-blue": path.resolve(__dirname, "../wwwroot/Content/css/styles-blue.less"),
+                "styles-classic": path.resolve(__dirname, "../wwwroot/Content/css/styles-classic.less"),
+                styles: path.resolve(__dirname, "../wwwroot/Content/css/styles.less"),
+                "bs5-styles-light": path.resolve(__dirname, "../wwwroot/Content/css/bs5-styles-light.scss"),
+                "bs5-styles-blue": path.resolve(__dirname, "../wwwroot/Content/css/bs5-styles-blue.scss"),
+                "bs5-styles-classic": path.resolve(__dirname, "../wwwroot/Content/css/bs5-styles-classic.scss"),
+                "bs5-styles": path.resolve(__dirname, "../wwwroot/Content/css/bs5-styles.scss"),
+            };
+        }
+
+        config.watchOptions ??= {};
+        config.watchOptions.ignored = /(node_modules|storybook-config-entry|storybook-stories)/;
 
         config.plugins?.unshift(webpackConfig.plugins.find((x) => x.constructor.name === "ProvidePlugin"));
 

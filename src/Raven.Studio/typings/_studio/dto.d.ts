@@ -989,7 +989,6 @@ type databaseLocationSpecifier = {
     nodeTag: string;
 }
 
-
 interface PopoverUtilsOptions extends PopoverOptions {
     rounded?: boolean;
 }
@@ -1001,6 +1000,18 @@ interface StudioDatabasesResponse {
 
 interface ReactDirtyFlag {
     setIsDirty: (isDirty: boolean, customDialog?: () => JQueryPromise<confirmDialogResult>) => void;
+}
+
+interface ReactQueryParamsProps<T extends Record<string, any>> {
+    queryParams?: T
+}
+
+interface ReactPathParamsProps {
+    pathParams?: string[]
+}
+
+interface ReactLocationProps {
+    location: databaseLocationSpecifier;
 }
 
 interface ReactInKnockoutOptions<T> {

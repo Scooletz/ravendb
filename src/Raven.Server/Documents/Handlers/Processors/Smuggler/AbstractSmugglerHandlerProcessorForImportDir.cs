@@ -7,9 +7,12 @@ using JetBrains.Annotations;
 using Raven.Client.Documents.Operations;
 using Raven.Client.Documents.Smuggler;
 using Raven.Server.Smuggler.Documents.Data;
+using Raven.Server.Web.System;
 using Sparrow;
 using Sparrow.Json;
+using Sparrow.Logging;
 using Sparrow.Utils;
+using static Raven.Server.Utils.MetricCacher.Keys;
 
 namespace Raven.Server.Documents.Handlers.Processors.Smuggler;
 
@@ -38,6 +41,10 @@ internal abstract class AbstractSmugglerHandlerProcessorForImportDir<TRequestHan
         files.CompleteAdding();
         operationId ??= GetOperationId();
         await BulkImport(files, directory, operationId.Value);
+
+        if (LoggingSource.AuditLog.IsInfoEnabled)
+            RequestHandler.LogAuditFor(RequestHandler.DatabaseName, "IMPORT", $"{EnumHelper.GetDescription(Operations.OperationType.DatabaseImport)} " +
+                                                 $"from directory: '{directory}', files count: '{files.Count}'");
     }
 
     private async Task BulkImport(BlockingCollection<Func<Task<Stream>>> files, string directory, long operationId)

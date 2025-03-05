@@ -1,14 +1,13 @@
 ﻿import leafMenuItem = require("common/shell/menu/leafMenuItem");
 import appUrl = require("common/appUrl");
-import { bridgeToReact } from "common/reactUtils";
-import { BootstrapPlaygroundPage } from "components/pages/BootstrapPlaygroundPage";
-import { AboutPage } from "components/pages/resources/about/AboutPage";
-import React from "react";
+import reactUtils = require("common/reactUtils");
+import AboutPage = require("components/pages/resources/about/AboutPage");
+import React = require("react");
 
 function aboutItem() {
     return new leafMenuItem({
         route: 'about',
-        moduleId: bridgeToReact(AboutPage, "nonShardedView"),
+        moduleId: reactUtils.bridgeToReact(AboutPage.AboutPage, "nonShardedView"),
         title: 'About',
         tooltip: "About",
         nav: true,
@@ -42,8 +41,8 @@ interface WhatsNewItemOptions {
 
 function whatsNewItem({ isNewVersionAvailable = false, isWhatsNewVisible = false }: WhatsNewItemOptions = {}) {
     
-    const moduleId = bridgeToReact(
-        () => React.createElement(AboutPage, { initialChangeLogMode: "changeLog" }),
+    const moduleId = reactUtils.bridgeToReact(
+        () => React.createElement(AboutPage.AboutPage, { initialChangeLogMode: "changeLog" }),
         "nonShardedView"
     );
 
@@ -66,22 +65,6 @@ function whatsNewItem({ isNewVersionAvailable = false, isWhatsNewVisible = false
         }
     });
 }
-
-function bs5Item() {
-    return new leafMenuItem({
-        route: 'bs5',
-        moduleId: bridgeToReact(BootstrapPlaygroundPage, "nonShardedView"),
-        title: 'Bootstrap 5',
-        tooltip: "Boostrap 5",
-        nav: false,
-        css: 'icon-info',
-        dynamicHash: () => "#bs5",
-        search: {
-            isExcluded: true
-        }
-    });
-}
-
 
 function clusterDashboard() {
     const clusterDashboardView = require('viewmodels/resources/clusterDashboard');
@@ -109,6 +92,5 @@ function clusterDashboard() {
 export = {
     about: aboutItem,
     whatsNew: whatsNewItem,
-    bs: bs5Item,
     clusterDashboard
 };

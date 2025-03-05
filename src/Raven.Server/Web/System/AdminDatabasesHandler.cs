@@ -192,7 +192,7 @@ namespace Raven.Server.Web.System
         public async Task Put()
         {
             var raftRequestId = GetRaftRequestIdFromQuery();
-            
+
             await ServerStore.EnsureNotPassiveAsync();
             using (ServerStore.ContextPool.AllocateOperationContext(out TransactionOperationContext context))
             {
@@ -289,7 +289,10 @@ namespace Raven.Server.Web.System
                     }
                 }
 
-                databaseRecord.SupportedFeatures = new List<string> { Constants.DatabaseRecord.SupportedFeatures.ThrowRevisionKeyTooBigFix };
+                if (databaseRecord.SupportedFeatures == null || databaseRecord.SupportedFeatures.Count == 0)
+                {
+                    databaseRecord.SupportedFeatures = new List<string> { Constants.DatabaseRecord.SupportedFeatures.ThrowRevisionKeyTooBigFix };
+                }
 
                 var (newIndex, topology, nodeUrlsAddedTo) = await CreateDatabase(databaseRecord.DatabaseName, databaseRecord, context, replicationFactor, index, raftRequestId);
 
@@ -527,7 +530,7 @@ namespace Raven.Server.Web.System
             {
                 var cancelToken = CreateBackgroundOperationToken();
                 var configuration = await context.ReadForMemoryAsync(RequestBodyStream(), "database-restore");
-                var restoreConfiguration = RestoreUtils.GetRestoreConfigurationAndSource(ServerStore, configuration, out var restoreSource, cancelToken);
+                var restoreConfiguration = RestoreUtils.GetRestoreConfigurationAndSource(ServerStore, configuration, out var restoreSource, out var configurationJsonForAudit, out var restoreType, cancelToken);
 
                 if (restoreConfiguration.ShardRestoreSettings != null)
                 {
@@ -563,6 +566,14 @@ namespace Raven.Server.Web.System
                         return await restoreBackupTask.ExecuteAsync(onProgress);
                     },
                     restoreConfiguration.DatabaseName, token: cancelToken);
+
+                if (LoggingSource.AuditLog.IsInfoEnabled)
+                {
+                    var configurationString = context.ReadObject(configurationJsonForAudit, nameof(configurationJsonForAudit)).ToString();
+                    LogAuditFor(restoreConfiguration.DatabaseName, "IMPORT",
+                        $"{EnumHelper.GetDescription(OperationType.DatabaseRestore)} with restore type: '{restoreType}' " +
+                        $"using configuration: '{configurationString}'");
+                }
 
                 await using (var writer = new AsyncBlittableJsonTextWriter(context, ResponseBodyStream()))
                 {
@@ -1224,7 +1235,7 @@ namespace Raven.Server.Web.System
             {
                 foreach (var id in unusedIds)
                     ValidateDatabaseIdFormat(id);
-                
+
                 using (var token = CreateHttpRequestBoundTimeLimitedOperationToken(ServerStore.Configuration.Cluster.OperationTimeout.AsTimeSpan))
                     await ValidateUnusedIdsAsync(unusedIds, database, token.Token);
             }
@@ -1294,6 +1305,14 @@ namespace Raven.Server.Web.System
                 var migrator = new Migrator(migrationConfigurationJson, ServerStore);
 
                 await migrator.MigrateDatabases(migrationConfigurationJson.Databases, AuthorizationStatus.Operator);
+
+                if (LoggingSource.AuditLog.IsInfoEnabled)
+                    foreach (var databaseMigrationSettings in migrationConfigurationJson.Databases)
+                    {
+                        var databaseMigrationSettingsString = context.ReadObject(databaseMigrationSettings.ToAuditJson(), nameof(databaseMigrationSettings)).ToString();
+                        LogAuditFor(databaseMigrationSettings.DatabaseName, "IMPORT", $"{EnumHelper.GetDescription(OperationType.DatabaseMigration)} from RavenDB " +
+                                                                                      $"using configuration: '{databaseMigrationSettingsString}'");
+                    }
 
                 NoContentStatus();
             }
@@ -1447,6 +1466,17 @@ namespace Raven.Server.Web.System
                                         result: result, onProgress: onProgress, token: token.Token);
 
                                     await smuggler.ExecuteAsync();
+                                }
+
+                                if (LoggingSource.AuditLog.IsInfoEnabled)
+                                {
+                                    using (ServerStore.ContextPool.AllocateOperationContext(out TransactionOperationContext context))
+                                    {
+                                        var configurationString = context.ReadObject(configuration.ToAuditJson(), nameof(configuration)).ToString();
+                                        LogAuditFor(databaseName, "IMPORT",
+                                            $"{EnumHelper.GetDescription(OperationType.MigrationFromLegacyData)} " +
+                                            $"using configuration: '{configurationString}'");
+                                    }
                                 }
                             }
                         }

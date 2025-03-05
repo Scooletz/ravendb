@@ -108,6 +108,7 @@ namespace FastTests
 
             IgnoreProcessorAffinityChanges(ignore: true);
             LicenseManager.IgnoreCompressionLicenseLimit = true;
+            BackupUtils.IgnoreHealthChecksBeforeBackup = true;
 
             //RequestExecutor.HttpClientFactory = RavenServerHttpClientFactory.Instance;
             LicenseManager.AddLicenseStatusToLicenseLimitsException = true;
@@ -125,8 +126,8 @@ namespace FastTests
             Console.WriteLine($"Default HTTP Pooled Connection Idle Timeout: {DocumentConventions.DefaultHttpPooledConnectionIdleTimeout}");
             Console.WriteLine($"Default HTTP Version Policy: {DocumentConventions.DefaultHttpVersionPolicy}");
 
-            Lucene.Net.Util.UnmanagedStringArray.Segment.AllocateMemory = NativeMemory.AllocateMemory;
-            Lucene.Net.Util.UnmanagedStringArray.Segment.FreeMemory = NativeMemory.Free;
+            Lucene.Net.Util.UnmanagedStringArray.Segment.AllocateMemory = (size, _) => NativeMemory.AllocateMemory(size);
+            Lucene.Net.Util.UnmanagedStringArray.Segment.FreeMemory = (ptr, size, _) => NativeMemory.Free(ptr, size);
 
             BackupTask.DateTimeFormat = "yyyy-MM-dd-HH-mm-ss-fffffff";
             RestorePointsBase.BackupFolderRegex = new Regex(@"([0-9]{4}-[0-9]{2}-[0-9]{2}-[0-9]{2}-[0-9]{2}(-[0-9]{2})?(-[0-9]{7})?).ravendb-(.+)-([A-Za-z]+)-(.+)$", RegexOptions.Compiled);
@@ -552,9 +553,9 @@ namespace FastTests
                 configuration.SetSetting(RavenConfiguration.GetKey(x => x.Replication.RetryReplicateAfter), "3");
                 configuration.SetSetting(RavenConfiguration.GetKey(x => x.Replication.RetryMaxTimeout), "3");
                 configuration.SetSetting(RavenConfiguration.GetKey(x => x.Cluster.AddReplicaTimeout), "10");
+                configuration.SetSetting(RavenConfiguration.GetKey(x => x.Backup.MaxNumberOfConcurrentBackups), "512");
                 configuration.SetSetting(RavenConfiguration.GetKey(x => x.Indexing.AutoIndexingEngineType), nameof(SearchEngineType.Lucene));
                 configuration.SetSetting(RavenConfiguration.GetKey(x => x.Indexing.StaticIndexingEngineType), nameof(SearchEngineType.Lucene));
-                configuration.SetSetting(RavenConfiguration.GetKey(x => x.Backup.MaxNumberOfConcurrentBackups), "128");
 
                 if (options.CustomSettings != null)
                 {

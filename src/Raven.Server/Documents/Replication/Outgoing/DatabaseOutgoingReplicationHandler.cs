@@ -31,6 +31,8 @@ namespace Raven.Server.Documents.Replication.Outgoing
 {
     public abstract class DatabaseOutgoingReplicationHandler : AbstractOutgoingReplicationHandler<DocumentsContextPool, DocumentsOperationContext>
     {
+        public string HandlerId = Guid.NewGuid().ToString();
+        
         public const string AlertTitle = "Replication";
 
         internal readonly DocumentDatabase _database;
@@ -204,6 +206,7 @@ namespace Raven.Server.Documents.Replication.Outgoing
                         once.Wait(_cts.Token);
                     }
 
+                    var startTime = _database.Time.GetUtcNow();
                     var sp = Stopwatch.StartNew();
                     var stats = _lastStats = new OutgoingReplicationStatsAggregator(_parent.GetNextReplicationStatsId(), _lastStats);
                     AddReplicationPerformance(stats);
@@ -228,6 +231,7 @@ namespace Raven.Server.Documents.Replication.Outgoing
                                     break;
 
                                 DocumentsSend?.Invoke(this);
+                                UpdateMetrics(startTime, scope);
 
                                 if (sp.ElapsedMilliseconds > 60 * 1000)
                                 {

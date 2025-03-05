@@ -176,7 +176,7 @@ namespace Voron.Data.Tables
                 return false;
             }
 
-            var rawData = DirectRead(id, out int size);
+            var rawData = DirectRead(id, out int size, out _);
             reader = new TableValueReader(id, rawData, size);
             return true;
         }
@@ -241,13 +241,13 @@ namespace Voron.Data.Tables
 
         public void DirectRead(long id, out TableValueReader tvr)
         {
-            var rawData = DirectRead(id, out int size);
+            var rawData = DirectRead(id, out int size, out _);
             tvr = new TableValueReader(id, rawData, size);
         }
 
-        public byte* DirectRead(long id, out int size)
+        public byte* DirectRead(long id, out int size, out bool compressed)
         {
-            var result = DirectReadRaw(id, out size, out var compressed);
+            var result = DirectReadRaw(id, out size, out compressed);
             if (compressed == false)
                 return result;
 
@@ -371,7 +371,6 @@ namespace Voron.Data.Tables
                 oldDataDecompressedScope = DecompressValue(_tx, oldData, oldDataSize, out var buffer);
                 oldData = buffer.Ptr;
                 oldDataSize = buffer.Length;
-                _tx.CachedDecompressedBuffersByStorageId?.Remove(id);
             }
 
             // first, try to fit in place, either in small or large sections
@@ -385,7 +384,11 @@ namespace Voron.Data.Tables
                         ref tvr,
                         builder,
                         forceUpdate);
-                    oldDataDecompressedScope.Dispose();
+                    if (oldCompressed)
+                    {
+                        oldDataDecompressedScope.Dispose();
+                        _tx.ForgetAbout(id);
+                    }
 
                     builder.CopyTo(pos);
 
@@ -409,7 +412,12 @@ namespace Voron.Data.Tables
 
                     var tvr = new TableValueReader(oldData, oldDataSize);
                     UpdateValuesFromIndex(id, ref tvr, builder, forceUpdate);
-                    oldDataDecompressedScope.Dispose();
+
+                    if (oldCompressed)
+                    {
+                        oldDataDecompressedScope.Dispose();
+                        _tx.ForgetAbout(id);
+                    }
 
                     // MemoryCopy into final position.
                     page.OverflowSize = builder.Size;
@@ -424,10 +432,11 @@ namespace Voron.Data.Tables
                     return id;
                 }
             }
-            oldDataDecompressedScope.Dispose();
 
             // can't fit in place, will just delete & insert instead
-            Delete(id);
+            Delete(id, oldData, oldDataSize, oldCompressed);
+            oldDataDecompressedScope.Dispose();
+
             return Insert(builder);
         }
 
@@ -497,22 +506,43 @@ namespace Voron.Data.Tables
             var ptr = DirectReadRaw(id, out int size, out bool compressed);
 
             if (compressed)
+            {
                 _tx.ForgetAbout(id);
 
-            ByteStringContext<ByteStringMemoryCache>.InternalScope decompressValue = default;
+                using (var decompressValue = DecompressValue(_tx, ptr, size, out ByteString buffer))
+                {
+                    ptr = buffer.Ptr;
+                    size = buffer.Length;
 
-            if (compressed)
-            {
-                decompressValue = DecompressValue(_tx, ptr, size, out var buffer);
-                ptr = buffer.Ptr;
-                size = buffer.Length;
+                    var tvr = new TableValueReader(ptr, size);
+                    DeleteValueFromIndex(id, ref tvr);
+                }
             }
+            else
+            {
+                var tvr = new TableValueReader(ptr, size);
+                DeleteValueFromIndex(id, ref tvr);
+            }
+
+            DeleteInternal(id);
+        }
+
+        public void Delete(long id, byte* ptr, int size, bool compressed)
+        {
+            if (IsOwned(id) == false)
+                ThrowNotOwned(id);
+
+            AssertWritableTable();
 
             var tvr = new TableValueReader(ptr, size);
             DeleteValueFromIndex(id, ref tvr);
+            if (compressed)
+                _tx.ForgetAbout(id);
+            DeleteInternal(id);
+        }
 
-            decompressValue.Dispose();
-
+        private void DeleteInternal(long id)
+        {
             var largeValue = (id % Constants.Storage.PageSize) == 0;
             if (largeValue)
             {
@@ -1302,7 +1332,7 @@ namespace Voron.Data.Tables
 
         private void ReadById(long id, out TableValueReader reader)
         {
-            var ptr = DirectRead(id, out int size);
+            var ptr = DirectRead(id, out int size, out _);
             reader = new TableValueReader(id, ptr, size);
         }
 
@@ -1420,7 +1450,7 @@ namespace Voron.Data.Tables
 
             using (var it = tree.Iterate(true))
             {
-                if (it.Seek(last) == false && it.Seek(Slices.AfterAllKeys) == false)
+                if (it.SeekBackward(last) == false)
                     yield break;
 
                 if (prefix != null)
@@ -1462,17 +1492,11 @@ namespace Voron.Data.Tables
 
             using (var it = tree.Iterate(true))
             {
-                if (it.Seek(last) == false && it.Seek(Slices.AfterAllKeys) == false)
+                if (it.SeekBackward(last) == false)
                     yield break;
 
                 it.SetRequiredPrefix(prefix);
                 if (SliceComparer.StartWith(it.CurrentKey, it.RequiredPrefix) == false)
-                {
-                    if (it.MovePrev() == false)
-                        yield break;
-                }
-
-                if (SliceComparer.CompareInline(it.CurrentKey, last) > 0)
                 {
                     if (it.MovePrev() == false)
                         yield break;
@@ -1500,7 +1524,7 @@ namespace Voron.Data.Tables
 
             using (var it = tree.Iterate(true))
             {
-                if (it.Seek(last) == false && it.Seek(Slices.AfterAllKeys) == false)
+                if (it.SeekBackward(last) == false)
                     return null;
 
                 it.SetRequiredPrefix(prefix);
@@ -1692,7 +1716,7 @@ namespace Voron.Data.Tables
                         while (true)
                         {
                             var id = it.CreateReaderForCurrent().ReadLittleEndianInt64();
-                            var ptr = DirectRead(id, out int size);
+                            var ptr = DirectRead(id, out int size, out bool compressed);
 
                             tableValueHolder ??= new TableValueHolder();
                             tableValueHolder.Reader = new TableValueReader(id, ptr, size);
@@ -1700,7 +1724,7 @@ namespace Voron.Data.Tables
                             {
                                 value.Release(_tx.Allocator);
                                 value = it.CurrentKey.Clone(_tx.Allocator);
-                                Delete(id);
+                                Delete(id, ptr, size, compressed);
                                 break;
                             }
 
@@ -1899,7 +1923,7 @@ namespace Voron.Data.Tables
             {
                 // We will load from the actual memory location.
                 long location = ((long*)chunk.Ptr)[index];
-                var ptr = DirectRead(location, out int size);
+                var ptr = DirectRead(location, out int size, out _);
                 reader = new TableValueReader(location, ptr, size);
                 
                 // We will return the document etag.
@@ -2022,8 +2046,7 @@ namespace Voron.Data.Tables
             var fst = GetFixedSizeTree(index);
             using (var it = fst.Iterate())
             {
-                if (it.Seek(key) == false &&
-                    it.SeekToLast() == false)
+                if (it.SeekBackward(key) == false)
                     yield break;
 
                 if (it.Skip(-skip) == false)
@@ -2032,8 +2055,6 @@ namespace Voron.Data.Tables
                 var result = new TableValueHolder();
                 do
                 {
-                    if (it.CurrentKey > key)
-                        continue;
 
                     GetTableValueReader(it, out result.Reader);
                     yield return result;
@@ -2060,14 +2081,14 @@ namespace Voron.Data.Tables
         private void GetTableValueReader(FixedSizeTree.IFixedSizeIterator it, out TableValueReader reader)
         {
             long id = *(long*)it.ValuePtr(out int _);
-            var ptr = DirectRead(id, out int size);
+            var ptr = DirectRead(id, out int size, out _);
             reader = new TableValueReader(id, ptr, size);
         }
 
         private void GetTableValueReader(IIterator it, out TableValueReader reader)
         {
             var id = it.CreateReaderForCurrent().ReadLittleEndianInt64();
-            var ptr = DirectRead(id, out int size);
+            var ptr = DirectRead(id, out int size, out _);
             reader = new TableValueReader(id, ptr, size);
         }
 
@@ -2181,7 +2202,7 @@ namespace Voron.Data.Tables
 
                     if (beforeDelete != null || shouldAbort != null)
                     {
-                        var ptr = DirectRead(id, out int size);
+                        var ptr = DirectRead(id, out int size, out bool compressed);
                         tableValueHolder ??= new TableValueHolder();
                         tableValueHolder.Reader = new TableValueReader(id, ptr, size);
                         if (shouldAbort?.Invoke(tableValueHolder) == true)
@@ -2189,9 +2210,14 @@ namespace Voron.Data.Tables
                             return deleted;
                         }
                         beforeDelete?.Invoke(tableValueHolder);
+
+                        Delete(id, ptr, size, compressed);
+                    }
+                    else
+                    {
+                        Delete(id);
                     }
 
-                    Delete(id);
                     deleted = true;
                 }
             }
@@ -2227,7 +2253,7 @@ namespace Voron.Data.Tables
 
                         if (beforeDelete != null || shouldAbort != null)
                         {
-                            var ptr = DirectRead(fstIt.CurrentKey, out int size);
+                            var ptr = DirectRead(fstIt.CurrentKey, out int size, out bool compressed);
                             if (tableValueHolder == null)
                                 tableValueHolder = new TableValueHolder();
                             tableValueHolder.Reader = new TableValueReader(fstIt.CurrentKey, ptr, size);
@@ -2236,9 +2262,13 @@ namespace Voron.Data.Tables
                                 return deleted;
                             }
                             beforeDelete?.Invoke(tableValueHolder);
+                            Delete(fstIt.CurrentKey, ptr, size, compressed);
+                        }
+                        else
+                        {
+                            Delete(fstIt.CurrentKey);
                         }
 
-                        Delete(fstIt.CurrentKey);
                         deleted++;
                     }
                 }
@@ -2266,7 +2296,7 @@ namespace Voron.Data.Tables
                         return false;
 
                     var id = it.CreateReaderForCurrent().ReadLittleEndianInt64();
-                    var ptr = DirectRead(id, out int size);
+                    var ptr = DirectRead(id, out int size, out bool compressed);
 
                     if (tableValueHolder == null)
                         tableValueHolder = new TableValueHolder();
@@ -2277,7 +2307,7 @@ namespace Voron.Data.Tables
                     if (currentIndex > upToIndex)
                         return false;
 
-                    Delete(id);
+                    Delete(id, ptr, size, compressed);
                     deleted++;
                 }
             }

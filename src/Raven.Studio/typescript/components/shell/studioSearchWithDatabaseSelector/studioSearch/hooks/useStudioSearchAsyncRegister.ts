@@ -198,7 +198,7 @@ export function useStudioSearchAsyncRegister(props: UseStudioSearchAsyncRegister
 
     // Register documents
     useAsyncDebounce(
-        async (searchQuery, activeDatabaseName) => {
+        async () => {
             if (!activeDatabaseName || !searchQuery) {
                 return [];
             }

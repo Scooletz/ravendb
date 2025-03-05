@@ -34,7 +34,7 @@ namespace Raven.Server.Documents.Indexes.Static.TimeSeries
         private HandleCompareExchangeTimeSeriesReferences _handleCompareExchangeReferences;
 
         private MapTimeSeriesIndex(MapIndexDefinition definition, AbstractStaticIndexBase compiled)
-            : base(definition.IndexDefinition.Type, definition.IndexDefinition.SourceType, definition)
+            : base(definition.IndexDefinition.Type, definition.IndexDefinition.SourceType, definition, compiled)
         {
             _compiled = compiled;
 
@@ -83,7 +83,7 @@ namespace Raven.Server.Documents.Indexes.Static.TimeSeries
                 return;
             }
 
-            if (_referencedCollections.Contains(change.CollectionName))
+            if (HandleAllDocs || _referencedCollections.Contains(change.CollectionName))
             {
                 _mre.Set();
             }

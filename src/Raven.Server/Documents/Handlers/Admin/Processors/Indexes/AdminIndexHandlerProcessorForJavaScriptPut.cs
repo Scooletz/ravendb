@@ -10,7 +10,9 @@ using Raven.Server.Smuggler.Documents;
 using Raven.Server.Smuggler.Documents.Data;
 using Raven.Server.Smuggler.Migration;
 using Sparrow.Json;
+using Sparrow.Logging;
 using static Raven.Server.RavenServer;
+using static Raven.Server.Utils.MetricCacher.Keys;
 
 namespace Raven.Server.Documents.Handlers.Admin.Processors.Indexes;
 
@@ -44,6 +46,12 @@ internal sealed class AdminIndexHandlerProcessorForJavaScriptPut : AbstractAdmin
             var destination = RequestHandler.Database.Smuggler.CreateDestination();
             var smuggler = RequestHandler.Database.Smuggler.Create(source, destination, jsonOperationContext, options);
             await smuggler.ExecuteAsync();
+
+            if (LoggingSource.AuditLog.IsInfoEnabled)
+            {
+                var optionsString = jsonOperationContext.ReadObject(options.ToAuditJson(), nameof(DatabaseSmugglerOptionsServerSide)).ToString();
+                RequestHandler.LogAuditFor(RequestHandler.DatabaseName, "IMPORT", $"Index deployment from legacy replication with options: '{optionsString}'");
+            }
         }
     }
 }
