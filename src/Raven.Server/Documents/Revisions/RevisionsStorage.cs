@@ -35,7 +35,7 @@ namespace Raven.Server.Documents.Revisions
 {
     public partial class RevisionsStorage
     {
-        private static readonly Slice IdAndEtagSlice;
+        public static readonly Slice IdAndEtagSlice;
         public static readonly Slice DeleteRevisionEtagSlice;
         public static readonly Slice AllRevisionsEtagsSlice;
         public static readonly Slice CollectionRevisionsEtagsSlice;
@@ -1562,15 +1562,21 @@ namespace Raven.Server.Documents.Revisions
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private unsafe ByteStringContext.InternalScope GetKeyPrefix(DocumentsOperationContext context, Slice lowerId, out Slice prefixSlice)
+        public unsafe ByteStringContext.InternalScope GetKeyPrefix(DocumentsOperationContext context, Slice lowerId, out Slice prefixSlice)
         {
-            return GetKeyPrefix(context, lowerId.Content.Ptr, lowerId.Size, out prefixSlice);
+            return GetKeyPrefix(context.Allocator, lowerId.Content.Ptr, lowerId.Size, out prefixSlice);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static unsafe ByteStringContext.InternalScope GetKeyPrefix(DocumentsOperationContext context, byte* lowerId, int lowerIdSize, out Slice prefixSlice)
+        public static unsafe ByteStringContext.InternalScope GetKeyPrefix(ByteStringContext allocator, Slice lowerId, out Slice prefixSlice)
         {
-            var scope = context.Allocator.Allocate(lowerIdSize + 1, out ByteString keyMem);
+            return GetKeyPrefix(allocator, lowerId.Content.Ptr, lowerId.Size, out prefixSlice);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static unsafe ByteStringContext.InternalScope GetKeyPrefix(ByteStringContext allocator, byte* lowerId, int lowerIdSize, out Slice prefixSlice)
+        {
+            var scope = allocator.Allocate(lowerIdSize + 1, out ByteString keyMem);
 
             Memory.Copy(keyMem.Ptr, lowerId, lowerIdSize);
             keyMem.Ptr[lowerIdSize] = SpecialChars.RecordSeparator;
@@ -1585,9 +1591,15 @@ namespace Raven.Server.Documents.Revisions
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static unsafe ByteStringContext<ByteStringMemoryCache>.InternalScope GetKeyWithEtag(DocumentsOperationContext context, Slice lowerId, long etag, out Slice prefixSlice)
+        internal static unsafe ByteStringContext<ByteStringMemoryCache>.InternalScope GetKeyWithEtag(DocumentsOperationContext context, Slice lowerId, long etag, out Slice prefixSlice)
         {
-            var scope = context.Allocator.Allocate(lowerId.Size + 1 + sizeof(long), out ByteString keyMem);
+            return GetKeyWithEtag(context.Allocator, lowerId, etag, out prefixSlice);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static unsafe ByteStringContext<ByteStringMemoryCache>.InternalScope GetKeyWithEtag(ByteStringContext allocator, Slice lowerId, long etag, out Slice prefixSlice)
+        {
+            var scope = allocator.Allocate(lowerId.Size + 1 + sizeof(long), out ByteString keyMem);
 
             Memory.Copy(keyMem.Ptr, lowerId.Content.Ptr, lowerId.Size);
             keyMem.Ptr[lowerId.Size] = SpecialChars.RecordSeparator;
@@ -1863,15 +1875,13 @@ namespace Raven.Server.Documents.Revisions
             {
                 hasMore = false;
                 ids.Clear();
-                token.Delay();
                 sw.Restart();
 
                 using (_database.DocumentsStorage.ContextPool.AllocateOperationContext(out DocumentsOperationContext ctx))
                 {
                     using (ctx.OpenReadTransaction())
                     {
-                        var table = GetRevisionsTable(ctx, collection, parameters.LastScannedEtag);
-                        if (table == null)
+                        if (GetRevisionsByCollection(ctx, collection, parameters.LastScannedEtag, out var revisions) == false)
                         {
                             /*  there is no collection named like that, or that collection doesn't have any revisions, 
                                 but we won't throw here because this will fail the whole operation, 
@@ -1880,7 +1890,7 @@ namespace Raven.Server.Documents.Revisions
                             return;
                         }
 
-                        foreach (var tvr in table)
+                        foreach (var tvr in revisions)
                         {
                             token.ThrowIfCancellationRequested();
 
@@ -1908,36 +1918,43 @@ namespace Raven.Server.Documents.Revisions
                         }
                     }
 
-                    var moreWork = true;
-                    while (moreWork)
+                    if (ids.Count > 0)
                     {
-                        token.Delay();
-                        var cmd = createCommand(ids, result, token);
-                        await _database.TxMerger.Enqueue(cmd);
-                        moreWork = cmd.MoreWork;
+                        var moreWork = true;
+                        while (moreWork)
+                        {
+                            token.ThrowIfCancellationRequested();
+                            var cmd = createCommand(ids, result, token);
+                            await _database.TxMerger.Enqueue(cmd);
+                            moreWork = cmd.MoreWork;
+                        }
                     }
-
                 }
             }
         }
 
-        private IEnumerable<TableValueHolder> GetRevisionsTable(DocumentsOperationContext context, string collection, long lastScannedEtag)
+        private bool GetRevisionsByCollection(DocumentsOperationContext context, string collection, long lastScannedEtag, out IEnumerable<TableValueHolder> revisions)
         {
+            revisions = null;
+            lastScannedEtag = long.Max(0, lastScannedEtag - 1);
+
             if (collection == null)
             {
-                var revisions = new Table(RevisionsSchema, context.Transaction.InnerTransaction);
-                return revisions.SeekBackwardFrom(RevisionsSchema.FixedSizeIndexes[AllRevisionsEtagsSlice], lastScannedEtag);
+                var allRevisionsTable = new Table(RevisionsSchema, context.Transaction.InnerTransaction);
+                revisions = allRevisionsTable.SeekBackwardFrom(RevisionsSchema.FixedSizeIndexes[AllRevisionsEtagsSlice], lastScannedEtag);
+                return true;
             }
 
             var collectionName = _documentsStorage.GetCollection(collection, throwIfDoesNotExist: false) ?? new CollectionName(collection);
             var tableName = collectionName.GetTableName(CollectionTableType.Revisions);
-            var collectionRevisions = context.Transaction.InnerTransaction.OpenTable(RevisionsSchema, tableName);
-            if (collectionRevisions != null) // there are existing revisions for that collection
+            var collectionRevisionsTable = context.Transaction.InnerTransaction.OpenTable(RevisionsSchema, tableName);
+            if (collectionRevisionsTable != null) // there are existing revisions for that collection
             {
-                return collectionRevisions.SeekBackwardFrom(RevisionsSchema.FixedSizeIndexes[CollectionRevisionsEtagsSlice], lastScannedEtag);
+                revisions = collectionRevisionsTable.SeekBackwardFrom(RevisionsSchema.FixedSizeIndexes[CollectionRevisionsEtagsSlice], lastScannedEtag);
+                return true;
             }
 
-            return null;
+            return false;
         }
 
 
@@ -1948,6 +1965,8 @@ namespace Raven.Server.Documents.Revisions
 
         internal long EnforceConfigurationFor(DocumentsOperationContext context, string id, bool skipForceCreated, out bool moreWork)
         {
+            moreWork = false;
+
             using (DocumentIdWorker.GetSliceFromId(context, id, out var lowerId))
             using (GetKeyPrefix(context, lowerId, out var lowerIdPrefix))
             {
@@ -1956,7 +1975,6 @@ namespace Raven.Server.Documents.Revisions
                 {
                     if (_logger.IsInfoEnabled)
                         _logger.Info($"Tried to delete revisions for '{id}' but no revisions found.");
-                    moreWork = false;
                     return 0;
                 }
 
@@ -2400,9 +2418,9 @@ namespace Raven.Server.Documents.Revisions
         {
             using (DocumentIdWorker.GetSliceFromId(context, id, out Slice lowerId))
             using (GetKeyPrefix(context, lowerId, out Slice prefixSlice))
-            using (GetLastKey(context, lowerId, out Slice lastKey))
+            using (GetLastKey(context, lowerId, out var lastKey))
             {
-                var revisions = GetRevisions(context, prefixSlice, lastKey, start, take).ToArray();
+                var revisions = GetRevisions(context, prefixSlice: prefixSlice, lastKey: lastKey, start, take).ToArray();
                 var count = CountOfRevisions(context, prefixSlice);
                 return (revisions, count);
             }
@@ -2492,6 +2510,7 @@ namespace Raven.Server.Documents.Revisions
             {
                 if (table.ReadByKey(cv, out TableValueReader tvr) == false)
                     return null;
+                
                 return GetMetrics(table, tvr);
             }
         }

@@ -433,6 +433,12 @@ namespace Raven.Client.Http
                         return;
 
                     Conventions.UpdateFrom(result.Configuration);
+
+                    if (Conventions.ReadBalanceBehavior == ReadBalanceBehavior.FastestNode)
+                        _nodeSelector?.ScheduleSpeedTest();
+                    else
+                        _nodeSelector?.DisableFastestNodeReadBalance();
+                    
                     ClientConfigurationEtag = result.Etag;
                     ClientConfigurationChanged?.Invoke(this, (result.Etag, result.Configuration));
                 }
@@ -2289,8 +2295,12 @@ namespace Raven.Client.Http
             }
 
             internal int[] NodeSelectorFailures => _requestExecutor._nodeSelector.NodeSelectorFailures;
+
             internal ConcurrentDictionary<ServerNode, Lazy<NodeStatus>> FailedNodesTimers => _requestExecutor._failedNodesTimers;
+
             internal (int Index, ServerNode Node) PreferredNode => _requestExecutor._nodeSelector.GetPreferredNode();
+
+            internal bool HasUpdateFastestNodeTimer => _requestExecutor._nodeSelector._updateFastestNodeTimer != null;
 
             public Action<Task> ExecuteOnAllToFigureOutTheFastestOnTaskCompletion;
 
