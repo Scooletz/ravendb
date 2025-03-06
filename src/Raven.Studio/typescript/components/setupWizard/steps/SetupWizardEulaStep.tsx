@@ -8,6 +8,7 @@ import { SetupWizardFormData } from "../setupWizardValidation";
 import useBoolean from "components/hooks/useBoolean";
 import genUtils from "common/generalUtils";
 import { ConditionalPopover } from "components/common/ConditionalPopover";
+import { LazyLoad } from "components/common/LazyLoad";
 
 export default function SetupWizardEulaStep({ eulaRef }: { eulaRef: React.RefObject<HTMLDivElement> }) {
     const { setupWizardService } = useServices();
@@ -20,8 +21,11 @@ export default function SetupWizardEulaStep({ eulaRef }: { eulaRef: React.RefObj
         <div>
             <h2>Read the EULA (End-User License Agreement)</h2>
             <p>The following license agreement must be accepted in order to use this software.</p>
-            <div ref={eulaRef} className="overflow-y-auto" style={{ height: 300 }}>
-                <Code language="plaintext" code={asyncGetEula.result ?? "Loading"} />
+            <div ref={eulaRef} className="overflow-y-auto" style={{ height: 300 }} data-testid="eula">
+                <LazyLoad active={asyncGetEula.loading}>
+                    <Code language="plaintext" code={asyncGetEula.result ?? "Loading"} />
+                </LazyLoad>
+                <div data-testid="eula-bottom" id="eula-bottom" />
             </div>
         </div>
     );
@@ -71,7 +75,7 @@ export function SetupWizardEulaStepFooter({ eulaRef }: { eulaRef: React.RefObjec
                     variant="primary"
                     className="rounded-pill"
                     onClick={handleContinue}
-                    // disabled={!isScrolledToBottom} // TODO uncomment after testing
+                    disabled={!isScrolledToBottom}
                 >
                     Continue <Icon icon="arrow-right" margin="m-0" />
                 </Button>
