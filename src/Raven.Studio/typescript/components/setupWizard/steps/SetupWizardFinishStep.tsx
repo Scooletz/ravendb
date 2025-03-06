@@ -1,7 +1,7 @@
 import { useFormContext, useWatch } from "react-hook-form";
 import { SetupWizardFormData } from "../setupWizardValidation";
 
-export default function SetupWizardFinishStep() {
+export function SetupWizardFinishStep() {
     const { control } = useFormContext<SetupWizardFormData>();
 
     const formData = useWatch({ control });

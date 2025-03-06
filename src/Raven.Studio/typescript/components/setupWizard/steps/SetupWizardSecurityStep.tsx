@@ -6,7 +6,7 @@ import { Button } from "react-bootstrap";
 import { FormCheckbox } from "components/common/Form";
 import assertUnreachable from "components/utils/assertUnreachable";
 
-export default function SetupWizardSecurityStep() {
+export function SetupWizardSecurityStep() {
     const { control, setValue } = useFormContext<SetupWizardFormData>();
 
     const {
@@ -71,10 +71,10 @@ export function SetupWizardSecurityStepFooter() {
     const handleContinue = () => {
         switch (securityOption) {
             case "letsEncrypt":
-                setValue("currentStep", "Self-signed certificate");
+                setValue("currentStep", "Domain");
                 break;
             case "ownCertificate":
-                setValue("currentStep", "Domain");
+                setValue("currentStep", "Self-signed certificate");
                 break;
             case "none":
                 setValue("currentStep", "Node address");
@@ -90,9 +90,11 @@ export function SetupWizardSecurityStepFooter() {
                 <Icon icon="arrow-left" /> Back
             </Button>
             <div className="hstack gap-2">
-                <FormCheckbox control={control} name="securityStep.isLetsEncryptAgreementAccepted">
-                    I accept Let&apos;s Encrypt Subscriber Agreement
-                </FormCheckbox>
+                {securityOption === "letsEncrypt" && (
+                    <FormCheckbox control={control} name="securityStep.isLetsEncryptAgreementAccepted">
+                        I accept Let&apos;s Encrypt Subscriber Agreement
+                    </FormCheckbox>
+                )}
                 <Button variant="primary" className="rounded-pill" onClick={handleContinue}>
                     Continue <Icon icon="arrow-right" margin="m-0" />
                 </Button>

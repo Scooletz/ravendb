@@ -2,29 +2,12 @@ import "./SetupWizard.scss";
 import Button from "react-bootstrap/Button";
 import { Icon } from "components/common/Icon";
 import { FormProvider, useForm, useWatch } from "react-hook-form";
-import {
-    SetupWizardFormData,
-    setupWizardSchema,
-    SetupWizardSetupMethod,
-    SetupWizardStepId,
-    SetupWizardSecurityOption,
-} from "./setupWizardValidation";
+import { SetupWizardFormData, setupWizardSchema } from "./setupWizardValidation";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { NumberedList } from "components/common/NumberedList";
-import SetupWizardEulaStep, { SetupWizardEulaStepFooter } from "./steps/SetupWizardEulaStep";
-import SetupWizardSetupMethodStep, { SetupWizardSetupMethodStepFooter } from "./steps/SetupWizardSetupMethodStep";
-import SetupWizardLicenseKeyStep, { SetupWizardLicenseKeyStepFooter } from "./steps/SetupWizardLicenseKeyStep";
-import { useRef } from "react";
 import classNames from "classnames";
 import { SetupWizardStepItem } from "./partials/SetupWizardStepItem";
-import SetupWizardSecurityStep, { SetupWizardSecurityStepFooter } from "./steps/SetupWizardSecurityStep";
-import SetupWizardSelfSignedCertificateStep from "./steps/SetupWizardSelfSignedCertificateStep";
-import SetupWizardDomainStep from "./steps/SetupWizardDomainStep";
-import SetupWizardNodeAddressStep from "./steps/SetupWizardNodeAddressStep";
-import SetupWizardAdditionalSettingsStep from "./steps/SetupWizardAdditionalSettingsStep";
-import SetupWizardFinishStep from "./steps/SetupWizardFinishStep";
-import SetupWizardSummaryStep from "./steps/SetupWizardSummaryStep";
-import SetupWizardUsePackageStep from "./steps/SetupWizardUsePackageStep";
+import { useSetupWizardSteps } from "./hooks/useSetupWizardSteps";
 
 const ravenLogo = require("Content/img/ravendb_logo.svg");
 
@@ -46,13 +29,14 @@ export default function SetupWizard() {
 
     const formValues = useWatch({ control: form.control });
 
-    const steps = useAvailableSteps(
-        formValues.currentStep,
-        formValues.setupMethodStep.method,
-        formValues.securityStep.securityOption
-    );
+    const steps = useSetupWizardSteps({
+        currentStep: formValues.currentStep,
+        setupMethod: formValues.setupMethodStep.method,
+        securityOption: formValues.securityStep.securityOption,
+    });
 
     const currentStepIdx = steps.findIndex((x) => x.isCurrent);
+    console.log("kalczur steps", currentStepIdx, steps);
 
     return (
         <FormProvider {...form}>
@@ -102,124 +86,4 @@ export default function SetupWizard() {
             </form>
         </FormProvider>
     );
-}
-
-interface Step {
-    title: SetupWizardStepId;
-    description: string;
-    component: React.ReactNode;
-    footer?: React.ReactNode;
-    isCurrent?: boolean;
-    isAvailable?: boolean;
-    isVisible?: boolean;
-}
-
-function useAvailableSteps(
-    currentStep: SetupWizardStepId,
-    setupMethod: SetupWizardSetupMethod,
-    securityOption: SetupWizardSecurityOption
-): Step[] {
-    const eulaRef = useRef<HTMLDivElement>(null);
-
-    const getIsNotInStepIds = (stepIds: SetupWizardStepId[]) => !stepIds.some((x) => currentStep === x);
-
-    const steps: Step[] = [
-        {
-            title: "Eula",
-            description: "RavenDB Studio Eula",
-            component: <SetupWizardEulaStep eulaRef={eulaRef} />,
-            footer: <SetupWizardEulaStepFooter eulaRef={eulaRef} />,
-            isCurrent: currentStep === "Eula",
-            isAvailable: true,
-            isVisible: false,
-        },
-        {
-            title: "Setup method",
-            description: "Chose your setup method",
-            component: <SetupWizardSetupMethodStep />,
-            footer: <SetupWizardSetupMethodStepFooter />,
-            isCurrent: currentStep === "Setup method",
-            isAvailable: true,
-            isVisible: getIsNotInStepIds(["Eula"]),
-        },
-        {
-            title: "Use setup package",
-            description: "Use setup package",
-            component: <SetupWizardUsePackageStep />,
-            isCurrent: currentStep === "Use setup package",
-            isAvailable: setupMethod === "usePackage",
-            isVisible: getIsNotInStepIds(["Eula", "Setup method"]),
-        },
-        {
-            title: "License key",
-            description: "Enter your license key or generate a new one",
-            component: <SetupWizardLicenseKeyStep />,
-            footer: <SetupWizardLicenseKeyStepFooter />,
-            isCurrent: currentStep === "License key",
-            isAvailable: setupMethod === "newCluster",
-            isVisible: getIsNotInStepIds(["Eula", "Setup method"]),
-        },
-        {
-            title: "Security",
-            description: "Choose security option that fits your needs",
-            component: <SetupWizardSecurityStep />,
-            footer: <SetupWizardSecurityStepFooter />,
-            isCurrent: currentStep === "Security",
-            isAvailable: setupMethod === "newCluster",
-            isVisible: getIsNotInStepIds(["Eula", "Setup method"]),
-        },
-        {
-            title: "Self-signed certificate",
-            description: "Generate a self-signed certificate",
-            component: <SetupWizardSelfSignedCertificateStep />,
-            isCurrent: currentStep === "Self-signed certificate",
-            isAvailable:
-                (setupMethod === "newCluster" || setupMethod === "createPackage") &&
-                securityOption === "ownCertificate",
-            isVisible: getIsNotInStepIds(["Eula", "Setup method", "Security"]),
-        },
-        {
-            title: "Domain",
-            description: "Enter your domain",
-            component: <SetupWizardDomainStep />,
-            isCurrent: currentStep === "Domain",
-            isAvailable:
-                (setupMethod === "newCluster" || setupMethod === "createPackage") && securityOption === "letsEncrypt",
-            isVisible: getIsNotInStepIds(["Eula", "Setup method", "License key", "Security"]),
-        },
-        {
-            title: "Node address",
-            description: "Enter your node address",
-            component: <SetupWizardNodeAddressStep />,
-            isCurrent: currentStep === "Node address",
-            isAvailable: setupMethod === "newCluster" || setupMethod === "createPackage",
-            isVisible: getIsNotInStepIds(["Eula", "Setup method", "License key", "Security"]),
-        },
-        {
-            title: "Additional settings",
-            description: "Additional settings",
-            component: <SetupWizardAdditionalSettingsStep />,
-            isCurrent: currentStep === "Additional settings",
-            isAvailable: setupMethod === "newCluster" || setupMethod === "createPackage",
-            isVisible: getIsNotInStepIds(["Eula", "Setup method", "License key", "Security"]),
-        },
-        {
-            title: "Summary",
-            description: "Summary",
-            component: <SetupWizardSummaryStep />,
-            isCurrent: currentStep === "Summary",
-            isAvailable: true,
-            isVisible: getIsNotInStepIds(["Eula", "Setup method", "License key", "Security", "Use setup package"]),
-        },
-        {
-            title: "Finish",
-            description: "Finish",
-            component: <SetupWizardFinishStep />,
-            isCurrent: currentStep === "Finish",
-            isAvailable: true,
-            isVisible: getIsNotInStepIds(["Eula", "Setup method", "License key", "Security", "Use setup package"]),
-        },
-    ];
-
-    return steps.filter((x) => x.isAvailable);
 }

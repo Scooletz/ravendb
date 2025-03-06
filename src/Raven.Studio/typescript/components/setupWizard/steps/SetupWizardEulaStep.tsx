@@ -10,7 +10,7 @@ import genUtils from "common/generalUtils";
 import { ConditionalPopover } from "components/common/ConditionalPopover";
 import { LazyLoad } from "components/common/LazyLoad";
 
-export default function SetupWizardEulaStep({ eulaRef }: { eulaRef: React.RefObject<HTMLDivElement> }) {
+export function SetupWizardEulaStep({ eulaRef }: { eulaRef: React.RefObject<HTMLDivElement> }) {
     const { setupWizardService } = useServices();
 
     const asyncGetEula = useAsync(setupWizardService.getEula, []);

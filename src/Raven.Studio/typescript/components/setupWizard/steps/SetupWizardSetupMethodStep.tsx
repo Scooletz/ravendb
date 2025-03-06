@@ -6,7 +6,7 @@ import { Icon } from "components/common/Icon";
 import assertUnreachable from "components/utils/assertUnreachable";
 import { ConditionalPopover } from "components/common/ConditionalPopover";
 
-export default function SetupWizardSetupMethodStep() {
+export function SetupWizardSetupMethodStep() {
     const { control, setValue } = useFormContext<SetupWizardFormData>();
     const {
         setupMethodStep: { method: selectedMethod },

@@ -4,7 +4,7 @@ import { SetupWizardFormData } from "../setupWizardValidation";
 import { Icon } from "components/common/Icon";
 import { Button } from "react-bootstrap";
 
-export default function SetupWizardLicenseKeyStep() {
+export function SetupWizardLicenseKeyStep() {
     const { control } = useFormContext<SetupWizardFormData>();
 
     const { licenseKeyStep } = useWatch({ control });
