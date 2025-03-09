@@ -583,7 +583,7 @@ export class DatabasesStubs {
                     AzureOpenAiSettings: null,
                     HuggingFaceSettings: null,
                     OllamaSettings: null,
-                    OnnxSettings: null,
+                    EmbeddedSettings: null,
                     OpenAiSettings: null,
                     MistralAiSettings: null,
                 },
