@@ -27,6 +27,10 @@ export default function SetupWizard() {
                 email: "",
                 phone: "",
             },
+            domainStep: {
+                domain: "",
+                email: "todo@todo.com",
+            },
             securityStep: {
                 securityOption: null,
             },

@@ -49,6 +49,7 @@ export const Security: StoryObj = {
         await userEvent.click(canvas.getByRole("heading", { name: /Set up new cluster/ }));
         await userEvent.click(canvas.getByRole("button", { name: /Continue/ }));
         await userEvent.click(canvas.getByRole("button", { name: /Continue/ }));
+        // TODO go next
     },
 };
 
