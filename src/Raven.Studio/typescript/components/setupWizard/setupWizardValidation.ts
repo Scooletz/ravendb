@@ -1,7 +1,9 @@
 import * as yup from "yup";
+import { setupWizardConstants } from "./partials/SetupWizardConstants";
 
 export type SetupWizardSetupMethod = "newCluster" | "createPackage" | "usePackage";
 export type SetupWizardSecurityOption = "letsEncrypt" | "ownCertificate" | "none";
+export type LicenseTypeToGenerate = "community" | "developer";
 
 const setupMethodStepSchema = yup.object({
     method: yup.string<SetupWizardSetupMethod>().nullable().required(),
@@ -9,7 +11,28 @@ const setupMethodStepSchema = yup.object({
 
 const usePackageStepSchema = yup.object({});
 
-const licenseKeyStepSchema = yup.object({});
+function licenseRequiredField(schema: yup.Schema) {
+    return schema.when("licenseTypeToGenerate", {
+        is: (licenseTypeToGenerate: LicenseTypeToGenerate) => licenseTypeToGenerate != null,
+        then: (schema) => schema.required(),
+    });
+}
+
+const licenseKeyStepSchema = yup.object({
+    key: yup.string(),
+    licenseTypeToGenerate: yup.string<LicenseTypeToGenerate>().nullable(),
+    isAcceptTerms: yup.boolean(),
+    isAcceptEmails: yup.boolean(),
+    firstName: licenseRequiredField(yup.string()),
+    lastName: licenseRequiredField(yup.string()),
+    email: licenseRequiredField(yup.string()), // TODO email validation
+    phone: yup.string(), // TODO phone validation
+    country: licenseRequiredField(yup.string().oneOf(setupWizardConstants.allCountries)),
+    jobTitle: licenseRequiredField(yup.string().oneOf(setupWizardConstants.allJobTitles)),
+    industry: licenseRequiredField(yup.string().oneOf(setupWizardConstants.allIndustries)),
+    company: licenseRequiredField(yup.string()),
+    howYouPlanToUseRavenDB: licenseRequiredField(yup.string().oneOf(setupWizardConstants.allHowYouPlanToUseRavenDB)),
+});
 
 const securityStepSchema = yup.object({
     securityOption: yup.string<SetupWizardSecurityOption>().nullable().required(),

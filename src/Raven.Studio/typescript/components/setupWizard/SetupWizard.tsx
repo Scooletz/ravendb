@@ -19,6 +19,14 @@ export default function SetupWizard() {
             setupMethodStep: {
                 method: null,
             },
+            licenseKeyStep: {
+                key: "",
+                licenseTypeToGenerate: null,
+                firstName: "",
+                lastName: "",
+                email: "",
+                phone: "",
+            },
             securityStep: {
                 securityOption: null,
             },
@@ -36,7 +44,6 @@ export default function SetupWizard() {
     });
 
     const currentStepIdx = steps.findIndex((x) => x.isCurrent);
-    console.log("kalczur steps", currentStepIdx, steps);
 
     return (
         <FormProvider {...form}>
