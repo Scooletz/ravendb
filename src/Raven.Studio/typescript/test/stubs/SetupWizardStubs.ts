@@ -2,6 +2,16 @@ export class SetupWizardStubs {
     static eula() {
         return eula;
     }
+
+    static nodesInfoFromPackage(): Raven.Server.Web.System.ConfigurationNodeInfo[] {
+        return [
+            {
+                Tag: "A",
+                ServerUrl: "http://127.0.0.1:8080",
+                PublicServerUrl: "",
+            },
+        ];
+    }
 }
 
 const eula = `

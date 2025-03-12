@@ -19,6 +19,10 @@ export default function SetupWizard() {
             setupMethodStep: {
                 method: null,
             },
+            usePackageStep: {
+                fileZip: "",
+                nodeTag: "",
+            },
             licenseKeyStep: {
                 key: "",
                 licenseTypeToGenerate: null,

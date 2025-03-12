@@ -10,4 +10,12 @@ export default class MockSetupWizardService extends AutoMockService<SetupWizardS
     withEula(dto?: MockedValue<string>) {
         return this.mockResolvedValue(this.mocks.getEula, dto, SetupWizardStubs.eula());
     }
+
+    withNodesInfoFromPackage(dto?: MockedValue<Raven.Server.Web.System.ConfigurationNodeInfo[]>) {
+        return this.mockResolvedValue(
+            this.mock.extractNodesInfoFromPackage,
+            dto,
+            SetupWizardStubs.nodesInfoFromPackage()
+        );
+    }
 }

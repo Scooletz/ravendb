@@ -17,6 +17,7 @@ export const Eula: StoryObj = {
         const { setupWizardService } = mockServices;
 
         setupWizardService.withEula();
+        setupWizardService.withNodesInfoFromPackage();
 
         return (
             <div style={{ height: 1000 }}>
@@ -30,6 +31,15 @@ export const SetupMethod: StoryObj = {
     ...Eula,
     play: async ({ canvas }) => {
         await goToSetupStep(canvas);
+    },
+};
+
+export const UsePackage: StoryObj = {
+    ...Eula,
+    play: async ({ canvas }) => {
+        await goToSetupStep(canvas);
+        await userEvent.click(canvas.getByRole("heading", { name: /Use setup package/ }));
+        await userEvent.click(canvas.getByRole("button", { name: /Continue/ }));
     },
 };
 

@@ -9,7 +9,11 @@ const setupMethodStepSchema = yup.object({
     method: yup.string<SetupWizardSetupMethod>().nullable().required(),
 });
 
-const usePackageStepSchema = yup.object({});
+const usePackageStepSchema = yup.object({
+    fileName: yup.string(),
+    fileZip: yup.string(),
+    nodeTag: yup.string(),
+});
 
 function licenseRequiredField(schema: yup.Schema) {
     return schema.when("licenseTypeToGenerate", {
