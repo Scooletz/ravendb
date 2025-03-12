@@ -48,6 +48,7 @@ function NoLicenseToGenerate() {
                     className="rounded-2"
                     placeholder={keyPlaceholder}
                     rows={16}
+                    data-testid="license-key-input"
                 />
             </FormGroup>
             <div className="mt-2 rounded-2 p-2 panel-bg-1 border border-secondary">
@@ -64,6 +65,24 @@ function NoLicenseToGenerate() {
         </div>
     );
 }
+
+const keyPlaceholder = `e.g.
+{
+    "Id": "0cb35dc0-598b-4416-b291-088439082dc1",
+    "Name": "RavenDB",
+    "Keys": [
+        "A1B2C3D4E5F6G7H8I9J0",
+        "K1L2M3N4O5P6Q7R8S9T0",
+        "U1V2W3X4Y5Z6A7B8C9D0",
+        "E1F2G3H4I5J6K7L8M9N0",
+        "O1P2Q3R4S5T6U7V8W9X0",
+        "Y1Z2A3B4C5D6E7F8G9H0",
+        "I1J2K3L4M5N6O7P8Q9R0",
+        "S1T2U3V4W5X6Y7Z8A9B0",
+        "C1D2E3F4G5H6I7J8K9L0"
+    ]
+}
+`;
 
 function GenerateCommunity() {
     return (
@@ -217,10 +236,12 @@ function LicenseTypeRadio() {
                     {
                         label: "Community",
                         value: "community",
+                        badgeColor: "info",
                     },
                     {
                         label: "Developer",
                         value: "developer",
+                        badgeColor: "success",
                     },
                 ]}
                 className="d-flex justify-content-center"
@@ -330,21 +351,3 @@ export function SetupWizardLicenseKeyStepFooter() {
         </div>
     );
 }
-
-const keyPlaceholder = `e.g.
-{
-    "Id": "0cb35dc0-598b-4416-b291-088439082dc1",
-    "Name": "RavenDB",
-    "Keys": [
-        "A1B2C3D4E5F6G7H8I9J0",
-        "K1L2M3N4O5P6Q7R8S9T0",
-        "U1V2W3X4Y5Z6A7B8C9D0",
-        "E1F2G3H4I5J6K7L8M9N0",
-        "O1P2Q3R4S5T6U7V8W9X0",
-        "Y1Z2A3B4C5D6E7F8G9H0",
-        "I1J2K3L4M5N6O7P8Q9R0",
-        "S1T2U3V4W5X6Y7Z8A9B0",
-        "C1D2E3F4G5H6I7J8K9L0"
-    ]
-}
-`;

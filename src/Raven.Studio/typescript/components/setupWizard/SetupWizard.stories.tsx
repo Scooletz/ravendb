@@ -45,11 +45,74 @@ export const LicenseKey: StoryObj = {
 export const Security: StoryObj = {
     ...Eula,
     play: async ({ canvas }) => {
-        await goToSetupStep(canvas);
-        await userEvent.click(canvas.getByRole("heading", { name: /Set up new cluster/ }));
+        await goToSecurityStep(canvas);
+    },
+};
+
+export const Domain: StoryObj = {
+    ...Eula,
+    play: async ({ canvas }) => {
+        await goToSecurityStep(canvas);
+        await userEvent.click(canvas.getByRole("heading", { name: /Generate Let’s Encrypt certificate/ }));
+        await userEvent.click(canvas.getByRole("button", { name: /Continue/ }));
+    },
+};
+
+export const SelfSignedCertificate: StoryObj = {
+    ...Eula,
+    name: "Self-signed certificate",
+    play: async ({ canvas }) => {
+        await goToSecurityStep(canvas);
+        await userEvent.click(canvas.getByRole("heading", { name: /Provide your own certificate/ }));
+        await userEvent.click(canvas.getByRole("button", { name: /Continue/ }));
+    },
+};
+
+export const NodeAddresses: StoryObj = {
+    ...Eula,
+    name: "Node addresses",
+    play: async ({ canvas }) => {
+        await goToSecurityStep(canvas);
+        await userEvent.click(canvas.getByRole("heading", { name: /Generate Let’s Encrypt certificate/ }));
         await userEvent.click(canvas.getByRole("button", { name: /Continue/ }));
         await userEvent.click(canvas.getByRole("button", { name: /Continue/ }));
-        // TODO go next
+    },
+};
+
+export const AdditionalSettings: StoryObj = {
+    ...Eula,
+    name: "Additional settings",
+    play: async ({ canvas }) => {
+        await goToSecurityStep(canvas);
+        await userEvent.click(canvas.getByRole("heading", { name: /Generate Let’s Encrypt certificate/ }));
+        await userEvent.click(canvas.getByRole("button", { name: /Continue/ }));
+        await userEvent.click(canvas.getByRole("button", { name: /Continue/ }));
+        await userEvent.click(canvas.getByRole("button", { name: /Continue/ }));
+    },
+};
+
+export const Summary: StoryObj = {
+    ...Eula,
+    play: async ({ canvas }) => {
+        await goToSecurityStep(canvas);
+        await userEvent.click(canvas.getByRole("heading", { name: /Generate Let’s Encrypt certificate/ }));
+        await userEvent.click(canvas.getByRole("button", { name: /Continue/ }));
+        await userEvent.click(canvas.getByRole("button", { name: /Continue/ }));
+        await userEvent.click(canvas.getByRole("button", { name: /Continue/ }));
+        await userEvent.click(canvas.getByRole("button", { name: /Continue/ }));
+    },
+};
+
+export const Finish: StoryObj = {
+    ...Eula,
+    play: async ({ canvas }) => {
+        await goToSecurityStep(canvas);
+        await userEvent.click(canvas.getByRole("heading", { name: /Generate Let’s Encrypt certificate/ }));
+        await userEvent.click(canvas.getByRole("button", { name: /Continue/ }));
+        await userEvent.click(canvas.getByRole("button", { name: /Continue/ }));
+        await userEvent.click(canvas.getByRole("button", { name: /Continue/ }));
+        await userEvent.click(canvas.getByRole("button", { name: /Continue/ }));
+        await userEvent.click(canvas.getByRole("button", { name: /Finish/ }));
     },
 };
 
@@ -63,4 +126,12 @@ async function goToSetupStep(canvas: Canvas) {
     await waitFor(() => expect(continueButton).not.toBeDisabled());
 
     await userEvent.click(continueButton);
+}
+
+async function goToSecurityStep(canvas: Canvas) {
+    await goToSetupStep(canvas);
+    await userEvent.click(canvas.getByRole("heading", { name: /Set up new cluster/ }));
+    await userEvent.click(canvas.getByRole("button", { name: /Continue/ }));
+    await userEvent.type(canvas.getByTestId("license-key-input"), "some key");
+    await userEvent.click(canvas.getByRole("button", { name: /Continue/ }));
 }

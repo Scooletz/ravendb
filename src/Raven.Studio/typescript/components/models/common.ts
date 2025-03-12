@@ -57,6 +57,7 @@ export interface InputItem<T extends string | number = string> {
     verticalSeparatorLine?: boolean;
     popover?: ReactNode | ReactNode[];
     popoverPlacement?: Placement;
+    badgeColor?: TextColor;
 }
 
 export type SortDirection = "asc" | "desc";

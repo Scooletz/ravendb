@@ -1,3 +1,4 @@
+import classNames from "classnames";
 import { PopoverWithHover } from "components/common/PopoverWithHover";
 import ToggleLimitBadge from "components/common/toggles/partials/ToggleLimitBadge";
 import { InputItem } from "components/models/common";
@@ -14,6 +15,10 @@ export default function ToggleItemLabel<T extends string | number = string>({
     inputItem,
 }: ToggleItemLabelProps<T>) {
     const [target, setTarget] = useState<HTMLElement>();
+
+    const bgClass = inputItem.badgeColor ? `bg-${inputItem.badgeColor}` : "";
+
+    // TODO apply somehow bgClass
 
     return (
         <>
