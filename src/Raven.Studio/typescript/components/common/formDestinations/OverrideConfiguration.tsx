@@ -1,7 +1,6 @@
 ﻿import React from "react";
 import InputGroup from "react-bootstrap/InputGroup";
-import { Label } from "reactstrap";
-import { FormInput } from "components/common/Form";
+import { FormInput, FormLabel } from "components/common/Form";
 import { useFormContext } from "react-hook-form";
 import { BackupConfigurationScript, FormDestinations } from "./utils/formDestinationsTypes";
 
@@ -17,7 +16,7 @@ const OverrideConfiguration = ({ fieldBase }: OverrideConfigurationProps) => {
     return (
         <div className="vstack gap-3 mt-2">
             <div className="mb-2">
-                <Label>Exec</Label>
+                <FormLabel>Exec</FormLabel>
                 <FormInput
                     name={getName(fieldBase, "exec")}
                     control={control}
@@ -27,7 +26,7 @@ const OverrideConfiguration = ({ fieldBase }: OverrideConfigurationProps) => {
                 />
             </div>
             <div className="mb-2">
-                <Label>Arguments</Label>
+                <FormLabel>Arguments</FormLabel>
                 <FormInput
                     type="text"
                     name={getName(fieldBase, "arguments")}
@@ -37,7 +36,7 @@ const OverrideConfiguration = ({ fieldBase }: OverrideConfigurationProps) => {
                 />
             </div>
             <div>
-                <Label>Timeout</Label>
+                <FormLabel>Timeout</FormLabel>
                 <InputGroup>
                     <FormInput
                         name={getName(fieldBase, "timeoutInMs")}

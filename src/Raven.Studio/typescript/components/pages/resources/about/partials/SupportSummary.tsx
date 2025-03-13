@@ -1,5 +1,6 @@
 ﻿import Card from "react-bootstrap/Card";
-import { Col, Row } from "reactstrap";
+import Row from "react-bootstrap/Row";
+import Col from "react-bootstrap/Col";
 import Button from "react-bootstrap/Button";
 import { aboutPageUrls, ConnectivityStatus, OverallInfoItem } from "components/pages/resources/about/partials/common";
 import classNames from "classnames";

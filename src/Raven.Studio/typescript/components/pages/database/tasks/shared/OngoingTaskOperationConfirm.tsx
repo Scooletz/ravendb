@@ -3,13 +3,13 @@ import { OngoingTaskSharedInfo } from "components/models/tasks";
 import assertUnreachable from "components/utils/assertUnreachable";
 import { capitalize } from "lodash";
 import { Icon } from "components/common/Icon";
-import { CloseButton, Modal, ModalBody, ModalFooter } from "reactstrap";
 import IconName from "typings/server/icons";
 import { TextColor } from "components/models/common";
 import RichAlert from "components/common/RichAlert";
 import Button from "react-bootstrap/Button";
-import classNames = require("classnames");
 import OngoingTaskState = Raven.Client.Documents.Operations.OngoingTasks.OngoingTaskState;
+import Modal from "components/common/Modal";
+import classNames from "classnames";
 
 export type OngoingTaskOperationConfirmType = "enable" | "disable" | "delete";
 
@@ -46,14 +46,9 @@ export default function OngoingTaskOperationConfirm(props: OngoingTaskOperationC
     };
 
     return (
-        <Modal
-            isOpen
-            toggle={toggle}
-            wrapClassName="bs5"
-            contentClassName={`modal-border bulge-${getTypeColor(type)}`}
-            centered
-        >
-            <ModalBody className="vstack gap-4 position-relative">
+        <Modal scrollable show onHide={toggle} contentClassName={`modal-border bulge-${getTypeColor(type)}`}>
+            <Modal.Header className="p-0" onCloseClick={toggle} />
+            <Modal.Body className="vstack gap-4">
                 <div className="text-center">
                     <Icon
                         icon="ongoing-tasks"
@@ -62,9 +57,6 @@ export default function OngoingTaskOperationConfirm(props: OngoingTaskOperationC
                         className="fs-1"
                         margin="m-0"
                     />
-                </div>
-                <div className="position-absolute m-2 end-0 top-0">
-                    <CloseButton onClick={toggle} />
                 </div>
                 {taskGroups.map((taskGroup, idx) => (
                     <div key={"task-group-" + idx}>
@@ -106,8 +98,8 @@ export default function OngoingTaskOperationConfirm(props: OngoingTaskOperationC
                 ))}
 
                 {warningMessage && <RichAlert variant="warning">{warningMessage}</RichAlert>}
-            </ModalBody>
-            <ModalFooter>
+            </Modal.Body>
+            <Modal.Footer>
                 <Button variant="link" onClick={toggle} className="link-muted">
                     Cancel
                 </Button>
@@ -115,7 +107,7 @@ export default function OngoingTaskOperationConfirm(props: OngoingTaskOperationC
                     <Icon icon={getTypeIcon(type)} />
                     {getInfinitiveForType(type)}
                 </Button>
-            </ModalFooter>
+            </Modal.Footer>
         </Modal>
     );
 }
