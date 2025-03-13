@@ -11,8 +11,8 @@ const setupMethodStepSchema = yup.object({
 
 const usePackageStepSchema = yup.object({
     fileName: yup.string(),
-    fileZip: yup.string(),
-    nodeTag: yup.string(),
+    fileZip: yup.string(), // should be required
+    nodeTag: yup.string(), // should be required
 });
 
 function licenseRequiredField(schema: yup.Schema) {

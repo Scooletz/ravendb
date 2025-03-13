@@ -10,6 +10,7 @@ import {
     FormCheckbox,
     FormMultiRadioToggle,
     FormSelect,
+    OptionalLabel,
 } from "components/common/Form";
 import useConfirm from "components/common/ConfirmDialog";
 import { HStack } from "components/common/HStack";
@@ -136,7 +137,6 @@ function GenerateDeveloper() {
 
 function GenerateLicenseFields() {
     const { control } = useFormContext<SetupWizardFormData>();
-    // TODO phone optional label
 
     return (
         <Row className="w-100 mt-4">
@@ -158,7 +158,9 @@ function GenerateLicenseFields() {
                 <FormInput type="email" control={control} name="licenseKeyStep.email" placeholder="Your email" />
             </FormGroup>
             <FormGroup className="col-md-6">
-                <FormLabel>Phone</FormLabel>
+                <FormLabel>
+                    Phone <OptionalLabel />
+                </FormLabel>
                 <FormInput type="text" control={control} name="licenseKeyStep.phone" placeholder="Your phone number" />
             </FormGroup>
             <FormGroup className="col-md-6">
