@@ -24,11 +24,12 @@ import {
 } from "components/common/RichPanel";
 import Collapse from "react-bootstrap/Collapse";
 import InputGroup from "react-bootstrap/InputGroup";
-import { Form, Label } from "reactstrap";
+import Form from "react-bootstrap/Form";
+
 import { Icon } from "components/common/Icon";
 import DeleteCustomAnalyzerConfirm from "components/common/customAnalyzers/DeleteCustomAnalyzerConfirm";
 import ButtonWithSpinner from "components/common/ButtonWithSpinner";
-import { FormAceEditor, FormInput } from "components/common/Form";
+import { FormAceEditor, FormInput, FormLabel } from "components/common/Form";
 import fileImporter from "common/fileImporter";
 import Button from "react-bootstrap/Button";
 import OverlayTrigger from "react-bootstrap/OverlayTrigger";
@@ -127,7 +128,7 @@ export default function DatabaseCustomAnalyzersListItem(props: DatabaseCustomAna
                         <RichPanelDetails className="vstack gap-3 p-4">
                             {isNew && (
                                 <InputGroup className="vstack mb-1">
-                                    <Label>Name</Label>
+                                    <FormLabel>Name</FormLabel>
                                     <FormInput
                                         type="text"
                                         control={control}
@@ -139,7 +140,7 @@ export default function DatabaseCustomAnalyzersListItem(props: DatabaseCustomAna
                             <InputGroup className="vstack">
                                 {hasDatabaseAdminAccess && (
                                     <div className="d-flex justify-content-end">
-                                        <Label className="btn btn-link btn-xs text-right">
+                                        <FormLabel className="btn btn-link btn-xs text-right">
                                             <Icon icon="upload" />
                                             Load from a file
                                             <input
@@ -152,7 +153,7 @@ export default function DatabaseCustomAnalyzersListItem(props: DatabaseCustomAna
                                                 }
                                                 accept=".cs"
                                             />
-                                        </Label>
+                                        </FormLabel>
                                     </div>
                                 )}
                                 <FormAceEditor

@@ -4,7 +4,7 @@ const fixableMeta = {
   schema: [],
 };
 
-function createDeprecatedReactstrapImport({ context, name, reactBootstrapName = name, canFix = true }) {
+function createDeprecatedReactstrapImport({ context, name, reactBootstrapName = name, canFix = true, newImport }) {
   return {
     ImportDeclaration(node) {
       if (node.source.value !== "reactstrap") {
@@ -51,7 +51,7 @@ function createDeprecatedReactstrapImport({ context, name, reactBootstrapName = 
             fixes.push(
               fixer.replaceText(
                 node,
-                `import ${name} from "react-bootstrap/${reactBootstrapName}";`,
+                newImport || `import ${reactBootstrapName} from "react-bootstrap/${reactBootstrapName}";`,
               ),
             );
           } else {
@@ -73,7 +73,7 @@ function createDeprecatedReactstrapImport({ context, name, reactBootstrapName = 
             fixes.push(
               fixer.insertTextBefore(
                 node,
-                `import ${name} from "react-bootstrap/${reactBootstrapName}";\n`,
+                newImport || `import ${reactBootstrapName} from "react-bootstrap/${reactBootstrapName}";\n`,
               ),
             );
           }
@@ -87,6 +87,26 @@ function createDeprecatedReactstrapImport({ context, name, reactBootstrapName = 
         fix: canFix ? fix : undefined,
       });
     },
+
+    JSXIdentifier(node) {
+      if (name !== reactBootstrapName && node.name === name) {
+        const imports = context.getSourceCode().ast.body.filter(
+          n => n.type === "ImportDeclaration" &&
+               n.source.value === "reactstrap" &&
+               n.specifiers.some(s => s.imported?.name === name)
+        );
+
+        if (imports.length === 0) {
+          return;
+        }
+
+        context.report({
+          node: node,
+          message: `Replace '${name}' with '${reactBootstrapName}'.`,
+          fix: canFix ? (fixer) => fixer.replaceText(node, reactBootstrapName) : undefined,
+        });
+      }
+    }
   };
 }
 
@@ -126,6 +146,74 @@ function replaceReactstrapToReactBootstrap({ context, componentMap }) {
           },
         });
       }
+    },
+  };
+}
+
+/**
+ * Handles the properties of a JSX component and applies transformations based on the provided configuration.
+ *
+ * @param {Object} config - The configuration object containing properties to remove or migrate.
+ * @param {string[]} [config.toRemove] - Array of property names to be removed from the component.
+ * @param {Array<{key: string, migrateTo: string}>} [config.toMigrate] - Array of property migration objects,
+ *                                                                              each containing the original property name (key)
+ *                                                                              and the new property name (migrateTo).
+ * @param {string} componentName - The name of the component to handle properties for.
+ *                                        Can be a simple component name (e.g., "Button") or a
+ *                                        namespaced component (e.g., "Form.Control").
+ */
+function handleProps({ context, config, componentName }) {
+  return {
+    JSXOpeningElement(node) {
+      if (componentName.includes(".")) {
+        const [parentName, childName] = componentName.split(".");
+        if (
+          !(
+            node.name &&
+            node.name.type === "JSXMemberExpression" &&
+            node.name.object &&
+            node.name.object.name === parentName &&
+            node.name.property &&
+            node.name.property.name === childName
+          )
+        ) {
+          return;
+        }
+      } else {
+        if (!(node.name && node.name.type === "JSXIdentifier" && node.name.name === componentName)) {
+          return;
+        }
+      }
+
+      node.attributes.forEach((attr) => {
+        if (!attr || !attr.name || !attr.name.name) {
+          return;
+        }
+        const propName = attr.name.name;
+
+        if (config.toRemove && config.toRemove.includes(propName)) {
+          context.report({
+            node: attr,
+            message: `'${propName}' prop is not supported and should be removed.`,
+            fix(fixer) {
+              return fixer.remove(attr);
+            },
+          });
+        }
+
+        if (config.toMigrate) {
+          const migration = config.toMigrate.find((m) => m.key === propName);
+          if (migration) {
+            context.report({
+              node: attr,
+              message: `'${propName}' prop is deprecated. Use '${migration.migrateTo}' instead.`,
+              fix(fixer) {
+                return fixer.replaceText(attr.name, migration.migrateTo);
+              },
+            });
+          }
+        }
+      });
     },
   };
 }
@@ -452,4 +540,269 @@ module.exports = {
     meta: fixableMeta,
     create: (context) => createDeprecatedReactstrapImport({ context, name: "Carousel", canFix: false }),
   },
+  "no-reactstrap-Form": {
+    meta: fixableMeta,
+    create: (context) => createDeprecatedReactstrapImport({ context, name: "Form" }),
+  },
+  "reactstrap-Form-to-RBootstrap-children": {
+    meta: fixableMeta,
+    create: (context) => {
+      const formComponentMap = {
+        Input: "Form.Control",
+      };
+
+      return replaceReactstrapToReactBootstrap({ context, componentMap: formComponentMap });
+    },
+  },
+  "no-reactstrap-FormControl-props": {
+    meta: fixableMeta,
+    create: (context) => {
+      const config = {
+        toMigrate: [{
+          key: "invalid", migrateTo: "isInvalid",
+        }, {
+          key: "valid", migrateTo: "isValid",
+        }, {
+          key: "bsSize", migrateTo: "size",
+        }, {
+          key: "innerRef", migrateTo: "ref",
+        }],
+      };
+
+      return handleProps({ context, config, componentName: "Form.Control" });
+    },
+  },
+  "no-reactstrap-FormGroup": {
+    meta: fixableMeta,
+    create: (context) => createDeprecatedReactstrapImport({ context, name: "FormGroup", reactBootstrapName: "Form" }),
+  },
+  "no-reactstrap-Input": {
+    meta: fixableMeta,
+    create: (context) => createDeprecatedReactstrapImport({ context, name: "Input", reactBootstrapName: "Form" }),
+  },
+  "react-bootstrap-FormControl-checkbox-to-FormCheck": {
+    meta: fixableMeta,
+    create(context) {
+      return {
+        JSXOpeningElement(node) {
+          if (
+            node.name &&
+            node.name.type === "JSXMemberExpression" &&
+            node.name.object &&
+            node.name.object.name === "Form" &&
+            node.name.property &&
+            node.name.property.name === "Control"
+          ) {
+            const typeAttr = node.attributes.find(
+              attr => attr?.name?.name === "type" &&
+                attr?.value?.type === "Literal" &&
+                ["checkbox", "radio", "switch"].includes(attr.value.value),
+            );
+
+            if (typeAttr) {
+              const inputType = typeAttr.value.value;
+
+              context.report({
+                node: node,
+                message: `Form.Control with type="${inputType}" should be replaced with Form.Check`,
+                fix(fixer) {
+                  return fixer.replaceText(
+                    node.name,
+                    "Form.Check",
+                  );
+                },
+              });
+            }
+          }
+        },
+      };
+    },
+  },
+  "no-reactstrap-Row": {
+    meta: fixableMeta,
+    create: (context) => createDeprecatedReactstrapImport({ context, name: "Row" }),
+  },
+  "no-reactstrap-Col": {
+    meta: fixableMeta,
+    create: (context) => createDeprecatedReactstrapImport({ context, name: "Col" }),
+  },
+  "no-reactstrap-Dropdown": {
+    meta: fixableMeta,
+    create: (context) => createDeprecatedReactstrapImport({ context, name: "Dropdown" }),
+  },
+  "no-reactstrap-UncontrolledDropdown": {
+    meta: fixableMeta,
+    create: (context) => createDeprecatedReactstrapImport({
+      context,
+      name: "UncontrolledDropdown",
+      reactBootstrapName: "Dropdown",
+      canFix: false,
+    }),
+  },
+  "no-reactstrap-DropdownToggle": {
+    meta: fixableMeta,
+    create: (context) => createDeprecatedReactstrapImport({
+      context,
+      name: "DropdownToggle",
+      reactBootstrapName: "Dropdown",
+      canFix: false,
+    }),
+  },
+  "no-reactstrap-DropdownMenu": {
+    meta: fixableMeta,
+    create: (context) => createDeprecatedReactstrapImport({
+      context,
+      name: "DropdownMenu",
+      reactBootstrapName: "Dropdown",
+      canFix: false,
+    }),
+  },
+  "no-reactstrap-DropdownItem": {
+    meta: fixableMeta,
+    create: (context) => createDeprecatedReactstrapImport({
+      context,
+      name: "DropdownItem",
+      reactBootstrapName: "Dropdown",
+      canFix: false,
+    }),
+  },
+  "no-reactstrap-Dropdown-childrens": {
+    meta: fixableMeta,
+    create: (context) => {
+      const dropdownComponentMap = {
+        DropdownItem: "Dropdown.Item",
+        DropdownToggle: "Dropdown.Toggle",
+        DropdownMenu: "Dropdown.Menu",
+        UncontrolledDropdown: "Dropdown",
+      };
+
+      return replaceReactstrapToReactBootstrap({ context, componentMap: dropdownComponentMap });
+    },
+  },
+  "no-reactstrap-DropdownToggle-color-prop": {
+    meta: fixableMeta,
+    create(context) {
+      return {
+        JSXOpeningElement(node) {
+          const isDropdownToggle = node.name?.type === "JSXMemberExpression" &&
+            node.name.object?.name === "Dropdown" &&
+            node.name.property?.name === "Toggle";
+
+          if (isDropdownToggle) {
+            const hasVariantProp = node.attributes.some(attr => attr?.name?.name === "variant");
+            const colorProp = node.attributes.find(attr => attr?.name?.name === "color");
+
+            if (!hasVariantProp && !colorProp) {
+              context.report({
+                node,
+                message: "Component is missing 'variant' prop. Defaulting to 'variant=\"secondary\"'.",
+                fix(fixer) {
+                  return fixer.insertTextAfter(
+                    node.name,
+                    ` variant="secondary"`,
+                  );
+                },
+              });
+            } else if (colorProp?.value?.type === "Literal") {
+              const colorValue = colorProp.value.value;
+              context.report({
+                node: colorProp,
+                message: `'color' is deprecated. Replace with 'variant="${colorValue}"'.`,
+                fix(fixer) {
+                  return fixer.replaceText(
+                    colorProp,
+                    `variant="${colorValue}"`,
+                  );
+                },
+              });
+            } else if (colorProp) {
+              context.report({
+                node: colorProp,
+                message: `'color' is deprecated, but automatic fix is not possible as value is not Literal.`,
+              });
+            }
+          }
+        },
+      };
+    },
+  },
+  "no-reactstrap-DropdownToggle-caret-prop": {
+    meta: fixableMeta,
+    create(context) {
+      return {
+        JSXOpeningElement(node) {
+          const isDropdownToggle = node.name?.type === "JSXMemberExpression" &&
+            node.name.object?.name === "Dropdown" &&
+            node.name.property?.name === "Toggle";
+
+          if (isDropdownToggle) {
+            const caretProp = node.attributes.find(attr => attr?.name?.name === "caret");
+
+            if (caretProp) {
+              if (caretProp?.value?.type === "JSXExpressionContainer" &&
+                caretProp.value.expression?.value === false) {
+                context.report({
+                  node: caretProp,
+                  message: "'caret' prop is not supported in react-bootstrap. Use 'as' prop instead with a custom component.",
+                  fix(fixer) {
+                    return fixer.replaceText(
+                      caretProp,
+                      `as={CustomToggleComponent}`,
+                    );
+                  },
+                });
+              } else {
+                context.report({
+                  node: caretProp,
+                  message: "'caret' prop is not needed in react-bootstrap as it shows caret by default.",
+                  fix(fixer) {
+                    return fixer.replaceText(caretProp, "isCaretHidden");
+                  },
+                });
+              }
+            }
+          }
+        },
+      };
+    },
+  },
+  "no-reactstrap-Modal": {
+    meta: fixableMeta,
+    create: (context) => createDeprecatedReactstrapImport({ context, name: "Modal" }),
+  },
+  "no-reactstrap-Modal-props": {
+    meta: fixableMeta,
+    create: (context) => {
+      const config = {
+        toMigrate: [{
+          key: "toggle", migrateTo: "onHide",
+        }, {
+          key: "className", migrateTo: "dialogClassName",
+        }, {
+          key: "cssModule", migrateTo: "dialogCssClass",
+        }, {
+          key: "isOpen", migrateTo: "show",
+        }],
+      };
+
+      return handleProps({ context, config, componentName: "Modal" });
+    }
+  },
+  "no-reactstrap-Label": {
+    meta: fixableMeta,
+    create: (context) => createDeprecatedReactstrapImport({ context, name: "Label", newImport: "import Label from \"components/common/Label\"" }),
+  },
+  "no-reactstrap-Label-props": {
+    meta: fixableMeta,
+    create: (context) => {
+      const config = {
+        toMigrate: [{
+          key: "for", migrateTo: "htmlFor",
+        }],
+        toRemove: ["check"]
+      };
+
+      return handleProps({ context, config, componentName: "Label" });
+    }
+  }
 };

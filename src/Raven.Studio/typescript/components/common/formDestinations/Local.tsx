@@ -2,13 +2,12 @@
 import Spinner from "react-bootstrap/Spinner";
 import Collapse from "react-bootstrap/Collapse";
 import Card from "react-bootstrap/Card";
-import { Label } from "reactstrap";
-import { FormSwitch, FormPathSelector } from "components/common/Form";
+import { FormLabel, FormPathSelector, FormSwitch } from "components/common/Form";
 import { useFormContext, useWatch } from "react-hook-form";
 import OverrideConfiguration from "./OverrideConfiguration";
 import { FormDestinations } from "./utils/formDestinationsTypes";
 import { useServices } from "components/hooks/useServices";
-import { UseAsyncReturn, useAsync } from "react-async-hook";
+import { useAsync, UseAsyncReturn } from "react-async-hook";
 import { databaseSelectors } from "components/common/shell/databaseSliceSelectors";
 import { useAppSelector } from "components/store";
 import RichAlert from "components/common/RichAlert";
@@ -57,7 +56,7 @@ export default function Local() {
                             <OverrideConfiguration fieldBase={fieldBase} />
                         ) : (
                             <div className="mt-2">
-                                <Label>Folder path</Label>
+                                <FormLabel>Folder path</FormLabel>
                                 <FormPathSelector
                                     control={control}
                                     name={getName("folderPath")}
