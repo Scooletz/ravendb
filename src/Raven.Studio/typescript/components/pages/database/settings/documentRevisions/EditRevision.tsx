@@ -1,7 +1,8 @@
 ﻿import { Icon } from "components/common/Icon";
 import InputGroup from "react-bootstrap/InputGroup";
-import { Form, Label, Modal, ModalBody, ModalFooter } from "reactstrap";
-import { FormDurationPicker, FormInput, FormSelectCreatable, FormSwitch } from "components/common/Form";
+import Form from "react-bootstrap/Form";
+
+import { FormDurationPicker, FormInput, FormLabel, FormSelectCreatable, FormSwitch } from "components/common/Form";
 import { SubmitHandler, useForm, useWatch } from "react-hook-form";
 import {
     EditDocumentRevisionsCollectionConfig,
@@ -27,6 +28,7 @@ import moment from "moment";
 import RichAlert from "components/common/RichAlert";
 import useEditRevisionFormSideEffects from "components/pages/database/settings/documentRevisions/useEditRevisionFormSideEffects";
 import Button from "react-bootstrap/Button";
+import Modal from "components/common/Modal";
 
 const revisionsDelta = 100;
 const revisionsByAgeDelta = 604800; // 7 days
@@ -110,13 +112,13 @@ export default function EditRevision(props: EditRevisionProps) {
             (revisionsToKeepLimit > 0 && formValues.minimumRevisionsToKeep > revisionsToKeepLimit));
 
     return (
-        <Modal isOpen toggle={toggle} wrapClassName="bs5" contentClassName="modal-border bulge-info" centered>
+        <Modal show onHide={toggle} contentClassName="modal-border bulge-info">
             <Form onSubmit={handleSubmit(onSubmit)} autoComplete="off">
-                <ModalBody className="vstack gap-3">
+                <Modal.Body className="vstack gap-3">
                     <h4>{getTitle(taskType, configType)}</h4>
                     {configType === "collectionSpecific" && (
                         <InputGroup className="gap-1 flex-wrap flex-column">
-                            <Label className="mb-0 md-label">Collection</Label>
+                            <FormLabel className="mb-0 md-label">Collection</FormLabel>
                             <FormSelectCreatable
                                 placeholder="Select collection (or enter new collection)"
                                 control={control}
@@ -256,8 +258,8 @@ export default function EditRevision(props: EditRevisionProps) {
                             )}
                         </ul>
                     </RichAlert>
-                </ModalBody>
-                <ModalFooter>
+                </Modal.Body>
+                <Modal.Footer>
                     <Button type="button" variant="link" className="link-muted" onClick={toggle}>
                         Cancel
                     </Button>
@@ -265,7 +267,7 @@ export default function EditRevision(props: EditRevisionProps) {
                         <Icon icon={getSubmitIcon(taskType)} />
                         {_.startCase(taskType)} config
                     </Button>
-                </ModalFooter>
+                </Modal.Footer>
             </Form>
         </Modal>
     );
