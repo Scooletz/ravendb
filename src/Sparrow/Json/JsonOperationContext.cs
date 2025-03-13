@@ -1048,7 +1048,7 @@ namespace Sparrow.Json
                     lazyStringValue = AllocateStringValue(null, state.StringBuffer, state.StringSize);
                 }
 
-                writer.WritePropertyName(lazyStringValue.AsReadOnlySpan());
+                writer.WritePropertyName(lazyStringValue);
 
                 if (parser.Read() == false)
                     throw new InvalidOperationException("Object json parser can't return partial results");
