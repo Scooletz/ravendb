@@ -44,6 +44,7 @@ function NoLicenseToGenerate() {
                 <FormLabel>Your key</FormLabel>
                 <FormInput
                     type="textarea"
+                    as="textarea"
                     control={control}
                     name="licenseKeyStep.key"
                     className="rounded-2"
@@ -269,17 +270,20 @@ export function SetupWizardLicenseKeyStepFooter() {
     };
 
     const handleGenerateLicense = async () => {
-        // TODO
-        const isValid = await trigger("licenseKeyStep.firstName");
-        console.log("kalczur isValid", isValid);
+        const isValid = await trigger(["licenseKeyStep"]);
 
-        // trigger("licenseKeyStep") dont show errors
+        if (isValid) {
+            // TODO generate license from server
+            setValue("licenseKeyStep.key", "some-generated-key");
+            setValue("licenseKeyStep.licenseTypeToGenerate", null);
+        }
     };
 
     const handleContinue = async () => {
         if (key) {
             setValue("currentStep", "Security");
         } else {
+            // TODO move to separate component
             const isConfirmed = await confirm({
                 title: (
                     <span>
