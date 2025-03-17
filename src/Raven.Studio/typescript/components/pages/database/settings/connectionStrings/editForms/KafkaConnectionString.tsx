@@ -19,6 +19,8 @@ import { databaseSelectors } from "components/common/shell/databaseSliceSelector
 import { accessManagerSelectors } from "components/common/shell/accessManagerSliceSelectors";
 import Button from "react-bootstrap/Button";
 import PopoverWithHoverWrapper from "components/common/PopoverWithHoverWrapper";
+import { connectionStringSelectors } from "../store/connectionStringsSlice";
+import { connectionStringsUtils } from "../connectionStringsUtils";
 
 type FormData = ConnectionFormData<KafkaConnection>;
 
@@ -31,10 +33,16 @@ export default function KafkaConnectionString({
     isForNewConnection,
     onSave,
 }: KafkaConnectionStringProps) {
+    const usedNames = useAppSelector(connectionStringSelectors.connections)["Kafka"].map((x) => x.name);
+
     const { control, handleSubmit, trigger, setValue } = useForm<FormData>({
         mode: "all",
         defaultValues: getDefaultValues(initialConnection, isForNewConnection),
         resolver: yupSchemaResolver,
+        context: {
+            isForNewConnection,
+            usedNames,
+        },
     });
 
     const connectionOptionsFieldArray = useFieldArray({
@@ -214,7 +222,7 @@ const connectionOptionSchema = yup.object({
 });
 
 const schema = yupObjectSchema<FormData>({
-    name: yup.string().nullable().required(),
+    name: connectionStringsUtils.nameSchema,
     bootstrapServers: yup
         .string()
         .nullable()
