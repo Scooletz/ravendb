@@ -25,7 +25,7 @@ export function SetupWizardEulaStep({ eulaRef }: { eulaRef: React.RefObject<HTML
                 <LazyLoad active={asyncGetEula.loading}>
                     <Code language="plaintext" code={asyncGetEula.result ?? "Loading"} />
                 </LazyLoad>
-                <div data-testid="eula-bottom" id="eula-bottom" />
+                <div data-testid="eula-bottom" />
             </div>
         </div>
     );

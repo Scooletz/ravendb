@@ -145,9 +145,8 @@ export const Finish: StoryObj = {
 async function goToSetupStep(canvas: Canvas) {
     await waitForElementToBeRemoved(canvas.getByTestId("loader"));
 
-    // TODO remove this
-    await new Promise((resolve) => setTimeout(resolve, 100));
-    const eula = document.getElementById("eula-bottom");
+    const eula = canvas.getByTestId("eula-bottom");
+    await waitFor(() => expect(eula).toBeInTheDocument());
     eula.scrollIntoView({ behavior: "instant" });
 
     const continueButton = canvas.getByRole("button", { name: /Continue/ });
@@ -160,7 +159,6 @@ async function goToLicenseKeyStep(canvas: Canvas, licenseType: Raven.Server.Comm
     await goToSetupStep(canvas);
     await userEvent.click(canvas.getByRole("heading", { name: /Set up new cluster/ }));
     await userEvent.click(canvas.getByRole("button", { name: /Continue/ }));
-    await new Promise((resolve) => setTimeout(resolve, 1000));
 
     // userEvent.type don't work with single '{' and '['
     await userEvent.type(
