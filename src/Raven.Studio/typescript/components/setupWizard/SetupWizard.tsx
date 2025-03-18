@@ -39,6 +39,33 @@ export default function SetupWizard() {
             securityStep: {
                 securityOption: null,
             },
+            nodeAddressStep: {
+                nodes: [
+                    {
+                        nodeTag: "A",
+                        nodeUrl: `https://a.maksyms.development.run`,
+                        httpPort: 8080,
+                        tcpPort: 38888,
+                        ipAddress: [
+                            {
+                                ipAddress: "127.0.0.1",
+                            },
+                            {
+                                ipAddress: "127.0.0.2",
+                            },
+                            {
+                                ipAddress: "127.0.0.3",
+                            },
+                        ],
+                        isEditing: false,
+                        hasExternalConfig: false,
+                        externalIpAddress: undefined,
+                        externalHttpPort: null,
+                        externalTcpPort: null,
+                        isNewlyAdded: false,
+                    },
+                ],
+            },
         },
     });
 
@@ -60,7 +87,7 @@ export default function SetupWizard() {
                 <div className="setup-wizard-container">
                     <div className="setup-wizard-main">
                         <div className="d-flex flex-column h-100 w-75">
-                            <div className="mt-4">
+                            <div className="mt-4 mb-2">
                                 <img src={ravenLogo} alt="RavenDB Logo" width="120" />
                             </div>
                             <div className="overflow-y-auto py-4">{steps[currentStepIdx].component}</div>

@@ -59,7 +59,34 @@ const domainStepSchema = yup.object({
     email: yup.string(), // TODO email validation
 });
 
-const nodeAddressStepSchema = yup.object({});
+const nodeAddressStepSchema = yup.object({
+    nodes: yup.array().of(
+        yup.object({
+            nodeTag: yup.string(),
+            nodeUrl: yup.string(),
+            httpPort: yup.number(),
+            tcpPort: yup.number(),
+            ipAddress: yup
+        .array()
+        .of(
+            yup.object().shape({
+                ipAddress: yup
+                    .string()
+                  .ipv4("Enter a valid IP address or hostname")
+                    .required("IP address is required"),
+            })
+        ),
+            externalIpAddress: yup.string(),
+            externalHttpPort: yup.number(),
+            externalTcpPort: yup.number(),
+            
+            // states
+            isNewlyAdded: yup.boolean(),
+            isEditing: yup.boolean(),
+            hasExternalConfig: yup.boolean(),
+        })
+    ),
+});
 
 const additionalSettingsStepSchema = yup.object({});
 

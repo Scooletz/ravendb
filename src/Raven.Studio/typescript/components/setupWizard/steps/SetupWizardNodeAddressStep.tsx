@@ -1,28 +1,699 @@
-import { useFormContext, useWatch } from "react-hook-form";
+import { Control, useFieldArray, useForm, useFormContext, UseFormReturn, useWatch } from "react-hook-form";
 import { SetupWizardFormData } from "../setupWizardValidation";
 import { Icon } from "components/common/Icon";
-import { Button } from "react-bootstrap";
+import Button from "react-bootstrap/Button";
+import {
+    RichPanel,
+    RichPanelActions,
+    RichPanelDetailItem,
+    RichPanelDetails,
+    RichPanelHeader,
+    RichPanelInfo,
+    RichPanelName,
+} from "components/common/RichPanel";
+import Collapse from "react-bootstrap/Collapse";
+import React from "react";
+import Form from "react-bootstrap/Form";
+import { FormGroup, FormInput, FormLabel, FormSwitch, OptionalLabel } from "components/common/Form";
+import RichAlert from "components/common/RichAlert";
+import { setupWizardConstants } from "components/setupWizard/partials/SetupWizardConstants";
+import * as yup from "yup";
+import { yupResolver } from "@hookform/resolvers/yup";
+import useConfirm from "components/common/ConfirmDialog";
+import InputGroup from "react-bootstrap/InputGroup";
+import { ConditionalPopover } from "components/common/ConditionalPopover";
+import PopoverWithHoverWrapper from "components/common/PopoverWithHoverWrapper";
+import { HrHeader } from "components/common/HrHeader";
+import classNames from "classnames";
 
 export function SetupWizardNodeAddressStep() {
     const { control } = useFormContext<SetupWizardFormData>();
 
-    const { nodeAddressStep } = useWatch({ control });
+    const { fields, append, remove } = useFieldArray({
+        control,
+        name: "nodeAddressStep.nodes",
+    });
 
-    return <h1>Node address</h1>;
+    const addNewNode = () => {
+        const existingTags = fields.map((field) => field.nodeTag);
+        const availableNodeTag = setupWizardConstants.nodeTags.find((tag) => !existingTags.includes(tag)) || "A";
+
+        append({
+            nodeTag: availableNodeTag,
+            ipAddress: [
+                {
+                    ipAddress: "127.0.0.1",
+                },
+            ],
+            isEditing: true,
+            isNewlyAdded: true,
+        });
+    };
+
+    return (
+        <section>
+            <header className="mb-4">
+                <h1>Node addresses</h1>
+                <p>
+                    Enter your server settings - IP addresses and ports to ensure clear communication and smooth work of
+                    your database. If you are building a cluster this is the place to add nodes and configure them.
+                </p>
+            </header>
+            <main className="vstack gap-3">
+                {fields.map((field, index) => (
+                    <NodeDetailsPanel key={field.id} control={control} index={index} onRemove={() => remove(index)} />
+                ))}
+                <AddAnotherNode onAddNode={addNewNode} />
+            </main>
+        </section>
+    );
+}
+
+interface NodeDetailsPanelProps {
+    control: Control<SetupWizardFormData>;
+    index: number;
+    onRemove: () => void;
+}
+
+function NodeDetailsPanel({ control, index, onRemove }: NodeDetailsPanelProps) {
+    const { getValues } = useFormContext<SetupWizardFormData>();
+    const nodeData = useWatch({
+        control,
+        name: `nodeAddressStep.nodes.${index}`,
+    });
+    const nodeAddressStep = getValues().nodeAddressStep;
+
+    const editNodeForm = useForm<NodeEditFormData>({
+        defaultValues: { ...nodeData },
+        resolver: yupResolver(nodeEditFormSchema),
+        context: { nodeAddressStep, currentIndex: index },
+    });
+
+    return (
+        <RichPanel hover>
+            <NodeDetailsPanelHeader control={control} editNodeForm={editNodeForm} index={index} onRemove={onRemove} />
+            {!nodeData.isEditing ? (
+                <NodeDetailsPanelView index={index} control={control} />
+            ) : (
+                <NodeDetailsPanelEdit control={editNodeForm.control} />
+            )}
+        </RichPanel>
+    );
+}
+
+interface NodeDetailsPanelHeaderProps {
+    control: Control<SetupWizardFormData>;
+    index: number;
+    onRemove: () => void;
+    editNodeForm: UseFormReturn<NodeEditFormData>;
+}
+
+function NodeDetailsPanelHeader({ control, index, onRemove, editNodeForm }: NodeDetailsPanelHeaderProps) {
+    const { setValue } = useFormContext<SetupWizardFormData>();
+    const nodeData = useWatch({
+        control,
+        name: `nodeAddressStep.nodes.${index}`,
+    });
+
+    const { handleSubmit, trigger, reset, formState } = editNodeForm;
+
+    const nodeName = `Node ${nodeData.nodeTag}`;
+
+    const handleDiscardEdit = () => {
+        if (nodeData.isNewlyAdded) {
+            onRemove();
+        } else {
+            reset(nodeData);
+            setValue(`nodeAddressStep.nodes.${index}`, {
+                ...nodeData,
+                isEditing: false,
+            });
+        }
+    };
+
+    const handleSaveEdit = handleSubmit(async (formData: NodeEditFormData) => {
+        await trigger();
+        setValue(`nodeAddressStep.nodes.${index}`, {
+            ...formData,
+            isEditing: false,
+            isNewlyAdded: false,
+        });
+    });
+
+    const confirm = useConfirm();
+
+    const handleDeleteNode = async () => {
+        const isConfirmed = await confirm({
+            title: (
+                <>
+                    You’re about to delete <b>Node {nodeData.nodeTag}</b>
+                </>
+            ),
+            message: (
+                <div className="d-flex w-100 justify-content-center">
+                    Removing it may impact cluster stability and performance. This action cannot be undone.
+                </div>
+            ),
+            icon: "trash",
+            confirmText: "Delete",
+            actionColor: "danger",
+            size: "lg",
+        });
+
+        if (isConfirmed) {
+            onRemove();
+        }
+    };
+
+    return (
+        <RichPanelHeader>
+            <RichPanelInfo>
+                <RichPanelName>
+                    {nodeData.isNewlyAdded ? (
+                        <>Creating new node</>
+                    ) : nodeData.isEditing ? (
+                        <>Editing node values</>
+                    ) : (
+                        <>
+                            <Icon color="node" icon="node" />
+                            {nodeName} {index === 0 && <small className="text-muted">(current node)</small>}
+                        </>
+                    )}
+                </RichPanelName>
+            </RichPanelInfo>
+            <RichPanelActions>
+                {nodeData.isEditing ? (
+                    <>
+                        <ConditionalPopover
+                            conditions={{
+                                isActive: !formState.isValid,
+                                message: "Please fix the errors before saving.",
+                            }}
+                        >
+                            <Button disabled={!formState.isValid} onClick={handleSaveEdit} variant="success">
+                                <Icon icon="save" />
+                                Save
+                            </Button>
+                        </ConditionalPopover>
+                        <Button variant="secondary" onClick={handleDiscardEdit}>
+                            <Icon icon="close" />
+                            Discard
+                        </Button>
+                    </>
+                ) : (
+                    <>
+                        <Button
+                            variant="secondary"
+                            onClick={() => setValue(`nodeAddressStep.nodes.${index}.isEditing`, true)}
+                        >
+                            <Icon icon="edit" margin="m-0" />
+                        </Button>
+                        <Button variant="danger" onClick={handleDeleteNode}>
+                            <Icon icon="trash" margin="m-0" />
+                        </Button>
+                    </>
+                )}
+            </RichPanelActions>
+        </RichPanelHeader>
+    );
+}
+
+interface PopoverMessageProps {
+    description: string | React.ReactNode;
+    alert?: React.ReactNode;
+}
+
+function PopoverMessage({ description, alert }: PopoverMessageProps) {
+    return (
+        <>
+            <p>{description}</p>
+            {alert}
+            <HrHeader />
+            <span>
+                <Icon icon="link" />
+                Read more in our{" "}
+                <a href="#" target="_blank" className="text-primary fw-bold">
+                    documentation
+                </a>
+            </span>
+        </>
+    );
+}
+
+function NodeDetailsPanelView({ index, control }: { index: number; control: Control<SetupWizardFormData> }) {
+    const nodeData = useWatch({
+        control,
+        name: `nodeAddressStep.nodes.${index}`,
+    });
+
+    return (
+        <RichPanelDetails>
+            <RichPanelDetailItem>
+                <div className="d-flex flex-column gap-1">
+                    <span className="d-flex gap-1">
+                        <b>Node URL</b>
+                        <PopoverWithHoverWrapper
+                            message={
+                                <PopoverMessage description="Defines the address under which specific node will be available." />
+                            }
+                        >
+                            <Icon icon="info" color="info" margin="m-0" />
+                        </PopoverWithHoverWrapper>
+                    </span>
+                    <div>{nodeData.nodeTag}</div>
+                </div>
+            </RichPanelDetailItem>
+            <RichPanelDetailItem>
+                <div className="d-flex flex-column gap-1">
+                    <span className="d-flex gap-1">
+                        <b>HTTPS port</b>
+                        <PopoverWithHoverWrapper
+                            message={
+                                <PopoverMessage
+                                    description="Defines the private communication endpoint for clients and browsers. By default,
+                                        this value is set to 443."
+                                />
+                            }
+                        >
+                            <Icon icon="info" color="info" margin="m-0" />
+                        </PopoverWithHoverWrapper>
+                    </span>
+                    <div>{nodeData.httpPort}</div>
+                </div>
+            </RichPanelDetailItem>
+            <RichPanelDetailItem>
+                <div className="d-flex flex-column gap-1">
+                    <span className="d-flex gap-1">
+                        <b>TCP port</b>
+                        <PopoverWithHoverWrapper
+                            message={
+                                <PopoverMessage
+                                    description="Defines the privately accessible TCP endpoint for cluster nodes to communicate
+                                        with each other. By default, this value is set to 38888."
+                                />
+                            }
+                        >
+                            <Icon icon="info" color="info" margin="m-0" />
+                        </PopoverWithHoverWrapper>
+                    </span>
+                    <div>{nodeData.tcpPort}</div>
+                </div>
+            </RichPanelDetailItem>
+            <RichPanelDetailItem>
+                <div className="d-flex flex-column gap-1">
+                    <span className="d-flex gap-1">
+                        <b>IP address/Hostname</b>
+                        <PopoverWithHoverWrapper
+                            message={
+                                <PopoverMessage description="Defines the private network endpoint where the server is accessible." />
+                            }
+                        >
+                            <Icon size="xs" icon="info" color="info" margin="m-0" />
+                        </PopoverWithHoverWrapper>
+                    </span>
+                    <div>{nodeData.ipAddress.map((x) => x.ipAddress).join(", ")}</div>
+                </div>
+            </RichPanelDetailItem>
+        </RichPanelDetails>
+    );
+}
+
+function NodeDetailsPanelEdit({ control }: { control: Control<NodeEditFormData> }) {
+    const nodeData = useWatch({
+        control,
+    });
+
+    return (
+        <RichPanelDetails>
+            <Form className="w-100">
+                <div className="hstack">
+                    <RichPanelDetailItem className="flex-grow">
+                        <FormGroup className="w-100">
+                            <FormLabel className="fw-bold">
+                                <span className="d-flex gap-1">
+                                    Node tag
+                                    <PopoverWithHoverWrapper
+                                        message={
+                                            <PopoverMessage
+                                                description="Defines a unique identifier for each node in the cluster."
+                                                alert={
+                                                    <RichAlert variant="info" icon="info">
+                                                        Node tag can contain maximum of 4 uppercase letters (A-Z).
+                                                    </RichAlert>
+                                                }
+                                            />
+                                        }
+                                    >
+                                        <Icon icon="info" margin="m-0" color="info" />
+                                    </PopoverWithHoverWrapper>
+                                </span>
+                            </FormLabel>
+                            <FormInput type="text" name="nodeTag" control={control} />
+                        </FormGroup>
+                    </RichPanelDetailItem>
+                    <RichPanelDetailItem className="flex-grow">
+                        <FormGroup className="w-100">
+                            <FormLabel className="fw-bold">
+                                <span className="d-flex gap-1">
+                                    HTTPS port
+                                    <PopoverWithHoverWrapper
+                                        message={
+                                            <PopoverMessage
+                                                description="Defines the private communication endpoint for clients and browsers.
+                                                    By default, this value is set to 443."
+                                            />
+                                        }
+                                    >
+                                        <Icon icon="info" margin="m-0" color="info" />
+                                    </PopoverWithHoverWrapper>
+                                </span>
+                            </FormLabel>
+                            <FormInput type="number" name="httpPort" placeholder="Default: 444" control={control} />
+                        </FormGroup>
+                    </RichPanelDetailItem>
+                    <RichPanelDetailItem className="flex-grow">
+                        <FormGroup className="w-100">
+                            <FormLabel className="fw-bold">
+                                <span className="d-flex gap-1">
+                                    TCP Port
+                                    <PopoverWithHoverWrapper
+                                        message={
+                                            <PopoverMessage
+                                                description="Defines the privately accessible TCP endpoint for cluster nodes to
+                                                    communicate with each other. By default, this value is set to 38888."
+                                            />
+                                        }
+                                    >
+                                        <Icon icon="info" margin="m-0" color="info" />
+                                    </PopoverWithHoverWrapper>
+                                </span>
+                            </FormLabel>
+                            <FormInput type="number" name="tcpPort" placeholder="Default: 38888" control={control} />
+                        </FormGroup>
+                    </RichPanelDetailItem>
+                </div>
+                <RichPanelDetailItem>
+                    <IpAddressList control={control} />
+                </RichPanelDetailItem>
+                {nodeData.ipAddress.length > 0 && (
+                    <RichAlert variant="info" icon="info" className="my-3">
+                        RavenDB will update the DNS record for <a>a.maxyms.development.run</a> to IP{" "}
+                        {nodeData.ipAddress.length > 1 ? "addresses " : "address "}:
+                        {nodeData.ipAddress.length > 0 ? (
+                            <a>{nodeData.ipAddress.map((x) => x.ipAddress).join(", ")}</a>
+                        ) : (
+                            <a>&lt;insert IP addresses&gt;</a>
+                        )}
+                    </RichAlert>
+                )}
+                <FormSwitch name="hasExternalConfig" color="primary" control={control}>
+                    <span className="d-flex gap-1">
+                        Customize external IP and ports
+                        <PopoverWithHoverWrapper
+                            message={
+                                <PopoverMessage
+                                    description="External overrides allow you to specify an alternative IP address, hostname, or
+                                        HTTPS port that clients should use instead of the default settings."
+                                />
+                            }
+                        >
+                            <Icon icon="info" margin="m-0" color="info" />
+                        </PopoverWithHoverWrapper>
+                    </span>
+                </FormSwitch>
+                <Collapse in={nodeData.hasExternalConfig}>
+                    <div className="hstack gap-1">
+                        <EditFormExternalAddressInputs control={control} />
+                    </div>
+                </Collapse>
+            </Form>
+        </RichPanelDetails>
+    );
+}
+
+function EditFormExternalAddressInputs({ control }: { control: Control<NodeEditFormData> }) {
+    return (
+        <>
+            <RichPanelDetailItem className="flex-grow">
+                <FormGroup className="vstack w-100">
+                    <FormLabel className="fw-bold">
+                        <span className="d-flex gap-1">
+                            External IP address
+                            <PopoverWithHoverWrapper
+                                message={
+                                    <PopoverMessage
+                                        description="Defines the public network endpoint from which the requests will be
+                                            forwarded to the private IP address (which RavenDB listens on)."
+                                    />
+                                }
+                            >
+                                <Icon icon="info" margin="ms-1" color="info" />
+                            </PopoverWithHoverWrapper>
+                        </span>
+                    </FormLabel>
+                    <FormInput
+                        type="text"
+                        name="externalIpAddress"
+                        placeholder="Enter Server IP A address/hostname"
+                        control={control}
+                    />
+                </FormGroup>
+            </RichPanelDetailItem>
+            <RichPanelDetailItem className="flex-grow">
+                <FormGroup className="vstack w-100">
+                    <FormLabel className="fw-bold">
+                        <span className="d-flex gap-1">
+                            External HTTPS port <OptionalLabel />
+                            <PopoverWithHoverWrapper
+                                message={
+                                    <PopoverMessage
+                                        description="Defines the public HTTPS endpoint that clients and browsers should use
+                                            instead of default binding."
+                                    />
+                                }
+                            >
+                                <Icon icon="info" margin="ms-1" color="info" />
+                            </PopoverWithHoverWrapper>
+                        </span>
+                    </FormLabel>
+                    <FormInput
+                        type="number"
+                        name="externalHttpPort"
+                        placeholder="Enter external HTTPS port"
+                        control={control}
+                    />
+                </FormGroup>
+            </RichPanelDetailItem>
+            <RichPanelDetailItem className="flex-grow">
+                <FormGroup className="vstack w-100">
+                    <FormLabel className="fw-bold">
+                        <span className="d-flex gap-1">
+                            External TCP Port <OptionalLabel />
+                            <PopoverWithHoverWrapper
+                                message={
+                                    <PopoverMessage
+                                        description="Defines the publicly accessible TCP endpoint for inter-node communication
+                                            and client connections."
+                                    />
+                                }
+                            >
+                                <Icon icon="info" margin="ms-1" color="info" />
+                            </PopoverWithHoverWrapper>
+                        </span>
+                    </FormLabel>
+                    <FormInput
+                        type="number"
+                        name="externalTcpPort"
+                        placeholder="Enter external TCP port"
+                        control={control}
+                    />
+                </FormGroup>
+            </RichPanelDetailItem>{" "}
+        </>
+    );
+}
+
+interface AddAnotherNodeProps {
+    onAddNode: () => void;
+}
+
+function AddAnotherNode({ onAddNode }: AddAnotherNodeProps) {
+    const { getValues } = useFormContext<SetupWizardFormData>();
+
+    const licenseKeyStep = getValues("licenseKeyStep");
+    const nodeData = getValues("nodeAddressStep.nodes");
+
+    const isMaxClusterNodes = licenseKeyStep?.licenseInfo?.maxClusterSize === nodeData?.length;
+
+    return (
+        <div
+            className={classNames(
+                "w-100 d-flex rounded justify-content-center align-items-center border-dashed border-2",
+                isMaxClusterNodes ? "border-secondary" : "border-node"
+            )}
+            style={{ height: "100px" }}
+        >
+            <Button
+                disabled={isMaxClusterNodes}
+                variant={isMaxClusterNodes ? "outline-secondary" : "outline-node"}
+                className="rounded-pill"
+                onClick={onAddNode}
+            >
+                <Icon icon="node-add" />
+                Add another node
+            </Button>
+        </div>
+    );
+}
+
+function IpAddressList({ control }: { control: Control<NodeEditFormData> }) {
+    const { append, remove, fields } = useFieldArray<NodeEditFormData>({
+        control,
+        name: "ipAddress",
+    });
+
+    const addIpAddress = () => {
+        append({ ipAddress: "" });
+    };
+
+    return (
+        <FormGroup className="vstack w-100 gap-2">
+            <FormLabel className="fw-bold">
+                <div className="hstack justify-content-between">
+                    <span className="d-flex gap-1">
+                        IP address/Hostname
+                        <PopoverWithHoverWrapper
+                            message={
+                                <PopoverMessage description="Defines the private network endpoint where the server is accessible." />
+                            }
+                        >
+                            <Icon icon="info" margin="m-0" color="info" />
+                        </PopoverWithHoverWrapper>
+                    </span>
+                    <Button variant="link" className="text-primary text-right fw-bold" onClick={addIpAddress}>
+                        <Icon icon="plus" margin="me-1" color="primary" />
+                        Add another IP Address
+                    </Button>
+                </div>
+            </FormLabel>
+            {fields.map((field, ipIndex) => (
+                <InputGroup key={field.id}>
+                    <FormInput
+                        type="text"
+                        name={`ipAddress.${ipIndex}.ipAddress`}
+                        placeholder="Enter IP address/hostname"
+                        control={control}
+                    />
+                    {ipIndex > 0 && (
+                        <Button variant="outline-danger" size="sm" onClick={() => remove(ipIndex)}>
+                            <Icon icon="trash" margin="m-0" />
+                        </Button>
+                    )}
+                </InputGroup>
+            ))}
+        </FormGroup>
+    );
 }
 
 export function SetupWizardNodeAddressStepFooter() {
-    const { setValue } = useFormContext<SetupWizardFormData>();
+    const { setValue, getValues } = useFormContext<SetupWizardFormData>();
 
-    const handleContinue = () => {
-        setValue("currentStep", "Additional settings");
+    const nodeData = getValues("nodeAddressStep.nodes");
+
+    const isEditing = nodeData?.some((node) => node.isEditing);
+
+    const confirm = useConfirm();
+    const handleContinue = async () => {
+        const nodeCount = nodeData.length;
+
+        if (nodeCount % 2 === 0) {
+            const isConfirmed = await confirm({
+                title: "Confirm even node count",
+                message: `You've chosen an even number of nodes for your cluster. For optimal replication and database performance, an odd number of nodes is usually recommended.
+                        Are you sure you want to proceed with an even node count?`,
+                icon: "warning",
+                confirmText: "Proceed",
+                actionColor: "warning",
+                size: "lg",
+            });
+
+            if (isConfirmed) {
+                setValue("currentStep", "Additional settings");
+            }
+        } else {
+            setValue("currentStep", "Additional settings");
+        }
     };
 
     return (
         <div className="hstack justify-content-end">
-            <Button variant="primary" className="rounded-pill" onClick={handleContinue}>
+            <Button disabled={isEditing} variant="primary" className="rounded-pill" onClick={handleContinue}>
                 Continue <Icon icon="arrow-right" margin="m-0" />
             </Button>
         </div>
     );
 }
+
+const ipAddressFormSchema = yup.object().shape({
+    ipAddress: yup.string().ipv4("Enter a valid IP address or hostname").required("IP address is required"),
+});
+
+export const nodeEditFormSchema = yup.object({
+    nodeTag: yup
+        .string()
+        .required("Node tag is required")
+        .matches(/^[A-Z]{1,4}$/, "Node tag must be 1 to 4 uppercase letters")
+        .test("unique", "Node tag must be unique", function (value) {
+            const { nodeAddressStep, currentIndex } = this.options.context as {
+                nodeAddressStep: SetupWizardFormData["nodeAddressStep"];
+                currentIndex: number;
+            };
+
+            if (!nodeAddressStep || !nodeAddressStep.nodes) {
+                return true;
+            }
+
+            return (
+                nodeAddressStep.nodes.findIndex((node, idx) => node.nodeTag === value && idx !== currentIndex) === -1
+            );
+        }),
+    httpPort: yup
+        .number()
+        .default(8080)
+        .typeError("HTTPS port must be a number")
+        .min(1, "Port must be greater than 0")
+        .max(65535, "Port must be less than 65536")
+        .required("HTTPS port is required"),
+    tcpPort: yup
+        .number()
+        .default(38888)
+        .transform((value) => (isNaN(value) ? undefined : value))
+        .nullable()
+        .min(1, "Port must be greater than 0")
+        .max(65535, "Port must be less than 65536")
+        .required("TCP port is required"),
+    ipAddress: yup.array().of(ipAddressFormSchema).min(1, "At least one IP address is required"),
+    hasExternalConfig: yup.boolean().default(false),
+    externalIpAddress: yup.string().when("hasExternalConfig", {
+        is: true,
+        then: (schema) =>
+            schema.required("External IP address is required").ipv4("Enter a valid IP address or hostname"),
+        otherwise: (schema) => schema.nullable(),
+    }),
+    externalHttpPort: yup
+        .number()
+        .nullable()
+        .when("hasExternalConfig", {
+            is: true,
+            then: (schema) => schema.min(1, "Port must be greater than 0").max(65535, "Port must be less than 65536"),
+        }),
+    externalTcpPort: yup
+        .number()
+        .nullable()
+        .when("hasExternalConfig", {
+            is: true,
+            then: (schema) => schema.min(1, "Port must be greater than 0").max(65535, "Port must be less than 65536"),
+        }),
+});
+
+export type NodeEditFormData = yup.InferType<typeof nodeEditFormSchema>;
