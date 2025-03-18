@@ -2,7 +2,7 @@ import { useFormContext, useWatch } from "react-hook-form";
 import { SetupWizardFormData } from "../setupWizardValidation";
 import { Icon } from "components/common/Icon";
 import SetupWizardClickableCard from "../partials/SetupWizardClickableCard";
-import { Button } from "react-bootstrap";
+import Button from "react-bootstrap/Button";
 import { FormCheckbox } from "components/common/Form";
 import assertUnreachable from "components/utils/assertUnreachable";
 

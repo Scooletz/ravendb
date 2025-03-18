@@ -1,7 +1,7 @@
 import { useFormContext, useWatch } from "react-hook-form";
 import { SetupWizardFormData } from "../setupWizardValidation";
 import SetupWizardClickableCard from "../partials/SetupWizardClickableCard";
-import { Button } from "react-bootstrap";
+import Button from "react-bootstrap/Button";
 import { Icon } from "components/common/Icon";
 import assertUnreachable from "components/utils/assertUnreachable";
 import { ConditionalPopover } from "components/common/ConditionalPopover";
