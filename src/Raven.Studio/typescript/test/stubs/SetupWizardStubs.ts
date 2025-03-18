@@ -12,6 +12,18 @@ export class SetupWizardStubs {
             },
         ];
     }
+
+    static registrationInfoCommunity(): Raven.Server.Commercial.UserDomainsAndLicenseInfo {
+        return {
+            UserDomainsWithIps: {
+                Emails: ["damian@ravendb.net"],
+                RootDomains: ["ravendb.community"],
+                Domains: {},
+            },
+            MaxClusterSize: 3,
+            LicenseType: "Community",
+        };
+    }
 }
 
 const eula = `

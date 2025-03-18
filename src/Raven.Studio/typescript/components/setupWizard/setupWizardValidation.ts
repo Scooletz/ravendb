@@ -24,6 +24,15 @@ function licenseRequiredField(schema: yup.Schema) {
 
 const licenseKeyStepSchema = yup.object({
     key: yup.string(),
+    licenseInfo: yup.object({
+        licenseType: yup.string<Raven.Server.Commercial.LicenseType>(),
+        userDomainsWithIps: yup.object({
+            email: yup.array().of(yup.string()),
+            rootDomains: yup.array().of(yup.string()),
+            domains: yup.object(),
+        }),
+        maxClusterSize: yup.number(),
+    }),
     licenseTypeToGenerate: yup.string<LicenseTypeToGenerate>().nullable(),
     isAcceptTerms: yup.boolean(),
     isAcceptEmails: yup.boolean(),

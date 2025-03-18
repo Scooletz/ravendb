@@ -25,6 +25,7 @@ export default function SetupWizard() {
             },
             licenseKeyStep: {
                 key: "",
+                licenseInfo: null,
                 licenseTypeToGenerate: null,
                 firstName: "",
                 lastName: "",

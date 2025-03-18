@@ -16,6 +16,11 @@ import useConfirm from "components/common/ConfirmDialog";
 import { HStack } from "components/common/HStack";
 import { setupWizardConstants } from "../partials/SetupWizardConstants";
 import Row from "react-bootstrap/Row";
+import { useServices } from "components/hooks/useServices";
+import ButtonWithSpinner from "components/common/ButtonWithSpinner";
+import { useAsyncDebounce } from "components/hooks/useAsyncDebounce";
+import Badge from "react-bootstrap/Badge";
+import messagePublisher from "common/messagePublisher";
 
 export function SetupWizardLicenseKeyStep() {
     const { control } = useFormContext<SetupWizardFormData>();
@@ -42,16 +47,19 @@ function NoLicenseToGenerate() {
             <p>You can either use your existing key or generate a free license.</p>
             <FormGroup className="mt-4">
                 <FormLabel>Your key</FormLabel>
-                <FormInput
-                    type="textarea"
-                    as="textarea"
-                    control={control}
-                    name="licenseKeyStep.key"
-                    className="rounded-2"
-                    placeholder={keyPlaceholder}
-                    rows={16}
-                    data-testid="license-key-input"
-                />
+                <div className="position-relative">
+                    <FormInput
+                        type="textarea"
+                        as="textarea"
+                        control={control}
+                        name="licenseKeyStep.key"
+                        className="rounded-2"
+                        placeholder={keyPlaceholder}
+                        rows={16}
+                        data-testid="license-key-input"
+                    />
+                    <LicenseKeyBadge />
+                </div>
             </FormGroup>
             <div className="mt-2 rounded-2 p-2 panel-bg-1 border border-secondary">
                 <h4>Need a new free license? Get it here.</h4>
@@ -85,6 +93,38 @@ const keyPlaceholder = `e.g.
     ]
 }
 `;
+
+function LicenseKeyBadge() {
+    const { control } = useFormContext<SetupWizardFormData>();
+
+    const {
+        licenseKeyStep: { licenseInfo },
+    } = useWatch({ control });
+
+    if (licenseInfo == null || licenseInfo.licenseType == null) {
+        return null;
+    }
+
+    const bg = (() => {
+        // TODO add all types colors
+        switch (licenseInfo.licenseType) {
+            case "Community":
+                return "info";
+            case "Developer":
+                return "success";
+            case "Enterprise":
+                return "primary";
+            default:
+                return "secondary";
+        }
+    })();
+
+    return (
+        <Badge bg={bg} pill className="position-absolute bottom-0 end-0 mb-3 me-3" style={{ zIndex: 5 }}>
+            {licenseInfo.licenseType}
+        </Badge>
+    );
+}
 
 function GenerateCommunity() {
     return (
@@ -256,10 +296,36 @@ function LicenseTypeRadio() {
 export function SetupWizardLicenseKeyStepFooter() {
     const confirm = useConfirm();
     const { control, setValue, trigger } = useFormContext<SetupWizardFormData>();
+    const { setupWizardService } = useServices();
 
     const {
         licenseKeyStep: { key, licenseTypeToGenerate },
     } = useWatch({ control });
+
+    const asyncRegistrationInfo = useAsyncDebounce(
+        async () => {
+            setValue("licenseKeyStep.licenseInfo", null);
+
+            if (key == null) {
+                return;
+            }
+
+            // TODO validate yup schema to make sure it's valid license key
+            const info = await setupWizardService.registrationInfo(JSON.parse(key));
+
+            setValue("licenseKeyStep.licenseInfo", {
+                licenseType: info.LicenseType,
+                userDomainsWithIps: {
+                    email: info.UserDomainsWithIps.Emails,
+                    rootDomains: info.UserDomainsWithIps.RootDomains,
+                    domains: info.UserDomainsWithIps.Domains,
+                },
+                maxClusterSize: info.MaxClusterSize,
+            });
+        },
+        [key],
+        300
+    );
 
     const handleAlreadyHaveLicense = () => {
         setValue("licenseKeyStep.licenseTypeToGenerate", null);
@@ -274,6 +340,7 @@ export function SetupWizardLicenseKeyStepFooter() {
 
         if (isValid) {
             // TODO generate license from server
+            messagePublisher.reportSuccess(`${licenseTypeToGenerate} license successfully generated`);
             setValue("licenseKeyStep.key", "some-generated-key");
             setValue("licenseKeyStep.licenseTypeToGenerate", null);
         }
@@ -350,9 +417,14 @@ export function SetupWizardLicenseKeyStepFooter() {
                     Generate license <Icon icon="arrow-right" margin="m-0" />
                 </Button>
             ) : (
-                <Button variant="primary" className="rounded-pill" onClick={handleContinue}>
+                <ButtonWithSpinner
+                    variant="primary"
+                    className="rounded-pill"
+                    onClick={handleContinue}
+                    isSpinning={asyncRegistrationInfo.loading}
+                >
                     Continue <Icon icon="arrow-right" margin="m-0" />
-                </Button>
+                </ButtonWithSpinner>
             )}
         </div>
     );
