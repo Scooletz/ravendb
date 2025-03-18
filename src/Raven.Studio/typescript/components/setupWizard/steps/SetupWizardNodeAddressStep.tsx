@@ -248,8 +248,12 @@ function NodeDetailsPanelView({ index, control }: { index: number; control: Cont
 
     return (
         <RichPanelDetails>
-            <RichPanelDetailItem>
-                <div className="d-flex flex-column gap-1">
+            <RichPanelDetailItem
+                style={{
+                    width: "30%",
+                }}
+            >
+                <div className="d-flex flex-column gap-1 w-100">
                     <span className="d-flex gap-1">
                         <b>Node URL</b>
                         <PopoverWithHoverWrapper
@@ -260,7 +264,8 @@ function NodeDetailsPanelView({ index, control }: { index: number; control: Cont
                             <Icon icon="info" color="info" margin="m-0" />
                         </PopoverWithHoverWrapper>
                     </span>
-                    <div>{nodeData.nodeTag}</div>
+                    {/*// TODO add domain name from domain step to nodeUrl*/}
+                    <div className="text-truncate">{nodeData.nodeUrl ?? nodeData.ipAddress[0].ipAddress}</div>
                 </div>
             </RichPanelDetailItem>
             <RichPanelDetailItem>
@@ -397,6 +402,7 @@ function NodeDetailsPanelEdit({ control }: { control: Control<NodeEditFormData> 
                 </RichPanelDetailItem>
                 {nodeData.ipAddress.length > 0 && (
                     <RichAlert variant="info" icon="info" className="my-3">
+                        {/* TODO - add domain name from domain step */}
                         RavenDB will update the DNS record for <a>a.maxyms.development.run</a> to IP{" "}
                         {nodeData.ipAddress.length > 1 ? "addresses " : "address "}:
                         {nodeData.ipAddress.length > 0 ? (
@@ -523,7 +529,8 @@ function AddAnotherNode({ onAddNode }: AddAnotherNodeProps) {
     const licenseKeyStep = getValues("licenseKeyStep");
     const nodeData = getValues("nodeAddressStep.nodes");
 
-    const isMaxClusterNodes = licenseKeyStep?.licenseInfo?.maxClusterSize === nodeData?.length;
+    const maxClusterSize = licenseKeyStep?.licenseInfo?.maxClusterSize ?? 1; // Default to 1 (agpl license) if license is not available
+    const isMaxClusterNodes = maxClusterSize === nodeData?.length;
 
     return (
         <div
@@ -603,9 +610,95 @@ export function SetupWizardNodeAddressStepFooter() {
     const isEditing = nodeData?.some((node) => node.isEditing);
 
     const confirm = useConfirm();
+
+    const areAllNodesIdentical = (() => {
+        if (!nodeData || nodeData.length <= 1) {
+            return false;
+        }
+
+        const firstNode = nodeData[0];
+
+        const firstNodeIps = firstNode.ipAddress
+            .map((ip) => ip.ipAddress)
+            .sort()
+            .join(",");
+        const firstNodeTcpPort = firstNode.tcpPort;
+        const firstNodeHttpPort = firstNode.httpPort;
+
+        return nodeData.every((node) => {
+            const nodeIps = node.ipAddress
+                .map((ip) => ip.ipAddress)
+                .sort()
+                .join(",");
+
+            return nodeIps === firstNodeIps && node.tcpPort === firstNodeTcpPort && node.httpPort === firstNodeHttpPort;
+        });
+    })();
+
+
+    const hasDuplicateNodeConfigurations = (() => {
+        const configurationMap = new Map();
+
+        for (const node of nodeData) {
+            for (const ip of node.ipAddress) {
+                const configKey = `${ip.ipAddress}-${node.httpPort}-${node.tcpPort}`;
+
+                if (configurationMap.has(configKey)) {
+                    return true;
+                }
+
+                configurationMap.set(configKey, true);
+            }
+        }
+
+        return false;
+    })();
+
     const handleContinue = async () => {
         const nodeCount = nodeData.length;
 
+        if (areAllNodesIdentical) {
+            const firstNode = nodeData[0];
+            const isConfirmed = await confirm({
+                title: "Identical node configurations",
+                message: (
+                    <>
+                        All nodes in the cluster are configured with the same settings:
+                        <ul>
+                            <li>IP address: {firstNode.ipAddress[0]?.ipAddress}</li>
+                            <li>TCP port: {firstNode.tcpPort}</li>
+                            <li>HTTPS port: {firstNode.httpPort}</li>
+                        </ul>
+                        Please confirm that these settings are correct before proceeding to the next step.
+                    </>
+                ),
+                icon: "warning",
+                confirmText: "Proceed",
+                actionColor: "warning",
+                size: "lg",
+            });
+
+            if (!isConfirmed) {
+                return;
+            }
+        } else if (hasDuplicateNodeConfigurations) {
+            const isConfirmed = await confirm({
+                title: "Duplicate node configurations",
+                message:
+                    "You have multiple nodes with identical IP address, TCP port, and HTTPS port configurations. " +
+                    "This may cause conflicts in your cluster. Are you sure you want to proceed?",
+                icon: "warning",
+                confirmText: "Proceed anyway",
+                actionColor: "warning",
+                size: "lg",
+            });
+
+            if (!isConfirmed) {
+                return;
+            }
+        }
+
+        // Then check for even node count
         if (nodeCount % 2 === 0) {
             const isConfirmed = await confirm({
                 title: "Confirm even node count",
