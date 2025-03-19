@@ -6,7 +6,7 @@ import {
 } from "../steps/SetupWizardAdditionalSettingsStep";
 import { SetupWizardDomainStep, SetupWizardDomainStepFooter } from "../steps/SetupWizardDomainStep";
 import { SetupWizardEulaStep, SetupWizardEulaStepFooter } from "../steps/SetupWizardEulaStep";
-import { SetupWizardFinishStep } from "../steps/SetupWizardFinishStep";
+import { SetupWizardFinishStep, SetupWizardFinishStepFooter } from "../steps/SetupWizardFinishStep";
 import { SetupWizardLicenseKeyStep, SetupWizardLicenseKeyStepFooter } from "../steps/SetupWizardLicenseKeyStep";
 import { SetupWizardNodeAddressStep, SetupWizardNodeAddressStepFooter } from "../steps/SetupWizardNodeAddressStep";
 import { SetupWizardSecurityStep, SetupWizardSecurityStepFooter } from "../steps/SetupWizardSecurityStep";
@@ -141,7 +141,7 @@ export function useSetupWizardSteps({
             title: "Finish",
             description: "Proceed to cluster installation",
             component: <SetupWizardFinishStep />,
-            footer: null,
+            footer: <SetupWizardFinishStepFooter />,
             isCurrent: currentStep === "Finish",
             isAvailable: true,
             isVisible: getIsNotInStepIds(["Eula", "Setup method", "License key", "Security", "Use setup package"]),

@@ -2,7 +2,7 @@ import Code from "components/common/Code";
 import { Icon } from "components/common/Icon";
 import { useServices } from "components/hooks/useServices";
 import { useAsync } from "react-async-hook";
-import { Button } from "react-bootstrap";
+import Button from "react-bootstrap/Button";
 import { useFormContext } from "react-hook-form";
 import { SetupWizardFormData } from "../setupWizardValidation";
 import useBoolean from "components/hooks/useBoolean";

@@ -31,7 +31,7 @@ export default function SetupWizard() {
 
     return (
         <FormProvider {...form}>
-            <form onSubmit={handleSubmit(console.log)} className="h-100">
+            <form onSubmit={handleSubmit(console.log)} style={{ height: "100vh" }}>
                 <div className="setup-wizard-container">
                     <div className="setup-wizard-main">
                         <div className="d-flex flex-column h-100 w-75">
@@ -121,56 +121,11 @@ const defaultValues: SetupWizardFormData = {
                     {
                         ipAddress: "127.0.0.1",
                     },
-                    {
-                        ipAddress: "127.0.0.2",
-                    },
-                    {
-                        ipAddress: "127.0.0.3",
-                    },
                 ],
                 hasExternalConfig: false,
                 externalIpAddress: undefined,
                 externalHttpPort: null,
                 externalTcpPort: null,
-            },
-            {
-                nodeTag: "B",
-                nodeUrl: `https://b.maksyms.development.run`,
-                httpPort: 8082,
-                tcpPort: 38889,
-                ipAddress: [
-                    {
-                        ipAddress: "127.0.0.7",
-                    },
-                    {
-                        ipAddress: "127.0.0.8",
-                    },
-                ],
-                hasExternalConfig: true,
-                externalIpAddress: "127.0.1.31",
-                externalHttpPort: 111,
-                externalTcpPort: 222,
-            },
-            {
-                nodeTag: "B",
-                nodeUrl: `https://b.maksyms.development.run`,
-                httpPort: 8083,
-                tcpPort: 38890,
-                ipAddress: [
-                    {
-                        ipAddress: "127.0.0.4",
-                    },
-                    {
-                        ipAddress: "127.0.0.5",
-                    },
-                    {
-                        ipAddress: "127.0.0.6",
-                    },
-                ],
-                hasExternalConfig: true,
-                externalIpAddress: "127.0.1.12",
-                externalHttpPort: 899,
-                externalTcpPort: 919,
             },
         ],
     },

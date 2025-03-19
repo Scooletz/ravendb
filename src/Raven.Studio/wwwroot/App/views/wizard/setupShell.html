@@ -1,5 +1,13 @@
-<div style="height: 100vh;">
-    <div data-bind="react: $root.setupWizardView" class="bs5" style="height: 100%;"></div>
+<div>
+    <div id="page-host-root">
+        <div class="bs5">
+            <div id="page-host">
+                <div data-bind="react: $root.setupWizardView"></div>
+            </div>
+        </div>
+    </div>
+
+    
     <!-- TODO kalczur -->
     <!-- <a class="btn btn-primary select-theme-btn" data-bind="click: $root.constructor.chooseTheme">
         <i class="icon-theme"></i>
