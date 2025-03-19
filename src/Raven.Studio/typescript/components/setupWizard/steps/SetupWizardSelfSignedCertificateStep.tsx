@@ -10,6 +10,7 @@ import { useServices } from "components/hooks/useServices";
 import { useAsyncDebounce } from "components/hooks/useAsyncDebounce";
 import useBoolean from "components/hooks/useBoolean";
 import Form from "react-bootstrap/Form";
+import PopoverWithHoverWrapper from "components/common/PopoverWithHoverWrapper";
 
 export function SetupWizardSelfSignedCertificateStep() {
     const { control, setValue, clearErrors, setError } = useFormContext<SetupWizardFormData>();
@@ -98,7 +99,26 @@ export function SetupWizardSelfSignedCertificateStep() {
             </FormGroup>
             {isFileProtected && (
                 <FormGroup>
-                    <FormLabel></FormLabel>
+                    <FormLabel className="hstack justify-content-between">
+                        Passphrase
+                        <PopoverWithHoverWrapper
+                            message={
+                                <>
+                                    Enter the passphrase used to encrypt your private key. This is required to unlock
+                                    and use your certificate.
+                                    <hr className="my-1" />
+                                    <Icon icon="link" /> Read more in our{" "}
+                                    <a href="#TODO" target="_blank">
+                                        documentation <Icon icon="newtab" />
+                                    </a>
+                                </>
+                            }
+                        >
+                            <div className="text-info">
+                                <Icon icon="info" size="xs" /> What is this?
+                            </div>
+                        </PopoverWithHoverWrapper>
+                    </FormLabel>
                     <FormInput
                         type="password"
                         control={control}
@@ -109,7 +129,26 @@ export function SetupWizardSelfSignedCertificateStep() {
             )}
             {cns.length > 0 && (
                 <FormGroup>
-                    <FormLabel>CN Names</FormLabel>
+                    <FormLabel className="hstack justify-content-between">
+                        CN Names
+                        <PopoverWithHoverWrapper
+                            message={
+                                <>
+                                    The Common Name (CN) is automatically extracted from your certificate. It represents
+                                    the domain or hostname the certificate is issued for.
+                                    <hr className="my-1" />
+                                    <Icon icon="link" /> Read more in our{" "}
+                                    <a href="#TODO" target="_blank">
+                                        documentation <Icon icon="newtab" />
+                                    </a>
+                                </>
+                            }
+                        >
+                            <div className="text-info">
+                                <Icon icon="info" size="xs" /> What is this?
+                            </div>
+                        </PopoverWithHoverWrapper>
+                    </FormLabel>
                     <div className="vstack gap-2">
                         {cns.map((cn) => (
                             <div className="panel-bg-2">
