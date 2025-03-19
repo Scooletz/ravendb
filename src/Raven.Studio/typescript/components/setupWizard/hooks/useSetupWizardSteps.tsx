@@ -112,7 +112,7 @@ export function useSetupWizardSteps({
         },
         {
             title: "Node address",
-            description: "Enter your node address",
+            description: "Configure your cluster settings",
             component: <SetupWizardNodeAddressStep />,
             footer: <SetupWizardNodeAddressStepFooter />,
             isCurrent: currentStep === "Node address",
@@ -121,7 +121,7 @@ export function useSetupWizardSteps({
         },
         {
             title: "Additional settings",
-            description: "Additional settings",
+            description: "Customize your configuration",
             component: <SetupWizardAdditionalSettingsStep />,
             footer: <SetupWizardAdditionalSettingsStepFooter />,
             isCurrent: currentStep === "Additional settings",
@@ -130,7 +130,7 @@ export function useSetupWizardSteps({
         },
         {
             title: "Summary",
-            description: "Summary",
+            description: "Check if everything’s correct",
             component: <SetupWizardSummaryStep />,
             footer: <SetupWizardSummaryStepFooter />,
             isCurrent: currentStep === "Summary",
@@ -139,7 +139,7 @@ export function useSetupWizardSteps({
         },
         {
             title: "Finish",
-            description: "Finish",
+            description: "Proceed to cluster installation",
             component: <SetupWizardFinishStep />,
             footer: null,
             isCurrent: currentStep === "Finish",
