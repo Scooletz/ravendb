@@ -10,7 +10,31 @@ import { Canvas } from "storybook/internal/types";
 export default {
     title: "Setup Wizard",
     decorators: [withStorybookContexts, withBootstrap5, withForceRerender],
+    argTypes: {
+        licenseType: {
+            control: {
+                type: "select",
+            },
+            options: [
+                "Community",
+                "Developer",
+                "Enterprise",
+                "Essential",
+                "Invalid",
+                "None",
+                "Professional",
+                "Reserved",
+            ] satisfies Raven.Server.Commercial.LicenseType[],
+        },
+    },
+    args: {
+        licenseType: "Community",
+    },
 } satisfies Meta;
+
+interface SetupWizardStoryArgs {
+    licenseType: Raven.Server.Commercial.LicenseType;
+}
 
 export const Eula: StoryObj = {
     render: () => {
@@ -68,48 +92,48 @@ export const LicenseKeyEnterprise: StoryObj = {
     },
 };
 
-export const Security: StoryObj = {
+export const Security: StoryObj<SetupWizardStoryArgs> = {
     ...Eula,
-    play: async ({ canvas }) => {
-        await goToSecurityStep(canvas);
+    play: async ({ canvas, args }) => {
+        await goToSecurityStep(canvas, args.licenseType);
     },
 };
 
-export const Domain: StoryObj = {
+export const Domain: StoryObj<SetupWizardStoryArgs> = {
     ...Eula,
-    play: async ({ canvas }) => {
-        await goToSecurityStep(canvas);
+    play: async ({ canvas, args }) => {
+        await goToSecurityStep(canvas, args.licenseType);
         await userEvent.click(canvas.getByRole("heading", { name: /Generate Let’s Encrypt certificate/ }));
         await userEvent.click(canvas.getByRole("button", { name: /Continue/ }));
     },
 };
 
-export const SelfSignedCertificate: StoryObj = {
+export const SelfSignedCertificate: StoryObj<SetupWizardStoryArgs> = {
     ...Eula,
     name: "Self-signed certificate",
-    play: async ({ canvas }) => {
-        await goToSecurityStep(canvas);
+    play: async ({ canvas, args }) => {
+        await goToSecurityStep(canvas, args.licenseType);
         await userEvent.click(canvas.getByRole("heading", { name: /Provide your own certificate/ }));
         await userEvent.click(canvas.getByRole("button", { name: /Continue/ }));
     },
 };
 
-export const NodeAddresses: StoryObj = {
+export const NodeAddresses: StoryObj<SetupWizardStoryArgs> = {
     ...Eula,
     name: "Node addresses",
-    play: async ({ canvas }) => {
-        await goToSecurityStep(canvas);
+    play: async ({ canvas, args }) => {
+        await goToSecurityStep(canvas, args.licenseType);
         await userEvent.click(canvas.getByRole("heading", { name: /Generate Let’s Encrypt certificate/ }));
         await userEvent.click(canvas.getByRole("button", { name: /Continue/ }));
         await userEvent.click(canvas.getByRole("button", { name: /Continue/ }));
     },
 };
 
-export const AdditionalSettings: StoryObj = {
+export const AdditionalSettings: StoryObj<SetupWizardStoryArgs> = {
     ...Eula,
     name: "Additional settings",
-    play: async ({ canvas }) => {
-        await goToSecurityStep(canvas);
+    play: async ({ canvas, args }) => {
+        await goToSecurityStep(canvas, args.licenseType);
         await userEvent.click(canvas.getByRole("heading", { name: /Generate Let’s Encrypt certificate/ }));
         await userEvent.click(canvas.getByRole("button", { name: /Continue/ }));
         await userEvent.click(canvas.getByRole("button", { name: /Continue/ }));
@@ -117,10 +141,10 @@ export const AdditionalSettings: StoryObj = {
     },
 };
 
-export const Summary: StoryObj = {
+export const Summary: StoryObj<SetupWizardStoryArgs> = {
     ...Eula,
-    play: async ({ canvas }) => {
-        await goToSecurityStep(canvas);
+    play: async ({ canvas, args }) => {
+        await goToSecurityStep(canvas, args.licenseType);
         await userEvent.click(canvas.getByRole("heading", { name: /Generate Let’s Encrypt certificate/ }));
         await userEvent.click(canvas.getByRole("button", { name: /Continue/ }));
         await userEvent.click(canvas.getByRole("button", { name: /Continue/ }));
@@ -129,10 +153,10 @@ export const Summary: StoryObj = {
     },
 };
 
-export const Finish: StoryObj = {
+export const Finish: StoryObj<SetupWizardStoryArgs> = {
     ...Eula,
-    play: async ({ canvas }) => {
-        await goToSecurityStep(canvas);
+    play: async ({ canvas, args }) => {
+        await goToSecurityStep(canvas, args.licenseType);
         await userEvent.click(canvas.getByRole("heading", { name: /Generate Let’s Encrypt certificate/ }));
         await userEvent.click(canvas.getByRole("button", { name: /Continue/ }));
         await userEvent.click(canvas.getByRole("button", { name: /Continue/ }));
@@ -167,8 +191,8 @@ async function goToLicenseKeyStep(canvas: Canvas, licenseType: Raven.Server.Comm
     );
 }
 
-async function goToSecurityStep(canvas: Canvas) {
-    await goToLicenseKeyStep(canvas, "Community");
+async function goToSecurityStep(canvas: Canvas, licenseType: Raven.Server.Commercial.LicenseType) {
+    await goToLicenseKeyStep(canvas, licenseType);
 
     const continueButton = canvas.getByRole("button", { name: /Continue/ });
     await waitFor(() => expect(continueButton).not.toBeDisabled());
