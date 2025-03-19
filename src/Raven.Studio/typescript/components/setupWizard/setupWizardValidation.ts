@@ -88,7 +88,16 @@ const nodeAddressStepSchema = yup.object({
     ),
 });
 
-const additionalSettingsStepSchema = yup.object({});
+const additionalSettingsStepSchema = yup.object({
+    serverEnvironment: yup.string().oneOf(setupWizardConstants.allServerEnvironments),
+    adminCertificateExpirationTime: yup.number(),
+    dataDirectory: yup.string().nullable(),
+    setupCertificatePath: yup.string().nullable(),
+    postgresqlIntegration: yup.boolean(),
+    
+    // states
+    isAdvancedSettingsVisible: yup.boolean(),
+});
 
 export type SetupWizardStepId =
     | "Eula"

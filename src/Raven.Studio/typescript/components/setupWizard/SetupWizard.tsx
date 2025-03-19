@@ -66,6 +66,13 @@ export default function SetupWizard() {
                     },
                 ],
             },
+            additionalSettingsStep: {
+                isAdvancedSettingsVisible: false,
+                dataDirectory: "",
+                setupCertificatePath: "",
+                adminCertificateExpirationTime: 60,
+                postgresqlIntegration: false,
+            }
         },
     });
 

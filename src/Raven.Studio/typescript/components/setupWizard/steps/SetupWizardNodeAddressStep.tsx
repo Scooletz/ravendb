@@ -223,7 +223,7 @@ interface PopoverMessageProps {
     alert?: React.ReactNode;
 }
 
-function PopoverMessage({ description, alert }: PopoverMessageProps) {
+export function PopoverMessage({ description, alert }: PopoverMessageProps) {
     return (
         <>
             <p>{description}</p>
@@ -404,7 +404,7 @@ function NodeDetailsPanelEdit({ control }: { control: Control<NodeEditFormData> 
                     <RichAlert variant="info" icon="info" className="my-3">
                         {/* TODO - add domain name from domain step */}
                         RavenDB will update the DNS record for <a>a.maxyms.development.run</a> to IP{" "}
-                        {nodeData.ipAddress.length > 1 ? "addresses " : "address "}:
+                        {nodeData.ipAddress.length > 1 ? "addresses" : "address"}:{" "}
                         {nodeData.ipAddress.length > 0 ? (
                             <a>{nodeData.ipAddress.map((x) => x.ipAddress).join(", ")}</a>
                         ) : (
@@ -634,7 +634,6 @@ export function SetupWizardNodeAddressStepFooter() {
             return nodeIps === firstNodeIps && node.tcpPort === firstNodeTcpPort && node.httpPort === firstNodeHttpPort;
         });
     })();
-
 
     const hasDuplicateNodeConfigurations = (() => {
         const configurationMap = new Map();

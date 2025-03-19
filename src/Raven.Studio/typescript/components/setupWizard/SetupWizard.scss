@@ -27,3 +27,43 @@
         padding: sizes.$gutter;
     }
 }
+
+.setup-wizard-additional-settings {
+
+
+  .postgresql-integration {
+    display: flex;
+    gap: sizes.$gutter-sm;
+    align-items: center;
+    margin-bottom: sizes.$gutter;
+    padding: sizes.$gutter-sm;
+    background: #525FFF33;
+    border-radius: sizes.$gutter-xxs;
+    border: 1px solid #525FFF;
+
+
+    &__title {
+      font-weight: 700;
+      font-size: sizes.$font-size-sm;
+      color: #8692FF;
+    }
+
+
+    &__description {
+      font-weight: 400;
+      font-size: sizes.$font-size-xs;
+      color: #8692FF;
+    }
+
+
+    &__icon {
+      color: #8692FF;
+    }
+
+
+    &__switch {
+      background: #525FFF33;
+      border: 1px solid #525FFF;
+    }
+  }
+}
