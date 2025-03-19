@@ -141,7 +141,7 @@ export default function SetupWizard() {
                             <div className="mt-4 mb-2">
                                 <img src={ravenLogo} alt="RavenDB Logo" width="120" />
                             </div>
-                            <div className="overflow-y-auto py-4">{steps[currentStepIdx].component}</div>
+                            <div>{steps[currentStepIdx].component}</div>
                         </div>
                     </div>
                     <div className="setup-wizard-footer">
