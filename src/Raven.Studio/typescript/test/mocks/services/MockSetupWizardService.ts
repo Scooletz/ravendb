@@ -59,4 +59,8 @@ export default class MockSetupWizardService extends AutoMockService<SetupWizardS
             }
         });
     }
+
+    withHostsForCertificate(dto?: MockedValue<string[]>) {
+        return this.mockResolvedValue(this.mock.listHostsForCertificate, dto, SetupWizardStubs.hostsForCertificate());
+    }
 }

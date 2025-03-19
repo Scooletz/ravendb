@@ -61,10 +61,10 @@ export function SetupWizardUsePackageStep() {
         reader.readAsDataURL(file);
     };
 
-    function clearFile() {
+    const clearFile = () => {
         setValue("usePackageStep.fileName", "");
         setValue("usePackageStep.fileZip", "");
-    }
+    };
 
     return (
         <div>

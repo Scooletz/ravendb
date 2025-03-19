@@ -43,6 +43,7 @@ export const Eula: StoryObj = {
         setupWizardService.withEula();
         setupWizardService.withNodesInfoFromPackage();
         setupWizardService.withRegistrationInfo();
+        setupWizardService.withHostsForCertificate();
 
         return (
             <div style={{ height: 1000 }}>

@@ -10,7 +10,7 @@ const setupMethodStepSchema = yup.object({
 });
 
 const usePackageStepSchema = yup.object({
-    fileName: yup.string(),
+    fileName: yup.string(), // TODO is it needed?
     fileZip: yup.string(), // should be required
     nodeTag: yup.string(), // should be required
 });
@@ -52,7 +52,12 @@ const securityStepSchema = yup.object({
     isLetsEncryptAgreementAccepted: yup.boolean(),
 });
 
-const selfSignedCertificateStepSchema = yup.object({});
+const selfSignedCertificateStepSchema = yup.object({
+    certificateFileName: yup.string(), // TODO is it needed?
+    certificate: yup.string(),
+    password: yup.string(),
+    cns: yup.array().of(yup.string()),
+});
 
 const domainStepSchema = yup.object({
     domain: yup.string(),
@@ -66,20 +71,18 @@ const nodeAddressStepSchema = yup.object({
             nodeUrl: yup.string(),
             httpPort: yup.number(),
             tcpPort: yup.number(),
-            ipAddress: yup
-        .array()
-        .of(
-            yup.object().shape({
-                ipAddress: yup
-                    .string()
-                  .ipv4("Enter a valid IP address or hostname")
-                    .required("IP address is required"),
-            })
-        ),
+            ipAddress: yup.array().of(
+                yup.object().shape({
+                    ipAddress: yup
+                        .string()
+                        .ipv4("Enter a valid IP address or hostname")
+                        .required("IP address is required"),
+                })
+            ),
             externalIpAddress: yup.string(),
             externalHttpPort: yup.number(),
             externalTcpPort: yup.number(),
-            
+
             // states
             isNewlyAdded: yup.boolean(),
             isEditing: yup.boolean(),

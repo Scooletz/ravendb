@@ -15,6 +15,12 @@ export function SetupWizardDomainStep() {
     // Jeśli użytkownik ma więcej niż jedną domenę podpiętą pod licencje to zamiast inputu ma creatable select.
     // W przypadku gdy użytkownik wybierze domenę, która jest już w użyciu powinien pojawić się alert o rekordach DNS.
 
+    // TODO checkDomainAvailabilityCommand.ts
+    // repoonse {
+    //     "Available": true,
+    //     "IsOwnedByMe": false
+    // }
+
     const isDomainAlreadyInUse = true; // TODO
 
     return (

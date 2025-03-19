@@ -39,6 +39,12 @@ export default function SetupWizard() {
             securityStep: {
                 securityOption: null,
             },
+            selfSignedCertificateStep: {
+                certificateFileName: "",
+                certificate: "",
+                password: "",
+                cns: [],
+            },
             nodeAddressStep: {
                 nodes: [
                     {

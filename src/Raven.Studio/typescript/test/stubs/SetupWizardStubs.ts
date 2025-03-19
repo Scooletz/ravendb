@@ -24,6 +24,10 @@ export class SetupWizardStubs {
             LicenseType: "Community",
         };
     }
+
+    static hostsForCertificate(): string[] {
+        return [".build.development.run", ".build2.development.run"];
+    }
 }
 
 const eula = `
