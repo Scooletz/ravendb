@@ -85,6 +85,7 @@ function NodeDetailsPanel({ control, index, onRemove }: NodeDetailsPanelProps) {
 
     const editNodeForm = useForm<NodeEditFormData>({
         defaultValues: { ...nodeData },
+        mode: "onChange",
         resolver: yupResolver(nodeEditFormSchema),
         context: { nodeAddressStep, currentIndex: index },
     });
@@ -114,6 +115,11 @@ function NodeDetailsPanelHeader({ control, index, onRemove, editNodeForm }: Node
         control,
         name: `nodeAddressStep.nodes.${index}`,
     });
+    
+    const domainData = useWatch({
+        control,
+        name: "domainStep",
+    });
 
     const { handleSubmit, trigger, reset, formState } = editNodeForm;
 
@@ -132,8 +138,8 @@ function NodeDetailsPanelHeader({ control, index, onRemove, editNodeForm }: Node
     };
 
     const handleSaveEdit = handleSubmit(async (formData: NodeEditFormData) => {
-        await trigger();
         setValue(`nodeAddressStep.nodes.${index}`, {
+            nodeUrl: `${formData.nodeTag.toLowerCase()}.${domainData.domain}`,
             ...formData,
             isEditing: false,
             isNewlyAdded: false,
