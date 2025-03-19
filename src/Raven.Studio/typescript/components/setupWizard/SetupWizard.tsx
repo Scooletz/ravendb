@@ -14,110 +14,7 @@ const ravenLogo = require("Content/img/ravendb_logo.svg");
 export default function SetupWizard() {
     const form = useForm<SetupWizardFormData>({
         resolver: yupResolver(setupWizardSchema),
-        defaultValues: {
-            currentStep: "Eula",
-            setupMethodStep: {
-                method: null,
-            },
-            usePackageStep: {
-                fileZip: "",
-                nodeTag: "",
-            },
-            licenseKeyStep: {
-                key: "",
-                licenseInfo: null,
-                licenseTypeToGenerate: null,
-                firstName: "",
-                lastName: "",
-                email: "",
-                phone: "",
-            },
-            domainStep: {
-                domain: "setupwizard.development.run",
-                email: "todo@todo.com",
-            },
-            securityStep: {
-                securityOption: null,
-            },
-            selfSignedCertificateStep: {
-                certificateFileName: "",
-                certificate: "",
-                password: "",
-                cns: [],
-            },
-            nodeAddressStep: {
-                nodes: [
-                    {
-                        nodeTag: "A",
-                        nodeUrl: `https://a.maksyms.development.run`,
-                        httpPort: 8080,
-                        tcpPort: 38888,
-                        ipAddress: [
-                            {
-                                ipAddress: "127.0.0.1",
-                            },
-                            {
-                                ipAddress: "127.0.0.2",
-                            },
-                            {
-                                ipAddress: "127.0.0.3",
-                            },
-                        ],
-                        hasExternalConfig: false,
-                        externalIpAddress: undefined,
-                        externalHttpPort: null,
-                        externalTcpPort: null,
-                    },
-                    {
-                        nodeTag: "B",
-                        nodeUrl: `https://b.maksyms.development.run`,
-                        httpPort: 8082,
-                        tcpPort: 38889,
-                        ipAddress: [
-                            {
-                                ipAddress: "127.0.0.7",
-                            },
-                            {
-                                ipAddress: "127.0.0.8",
-                            },
-                        ],
-                        hasExternalConfig: true,
-                        externalIpAddress: "127.0.1.31",
-                        externalHttpPort: 111,
-                        externalTcpPort: 222,
-                    },
-                    {
-                        nodeTag: "B",
-                        nodeUrl: `https://b.maksyms.development.run`,
-                        httpPort: 8083,
-                        tcpPort: 38890,
-                        ipAddress: [
-                            {
-                                ipAddress: "127.0.0.4",
-                            },
-                            {
-                                ipAddress: "127.0.0.5",
-                            },
-                            {
-                                ipAddress: "127.0.0.6",
-                            },
-                        ],
-                        hasExternalConfig: true,
-                        externalIpAddress: "127.0.1.12",
-                        externalHttpPort: 899,
-                        externalTcpPort: 919,
-                    },
-                ],
-            },
-            additionalSettingsStep: {
-                isAdvancedSettingsVisible: false,
-                dataDirectory: "",
-                setupCertificatePath: "",
-                adminCertificateExpirationTime: 60,
-                postgresqlIntegration: true,
-                serverEnvironment: "Production",
-            },
-        },
+        defaultValues,
     });
 
     const { handleSubmit } = form;
@@ -181,3 +78,108 @@ export default function SetupWizard() {
         </FormProvider>
     );
 }
+
+const defaultValues: SetupWizardFormData = {
+    currentStep: "Eula",
+    setupMethodStep: {
+        method: null,
+    },
+    usePackageStep: {
+        fileZip: "",
+        nodeTag: "",
+    },
+    licenseKeyStep: {
+        key: "",
+        licenseInfo: null,
+        licenseTypeToGenerate: null,
+        firstName: "",
+        lastName: "",
+        email: "",
+        phone: "",
+    },
+    domainStep: {
+        domain: "setupwizard.development.run",
+        email: "todo@todo.com",
+    },
+    securityStep: {
+        securityOption: null,
+    },
+    selfSignedCertificateStep: {
+        certificateFileName: "",
+        certificate: "",
+        password: "",
+        cns: [],
+    },
+    nodeAddressStep: {
+        nodes: [
+            {
+                nodeTag: "A",
+                nodeUrl: `https://a.maksyms.development.run`,
+                httpPort: 8080,
+                tcpPort: 38888,
+                ipAddress: [
+                    {
+                        ipAddress: "127.0.0.1",
+                    },
+                    {
+                        ipAddress: "127.0.0.2",
+                    },
+                    {
+                        ipAddress: "127.0.0.3",
+                    },
+                ],
+                hasExternalConfig: false,
+                externalIpAddress: undefined,
+                externalHttpPort: null,
+                externalTcpPort: null,
+            },
+            {
+                nodeTag: "B",
+                nodeUrl: `https://b.maksyms.development.run`,
+                httpPort: 8082,
+                tcpPort: 38889,
+                ipAddress: [
+                    {
+                        ipAddress: "127.0.0.7",
+                    },
+                    {
+                        ipAddress: "127.0.0.8",
+                    },
+                ],
+                hasExternalConfig: true,
+                externalIpAddress: "127.0.1.31",
+                externalHttpPort: 111,
+                externalTcpPort: 222,
+            },
+            {
+                nodeTag: "B",
+                nodeUrl: `https://b.maksyms.development.run`,
+                httpPort: 8083,
+                tcpPort: 38890,
+                ipAddress: [
+                    {
+                        ipAddress: "127.0.0.4",
+                    },
+                    {
+                        ipAddress: "127.0.0.5",
+                    },
+                    {
+                        ipAddress: "127.0.0.6",
+                    },
+                ],
+                hasExternalConfig: true,
+                externalIpAddress: "127.0.1.12",
+                externalHttpPort: 899,
+                externalTcpPort: 919,
+            },
+        ],
+    },
+    additionalSettingsStep: {
+        isAdvancedSettingsVisible: false,
+        dataDirectory: "",
+        setupCertificatePath: "",
+        adminCertificateExpirationTime: 60,
+        postgresqlIntegration: true,
+        serverEnvironment: "Production",
+    },
+};
