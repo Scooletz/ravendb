@@ -31,7 +31,7 @@ export default function SetupWizard() {
 
     return (
         <FormProvider {...form}>
-            <form onSubmit={handleSubmit(console.log)} style={{ height: "100vh" }}>
+            <form onSubmit={handleSubmit(console.log)} className="h-100">
                 <div className="setup-wizard-container">
                     <div className="setup-wizard-main">
                         <div className="d-flex flex-column h-100 w-75">
