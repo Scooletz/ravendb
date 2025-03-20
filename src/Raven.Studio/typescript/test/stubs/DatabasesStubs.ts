@@ -391,6 +391,21 @@ export class DatabasesStubs {
                     Etag: 0,
                 },
             ],
+            PerSubscriptionInfoExtended: [
+                {
+                    Identifier: "Product/Search",
+                    Type: "Documents",
+                    Collection: "Products",
+                    Etag: 0,
+                    NumberOfTombstoneLeft: 0,
+                    Types: {
+                        Documents: 0,
+                        TimeSeries: 0,
+                        Counters: 0,
+                    },
+                    Process: "Index",
+                },
+            ],
         };
     }
 
