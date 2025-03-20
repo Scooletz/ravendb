@@ -2,7 +2,7 @@ export class SetupWizardStubs {
     static eula() {
         return eula;
     }
-
+    
     static nodesInfoFromPackage(): Raven.Server.Web.System.ConfigurationNodeInfo[] {
         return [
             {
@@ -12,7 +12,7 @@ export class SetupWizardStubs {
             },
         ];
     }
-
+    
     static registrationInfoCommunity(): Raven.Server.Commercial.UserDomainsAndLicenseInfo {
         return {
             UserDomainsWithIps: {
@@ -24,9 +24,46 @@ export class SetupWizardStubs {
             LicenseType: "Community",
         };
     }
-
+    
     static hostsForCertificate(): string[] {
         return [".build.development.run", ".build2.development.run"];
+    }
+    
+    static localNodeIps(): string[] {
+        return ["172.20.208.1", "192.168.2.189", "127.0.0.1"];
+    }
+    
+    static setupParameters(): Raven.Server.Commercial.SetupParameters {
+        return {
+            DockerHostname: "",
+            FixedServerPortNumber: null,
+            IsDocker: false,
+            IsAzure: false,
+            IsAws: false,
+            RunningOnPosix: false,
+            RunningOnMacOsx: false
+        };
+    }
+    
+    static ipsInfo(): Raven.Server.Commercial.UserDomainsWithIps {
+        return {
+            "Emails": [
+                "setup.wizard@ravendb.net",
+            ],
+            "RootDomains": [
+                "development.run",
+            ],
+            "Domains": {
+                "SetupWizard": [
+                    {
+                        "SubDomain": "a.setupwizard",
+                        "Ips": [
+                            "127.0.0.1",
+                        ],
+                    },
+                ],
+            },
+        };
     }
 }
 

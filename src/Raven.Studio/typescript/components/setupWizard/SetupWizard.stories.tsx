@@ -44,7 +44,10 @@ export const Eula: StoryObj = {
         setupWizardService.withNodesInfoFromPackage();
         setupWizardService.withRegistrationInfo();
         setupWizardService.withHostsForCertificate();
-
+        setupWizardService.withGetSetupLocalNodeIps();
+        setupWizardService.withGetSetupParameters();
+        setupWizardService.withGetIpsInfo();
+        
         return (
             <div style={{ height: 1000 }}>
                 <SetupWizard />

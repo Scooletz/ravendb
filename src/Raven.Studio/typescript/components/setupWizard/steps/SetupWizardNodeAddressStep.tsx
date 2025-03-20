@@ -12,11 +12,17 @@ import {
     RichPanelName,
 } from "components/common/RichPanel";
 import Collapse from "react-bootstrap/Collapse";
-import React from "react";
+import React, { useEffect, useMemo } from "react";
 import Form from "react-bootstrap/Form";
-import { FormGroup, FormInput, FormLabel, FormSwitch, OptionalLabel } from "components/common/Form";
+import {
+    FormGroup,
+    FormInput,
+    FormLabel,
+    FormSelectCreatable,
+    FormSwitch,
+    OptionalLabel,
+} from "components/common/Form";
 import RichAlert from "components/common/RichAlert";
-import { setupWizardConstants } from "components/setupWizard/partials/SetupWizardConstants";
 import * as yup from "yup";
 import { yupResolver } from "@hookform/resolvers/yup";
 import useConfirm from "components/common/ConfirmDialog";
@@ -25,6 +31,11 @@ import { ConditionalPopover } from "components/common/ConditionalPopover";
 import PopoverWithHoverWrapper from "components/common/PopoverWithHoverWrapper";
 import { HrHeader } from "components/common/HrHeader";
 import classNames from "classnames";
+import genUtils from "common/generalUtils";
+import { useAsync } from "react-async-hook";
+import { useServices } from "hooks/useServices";
+import { SelectOption } from "components/common/select/Select";
+import { isEmpty } from "common/typeUtils";
 
 export function SetupWizardNodeAddressStep() {
     const { control } = useFormContext<SetupWizardFormData>();
@@ -36,7 +47,8 @@ export function SetupWizardNodeAddressStep() {
 
     const addNewNode = () => {
         const existingTags = fields.map((field) => field.nodeTag);
-        const availableNodeTag = setupWizardConstants.nodeTags.find((tag) => !existingTags.includes(tag)) || "A";
+        const nodeTags = generateAlphabeticTags(2); // validation allows us to contain 4 letters, but generated tags are around +- 500k length, so we limit it to 2. (700 tags)
+        const availableNodeTag = nodeTags.find((tag) => !existingTags.includes(tag)) || "A";
 
         append({
             nodeTag: availableNodeTag,
@@ -50,23 +62,66 @@ export function SetupWizardNodeAddressStep() {
         });
     };
 
+    /*
+  TODO:
+  Add Validation to:
+  - Ip address could be hostname (localhost, hostname, etc.)
+  - Ip address cannot be empty.
+  - ExternalIpAddress should be required when IPs contain hostname or 0.0.0.0
+*/
     return (
-        <section>
-            <header className="mb-4">
+        <div>
+            <div className="mb-4">
                 <h1>Node addresses</h1>
                 <p>
                     Enter your server settings - IP addresses and ports to ensure clear communication and smooth work of
                     your database. If you are building a cluster this is the place to add nodes and configure them.
                 </p>
-            </header>
-            <main className="vstack gap-3">
+            </div>
+            <div className="vstack gap-3">
                 {fields.map((field, index) => (
                     <NodeDetailsPanel key={field.id} control={control} index={index} onRemove={() => remove(index)} />
                 ))}
                 <AddAnotherNode onAddNode={addNewNode} />
-            </main>
-        </section>
+            </div>
+        </div>
     );
+}
+
+function generateAlphabeticTags(maxLength: number = 4): string[] {
+    const tags: string[] = [];
+    let currentTag = "";
+
+    while (currentTag.length <= maxLength) {
+        tags.push(getNextTag(currentTag));
+        currentTag = getNextTag(currentTag);
+    }
+
+    return tags;
+}
+
+function getNextTag(current: string): string {
+    if (!current) {
+        return "A";
+    }
+
+    const chars = current.split("");
+    let i = chars.length - 1;
+
+    while (i >= 0) {
+        if (chars[i] !== "Z") {
+            chars[i] = String.fromCharCode(chars[i].charCodeAt(0) + 1);
+            break;
+        }
+        chars[i] = "A";
+        i--;
+    }
+
+    if (i < 0) {
+        chars.unshift("A");
+    }
+
+    return chars.join("");
 }
 
 interface NodeDetailsPanelProps {
@@ -81,13 +136,17 @@ function NodeDetailsPanel({ control, index, onRemove }: NodeDetailsPanelProps) {
         control,
         name: `nodeAddressStep.nodes.${index}`,
     });
+    const { setupWizardService } = useServices();
+
+    const asyncGetSetupParameters = useAsync(async () => setupWizardService.getSetupParameters(), []);
+
     const nodeAddressStep = getValues().nodeAddressStep;
 
     const editNodeForm = useForm<NodeEditFormData>({
         defaultValues: { ...nodeData },
         mode: "onChange",
         resolver: yupResolver(nodeEditFormSchema),
-        context: { nodeAddressStep, currentIndex: index },
+        context: { nodeAddressStep, currentIndex: index, isDocker: asyncGetSetupParameters.result?.IsDocker },
     });
 
     return (
@@ -96,7 +155,7 @@ function NodeDetailsPanel({ control, index, onRemove }: NodeDetailsPanelProps) {
             {!nodeData.isEditing ? (
                 <NodeDetailsPanelView index={index} control={control} />
             ) : (
-                <NodeDetailsPanelEdit control={editNodeForm.control} />
+                <NodeDetailsPanelEdit parentControl={control} editNodeForm={editNodeForm} />
             )}
         </RichPanel>
     );
@@ -115,13 +174,13 @@ function NodeDetailsPanelHeader({ control, index, onRemove, editNodeForm }: Node
         control,
         name: `nodeAddressStep.nodes.${index}`,
     });
-    
+
     const domainData = useWatch({
         control,
         name: "domainStep",
     });
 
-    const { handleSubmit, trigger, reset, formState } = editNodeForm;
+    const { handleSubmit, reset, formState } = editNodeForm;
 
     const nodeName = `Node ${nodeData.nodeTag}`;
 
@@ -192,11 +251,11 @@ function NodeDetailsPanelHeader({ control, index, onRemove, editNodeForm }: Node
                     <>
                         <ConditionalPopover
                             conditions={{
-                                isActive: !formState.isValid,
+                                isActive: !isEmpty(formState.errors),
                                 message: "Please fix the errors before saving.",
                             }}
                         >
-                            <Button disabled={!formState.isValid} onClick={handleSaveEdit} variant="success">
+                            <Button disabled={!isEmpty(formState.errors)} onClick={handleSaveEdit} variant="success">
                                 <Icon icon="save" />
                                 Save
                             </Button>
@@ -322,17 +381,39 @@ function NodeDetailsPanelView({ index, control }: { index: number; control: Cont
                             <Icon size="xs" icon="info" color="info" margin="m-0" />
                         </PopoverWithHoverWrapper>
                     </span>
-                    <div>{nodeData.ipAddress.map((x) => x.ipAddress).join(", ")}</div>
+                    {nodeData.hasExternalConfig && nodeData.externalIpAddress ? (
+                        <div>{nodeData.externalIpAddress}</div>
+                    ) : (
+                        <div>{nodeData.ipAddress.map((x) => x.ipAddress).join(", ")}</div>
+                    )}
                 </div>
             </RichPanelDetailItem>
         </RichPanelDetails>
     );
 }
 
-function NodeDetailsPanelEdit({ control }: { control: Control<NodeEditFormData> }) {
+const isHostnameOrSpecialIp = (address: string): boolean => {
+    return address === "0.0.0.0" || !genUtils.regexIPv4.test(address);
+};
+
+function NodeDetailsPanelEdit({
+    editNodeForm,
+    parentControl,
+}: {
+    editNodeForm: UseFormReturn<NodeEditFormData>;
+    parentControl: Control<SetupWizardFormData>;
+}) {
+    const { control } = editNodeForm;
     const nodeData = useWatch({
         control,
     });
+
+    const domainData = useWatch({
+        control: parentControl,
+        name: "domainStep",
+    });
+
+    const { isExternalRequired } = useHostnameDetectionSideEffects(editNodeForm);
 
     return (
         <RichPanelDetails>
@@ -408,17 +489,19 @@ function NodeDetailsPanelEdit({ control }: { control: Control<NodeEditFormData> 
                 </RichPanelDetailItem>
                 {nodeData.ipAddress.length > 0 && (
                     <RichAlert variant="info" icon="info" className="my-3">
-                        {/* TODO - add domain name from domain step */}
-                        RavenDB will update the DNS record for <a>a.maxyms.development.run</a> to IP{" "}
-                        {nodeData.ipAddress.length > 1 ? "addresses" : "address"}:{" "}
-                        {nodeData.ipAddress.length > 0 ? (
+                        RavenDB will update the DNS record for{" "}
+                        <a>{`${nodeData.nodeTag.toLowerCase()}.${domainData.domain}`}</a> to IP{" "}
+                        {nodeData.ipAddress.length > 1 && !nodeData.externalIpAddress ? "addresses" : "address"}:{" "}
+                        {nodeData.externalIpAddress ? (
+                            <a>{nodeData.externalIpAddress}</a>
+                        ) : nodeData.ipAddress.length > 0 ? (
                             <a>{nodeData.ipAddress.map((x) => x.ipAddress).join(", ")}</a>
                         ) : (
                             <a>&lt;insert IP addresses&gt;</a>
                         )}
                     </RichAlert>
                 )}
-                <FormSwitch name="hasExternalConfig" color="primary" control={control}>
+                <FormSwitch name="hasExternalConfig" color="primary" disabled={isExternalRequired} control={control}>
                     <span className="d-flex gap-1">
                         Customize external IP and ports
                         <PopoverWithHoverWrapper
@@ -463,6 +546,7 @@ function EditFormExternalAddressInputs({ control }: { control: Control<NodeEditF
                             </PopoverWithHoverWrapper>
                         </span>
                     </FormLabel>
+                    {/*TODO When using a hostname in ip addresses, ensure that it resolves to the correct IP address.*/}
                     <FormInput
                         type="text"
                         name="externalIpAddress"
@@ -541,15 +625,14 @@ function AddAnotherNode({ onAddNode }: AddAnotherNodeProps) {
     return (
         <div
             className={classNames(
-                "w-100 d-flex rounded justify-content-center align-items-center border-dashed border-2",
+                "w-100 d-flex rounded justify-content-center mb-2 align-items-center border-dashed border-2",
                 isMaxClusterNodes ? "border-secondary" : "border-node"
             )}
-            style={{ height: "100px" }}
         >
             <Button
                 disabled={isMaxClusterNodes}
                 variant={isMaxClusterNodes ? "outline-secondary" : "outline-node"}
-                className="rounded-pill"
+                className="rounded-pill my-4"
                 onClick={onAddNode}
             >
                 <Icon icon="node-add" />
@@ -559,7 +642,30 @@ function AddAnotherNode({ onAddNode }: AddAnotherNodeProps) {
     );
 }
 
+function useHostnameDetectionSideEffects(editNodeForm: UseFormReturn<NodeEditFormData>) {
+    const { setValue, control } = editNodeForm;
+    const nodeData = useWatch({ control });
+
+    const hasSpecialIp = useMemo(() => {
+        return nodeData.ipAddress?.some((ip) => isHostnameOrSpecialIp(ip?.ipAddress || "")) || false;
+    }, [nodeData.ipAddress]);
+
+    useEffect(() => {
+        if (hasSpecialIp && !nodeData.hasExternalConfig) {
+            setValue("hasExternalConfig", true, {
+                shouldValidate: true,
+            });
+        }
+    }, [hasSpecialIp, nodeData.hasExternalConfig, setValue]);
+
+    return {
+        hasSpecialIp,
+        isExternalRequired: hasSpecialIp,
+    };
+}
+
 function IpAddressList({ control }: { control: Control<NodeEditFormData> }) {
+    const { setupWizardService } = useServices();
     const { append, remove, fields } = useFieldArray<NodeEditFormData>({
         control,
         name: "ipAddress",
@@ -569,9 +675,16 @@ function IpAddressList({ control }: { control: Control<NodeEditFormData> }) {
         append({ ipAddress: "" });
     };
 
+    const asyncGetSetupLocalNodeIps = useAsync(async () => setupWizardService.getSetupLocalNodeIps(), []);
+
+    const localIpAddresses: SelectOption[] = (asyncGetSetupLocalNodeIps.result || []).map((ip) => ({
+        label: ip,
+        value: ip,
+    }));
+
     return (
-        <FormGroup className="vstack w-100 gap-2">
-            <FormLabel className="fw-bold">
+        <FormGroup className="w-100">
+            <FormLabel className="fw-bold w-100">
                 <div className="hstack justify-content-between">
                     <span className="d-flex gap-1">
                         IP address/Hostname
@@ -589,21 +702,23 @@ function IpAddressList({ control }: { control: Control<NodeEditFormData> }) {
                     </Button>
                 </div>
             </FormLabel>
-            {fields.map((field, ipIndex) => (
-                <InputGroup key={field.id}>
-                    <FormInput
-                        type="text"
-                        name={`ipAddress.${ipIndex}.ipAddress`}
-                        placeholder="Enter IP address/hostname"
-                        control={control}
-                    />
-                    {ipIndex > 0 && (
-                        <Button variant="outline-danger" size="sm" onClick={() => remove(ipIndex)}>
-                            <Icon icon="trash" margin="m-0" />
-                        </Button>
-                    )}
-                </InputGroup>
-            ))}
+            <div className="vstack gap-2">
+                {fields.map((field, ipIndex) => (
+                    <InputGroup key={field.id}>
+                        <FormSelectCreatable
+                            control={control}
+                            isLoading={asyncGetSetupLocalNodeIps.loading}
+                            name={`ipAddress.${ipIndex}.ipAddress`}
+                            options={[{ label: "0.0.0.0", value: "0.0.0.0" }, ...localIpAddresses]}
+                        />
+                        {ipIndex > 0 && (
+                            <Button variant="outline-danger" size="sm" onClick={() => remove(ipIndex)}>
+                                <Icon icon="trash" margin="m-0" />
+                            </Button>
+                        )}
+                    </InputGroup>
+                ))}
+            </div>
         </FormGroup>
     );
 }
@@ -732,8 +847,23 @@ export function SetupWizardNodeAddressStepFooter() {
     );
 }
 
-const ipAddressFormSchema = yup.object().shape({
-    ipAddress: yup.string().ipv4("Enter a valid IP address or hostname").required("IP address is required"),
+export const ipAddressFormSchema = yup.object().shape({
+    ipAddress: yup
+        .string()
+        .test(
+            "not-url",
+            "Expected valid IP Address/Hostname, not URL",
+            (value) => !value?.startsWith("http://") && !value?.startsWith("https://")
+        )
+        .test(
+            "not-localhost-on-docker",
+            "A localhost IP Address is not allowed when running on Docker",
+            function (value) {
+                const { isDocker } = this.options.context || {};
+                return (isDocker && !genUtils.isLocalhostIpAddress(value)) || !isDocker;
+            }
+        )
+        .required("IP address is required"),
 });
 
 export const nodeEditFormSchema = yup.object({
@@ -765,17 +895,43 @@ export const nodeEditFormSchema = yup.object({
     tcpPort: yup
         .number()
         .default(38888)
-        .transform((value) => (isNaN(value) ? undefined : value))
         .nullable()
         .min(1, "Port must be greater than 0")
         .max(65535, "Port must be less than 65536")
         .required("TCP port is required"),
     ipAddress: yup.array().of(ipAddressFormSchema).min(1, "At least one IP address is required"),
     hasExternalConfig: yup.boolean().default(false),
-    externalIpAddress: yup.string().when("hasExternalConfig", {
-        is: true,
+    externalIpAddress: yup.string().when(["hasExternalConfig", "ipAddress"], {
+        is: function (hasExtConfig: boolean, ipAddresses: NodeEditFormData["ipAddress"]) {
+            if (!hasExtConfig) {
+                return false;
+            }
+
+            if (!ipAddresses?.length) {
+                return false;
+            }
+
+            return ipAddresses.some((ip) => {
+                const address = ip?.ipAddress;
+                if (!address) {
+                    return false;
+                }
+                if (address === "0.0.0.0") {
+                    return true;
+                }
+
+                return !genUtils.regexIPv4.test(address);
+            });
+        },
         then: (schema) =>
-            schema.required("External IP address is required").ipv4("Enter a valid IP address or hostname"),
+            schema
+                .required("External IP address is required")
+                .test(
+                    "not-url",
+                    "Expected valid IP Address/Hostname, not URL",
+                    (value) => !value?.startsWith("http://") && !value?.startsWith("https://")
+                )
+                .ipv4("Please enter valid IP address."),
         otherwise: (schema) => schema.nullable(),
     }),
     externalHttpPort: yup

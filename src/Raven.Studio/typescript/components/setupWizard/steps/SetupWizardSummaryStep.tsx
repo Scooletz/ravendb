@@ -33,7 +33,7 @@ export function SetupWizardSummaryStep() {
                             <CardRow label="License ID" value="12345678-1234-1234-1234-123456789101" />
                             <CardRow
                                 label="License type"
-                                value={licenseKeyStep.licenseInfo?.licenseType}
+                                value={licenseKeyStep.licenseInfo?.licenseType ?? "AGPLv3"}
                                 valueClassName={colorizeLicenseType(licenseKeyStep.licenseInfo?.licenseType)}
                             />
                             <CardRow label="License expiration" value="01/29/2027" />

@@ -23,6 +23,7 @@ export function SetupWizardDomainStep() {
 
     const isDomainAlreadyInUse = true; // TODO
 
+  // TODO addon should be added to the domainStep.domain
     return (
         <div>
             <h2>Domain</h2>

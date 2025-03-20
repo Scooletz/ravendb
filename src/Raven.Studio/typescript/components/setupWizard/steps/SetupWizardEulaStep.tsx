@@ -8,7 +8,6 @@ import { SetupWizardFormData } from "../setupWizardValidation";
 import genUtils from "common/generalUtils";
 import { ConditionalPopover } from "components/common/ConditionalPopover";
 import { LazyLoad } from "components/common/LazyLoad";
-import SizeGetter from "components/common/SizeGetter";
 import { useDispatch } from "react-redux";
 import { setupWizardActions, setupWizardSelectors } from "../store/setupWizardSlice";
 import { useAppSelector } from "components/store";
@@ -30,21 +29,14 @@ export function SetupWizardEulaStep() {
     );
 
     return (
-        <div className="vstack flex-grow">
+        <div className="vstack flex-grow h-75">
             <h2>Read the EULA (End-User License Agreement)</h2>
             <p>The following license agreement must be accepted in order to use this software.</p>
-            <div className="flex-grow">
-                <SizeGetter
-                    isHeighRequired
-                    render={({ height }) => (
-                        <div style={{ height }} className="overflow-y-auto" onScroll={handleScroll}>
-                            <LazyLoad active={asyncGetEula.loading}>
-                                <Code language="plaintext" code={asyncGetEula.result ?? "Loading"} />
-                                <div data-testid="eula-bottom" />
-                            </LazyLoad>
-                        </div>
-                    )}
-                />
+            <div className="overflow-y-auto" onScroll={handleScroll}>
+                <LazyLoad active={asyncGetEula.loading}>
+                    <Code language="plaintext" code={asyncGetEula.result ?? "Loading"} />
+                    <div data-testid="eula-bottom" />
+                </LazyLoad>
             </div>
         </div>
     );

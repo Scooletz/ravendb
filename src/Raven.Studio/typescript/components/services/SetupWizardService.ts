@@ -4,6 +4,9 @@ import extractNodesInfoFromPackageCommand from "commands/wizard/extractNodesInfo
 import finishSetupCommand from "commands/wizard/finishSetupCommand";
 import listHostsForCertificateCommand from "commands/wizard/listHostsForCertificateCommand";
 import registrationInfoCommand from "commands/wizard/registrationInfoCommand";
+import getSetupLocalNodeIpsCommand from "commands/wizard/getSetupLocalNodeIpsCommand";
+import getSetupParametersCommand from "commands/wizard/getSetupParametersCommand";
+import getIpsInfoCommand from "commands/wizard/getIpsInfoCommand";
 
 export default class SetupWizardService {
     async getEula() {
@@ -20,6 +23,18 @@ export default class SetupWizardService {
 
     async listHostsForCertificate(...args: ConstructorParameters<typeof listHostsForCertificateCommand>) {
         return new listHostsForCertificateCommand(...args).execute();
+    }
+    
+    async getSetupLocalNodeIps(...args: ConstructorParameters<typeof getSetupLocalNodeIpsCommand>) {
+        return new getSetupLocalNodeIpsCommand(...args).execute();
+    }
+    
+    async getSetupParameters(...args: ConstructorParameters<typeof getSetupParametersCommand>) {
+        return new getSetupParametersCommand(...args).execute();
+    }
+    
+    async getIpsInfo(...args: ConstructorParameters<typeof getIpsInfoCommand>) {
+        return new getIpsInfoCommand(...args).execute();
     }
 
     async continueUnsecureClusterConfiguration(

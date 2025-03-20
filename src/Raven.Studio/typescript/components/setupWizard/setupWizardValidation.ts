@@ -1,5 +1,6 @@
 import * as yup from "yup";
 import { setupWizardConstants } from "./partials/SetupWizardConstants";
+import { ipAddressFormSchema } from "components/setupWizard/steps/SetupWizardNodeAddressStep";
 
 export type SetupWizardSetupMethod = "newCluster" | "createPackage" | "usePackage";
 export type SetupWizardSecurityOption = "letsEncrypt" | "ownCertificate" | "none";
@@ -71,14 +72,7 @@ const nodeAddressStepSchema = yup.object({
             nodeUrl: yup.string(),
             httpPort: yup.number(),
             tcpPort: yup.number(),
-            ipAddress: yup.array().of(
-                yup.object().shape({
-                    ipAddress: yup
-                        .string()
-                        .ipv4("Enter a valid IP address or hostname")
-                        .required("IP address is required"),
-                })
-            ),
+            ipAddress: yup.array().of(ipAddressFormSchema),
             externalIpAddress: yup.string(),
             externalHttpPort: yup.number(),
             externalTcpPort: yup.number(),

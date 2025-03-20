@@ -63,4 +63,16 @@ export default class MockSetupWizardService extends AutoMockService<SetupWizardS
     withHostsForCertificate(dto?: MockedValue<string[]>) {
         return this.mockResolvedValue(this.mock.listHostsForCertificate, dto, SetupWizardStubs.hostsForCertificate());
     }
+    
+    withGetSetupLocalNodeIps(dto?: MockedValue<string[]>) {
+        return this.mockResolvedValue(this.mock.getSetupLocalNodeIps, dto, SetupWizardStubs.localNodeIps());
+    }
+    
+    withGetSetupParameters(dto?: MockedValue<Raven.Server.Commercial.SetupParameters>) {
+        return this.mockResolvedValue(this.mock.getSetupParameters, dto, SetupWizardStubs.setupParameters());
+    }
+    
+    withGetIpsInfo(dto?: MockedValue<Raven.Server.Commercial.UserDomainsWithIps>) {
+        return this.mockResolvedValue(this.mock.getIpsInfo, dto, SetupWizardStubs.ipsInfo());
+    }
 }
