@@ -72,27 +72,11 @@ export const UsePackage: StoryObj = {
     },
 };
 
-export const LicenseKeyCommunity: StoryObj = {
+export const LicenseKey: StoryObj<SetupWizardStoryArgs> = {
     ...Eula,
-    name: "License key (Community)",
-    play: async ({ canvas }) => {
-        await goToLicenseKeyStep(canvas, "Community");
-    },
-};
-
-export const LicenseKeyDeveloper: StoryObj = {
-    ...Eula,
-    name: "License key (Developer)",
-    play: async ({ canvas }) => {
-        await goToLicenseKeyStep(canvas, "Developer");
-    },
-};
-
-export const LicenseKeyEnterprise: StoryObj = {
-    ...Eula,
-    name: "License key (Enterprise)",
-    play: async ({ canvas }) => {
-        await goToLicenseKeyStep(canvas, "Enterprise");
+    name: "License key",
+    play: async ({ canvas, args }) => {
+        await goToLicenseKeyStep(canvas, args.licenseType);
     },
 };
 
