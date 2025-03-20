@@ -1,4 +1,3 @@
-/* eslint-disable local-rules/no-reactstrap-alert */
 import classNames from "classnames";
 import CloseButton from "react-bootstrap/CloseButton";
 import { Icon } from "components/common/Icon";
