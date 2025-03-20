@@ -28,6 +28,27 @@
         background-color: var(--panel-bg-1);
         padding: sizes.$gutter;
     }
+
+    .eula-step {
+        .code-container {
+            overflow-y: auto;
+            border: 1px solid var(--border-color-light);
+            border-radius: sizes.$gutter-xs;
+
+            &::-webkit-scrollbar {
+                background-color: var(--panel-bg-1);
+                border-radius: 0 sizes.$gutter-xs sizes.$gutter-xs 0;
+            }
+
+            &::-webkit-scrollbar-track {
+                border-radius: 0 sizes.$gutter-xs sizes.$gutter-xs 0;
+            }
+
+            .code-classes {
+                background-color: var(--panel-bg-1);
+            }
+        }
+    }
 }
 
 .setup-wizard-additional-settings {

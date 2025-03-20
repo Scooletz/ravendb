@@ -29,12 +29,12 @@ export function SetupWizardEulaStep() {
     );
 
     return (
-        <div className="vstack flex-grow h-75">
+        <div className="vstack flex-grow h-75 eula-step">
             <h2>Read the EULA (End-User License Agreement)</h2>
             <p>The following license agreement must be accepted in order to use this software.</p>
-            <div className="overflow-y-auto" onScroll={handleScroll}>
+            <div className="code-container" onScroll={handleScroll}>
                 <LazyLoad active={asyncGetEula.loading}>
-                    <Code language="plaintext" code={asyncGetEula.result ?? "Loading"} />
+                    <Code language="plaintext" code={asyncGetEula.result ?? ""} />
                     <div data-testid="eula-bottom" />
                 </LazyLoad>
             </div>
