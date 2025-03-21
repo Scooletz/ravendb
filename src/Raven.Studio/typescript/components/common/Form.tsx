@@ -20,7 +20,7 @@ import { RavenFormControlProps } from "react-bootstrap/FormControl";
 import { FormRangeProps } from "react-bootstrap/FormRange";
 import { InputType } from "../../../typings/_studio/react-bootstrap";
 import useUniqueId from "hooks/useUniqueId";
-import { FormGroupProps } from "react-bootstrap/FormGroup";
+import { FormGroupProps as ReactBootstrapFormGroupsProps } from "react-bootstrap/FormGroup";
 import useBoolean from "components/hooks/useBoolean";
 import { FilterOptionOption } from "react-select/dist/declarations/src/filters";
 import { MultiRadioToggle } from "./toggles/MultiRadioToggle";
@@ -251,9 +251,10 @@ export function FormSelectCreatable<
         ComponentProps<typeof SelectCreatable<Option, IsMulti, Group>> & {
             customOptions?: OptionsOrGroups<Option, Group>;
             optionCreator?: (value: string) => any;
+            addon?: ReactNode | string;
         }
 ) {
-    const { name, control, defaultValue, rules, shouldUnregister, ...rest } = props;
+    const { name, control, defaultValue, rules, shouldUnregister, addon, ...rest } = props;
 
     const {
         field: { onChange, value: formValues },
@@ -297,7 +298,7 @@ export function FormSelectCreatable<
 
     return (
         <div className="position-relative flex-grow-1">
-            <div className="d-flex flex-grow-1">
+            <InputGroup className="d-flex flex-grow-1">
                 <SelectCreatable
                     value={selectedOptions}
                     onChange={(options: OnChangeValue<Option, IsMulti>) => {
@@ -309,7 +310,12 @@ export function FormSelectCreatable<
                     disabled={formState.isSubmitting}
                     {...rest}
                 />
-            </div>
+                {addon && (
+                <InputGroup.Text>
+                    {addon}
+                </InputGroup.Text>
+                )}
+            </InputGroup>
             {invalid && <FormValidationMessage>{error.message}</FormValidationMessage>}
         </div>
     );
@@ -761,11 +767,15 @@ export function FormValidationMessage(props: { children: string }) {
     );
 }
 
-export function FormGroup(props: FormGroupProps) {
+interface FormGroupProps extends ReactBootstrapFormGroupsProps {
+    marginClass?: string;
+}
+
+export function FormGroup({ marginClass = "mb-3", ...props }: FormGroupProps) {
     const uniqueId = useUniqueId("form-group-");
 
     return (
-        <Form.Group {...props} className={classNames(props.className, "mb-3")} controlId={uniqueId}>
+        <Form.Group {...props} className={classNames(props.className, marginClass)} controlId={uniqueId}>
             {props.children}
         </Form.Group>
     );

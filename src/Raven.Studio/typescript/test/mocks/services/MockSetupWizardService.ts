@@ -75,4 +75,8 @@ export default class MockSetupWizardService extends AutoMockService<SetupWizardS
     withGetIpsInfo(dto?: MockedValue<Raven.Server.Commercial.UserDomainsWithIps>) {
         return this.mockResolvedValue(this.mock.getIpsInfo, dto, SetupWizardStubs.ipsInfo());
     }
+    
+    withCheckDomainAvailability(dto?: MockedValue<domainAvailabilityResult>) {
+        return this.mockResolvedValue(this.mock.checkDomainAvailability, dto, SetupWizardStubs.checkDomainAvailability());
+    }
 }

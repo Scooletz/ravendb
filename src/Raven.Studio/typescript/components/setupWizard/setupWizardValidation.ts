@@ -62,7 +62,8 @@ const selfSignedCertificateStepSchema = yup.object({
 
 const domainStepSchema = yup.object({
     domain: yup.string(),
-    email: yup.string(), // TODO email validation
+    email: yup.string().email(),
+    rootDomain: yup.string(),
 });
 
 const nodeAddressStepSchema = yup.object({

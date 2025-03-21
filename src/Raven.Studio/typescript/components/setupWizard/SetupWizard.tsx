@@ -17,9 +17,9 @@ export default function SetupWizard() {
         defaultValues,
     });
 
-    const { handleSubmit } = form;
+    const { handleSubmit, control } = form;
 
-    const formValues = useWatch({ control: form.control });
+    const formValues = useWatch({ control });
 
     const steps = useSetupWizardSteps({
         currentStep: formValues.currentStep,
@@ -133,8 +133,8 @@ const defaultValues: SetupWizardFormData = {
         isAdvancedSettingsVisible: false,
         dataDirectory: "",
         setupCertificatePath: "",
-        adminCertificateExpirationTime: 60,
-        postgresqlIntegration: true,
+        adminCertificateExpirationTime: 120,
+        postgresqlIntegration: false,
         serverEnvironment: "Production",
     },
 };

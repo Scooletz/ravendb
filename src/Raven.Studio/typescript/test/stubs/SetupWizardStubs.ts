@@ -18,7 +18,16 @@ export class SetupWizardStubs {
             UserDomainsWithIps: {
                 Emails: ["damian@ravendb.net"],
                 RootDomains: ["ravendb.community"],
-                Domains: {},
+                Domains: {
+                    "SetupWizard": [
+                        {
+                            "SubDomain": "a.setupwizard",
+                            "Ips": [
+                                "127.0.0.1",
+                            ],
+                        },
+                    ],
+                },
             },
             MaxClusterSize: 3,
             LicenseType: "Community",
@@ -65,7 +74,16 @@ export class SetupWizardStubs {
             },
         };
     }
+    
+    static checkDomainAvailability(): domainAvailabilityResult {
+        return {
+            Available: true,
+            IsOwnedByMe: false
+        }
+    }
 }
+
+
 
 const eula = `
 End User License Agreement

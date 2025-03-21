@@ -47,6 +47,7 @@ export const Eula: StoryObj = {
         setupWizardService.withGetSetupLocalNodeIps();
         setupWizardService.withGetSetupParameters();
         setupWizardService.withGetIpsInfo();
+        setupWizardService.withCheckDomainAvailability();
         
         return (
             <div style={{ height: 1000 }}>
