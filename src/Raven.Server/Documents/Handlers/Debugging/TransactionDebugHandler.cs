@@ -84,9 +84,7 @@ namespace Raven.Server.Documents.Handlers.Debugging
                 [nameof(TxInfoResult.IsCloned)] = lowLevelTransaction.IsCloned,
                 [nameof(TxInfoResult.NumberOfModifiedPages)] = lowLevelTransaction.NumberOfModifiedPages,
                 [nameof(TxInfoResult.Committed)] = lowLevelTransaction.Committed,
-                [nameof(TxInfoResult.TotalAllocatedSize)] = new Size(lowLevelTransaction.TotalAllocatedInBytes, SizeUnit.Bytes).ToString(),
                 [nameof(TxInfoResult.DecompressedBufferSize)] = new Size(lowLevelTransaction.DecompressedBufferBytes, SizeUnit.Bytes).ToString(),
-                [nameof(TxInfoResult.TotalEncryptionBufferSize)] = lowLevelTransaction.TotalEncryptionBufferInBytes.ToString(),
             };
         }
     }
@@ -104,8 +102,6 @@ namespace Raven.Server.Documents.Handlers.Debugging
         public bool IsCloned;
         public long NumberOfModifiedPages;
         public bool Committed;
-        public string TotalAllocatedSize;
         public string DecompressedBufferSize;
-        public string TotalEncryptionBufferSize;
     }
 }

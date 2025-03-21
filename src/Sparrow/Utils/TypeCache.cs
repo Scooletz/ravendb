@@ -5,9 +5,16 @@ using Sparrow.Collections;
 
 namespace Sparrow.Utils
 {
-    internal sealed class TypeCache<T>(int size)
+    internal sealed class TypeCache<T>
     {
-        private readonly FastList<Tuple<Type, T>>[] _buckets = new FastList<Tuple<Type, T>>[size];
+        private readonly FastList<Tuple<Type, T>>[] _buckets;
+        private readonly int _size;
+
+        public TypeCache(int size)
+        {
+            _buckets = new FastList<Tuple<Type, T>>[size];
+            _size = size;
+        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool TryGet(Type type, out T result)
@@ -41,7 +48,7 @@ namespace Sparrow.Utils
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
-        public bool TryGetUnlikely(FastList<Tuple<Type, T>>  storage, Type type, out T result)
+        public bool TryGetUnlikely(FastList<Tuple<Type, T>> storage, Type type, out T result)
         {
             Unsafe.SkipInit(out result);
 
@@ -52,7 +59,7 @@ namespace Sparrow.Utils
             for (int i = storage.Count - 1; i > 0; i--)
             {
                 ref var item = ref storage.GetAsRef(i);
-                if (item.Item1 != type) 
+                if (item.Item1 != type)
                     continue;
 
                 result = item.Item2;
@@ -70,7 +77,7 @@ namespace Sparrow.Utils
             // It's "okay" if we lose some new entries under race conditions, so long as
             // readers never retrieve the wrong (Type, T) pair. This is a beneficial trade-off
             // for many real-world read-heavy workloads.
-            FastList<Tuple<Type,T>> newBucket;
+            FastList<Tuple<Type, T>> newBucket;
             var storage = _buckets[bucket];
             if (storage == null)
             {
@@ -92,7 +99,8 @@ namespace Sparrow.Utils
             if (hashCode < 0)
                 hashCode = -hashCode;
 
-            return hashCode % size;
+            return hashCode % _size;
+        }
     }
 
     /// <summary>
@@ -170,5 +178,4 @@ namespace Sparrow.Utils
             _buckets[type.GetHashCode() & _mask] = new Tuple<Type, T>(type, value);
         }
     }
-}
 }

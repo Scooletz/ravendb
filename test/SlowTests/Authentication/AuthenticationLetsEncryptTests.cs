@@ -163,7 +163,7 @@ namespace SlowTests.Authentication
                         Assert.Fail(await response.Content.ReadAsStringAsync());
                 }
 
-                certificateWithPassword = CertificateLoaderUtil.CreateCertificate(rawData, password);
+                certificateWithPassword = CertificateLoaderUtil.CreateCertificateFromAny(rawData, password);
             }
 
             using (var store = GetDocumentStore(new Options { Server = leader, CreateDatabase = true, ClientCertificate = certificateWithPassword }))
