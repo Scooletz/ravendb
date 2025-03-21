@@ -71,7 +71,7 @@ export default function DocumentIdentitiesModal({
     };
 
     return (
-        <Modal contentClassName="modal-border bulge-primary" size="lg" {...props}>
+        <Modal centered contentClassName="modal-border bulge-primary" size="lg" {...props}>
             <form onSubmit={handleSubmit(onSubmit)}>
                 <Modal.Header className="vstack gap-3" onCloseClick={onHide}>
                     <div className="text-center">

@@ -695,6 +695,7 @@ namespace Sparrow.Server
         public const int MaxAllocationBlockSizeInBytes = 256 * MinBlockSizeInBytes;
         public const int DefaultAllocationBlockSizeInBytes = 1 * MinBlockSizeInBytes;
         public const int MinReusableBlockSizeInBytes = 8;
+        public const int MaxSegmentSizeInBytes = 2 * Sparrow.Global.Constants.Size.Megabyte;
 
         static unsafe ByteStringContext()
         {
@@ -773,7 +774,7 @@ namespace Sparrow.Server
         /// </summary>
         private readonly List<SegmentInformation> _wholeSegments;
         private readonly int _initialAllocationBlockSize;
-        public int AllocationBlockSize { get; private set; }
+        internal int AllocationBlockSize { get; private set; }
 
         internal long _totalAllocated, _currentlyAllocated;
 
@@ -1081,7 +1082,7 @@ namespace Sparrow.Server
             {
                 if (_externalCurrentLeft == 0)
                 {
-                    var tmp = Math.Min(2 * Sparrow.Global.Constants.Size.Megabyte, AllocationBlockSize * 2);
+                    var tmp = Math.Min(ByteStringContext.MaxSegmentSizeInBytes, AllocationBlockSize * 2);
                     AllocateExternalSegment(tmp);
                     AllocationBlockSize = tmp;
                 }
@@ -1237,7 +1238,7 @@ namespace Sparrow.Server
             }
             else
             {
-                AllocationBlockSize = Math.Min(2 * Sparrow.Global.Constants.Size.Megabyte, AllocationBlockSize * 2);
+                AllocationBlockSize = Math.Min(ByteStringContext.MaxSegmentSizeInBytes, AllocationBlockSize * 2);
                 var toAllocate = Math.Max(AllocationBlockSize, allocationUnit);
                 _internalCurrent = AllocateSegment(toAllocate);
                 Debug.Assert(_internalCurrent.SizeLeft >= allocationUnit, $"{_internalCurrent.SizeLeft} >= {allocationUnit}");
@@ -1393,7 +1394,11 @@ namespace Sparrow.Server
 
             int reusablePoolIndex = GetPoolIndexForReuse(value._pointer->Size);
 
-            if (value._pointer->Size <= ByteStringContext.MinBlockSizeInBytes)
+            if (value._pointer == _internalCurrent.Current - value._pointer->Size)
+            {
+                _internalCurrent.Current -= value._pointer->Size;
+            }
+            else if (value._pointer->Size <= ByteStringContext.MinBlockSizeInBytes)
             {
                 FastStack<IntPtr> pool = _internalReusableStringPool[reusablePoolIndex];
                 if (pool == null)
