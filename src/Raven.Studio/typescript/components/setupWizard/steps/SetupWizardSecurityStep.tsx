@@ -5,15 +5,20 @@ import SetupWizardClickableCard from "../partials/SetupWizardClickableCard";
 import Button from "react-bootstrap/Button";
 import { FormCheckbox } from "components/common/Form";
 import assertUnreachable from "components/utils/assertUnreachable";
+import Badge from "react-bootstrap/Badge";
 
 export function SetupWizardSecurityStep() {
     const { control, setValue } = useFormContext<SetupWizardFormData>();
 
     const {
         securityStep: { securityOption },
+        licenseKeyStep: { key, licenseInfo },
     } = useWatch({ control });
 
     // TODO Add conditional recommended badge to Secure
+
+    const isSecureDisabled = !key;
+    const isSecureRecommended = !!key && licenseInfo.licenseType !== "Developer";
 
     return (
         <div>
@@ -23,6 +28,11 @@ export function SetupWizardSecurityStep() {
                 <h5 className="mb-1">
                     <Icon icon="lock" color="success" />
                     Secure
+                    {isSecureRecommended && (
+                        <Badge pill bg="success" className="ms-1">
+                            Recommended
+                        </Badge>
+                    )}
                 </h5>
                 <SetupWizardClickableCard
                     icon="lets-encrypt"
@@ -30,6 +40,7 @@ export function SetupWizardSecurityStep() {
                     description="Secure and hassle-free communication with automatic certificate management"
                     isSelected={securityOption === "letsEncrypt"}
                     onClick={() => setValue("securityStep.securityOption", "letsEncrypt")}
+                    isDisabled={isSecureDisabled}
                 />
                 <SetupWizardClickableCard
                     className="mt-2"
@@ -38,6 +49,7 @@ export function SetupWizardSecurityStep() {
                     description="Ideal for secure corporate setups with manual certificate management"
                     isSelected={securityOption === "ownCertificate"}
                     onClick={() => setValue("securityStep.securityOption", "ownCertificate")}
+                    isDisabled={isSecureDisabled}
                 />
             </div>
             <div className="mt-4">

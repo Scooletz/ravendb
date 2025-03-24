@@ -10,6 +10,7 @@ interface SetupWizardClickableCardProps {
     isSelected: boolean;
     onClick: () => void;
     className?: string;
+    isDisabled?: boolean;
 }
 
 export default function SetupWizardClickableCard(props: SetupWizardClickableCardProps) {
@@ -25,6 +26,9 @@ export default function SetupWizardClickableCard(props: SetupWizardClickableCard
                 },
                 {
                     "border-secondary": !props.isSelected,
+                },
+                {
+                    "item-disabled pe-none": props.isDisabled,
                 }
             )}
             onClick={props.onClick}
