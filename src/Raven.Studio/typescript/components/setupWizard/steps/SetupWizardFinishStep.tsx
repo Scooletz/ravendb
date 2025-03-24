@@ -26,7 +26,7 @@ export function SetupWizardFinishStep() {
 
     const [readme, setReadme] = useState<string>();
     const [status, setStatus] = useState<string>();
-    const [messages, setMessages] = useState<{ message: string; color?: TextColor }[]>([]);
+    const [logs, setLogs] = useState<{ message: string; color?: TextColor }[]>([]);
 
     const handleWebSocketOperation = (operation: Raven.Server.NotificationCenter.Notifications.OperationChanged) => {
         if (operation.TaskType === "Setup") {
@@ -44,8 +44,8 @@ export function SetupWizardFinishStep() {
                 case "Faulted": {
                     const failure = operation.State
                         .Result as Raven.Client.Documents.Operations.OperationExceptionResult;
-                    setMessages((prev) => [...prev, { message: failure.Message, color: "danger" }]);
-                    setMessages((prev) => [...prev, { message: failure.Error, color: "danger" }]);
+                    setLogs((prev) => [...prev, { message: failure.Message, color: "danger" }]);
+                    setLogs((prev) => [...prev, { message: failure.Error, color: "danger" }]);
                     setStatus("Faulted");
                 }
             }
@@ -53,7 +53,7 @@ export function SetupWizardFinishStep() {
             if (dto) {
                 switch (operation.TaskType) {
                     case "Setup":
-                        setMessages(dto.Messages.map((x) => ({ message: x })));
+                        setLogs(dto.Messages.map((x) => ({ message: x })));
                         break;
                 }
             }
@@ -126,7 +126,7 @@ export function SetupWizardFinishStep() {
             </FormGroup>
             {isShowLogs && (
                 <pre>
-                    {messages.map((message, idx) => (
+                    {logs.map((message, idx) => (
                         <div key={idx} className={message.color ? `text-${message.color}` : ""}>
                             {message.message}
                         </div>
