@@ -8,6 +8,7 @@ import React, { useEffect, useState } from "react";
 import { useAsyncCallback } from "react-async-hook";
 import { useServices } from "hooks/useServices";
 import RichAlert from "components/common/RichAlert";
+import PopoverWithHoverWrapper from "components/common/PopoverWithHoverWrapper";
 
 export function SetupWizardDomainStep() {
     const { control, setValue, setError, clearErrors } = useFormContext<SetupWizardFormData>();
@@ -16,7 +17,7 @@ export function SetupWizardDomainStep() {
     const { setupWizardService } = useServices();
     const { licenseInfo } = licenseKeyStep;
     const [domainsOptions, setDomainsOptions] = useState<SelectOption[]>(
-        (Object.keys(licenseInfo.userDomainsWithIps.domains) ?? []).map((domain) => ({
+        (Object.keys(licenseInfo?.userDomainsWithIps?.domains ?? [])).map((domain) => ({
             value: domain,
             label: domain,
         }))
@@ -30,16 +31,12 @@ export function SetupWizardDomainStep() {
     useDomainFormSideEffects();
 
     const hasDnsRecords =
-        domainStep.domain && Object.keys(licenseInfo.userDomainsWithIps.domains).includes(domainStep.domain);
+        domainStep.domain && Object.keys(licenseInfo?.userDomainsWithIps?.domains ?? []).includes(domainStep.domain);
 
     const asyncCheckDomainAvailability = useAsyncCallback(async (domain: string) => {
-        const key = JSON.parse(licenseKeyStep.key);
+        const key = JSON.parse(licenseKeyStep.key) ?? "";
 
-        return setupWizardService.checkDomainAvailability(domain, {
-            Keys: key,
-            Name: "RavenDB Stub Community",
-            Id: "Community",
-        });
+        return setupWizardService.checkDomainAvailability(domain, key);
     });
 
     const handleDomainAvailability = async (domain: string) => {
@@ -76,9 +73,24 @@ export function SetupWizardDomainStep() {
             <FormGroup>
                 <FormLabel className="hstack justify-content-between">
                     <div>Domain</div>
-                    <div className="text-info">
-                        <Icon icon="info" /> What is this?
-                    </div>
+                    <PopoverWithHoverWrapper
+                        message={
+                            <>
+                                <p>
+                                    The inserted domain is the domain name of your RavenDB instance. Let’s Encrypt will
+                                    use this domain to create an SSL certificate for secure connections. Make sure the
+                                    domain is accessible for certificate generation.
+                                </p>
+                                <RichAlert icon="info" variant="info">
+                                    Domain name can only contain A-Z, a-z, 0-9, ‘-’ characters.
+                                </RichAlert>
+                            </>
+                        }
+                    >
+                        <div className="text-info">
+                            <Icon icon="info" /> What is this?
+                        </div>
+                    </PopoverWithHoverWrapper>
                 </FormLabel>
                 <FormSelectCreatable
                     isLoading={asyncCheckDomainAvailability.loading}
@@ -87,7 +99,7 @@ export function SetupWizardDomainStep() {
                     name="domainStep.domain"
                     options={domainsOptions}
                     addon={
-                        licenseInfo.userDomainsWithIps.rootDomains[0] ?? "" // TODO check if the length of the root domain can exceed 1, paying attention to the fact that it is a array. then I think yes?
+                        licenseInfo?.userDomainsWithIps?.rootDomains[0] ?? "" // TODO check if the length of the root domain can exceed 1, paying attention to the fact that it is a array. then I think yes?
                     }
                 />
             </FormGroup>
@@ -100,9 +112,11 @@ export function SetupWizardDomainStep() {
             <FormGroup className="mt-3">
                 <FormLabel className="hstack justify-content-between">
                     <div>Email</div>
-                    <div className="text-info">
-                        <Icon icon="info" /> What is this?
-                    </div>
+                    <PopoverWithHoverWrapper message="This email address is assigned to the license you’re currently using.">
+                        <div className="text-info">
+                            <Icon icon="info" /> What is this?
+                        </div>
+                    </PopoverWithHoverWrapper>
                 </FormLabel>
                 <FormInput type="text" control={control} name="domainStep.email" disabled />
             </FormGroup>
@@ -117,18 +131,18 @@ const useDomainFormSideEffects = () => {
     } = useWatch({ control });
 
     useEffect(() => {
-        if (licenseInfo.userDomainsWithIps.email.length === 1) {
+        if (licenseInfo?.userDomainsWithIps?.email.length === 1) {
             setValue("domainStep.email", licenseInfo.userDomainsWithIps.email[0]);
         }
 
-        if (licenseInfo.userDomainsWithIps.rootDomains.length === 1) {
+        if (licenseInfo?.userDomainsWithIps?.rootDomains.length === 1) {
             setValue("domainStep.rootDomain", licenseInfo.userDomainsWithIps.rootDomains[0]);
         }
 
-        if (Object.keys(licenseInfo.userDomainsWithIps.domains).length === 1) {
+        if (Object.keys(licenseInfo?.userDomainsWithIps?.domains ?? []).length === 1) {
             setValue("domainStep.domain", Object.keys(licenseInfo.userDomainsWithIps.domains)[0]);
         }
-    }, []);
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
 };
 
 const createNewOption = (label: string) => ({

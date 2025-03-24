@@ -30,7 +30,10 @@ const licenseKeyStepSchema = yup.object({
         userDomainsWithIps: yup.object({
             email: yup.array().of(yup.string()),
             rootDomains: yup.array().of(yup.string()),
-            domains: yup.object(),
+            domains: yup.object({
+                // TODO add dynamic keys - use yup.lazy() to construct an object schema based on the input value
+                // [yup.string().required()]: yup.array().of(yup.string()),
+            }),
         }),
         maxClusterSize: yup.number(),
     }),

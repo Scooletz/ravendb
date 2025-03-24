@@ -111,23 +111,7 @@ const defaultValues: SetupWizardFormData = {
         cns: [],
     },
     nodeAddressStep: {
-        nodes: [
-            {
-                nodeTag: "A",
-                nodeUrl: `https://a.maksyms.development.run`,
-                httpPort: 8080,
-                tcpPort: 38888,
-                ipAddress: [
-                    {
-                        ipAddress: "127.0.0.1",
-                    },
-                ],
-                hasExternalConfig: false,
-                externalIpAddress: undefined,
-                externalHttpPort: null,
-                externalTcpPort: null,
-            },
-        ],
+        nodes: [],
     },
     additionalSettingsStep: {
         isAdvancedSettingsVisible: false,

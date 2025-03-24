@@ -45,6 +45,10 @@ export function SetupWizardNodeAddressStep() {
         name: "nodeAddressStep.nodes",
     });
 
+    const { domainStep } = useWatch({ control });
+
+    const hasDomainStep = domainStep?.domain && domainStep?.rootDomain;
+    const fullDomain = `a.${domainStep.domain.toLocaleLowerCase()}.${domainStep.rootDomain}`;
     const addNewNode = () => {
         const existingTags = fields.map((field) => field.nodeTag);
         const nodeTags = generateAlphabeticTags(2); // validation allows us to contain 4 letters, but generated tags are around +- 500k length, so we limit it to 2. (700 tags)
@@ -61,13 +65,31 @@ export function SetupWizardNodeAddressStep() {
             isNewlyAdded: true,
         });
     };
+    // add default node
+    useEffect(() => {
+        if (fields.length === 0) {
+            append({
+                nodeTag: "A",
+                ipAddress: [
+                    {
+                        ipAddress: "127.0.0.1",
+                    },
+                ],
+                isEditing: false,
+                isNewlyAdded: false,
+                nodeUrl: hasDomainStep ? fullDomain : "",
+                httpPort: 443,
+                tcpPort: 38888,
+            });
+        }
+    }, []);
 
     /*
-  TODO:
-  Add Validation to:
-  - Ip address could be hostname (localhost, hostname, etc.)
-  - Ip address cannot be empty.
-  - ExternalIpAddress should be required when IPs contain hostname or 0.0.0.0
+TODO:
+Add Validation to:
+- Ip address could be hostname (localhost, hostname, etc.)
+- Ip address cannot be empty.
+- ExternalIpAddress should be required when IPs contain hostname or 0.0.0.0
 */
     return (
         <div>
@@ -198,7 +220,7 @@ function NodeDetailsPanelHeader({ control, index, onRemove, editNodeForm }: Node
 
     const handleSaveEdit = handleSubmit(async (formData: NodeEditFormData) => {
         setValue(`nodeAddressStep.nodes.${index}`, {
-            nodeUrl: `${formData.nodeTag.toLowerCase()}.${domainData.domain}`,
+            nodeUrl: `${formData.nodeTag.toLowerCase()}.${domainData.domain.toLocaleLowerCase()}.${domainData.rootDomain}`,
             ...formData,
             isEditing: false,
             isNewlyAdded: false,
@@ -460,7 +482,7 @@ function NodeDetailsPanelEdit({
                                     </PopoverWithHoverWrapper>
                                 </span>
                             </FormLabel>
-                            <FormInput type="number" name="httpPort" placeholder="Default: 444" control={control} />
+                            <FormInput type="number" name="httpPort" placeholder="Default: 443" control={control} />
                         </FormGroup>
                     </RichPanelDetailItem>
                     <RichPanelDetailItem className="flex-grow">
@@ -682,6 +704,8 @@ function IpAddressList({ control }: { control: Control<NodeEditFormData> }) {
         value: ip,
     }));
 
+    const ipAddressesOptions: SelectOption[] = [{ label: "0.0.0.0", value: "0.0.0.0" }, ...localIpAddresses];
+
     return (
         <FormGroup className="w-100">
             <FormLabel className="fw-bold w-100">
@@ -707,9 +731,10 @@ function IpAddressList({ control }: { control: Control<NodeEditFormData> }) {
                     <InputGroup key={field.id}>
                         <FormSelectCreatable
                             control={control}
+                            placeholder="Enter Server IP A address/hostname"
                             isLoading={asyncGetSetupLocalNodeIps.loading}
                             name={`ipAddress.${ipIndex}.ipAddress`}
-                            options={[{ label: "0.0.0.0", value: "0.0.0.0" }, ...localIpAddresses]}
+                            options={ipAddressesOptions}
                         />
                         {ipIndex > 0 && (
                             <Button variant="outline-danger" size="sm" onClick={() => remove(ipIndex)}>

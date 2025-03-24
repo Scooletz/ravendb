@@ -8,13 +8,14 @@ import { DistributionItem, DistributionLegend, LocationDistribution } from "comp
 import LicenseType = Raven.Server.Commercial.LicenseType;
 import PopoverWithHoverWrapper from "components/common/PopoverWithHoverWrapper";
 import { getLicenseType } from "components/setupWizard/utils/setupWizardUtils";
+import License = Raven.Server.Commercial.License;
 
 export function SetupWizardSummaryStep() {
     const { control } = useFormContext<SetupWizardFormData>();
 
-    const { nodeAddressStep, additionalSettingsStep, securityStep, licenseKeyStep } = useWatch({ control });
+    const { nodeAddressStep, additionalSettingsStep, domainStep, securityStep, licenseKeyStep } = useWatch({ control });
 
-
+    const license: License = licenseKeyStep.key ? JSON.parse(licenseKeyStep.key) : ({} as License);
     return (
         <div>
             <div className="mb-5">
@@ -30,14 +31,14 @@ export function SetupWizardSummaryStep() {
                                 label="Certificate"
                                 value={getCertificateDescription(securityStep.securityOption)}
                             />
-                            <CardRow label="License ID" value="12345678-1234-1234-1234-123456789101" />
+                            <CardRow label="License ID" value={license?.Id} />
                             <CardRow
                                 label="License type"
                                 value={licenseKeyStep.licenseInfo?.licenseType ?? "AGPLv3"}
                                 valueClassName={colorizeLicenseType(licenseKeyStep.licenseInfo?.licenseType)}
                             />
                             <CardRow label="License expiration" value="01/29/2027" />
-                            <CardRow label="Full domain" value="testing.development.run" />
+                            <CardRow label="Full domain" value={`${domainStep.domain}.${domainStep.rootDomain}`} />
                         </div>
                     </Card.Body>
                 </Card>
@@ -207,27 +208,35 @@ function NodeDistributionItem({
                         </div>
                     }
                 >
-                    {formatIpAddresses(ipAddress.map((x) => x.ipAddress))}
+                    <FormatIpAddresses
+                        addresses={ipAddress.map((x) => x.ipAddress)}
+                        externalIpAddress={externalIpAddress}
+                    />
                 </PopoverWithHoverWrapper>
             </div>
         </DistributionItem>
     );
 }
 
-const formatIpAddresses = (addresses: string[], externalIpAddress?: string) => {
+interface FormatIpAddressesProps {
+    addresses: string[];
+    externalIpAddress?: string;
+}
+
+function FormatIpAddresses({ addresses, externalIpAddress }: FormatIpAddressesProps) {
     if (addresses.length <= 1) {
-        return addresses[0] || "";
+        return <>{addresses[0] || ""}</>;
     }
 
     const firstAddress = addresses[0];
     const remainingCount = addresses.length - 1;
 
     if (externalIpAddress) {
-        return `${firstAddress} (+${remainingCount} more) → ${externalIpAddress}`;
+        return <>{`${firstAddress} (+${remainingCount} more) → ${externalIpAddress}`}</>;
     }
 
-    return `${firstAddress} (+${remainingCount} more)`;
-};
+    return <>{`${firstAddress} (+${remainingCount} more)`}</>;
+}
 
 export function SetupWizardSummaryStepFooter() {
     const { setValue } = useFormContext<SetupWizardFormData>();
