@@ -79,4 +79,8 @@ export default class MockSetupWizardService extends AutoMockService<SetupWizardS
     withCheckDomainAvailability(dto?: MockedValue<domainAvailabilityResult>) {
         return this.mockResolvedValue(this.mock.checkDomainAvailability, dto, SetupWizardStubs.checkDomainAvailability());
     }
+    
+    withClaimDomain(dto?: MockedValue<ClaimDomainResult>) {
+        return this.mockResolvedValue(this.mock.claimDomain, dto, SetupWizardStubs.claimDomain())
+    }
 }

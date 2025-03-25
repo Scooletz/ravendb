@@ -9,6 +9,8 @@ import { useAsyncCallback } from "react-async-hook";
 import { useServices } from "hooks/useServices";
 import RichAlert from "components/common/RichAlert";
 import PopoverWithHoverWrapper from "components/common/PopoverWithHoverWrapper";
+import InputGroupText from "react-bootstrap/InputGroupText";
+import ButtonWithSpinner from "components/common/ButtonWithSpinner";
 
 export function SetupWizardDomainStep() {
     const { control, setValue, setError, clearErrors } = useFormContext<SetupWizardFormData>();
@@ -17,16 +19,11 @@ export function SetupWizardDomainStep() {
     const { setupWizardService } = useServices();
     const { licenseInfo } = licenseKeyStep;
     const [domainsOptions, setDomainsOptions] = useState<SelectOption[]>(
-        (Object.keys(licenseInfo?.userDomainsWithIps?.domains ?? [])).map((domain) => ({
+        Object.keys(licenseInfo?.userDomainsWithIps?.domains ?? []).map((domain) => ({
             value: domain,
             label: domain,
         }))
     );
-    // TODO What is this? tooltips
-
-    // TODO
-    // Jeśli użytkownik ma więcej niż jedną domenę podpiętą pod licencje to zamiast inputu ma creatable select.
-    // W przypadku gdy użytkownik wybierze domenę, która jest już w użyciu powinien pojawić się alert o rekordach DNS.
 
     useDomainFormSideEffects();
 
@@ -41,7 +38,7 @@ export function SetupWizardDomainStep() {
 
     const handleDomainAvailability = async (domain: string) => {
         const newOption = createNewOption(domain);
-
+        clearErrors("domainStep.domain");
         try {
             const domainAvailability = await asyncCheckDomainAvailability.execute(domain);
 
@@ -118,7 +115,8 @@ export function SetupWizardDomainStep() {
                         </div>
                     </PopoverWithHoverWrapper>
                 </FormLabel>
-                <FormInput type="text" control={control} name="domainStep.email" disabled />
+                {/* height is set to 38px to match the height of the input field*/}
+                <InputGroupText style={{ height: "38px" }}>{domainStep.email}</InputGroupText>
             </FormGroup>
         </div>
     );
@@ -151,17 +149,35 @@ const createNewOption = (label: string) => ({
 });
 
 export function SetupWizardDomainStepFooter() {
-    const { setValue } = useFormContext<SetupWizardFormData>();
+    const { setValue, control } = useFormContext<SetupWizardFormData>();
+    const { setupWizardService } = useServices();
+    const { domainStep, licenseKeyStep } = useWatch({ control });
 
-    const handleContinue = () => {
+    const asyncClaimDomain = useAsyncCallback(async () => {
+        const domain = domainStep.domain;
+        const key = JSON.parse(licenseKeyStep.key);
+        
+        // @ts-expect-error when validation will be fixed, ts error will disappear TODO: remove.
+        if (!licenseKeyStep.licenseInfo.userDomainsWithIps.domains[domain]) {
+            await setupWizardService.claimDomain(domain, key);
+        }
+        
         setValue("currentStep", "Node address");
+    });
+    
+    
+    const handleContinue = async () => {
+        await asyncClaimDomain.execute()
+        
+        setValue("currentStep", "Node address");
+        
     };
 
     return (
         <div className="hstack justify-content-end">
-            <Button variant="primary" className="rounded-pill" onClick={handleContinue}>
+            <ButtonWithSpinner isSpinning={asyncClaimDomain.loading} variant="primary" className="rounded-pill" onClick={handleContinue}>
                 Continue <Icon icon="arrow-right" margin="m-0" />
-            </Button>
+            </ButtonWithSpinner>
         </div>
     );
 }

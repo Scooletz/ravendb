@@ -153,7 +153,7 @@ function NodeDistributionItem({
                 <PopoverWithHoverWrapper
                     message={
                         <div>
-                            Node A URL: <a href="#">{nodeUrl}</a>
+                            Node {nodeTag} URL: <a href="#">{nodeUrl}</a>
                         </div>
                     }
                 >

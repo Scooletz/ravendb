@@ -81,6 +81,25 @@ export class SetupWizardStubs {
             IsOwnedByMe: false
         }
     }
+    
+    static claimDomain(): ClaimDomainResult {
+        return {
+            "Email": "maksym.smolinski@ravendb.net",
+            "Emails": [
+                "maksym.smolinski@ravendb.net",
+            ],
+            "Domains": {
+                "Maxym": [
+                    "a.maxym",
+                ],
+                "Maxym1": [],
+                "Maxym2": [],
+            },
+            "RootDomains": [
+                "development.run",
+            ],
+        };
+    }
 }
 
 

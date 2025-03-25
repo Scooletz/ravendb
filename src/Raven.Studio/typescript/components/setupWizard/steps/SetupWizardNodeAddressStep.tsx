@@ -75,14 +75,14 @@ export function SetupWizardNodeAddressStep() {
                         ipAddress: "127.0.0.1",
                     },
                 ],
-                isEditing: false,
+                isEditing: true, // first node should be added with default values and in editing mode
                 isNewlyAdded: false,
                 nodeUrl: hasDomainStep ? fullDomain : "",
                 httpPort: 443,
                 tcpPort: 38888,
             });
         }
-    }, []);
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
     /*
 TODO:

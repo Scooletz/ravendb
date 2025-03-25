@@ -8,6 +8,7 @@ import getSetupLocalNodeIpsCommand from "commands/wizard/getSetupLocalNodeIpsCom
 import getSetupParametersCommand from "commands/wizard/getSetupParametersCommand";
 import getIpsInfoCommand from "commands/wizard/getIpsInfoCommand";
 import checkDomainAvailabilityCommand from "commands/wizard/checkDomainAvailabilityCommand";
+import claimDomainCommand from "commands/wizard/claimDomainCommand";
 
 export default class SetupWizardService {
     async getEula() {
@@ -46,6 +47,10 @@ export default class SetupWizardService {
     
     async checkDomainAvailability(...args: ConstructorParameters<typeof checkDomainAvailabilityCommand>) {
         return new checkDomainAvailabilityCommand(...args).execute();
+    }
+    
+    async claimDomain(...args: ConstructorParameters<typeof claimDomainCommand>) {
+        return new claimDomainCommand(...args).execute();
     }
 
     async finishSetup(...args: ConstructorParameters<typeof finishSetupCommand>) {

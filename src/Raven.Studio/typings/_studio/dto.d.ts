@@ -564,6 +564,11 @@ interface domainAvailabilityResult {
     IsOwnedByMe: boolean;
 }
 
+interface ClaimDomainResult extends Omit<Raven.Server.Commercial.UserDomainsWithIps, "Domains"> {
+    Email: string
+    Domains: Record<string, string[]>
+}
+
 interface collectionInfoDto extends Raven.Client.Documents.Queries.QueryResult<Array<documentDto>, any> {
 }
 

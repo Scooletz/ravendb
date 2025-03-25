@@ -48,6 +48,8 @@ export const Eula: StoryObj = {
         setupWizardService.withGetSetupParameters();
         setupWizardService.withGetIpsInfo();
         setupWizardService.withCheckDomainAvailability();
+        setupWizardService.withClaimDomain();
+        
         return (
             <div style={{ height: 1000 }}>
                 <SetupWizard />
@@ -125,6 +127,7 @@ export const AdditionalSettings: StoryObj<SetupWizardStoryArgs> = {
         await userEvent.click(canvas.getByRole("heading", { name: /Generate Let’s Encrypt certificate/ }));
         await userEvent.click(canvas.getByRole("button", { name: /Continue/ }));
         await userEvent.click(canvas.getByRole("button", { name: /Continue/ }));
+        await userEvent.click(canvas.getByRole("button", { name: /Save/ }));
         await userEvent.click(canvas.getByRole("button", { name: /Continue/ }));
     },
 };
@@ -136,6 +139,7 @@ export const Summary: StoryObj<SetupWizardStoryArgs> = {
         await userEvent.click(canvas.getByRole("heading", { name: /Generate Let’s Encrypt certificate/ }));
         await userEvent.click(canvas.getByRole("button", { name: /Continue/ }));
         await userEvent.click(canvas.getByRole("button", { name: /Continue/ }));
+        await userEvent.click(canvas.getByRole("button", { name: /Save/ }));
         await userEvent.click(canvas.getByRole("button", { name: /Continue/ }));
         await userEvent.click(canvas.getByRole("button", { name: /Continue/ }));
     },
@@ -148,6 +152,7 @@ export const Finish: StoryObj<SetupWizardStoryArgs> = {
         await userEvent.click(canvas.getByRole("heading", { name: /Generate Let’s Encrypt certificate/ }));
         await userEvent.click(canvas.getByRole("button", { name: /Continue/ }));
         await userEvent.click(canvas.getByRole("button", { name: /Continue/ }));
+        await userEvent.click(canvas.getByRole("button", { name: /Save/ }));
         await userEvent.click(canvas.getByRole("button", { name: /Continue/ }));
         await userEvent.click(canvas.getByRole("button", { name: /Continue/ }));
         await userEvent.click(canvas.getByRole("button", { name: /Finish/ }));

@@ -157,7 +157,9 @@ function PostgreSqlIntegrationToggle({ control }: { control: Control<SetupWizard
                 <div className="flex-grow-1">
                     <div className="postgresql-integration__title">
                         PostgreSQL integration
+                        <PopoverWithHoverWrapper message={<PopoverMessage description="Enabling this feature allows you to use RavenDB as a PostgreSQL server. You will also need a license that contains PostgreSQL Protocol." />}>
                         <Icon icon="info" margin="ms-1" />
+                        </PopoverWithHoverWrapper>
                     </div>
                     <div className="postgresql-integration__description">
                         RavenDB supports the PostgreSQL protocol, enabling tools like Power BI to access its database.
