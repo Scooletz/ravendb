@@ -132,7 +132,7 @@ class serverSetup {
         return port && port !== "443" ? ":" + port : "";
     }
 
-    toContinueSetupDto(): Raven.Server.Commercial.ContinueSetupInfo {
+    toContinueSetupDto(): Raven.Server.Commercial.ContinueSetupInfo { // it means create from package
         return {
             NodeTag: this.continueSetup().nodeTag(),
             Zip: this.continueSetup().zipFile(),

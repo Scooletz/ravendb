@@ -1,5 +1,5 @@
 import { useFormContext, useWatch } from "react-hook-form";
-import { SetupWizardFormData, SetupWizardSecurityOption } from "../setupWizardValidation";
+import { SetupWizardFormData } from "../setupWizardValidation";
 import { Switch } from "components/common/Checkbox";
 import { FormGroup } from "components/common/Form";
 import useBoolean from "components/hooks/useBoolean";
@@ -21,6 +21,10 @@ export function SetupWizardFinishStep() {
         nodeAddressStep: { nodes },
         securityStep: { securityOption },
         setupMethodStep: { method: setupMethod },
+        additionalSettingsStep: { serverEnvironment },
+        domainStep,
+        licenseKeyStep,
+        selfSignedCertificateStep,
     } = useWatch({ control });
 
     // TODO get rid off jQuery
@@ -100,7 +104,7 @@ export function SetupWizardFinishStep() {
             Addresses: node.ipAddress.map((x) => x.ipAddress),
             Port: getHttpPort(node.httpPort),
             TcpPort: getTcpPort(node.tcpPort),
-            PublicServerUrl: getServerUrl("TODO", node.httpPort),
+            PublicServerUrl: getServerUrl(node.dnsName, node.httpPort),
             PublicTcpServerUrl: null,
             ExternalIpAddress: node.hasExternalConfig ? node.externalIpAddress : null,
             ExternalPort: node.hasExternalConfig ? node.externalHttpPort : null,
@@ -108,37 +112,46 @@ export function SetupWizardFinishStep() {
         };
     };
 
-    const getUnsecuredDto = (): Raven.Server.Commercial.UnsecuredSetupInfo => {
+    const getNodeSetupInfos = (): Record<string, Raven.Server.Commercial.NodeInfo> => {
         const nodesInfo: Record<string, Raven.Server.Commercial.NodeInfo> = {};
         nodes.forEach((node) => {
             nodesInfo[node.nodeTag] = getNodeInfo(node);
         });
 
-        const localNodeTag = nodes[0].nodeTag; // TODO for sure?
+        return nodesInfo;
+    };
 
-        // TODO get from form
+    const getUnsecuredDto = (): Raven.Server.Commercial.UnsecuredSetupInfo => {
+        const localNodeTag = nodes[0].nodeTag; // TODO for sure?
+        const isPassive = nodes[0].isPassive;
+
         return {
             EnableExperimentalFeatures: false, // TODO
-            LocalNodeTag: localNodeTag, // TODO
-            Environment: "None", // TODO
+            LocalNodeTag: isPassive ? null : localNodeTag,
+            Environment: isPassive ? null : serverEnvironment,
             ZipOnly: setupMethod === "createPackage",
-            NodeSetupInfos: nodesInfo,
+            NodeSetupInfos: getNodeSetupInfos(),
         };
     };
 
-    const getLetsEncryptDto = (): TODO => {
-        return {
-            EnableExperimentalFeatures: false,
-            LocalNodeTag: nodes[0].nodeTag,
-            Environment: "None",
-        };
-    };
+    const getSecuredDto = (): Raven.Server.Commercial.SetupInfo => {
+        const localNodeTag = nodes[0].nodeTag; // TODO for sure?
+        const isPassive = nodes[0].isPassive;
 
-    const getOwnCertificateDto = (): TODO => {
         return {
-            EnableExperimentalFeatures: false,
-            LocalNodeTag: nodes[0].nodeTag,
-            Environment: "None",
+            EnableExperimentalFeatures: false, // TODO
+            Environment: serverEnvironment,
+            License: JSON.parse(licenseKeyStep.key),
+            Email: domainStep.email,
+            Domain: domainStep.domain,
+            RootDomain: domainStep.rootDomain,
+            LocalNodeTag: !isPassive ? localNodeTag : null,
+            RegisterClientCert: false, // TODO
+            Certificate: selfSignedCertificateStep.certificate, // what about letsEncrypt?
+            Password: selfSignedCertificateStep.password, // what about letsEncrypt?
+            ClientCertNotAfter: null, // TODO
+            ZipOnly: setupMethod === "createPackage",
+            NodeSetupInfos: getNodeSetupInfos(),
         };
     };
 
@@ -151,9 +164,8 @@ export function SetupWizardFinishStep() {
             case "none":
                 return getUnsecuredDto();
             case "letsEncrypt":
-                return getLetsEncryptDto();
             case "ownCertificate":
-                return getOwnCertificateDto();
+                return getSecuredDto();
             default:
                 assertUnreachable(securityOption);
         }

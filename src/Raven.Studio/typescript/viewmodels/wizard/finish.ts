@@ -99,8 +99,8 @@ class finish extends setupStep {
         this.configurationTask = $.Deferred<void>();
 
         switch (this.model.mode()) {
-            case "Continue": // package?
-                this.continueClusterConfiguration(this.model.toContinueSetupDto());
+            case "Continue": // it means create from package
+                this.continueClusterConfiguration(this.model.toContinueSetupDto()); 
                 break;
             case "Unsecured":
                 this.saveConfigurationAndCreatePackage(endpoints.global.setup.setupUnsecuredPackage, this.model.toUnsecuredDto());
