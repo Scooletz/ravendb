@@ -1,5 +1,5 @@
 import { useFormContext, useWatch } from "react-hook-form";
-import { SetupWizardFormData } from "../setupWizardValidation";
+import { SetupWizardFormData, SetupWizardSecurityOption } from "../setupWizardValidation";
 import { Switch } from "components/common/Checkbox";
 import { FormGroup } from "components/common/Form";
 import useBoolean from "components/hooks/useBoolean";
@@ -10,6 +10,7 @@ import { TextColor } from "components/models/common";
 import endpoints from "endpoints";
 import Button from "react-bootstrap/Button";
 import { Icon } from "components/common/Icon";
+import assertUnreachable from "components/utils/assertUnreachable";
 
 export function SetupWizardFinishStep() {
     const { control } = useFormContext<SetupWizardFormData>();
@@ -18,7 +19,10 @@ export function SetupWizardFinishStep() {
 
     const {
         nodeAddressStep: { nodes },
+        securityStep: { securityOption },
     } = useWatch({ control });
+
+    // TODO get rid off jQuery
 
     const websocket = useMemo(() => new serverNotificationCenterClient(), []);
 
@@ -47,6 +51,7 @@ export function SetupWizardFinishStep() {
                     setLogs((prev) => [...prev, { message: failure.Message, color: "danger" }]);
                     setLogs((prev) => [...prev, { message: failure.Error, color: "danger" }]);
                     setStatus("Faulted");
+                    break;
                 }
             }
 
@@ -60,53 +65,139 @@ export function SetupWizardFinishStep() {
         }
     };
 
+    const getHttpPort = (port: number) => {
+        if (!port && securityOption === "none") {
+            return 8080;
+        }
+        return port;
+    };
+
+    const getTcpPort = (port: number) => {
+        if (!port && securityOption === "none") {
+            return 38888;
+        }
+        return port;
+    };
+
+    const getServerUrl = (dnsName: string, port: number) => {
+        if (!dnsName) {
+            return null;
+        }
+
+        let serverUrl = "https://" + dnsName;
+        if (port && port !== 443) {
+            serverUrl += ":" + port;
+        }
+
+        return serverUrl;
+    };
+
+    const getNodeInfo = (
+        node: SetupWizardFormData["nodeAddressStep"]["nodes"][number]
+    ): Raven.Server.Commercial.NodeInfo => {
+        return {
+            Addresses: node.ipAddress.map((x) => x.ipAddress),
+            Port: getHttpPort(node.httpPort),
+            TcpPort: getTcpPort(node.tcpPort),
+            PublicServerUrl: getServerUrl("TODO", node.httpPort),
+            PublicTcpServerUrl: null,
+            ExternalIpAddress: node.hasExternalConfig ? node.externalIpAddress : null,
+            ExternalPort: node.hasExternalConfig ? node.externalHttpPort : null,
+            ExternalTcpPort: node.hasExternalConfig ? node.externalTcpPort : null,
+        };
+    };
+
     const getUnsecuredDto = (): Raven.Server.Commercial.UnsecuredSetupInfo => {
         const nodesInfo: Record<string, Raven.Server.Commercial.NodeInfo> = {};
         nodes.forEach((node) => {
-            nodesInfo[node.nodeTag] = {
-                Addresses: node.ipAddress.map((x) => x.ipAddress),
-                Port: node.httpPort,
-                TcpPort: node.tcpPort,
-                PublicServerUrl: null,
-                PublicTcpServerUrl: null,
-                ExternalIpAddress: null,
-                ExternalPort: null,
-                ExternalTcpPort: null,
-            };
+            nodesInfo[node.nodeTag] = getNodeInfo(node);
         });
 
         // TODO get from form
         return {
-            EnableExperimentalFeatures: false,
-            LocalNodeTag: nodes[0].nodeTag,
-            Environment: "None",
-            ZipOnly: false,
+            EnableExperimentalFeatures: false, // TODO
+            LocalNodeTag: nodes[0].nodeTag, // TODO
+            Environment: "None", // TODO
+            ZipOnly: false, // TODO
             NodeSetupInfos: nodesInfo,
         };
     };
 
+    const getLetsEncryptDto = (): TODO => {
+        return {
+            EnableExperimentalFeatures: false,
+            LocalNodeTag: nodes[0].nodeTag,
+            Environment: "None",
+        };
+    };
+
+    const getOwnCertificateDto = (): TODO => {
+        return {
+            EnableExperimentalFeatures: false,
+            LocalNodeTag: nodes[0].nodeTag,
+            Environment: "None",
+        };
+    };
+
+    const getRegularDto = () => {
+        if (!securityOption) {
+            return null;
+        }
+
+        switch (securityOption) {
+            case "none":
+                return getUnsecuredDto();
+            case "letsEncrypt":
+                return getLetsEncryptDto();
+            case "ownCertificate":
+                return getOwnCertificateDto();
+            default:
+                assertUnreachable(securityOption);
+        }
+    };
+
+    const getSubmitUrlBase = () => {
+        if (!securityOption) {
+            return null;
+        }
+
+        switch (securityOption) {
+            case "none":
+                return endpoints.global.setup.setupUnsecuredPackage;
+            case "letsEncrypt":
+                return endpoints.global.setup.setupLetsencrypt;
+            case "ownCertificate":
+                return endpoints.global.setup.setupSecured;
+            default:
+                assertUnreachable(securityOption);
+        }
+    };
+
     useEffect(() => {
         const finish = async () => {
-            const $form = $("#setupForm");
-            const $downloadOptions = $("[name=Options]", $form);
-
-            const operationId = await databasesService.getNextOperationId(null);
-
-            const operationPart = "?operationId=" + operationId;
-
-            // TODO switch url and dto based on the operation type
-            const url = endpoints.global.setup.setupUnsecuredPackage;
-            const dto = getUnsecuredDto();
-
-            $form.attr("action", url + operationPart);
-            $downloadOptions.val(JSON.stringify(dto));
-            $form.submit();
-
-            websocket.watchOperation(operationId, handleWebSocketOperation);
+            // todo condition
+            await regularFinish();
         };
 
         finish();
     }, []);
+
+    const regularFinish = async () => {
+        const $form = $("#setupForm");
+        const $downloadOptions = $("[name=Options]", $form);
+
+        const operationId = await databasesService.getNextOperationId(null);
+        const operationPart = "?operationId=" + operationId;
+        const urlBase = getSubmitUrlBase();
+
+        const dto = getRegularDto();
+
+        $form.attr("action", urlBase + operationPart);
+        $downloadOptions.val(JSON.stringify(dto));
+        $form.submit();
+
+        websocket.watchOperation(operationId, handleWebSocketOperation);
+    };
 
     return (
         <div>
