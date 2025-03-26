@@ -80,6 +80,8 @@ const nodeAddressStepSchema = yup.object({
             externalIpAddress: yup.string(),
             externalHttpPort: yup.number(),
             externalTcpPort: yup.number(),
+            dnsName: yup.string(),
+            isPassive: yup.boolean(),
 
             // states
             isNewlyAdded: yup.boolean(),

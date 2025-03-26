@@ -18,6 +18,7 @@ import {
     FormGroup,
     FormInput,
     FormLabel,
+    FormSelect,
     FormSelectCreatable,
     FormSwitch,
     OptionalLabel,
@@ -36,6 +37,8 @@ import { useAsync } from "react-async-hook";
 import { useServices } from "hooks/useServices";
 import { SelectOption } from "components/common/select/Select";
 import { isEmpty } from "common/typeUtils";
+import Row from "react-bootstrap/Row";
+import Col from "react-bootstrap/esm/Col";
 
 export function SetupWizardNodeAddressStep() {
     const { control } = useFormContext<SetupWizardFormData>();
@@ -430,89 +433,128 @@ function NodeDetailsPanelEdit({
         control,
     });
 
-    const domainData = useWatch({
+    const {
+        domainStep,
+        securityStep: { securityOption },
+        setupMethodStep: { method: setupMethod },
+        selfSignedCertificateStep: { cns },
+        nodeAddressStep: { nodes },
+    } = useWatch({
         control: parentControl,
-        name: "domainStep",
     });
 
     const { isExternalRequired } = useHostnameDetectionSideEffects(editNodeForm);
 
+    const isDNSVisible = securityOption === "ownCertificate"; // TODO add && !this.model.certificate().wildcardCertificate()
+    const isPassiveVisible = securityOption === "none" && setupMethod !== "createPackage" && nodes.length === 1;
+
+    const colWidth = isDNSVisible ? 6 : 4;
+
     return (
         <RichPanelDetails>
-            <Form className="w-100">
-                <div className="hstack">
-                    <RichPanelDetailItem className="flex-grow">
-                        <FormGroup className="w-100">
+            <Form className="w-100 p-2">
+                {isPassiveVisible && (
+                    <FormGroup>
+                        <FormSwitch name="isPassive" control={control}>
+                            Start node as Passive, not part of a cluster
+                        </FormSwitch>
+                    </FormGroup>
+                )}
+                <Row>
+                    <Col md={colWidth}>
+                        <FormGroup>
                             <FormLabel className="fw-bold">
-                                <span className="d-flex gap-1">
-                                    Node tag
+                                Node tag
+                                <PopoverWithHoverWrapper
+                                    message={
+                                        <PopoverMessage
+                                            description="Defines a unique identifier for each node in the cluster."
+                                            alert={
+                                                <RichAlert variant="info" icon="info">
+                                                    Node tag can contain maximum of 4 uppercase letters (A-Z).
+                                                </RichAlert>
+                                            }
+                                        />
+                                    }
+                                >
+                                    <Icon icon="info" margin="ms-1" color="info" />
+                                </PopoverWithHoverWrapper>
+                            </FormLabel>
+                            <FormInput type="text" name="nodeTag" control={control} />
+                        </FormGroup>
+                    </Col>
+                    {isDNSVisible && (
+                        <Col md={colWidth}>
+                            <FormGroup>
+                                <FormLabel className="fw-bold">
+                                    DNS Name
                                     <PopoverWithHoverWrapper
                                         message={
                                             <PopoverMessage
-                                                description="Defines a unique identifier for each node in the cluster."
-                                                alert={
-                                                    <RichAlert variant="info" icon="info">
-                                                        Node tag can contain maximum of 4 uppercase letters (A-Z).
-                                                    </RichAlert>
+                                                description={
+                                                    <>
+                                                        Domain name that will be used to reach the server on this node.
+                                                        <br />
+                                                        Note: It must be associated with the chosen IP Address below.
+                                                    </>
                                                 }
                                             />
                                         }
                                     >
-                                        <Icon icon="info" margin="m-0" color="info" />
+                                        <Icon icon="info" margin="ms-1" color="info" />
                                     </PopoverWithHoverWrapper>
-                                </span>
-                            </FormLabel>
-                            <FormInput type="text" name="nodeTag" control={control} />
-                        </FormGroup>
-                    </RichPanelDetailItem>
-                    <RichPanelDetailItem className="flex-grow">
-                        <FormGroup className="w-100">
+                                </FormLabel>
+                                <FormSelect
+                                    name="dnsName"
+                                    control={control}
+                                    placeholder="Select DNS Name"
+                                    options={cns.map((x) => ({ value: x, label: x }))}
+                                />
+                            </FormGroup>
+                        </Col>
+                    )}
+                    <Col md={colWidth}>
+                        <FormGroup>
                             <FormLabel className="fw-bold">
-                                <span className="d-flex gap-1">
-                                    HTTPS port
-                                    <PopoverWithHoverWrapper
-                                        message={
-                                            <PopoverMessage
-                                                description="Defines the private communication endpoint for clients and browsers.
+                                HTTPS port
+                                <PopoverWithHoverWrapper
+                                    message={
+                                        <PopoverMessage
+                                            description="Defines the private communication endpoint for clients and browsers.
                                                     By default, this value is set to 443."
-                                            />
-                                        }
-                                    >
-                                        <Icon icon="info" margin="m-0" color="info" />
-                                    </PopoverWithHoverWrapper>
-                                </span>
+                                        />
+                                    }
+                                >
+                                    <Icon icon="info" margin="ms-1" color="info" />
+                                </PopoverWithHoverWrapper>
                             </FormLabel>
                             <FormInput type="number" name="httpPort" placeholder="Default: 443" control={control} />
                         </FormGroup>
-                    </RichPanelDetailItem>
-                    <RichPanelDetailItem className="flex-grow">
-                        <FormGroup className="w-100">
+                    </Col>
+                    <Col md={colWidth}>
+                        <FormGroup>
                             <FormLabel className="fw-bold">
-                                <span className="d-flex gap-1">
-                                    TCP Port
-                                    <PopoverWithHoverWrapper
-                                        message={
-                                            <PopoverMessage
-                                                description="Defines the privately accessible TCP endpoint for cluster nodes to
+                                TCP Port
+                                <PopoverWithHoverWrapper
+                                    message={
+                                        <PopoverMessage
+                                            description="Defines the privately accessible TCP endpoint for cluster nodes to
                                                     communicate with each other. By default, this value is set to 38888."
-                                            />
-                                        }
-                                    >
-                                        <Icon icon="info" margin="m-0" color="info" />
-                                    </PopoverWithHoverWrapper>
-                                </span>
+                                        />
+                                    }
+                                >
+                                    <Icon icon="info" margin="ms-1" color="info" />
+                                </PopoverWithHoverWrapper>
                             </FormLabel>
                             <FormInput type="number" name="tcpPort" placeholder="Default: 38888" control={control} />
                         </FormGroup>
-                    </RichPanelDetailItem>
-                </div>
-                <RichPanelDetailItem>
-                    <IpAddressList control={control} />
-                </RichPanelDetailItem>
+                    </Col>
+                </Row>
+                <IpAddressList control={control} />
                 {nodeData.ipAddress.length > 0 && (
                     <RichAlert variant="info" icon="info" className="my-3">
                         RavenDB will update the DNS record for{" "}
-                        <a>{`${nodeData.nodeTag.toLowerCase()}.${domainData.domain}`}</a> to IP{" "}
+                        <a>{`${nodeData.nodeTag.toLowerCase()}.${domainStep.domain}`}</a> to IP{" "}
                         {nodeData.ipAddress.length > 1 && !nodeData.externalIpAddress ? "addresses" : "address"}:{" "}
                         {nodeData.externalIpAddress ? (
                             <a>{nodeData.externalIpAddress}</a>
@@ -892,6 +934,7 @@ export const ipAddressFormSchema = yup.object().shape({
 });
 
 export const nodeEditFormSchema = yup.object({
+    isPassive: yup.boolean(),
     nodeTag: yup
         .string()
         .required("Node tag is required")
@@ -910,6 +953,7 @@ export const nodeEditFormSchema = yup.object({
                 nodeAddressStep.nodes.findIndex((node, idx) => node.nodeTag === value && idx !== currentIndex) === -1
             );
         }),
+    dnsName: yup.string(), // TODO required when visible
     httpPort: yup
         .number()
         .default(8080)
