@@ -13,6 +13,7 @@ const setupMethodStepSchema = yup.object({
 const usePackageStepSchema = yup.object({
     fileName: yup.string(), // TODO is it needed?
     fileZip: yup.string(), // should be required
+    isZipSecure: yup.boolean(),
     nodeTag: yup.string(), // should be required
 });
 

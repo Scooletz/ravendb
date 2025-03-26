@@ -11,6 +11,8 @@ import endpoints from "endpoints";
 import Button from "react-bootstrap/Button";
 import { Icon } from "components/common/Icon";
 import assertUnreachable from "components/utils/assertUnreachable";
+import moment from "moment";
+import genUtils from "common/generalUtils";
 
 export function SetupWizardFinishStep() {
     const { control } = useFormContext<SetupWizardFormData>();
@@ -18,20 +20,21 @@ export function SetupWizardFinishStep() {
     const { value: isShowLogs, toggle: toggleIsShowLogs } = useBoolean(true); // TODO set to false
 
     const {
-        nodeAddressStep: { nodes },
-        securityStep: { securityOption },
-        setupMethodStep: { method: setupMethod },
-        additionalSettingsStep: { serverEnvironment },
+        nodeAddressStep,
+        securityStep,
+        setupMethodStep,
+        additionalSettingsStep,
         domainStep,
         licenseKeyStep,
         selfSignedCertificateStep,
+        usePackageStep,
     } = useWatch({ control });
 
     // TODO get rid off jQuery
 
     const websocket = useMemo(() => new serverNotificationCenterClient(), []);
 
-    const { databasesService } = useServices();
+    const { databasesService, setupWizardService } = useServices();
 
     const [readme, setReadme] = useState<string>();
     const [status, setStatus] = useState<string>();
@@ -70,15 +73,19 @@ export function SetupWizardFinishStep() {
         }
     };
 
+    const getLocalNode = () => {
+        return nodeAddressStep.nodes[0];
+    };
+
     const getHttpPort = (port: number) => {
-        if (!port && securityOption === "none") {
+        if (!port && securityStep.securityOption === "none") {
             return 8080;
         }
         return port;
     };
 
     const getTcpPort = (port: number) => {
-        if (!port && securityOption === "none") {
+        if (!port && securityStep.securityOption === "none") {
             return 38888;
         }
         return port;
@@ -114,7 +121,7 @@ export function SetupWizardFinishStep() {
 
     const getNodeSetupInfos = (): Record<string, Raven.Server.Commercial.NodeInfo> => {
         const nodesInfo: Record<string, Raven.Server.Commercial.NodeInfo> = {};
-        nodes.forEach((node) => {
+        nodeAddressStep.nodes.forEach((node) => {
             nodesInfo[node.nodeTag] = getNodeInfo(node);
         });
 
@@ -122,61 +129,68 @@ export function SetupWizardFinishStep() {
     };
 
     const getUnsecuredDto = (): Raven.Server.Commercial.UnsecuredSetupInfo => {
-        const localNodeTag = nodes[0].nodeTag; // TODO for sure?
-        const isPassive = nodes[0].isPassive;
+        const localNode = getLocalNode();
+        const isPassive = localNode.isPassive;
+
+        // TODO pass advanced settings (DataDir, cert path ??) (waiting for server)
 
         return {
-            EnableExperimentalFeatures: false, // TODO
-            LocalNodeTag: isPassive ? null : localNodeTag,
-            Environment: isPassive ? null : serverEnvironment,
-            ZipOnly: setupMethod === "createPackage",
+            EnableExperimentalFeatures: additionalSettingsStep.postgresqlIntegration,
+            LocalNodeTag: isPassive ? null : localNode.nodeTag,
+            Environment: isPassive ? null : additionalSettingsStep.serverEnvironment,
+            ZipOnly: setupMethodStep.method === "createPackage",
             NodeSetupInfos: getNodeSetupInfos(),
         };
     };
 
     const getSecuredDto = (): Raven.Server.Commercial.SetupInfo => {
-        const localNodeTag = nodes[0].nodeTag; // TODO for sure?
-        const isPassive = nodes[0].isPassive;
+        // TODO pass advanced settings (DataDir, cert path ??) (waiting for server)
+
+        const { adminCertificateExpirationTime } = additionalSettingsStep;
+
+        const ClientCertNotAfter = adminCertificateExpirationTime
+            ? moment.utc().add(additionalSettingsStep.adminCertificateExpirationTime, "months").format()
+            : null;
 
         return {
-            EnableExperimentalFeatures: false, // TODO
-            Environment: serverEnvironment,
+            EnableExperimentalFeatures: additionalSettingsStep.postgresqlIntegration,
+            Environment: additionalSettingsStep.serverEnvironment,
             License: JSON.parse(licenseKeyStep.key),
             Email: domainStep.email,
             Domain: domainStep.domain,
             RootDomain: domainStep.rootDomain,
-            LocalNodeTag: !isPassive ? localNodeTag : null,
-            RegisterClientCert: false, // TODO
-            Certificate: selfSignedCertificateStep.certificate, // what about letsEncrypt?
-            Password: selfSignedCertificateStep.password, // what about letsEncrypt?
-            ClientCertNotAfter: null, // TODO
-            ZipOnly: setupMethod === "createPackage",
+            LocalNodeTag: getLocalNode().nodeTag,
+            RegisterClientCert: true, // TODO always true?
+            Certificate: selfSignedCertificateStep.certificate,
+            Password: selfSignedCertificateStep.password,
+            ClientCertNotAfter,
+            ZipOnly: setupMethodStep.method === "createPackage",
             NodeSetupInfos: getNodeSetupInfos(),
         };
     };
 
     const getRegularDto = () => {
-        if (!securityOption) {
+        if (!securityStep.securityOption) {
             return null;
         }
 
-        switch (securityOption) {
+        switch (securityStep.securityOption) {
             case "none":
                 return getUnsecuredDto();
             case "letsEncrypt":
             case "ownCertificate":
                 return getSecuredDto();
             default:
-                assertUnreachable(securityOption);
+                assertUnreachable(securityStep.securityOption);
         }
     };
 
     const getSubmitUrlBase = () => {
-        if (!securityOption) {
+        if (!securityStep.securityOption) {
             return null;
         }
 
-        switch (securityOption) {
+        switch (securityStep.securityOption) {
             case "none":
                 return endpoints.global.setup.setupUnsecuredPackage;
             case "letsEncrypt":
@@ -184,18 +198,9 @@ export function SetupWizardFinishStep() {
             case "ownCertificate":
                 return endpoints.global.setup.setupSecured;
             default:
-                assertUnreachable(securityOption);
+                assertUnreachable(securityStep.securityOption);
         }
     };
-
-    useEffect(() => {
-        const finish = async () => {
-            // todo condition
-            await regularFinish();
-        };
-
-        finish();
-    }, []);
 
     const regularFinish = async () => {
         const $form = $("#setupForm");
@@ -213,6 +218,40 @@ export function SetupWizardFinishStep() {
 
         websocket.watchOperation(operationId, handleWebSocketOperation);
     };
+
+    const getContinueWithPackageDto = (): Raven.Server.Commercial.ContinueSetupInfo => {
+        return {
+            NodeTag: usePackageStep.nodeTag,
+            Zip: usePackageStep.fileZip,
+            RegisterClientCert: true, // TODO always true?
+        };
+    };
+
+    const continueWithPackageFinish = async () => {
+        const operationId = await databasesService.getNextOperationId(null);
+
+        websocket.watchOperation(operationId, handleWebSocketOperation);
+
+        const dto = getContinueWithPackageDto();
+
+        if (usePackageStep.isZipSecure) {
+            await setupWizardService.continueSecureClusterConfiguration(operationId, dto);
+        } else {
+            await setupWizardService.continueUnsecureClusterConfiguration(operationId, dto);
+        }
+    };
+
+    useEffect(() => {
+        const finish = async () => {
+            if (setupMethodStep.method === "usePackage") {
+                await continueWithPackageFinish();
+            } else {
+                await regularFinish();
+            }
+        };
+
+        finish();
+    }, []);
 
     return (
         <div>
@@ -250,11 +289,72 @@ export function SetupWizardFinishStep() {
 }
 
 export function SetupWizardFinishStepFooter() {
+    const { control } = useFormContext<SetupWizardFormData>();
+
+    const {
+        nodeAddressStep,
+        securityStep,
+        setupMethodStep,
+        additionalSettingsStep,
+        domainStep,
+        licenseKeyStep,
+        selfSignedCertificateStep,
+        usePackageStep,
+    } = useWatch({ control });
+
     const { setupWizardService } = useServices();
+
+    const getLocalNode = () => {
+        return nodeAddressStep.nodes[0];
+    };
+
+    const formatIpAddress = (ip: string): string => {
+        const address = genUtils.getAddressInfo(ip);
+        if (address.Type === "ipv6" && !ip.startsWith("[") && !ip.endsWith("]")) {
+            return `[${ip}]`;
+        }
+        return ip;
+    };
+
+    const getPortPart = () => {
+        const port = getLocalNode().httpPort;
+        return port && port !== 443 ? ":" + port : "";
+    };
+
+    const getStudioUrl = () => {
+        if (setupMethodStep.method === "usePackage") {
+            return "TODO";
+        }
+
+        if (securityStep.securityOption === "none") {
+            const setupPort = getLocalNode().httpPort || 8080;
+            const setupAddress = getLocalNode().ipAddress[0].ipAddress;
+
+            let host;
+            const port = setupPort;
+            if (setupAddress === "0.0.0.0") {
+                host = document.location.hostname;
+            } else {
+                host = formatIpAddress(setupAddress);
+            }
+
+            return `http://${host}:${port}`;
+        }
+
+        if (securityStep.securityOption === "letsEncrypt") {
+            return `https://${getLocalNode().nodeTag.toLocaleLowerCase()}.${domainStep.domain}.${domainStep.rootDomain}${getPortPart()}`;
+        }
+
+        if (securityStep.securityOption === "ownCertificate") {
+            return "TODO";
+        }
+
+        return null;
+    };
 
     const redirectToStudio = () => {
         // TODO get href
-        window.location.href = `http://${document.location.hostname}:8080`;
+        window.location.href = getStudioUrl();
     };
 
     const resetServer = async (waitBeforeRedirectInMs: number) => {

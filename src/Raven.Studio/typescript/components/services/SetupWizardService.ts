@@ -9,6 +9,7 @@ import getSetupParametersCommand from "commands/wizard/getSetupParametersCommand
 import getIpsInfoCommand from "commands/wizard/getIpsInfoCommand";
 import checkDomainAvailabilityCommand from "commands/wizard/checkDomainAvailabilityCommand";
 import claimDomainCommand from "commands/wizard/claimDomainCommand";
+import continueSecureClusterConfigurationCommand from "commands/wizard/continueSecureClusterConfigurationCommand";
 
 export default class SetupWizardService {
     async getEula() {
@@ -26,34 +27,39 @@ export default class SetupWizardService {
     async listHostsForCertificate(...args: ConstructorParameters<typeof listHostsForCertificateCommand>) {
         return new listHostsForCertificateCommand(...args).execute();
     }
-    
+
     async getSetupLocalNodeIps(...args: ConstructorParameters<typeof getSetupLocalNodeIpsCommand>) {
         return new getSetupLocalNodeIpsCommand(...args).execute();
     }
-    
+
     async getSetupParameters(...args: ConstructorParameters<typeof getSetupParametersCommand>) {
         return new getSetupParametersCommand(...args).execute();
     }
-    
+
     async getIpsInfo(...args: ConstructorParameters<typeof getIpsInfoCommand>) {
         return new getIpsInfoCommand(...args).execute();
     }
-
-    async continueUnsecureClusterConfiguration(
-        ...args: ConstructorParameters<typeof continueUnsecureClusterConfigurationCommand>
-    ) {
-        return new continueUnsecureClusterConfigurationCommand(...args).execute();
-    }
-    
     async checkDomainAvailability(...args: ConstructorParameters<typeof checkDomainAvailabilityCommand>) {
         return new checkDomainAvailabilityCommand(...args).execute();
     }
-    
+
     async claimDomain(...args: ConstructorParameters<typeof claimDomainCommand>) {
         return new claimDomainCommand(...args).execute();
     }
 
     async finishSetup(...args: ConstructorParameters<typeof finishSetupCommand>) {
         return new finishSetupCommand(...args).execute();
+    }
+
+    async continueSecureClusterConfiguration(
+        ...args: ConstructorParameters<typeof continueSecureClusterConfigurationCommand>
+    ) {
+        return new continueSecureClusterConfigurationCommand(...args).execute();
+    }
+
+    async continueUnsecureClusterConfiguration(
+        ...args: ConstructorParameters<typeof continueUnsecureClusterConfigurationCommand>
+    ) {
+        return new continueUnsecureClusterConfigurationCommand(...args).execute();
     }
 }
