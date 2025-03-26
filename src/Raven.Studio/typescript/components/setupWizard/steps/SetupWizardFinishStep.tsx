@@ -20,6 +20,7 @@ export function SetupWizardFinishStep() {
     const {
         nodeAddressStep: { nodes },
         securityStep: { securityOption },
+        setupMethodStep: { method: setupMethod },
     } = useWatch({ control });
 
     // TODO get rid off jQuery
@@ -113,12 +114,14 @@ export function SetupWizardFinishStep() {
             nodesInfo[node.nodeTag] = getNodeInfo(node);
         });
 
+        const localNodeTag = nodes[0].nodeTag; // TODO for sure?
+
         // TODO get from form
         return {
             EnableExperimentalFeatures: false, // TODO
-            LocalNodeTag: nodes[0].nodeTag, // TODO
+            LocalNodeTag: localNodeTag, // TODO
             Environment: "None", // TODO
-            ZipOnly: false, // TODO
+            ZipOnly: setupMethod === "createPackage",
             NodeSetupInfos: nodesInfo,
         };
     };

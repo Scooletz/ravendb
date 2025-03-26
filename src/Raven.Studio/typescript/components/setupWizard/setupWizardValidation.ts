@@ -1,5 +1,5 @@
 import * as yup from "yup";
-import { setupWizardConstants } from "./partials/SetupWizardConstants";
+import { setupWizardConstants } from "./utils/setupWizardConstants";
 import { ipAddressFormSchema } from "components/setupWizard/steps/SetupWizardNodeAddressStep";
 
 export type SetupWizardSetupMethod = "newCluster" | "createPackage" | "usePackage";
@@ -95,7 +95,7 @@ const additionalSettingsStepSchema = yup.object({
     dataDirectory: yup.string().nullable(),
     setupCertificatePath: yup.string().nullable(),
     postgresqlIntegration: yup.boolean(),
-    
+
     // states
     isAdvancedSettingsVisible: yup.boolean(),
 });

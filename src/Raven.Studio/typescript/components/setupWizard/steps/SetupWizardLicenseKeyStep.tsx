@@ -14,7 +14,7 @@ import {
 } from "components/common/Form";
 import useConfirm from "components/common/ConfirmDialog";
 import { HStack } from "components/common/HStack";
-import { setupWizardConstants } from "../partials/SetupWizardConstants";
+import { setupWizardConstants } from "../utils/setupWizardConstants";
 import Row from "react-bootstrap/Row";
 import { useServices } from "components/hooks/useServices";
 import ButtonWithSpinner from "components/common/ButtonWithSpinner";

@@ -3,7 +3,7 @@ import { SetupWizardFormData } from "../setupWizardValidation";
 import { Icon } from "components/common/Icon";
 import Button from "react-bootstrap/Button";
 import { FormGroup, FormInput, FormLabel, FormPathSelector, FormSelect, FormSwitch } from "components/common/Form";
-import { setupWizardConstants } from "components/setupWizard/partials/SetupWizardConstants";
+import { setupWizardConstants } from "components/setupWizard/utils/setupWizardConstants";
 import { HrHeader } from "components/common/HrHeader";
 import classNames from "classnames";
 import { useEffect } from "react";
@@ -157,8 +157,12 @@ function PostgreSqlIntegrationToggle({ control }: { control: Control<SetupWizard
                 <div className="flex-grow-1">
                     <div className="postgresql-integration__title">
                         PostgreSQL integration
-                        <PopoverWithHoverWrapper message={<PopoverMessage description="Enabling this feature allows you to use RavenDB as a PostgreSQL server. You will also need a license that contains PostgreSQL Protocol." />}>
-                        <Icon icon="info" margin="ms-1" />
+                        <PopoverWithHoverWrapper
+                            message={
+                                <PopoverMessage description="Enabling this feature allows you to use RavenDB as a PostgreSQL server. You will also need a license that contains PostgreSQL Protocol." />
+                            }
+                        >
+                            <Icon icon="info" margin="ms-1" />
                         </PopoverWithHoverWrapper>
                     </div>
                     <div className="postgresql-integration__description">
