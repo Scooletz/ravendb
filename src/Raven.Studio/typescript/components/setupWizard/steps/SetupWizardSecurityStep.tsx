@@ -6,6 +6,9 @@ import Button from "react-bootstrap/Button";
 import { FormCheckbox } from "components/common/Form";
 import assertUnreachable from "components/utils/assertUnreachable";
 import Badge from "react-bootstrap/Badge";
+import { useAsync } from "react-async-hook";
+import { useServices } from "hooks/useServices";
+import Spinner from "react-bootstrap/Spinner";
 
 export function SetupWizardSecurityStep() {
     const { control, setValue } = useFormContext<SetupWizardFormData>();
@@ -71,10 +74,17 @@ export function SetupWizardSecurityStep() {
 
 export function SetupWizardSecurityStepFooter() {
     const { control, setValue } = useFormContext<SetupWizardFormData>();
+    const { setupWizardService } = useServices();
 
     const {
         securityStep: { securityOption },
+        licenseKeyStep: { licenseInfo },
     } = useWatch({ control });
+
+    const asyncGetLetsEncryptAgreement = useAsync(
+        () => setupWizardService.getLetsEncryptAgreement(licenseInfo.userDomainsWithIps.email[0] ?? ""),
+        []
+    ); // TODO check if there could be more than one email assigned to license
 
     const handleBack = () => {
         setValue("currentStep", "License key");
@@ -101,10 +111,19 @@ export function SetupWizardSecurityStepFooter() {
             <Button variant="secondary" className="rounded-pill" onClick={handleBack}>
                 <Icon icon="arrow-left" /> Back
             </Button>
-            <div className="hstack gap-2">
+            <div className="hstack gap-2 align-items-center">
                 {securityOption === "letsEncrypt" && (
-                    <FormCheckbox control={control} name="securityStep.isLetsEncryptAgreementAccepted">
-                        I accept Let&apos;s Encrypt Subscriber Agreement
+                    <FormCheckbox
+                        disabled={asyncGetLetsEncryptAgreement.loading}
+                        className="mb-0"
+                        control={control}
+                        name="securityStep.isLetsEncryptAgreementAccepted"
+                    >
+                        I accept
+                        {asyncGetLetsEncryptAgreement.loading && <Spinner />}
+                        <a target="_blank" href={asyncGetLetsEncryptAgreement.result as string}>
+                            Let&apos;s Encrypt Subscriber Agreement
+                        </a>
                     </FormCheckbox>
                 )}
                 <Button variant="primary" className="rounded-pill" onClick={handleContinue}>

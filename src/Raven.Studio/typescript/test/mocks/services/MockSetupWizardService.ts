@@ -83,4 +83,12 @@ export default class MockSetupWizardService extends AutoMockService<SetupWizardS
     withClaimDomain(dto?: MockedValue<ClaimDomainResult>) {
         return this.mockResolvedValue(this.mock.claimDomain, dto, SetupWizardStubs.claimDomain())
     }
+
+    withLetsEncryptAgreement() {
+        return this.mockResolvedValue(
+            this.mock.getLetsEncryptAgreement,
+            undefined,
+            SetupWizardStubs.letsEncryptAgreement()
+        );
+    }
 }

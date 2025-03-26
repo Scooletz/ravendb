@@ -49,7 +49,8 @@ export const Eula: StoryObj = {
         setupWizardService.withGetIpsInfo();
         setupWizardService.withCheckDomainAvailability();
         setupWizardService.withClaimDomain();
-        
+        setupWizardService.withLetsEncryptAgreement();
+
         return (
             <div style={{ height: 1000 }}>
                 <SetupWizard />

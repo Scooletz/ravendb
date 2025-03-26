@@ -10,6 +10,7 @@ import getIpsInfoCommand from "commands/wizard/getIpsInfoCommand";
 import checkDomainAvailabilityCommand from "commands/wizard/checkDomainAvailabilityCommand";
 import claimDomainCommand from "commands/wizard/claimDomainCommand";
 import continueSecureClusterConfigurationCommand from "commands/wizard/continueSecureClusterConfigurationCommand";
+import loadAgreementCommand from "commands/wizard/loadAgreementCommand";
 
 export default class SetupWizardService {
     async getEula() {
@@ -61,5 +62,9 @@ export default class SetupWizardService {
         ...args: ConstructorParameters<typeof continueUnsecureClusterConfigurationCommand>
     ) {
         return new continueUnsecureClusterConfigurationCommand(...args).execute();
+    }
+
+    async getLetsEncryptAgreement(...args: ConstructorParameters<typeof loadAgreementCommand>) {
+        return new loadAgreementCommand(...args).execute();
     }
 }

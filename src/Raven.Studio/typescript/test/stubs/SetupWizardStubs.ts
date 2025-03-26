@@ -100,6 +100,10 @@ export class SetupWizardStubs {
             ],
         };
     }
+
+    static letsEncryptAgreement(): string {
+        return "https://letsencrypt.org/documents/LE-SA-v1.5-February-24-2025.pdf";
+    }
 }
 
 
