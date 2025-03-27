@@ -77,7 +77,7 @@ export function SetupWizardSecurityStepFooter() {
     const { setupWizardService } = useServices();
 
     const {
-        securityStep: { securityOption },
+        securityStep: { securityOption, isLetsEncryptAgreementAccepted },
         licenseKeyStep: { licenseInfo },
     } = useWatch({ control });
 
@@ -119,14 +119,14 @@ export function SetupWizardSecurityStepFooter() {
                         control={control}
                         name="securityStep.isLetsEncryptAgreementAccepted"
                     >
-                        I accept
+                        I accept{" "}
                         {asyncGetLetsEncryptAgreement.loading && <Spinner />}
                         <a target="_blank" href={asyncGetLetsEncryptAgreement.result as string}>
                             Let&apos;s Encrypt Subscriber Agreement
                         </a>
                     </FormCheckbox>
                 )}
-                <Button variant="primary" className="rounded-pill" onClick={handleContinue}>
+                <Button disabled={!isLetsEncryptAgreementAccepted && securityOption === "letsEncrypt"} variant="primary" className="rounded-pill" onClick={handleContinue}>
                     Continue <Icon icon="arrow-right" margin="m-0" />
                 </Button>
             </div>
