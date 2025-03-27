@@ -188,7 +188,7 @@ namespace FastTests
                     var runInMemory = options.RunInMemory;
 
                     var pathToUse = options.Path;
-                    if (runInMemory == false && options.ReplicationFactor > 1)
+                    if (runInMemory == false && serverToUse != Server)
                     {
                         if (pathToUse == null)
                         {
