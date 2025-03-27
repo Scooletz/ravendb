@@ -1,8 +1,7 @@
 import { useFormContext, useWatch } from "react-hook-form";
 import { SetupWizardFormData } from "../setupWizardValidation";
 import { Icon } from "components/common/Icon";
-import Button from "react-bootstrap/Button";
-import { FormGroup, FormInput, FormLabel, FormSelectCreatable } from "components/common/Form";
+import { FormGroup, FormLabel, FormSelect, FormSelectCreatable } from "components/common/Form";
 import { SelectOption } from "components/common/select/Select";
 import React, { useEffect, useState } from "react";
 import { useAsyncCallback } from "react-async-hook";
@@ -60,6 +59,11 @@ export function SetupWizardDomainStep() {
         }
     };
 
+    const rootDomainOptions = licenseInfo.userDomainsWithIps.rootDomains.map((domain) => ({
+        value: domain,
+        label: domain,
+    }));
+
     return (
         <div>
             <h2>Domain</h2>
@@ -96,7 +100,12 @@ export function SetupWizardDomainStep() {
                     name="domainStep.domain"
                     options={domainsOptions}
                     addon={
-                        licenseInfo?.userDomainsWithIps?.rootDomains[0] ?? "" // TODO check if the length of the root domain can exceed 1, paying attention to the fact that it is a array. then I think yes?
+                        <FormSelect
+                            control={control}
+                            name="domainStep.rootDomain"
+                            options={rootDomainOptions}
+                            isSearchable={false}
+                        />
                     }
                 />
             </FormGroup>
@@ -133,8 +142,8 @@ const useDomainFormSideEffects = () => {
             setValue("domainStep.email", licenseInfo.userDomainsWithIps.email[0]);
         }
 
-        if (licenseInfo?.userDomainsWithIps?.rootDomains.length === 1) {
-            setValue("domainStep.rootDomain", licenseInfo.userDomainsWithIps.rootDomains[0]);
+        if (licenseInfo?.userDomainsWithIps?.rootDomains.length > 1) {
+            setValue("domainStep.rootDomain", licenseInfo.userDomainsWithIps.rootDomains[0]); // select first root domain as default
         }
 
         if (Object.keys(licenseInfo?.userDomainsWithIps?.domains ?? []).length === 1) {
