@@ -25,7 +25,7 @@ public unsafe struct NativeList<T>
 
     public Span<T> Items => new Span<T>(_storage.Ptr, Count);
 
-    public int Capacity => _storage.Length / sizeof(T);
+    public int Capacity = 0;
     public int Count;
 
     public readonly Span<T> ToSpan() => Count == 0 ? Span<T>.Empty : new Span<T>(_storage.Ptr, Count);
@@ -128,6 +128,7 @@ public unsafe struct NativeList<T>
     {
         var capacity = count == 1 ? 1 : Math.Max(1, Bits.PowerOf2(count));
         ctx.Allocate(capacity * sizeof(T), out _storage);
+        Capacity = _storage.Length / sizeof(T);
     }
     
     public void Grow(ByteStringContext ctx, int addition)
@@ -142,6 +143,7 @@ public unsafe struct NativeList<T>
         }
 
         _storage = mem;
+        Capacity = _storage.Length / sizeof(T);
     }
 
     public readonly void Sort()
@@ -203,6 +205,7 @@ public unsafe struct NativeList<T>
     {
         if(_storage.HasValue)
             ctx.Release(ref _storage);
+        Capacity = 0;
     }
 
     public void Clear()

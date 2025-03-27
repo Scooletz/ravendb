@@ -185,9 +185,9 @@ public partial class RavenTestBase
                 return ShardHelper.GetBucketFor(config, allocator, id);
         }
 
-        public async Task<int> GetBucketAsync(IDocumentStore store, string id)
+        public async Task<int> GetBucketAsync(IDocumentStore store, string id, string database = null)
         {
-            var record = await store.Maintenance.Server.SendAsync(new GetDatabaseRecordOperation(store.Database));
+            var record = await store.Maintenance.Server.SendAsync(new GetDatabaseRecordOperation(database ?? store.Database));
             return GetBucket(record.Sharding, id);
         }
 
@@ -337,7 +337,7 @@ public partial class RavenTestBase
         {
             var shardingConfiguration = record != null ? record.Sharding : await GetShardingConfigurationAsync(store, database);
             DatabaseStatistics combined = new DatabaseStatistics();
-            var essential = await store.Maintenance.SendAsync(new GetEssentialStatisticsOperation());
+            var essential = await store.Maintenance.ForDatabase(database ?? store.Database).SendAsync(new GetEssentialStatisticsOperation());
 
             combined.CountOfConflicts = essential.CountOfConflicts;
             combined.CountOfCounterEntries = essential.CountOfCounterEntries;
