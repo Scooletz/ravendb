@@ -13,7 +13,13 @@ import License = Raven.Server.Commercial.License;
 export function SetupWizardSummaryStep() {
     const { control } = useFormContext<SetupWizardFormData>();
 
-    const { nodeAddressStep, additionalSettingsStep, domainStep, securityStep, licenseKeyStep } = useWatch({ control });
+    const {
+        nodeAddressStep,
+        additionalSettingsStep,
+        domainStep,
+        securityStep: { securityOption },
+        licenseKeyStep,
+    } = useWatch({ control });
 
     const license: License = licenseKeyStep.key ? JSON.parse(licenseKeyStep.key) : ({} as License);
     return (
@@ -29,16 +35,24 @@ export function SetupWizardSummaryStep() {
                         <div className="vstack gap-1">
                             <CardRow
                                 label="Certificate"
-                                value={getCertificateDescription(securityStep.securityOption)}
+                                valueClassName={securityOption === "none" ? "text-warning" : null}
+                                value={getCertificateDescription(securityOption)}
                             />
-                            <CardRow label="License ID" value={license?.Id} />
+                            {securityOption !== "none" && <CardRow label="License ID" value={license?.Id} />}
                             <CardRow
                                 label="License type"
                                 value={licenseKeyStep.licenseInfo?.licenseType ?? "AGPLv3"}
                                 valueClassName={colorizeLicenseType(licenseKeyStep.licenseInfo?.licenseType)}
                             />
-                            <CardRow label="License expiration" value="01/29/2027" />
-                            <CardRow label="Full domain" value={`${domainStep.domain}.${domainStep.rootDomain}`} />
+                            {securityOption !== "none" && (
+                                <>
+                                    <CardRow label="License expiration" value="01/29/2027" />
+                                    <CardRow
+                                        label="Full domain"
+                                        value={`${domainStep.domain}.${domainStep.rootDomain}`}
+                                    />
+                                </>
+                            )}
                         </div>
                     </Card.Body>
                 </Card>
@@ -58,35 +72,47 @@ export function SetupWizardSummaryStep() {
                         </LocationDistribution>
                     </Card.Body>
                 </Card>
-                <h5 className="mb-0 mt-4">Additional & advanced</h5>
-                <Card>
-                    <Card.Body>
-                        <div className="vstack gap-1">
-                            {getLicenseType(licenseKeyStep.licenseInfo).isHigherThan("Community") && (
-                                <CardRow label="Studio environment" value={additionalSettingsStep.serverEnvironment} />
-                            )}
-                            <CardRow
-                                label="Admin client certificate expiration time"
-                                value={`${additionalSettingsStep.adminCertificateExpirationTime} months`}
-                            />
-                            {getLicenseType(licenseKeyStep.licenseInfo).isHigherThan("Community") && (
-                                <CardRow
-                                    label="Experimental features"
-                                    value={additionalSettingsStep.postgresqlIntegration ? "Enabled" : "Disabled"}
-                                    valueClassName={
-                                        additionalSettingsStep.postgresqlIntegration ? "text-success" : null
-                                    }
-                                />
-                            )}
-                            {additionalSettingsStep.dataDirectory && (
-                                <CardRow label="Data directory" value={additionalSettingsStep.dataDirectory} />
-                            )}
-                            {additionalSettingsStep.setupCertificatePath && (
-                                <CardRow label="Certificate path" value={additionalSettingsStep.setupCertificatePath} />
-                            )}
-                        </div>
-                    </Card.Body>
-                </Card>
+                {securityOption !== "none" && (
+                    <>
+                        <h5 className="mb-0 mt-4">Additional & advanced</h5>
+                        <Card>
+                            <Card.Body>
+                                <div className="vstack gap-1">
+                                    {getLicenseType(licenseKeyStep.licenseInfo).isHigherThan("Community") && (
+                                        <CardRow
+                                            label="Studio environment"
+                                            value={additionalSettingsStep.serverEnvironment}
+                                        />
+                                    )}
+                                    <CardRow
+                                        label="Admin client certificate expiration time"
+                                        value={`${additionalSettingsStep.adminCertificateExpirationTime} months`}
+                                    />
+                                    {getLicenseType(licenseKeyStep.licenseInfo).isHigherThan("Community") && (
+                                        <CardRow
+                                            label="Experimental features"
+                                            value={
+                                                additionalSettingsStep.postgresqlIntegration ? "Enabled" : "Disabled"
+                                            }
+                                            valueClassName={
+                                                additionalSettingsStep.postgresqlIntegration ? "text-success" : null
+                                            }
+                                        />
+                                    )}
+                                    {additionalSettingsStep.dataDirectory && (
+                                        <CardRow label="Data directory" value={additionalSettingsStep.dataDirectory} />
+                                    )}
+                                    {additionalSettingsStep.setupCertificatePath && (
+                                        <CardRow
+                                            label="Certificate path"
+                                            value={additionalSettingsStep.setupCertificatePath}
+                                        />
+                                    )}
+                                </div>
+                            </Card.Body>
+                        </Card>
+                    </>
+                )}
             </div>
         </div>
     );
@@ -99,7 +125,7 @@ function getCertificateDescription(option: SetupWizardSecurityOption) {
         case "ownCertificate":
             return "Own certificate";
         case "none":
-            return "None";
+            return "Unsecure";
         default:
             return "Unknown";
     }
