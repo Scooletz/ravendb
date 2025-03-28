@@ -14,6 +14,7 @@ const usePackageStepSchema = yup.object({
     fileName: yup.string(), // TODO is it needed?
     fileZip: yup.string(), // should be required
     isZipSecure: yup.boolean(),
+    isZipValid: yup.boolean(),
     nodeTag: yup.string(), // should be required
     publicServerUrl: yup.string(),
     serverUrl: yup.string(),

@@ -162,7 +162,7 @@ export function SetupWizardFinishStep() {
             Domain: domainStep.domain,
             RootDomain: domainStep.rootDomain,
             LocalNodeTag: getLocalNode().nodeTag,
-            RegisterClientCert: true, // TODO always true?
+            RegisterClientCert: true, // it should be always true. we should detect if same cert is installed and if no then install
             Certificate: selfSignedCertificateStep.certificate,
             Password: selfSignedCertificateStep.password,
             ClientCertNotAfter,
@@ -225,7 +225,7 @@ export function SetupWizardFinishStep() {
         return {
             NodeTag: usePackageStep.nodeTag,
             Zip: usePackageStep.fileZip,
-            RegisterClientCert: true, // TODO always true?
+            RegisterClientCert: usePackageStep.isZipSecure, // we should detect if the same cert is installed and if no then install it
         };
     };
 
@@ -280,7 +280,7 @@ export function SetupWizardFinishStep() {
                     ))}
                 </pre>
             )}
-            <div className="mt-2 p-2 panel-bg-1 rounded border border-secondary">TODO</div>
+            {/* <div className="mt-2 p-2 panel-bg-1 rounded border border-secondary">TODO</div> */}
             <div className="d-none">
                 <form method="post" target="hidden-form" id="setupForm">
                     <input type="hidden" name="Options" />
@@ -293,16 +293,8 @@ export function SetupWizardFinishStep() {
 export function SetupWizardFinishStepFooter() {
     const { control } = useFormContext<SetupWizardFormData>();
 
-    const {
-        nodeAddressStep,
-        securityStep,
-        setupMethodStep,
-        additionalSettingsStep,
-        domainStep,
-        licenseKeyStep,
-        selfSignedCertificateStep,
-        usePackageStep,
-    } = useWatch({ control });
+    const { nodeAddressStep, securityStep, setupMethodStep, domainStep, selfSignedCertificateStep, usePackageStep } =
+        useWatch({ control });
 
     const { setupWizardService } = useServices();
 

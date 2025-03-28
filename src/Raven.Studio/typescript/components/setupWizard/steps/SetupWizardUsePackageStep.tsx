@@ -9,16 +9,15 @@ import { useServices } from "components/hooks/useServices";
 import messagePublisher from "common/messagePublisher";
 import { SelectOption } from "components/common/select/Select";
 import { useEffect, useMemo } from "react";
+import RichAlert from "components/common/RichAlert";
 
 export function SetupWizardUsePackageStep() {
     const { control, setValue, watch } = useFormContext<SetupWizardFormData>();
     const {
-        usePackageStep: { fileZip },
+        usePackageStep: { fileZip, isZipValid },
     } = useWatch({ control });
 
     const { setupWizardService } = useServices();
-
-    // missing isZipSecure from continueSetup.ts (but we handle it later step)
 
     // TODO add what is this tooltip
     // TODO maybe add a tooltip explaining why node tag is disabled
@@ -51,6 +50,33 @@ export function SetupWizardUsePackageStep() {
             subscribe.unsubscribe();
         };
     }, [watch, setValue, nodeInfos]);
+
+    // Handle isZipSecure
+    useEffect(() => {
+        if (!nodeInfos.length) {
+            setValue("usePackageStep.isZipSecure", false);
+            return;
+        }
+
+        const isSecure = nodeInfos.every(isNodeSecure);
+        setValue("usePackageStep.isZipSecure", isSecure);
+    }, [nodeInfos, setValue]);
+
+    // Handle isZipValid
+    useEffect(() => {
+        if (!nodeInfos.length) {
+            setValue("usePackageStep.isZipValid", true);
+            return;
+        }
+
+        const firstNode = nodeInfos[0];
+
+        if (firstNode.PublicServerUrl) {
+            setValue("usePackageStep.isZipSecure", nodeInfos.every(isNodeSecure));
+        } else {
+            setValue("usePackageStep.isZipSecure", nodeInfos.every(isNodeUnsecure));
+        }
+    }, [nodeInfos, setValue]);
 
     const handleFileChange = (files: File[]) => {
         const file = files[0];
@@ -111,12 +137,17 @@ export function SetupWizardUsePackageStep() {
                     />
                 </FormGroup>
             )}
+            {!isZipValid && <RichAlert variant="danger">Invalid nodes configuration in zip file.</RichAlert>}
         </div>
     );
 }
 
 export function SetupWizardUsePackageStepFooter() {
-    const { setValue } = useFormContext<SetupWizardFormData>();
+    const { setValue, control } = useFormContext<SetupWizardFormData>();
+
+    const {
+        usePackageStep: { isZipValid },
+    } = useWatch({ control });
 
     const handleContinue = () => {
         setValue("currentStep", "Summary");
@@ -124,9 +155,20 @@ export function SetupWizardUsePackageStepFooter() {
 
     return (
         <div className="hstack justify-content-end">
-            <Button variant="primary" className="rounded-pill" onClick={handleContinue}>
+            <Button variant="primary" className="rounded-pill" onClick={handleContinue} disabled={!isZipValid}>
                 Continue <Icon icon="arrow-right" margin="m-0" />
             </Button>
         </div>
     );
 }
+
+const isNodeSecure = (node: Raven.Server.Web.System.ConfigurationNodeInfo): boolean => {
+    return node.PublicServerUrl && node.PublicServerUrl.startsWith(securePrefix);
+};
+
+const isNodeUnsecure = (node: Raven.Server.Web.System.ConfigurationNodeInfo): boolean => {
+    return node.ServerUrl && node.ServerUrl.startsWith(unsecurePrefix);
+};
+
+const securePrefix = "https://";
+const unsecurePrefix = "http://";
