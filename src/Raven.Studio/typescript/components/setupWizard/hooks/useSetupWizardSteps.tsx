@@ -74,7 +74,7 @@ export function useSetupWizardSteps({
             component: <SetupWizardLicenseKeyStep />,
             footer: <SetupWizardLicenseKeyStepFooter />,
             isCurrent: currentStep === "License key",
-            isAvailable: setupMethod === "newCluster",
+            isAvailable: setupMethod === "newCluster" || setupMethod === "usePackage",
             isVisible: getIsNotInStepIds(["Eula", "Setup method"]),
         },
         {
@@ -83,7 +83,7 @@ export function useSetupWizardSteps({
             component: <SetupWizardSecurityStep />,
             footer: <SetupWizardSecurityStepFooter />,
             isCurrent: currentStep === "Security",
-            isAvailable: setupMethod === "newCluster",
+            isAvailable: setupMethod === "newCluster" || setupMethod === "usePackage",
             isVisible: getIsNotInStepIds(["Eula", "Setup method"]),
         },
         {
