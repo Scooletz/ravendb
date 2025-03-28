@@ -24,6 +24,8 @@ import { mapAzureQueueStorageConnectionStringSettingsToDto } from "components/pa
 import assertUnreachable from "components/utils/assertUnreachable";
 import { Icon } from "components/common/Icon";
 import PopoverWithHoverWrapper from "components/common/PopoverWithHoverWrapper";
+import { connectionStringSelectors } from "../store/connectionStringsSlice";
+import { ConnectionStringsNameContext, connectionStringsUtils } from "../connectionStringsUtils";
 
 type FormData = ConnectionFormData<AzureQueueStorageConnection>;
 
@@ -36,6 +38,8 @@ export default function AzureQueueStorageConnectionString({
     isForNewConnection,
     onSave,
 }: AzureQueueStorageConnectionStringProps) {
+    const usedNames = useAppSelector(connectionStringSelectors.connections)["AzureQueueStorage"].map((x) => x.name);
+
     const { control, handleSubmit, trigger } = useForm<FormData>({
         mode: "all",
         defaultValues: getDefaultValues(initialConnection, isForNewConnection),
@@ -44,7 +48,9 @@ export default function AzureQueueStorageConnectionString({
                 data,
                 {
                     authType: data.authType,
-                },
+                    isForNewConnection,
+                    usedNames,
+                } satisfies ConnectionStringsNameContext & { authType: FormData["authType"] },
                 options
             ),
     });
@@ -266,7 +272,7 @@ function getStringRequiredSchema(authType: AzureQueueStorageAuthenticationType) 
 }
 
 const schema = yupObjectSchema<FormData>({
-    name: yup.string().nullable().required(),
+    name: connectionStringsUtils.nameSchema,
     authType: yup.string<AzureQueueStorageAuthenticationType>(),
     settings: yupObjectSchema<FormData["settings"]>({
         connectionString: yupObjectSchema<FormData["settings"]["connectionString"]>({
