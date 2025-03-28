@@ -103,6 +103,8 @@ export function useStudioSearchAsyncRegister(props: UseStudioSearchAsyncRegister
                             return null;
                         }
                     }
+                    case "EmbeddingsGeneration":
+                        return getUrlFromProvider(appUrl.forEditEmbeddingsGeneration);
                     default:
                         assertUnreachable(taskType);
                 }

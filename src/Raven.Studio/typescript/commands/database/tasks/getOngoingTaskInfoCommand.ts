@@ -12,6 +12,7 @@ class getOngoingTaskInfoCommand<T extends Raven.Client.Documents.Operations.Ongo
     Raven.Client.Documents.Operations.OngoingTasks.OngoingTaskOlapEtl |
     Raven.Client.Documents.Operations.OngoingTasks.OngoingTaskElasticSearchEtl |
     Raven.Client.Documents.Operations.OngoingTasks.OngoingTaskQueueEtl |
+    Raven.Client.Documents.Operations.OngoingTasks.EmbeddingsGeneration |
     Raven.Client.Documents.Operations.OngoingTasks.OngoingTaskQueueSink> extends commandBase {
 
     private readonly db: database | string;
@@ -90,6 +91,10 @@ class getOngoingTaskInfoCommand<T extends Raven.Client.Documents.Operations.Ongo
 
     static forElasticSearchEtl(db: database | string, taskId: number) {
         return new getOngoingTaskInfoCommand<Raven.Client.Documents.Operations.OngoingTasks.OngoingTaskElasticSearchEtl>(db, "ElasticSearchEtl", null, taskId);
+    }
+
+    static forAiIntegration(db: database | string, taskId: number) {
+        return new getOngoingTaskInfoCommand<Raven.Client.Documents.Operations.OngoingTasks.EmbeddingsGeneration>(db, "EmbeddingsGeneration", null, taskId);
     }
 
     private getArgsToUse() {

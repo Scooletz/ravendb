@@ -19,13 +19,14 @@ namespace Raven.Client.Documents.Operations.ETL
         internal const string GenericDeleteDocumentsBehaviorFunctionKey = "$deleteDocumentsBehavior<>";
 
         internal const string GenericDeleteDocumentsBehaviorFunctionName = "deleteDocumentsBehavior";
-
+        
         private static readonly Regex LoadToMethodRegex = new Regex($@"{LoadTo}(\w+)", RegexOptions.Compiled);
 
         private static readonly Regex LoadToMethodRegexAlt = new Regex($@"{LoadTo}\(\'([\w\.]*)\'|{LoadTo}\(\""([\w\.]*)\""", RegexOptions.Compiled);
 
         private static readonly Regex LoadAttachmentMethodRegex = new Regex(LoadAttachment, RegexOptions.Compiled);
         private static readonly Regex AddAttachmentMethodRegex = new Regex(AddAttachment, RegexOptions.Compiled);
+
 
         internal readonly CountersTransformation Counters;
         
@@ -257,7 +258,7 @@ namespace Raven.Client.Documents.Operations.ETL
             TimeSeries = new TimeSeriesTransformation(this);
         }
         
-        public bool Validate(ref List<string> errors, EtlType type)
+        public bool Validate(List<string> errors, EtlType type)
         {
             if (errors == null)
                 throw new ArgumentNullException(nameof(errors));
@@ -396,7 +397,6 @@ namespace Raven.Client.Documents.Operations.ETL
                                 break;
                             default:
                                 throw new ArgumentException($"Unknown ETL type: {type}");
-
                         }
 
                         errors.Add($"No `loadTo<{targetName}Name>()` method call found in '{Name}' script");
@@ -414,7 +414,7 @@ namespace Raven.Client.Documents.Operations.ETL
 
             if (IsEmptyScript)
             {
-                if (type != EtlType.Raven)
+                if (type != EtlType.Raven && type != EtlType.EmbeddingsGeneration)
                     errors.Add($"Script '{Name}' must not be empty");
             }
 

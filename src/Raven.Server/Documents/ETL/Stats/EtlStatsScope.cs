@@ -1,7 +1,9 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using Raven.Client.Documents.Operations.Backups;
+using Raven.Server.Documents.ETL.Providers.AI.Embeddings.Stats;
 using Raven.Server.Documents.ETL.Providers.OLAP;
 using Raven.Server.ServerWide.Context;
 using Raven.Server.Utils;
@@ -52,6 +54,52 @@ namespace Raven.Server.Documents.ETL.Stats
                 S3Upload = S3Upload,
                 NumberOfFiles = NumberOfFiles,
                 FileName = FileName
+            };
+
+            if (Scopes != null)
+            {
+                operation.Operations = Scopes
+                    .Select(x => ToPerformanceOperation(x.Key, x.Value))
+                    .ToArray();
+            }
+
+            return operation;
+        }
+    }
+
+    public sealed class EmbeddingsGenerationStatsScope : AbstractEtlStatsScope<EmbeddingsGenerationStatsScope, EmbeddingsGenerationPerformanceOperation>
+    {
+        public EmbeddingsGenerationStatsScope(EtlRunStats stats, bool start = true) : base(stats, start)
+        {
+        }
+
+        public int NumberOfGeneratedEmbeddings { get; set; }
+        
+        public int NumberOfEmbeddingsInCache { get; set; }
+
+        public int NumberOfPutEmbeddingDocuments { get; set; }
+
+        public int NumberOfDeletedEmbeddingDocuments { get; set; }
+
+        protected override EmbeddingsGenerationStatsScope OpenNewScope(EtlRunStats stats, bool start)
+        {
+            return new EmbeddingsGenerationStatsScope(stats, start);
+        }
+
+        protected override EmbeddingsGenerationPerformanceOperation ToPerformanceOperation(string name, EmbeddingsGenerationStatsScope scope)
+        {
+            return scope.ToPerformanceOperation(name);
+        }
+
+        public override EmbeddingsGenerationPerformanceOperation ToPerformanceOperation(string name)
+        {
+            var operation = new EmbeddingsGenerationPerformanceOperation(Duration)
+            {
+                Name = name,
+                NumberOfGeneratedEmbeddings = NumberOfGeneratedEmbeddings,
+                NumberOfEmbeddingsInCache = NumberOfEmbeddingsInCache,
+                NumberOfPutEmbeddingDocuments = NumberOfPutEmbeddingDocuments,
+                NumberOfDeletedEmbeddingDocuments = NumberOfDeletedEmbeddingDocuments,
             };
 
             if (Scopes != null)

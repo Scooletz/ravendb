@@ -8,6 +8,10 @@ export const connectionStringsUpdateUrlMiddleware = createListenerMiddleware();
 connectionStringsUpdateUrlMiddleware.startListening({
     actionCreator: connectionStringsActions.editConnectionModalOpened,
     effect: (action) => {
+        if (!getIsConnectionStringsPage()) {
+            return;
+        }
+
         const url = appUrl.forConnectionStrings(
             activeDatabase.default.database(),
             action.payload.type,
@@ -21,7 +25,13 @@ connectionStringsUpdateUrlMiddleware.startListening({
 connectionStringsUpdateUrlMiddleware.startListening({
     actionCreator: connectionStringsActions.editConnectionModalClosed,
     effect: () => {
+        if (!getIsConnectionStringsPage()) {
+            return;
+        }
+
         const url = appUrl.forCurrentDatabase().connectionStrings();
         history.pushState(null, null, url);
     },
 });
+
+const getIsConnectionStringsPage = () => window.location.href.includes("settings/connectionStrings");

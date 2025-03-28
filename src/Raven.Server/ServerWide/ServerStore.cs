@@ -62,6 +62,7 @@ using Raven.Server.Rachis;
 using Raven.Server.Rachis.Remote;
 using Raven.Server.ServerWide.BackgroundTasks;
 using Raven.Server.ServerWide.Commands;
+using Raven.Server.ServerWide.Commands.AI;
 using Raven.Server.ServerWide.Commands.ConnectionStrings;
 using Raven.Server.ServerWide.Commands.ETL;
 using Raven.Server.ServerWide.Commands.PeriodicBackup;
@@ -2206,6 +2207,15 @@ namespace Raven.Server.ServerWide
                         command = new AddSnowflakeEtlCommand(snowflakeEtl, databaseName, raftRequestId);
                         break;
 
+                    case EtlType.EmbeddingsGeneration:
+                        var aiIntegration = JsonDeserializationCluster.EmbeddingsGenerationConfiguration(etlConfiguration);
+                        aiIntegration.Validate(out var aiIntegrationErr, validateName: false, validateConnection: false);
+                        if (ValidateConnectionString(rawRecord, aiIntegration.ConnectionStringName, aiIntegration.EtlType) == false)
+                            aiIntegrationErr.Add($"Could not find connection string named '{aiIntegration.ConnectionStringName}'. Please supply an existing connection string.");
+                        ThrowInvalidConfigurationIfNecessary(etlConfiguration, aiIntegrationErr);
+                        command = new AddEmbeddingsGenerationCommand(aiIntegration, databaseName, raftRequestId);
+                        break;
+
                     default:
                         throw new NotSupportedException($"Unknown ETL configuration type. Configuration: {etlConfiguration}");
                 }
@@ -2333,6 +2343,9 @@ namespace Raven.Server.ServerWide
                 case EtlType.Snowflake:
                     var snowflakeConnectionString = databaseRecord.SnowflakeConnectionStrings;
                     return snowflakeConnectionString != null && snowflakeConnectionString.TryGetValue(connectionStringName, out _);
+                case EtlType.EmbeddingsGeneration:
+                    var aiConnectionStrings = databaseRecord.AiConnectionStrings;
+                    return aiConnectionStrings != null && aiConnectionStrings.TryGetValue(connectionStringName, out _);
                 default:
                     throw new NotSupportedException($"Unknown ETL type. Type: {etlType}");
             }
@@ -2408,6 +2421,18 @@ namespace Raven.Server.ServerWide
 
                         command = new UpdateSnowflakeEtlCommand(id, snowflakeEtl, databaseName, raftRequestId);
                         break;
+
+                    case EtlType.EmbeddingsGeneration:
+                        var aiIntegration = JsonDeserializationCluster.EmbeddingsGenerationConfiguration(etlConfiguration);
+                        aiIntegration.Validate(out var aiIntegrationErr, validateName: false, validateConnection: false);
+                        if (ValidateConnectionString(rawRecord, aiIntegration.ConnectionStringName, aiIntegration.EtlType) == false)
+                            aiIntegrationErr.Add($"Could not find AI connection string named '{aiIntegration.ConnectionStringName}'. Please supply an existing connection string.");
+
+                        ThrowInvalidConfigurationIfNecessary(etlConfiguration, aiIntegrationErr);
+
+                        command = new UpdateEmbeddingsGenerationCommand(id, aiIntegration, databaseName, raftRequestId);
+                        break;
+
                     default:
                         throw new NotSupportedException($"Unknown ETL configuration type. Configuration: {etlConfiguration}");
                 }
@@ -2479,6 +2504,9 @@ namespace Raven.Server.ServerWide
                 case ConnectionStringType.Snowflake:
                     command = new PutSnowflakeConnectionStringCommand(JsonDeserializationCluster.SnowflakeConnectionString(connectionString), databaseName,
                         raftRequestId);
+                    break;
+                case ConnectionStringType.Ai:
+                    command = new PutAiConnectionStringCommand(JsonDeserializationCluster.AiConnectionString(connectionString), databaseName, raftRequestId);
                     break;
                 default:
                     throw new NotSupportedException($"Unknown connection string type: {connectionStringType}");
@@ -2617,16 +2645,35 @@ namespace Raven.Server.ServerWide
                         // Don't delete the connection string if used by tasks types: Snowflake Etl
                         if (snowflakeEtls != null)
                         {
-                            foreach (var snowflakeETlTask in snowflakeEtls)
+                            foreach (var snowflakeEtlTask in snowflakeEtls)
                             {
-                                if (snowflakeETlTask.ConnectionStringName == connectionStringName)
+                                if (snowflakeEtlTask.ConnectionStringName == connectionStringName)
                                 {
-                                    throw new InvalidOperationException($"Can't delete connection string: {connectionStringName}. It is used by task: {snowflakeETlTask.Name}");
+                                    throw new InvalidOperationException($"Can't delete connection string: {connectionStringName}. It is used by task: {snowflakeEtlTask.Name}");
                                 }
                             }
                         }
 
                         command = new RemoveSnowflakeConnectionStringCommand(connectionStringName, databaseName, raftRequestId);
+                        break;
+
+                    case ConnectionStringType.Ai:
+
+                        var aiEtls = rawRecord.EmbeddingsGenerations;
+
+                        // Don't delete the connection string if used by tasks types: AI Integration
+                        if (aiEtls != null)
+                        {
+                            foreach (var aiEtlTask in aiEtls)
+                            {
+                                if (aiEtlTask.ConnectionStringName == connectionStringName)
+                                {
+                                    throw new InvalidOperationException($"Can't delete connection string: {connectionStringName}. It is used by task: {aiEtlTask.Name}");
+                                }
+                            }
+                        }
+
+                        command = new RemoveAiConnectionStringCommand(connectionStringName, databaseName, raftRequestId);
                         break;
 
                     default:

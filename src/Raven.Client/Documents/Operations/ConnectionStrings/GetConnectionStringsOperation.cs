@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Net.Http;
 using Raven.Client.Documents.Conventions;
+using Raven.Client.Documents.Operations.AI;
 using Raven.Client.Documents.Operations.ETL;
 using Raven.Client.Documents.Operations.ETL.ElasticSearch;
 using Raven.Client.Documents.Operations.ETL.OLAP;
@@ -93,51 +94,38 @@ namespace Raven.Client.Documents.Operations.ConnectionStrings
         public Dictionary<string, ElasticSearchConnectionString> ElasticSearchConnectionStrings { get; set; }
         public Dictionary<string, QueueConnectionString> QueueConnectionStrings { get; set; }
         public Dictionary<string, SnowflakeConnectionString> SnowflakeConnectionStrings { get; set; }
-
+        public Dictionary<string, AiConnectionString> AiConnectionStrings { get; set; }
+        
         public DynamicJsonValue ToJson()
         {
-            var ravenConnections = new DynamicJsonValue();
-            var sqlConnections = new DynamicJsonValue();
-            var elasticSearchConnections = new DynamicJsonValue();
-            var olapConnections = new DynamicJsonValue();
-            var queueConnections = new DynamicJsonValue();
-            var snowflakeConnections = new DynamicJsonValue();
+            var result = new DynamicJsonValue();
 
-            foreach (var kvp in RavenConnectionStrings)
-            {
-                ravenConnections[kvp.Key] = kvp.Value.ToJson();
-            }
-            foreach (var kvp in SqlConnectionStrings)
-            {
-                sqlConnections[kvp.Key] = kvp.Value.ToJson();
-            }
-            foreach (var kvp in ElasticSearchConnectionStrings)
-            {
-                elasticSearchConnections[kvp.Key] = kvp.Value.ToJson();
-            }
-            foreach (var kvp in OlapConnectionStrings)
-            {
-                olapConnections[kvp.Key] = kvp.Value.ToJson();
-            }
-            foreach (var kvp in QueueConnectionStrings)
-            {
-                queueConnections[kvp.Key] = kvp.Value.ToJson();
-            }
-            foreach (var kvp in SnowflakeConnectionStrings)
-            {
-                snowflakeConnections[kvp.Key] = kvp.Value.ToJson();
-            }
+            AddConnections(RavenConnectionStrings, nameof(RavenConnectionStrings));
+            AddConnections(SqlConnectionStrings, nameof(SqlConnectionStrings));
+            AddConnections(OlapConnectionStrings, nameof(OlapConnectionStrings));
+            AddConnections(ElasticSearchConnectionStrings, nameof(ElasticSearchConnectionStrings));
+            AddConnections(QueueConnectionStrings, nameof(QueueConnectionStrings));
+            AddConnections(SnowflakeConnectionStrings, nameof(SnowflakeConnectionStrings));
+            AddConnections(AiConnectionStrings, nameof(AiConnectionStrings));
 
+            return result;
 
-            return new DynamicJsonValue
+            void AddConnections<T>(Dictionary<string, T> connectionStrings, string propertyName)
+                where T : IDynamicJsonValueConvertible
             {
-                [nameof(RavenConnectionStrings)] = ravenConnections,
-                [nameof(SqlConnectionStrings)] = sqlConnections,
-                [nameof(OlapConnectionStrings)] = olapConnections,
-                [nameof(ElasticSearchConnectionStrings)] = elasticSearchConnections,
-                [nameof(QueueConnectionStrings)] = queueConnections,
-                [nameof(SnowflakeConnectionStrings)] = snowflakeConnections,
-            };
+                if (connectionStrings == null)
+                {
+                    result[propertyName] = null;
+                    return;
+                }
+
+                var jsonConnections = new DynamicJsonValue();
+                
+                foreach (var kvp in connectionStrings)
+                    jsonConnections[kvp.Key] = kvp.Value.ToJson();
+                
+                result[propertyName] = jsonConnections;
+            }
         }
     }
 }

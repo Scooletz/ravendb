@@ -378,12 +378,12 @@ interface IOMetricsRecentStatsWithCache extends Raven.Server.Utils.IoMetrics.IOM
 
 type subscriptionType =  "SubscriptionConnection" | "SubscriptionBatch" | "AggregatedBatchesInfo";
 
-type ongoingTaskStatType = Raven.Server.Documents.Replication.LiveReplicationPerformanceCollector.ReplicationPerformanceType | StudioEtlType | subscriptionType | StudioQueueSinkType;
+type ongoingTaskStatType = Raven.Server.Documents.Replication.Stats.LiveReplicationPerformanceCollector.ReplicationPerformanceType | StudioEtlType | subscriptionType | StudioQueueSinkType;
 
 interface ReplicationPerformanceBaseCache {
     StartedAsDate: Date;
     CompletedAsDate: Date;
-    Type: Raven.Server.Documents.Replication.LiveReplicationPerformanceCollector.ReplicationPerformanceType;
+    Type: Raven.Server.Documents.Replication.Stats.LiveReplicationPerformanceCollector.ReplicationPerformanceType;
     Description: string;
     HasErrors: boolean;
 }
@@ -778,6 +778,7 @@ type etlScriptDefinitionCacheItem = {
                         Raven.Client.Documents.Operations.OngoingTasks.OngoingTaskSnowflakeEtl |
                         Raven.Client.Documents.Operations.OngoingTasks.OngoingTaskOlapEtl |
                         Raven.Client.Documents.Operations.OngoingTasks.OngoingTaskElasticSearchEtl |
+                        Raven.Client.Documents.Operations.OngoingTasks.OngoingTaskAiEtl |
                         Raven.Client.Documents.Operations.OngoingTasks.OngoingTaskQueueEtl>;
 }
 
@@ -879,11 +880,13 @@ interface TimeSeriesOperation extends Raven.Client.Documents.Operations.TimeSeri
 type StudioTaskType = "Replication" | "PullReplicationAsHub" | "PullReplicationAsSink" | "Backup" | "Subscription" |
     "RavenEtl" | "SqlEtl" | "SnowflakeEtl" | "OlapEtl" | "ElasticSearchEtl" | 
     "KafkaQueueEtl" | "RabbitQueueEtl" | "AzureQueueStorageQueueEtl" | "AmazonSqsQueueEtl" |
-    "KafkaQueueSink" | "RabbitQueueSink";
+    "KafkaQueueSink" | "RabbitQueueSink" | "EmbeddingsGeneration";
 
-type StudioEtlType = "Raven" | "Sql" | "Snowflake" | "Olap" | "ElasticSearch" | "Kafka" | "RabbitMQ" | "AzureQueueStorage" | "AmazonSqs";
+type StudioEtlType = "Raven" | "Sql" | "Snowflake" | "Olap" | "ElasticSearch" | "Kafka" | "RabbitMQ" | "AzureQueueStorage" | "AmazonSqs" | "EmbeddingsGeneration";
 
 type StudioQueueSinkType = "KafkaQueueSink" | "RabbitQueueSink";
+
+type FilterOngoingTaskType = Raven.Client.Documents.Operations.ETL.EtlType  | Raven.Client.Documents.Operations.ETL.Queue.QueueBrokerType | "Subscription" | "Replication";
 
 type TaskDestinationType = "Collection" | "Table" | "Queue" | "Topic" | "Index";
 

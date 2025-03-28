@@ -3,7 +3,6 @@ import FeatureAvailabilitySummaryWrapper, {
     FeatureAvailabilityData,
 } from "components/common/FeatureAvailabilitySummary";
 import { useLimitedFeatureAvailability } from "components/utils/licenseLimitsUtils";
-import React from "react";
 import useConnectionStringsLicense from "./useConnectionStringsLicense";
 
 export function ConnectionStringsInfoHub() {
@@ -88,6 +87,13 @@ export function ConnectionStringsInfoHub() {
 }
 
 const defaultFeatureAvailability: FeatureAvailabilityData[] = [
+    {
+        featureName: "AI",
+        featureIcon: "ai-etl",
+        community: { value: true },
+        professional: { value: true },
+        enterprise: { value: true },
+    },
     {
         featureName: "RavenDB ETL",
         featureIcon: "ravendb-etl",

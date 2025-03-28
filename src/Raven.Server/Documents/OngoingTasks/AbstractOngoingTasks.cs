@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Security.Cryptography.X509Certificates;
 using JetBrains.Annotations;
+using Raven.Client.Documents.Operations.AI;
 using Raven.Client.Documents.Operations.Backups;
 using Raven.Client.Documents.Operations.ConnectionStrings;
 using Raven.Client.Documents.Operations.ETL;
@@ -136,6 +137,15 @@ public abstract class AbstractOngoingTasks<TSubscriptionConnectionsState>
             yield return CreateQueueSinkTaskInfo(clusterTopology, databaseRecord, queueSink);
     }
 
+    private IEnumerable<EmbeddingsGeneration> GetEmbeddingsGenerationTasks(ClusterTopology clusterTopology, DatabaseRecord databaseRecord)
+    {
+        if (databaseRecord.EmbeddingsGenerations == null || databaseRecord.EmbeddingsGenerations.Count == 0)
+            yield break;
+
+        foreach (var aiIntegration in databaseRecord.EmbeddingsGenerations)
+            yield return CreateEmbeddingsGenerationTaskInfo(clusterTopology, databaseRecord, aiIntegration);
+    }
+
     public IEnumerable<OngoingTask> GetAllTasks(ClusterOperationContext context, ClusterTopology clusterTopology, DatabaseRecord databaseRecord)
     {
         foreach (var task in CollectSubscriptionTasks(context, clusterTopology))
@@ -172,6 +182,9 @@ public abstract class AbstractOngoingTasks<TSubscriptionConnectionsState>
             yield return task;
         
         foreach (var task in GetQueueSinkTasks(clusterTopology, databaseRecord))
+            yield return task;
+
+        foreach (var task in GetEmbeddingsGenerationTasks(clusterTopology, databaseRecord))
             yield return task;
     }
 
@@ -295,6 +308,16 @@ public abstract class AbstractOngoingTasks<TSubscriptionConnectionsState>
                     return null;
 
                 return CreateQueueSinkTaskInfo(clusterTopology, databaseRecord, queueSink);
+            case OngoingTaskType.EmbeddingsGeneration:
+
+                var embeddingsGeneration = taskName != null
+                    ? databaseRecord.EmbeddingsGenerations.Find(x => x.Name.Equals(taskName, StringComparison.OrdinalIgnoreCase))
+                    : databaseRecord.EmbeddingsGenerations?.Find(x => x.TaskId == taskId);
+
+                if (embeddingsGeneration == null)
+                    return null;
+
+                return CreateEmbeddingsGenerationTaskInfo(clusterTopology, databaseRecord, embeddingsGeneration);
             default:
                 return null;
         }
@@ -612,5 +635,28 @@ public abstract class AbstractOngoingTasks<TSubscriptionConnectionsState>
             ConnectionStringName = queueSink.ConnectionStringName,
             Url = connection?.GetUrl()
         };
+    }
+
+    private EmbeddingsGeneration CreateEmbeddingsGenerationTaskInfo(ClusterTopology clusterTopology, DatabaseRecord databaseRecord,
+        EmbeddingsGenerationConfiguration configuration)
+    {
+        databaseRecord.AiConnectionStrings.TryGetValue(configuration.ConnectionStringName, out var connection);
+        var connectionStatus = GetEtlTaskConnectionStatus(databaseRecord, configuration, out var tag, out var error);
+        var taskState = OngoingTasksHandler.GetEtlTaskState(configuration);
+
+        return new EmbeddingsGeneration
+        {
+            TaskId = configuration.TaskId,
+            TaskName = configuration.Name,
+            TaskState = taskState,
+            TaskConnectionStatus = connectionStatus,
+            MentorNode = configuration.MentorNode,
+            PinToMentorNode = configuration.PinToMentorNode,
+            ConnectionStringName = configuration.ConnectionStringName,
+            ResponsibleNode = new NodeId { NodeTag = tag, NodeUrl = clusterTopology.GetUrlFromTag(tag) },
+            Error = error,
+            Configuration = configuration
+        };
+
     }
 }

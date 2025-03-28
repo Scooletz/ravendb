@@ -57,5 +57,3 @@ public sealed class VectorOptionsFactory
         return this;
     }
 }
-
-

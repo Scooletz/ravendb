@@ -1,7 +1,7 @@
 import { PayloadAction, createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import { services } from "components/hooks/useServices";
 import { loadStatus } from "components/models/common";
-import { Connection } from "../connectionStringsTypes";
+import { Connection, StudioConnectionType } from "../connectionStringsTypes";
 import { RootState } from "components/store";
 import { ConnectionStringsUrlParameters } from "../ConnectionStrings";
 import {
@@ -14,16 +14,20 @@ import {
     mapSqlConnectionsFromDto,
     mapSnowflakeConnectionsFromDto,
     mapAmazonSqsConnectionsFromDto,
+    mapAiConnectionsFromDto,
 } from "./connectionStringsMapsFromDto";
 import { accessManagerSelectors } from "components/common/shell/accessManagerSliceSelectors";
 import DatabaseUtils from "components/utils/DatabaseUtils";
 import { databaseSelectors } from "components/common/shell/databaseSliceSelectors";
 
+type ConnectionStringsViewContext = "ai" | "connectionString";
+
 interface ConnectionStringsState {
     loadStatus: loadStatus;
-    connections: { [key in StudioEtlType]: Connection[] };
+    connections: { [key in StudioConnectionType]: Connection[] };
     urlParameters: ConnectionStringsUrlParameters;
     initialEditConnection: Connection;
+    viewContext: ConnectionStringsViewContext;
 }
 
 const initialState: ConnectionStringsState = {
@@ -38,24 +42,15 @@ const initialState: ConnectionStringsState = {
         RabbitMQ: [],
         AzureQueueStorage: [],
         AmazonSqs: [],
+        Ai: [],
     },
     urlParameters: {
         name: null,
         type: null,
     },
     initialEditConnection: null,
+    viewContext: "connectionString",
 };
-
-type StudioEtlType =
-    | "Raven"
-    | "Sql"
-    | "Snowflake"
-    | "Olap"
-    | "ElasticSearch"
-    | "Kafka"
-    | "RabbitMQ"
-    | "AzureQueueStorage"
-    | "AmazonSqs";
 
 export const connectionStringsSlice = createSlice({
     name: "connectionStrings",
@@ -67,7 +62,7 @@ export const connectionStringsSlice = createSlice({
         newConnectionModalOpened: (state) => {
             state.initialEditConnection = { type: null };
         },
-        newConnectionOfTypeModalOpened: (state, { payload: type }: PayloadAction<StudioEtlType>) => {
+        newConnectionOfTypeModalOpened: (state, { payload: type }: PayloadAction<StudioConnectionType>) => {
             state.initialEditConnection = { type };
         },
         editConnectionModalOpened: (state, { payload: connection }: PayloadAction<Connection>) => {
@@ -93,6 +88,9 @@ export const connectionStringsSlice = createSlice({
         },
         connectionDeleted: (state, { payload }: PayloadAction<Connection>) => {
             state.connections[payload.type] = state.connections[payload.type].filter((x) => x.name !== payload.name);
+        },
+        viewContextSet: (state, { payload: viewContext }: PayloadAction<ConnectionStringsViewContext>) => {
+            state.viewContext = viewContext;
         },
         reset: () => initialState,
     },
@@ -135,6 +133,7 @@ export const connectionStringsSlice = createSlice({
                     connectionStringsDto.QueueConnectionStrings,
                     ongoingTasks
                 );
+                connections.Ai = mapAiConnectionsFromDto(connectionStringsDto.AiConnectionStrings, ongoingTasks);
                 state.loadStatus = "success";
 
                 if (payload.hasDatabaseAdminAccess && urlParameters.name && urlParameters.type) {
@@ -196,4 +195,5 @@ export const connectionStringSelectors = {
     connections: (store: RootState) => store.connectionStrings.connections,
     initialEditConnection: (store: RootState) => store.connectionStrings.initialEditConnection,
     isEmpty: (store: RootState) => _.isEqual(store.connectionStrings.connections, initialState.connections),
+    viewContext: (store: RootState) => store.connectionStrings.viewContext,
 };

@@ -1,5 +1,6 @@
 
 type EditPeriodicBackupTaskSourceView = "Backups" | "OngoingTasks";
+type EditAiTaskSourceView = "AiTasks" | "OngoingTasks";
 
 // Interface
 interface computedAppUrls {
@@ -38,6 +39,7 @@ interface computedAppUrls {
     editAmazonSqsEtl: (taskId?: number, taskName?: string) => KnockoutComputed<string>;
     editKafkaSink: (taskId?: number, taskName?: string) => KnockoutComputed<string>;
     editRabbitMqSink: (taskId?: number, taskName?: string) => KnockoutComputed<string>;
+    editEmbeddingsGeneration: (taskId?: number, taskName?: string) => KnockoutComputed<string>;
     query: (indexName?: string) => KnockoutComputed<string>;
     terms: (indexName?: string) => KnockoutComputed<string>;
     importDatabaseFromFileUrl: KnockoutComputed<string>;
@@ -64,6 +66,7 @@ interface computedAppUrls {
     editAmazonSqsEtlTaskUrl: KnockoutComputed<string>;
     editKafkaSinkTaskUrl: KnockoutComputed<string>;
     editRabbitMqSinkTaskUrl: KnockoutComputed<string>;
+    editEmbeddingsGenerationTaskUrl: KnockoutComputed<string>;
     csvImportUrl: KnockoutComputed<string>;
     status: KnockoutComputed<string>;
     indexPerformance: KnockoutComputed<string>;
@@ -101,4 +104,9 @@ interface computedAppUrls {
     isAreaActive: (routeRoot: string) => KnockoutComputed<boolean>;
     isActive: (routeTitle: string) => KnockoutComputed<boolean>;
     databasesManagement: KnockoutComputed<string>;
+
+    // AI Hub
+    aiConnectionStrings: KnockoutComputed<string>;
+    aiTasks: KnockoutComputed<string>;
+    aiTasksStats: KnockoutComputed<string>;
 }

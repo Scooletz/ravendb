@@ -14,7 +14,11 @@ public sealed class VectorSearchToken : WhereToken
     private readonly VectorEmbeddingType _sourceQuantizationType;
     private readonly VectorEmbeddingType _targetQuantizationType;
     private readonly int? _numberOfCandidatesForQuerying;
-    public VectorSearchToken(string fieldName, string parameterName, VectorEmbeddingType sourceQuantizationType, VectorEmbeddingType targetQuantizationType, float? similarityThreshold, int? numberOfCandidatesForQuerying, bool isExact)
+    private readonly string _embeddingsGenerationTaskIdentifier;
+
+    private static string AiTaskMethodName = "ai.task";
+    
+    public VectorSearchToken(string fieldName, string parameterName, VectorEmbeddingType sourceQuantizationType, VectorEmbeddingType targetQuantizationType, float? similarityThreshold, int? numberOfCandidatesForQuerying, bool isExact, string embeddingsGenerationTaskIdentifier)
     {
         FieldName = fieldName;
         ParameterName = parameterName;
@@ -26,6 +30,8 @@ public sealed class VectorSearchToken : WhereToken
 
         _numberOfCandidatesForQuerying = numberOfCandidatesForQuerying;
         Options = new(isExact);
+
+        _embeddingsGenerationTaskIdentifier = embeddingsGenerationTaskIdentifier;
     }
     
     public override void WriteTo(StringBuilder writer)
@@ -43,7 +49,11 @@ public sealed class VectorSearchToken : WhereToken
         else
         {
             var methodName = Constants.VectorSearch.ConfigurationToMethodName(_sourceQuantizationType, _targetQuantizationType);
-            writer.Append($"{methodName}({FieldName})");
+            
+            if (_sourceQuantizationType is VectorEmbeddingType.Text && _embeddingsGenerationTaskIdentifier != null)
+                writer.Append($"{methodName}({FieldName},{AiTaskMethodName}('{_embeddingsGenerationTaskIdentifier}'))");
+            else
+                writer.Append($"{methodName}({FieldName})");
         }
         
         writer.Append($", ${ParameterName}");

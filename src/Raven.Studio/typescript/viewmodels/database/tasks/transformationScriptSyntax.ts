@@ -68,6 +68,19 @@ class transformationScriptSyntax extends dialogViewModelBase {
             case "AmazonSqs":
                 sampleText = transformationScriptSyntax.amazonSqsEtlSampleText;
                 break;
+            case "EmbeddingsGeneration":
+                switch (sampleTitle) {
+                    case "embeddingsGenerationSampleText":
+                        sampleText = transformationScriptSyntax.embeddingsGenerationSampleText;
+                        break;
+                    case "embeddingsGenerationSampleMarkdown":
+                        sampleText = transformationScriptSyntax.embeddingsGenerationSampleMarkdown;
+                        break;
+                    case "embeddingsGenerationSampleHtml":
+                        sampleText = transformationScriptSyntax.embeddingsGenerationSampleHtml;
+                        break;
+                }
+            break;
             default:
                 genUtils.assertUnreachable(type, "Unknown studioEtlType: " + type);
         }
@@ -262,7 +275,31 @@ loadToOrders(orderData, {  // load to the 'Orders' Queue with optional params
 //    Source: '/registrations/direct-signup'
 //});
 `;
-    
+
+embeddingsGenerationSampleTextHighlighted = transformationScriptSyntax.highlightJavascript(transformationScriptSyntax.embeddingsGenerationSampleText);
+
+static readonly embeddingsGenerationSampleText =
+`embeddings.generate({ 
+    Name: this.Name,
+    Note: text.split(this.Note, 2048),
+    Description: text.splitLines(this.Description, 2048),
+    Paragraphs: text.splitParagraphs(this.Paragraphs, 2048)
+});`;
+
+embeddingsGenerationSampleMarkdownHighlighted = transformationScriptSyntax.highlightJavascript(transformationScriptSyntax.embeddingsGenerationSampleMarkdown);
+
+static readonly embeddingsGenerationSampleMarkdown =
+`embeddings.generate({ 
+    MarkdownDescription: markdown.splitLines(this.MarkdownDescription, 2048),
+    MarkdownSections: markdown.splitParagraphs(this.MarkdownSections, 1024)
+});`
+
+embeddingsGenerationSampleHtmlHighlighted = transformationScriptSyntax.highlightJavascript(transformationScriptSyntax.embeddingsGenerationSampleHtml);
+
+static readonly embeddingsGenerationSampleHtml =
+`embeddings.generate({ 
+    HtmlContent: html.strip(this.HtmlContent, 2048)
+});`
     
     
     kafkaEtlSampleHtml = transformationScriptSyntax.highlightJavascript(transformationScriptSyntax.kafkaEtlSampleText);

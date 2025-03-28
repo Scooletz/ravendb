@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Raven.Client.Documents.DataArchival;
 using Raven.Client.Documents.Indexes;
 using Raven.Client.Documents.Indexes.Analysis;
+using Raven.Client.Documents.Operations.AI;
 using Raven.Client.Documents.Operations.Attachments;
 using Raven.Client.Documents.Operations.Backups;
 using Raven.Client.Documents.Operations.Counters;
@@ -471,6 +472,24 @@ namespace Raven.Server.Smuggler.Documents
                         }
                     }
                 }
+                
+                if (reader.TryGet(nameof(databaseRecord.EmbeddingsGenerations), out BlittableJsonReaderArray embeddingsGenerations) &&
+                    embeddingsGenerations != null)
+                {
+                    databaseRecord.EmbeddingsGenerations = new List<EmbeddingsGenerationConfiguration>();
+                    foreach (BlittableJsonReaderObject etl in embeddingsGenerations)
+                    {
+                        try
+                        {
+                            databaseRecord.EmbeddingsGenerations.Add(JsonDeserializationCluster.EmbeddingsGenerationConfiguration(etl));
+                        }
+                        catch (Exception e)
+                        {
+                            if (_log.IsInfoEnabled)
+                                _log.Info("Wasn't able to import the embeddings generations configuration from smuggler file. Skipping.", e);
+                        }
+                    }
+                }
 
                 if (reader.TryGet(nameof(databaseRecord.RavenConnectionStrings), out BlittableJsonReaderObject ravenConnectionStrings) &&
                     ravenConnectionStrings != null)
@@ -496,6 +515,32 @@ namespace Raven.Server.Smuggler.Documents
                         databaseRecord.RavenConnectionStrings.Clear();
                         if (_log.IsInfoEnabled)
                             _log.Info("Wasn't able to import the RavenDB connection strings from smuggler file. Skipping.", e);
+                    }
+                }
+                
+                if (reader.TryGet(nameof(databaseRecord.AiConnectionStrings), out BlittableJsonReaderObject aiConnectionStrings) && aiConnectionStrings != null)
+                {
+                    try
+                    {
+                        foreach (var connectionName in aiConnectionStrings.GetPropertyNames())
+                        {
+                            if (aiConnectionStrings.TryGet(connectionName, out BlittableJsonReaderObject connection) == false)
+                            {
+                                if (_log.IsInfoEnabled)
+                                    _log.Info($"Wasn't able to import the AI connection string {connectionName} from smuggler file. Skipping.");
+
+                                continue;
+                            }
+
+                            var connectionString = JsonDeserializationCluster.AiConnectionString(connection);
+                            databaseRecord.AiConnectionStrings[connectionName] = connectionString;
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        databaseRecord.AiConnectionStrings.Clear();
+                        if (_log.IsInfoEnabled)
+                            _log.Info("Wasn't able to import the AI connection strings from smuggler file. Skipping.", e);
                     }
                 }
 

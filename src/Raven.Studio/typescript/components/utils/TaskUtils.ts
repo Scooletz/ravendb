@@ -111,6 +111,8 @@ export default class TaskUtils {
                 return "SnowflakeEtl";
             case "Queue":
                 return "QueueEtl";
+            case "EmbeddingsGeneration":
+                return "EmbeddingsGeneration";
             default:
                 throw new Error("Unknown etl type mapping: " + etlType);
         }
@@ -130,8 +132,45 @@ export default class TaskUtils {
                 return "Snowflake";
             case "QueueEtl":
                 return "Queue";
+            case "EmbeddingsGeneration":
+                return "EmbeddingsGeneration";
             default:
                 throw new Error("Unsupported task type: " + taskType);
         }
+    }
+
+    // copied from AiConnectionString.cs
+    static getGeneratedIdentifier(name: string): string {
+        if (!name || name.trim().length === 0) {
+            return null;
+        }
+
+        let result = "";
+        let lastWasHyphen = false;
+
+        // Normalize to FormD to separate letters from their diacritics
+        for (const c of name.normalize("NFD")) {
+            // Check if character is a-z, 0-9
+            if ((c >= "a" && c <= "z") || (c >= "0" && c <= "9")) {
+                result += c;
+                lastWasHyphen = false;
+            }
+            // Check if character is A-Z
+            else if (c >= "A" && c <= "Z") {
+                result += c.toLowerCase();
+                lastWasHyphen = false;
+            }
+            // Add hyphen for any other character if we haven't just added one
+            else if (!lastWasHyphen && result.length > 0) {
+                result += "-";
+                lastWasHyphen = true;
+            }
+        }
+
+        // Trim any trailing hyphens
+        result = result.replace(/-+$/, "");
+
+        // Return default identifier if empty
+        return result.length === 0 ? "AiConnectionStringIdentifier" : result;
     }
 }

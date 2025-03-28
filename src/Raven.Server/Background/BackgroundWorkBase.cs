@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
 using Raven.Client.Extensions;
@@ -92,7 +93,7 @@ namespace Raven.Server.Background
             Cts.Dispose();
         }
 
-        
+        public bool IsRunning => _currentTask != null;
 
         protected async Task WaitOrThrowOperationCanceled(TimeSpan time)
         {

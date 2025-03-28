@@ -3,10 +3,10 @@ import React, { useState } from "react";
 import InputGroup from "react-bootstrap/InputGroup";
 import Button from "react-bootstrap/Button";
 import Select, { SelectOptionWithIcon, SingleValueWithIcon } from "components/common/select/Select";
-import { Connection, EditConnectionStringFormProps } from "./connectionStringsTypes";
+import { Connection, EditConnectionStringFormProps, StudioConnectionType } from "./connectionStringsTypes";
 import RavenConnectionString from "./editForms/RavenConnectionString";
 import { useDispatch } from "react-redux";
-import { connectionStringsActions } from "./store/connectionStringsSlice";
+import { connectionStringsActions, connectionStringSelectors } from "./store/connectionStringsSlice";
 import ElasticSearchConnectionString from "./editForms/ElasticSearchConnectionString";
 import KafkaConnectionString from "./editForms/KafkaConnectionString";
 import OlapConnectionString from "./editForms/OlapConnectionString";
@@ -25,24 +25,29 @@ import { components, OptionProps } from "react-select";
 import AzureQueueStorageConnectionString from "components/pages/database/settings/connectionStrings/editForms/AzureQueueStorageConnectionString";
 import SnowflakeConnectionString from "components/pages/database/settings/connectionStrings/editForms/SnowflakeConnectionString";
 import AmazonSqsConnectionString from "components/pages/database/settings/connectionStrings/editForms/AmazonSqsConnectionString";
+import AiConnectionString from "components/pages/database/settings/connectionStrings/editForms/AiConnectionString";
 import Modal from "components/common/Modal";
 import { FormLabel } from "components/common/Form";
 
 export interface EditConnectionStringsProps {
     initialConnection?: Connection;
+    afterSave?: (name: string) => void;
+    afterClose?: () => void;
 }
 
 export default function EditConnectionStrings(props: EditConnectionStringsProps) {
-    const { initialConnection } = props;
+    const { initialConnection, afterSave, afterClose } = props;
 
     const isForNewConnection = !initialConnection.name;
 
     const dispatch = useDispatch();
     const { tasksService } = useServices();
-    const [connectionStringType, setConnectionStringType] = useState<StudioEtlType>(initialConnection?.type);
+    const [connectionStringType, setConnectionStringType] = useState<StudioConnectionType>(initialConnection?.type);
     const { features: licenseFeatures } = useConnectionStringsLicense();
 
     const EditConnectionStringComponent = getEditConnectionStringComponent(connectionStringType);
+
+    const viewContext = useAppSelector(connectionStringSelectors.viewContext);
 
     const databaseName = useAppSelector(databaseSelectors.activeDatabaseName);
     const asyncSave = useAsyncCallback((dto: any) => tasksService.saveConnectionString(databaseName, dto));
@@ -52,48 +57,66 @@ export default function EditConnectionStrings(props: EditConnectionStringsProps)
             await asyncSave.execute(mapConnectionStringToDto(newConnection));
 
             if (isForNewConnection) {
-                dispatch(connectionStringsActions.connectionAdded(newConnection));
+                dispatch(
+                    connectionStringsActions.connectionAdded({
+                        ...newConnection,
+                        usedByTasks: initialConnection.usedByTasks,
+                    })
+                );
             } else {
                 dispatch(
                     connectionStringsActions.connectionEdited({
                         oldName: initialConnection.name,
-                        newConnection,
+                        newConnection: {
+                            ...newConnection,
+                            usedByTasks: initialConnection.usedByTasks,
+                        },
                     })
                 );
             }
 
             dispatch(connectionStringsActions.editConnectionModalClosed());
+            afterSave?.(newConnection.name);
         });
     };
 
     const availableConnectionStringsOptions = getAvailableConnectionStringsOptions(licenseFeatures);
 
+    const handleCancel = () => {
+        dispatch(connectionStringsActions.editConnectionModalClosed());
+        afterClose?.();
+    };
+
     return (
         <Modal size="lg" show contentClassName="modal-border bulge-info">
-            <Modal.Header className="vstack gap-3" closeButton={false}>
+            <Modal.Header className="vstack gap-3" onCloseClick={handleCancel}>
                 <div className="text-center">
                     <Icon icon="manage-connection-strings" color="info" className="fs-1" margin="m-0" />
                 </div>
                 <div className="text-center lead">{isForNewConnection ? "Create a new" : "Edit"} connection string</div>
             </Modal.Header>
             <Modal.Body className="pb-0 vstack gap-3">
-                <div className="mb-2">
-                    <FormLabel>Type</FormLabel>
-                    <InputGroup className="gap-1 flex-wrap flex-column">
-                        <Select
-                            options={availableConnectionStringsOptions}
-                            value={availableConnectionStringsOptions.find((x) => x.value === connectionStringType)}
-                            onChange={(x: SelectOptionWithIcon<StudioEtlType>) => setConnectionStringType(x.value)}
-                            placeholder="Select a connection string type"
-                            isSearchable={false}
-                            isDisabled={!isForNewConnection}
-                            components={{
-                                Option: OptionWithIconAndBadge,
-                                SingleValue: SingleValueWithIcon,
-                            }}
-                        />
-                    </InputGroup>
-                </div>
+                {viewContext !== "ai" && (
+                    <div className="mb-2">
+                        <FormLabel>Type</FormLabel>
+                        <InputGroup className="gap-1 flex-wrap flex-column">
+                            <Select
+                                options={availableConnectionStringsOptions}
+                                value={availableConnectionStringsOptions.find((x) => x.value === connectionStringType)}
+                                onChange={(x: SelectOptionWithIcon<StudioConnectionType>) =>
+                                    setConnectionStringType(x.value)
+                                }
+                                placeholder="Select a connection string type"
+                                isSearchable={false}
+                                isDisabled={!isForNewConnection}
+                                components={{
+                                    Option: OptionWithIconAndBadge,
+                                    SingleValue: SingleValueWithIcon,
+                                }}
+                            />
+                        </InputGroup>
+                    </div>
+                )}
                 {EditConnectionStringComponent && (
                     <EditConnectionStringComponent
                         initialConnection={initialConnection}
@@ -103,13 +126,7 @@ export default function EditConnectionStrings(props: EditConnectionStringsProps)
                 )}
             </Modal.Body>
             <Modal.Footer className="mt-2">
-                <Button
-                    type="button"
-                    variant="link"
-                    className="link-muted"
-                    onClick={() => dispatch(connectionStringsActions.editConnectionModalClosed())}
-                    title="Cancel"
-                >
+                <Button type="button" variant="link" className="link-muted" onClick={handleCancel} title="Cancel">
                     Cancel
                 </Button>
                 {EditConnectionStringComponent && (
@@ -130,7 +147,9 @@ export default function EditConnectionStrings(props: EditConnectionStringsProps)
     );
 }
 
-function getEditConnectionStringComponent(type: StudioEtlType): (props: EditConnectionStringFormProps) => JSX.Element {
+function getEditConnectionStringComponent(
+    type: StudioConnectionType
+): (props: EditConnectionStringFormProps) => JSX.Element {
     switch (type) {
         case "Raven":
             return RavenConnectionString;
@@ -150,18 +169,27 @@ function getEditConnectionStringComponent(type: StudioEtlType): (props: EditConn
             return AzureQueueStorageConnectionString;
         case "AmazonSqs":
             return AmazonSqsConnectionString;
+        case "Ai":
+            return AiConnectionString;
         default:
             return null;
     }
 }
 
-interface ConnectionStringOption extends SelectOptionWithIcon<StudioEtlType> {
+interface ConnectionStringOption extends SelectOptionWithIcon<StudioConnectionType> {
     isDisabled: boolean;
     licenseRequired: LicenseBadgeText;
 }
 
 function getAvailableConnectionStringsOptions(features: ConnectionStringsLicenseFeatures): ConnectionStringOption[] {
     return [
+        {
+            value: "Ai",
+            label: "AI",
+            icon: "sparkles",
+            licenseRequired: "Enterprise",
+            isDisabled: false,
+        },
         {
             value: "Raven",
             label: "RavenDB",

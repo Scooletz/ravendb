@@ -297,6 +297,8 @@ namespace Raven.Client
                 public const string HasValue = "HasValue";
 
                 public const string Etag = "@etag";
+                
+                public const string Quantization = "@quantization";
 
                 internal sealed class Sharding
                 {
@@ -323,6 +325,8 @@ namespace Raven.Client
                 public const string AllDocumentsCollection = "@all_docs";
 
                 public const string EmptyCollection = "@empty";
+
+                public const string EmbeddingsCacheCollection = "@embeddings-cache";
             }
 
             public sealed class Indexing
@@ -392,6 +396,7 @@ namespace Raven.Client
                         public const string BoostPropertyName = "$boost";
                         
                         public const string VectorPropertyName = "$vector";
+                        public const string LoadVectorPropertyName = "$loadvector";
                     }
                 }
 

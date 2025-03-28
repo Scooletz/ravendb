@@ -76,6 +76,11 @@ class ongoingTasksWidget extends websocketBasedWidget<Raven.Server.Dashboard.Clu
             icon: "icon-amazon-sqs-etl",
             colorClass: "amazon-sqs-etl",
         },
+        "EmbeddingsGeneration": {
+            nameForUI: "Embeddings Generation",
+            icon: "icon-ai-etl",
+            colorClass: "ai-etl"
+        },
         "KafkaQueueSink": {
             nameForUI: "Kafka Sink",
             icon: "icon-kafka-sink",
@@ -95,7 +100,7 @@ class ongoingTasksWidget extends websocketBasedWidget<Raven.Server.Dashboard.Clu
             nameForUI: "Subscription",
             icon: "icon-subscription",
             colorClass: "subscription"
-        }
+        },
     }
 
     protected gridController = ko.observable<virtualGridController<taskItem>>();
@@ -323,6 +328,8 @@ class ongoingTasksWidget extends websocketBasedWidget<Raven.Server.Dashboard.Clu
                 return "Subscription";
             case "SnowflakeEtlCount":
                 return "SnowflakeEtl";
+            case "EmbeddingGenerationCount":
+                return "EmbeddingsGeneration";
             default:
                 throw new Error("Unknown task type count received:" + input);
             }

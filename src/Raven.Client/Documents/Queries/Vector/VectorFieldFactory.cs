@@ -61,6 +61,12 @@ public interface IVectorEmbeddingTextField
     /// </summary>
     /// <param name="targetEmbeddingQuantization">Desired target quantization type.</param>
     public IVectorEmbeddingTextField TargetQuantization(VectorEmbeddingType targetEmbeddingQuantization);
+
+    /// <summary>
+    /// Defines which task will be used to get embeddings from.
+    /// </summary>
+    /// <param name="embeddingsGenerationTaskIdentifier">Task identifier.</param>
+    public IVectorEmbeddingTextField UsingTask(string embeddingsGenerationTaskIdentifier);
 }
 
 public interface IVectorEmbeddingField
@@ -80,6 +86,7 @@ public interface IVectorEmbeddingFieldFactoryAccessor
     internal VectorEmbeddingType SourceQuantizationType { get; set; }
     internal VectorEmbeddingType DestinationQuantizationType { get; set; } 
     internal bool IsBase64Encoded { get; set; }
+    internal string EmbeddingsGenerationTaskIdentifier { get; set; }
 }
 
 internal sealed class VectorEmbeddingFieldFactory<T> : IVectorFieldFactory<T>, IVectorField, IVectorEmbeddingField, IVectorEmbeddingTextField, IVectorEmbeddingFieldFactoryAccessor
@@ -89,6 +96,7 @@ internal sealed class VectorEmbeddingFieldFactory<T> : IVectorFieldFactory<T>, I
     public VectorEmbeddingType SourceQuantizationType { get; set; } = Constants.VectorSearch.DefaultEmbeddingType;
     public VectorEmbeddingType DestinationQuantizationType { get; set; } = Constants.VectorSearch.DefaultEmbeddingType;
     public bool IsBase64Encoded { get; set; }
+    public string EmbeddingsGenerationTaskIdentifier { get; set; }
     
     IVectorEmbeddingTextField IVectorFieldFactory<T>.WithText(Expression<Func<T, object>> propertySelector)
     {
@@ -186,6 +194,13 @@ internal sealed class VectorEmbeddingFieldFactory<T> : IVectorFieldFactory<T>, I
 
         return this;
     }
+    
+    IVectorEmbeddingTextField IVectorEmbeddingTextField.UsingTask(string embeddingsGenerationTaskIdentifier)
+    {
+        EmbeddingsGenerationTaskIdentifier = embeddingsGenerationTaskIdentifier;
+
+        return this;
+    }
 }
 
 public interface IVectorEmbeddingTextFieldValueFactory
@@ -195,6 +210,12 @@ public interface IVectorEmbeddingTextFieldValueFactory
     /// </summary>
     /// <param name="text">Queried text.</param>
     public void ByText(string text);
+    
+    /// <summary>
+    /// Defines queried texts.
+    /// </summary>
+    /// <param name="texts">Queried texts.</param>
+    public void ByTexts(IEnumerable<string> texts);
 }
 
 public interface IVectorEmbeddingFieldValueFactory
@@ -209,9 +230,27 @@ public interface IVectorEmbeddingFieldValueFactory
 #endif
     ;
     
+    /// <summary>
+    /// Defines queried embeddings.
+    /// </summary>
+    /// <param name="embeddings">Enumerable containing embeddings values.</param>
+    public void ByEmbedding<T>(IEnumerable<IEnumerable<T>> embeddings) where T : unmanaged
+#if NET7_0_OR_GREATER
+        , INumber<T>
+#endif
+    ;
+    
     /// <inheritdoc cref="ByEmbedding{T}(System.Collections.Generic.IEnumerable{T})"/>
     /// <param name="embedding">Array containing embedding values.</param>
     public void ByEmbedding<T>(T[] embedding) where T : unmanaged
+#if NET7_0_OR_GREATER
+        , INumber<T>
+#endif
+    ;
+    
+    /// <inheritdoc cref="ByEmbedding{T}(System.Collections.Generic.IEnumerable{T})"/>
+    /// <param name="embeddings">Array containing embeddings values.</param>
+    public void ByEmbeddings<T>(T[][] embeddings) where T : unmanaged
 #if NET7_0_OR_GREATER
         , INumber<T>
 #endif
@@ -222,6 +261,12 @@ public interface IVectorEmbeddingFieldValueFactory
     /// </summary>
     /// <param name="base64Embedding">Embedding encoded as base64 string.</param>
     public void ByBase64(string base64Embedding);
+    
+    /// <summary>
+    /// Defines queried embeddings in base64 format.
+    /// </summary>
+    /// <param name="base64Embeddings">Embeddings encoded as base64 strings.</param>
+    public void ByBase64(IEnumerable<string> base64Embeddings);
     
     /// <summary>
     /// Defines queried embedding.
@@ -241,27 +286,39 @@ public interface IVectorFieldValueFactory : IVectorEmbeddingTextFieldValueFactor
 
 public interface IVectorFieldValueFactoryAccessor
 {
-    internal object Embedding { get; set; }
+    internal object Embeddings { get; set; }
     internal string Text { get; set; }
-    internal string Base64Embedding { get; set; }
+    internal IEnumerable<string> Texts { get; set; }
 }
 
 internal class VectorFieldValueFactory : IVectorFieldValueFactory, IVectorFieldValueFactoryAccessor
 {
-    public object Embedding { get; set; }
+    public object Embeddings { get; set; }
     public string Text { get; set; }
-    public string Base64Embedding { get; set; }
+    public IEnumerable<string> Texts { get; set; }
     
     void IVectorEmbeddingFieldValueFactory.ByEmbedding<T>(IEnumerable<T> embedding)
     {
         AssertEmbeddingType<T>();
-        Embedding = embedding;
+        Embeddings = embedding;
     }
 
     void IVectorEmbeddingFieldValueFactory.ByEmbedding<T>(T[] embedding)
     {
         AssertEmbeddingType<T>();
-        Embedding = embedding;
+        Embeddings = embedding;
+    }
+    
+    void IVectorEmbeddingFieldValueFactory.ByEmbedding<T>(IEnumerable<IEnumerable<T>> embeddings)
+    {
+        AssertEmbeddingType<T>();
+        Embeddings = embeddings;
+    }
+    
+    void IVectorEmbeddingFieldValueFactory.ByEmbeddings<T>(T[][] embeddings)
+    {
+        AssertEmbeddingType<T>();
+        Embeddings = embeddings;
     }
 
     private static void AssertEmbeddingType<T>()
@@ -277,7 +334,12 @@ internal class VectorFieldValueFactory : IVectorFieldValueFactory, IVectorFieldV
     
     void IVectorEmbeddingFieldValueFactory.ByBase64(string base64Embedding)
     {
-        Base64Embedding = base64Embedding;
+        Text = base64Embedding;
+    }
+    
+    void IVectorEmbeddingFieldValueFactory.ByBase64(IEnumerable<string> base64Embeddings)
+    {
+        Texts = base64Embeddings;
     }
 
     void IVectorEmbeddingTextFieldValueFactory.ByText(string text)
@@ -285,9 +347,14 @@ internal class VectorFieldValueFactory : IVectorFieldValueFactory, IVectorFieldV
         Text = text;
     }
     
+    void IVectorEmbeddingTextFieldValueFactory.ByTexts(IEnumerable<string> texts)
+    {
+        Texts = texts;
+    }
+    
     void IVectorEmbeddingFieldValueFactory.ByEmbedding<T>(RavenVector<T> embedding)
     {
-        Embedding = embedding;
+        Embeddings = embedding;
     }
 
 }

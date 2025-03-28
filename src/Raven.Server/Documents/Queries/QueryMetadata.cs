@@ -39,6 +39,7 @@ using Acornima;
 using Acornima.Ast;
 using Raven.Client.Documents.Indexes.Vector;
 using Raven.Server.Documents.Indexes;
+using Enum = System.Enum;
 
 namespace Raven.Server.Documents.Queries
 {
@@ -497,8 +498,7 @@ function execute(doc, args){
                     NotInRootAliasPaths(expressionPath.LoadFromAlias))
                     ThrowUnknownAlias(expressionPath.LoadFromAlias, parameters);
 
-                if (listToAdd == null)
-                    listToAdd = new List<string>();
+                listToAdd ??= [];
 
                 listToAdd.Add(expressionPath.Path);
             }
@@ -2501,6 +2501,7 @@ function execute(doc, args){
             private void HandleVector(string methodName, List<QueryExpression> arguments, bool withoutAlias, BlittableJsonReaderObject parameters)
             {
                 QueryFieldName fieldName;
+                string embeddingsGenerationTaskIdentifier = null;
 
                 if (_metadata.IsDynamic == false)
                 {
@@ -2518,19 +2519,28 @@ function execute(doc, args){
                 else
                 {
                     var embedding = (Source: VectorEmbeddingType.Single, Destination: VectorEmbeddingType.Single);
-                    //vector.search(SRC_DST(Field))
+                    //vector.search(SRC_DST(Field, TaskId))
                     if (arguments.Count > 0 && arguments[0] is MethodExpression embeddingMethod)
                     {
                         var materializedMethodName = embeddingMethod.Name.Value;
                         var embeddingType = QueryMethod.GetMethodType(materializedMethodName);
                         embedding = MethodTypeToEmbeddingType(embeddingType);
                         fieldName = _metadata.ExtractFieldNameFromFirstArgument(embeddingMethod.Arguments, materializedMethodName, parameters);
+
+                        if (embeddingMethod.Arguments.Count == 2 && embeddingMethod.Arguments[1] is MethodExpression methodExpression)
+                        {
+                            var taskIdentifierExpression = methodExpression.Arguments[0] as ValueExpression;
+
+                            if (taskIdentifierExpression is null)
+                                throw new ArgumentException("Expected string literal as task identifier.");
+                            
+                            embeddingsGenerationTaskIdentifier = taskIdentifierExpression.Token.Value;
+                        } 
                     }
                     else
                     {
                         fieldName = _metadata.ExtractFieldNameFromFirstArgument(arguments, methodName, parameters);
                     }
-                    
                     
                     //HANDLE ALIASED:
                     fieldName = AliasHandling(fieldName);
@@ -2539,7 +2549,8 @@ function execute(doc, args){
                     {
                         SourceFieldName = fieldName, 
                         DestinationEmbeddingType = embedding.Destination, 
-                        SourceEmbeddingType = embedding.Source
+                        SourceEmbeddingType = embedding.Source,
+                        EmbeddingsGenerationTaskIdentifier = embeddingsGenerationTaskIdentifier
                     };
                     
                     _metadata.AddWhereField(new(AutoIndexField.GetVectorAutoIndexFieldName(fieldName, vectorOptions), false), parameters, exact: _insideExact > 0, vector: vectorOptions);
@@ -2806,21 +2817,33 @@ function execute(doc, args){
         {
             var sb = new StringBuilder();
             sb.Append(vectorExpression.Name.ToString());
-            sb.Append("(");
+            sb.Append('(');
 
             if (vectorExpression.Arguments.Count > 0 && vectorExpression.Arguments[0] is MethodExpression innerExpression)
             {
                 sb.Append(innerExpression.Name.ToString());
-                sb.Append("(");
-                sb.Append(ExtractFieldNameFromArgument(innerExpression.Arguments[0], withoutAlias: true, innerExpression.Name.Value, parameters, QueryText));
-                sb.Append(")");
+                sb.Append('(');
+
+                var fieldName = ExtractFieldNameFromArgument(innerExpression.Arguments[0], withoutAlias: true, innerExpression.Name.Value, parameters, QueryText);
+                sb.Append(fieldName);
+
+                // ai.task('taskIdentifier')
+                if (innerExpression.Arguments.Count == 2 && innerExpression.Arguments[1] is MethodExpression me)
+                {
+                    if (me.Arguments[0] is not ValueExpression taskIdentifier)
+                        throw new ArgumentException("Task identifier has to be string literal.");
+
+                    sb.Append($",{me.Name}('{taskIdentifier.Token.Value}')");
+                }
+                
+                sb.Append(')');
             }
             else
             {
                 sb.Append(ExtractFieldNameFromArgument(vectorExpression.Arguments[0], withoutAlias: true, vectorExpression.Name.Value, parameters, QueryText));
             }
 
-            sb.Append(")");
+            sb.Append(')');
             return sb.ToString();
         }
         

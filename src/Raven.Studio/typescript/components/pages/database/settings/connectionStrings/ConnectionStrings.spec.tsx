@@ -23,18 +23,18 @@ describe("ConnectionStrings", () => {
         const { screen } = await rtlRender_WithWaitForLoad(<DefaultConnectionStrings />);
 
         expect(screen.queryByText(selectors.emptyList)).not.toBeInTheDocument();
-        expect(screen.queryAllByClassName("rich-panel-name")).toHaveLength(9);
+        expect(screen.queryAllByClassName("rich-panel-name")).toHaveLength(10);
     });
 
     it("can render action buttons when has access database admin", async () => {
         const { screen } = await rtlRender_WithWaitForLoad(<DefaultConnectionStrings databaseAccess="DatabaseAdmin" />);
 
         // one on the top + one per connection string
-        expect(screen.queryAllByRole("button", { name: selectors.addNew })).toHaveLength(10);
+        expect(screen.queryAllByRole("button", { name: selectors.addNew })).toHaveLength(11);
 
         // one per connection string
-        expect(screen.queryAllByRole("button", { name: selectors.edit })).toHaveLength(9);
-        expect(screen.queryAllByRole("button", { name: selectors.delete })).toHaveLength(9);
+        expect(screen.queryAllByRole("button", { name: selectors.edit })).toHaveLength(10);
+        expect(screen.queryAllByRole("button", { name: selectors.delete })).toHaveLength(10);
     });
 
     it("can hide action buttons when has access below database admin", async () => {
@@ -43,21 +43,5 @@ describe("ConnectionStrings", () => {
         expect(screen.queryAllByRole("button", { name: selectors.addNew })).toHaveLength(0);
         expect(screen.queryAllByRole("button", { name: selectors.edit })).toHaveLength(0);
         expect(screen.queryAllByRole("button", { name: selectors.delete })).toHaveLength(0);
-    });
-
-    it("can disable add button when no license", async () => {
-        const { screen } = await rtlRender_WithWaitForLoad(
-            <DefaultConnectionStrings
-                isEmpty
-                hasElasticSearchEtl={false}
-                hasSqlEtl={false}
-                hasSnowflakeEtl={false}
-                hasRavenEtl={false}
-                hasOlapEtl={false}
-                hasQueueEtl={false}
-            />
-        );
-
-        expect(screen.getByRole("button", { name: selectors.addNew })).toBeDisabled();
     });
 });

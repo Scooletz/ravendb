@@ -6,6 +6,7 @@ using System.Threading;
 using Raven.Server.Integrations.PostgreSQL.Commands;
 using Raven.Server.Logging;
 using Raven.Server.ServerWide.Commands;
+using Raven.Server.ServerWide.Commands.AI;
 using Raven.Server.ServerWide.Commands.Analyzers;
 using Raven.Server.ServerWide.Commands.ConnectionStrings;
 using Raven.Server.ServerWide.Commands.ETL;
@@ -196,6 +197,11 @@ namespace Raven.Server.ServerWide
             [nameof(UpdateSnowflakeEtlCommand)] = 70_000,
             [nameof(PutSnowflakeConnectionStringCommand)] = 70_000,
             [nameof(RemoveSnowflakeConnectionStringCommand)] = 70_000,
+
+            [nameof(AddEmbeddingsGenerationCommand)] = 70_001,
+            [nameof(UpdateEmbeddingsGenerationCommand)] = 70_001,
+            [nameof(PutAiConnectionStringCommand)] = 70_001,
+            [nameof(RemoveAiConnectionStringCommand)] = 70_001,
         };
 
         public bool CanPutCommand(string command)

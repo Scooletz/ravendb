@@ -25,6 +25,7 @@ class etlScriptDefinitionCache {
                                                    Raven.Client.Documents.Operations.OngoingTasks.OngoingTaskSnowflakeEtl |
                                                    Raven.Client.Documents.Operations.OngoingTasks.OngoingTaskOlapEtl |
                                                    Raven.Client.Documents.Operations.OngoingTasks.OngoingTaskElasticSearchEtl |
+                                                   Raven.Client.Documents.Operations.OngoingTasks.EmbeddingsGeneration |
                                                    Raven.Client.Documents.Operations.OngoingTasks.OngoingTaskQueueEtl>;
 
             const databaseName = (typeof this.db === "string" ? this.db : this.db.name);
@@ -47,6 +48,9 @@ class etlScriptDefinitionCache {
                     break;
                 case "Queue":
                     command = getOngoingTaskInfoCommand.forQueueEtl(databaseName, taskId);
+                    break;
+                case "EmbeddingsGeneration":
+                    command = getOngoingTaskInfoCommand.forAiIntegration(databaseName, taskId);
                     break;
                 default: 
                     genUtils.assertUnreachable(etlType, "Unknown studioEtlType: " + etlType);

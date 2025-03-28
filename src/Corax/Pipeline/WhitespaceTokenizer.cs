@@ -1,6 +1,6 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Runtime.CompilerServices;
-using System.Text.Unicode;
 using Corax.Pipeline.Parsing;
 
 namespace Corax.Pipeline
@@ -26,7 +26,7 @@ namespace Corax.Pipeline
         {
             return ScalarTokenizers.TokenizeWhitespace(source, ref tokens);
         }
-
+        
         public void Dispose() { }
     }
 }

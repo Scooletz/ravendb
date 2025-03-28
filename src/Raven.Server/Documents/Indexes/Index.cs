@@ -26,6 +26,7 @@ using Raven.Client.ServerWide.Operations;
 using Raven.Client.Util;
 using Raven.Server.Config.Categories;
 using Raven.Server.Config.Settings;
+using Raven.Server.Documents.ETL.Providers.AI.Embeddings;
 using Raven.Server.Documents.Handlers.Admin;
 using Raven.Server.Documents.Includes;
 using Raven.Server.Documents.Indexes.Auto;
@@ -5264,21 +5265,21 @@ namespace Raven.Server.Documents.Indexes
         {
             return _vectorFields.GetOrAdd(name, _ =>
             {
-                if (Definition.MapFields.TryGetValue(name, out var field) == false || field is IndexField { Vector: null })
-                {
-                    var isTextual = IsFieldTextualAndPersistConfigurationOnDisk();
-                    return IndexField.Create(name, new IndexFieldOptions()
+                    if (Definition.MapFields.TryGetValue(name, out var field) == false || field is IndexField { Vector: null })
+                    {
+                        var isTextual = IsFieldTextualAndPersistConfigurationOnDisk();
+                        return IndexField.Create(name, new IndexFieldOptions()
                         {
                             Vector = CreateVectorOptionsBasedOnConfiguration(isTextual)
                         }, null, Corax.Constants.IndexWriter.DynamicField);
-                }
+                    }
                 
-                return field switch
-                {
-                    AutoIndexField => throw new InvalidOperationException($"{nameof(AutoIndexField)} should be created via AutoIndex builder. Cannot create vector field '{name}' dynamically for {(isText ? "numerical" : "textual")} values."),
-                    IndexField staticField => staticField,
-                    _ => throw new InvalidOperationException($"Unknown configuration error. Cannot create vector field '{name}' dynamically for {(isText ? "numerical" : "textual")} values.")
-                };
+                    return field switch
+                    {
+                        AutoIndexField => throw new InvalidOperationException($"{nameof(AutoIndexField)} should be created via AutoIndex builder. Cannot create vector field '{name}' dynamically for {(isText ? "numerical" : "textual")} values."),
+                        IndexField staticField => staticField,
+                        _ => throw new InvalidOperationException($"Unknown configuration error. Cannot create vector field '{name}' dynamically for {(isText ? "numerical" : "textual")} values.")
+                    };
             });
 
             bool IsFieldTextualAndPersistConfigurationOnDisk()
