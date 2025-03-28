@@ -73,6 +73,8 @@ export function SetupWizardFinishStep() {
         }
     };
 
+    // TODO move functions to utils
+
     const getLocalNode = () => {
         return nodeAddressStep.nodes[0];
     };
@@ -304,6 +306,8 @@ export function SetupWizardFinishStepFooter() {
 
     const { setupWizardService } = useServices();
 
+    // TODO move functions to utils
+
     const getLocalNode = () => {
         return nodeAddressStep.nodes[0];
     };
@@ -319,6 +323,32 @@ export function SetupWizardFinishStepFooter() {
     const getPortPart = () => {
         const port = getLocalNode().httpPort;
         return port && port !== 443 ? ":" + port : "";
+    };
+
+    const getServerUrl = (dnsName: string, port: number) => {
+        if (!dnsName) {
+            return null;
+        }
+
+        let serverUrl = "https://" + dnsName;
+        if (port && port !== 443) {
+            serverUrl += ":" + port;
+        }
+
+        return serverUrl;
+    };
+
+    const getDomainForWildcard = (tag: string) => {
+        if (selfSignedCertificateStep.cns.length === 0) {
+            return "";
+        }
+
+        const cn = selfSignedCertificateStep.cns[0];
+
+        if (!tag) {
+            return cn.replace("*.", "");
+        }
+        return cn.replace("*", tag);
     };
 
     const getStudioUrl = () => {
@@ -346,14 +376,20 @@ export function SetupWizardFinishStepFooter() {
         }
 
         if (securityStep.securityOption === "ownCertificate") {
-            return "TODO";
+            const localNode = getLocalNode();
+
+            if (selfSignedCertificateStep.isWildcardCertificate) {
+                const domain = getDomainForWildcard(localNode.nodeTag.toLocaleLowerCase());
+                return "https://" + domain + getPortPart();
+            }
+
+            return getServerUrl(localNode.dnsName, localNode.httpPort);
         }
 
         return null;
     };
 
     const redirectToStudio = () => {
-        // TODO get href
         window.location.href = getStudioUrl();
     };
 

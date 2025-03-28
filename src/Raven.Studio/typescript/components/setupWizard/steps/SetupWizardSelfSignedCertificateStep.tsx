@@ -35,8 +35,14 @@ export function SetupWizardSelfSignedCertificateStep() {
         },
         {
             onSuccess: (cns) => {
-                setValue("selfSignedCertificateStep.cns", Array.from(new Set(cns)));
+                const uniqueCns = Array.from(new Set(cns));
+                setValue("selfSignedCertificateStep.cns", uniqueCns);
+
+                const isWildcardCertificate = uniqueCns.some((cn) => cn.startsWith("*"));
+                setValue("selfSignedCertificateStep.isWildcardCertificate", isWildcardCertificate);
+
                 clearErrors("selfSignedCertificateStep.password");
+
                 if (!password) {
                     setIsFileProtected(false);
                 }
