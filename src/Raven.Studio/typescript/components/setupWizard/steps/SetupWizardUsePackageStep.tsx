@@ -8,9 +8,10 @@ import { useAsync } from "react-async-hook";
 import { useServices } from "components/hooks/useServices";
 import messagePublisher from "common/messagePublisher";
 import { SelectOption } from "components/common/select/Select";
+import { useEffect, useMemo } from "react";
 
 export function SetupWizardUsePackageStep() {
-    const { control, setValue } = useFormContext<SetupWizardFormData>();
+    const { control, setValue, watch } = useFormContext<SetupWizardFormData>();
     const {
         usePackageStep: { fileZip },
     } = useWatch({ control });
@@ -22,14 +23,34 @@ export function SetupWizardUsePackageStep() {
     // TODO add what is this tooltip
     // TODO maybe add a tooltip explaining why node tag is disabled
 
-    const asyncExtractNodesOptions = useAsync(async () => {
+    const asyncExtractNodeInfos = useAsync(async () => {
         const nodesInfo = await setupWizardService.extractNodesInfoFromPackage(fileZip);
 
-        return nodesInfo.map((nodeInfo) => ({
-            value: nodeInfo.Tag,
-            label: `Node ${nodeInfo.Tag} (${nodeInfo.PublicServerUrl || nodeInfo.ServerUrl})`,
-        })) satisfies SelectOption[];
+        return nodesInfo;
     }, [fileZip]);
+
+    const nodeInfos = useMemo(() => {
+        return asyncExtractNodeInfos.result ?? [];
+    }, [asyncExtractNodeInfos.result]);
+
+    const nodeOptions: SelectOption[] = nodeInfos.map((nodeInfo) => ({
+        value: nodeInfo.Tag,
+        label: `Node ${nodeInfo.Tag} (${nodeInfo.PublicServerUrl || nodeInfo.ServerUrl})`,
+    }));
+
+    useEffect(() => {
+        const subscribe = watch((values, { name }) => {
+            if (name === "usePackageStep.nodeTag") {
+                const nodeInfo = nodeInfos.find((x) => x.Tag === values.usePackageStep.nodeTag);
+                setValue("usePackageStep.publicServerUrl", nodeInfo?.PublicServerUrl);
+                setValue("usePackageStep.serverUrl", nodeInfo?.ServerUrl);
+            }
+        });
+
+        return () => {
+            subscribe.unsubscribe();
+        };
+    }, [watch, setValue, nodeInfos]);
 
     const handleFileChange = (files: File[]) => {
         const file = files[0];
@@ -73,7 +94,7 @@ export function SetupWizardUsePackageStep() {
             <FormGroup>
                 <FileDropzone onChange={handleFileChange} validExtensions={["zip"]} maxFiles={1} />
             </FormGroup>
-            {asyncExtractNodesOptions.status === "success" && (
+            {asyncExtractNodeInfos.status === "success" && (
                 <FormGroup>
                     <FormLabel className="hstack justify-content-between">
                         <div>Node tag</div>
@@ -86,7 +107,7 @@ export function SetupWizardUsePackageStep() {
                         control={control}
                         name="usePackageStep.nodeTag"
                         placeholder="Select node tag"
-                        options={asyncExtractNodesOptions.result ?? []}
+                        options={nodeOptions}
                     />
                 </FormGroup>
             )}

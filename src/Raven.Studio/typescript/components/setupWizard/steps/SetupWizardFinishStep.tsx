@@ -323,7 +323,7 @@ export function SetupWizardFinishStepFooter() {
 
     const getStudioUrl = () => {
         if (setupMethodStep.method === "usePackage") {
-            return "TODO";
+            return usePackageStep.publicServerUrl || usePackageStep.serverUrl;
         }
 
         if (securityStep.securityOption === "none") {

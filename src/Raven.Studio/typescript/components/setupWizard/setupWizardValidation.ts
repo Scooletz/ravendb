@@ -15,6 +15,8 @@ const usePackageStepSchema = yup.object({
     fileZip: yup.string(), // should be required
     isZipSecure: yup.boolean(),
     nodeTag: yup.string(), // should be required
+    publicServerUrl: yup.string(),
+    serverUrl: yup.string(),
 });
 
 function licenseRequiredField(schema: yup.Schema) {
@@ -62,6 +64,7 @@ const selfSignedCertificateStepSchema = yup.object({
     certificate: yup.string(),
     password: yup.string(),
     cns: yup.array().of(yup.string()),
+    isWildcardCertificate: yup.boolean(),
 });
 
 const domainStepSchema = yup.object({
