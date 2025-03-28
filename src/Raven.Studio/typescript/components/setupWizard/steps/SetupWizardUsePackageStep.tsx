@@ -23,9 +23,11 @@ export function SetupWizardUsePackageStep() {
     // TODO maybe add a tooltip explaining why node tag is disabled
 
     const asyncExtractNodeInfos = useAsync(async () => {
-        const nodesInfo = await setupWizardService.extractNodesInfoFromPackage(fileZip);
+        if (!fileZip) {
+            return [];
+        }
 
-        return nodesInfo;
+        return await setupWizardService.extractNodesInfoFromPackage(fileZip);
     }, [fileZip]);
 
     const nodeInfos = useMemo(() => {
@@ -120,7 +122,7 @@ export function SetupWizardUsePackageStep() {
             <FormGroup>
                 <FileDropzone onChange={handleFileChange} validExtensions={["zip"]} maxFiles={1} />
             </FormGroup>
-            {asyncExtractNodeInfos.status === "success" && (
+            {fileZip && asyncExtractNodeInfos.status === "success" && (
                 <FormGroup>
                     <FormLabel className="hstack justify-content-between">
                         <div>Node tag</div>
