@@ -91,7 +91,7 @@ namespace SlowTests.Tests
                         select method;
 
             var array = types.ToArray();
-            const int numberToTolerate = 4522;
+            const int numberToTolerate = 4468;
             if (array.Length == numberToTolerate)
                 return;
 
