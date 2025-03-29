@@ -47,7 +47,7 @@ public abstract class RabbitMqQueueSinkTestBase : QueueSinkTestBase
                 BrokerType = QueueBrokerType.RabbitMq,
                 RabbitMqConnectionSettings = new RabbitMqConnectionSettings
                 {
-                    ConnectionString = RabbitMqConnectionString.Instance.VerifiedConnectionString
+                    ConnectionString = RabbitMqConnectionString.Instance.VerifiedUrl.Value
                 }
             });
 
@@ -56,7 +56,7 @@ public abstract class RabbitMqQueueSinkTestBase : QueueSinkTestBase
 
     protected IModel CreateRabbitMqProducer(params string[] queuesToDeclare)
     {
-        var connectionFactory = new ConnectionFactory() { Uri = new Uri(RabbitMqConnectionString.Instance.VerifiedConnectionString) };
+        var connectionFactory = new ConnectionFactory() { Uri = new Uri(RabbitMqConnectionString.Instance.VerifiedUrl.Value) };
         var connection = connectionFactory.CreateConnection();
         var producer = connection.CreateModel();
 
