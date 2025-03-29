@@ -3839,6 +3839,7 @@ namespace SlowTests.Server.Documents.PeriodicBackup
 
                     subscriptionsConfig = await destination.Subscriptions.GetSubscriptionsAsync(0, 10);
                     Assert.Equal(1, subscriptionsConfig.Count);
+                    Assert.Equal(subscriptionName, subscriptionsConfig[0].SubscriptionName);
                     Assert.Equal(snapshotCv.Split("-")[0], subscriptionsConfig[0].ChangeVectorForNextBatchStartingPoint.Split("-")[0]);
                 }
             }
@@ -3861,7 +3862,10 @@ namespace SlowTests.Server.Documents.PeriodicBackup
             }
 
             var lastCv = "";
-            var subscriptionName = store.Subscriptions.Create(new SubscriptionCreationOptions<User>());
+            var subscriptionName = await store.Subscriptions.CreateAsync(new SubscriptionCreationOptions<User>
+            {
+                Name = Guid.NewGuid().ToString()
+            });
 
             using (var subscription = store.Subscriptions.GetSubscriptionWorker(new SubscriptionWorkerOptions(subscriptionName)
             {
@@ -3913,6 +3917,7 @@ namespace SlowTests.Server.Documents.PeriodicBackup
                     subscriptionsConfig = await destination.Subscriptions.GetSubscriptionsAsync(0, 10);
 
                     Assert.Equal(1, subscriptionsConfig.Count);
+                    Assert.Equal(subscriptionName, subscriptionsConfig[0].SubscriptionName);
                     Assert.Equal(snapshotCv.Split("-")[0], subscriptionsConfig[0].ChangeVectorForNextBatchStartingPoint.Split("-")[0]);
                 }
             }
@@ -3942,7 +3947,7 @@ namespace SlowTests.Server.Documents.PeriodicBackup
             var subscriptionsConfig = await store.Subscriptions.GetSubscriptionsAsync(0, 10);
             Assert.Equal(1, subscriptionsConfig.Count);
 
-            await store.Subscriptions.CreateAsync(new SubscriptionCreationOptions<Order>
+            var name2 = await store.Subscriptions.CreateAsync(new SubscriptionCreationOptions<Order>
             {
                 Name = "sub2"
             });
@@ -3960,7 +3965,7 @@ namespace SlowTests.Server.Documents.PeriodicBackup
             subscriptionsConfig = await store.Subscriptions.GetSubscriptionsAsync(0, 10);
             Assert.Equal(1, subscriptionsConfig.Count);
 
-            await store.Subscriptions.CreateAsync(new SubscriptionCreationOptions<Order>
+            var name3 = await store.Subscriptions.CreateAsync(new SubscriptionCreationOptions<Order>
             {
                 Name = "sub3"
             });
@@ -3989,8 +3994,12 @@ namespace SlowTests.Server.Documents.PeriodicBackup
                     var users = await session.LoadAsync<User>(ids);
                     Assert.All(users.Values, Assert.NotNull);
                 }
-                subscriptionsConfig = await store.Subscriptions.GetSubscriptionsAsync(0, 10);
+                subscriptionsConfig = await destination.Subscriptions.GetSubscriptionsAsync(0, 10);
                 Assert.Equal(2, subscriptionsConfig.Count);
+
+                var names = subscriptionsConfig.Select(x => x.SubscriptionName).ToList();
+                Assert.Contains(name2, names);
+                Assert.Contains(name3, names);
             }
         }
 

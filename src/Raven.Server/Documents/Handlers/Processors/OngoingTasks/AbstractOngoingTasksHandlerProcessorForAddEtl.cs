@@ -1,8 +1,10 @@
 ﻿using System;
 using System.Threading.Tasks;
 using JetBrains.Annotations;
+using Raven.Client.Documents.Operations.AI;
 using Raven.Client.Documents.Operations.ConnectionStrings;
 using Raven.Client.Documents.Operations.ETL;
+using Raven.Server.Config.Categories;
 using Raven.Server.Documents.Handlers.Processors.Databases;
 using Raven.Server.ServerWide.Context;
 using Sparrow.Json;
@@ -62,7 +64,7 @@ namespace Raven.Server.Documents.Handlers.Processors.OngoingTasks
             return RequestHandler.ServerStore.UpdateEtl(context, RequestHandler.DatabaseName, id.Value, configuration, raftRequestId);
         }
 
-        protected  virtual void AssertCanAddOrUpdateEtl(ref BlittableJsonReaderObject etlConfiguration)
+        protected virtual void AssertCanAddOrUpdateEtl(ref BlittableJsonReaderObject etlConfiguration)
         {
             switch (EtlConfiguration<ConnectionString>.GetEtlType(etlConfiguration))
             {
@@ -84,6 +86,21 @@ namespace Raven.Server.Documents.Handlers.Processors.OngoingTasks
                 case EtlType.Snowflake:
                     RequestHandler.ServerStore.LicenseManager.AssertCanAddSnowflakeEtl();
                     break;
+                case EtlType.EmbeddingsGeneration:
+                    using (RequestHandler.ServerStore.ContextPool.AllocateOperationContext(out TransactionOperationContext context))
+                    using (context.OpenReadTransaction())
+                    {
+                        var embeddingsGenerationConfiguration = Client.Json.Serialization.JsonDeserializationClient.EmbeddingsGenerationConfiguration(etlConfiguration);
+                        var connectionStringName = embeddingsGenerationConfiguration.ConnectionStringName ?? string.Empty;
+                        var database = RequestHandler.ServerStore.Cluster.ReadRawDatabaseRecord(context, RequestHandler.DatabaseName);
+
+                        AiConnectionString aiConnectionString = null;
+                        database?.AiConnectionStrings?.TryGetValue(connectionStringName, out aiConnectionString);
+
+                        RequestHandler.ServerStore.LicenseManager.AssertCanAddEmbeddingsGenerationTask(aiConnectionString);
+                        break;
+                    }
+
                 default:
                     throw new NotSupportedException($"Unknown ETL configuration type. Configuration: {etlConfiguration}");
             }

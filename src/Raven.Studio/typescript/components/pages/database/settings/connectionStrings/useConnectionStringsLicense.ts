@@ -8,6 +8,7 @@ export interface ConnectionStringsLicenseFeatures {
     hasOlapEtl: boolean;
     hasElasticSearchEtl: boolean;
     hasQueueEtl: boolean;
+    hasEmbeddingsGeneration: boolean;
 }
 
 interface ConnectionStringsLicense {
@@ -23,7 +24,9 @@ export default function useConnectionStringsLicense(): ConnectionStringsLicense 
     const hasOlapEtl = useAppSelector(licenseSelectors.statusValue("HasOlapEtl"));
     const hasElasticSearchEtl = useAppSelector(licenseSelectors.statusValue("HasElasticSearchEtl"));
     const hasQueueEtl = useAppSelector(licenseSelectors.statusValue("HasQueueEtl"));
+    const hasEmbeddingsGeneration = useAppSelector(licenseSelectors.statusValue("HasEmbeddingsGeneration"));
 
+    // Don't include HasEmbeddingsGeneration because user can create connection strings for embedded model
     const allFeatures = [hasRavenEtl, hasSqlEtl, hasSnowflakeEtl, hasOlapEtl, hasElasticSearchEtl, hasQueueEtl];
     const hasNone = allFeatures.every((x) => !x);
     const hasAll = allFeatures.every((x) => x);
@@ -36,6 +39,7 @@ export default function useConnectionStringsLicense(): ConnectionStringsLicense 
             hasOlapEtl,
             hasElasticSearchEtl,
             hasQueueEtl,
+            hasEmbeddingsGeneration,
         },
         hasNone,
         hasAll,

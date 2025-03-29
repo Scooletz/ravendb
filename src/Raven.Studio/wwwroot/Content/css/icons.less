@@ -157,6 +157,27 @@
     .make-icon-color(storage, @color-3-3, @color-3-3);
     .make-icon-color(stats-running-queries, @color-4, @color-4);
     .make-icon-color(replication-stats, @color-4-1, @color-4-1);
+    
+    // AI section
+    .icon-ai::before {
+        background: linear-gradient(120deg, #4ac8f9 0%, #5058ff 50%, #8b42f5 100%);
+        background-clip: text;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+
+    .ai-hub {
+        &.icon-manage-connection-strings::before {
+            color: @color-4;
+        }
+        &.icon-manage-ongoing-tasks::before {
+            color: @color-4-1;
+        }
+        &.icon-replication-stats::before {
+            color: @color-4-2;
+        }
+    }
+
     //Manage server section
     .make-icon-color(cluster, @color-5-1, @color-5-1);
     .make-icon-color(client-configuration, @color-5-2, @color-5-2);

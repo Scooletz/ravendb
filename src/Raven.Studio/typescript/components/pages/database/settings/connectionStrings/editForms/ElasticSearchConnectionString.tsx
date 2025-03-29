@@ -1,4 +1,4 @@
-﻿import Badge from "react-bootstrap/Badge";
+import Badge from "react-bootstrap/Badge";
 import Form from "react-bootstrap/Form";
 
 import { FormInput, FormLabel, FormSelect } from "components/common/Form";
@@ -31,6 +31,8 @@ import { databaseSelectors } from "components/common/shell/databaseSliceSelector
 import { useAppSelector } from "components/store";
 import Button from "react-bootstrap/Button";
 import forge = require("node-forge");
+import { connectionStringSelectors } from "../store/connectionStringsSlice";
+import { ConnectionStringsNameContext, connectionStringsUtils } from "../connectionStringsUtils";
 
 type FormData = ConnectionFormData<ElasticSearchConnection>;
 
@@ -43,10 +45,16 @@ export default function ElasticSearchConnectionString({
     isForNewConnection,
     onSave,
 }: ElasticSearchStringProps) {
+    const usedNames = useAppSelector(connectionStringSelectors.connections)["ElasticSearch"].map((x) => x.name);
+
     const { control, formState, handleSubmit, setValue, trigger } = useForm<FormData>({
         mode: "all",
         defaultValues: getDefaultValues(initialConnection, isForNewConnection),
         resolver: yupSchemaResolver,
+        context: {
+            isForNewConnection,
+            usedNames,
+        } satisfies ConnectionStringsNameContext,
     });
 
     const urlFieldArray = useFieldArray({
@@ -338,7 +346,7 @@ const authenticationOptions: SelectOption[] = exhaustiveStringTuple<ElasticSearc
 }));
 
 const schema = yupObjectSchema<FormData>({
-    name: yup.string().nullable().required(),
+    name: connectionStringsUtils.nameSchema,
     authMethodUsed: yup.string<ElasticSearchAuthenticationMethod>(),
     apiKey: yup
         .string()

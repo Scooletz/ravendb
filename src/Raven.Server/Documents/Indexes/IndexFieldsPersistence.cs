@@ -22,6 +22,9 @@ namespace Raven.Server.Documents.Indexes
         private Dictionary<string, VectorEmbeddingType> _vectorSourceEmbeddingType;
         private Dictionary<string, VectorEmbeddingType> _vectorSourceEmbeddingTypeToWrite;
 
+        private Dictionary<string, string> _embeddingsGenerationTaskIdentifiers;
+        private Dictionary<string, string> _embeddingsGenerationTaskIdentifiersToWrite;
+        
         public IndexFieldsPersistence(Index index)
         {
             _index = index ?? throw new ArgumentNullException(nameof(index));
@@ -40,6 +43,7 @@ namespace Raven.Server.Documents.Indexes
             
             _vectorFieldsDimensions = _index._indexStorage.ReadVectorDimensions();
             _vectorSourceEmbeddingType = _index._indexStorage.ReadIndexEmbeddingType();
+            _embeddingsGenerationTaskIdentifiers = _index._indexStorage.ReadEmbeddingsGenerationTaskIdentifiers();
             
             foreach (var indexField in _index.Definition.IndexFields.Values)
             {
@@ -92,13 +96,38 @@ namespace Raven.Server.Documents.Indexes
             return _vectorFieldsDimensions.TryGetValue(fieldName, out dimensions);
         }
 
+        internal bool TryReadEmbeddingsGenerationTaskIdentifier(string fieldName, out string taskName)
+        {
+            return _embeddingsGenerationTaskIdentifiers.TryGetValue(fieldName, out taskName);
+        }
+
+        internal void SetEmbeddingsGenerationTaskIdentifier(string fieldName, string taskIdentifier)
+        {
+            var isStoredOnDisk = _embeddingsGenerationTaskIdentifiers.TryGetValue(fieldName, out var diskStoredSourceEtlTaskName);
+
+            PortableExceptions.ThrowIf<InvalidOperationException>(isStoredOnDisk && diskStoredSourceEtlTaskName != taskIdentifier, $"We are expecting that field {fieldName} has the same Embeddings Generation task as it was before. However, stored task was {diskStoredSourceEtlTaskName} and current one is {taskIdentifier}.");
+
+            var isStoredInRuntime = false;
+            if (_embeddingsGenerationTaskIdentifiersToWrite != null)
+            {
+                isStoredInRuntime = _embeddingsGenerationTaskIdentifiersToWrite.TryGetValue(fieldName, out var runtimeStoredSourceEtlTaskName);
+                PortableExceptions.ThrowIf<InvalidOperationException>(isStoredInRuntime && runtimeStoredSourceEtlTaskName != taskIdentifier,
+                    $"We are expecting that field {fieldName} has the same Embeddings Generation task as it was before. However, previous task was {runtimeStoredSourceEtlTaskName} and current one is {taskIdentifier}.");
+            }
+            
+            if (isStoredOnDisk || isStoredInRuntime)
+                return;
+            
+            _embeddingsGenerationTaskIdentifiersToWrite ??= new Dictionary<string, string>();
+            _embeddingsGenerationTaskIdentifiersToWrite.Add(fieldName, taskIdentifier);
+        }
+
         internal void SetVectorSourceEmbeddingType(string fieldName, VectorEmbeddingType embeddingType)
         {
             var isStoredOnDisk = _vectorSourceEmbeddingType.TryGetValue(fieldName, out var diskStoredEmbeddingType);
             
             PortableExceptions.ThrowIf<InvalidOperationException>(isStoredOnDisk && embeddingType != diskStoredEmbeddingType, $"We are expecting that field {fieldName} has the same embedding type as it was before. However, stored embedding type was {diskStoredEmbeddingType} and current one is {embeddingType}.");
-
-
+            
             var isStoredInRuntime = false;
             if (_vectorSourceEmbeddingTypeToWrite != null)
             {
@@ -143,7 +172,8 @@ namespace Raven.Server.Documents.Indexes
         
         internal void Persist(TransactionOperationContext indexContext)
         {
-            if (_timeFieldsToWrite == null && _vectorFieldsDimensionsToWrite == null && _vectorSourceEmbeddingTypeToWrite == null)
+            if (_timeFieldsToWrite == null && _vectorFieldsDimensionsToWrite == null && _vectorSourceEmbeddingTypeToWrite == null
+                && _embeddingsGenerationTaskIdentifiersToWrite == null)
                 return;
             
             if (_timeFieldsToWrite != null)
@@ -154,6 +184,9 @@ namespace Raven.Server.Documents.Indexes
             
             if (_vectorSourceEmbeddingTypeToWrite != null)
                 IndexStorage.WriteIndexEmbeddingType(indexContext.Transaction, _vectorSourceEmbeddingTypeToWrite);
+            
+            if (_embeddingsGenerationTaskIdentifiersToWrite != null)
+                IndexStorage.WriteEmbeddingsGenerationTaskIdentifiers(indexContext.Transaction, _embeddingsGenerationTaskIdentifiersToWrite);
 
             indexContext.Transaction.InnerTransaction.LowLevelTransaction.BeforeCommitFinalization += _ =>
             {
@@ -185,6 +218,16 @@ namespace Raven.Server.Documents.Indexes
                     
                     _vectorSourceEmbeddingType = vectorSourceEmbeddingType;
                     _vectorSourceEmbeddingTypeToWrite = null;
+                }
+
+                if (_embeddingsGenerationTaskIdentifiersToWrite != null)
+                {
+                    var vectorSourceEtlTaskName = new Dictionary<string, string>(_embeddingsGenerationTaskIdentifiers);
+                    foreach (var fieldAiTaskName in _embeddingsGenerationTaskIdentifiersToWrite)
+                        vectorSourceEtlTaskName.Add(fieldAiTaskName.Key, fieldAiTaskName.Value);
+                    
+                    _embeddingsGenerationTaskIdentifiers = vectorSourceEtlTaskName;
+                    _embeddingsGenerationTaskIdentifiersToWrite = null;
                 }
             };
         }

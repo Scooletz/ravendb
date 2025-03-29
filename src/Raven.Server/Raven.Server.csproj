@@ -85,6 +85,7 @@
     <PackageReference Include="DasMulli.Win32.ServiceUtils.Signed" />
     <PackageReference Include="FluentFTP" />
     <PackageReference Include="Elastic.Clients.Elasticsearch" />
+    <PackageReference Include="HtmlAgilityPack" />
     <PackageReference Include="JetBrains.Annotations">
       <PrivateAssets>All</PrivateAssets>
     </PackageReference>
@@ -104,7 +105,15 @@
     <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Json" />
     <PackageReference Include="Microsoft.Extensions.Configuration.UserSecrets" />
+    <PackageReference Include="Microsoft.ML.Tokenizers" />
+    <PackageReference Include="Microsoft.ML.Tokenizers.Data.Cl100kBase" />
+    <PackageReference Include="Microsoft.SemanticKernel.Connectors.AzureOpenAI" />
+    <PackageReference Include="Microsoft.SemanticKernel.Connectors.Google" />
+    <PackageReference Include="Microsoft.SemanticKernel.Connectors.HuggingFace" />
+    <PackageReference Include="Microsoft.SemanticKernel.Connectors.MistralAI" />
+    <PackageReference Include="Microsoft.SemanticKernel.Connectors.Ollama" />
     <PackageReference Include="Microsoft.SemanticKernel.Connectors.Onnx" />
+    <PackageReference Include="Microsoft.SemanticKernel.Connectors.OpenAI" />
     <PackageReference Include="Microsoft.Win32.Registry" />
     <PackageReference Include="MySqlConnector" />
     <PackageReference Include="NCrontab.Advanced" />
@@ -130,6 +139,7 @@
     <PackageReference Include="Snappier" />
     <PackageReference Include="Snowflake.Data" />
     <PackageReference Include="System.Collections.Immutable" />
+    <PackageReference Include="System.Diagnostics.DiagnosticSource" />
     <PackageReference Include="System.Formats.Asn1" />
     <PackageReference Include="System.Linq.Async" />
     <PackageReference Include="System.Net.Http" />

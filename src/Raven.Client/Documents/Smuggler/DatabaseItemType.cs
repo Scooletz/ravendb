@@ -29,7 +29,7 @@ namespace Raven.Client.Documents.Smuggler
     }
 
     [Flags]
-    public enum DatabaseRecordItemType
+    public enum DatabaseRecordItemType : long
     {
         None = 0,
 
@@ -64,5 +64,7 @@ namespace Raven.Client.Documents.Smuggler
         DataArchival = 1 << 29,
         SnowflakeConnectionStrings = 1 << 30,
         SnowflakeEtls = 1 << 31,
+        EmbeddingsGenerations = 1L << 32,
+        AiConnectionStrings = 1L << 33,
     }
 }

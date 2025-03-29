@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using Raven.Client.Documents.Changes;
+using Raven.Client.Documents.Operations.AI;
 using Raven.Client.Documents.Operations.ConnectionStrings;
 using Raven.Client.Documents.Operations.Counters;
 using Raven.Client.Documents.Operations.ETL;
@@ -20,6 +21,8 @@ using Raven.Client.Json.Serialization;
 using Raven.Client.ServerWide;
 using Raven.Client.Util;
 using Raven.Server.Documents.ETL.Metrics;
+using Raven.Server.Documents.ETL.Providers.AI;
+using Raven.Server.Documents.ETL.Providers.AI.Embeddings;
 using Raven.Server.Documents.ETL.Providers.ElasticSearch;
 using Raven.Server.Documents.ETL.Providers.OLAP;
 using Raven.Server.Documents.ETL.Providers.OLAP.Test;
@@ -37,7 +40,6 @@ using Raven.Server.Documents.ETL.Stats;
 using Raven.Server.Documents.ETL.Test;
 using Raven.Server.Documents.Replication.ReplicationItems;
 using Raven.Server.Documents.TimeSeries;
-using Raven.Server.Logging;
 using Raven.Server.NotificationCenter.Notifications;
 using Raven.Server.NotificationCenter.Notifications.Details;
 using Raven.Server.ServerWide;
@@ -46,7 +48,6 @@ using Raven.Server.ServerWide.Context;
 using Raven.Server.ServerWide.Memory;
 using Raven.Server.Utils;
 using Sparrow;
-using Sparrow.Logging;
 using Sparrow.LowMemory;
 using Sparrow.Server.Logging;
 using Sparrow.Server.Utils;
@@ -491,7 +492,7 @@ namespace Raven.Server.Documents.ETL
                 {
                     if (CancellationToken.IsCancellationRequested == false)
                     {
-                        string msg = $"Failed to load transformed data for '{Name}'";
+                        string msg = LoadFailureMessage;
 
                         if (Logger.IsWarnEnabled)
                         {
@@ -501,7 +502,7 @@ namespace Raven.Server.Documents.ETL
                         stats.RecordLoadFailure();
                         stats.RecordBatchStopReason($"{msg} : {e}");
 
-                        EnterFallbackMode(Statistics.LastLoadErrorTime);
+                        EnterFallbackMode(e, Statistics.LastLoadErrorTime);
 
                         Statistics.ThrowLoadError(e.ToString(), count: stats.NumberOfExtractedItems.Sum(x => x.Value));
                     }
@@ -511,13 +512,15 @@ namespace Raven.Server.Documents.ETL
             }
         }
 
-        private void EnterFallbackMode(DateTime? lastErrorTime)
+        protected virtual string LoadFailureMessage => $"Failed to load transformed data for '{Name}'";
+
+        protected virtual void EnterFallbackMode(Exception ex, DateTime? lastErrorTime)
         {
             if (lastErrorTime == null)
                 FallbackTime = TimeSpan.FromSeconds(5);
             else
             {
-                // double the fallback time (but don't cross Etl.MaxFallbackTime)
+                // double the fallback time (but don't cross Etl.EmbeddingsGenerationTaskMaxFallbackTime)
                 var secondsSinceLastError = (Database.Time.GetUtcNow() - lastErrorTime.Value).TotalSeconds;
 
                 FallbackTime = TimeSpan.FromSeconds(Math.Min(Database.Configuration.Etl.MaxFallbackTime.AsTimeSpan.TotalSeconds, Math.Max(5, secondsSinceLastError * 2)));
@@ -543,6 +546,21 @@ namespace Raven.Server.Documents.ETL
             if (currentItem is ToOlapItem)
             {
                 if (stats.NumberOfExtractedItems[EtlItemType.Document] >= Database.Configuration.Etl.OlapMaxNumberOfExtractedDocuments)
+                {
+                    var reason = $"Stopping the batch because it has already processed max number of extracted documents : {stats.NumberOfExtractedItems[EtlItemType.Document]}";
+
+                    if (Logger.IsInfoEnabled)
+                        Logger.Info($"[{Name}] {reason}");
+
+                    stats.RecordBatchTransformationCompleteReason(reason);
+
+                    return false;
+                }
+            }
+            
+            else if (currentItem is EmbeddingsGenerationItem)
+            {
+                if (stats.NumberOfExtractedItems[EtlItemType.Document] >= Database.Configuration.Ai.EmbeddingsGenerationMaxBatchSize)
                 {
                     var reason = $"Stopping the batch because it has already processed max number of extracted documents : {stats.NumberOfExtractedItems[EtlItemType.Document]}";
 
@@ -784,7 +802,7 @@ namespace Raven.Server.Documents.ETL
                     using (Statistics.NewBatch())
                     using (Database.DocumentsStorage.ContextPool.AllocateOperationContext(out DocumentsOperationContext context))
                     {
-                        var statsAggregator = new EtlStatsAggregator<TStatsScope, TEtlPerformanceOperation>(Interlocked.Increment(ref _statsId), CreateScope, _lastStats);
+                        var statsAggregator = new EtlStatsAggregator<TStatsScope, TEtlPerformanceOperation>(Interlocked.Increment(ref _statsId), CreateScope, _lastStats, StatsAggregatorTag);
                         _lastStats = statsAggregator;
 
                         AddPerformanceStats(statsAggregator);
@@ -866,7 +884,7 @@ namespace Raven.Server.Documents.ETL
                                 if (Logger.IsWarnEnabled)
                                     Logger.Warn($"{Tag} Failed to update state of ETL process '{Name}'", e);
 
-                                EnterFallbackMode(lastUpdateStateErrorTime);
+                                EnterFallbackMode(e, lastUpdateStateErrorTime);
                                 lastUpdateStateErrorTime = Database.Time.GetUtcNow();
 
                                 if (CancellationToken.WaitHandle.WaitOne(FallbackTime.Value))
@@ -939,6 +957,8 @@ namespace Raven.Server.Documents.ETL
                 }
             }
         }
+
+        protected virtual string StatsAggregatorTag => "ETL";
 
         private static void RecordSuccessfulBatch(TStatsScope stats)
         {
@@ -1093,11 +1113,11 @@ namespace Raven.Server.Documents.ETL
                 // we need to have connection string when testing SQL ETL because we need to have the factory name
                 // and if PerformRolledBackTransaction = true is specified then we need make a connection to SQL
 
-                var csErrors = new List<string>();
+                List<string> csErrors = [];
 
                 if (relationalTestScript.Connection != null)
                 {
-                    if (relationalTestScript.Connection.Validate(ref csErrors) == false)
+                    if (relationalTestScript.Connection.Validate(csErrors) == false)
                         throw new InvalidOperationException($"Invalid connection string due to {string.Join(";", csErrors)}");
 
                     connection = relationalTestScript.Connection as TCS;
@@ -1122,7 +1142,7 @@ namespace Raven.Server.Documents.ETL
                                 $"Connection string named '{testScript.Configuration.ConnectionStringName}' was not found in the database record");
                         }
     
-                        if (sqlConnection.Validate(ref csErrors) == false)
+                        if (sqlConnection.Validate(csErrors) == false)
                             throw new InvalidOperationException(
                                 $"Invalid '{testScript.Configuration.ConnectionStringName}' connection string due to {string.Join(";", csErrors)}");
     
@@ -1146,7 +1166,7 @@ namespace Raven.Server.Documents.ETL
                                 $"Connection string named '{testScript.Configuration.ConnectionStringName}' was not found in the database record");
                         }
     
-                        if (snowflakeConnection.Validate(ref csErrors) == false)
+                        if (snowflakeConnection.Validate(csErrors) == false)
                             throw new InvalidOperationException(
                                 $"Invalid '{testScript.Configuration.ConnectionStringName}' connection string due to {string.Join(";", csErrors)}");
     
@@ -1395,26 +1415,40 @@ namespace Raven.Server.Documents.ETL
                             }
                     }
                         
-                    case EtlType.Snowflake:
-                        using (var snowflakeEtl = new SnowflakeEtl(testScript.Configuration.Transforms[0], testScript.Configuration as SnowflakeEtlConfiguration, database,
-                            database.ServerStore))
-                        using (snowflakeEtl.EnterTestMode(out debugOutput))
-                        {
-                            snowflakeEtl.EnsureThreadAllocationStats();
+                case EtlType.Snowflake:
+                    using (var snowflakeEtl = new SnowflakeEtl(testScript.Configuration.Transforms[0], testScript.Configuration as SnowflakeEtlConfiguration, database,
+                        database.ServerStore))
+                    using (snowflakeEtl.EnterTestMode(out debugOutput))
+                    {
+                        snowflakeEtl.EnsureThreadAllocationStats();
 
-                            var snowflakeItem = testScript.IsDelete ? new RelationalDatabaseItem(tombstone, docCollection) : new RelationalDatabaseItem(document, docCollection);
+                        var snowflakeItem = testScript.IsDelete ? new RelationalDatabaseItem(tombstone, docCollection) : new RelationalDatabaseItem(document, docCollection);
 
-                            var transformed = snowflakeEtl.Transform(new[] { snowflakeItem }, context, new EtlStatsScope(new EtlRunStats()),
-                                new EtlProcessState());
+                        var transformed = snowflakeEtl.Transform(new[] { snowflakeItem }, context, new EtlStatsScope(new EtlRunStats()),
+                            new EtlProcessState());
 
-                            Debug.Assert(relationalTestScript != null);
+                        Debug.Assert(relationalTestScript != null);
 
-                            var result = snowflakeEtl.RunTest(context, transformed, relationalTestScript.PerformRolledBackTransaction);
-                            result.DebugOutput = debugOutput;
-                            return result;
-                        }
+                        var result = snowflakeEtl.RunTest(context, transformed, relationalTestScript.PerformRolledBackTransaction);
+                        result.DebugOutput = debugOutput;
+                        return result;
+                    }
+                    
+                case EtlType.EmbeddingsGeneration:
+                    using (var embeddingsGenerationTask = new EmbeddingsGenerationTask(testScript.Configuration.Transforms[0], testScript.Configuration as EmbeddingsGenerationConfiguration, database, database.ServerStore))
+                    using (embeddingsGenerationTask.EnterTestMode(out debugOutput))
+                    {
+                        embeddingsGenerationTask.EnsureThreadAllocationStats();
                         
-                    default:
+                        var embeddingsGenerationItem = new EmbeddingsGenerationItem(document, docCollection);
+                        var results = embeddingsGenerationTask.Transform([embeddingsGenerationItem], context, new EmbeddingsGenerationStatsScope(new EtlRunStats()), new EtlProcessState());
+
+                        var result  = embeddingsGenerationTask.RunTest(results, context);
+                        result.DebugOutput = debugOutput;
+                        return result;
+                    }
+
+                default:
                         throw new NotSupportedException($"Unknown ETL type in script test: {testScript.Configuration.EtlType}");
                 }
         }

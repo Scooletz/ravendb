@@ -4,6 +4,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using Raven.Client.Documents;
 using Raven.Client.Documents.Indexes;
+using Raven.Client.Documents.Indexes.Vector;
+using Raven.Client.Documents.Operations.AI;
 using Raven.Client.Documents.Operations.Backups;
 using Raven.Client.Documents.Operations.ConnectionStrings;
 using Raven.Client.Documents.Operations.ETL;
@@ -17,6 +19,7 @@ using Raven.Client.Documents.Operations.OngoingTasks;
 using Raven.Client.Documents.Operations.Replication;
 using Raven.Server.Documents;
 using Raven.Server.NotificationCenter.Notifications;
+using SlowTests.Server.Documents.AI;
 using SlowTests.Server.Replication;
 using Xunit;
 using Xunit.Abstractions;
@@ -285,8 +288,9 @@ namespace SlowTests.Issues
                 EtlType.Olap,
                 EtlType.ElasticSearch,
                 EtlType.Queue,
-                EtlType.Snowflake
-                };
+                EtlType.Snowflake,
+                EtlType.EmbeddingsGeneration
+            };
 
             var currentEtlTypes = Enum.GetValues(typeof(EtlType)).Cast<EtlType>();
             var newEtlTypes = currentEtlTypes.Except(knownEtlTypes).ToArray();
@@ -294,6 +298,7 @@ namespace SlowTests.Issues
             if (newEtlTypes.Any())
                 throw new Exception($"New EtlType values detected: {string.Join(", ", newEtlTypes)}. Update {nameof(TombstoneCleaningAfterEtlLoaderDisabled)} test to cover it.");
         }
+        
         [Theory]
         [InlineData(EtlType.Raven)]
         [InlineData(EtlType.Sql)]
@@ -301,6 +306,7 @@ namespace SlowTests.Issues
         [InlineData(EtlType.ElasticSearch)]
         [InlineData(EtlType.Queue)]
         [InlineData(EtlType.Snowflake)]
+        [InlineData(EtlType.EmbeddingsGeneration)]
         public async Task TombstoneCleaningAfterEtlLoaderDisabled(EtlType etlType)
         {
             using (var store = GetDocumentStore())
@@ -362,6 +368,25 @@ namespace SlowTests.Issues
                         var snowflakeConfiguration = new SnowflakeEtlConfiguration { Name = _customTaskName, ConnectionStringName = snowflakeConnectionString.Name, Transforms = { transforms }, SnowflakeTables = { new SnowflakeEtlTable {TableName = "Orders", DocumentIdColumn = "Id"}}};
                         taskId = await AddEtlAndDisableIt(store, snowflakeConnectionString, snowflakeConfiguration, OngoingTaskType.SnowflakeEtl);
                         blockerType = ITombstoneAware.TombstoneDeletionBlockerType.SnowflakeEtl;
+                        break;
+                    case EtlType.EmbeddingsGeneration:
+                        var aiConnectionString = new AiConnectionString { Name = "aiconnection", EmbeddedSettings = new EmbeddedSettings() };
+                        aiConnectionString.Identifier = aiConnectionString.GenerateIdentifier();
+                        var embeddingsGenerationConfiguration = new EmbeddingsGenerationConfiguration
+                        {
+                            Name = _customTaskName,
+                            ConnectionStringName = aiConnectionString.Identifier,
+                            EmbeddingsPathConfigurations = [new EmbeddingPathConfiguration() { Path = "Id", ChunkingOptions = new ChunkingOptions(){ChunkingMethod = ChunkingMethod.PlainTextSplitLines, MaxTokensPerChunk = 2048} }],
+                            Collection = "Orders",
+                            EmbeddingsTransformation = null,
+                            Quantization = VectorEmbeddingType.Single,
+                            ChunkingOptionsForQuerying = new(){ChunkingMethod = ChunkingMethod.PlainTextSplitLines, MaxTokensPerChunk = 2048},
+                        };
+
+                        embeddingsGenerationConfiguration.Identifier = embeddingsGenerationConfiguration.GenerateIdentifier();
+                        
+                        taskId = await AddEtlAndDisableIt(store, aiConnectionString, embeddingsGenerationConfiguration, OngoingTaskType.EmbeddingsGeneration);
+                        blockerType = ITombstoneAware.TombstoneDeletionBlockerType.EmbeddingsGeneration;
                         break;
                     default:
                         throw new ArgumentOutOfRangeException(nameof(etlType), etlType, "New EtlType values detected");

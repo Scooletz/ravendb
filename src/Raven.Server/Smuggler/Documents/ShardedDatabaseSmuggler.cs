@@ -152,6 +152,15 @@ namespace Raven.Server.Smuggler.Documents
                 }
             }
 
+            foreach (var embeddingGenerationTask in databaseRecord.EmbeddingsGenerations)
+            {
+                if (string.IsNullOrEmpty(embeddingGenerationTask.MentorNode) == false)
+                {
+                    AddMentorNodeWarning(DatabaseRecordItemType.EmbeddingsGenerations, embeddingGenerationTask.Name);
+                    embeddingGenerationTask.MentorNode = null;
+                }
+            }
+
             foreach (var backup in databaseRecord.PeriodicBackups)
             {
                 if (string.IsNullOrEmpty(backup.MentorNode) == false)

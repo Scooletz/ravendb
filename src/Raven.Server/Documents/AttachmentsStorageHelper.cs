@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using Raven.Server.ServerWide.Context;
 using Sparrow.Json;
 using Sparrow.Platform;
 
@@ -40,6 +41,15 @@ namespace Raven.Server.Documents
                 var hash = FinalizeGetHash(cryptoState, buffer);
                 return hash;
             }
+        }
+
+        public static string CalculateHash(ReadOnlySpan<byte> mem)
+        {
+            Span<byte> hashBuffer = stackalloc byte[Sodium.GenericHashSize];
+
+            Sodium.GenericHash(mem, hashBuffer);
+
+            return Convert.ToBase64String(hashBuffer);
         }
 
         private static unsafe void InitComputeHash(JsonOperationContext.MemoryBuffer cryptoState)

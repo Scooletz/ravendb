@@ -10,6 +10,8 @@ import {
     SqlConnection,
     SnowflakeConnection,
     AmazonSqsConnection,
+    AiConnection,
+    StudioConnectionType,
 } from "../connectionStringsTypes";
 
 import ElasticSearchConnectionStringDto = Raven.Client.Documents.Operations.ETL.ElasticSearch.ElasticSearchConnectionString;
@@ -21,6 +23,7 @@ import assertUnreachable from "components/utils/assertUnreachable";
 
 type SqlConnectionStringDto = SqlConnectionString;
 type SnowflakeConnectionStringDto = Raven.Client.Documents.Operations.ETL.Snowflake.SnowflakeConnectionString;
+type AiConnectionStringDto = Raven.Client.Documents.Operations.AI.AiConnectionString;
 
 type OngoingTaskForConnection = Raven.Client.Documents.Operations.OngoingTasks.OngoingTask & {
     ConnectionStringName?: string;
@@ -29,7 +32,7 @@ type OngoingTaskForConnection = Raven.Client.Documents.Operations.OngoingTasks.O
 
 function getConnectionStringUsedTasks(
     tasks: OngoingTaskForConnection[],
-    connectionType: StudioEtlType,
+    connectionType: StudioConnectionType,
     connectionName: string
 ): ConnectionStringUsedTask[] {
     let filteredTasks: OngoingTaskForConnection[] = [];
@@ -63,6 +66,9 @@ function getConnectionStringUsedTasks(
             break;
         case "AmazonSqs":
             filteredTasks = tasks.filter((task) => task.BrokerType === "AmazonSqs");
+            break;
+        case "Ai":
+            filteredTasks = tasks.filter((task) => task.TaskType === "EmbeddingsGeneration");
             break;
         default:
             assertUnreachable(connectionType);
@@ -323,4 +329,91 @@ function getAmazonSqsAuthType(dto: QueueConnectionStringDto): AmazonSqsAuthentic
         return "basic";
     }
     return null;
+}
+
+export function mapAiConnectionsFromDto(
+    connections: Record<string, AiConnectionStringDto>,
+    ongoingTasks: OngoingTaskForConnection[]
+): AiConnection[] {
+    const type: AiConnection["type"] = "Ai";
+
+    const getConnectorType = (connection: AiConnectionStringDto): AiConnection["connectorType"] => {
+        if (connection.AzureOpenAiSettings) {
+            return "azureOpenAiSettings";
+        }
+        if (connection.GoogleSettings) {
+            return "googleSettings";
+        }
+        if (connection.HuggingFaceSettings) {
+            return "huggingFaceSettings";
+        }
+        if (connection.OllamaSettings) {
+            return "ollamaSettings";
+        }
+        if (connection.EmbeddedSettings) {
+            return "embeddedSettings";
+        }
+        if (connection.OpenAiSettings) {
+            return "openAiSettings";
+        }
+        if (connection.MistralAiSettings) {
+            return "mistralAiSettings";
+        }
+        return null;
+    };
+
+    return Object.values(connections).map(
+        (connection) =>
+            ({
+                type,
+                name: connection.Name,
+                usedByTasks: getConnectionStringUsedTasks(ongoingTasks, type, connection.Name),
+                identifier: connection.Identifier,
+                connectorType: getConnectorType(connection),
+                azureOpenAiSettings: {
+                    apiKey: connection.AzureOpenAiSettings?.ApiKey,
+                    endpoint: connection.AzureOpenAiSettings?.Endpoint,
+                    model: connection.AzureOpenAiSettings?.Model,
+                    deploymentName: connection.AzureOpenAiSettings?.DeploymentName,
+                    dimensions: connection.AzureOpenAiSettings?.Dimensions,
+                    embeddingsMaxConcurrentBatches: connection.AzureOpenAiSettings?.EmbeddingsMaxConcurrentBatches,
+                },
+                googleSettings: {
+                    aiVersion: connection.GoogleSettings?.AiVersion,
+                    apiKey: connection.GoogleSettings?.ApiKey,
+                    model: connection.GoogleSettings?.Model,
+                    dimensions: connection.GoogleSettings?.Dimensions,
+                    embeddingsMaxConcurrentBatches: connection.GoogleSettings?.EmbeddingsMaxConcurrentBatches,
+                },
+                huggingFaceSettings: {
+                    apiKey: connection.HuggingFaceSettings?.ApiKey,
+                    endpoint: connection.HuggingFaceSettings?.Endpoint,
+                    model: connection.HuggingFaceSettings?.Model,
+                    embeddingsMaxConcurrentBatches: connection.HuggingFaceSettings?.EmbeddingsMaxConcurrentBatches,
+                },
+                ollamaSettings: {
+                    model: connection.OllamaSettings?.Model,
+                    uri: connection.OllamaSettings?.Uri,
+                    embeddingsMaxConcurrentBatches: connection.OllamaSettings?.EmbeddingsMaxConcurrentBatches,
+                },
+                embeddedSettings: {
+                    embeddingsMaxConcurrentBatches: connection.EmbeddedSettings?.EmbeddingsMaxConcurrentBatches,
+                },
+                openAiSettings: {
+                    apiKey: connection.OpenAiSettings?.ApiKey,
+                    endpoint: connection.OpenAiSettings?.Endpoint,
+                    model: connection.OpenAiSettings?.Model,
+                    organizationId: connection.OpenAiSettings?.OrganizationId,
+                    projectId: connection.OpenAiSettings?.ProjectId,
+                    dimensions: connection.OpenAiSettings?.Dimensions,
+                    embeddingsMaxConcurrentBatches: connection.OpenAiSettings?.EmbeddingsMaxConcurrentBatches,
+                },
+                mistralAiSettings: {
+                    apiKey: connection.MistralAiSettings?.ApiKey,
+                    endpoint: connection.MistralAiSettings?.Endpoint,
+                    model: connection.MistralAiSettings?.Model,
+                    embeddingsMaxConcurrentBatches: connection.MistralAiSettings?.EmbeddingsMaxConcurrentBatches,
+                },
+            }) satisfies AiConnection
+    );
 }

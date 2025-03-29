@@ -102,6 +102,7 @@ export class LicenseStubs {
             HasEncryptedBackups: true,
             CanAutoRenewLetsEncryptCertificate: true,
             IsCloud: false,
+            HasEmbeddingsGeneration: true,
             HasDocumentsCompression: true,
             HasTimeSeriesRollupsAndRetention: true,
             HasAdditionalAssembliesFromNuGet: true,

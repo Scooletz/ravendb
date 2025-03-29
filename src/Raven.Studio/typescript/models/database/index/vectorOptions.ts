@@ -46,7 +46,7 @@ class vectorOptions {
             SourceEmbeddingType: this.sourceEmbeddingType(),
             DestinationEmbeddingType: this.destinationEmbeddingType(),
             NumberOfCandidatesForIndexing: this.numberOfCandidatesForIndexing(),
-            NumberOfEdges: this.numberOfEdges()
+            NumberOfEdges: this.numberOfEdges(),
         };
     }
 
@@ -56,7 +56,7 @@ class vectorOptions {
             SourceEmbeddingType: "Single",
             DestinationEmbeddingType: "Single",
             NumberOfCandidatesForIndexing: null,
-            NumberOfEdges: null
+            NumberOfEdges: null,
         }
     }
     

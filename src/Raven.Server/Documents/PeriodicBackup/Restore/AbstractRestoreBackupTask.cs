@@ -458,6 +458,14 @@ namespace Raven.Server.Documents.PeriodicBackup.Restore
                 }
             }
 
+            if (databaseRecord.EmbeddingsGenerations != null)
+            {
+                foreach (var task in databaseRecord.EmbeddingsGenerations)
+                {
+                    task.Disabled = true;
+                }
+            }
+
             if (databaseRecord.PeriodicBackups != null)
             {
                 foreach (var task in databaseRecord.PeriodicBackups)
@@ -604,6 +612,8 @@ namespace Raven.Server.Documents.PeriodicBackup.Restore
                     databaseRecord.SupportedFeatures = smugglerDatabaseRecord.SupportedFeatures;
                     databaseRecord.SnowflakeEtls = smugglerDatabaseRecord.SnowflakeEtls;
                     databaseRecord.SnowflakeConnectionStrings = smugglerDatabaseRecord.SnowflakeConnectionStrings;
+                    databaseRecord.AiConnectionStrings = smugglerDatabaseRecord.AiConnectionStrings;
+                    databaseRecord.EmbeddingsGenerations = smugglerDatabaseRecord.EmbeddingsGenerations;
                 };
             }
 

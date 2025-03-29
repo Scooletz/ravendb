@@ -42,7 +42,8 @@ type taskOperation = Raven.Client.Documents.Replication.ReplicationPerformanceOp
                      Raven.Server.Documents.ETL.Stats.EtlPerformanceOperation |
                      Raven.Server.Documents.QueueSink.Stats.Performance.QueueSinkPerformanceOperation |
                      Raven.Server.Documents.Subscriptions.Stats.SubscriptionConnectionPerformanceOperation |
-                     Raven.Server.Documents.Subscriptions.Stats.SubscriptionBatchPerformanceOperation;
+                     Raven.Server.Documents.Subscriptions.Stats.SubscriptionBatchPerformanceOperation &
+                     Raven.Server.Documents.ETL.Providers.AI.Embeddings.Stats.EmbeddingsGenerationPerformanceOperation;
 
 type performanceBaseWithCache = ReplicationPerformanceWithCache |
                                 EtlPerformanceBaseWithCache |
@@ -486,7 +487,10 @@ class ongoingTasksStats extends shardViewModelBase {
             "Storage/AttachmentRead": undefined as string,
             "Storage/CounterRead": undefined as string,
             "Storage/TimeSeriesRead": undefined as string,
+            "Storage/Embeddings": undefined as string,
+            "Model/Generate": undefined as string,
             "ETL": undefined as string,
+            "Embeddings Generation": undefined as string,
             "Extract": undefined as string,
             "Transform": undefined as string,
             "Load" : undefined as string,
@@ -509,9 +513,13 @@ class ongoingTasksStats extends shardViewModelBase {
             "UnknownOperation": undefined as string,
         }
     };
+
+    private filteredTaskTypes: FilterOngoingTaskType[] = [];
     
-    constructor(db: database, location: databaseLocationSpecifier) {
+    constructor(db: database, location: databaseLocationSpecifier, filteredTaskTypes: FilterOngoingTaskType[] = []) {
         super(db, location);
+
+        this.filteredTaskTypes = filteredTaskTypes;
 
         this.bindToCurrentInstance("clearGraphWithConfirm");
         
@@ -782,19 +790,31 @@ class ongoingTasksStats extends shardViewModelBase {
         }, 1000, { maxWait: 3000 });
 
         this.liveViewReplicationClient(new liveReplicationStatsWebSocketClient(this.db, this.location, d => {
-            this.replicationData = d;
+            if (!this.filteredTaskTypes.length || this.filteredTaskTypes.includes("Replication")) {
+                this.replicationData = d;
+            }
             onDataUpdatedThrottle();
         }, this.dateCutoff));
         this.liveViewEtlClient(new liveEtlStatsWebSocketClient(this.db, this.location, d => {
-            this.etlData = d;
+            if (this.filteredTaskTypes.length) {
+                this.etlData = d.filter(x => this.filteredTaskTypes.includes(x.EtlType));
+            } else {
+                this.etlData = d;
+            }
             onDataUpdatedThrottle();
         }, this.dateCutoff));
         this.liveViewQueueSinkClient(new liveQueueSinkStatsWebSocketClient(this.db, this.location, d => {
-            this.queueSinkData = d;
+            if (this.filteredTaskTypes.length) {
+                this.queueSinkData = d.filter(x => this.filteredTaskTypes.includes(x.BrokerType));
+            } else {
+                this.queueSinkData = d;
+            }
             onDataUpdatedThrottle();
         }, this.dateCutoff));
         this.liveViewSubscriptionClient(new liveSubscriptionStatsWebSocketClient(this.db, this.location, d => {
-            this.subscriptionData = d;
+            if (!this.filteredTaskTypes.length || this.filteredTaskTypes.includes("Subscription")) {
+                this.subscriptionData = d;
+            }
             onDataUpdatedThrottle();
         }, this.dateCutoff));
     }
@@ -1037,8 +1057,15 @@ class ongoingTasksStats extends shardViewModelBase {
                 + scriptsCount * ongoingTasksStats.betweenScriptsPadding
                 + ongoingTasksStats.openedTrackPadding;
             
-            const heightCount = etlTask.EtlType === "Olap"? 3 : 1; 
-            
+            let heightCount = 1;
+
+            if (etlTask.EtlType === "Olap") {
+                heightCount = 3;
+            }
+            if (etlTask.EtlType === "EmbeddingsGeneration") {
+                heightCount = 2;
+            }
+
             const openedHeight = 2 * ongoingTasksStats.openedTrackPadding
                 + ongoingTasksStats.trackHeight * heightCount
                 + (scriptsCount - 1) * ongoingTasksStats.betweenScriptsPadding
@@ -1685,6 +1712,10 @@ class ongoingTasksStats extends shardViewModelBase {
     }
     
     private drawEtlScriptName(context: CanvasRenderingContext2D, yStart: number, taskInfo: previewEtlScriptItemContext) {
+        if (taskInfo.etlType === "EmbeddingsGeneration") {
+            return;
+        }
+
         const areaWidth = this.drawText(context, yStart, taskInfo.transformationName);
         this.hitTest.registerPreviewEtlScript(2, yStart, areaWidth, ongoingTasksStats.trackHeight, taskInfo);
     }
@@ -1804,6 +1835,8 @@ class ongoingTasksStats extends shardViewModelBase {
                 return "Kafka Sink";
             case "RabbitQueueSink":
                 return "RabbitMQ Sink";
+            case "EmbeddingsGeneration":
+                return "Embeddings Generation";
             default:
                 throw new Error("Unknown stats type: " + type);
         }
@@ -2095,7 +2128,8 @@ class ongoingTasksStats extends shardViewModelBase {
                 type === "Kafka" || 
                 type === "AzureQueueStorage" ||
                 type === "AmazonSqs" ||
-                type === "RabbitMQ";
+                type === "RabbitMQ" ||
+                type === "EmbeddingsGeneration";
             
             const isSubscription = type === "SubscriptionConnection" || type === "SubscriptionBatch" || type === "AggregatedBatchesInfo";
             const isRootItem = context.rootStats.Details === context.item;
@@ -2342,6 +2376,18 @@ class ongoingTasksStats extends shardViewModelBase {
                                 tooltipHtml += `<div class="tooltip-li">Last loaded Etag: <div class="value">${baseElement.LastLoadedEtag} </div></div>`;
                             }
                             break;
+                        case "Storage/Embeddings": {
+                            const elementWithData = context.item as Raven.Server.Documents.ETL.Providers.AI.Embeddings.Stats.EmbeddingsGenerationPerformanceOperation;
+                            tooltipHtml += `<div class="tooltip-li">Put embeddings documents: <div class="value">${elementWithData.NumberOfPutEmbeddingDocuments}</div></div>`;
+                            tooltipHtml += `<div class="tooltip-li">Deleted embeddings documents: <div class="value">${elementWithData.NumberOfDeletedEmbeddingDocuments}</div></div>`;
+                            break;
+                        }
+                        case "Model/Generate": {
+                            const elementWithData = context.item as Raven.Server.Documents.ETL.Providers.AI.Embeddings.Stats.EmbeddingsGenerationPerformanceOperation;
+                            tooltipHtml += `<div class="tooltip-li">Generated embeddings: <div class="value">${elementWithData.NumberOfGeneratedEmbeddings}</div></div>`;
+                            tooltipHtml += `<div class="tooltip-li">Embeddings in cache: <div class="value">${elementWithData.NumberOfEmbeddingsInCache}</div></div>`;
+                            break;
+                        }
                     }
                     
                     if (type === "Olap") {

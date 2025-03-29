@@ -11,6 +11,7 @@ using Jint.Runtime.Descriptors;
 using Raven.Client;
 using Raven.Client.Documents.Indexes;
 using Raven.Client.Exceptions.Corax;
+using Raven.Server.Documents.ETL.Providers.AI.Embeddings;
 using Raven.Server.Documents.Indexes.MapReduce.Static;
 using Raven.Server.Documents.Indexes.Static;
 using Raven.Server.Documents.Indexes.Static.Spatial;
@@ -244,6 +245,8 @@ public abstract class CoraxJintDocumentConverterBase : CoraxDocumentConverterBas
                 if (objectValue.HasOwnProperty(JavaScriptFieldName.VectorPropertyName) &&
                     objectValue.TryGetValue(JavaScriptFieldName.VectorPropertyName, out var vector))
                 {
+                    PortableExceptions.ThrowIf<NotSupportedException>(_index.Type.IsMapReduce(), $"'createVector' is not supported in  MapReduce indexes.");
+                    
                     PortableExceptions.ThrowIf<InvalidDataException>(vector.IsObject() == false);
                     var obj = vector.AsObject();
                     JsValue valueJsv = null;
@@ -255,8 +258,42 @@ public abstract class CoraxJintDocumentConverterBase : CoraxDocumentConverterBas
 
                     var underlyingValue = valueJsv.IsString() ? valueJsv.AsString() : (object)valueJsv;
     
-                    var indexField = AbstractStaticIndexBase.RetrieveVectorField(field.Name, underlyingValue);
+                    var indexField = AbstractStaticIndexBase.RetrieveCreateVectorField(field.Name, underlyingValue);
                     object objectForIndexing = AbstractStaticIndexBase.CreateVector(indexField, underlyingValue, isAutoIndex: false);
+                    InsertRegularField(indexField, objectForIndexing, indexContext, builder, sourceDocument, out shouldSkip);
+                    shouldProcessAsBlittable = false;
+                    return;
+                }
+
+                if (objectValue.HasOwnProperty(JavaScriptFieldName.LoadVectorPropertyName) &&
+                    objectValue.TryGetValue(JavaScriptFieldName.LoadVectorPropertyName, out var loadVector))
+                {
+                    PortableExceptions.ThrowIf<NotSupportedException>(_index.Type.IsMapReduce(), $"'loadVector' is not supported in MapReduce indexes.");
+                    
+                    PortableExceptions.ThrowIf<InvalidDataException>(loadVector.IsObject() == false);
+                    var obj = loadVector.AsObject();
+                    JsValue pathOfEmbeddingJsv = null;
+                    JsValue nameofEmbeddingsGeneratorJsv = null;
+                    if (obj.HasOwnProperty(JavaScriptFieldName.ValuePropertyName) == false 
+                        || obj.TryGetValue(JavaScriptFieldName.ValuePropertyName, out pathOfEmbeddingJsv) == false)
+                    {
+                        PortableExceptions.Throw<InvalidDataException>("Path field doesn't exist but is required.");
+                    }
+                    
+                    if (obj.HasOwnProperty(JavaScriptFieldName.NamePropertyName) == false 
+                        || obj.TryGetValue(JavaScriptFieldName.NamePropertyName, out nameofEmbeddingsGeneratorJsv) == false)
+                    {
+                        PortableExceptions.Throw<InvalidDataException>("Path field doesn't exist but is required.");
+                    }
+                    
+                    PortableExceptions.ThrowIfNot<ArgumentException>(pathOfEmbeddingJsv.IsString(), $"'loadVector' requires a string value of the path to the vector.");
+                    PortableExceptions.ThrowIfNot<ArgumentException>(nameofEmbeddingsGeneratorJsv.IsString(), $"'loadVector' requires a string AI Task of the vector.");
+                    
+                    var embeddingGeneratorName = nameofEmbeddingsGeneratorJsv.AsString();
+                    var path = pathOfEmbeddingJsv.AsString();
+                    
+                    // todo pass id
+                    object objectForIndexing = AbstractStaticIndexBase.LoadVectorJs(field.Name, path, embeddingGeneratorName, out var indexField);
                     InsertRegularField(indexField, objectForIndexing, indexContext, builder, sourceDocument, out shouldSkip);
                     shouldProcessAsBlittable = false;
                     return;
@@ -266,7 +303,6 @@ public abstract class CoraxJintDocumentConverterBase : CoraxDocumentConverterBas
 
             shouldProcessAsBlittable = true;
         }
-
         
         void HandleCompoundFields()
         {

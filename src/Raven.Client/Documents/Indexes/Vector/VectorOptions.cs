@@ -54,11 +54,11 @@ public class VectorOptions
     public int? NumberOfCandidatesForIndexing { get; set; }
     
     public int? NumberOfEdges { get; set; }
-
+    
     [Conditional("DEBUG")]
     internal void ValidateDebug() => Validate();
     
-    internal void Validate()
+    internal virtual void Validate()
     {
         PortableExceptions.ThrowIf<InvalidOperationException>(DestinationEmbeddingType is VectorEmbeddingType.Text, "Destination embedding type cannot be Text.");
         PortableExceptions.ThrowIf<InvalidOperationException>(Dimensions is <= 0, "Number of vector dimensions has to be positive.");
@@ -88,8 +88,8 @@ public class VectorOptions
 
         if (obj is not VectorOptions options)
             return false;
-        
-        return options.Dimensions == Dimensions 
+
+        return options.Dimensions == Dimensions
                && options.SourceEmbeddingType == SourceEmbeddingType
                && options.DestinationEmbeddingType == DestinationEmbeddingType
                && options.NumberOfEdges == NumberOfEdges

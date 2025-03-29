@@ -137,6 +137,13 @@
                 @include make-icon-color(settings, colors.$color-2-1, colors.$color-2-1);
                 @include make-icon-color(stats, colors.$color-3, colors.$color-3);
 
+                .icon-ai::before {
+                    background: colors.$ai-gradient;
+                    background-clip: text;
+                    -webkit-background-clip: text;
+                    -webkit-text-fill-color: transparent;
+                }
+
                 &--sticky {
                     position: sticky;
                     top: 0;

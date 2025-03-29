@@ -12,7 +12,7 @@ namespace Raven.Client.Documents.Operations.ETL
 {
     public abstract class EtlConfiguration<T> : IDynamicJsonValueConvertible, IDatabaseTask where T : ConnectionString
     {
-        private bool _initialized;
+        protected bool Initialized;
 
         public long TaskId { get; set; }
 
@@ -35,16 +35,16 @@ namespace Raven.Client.Documents.Operations.ETL
         public void Initialize(T connectionString)
         {
             Connection = connectionString;
-            _initialized = true;
+            Initialized = true;
         }
 
-        public List<Transformation> Transforms { get; set; } = new List<Transformation>();
+        public virtual List<Transformation> Transforms { get; set; } = new List<Transformation>();
 
         public bool Disabled { get; set; }
         
         public virtual bool Validate(out List<string> errors, bool validateName = true, bool validateConnection = true)
         {
-            if (validateConnection && _initialized == false)
+            if (validateConnection && Initialized == false)
                 throw new InvalidOperationException("ETL configuration must be initialized");
 
             errors = new List<string>();
@@ -56,7 +56,7 @@ namespace Raven.Client.Documents.Operations.ETL
                 errors.Add($"{nameof(ConnectionStringName)} cannot be empty");
 
             if (validateConnection && TestMode == false)
-                Connection.Validate(ref errors);
+                Connection.Validate(errors);
 
             var uniqueNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
@@ -65,7 +65,7 @@ namespace Raven.Client.Documents.Operations.ETL
             
             foreach (var script in Transforms)
             {
-                script.Validate(ref errors, EtlType);
+                script.Validate(errors, EtlType);
 
                 if (uniqueNames.Add(script.Name) == false)
                     errors.Add($"Script name '{script.Name}' name is already defined. The script names need to be unique");

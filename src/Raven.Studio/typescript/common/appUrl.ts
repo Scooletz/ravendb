@@ -4,6 +4,7 @@ import activeDatabase = require("common/shell/activeDatabaseTracker");
 import router = require("plugins/router");
 import messagePublisher = require("common/messagePublisher");
 import databases = require("components/models/databases");
+import connectionStringsTypes = require("components/pages/database/settings/connectionStrings/connectionStringsTypes");
 
 class appUrl {
 
@@ -51,6 +52,7 @@ class appUrl {
         editSnowflakeEtl: (taskId?: number) => ko.pureComputed(() => appUrl.forEditSnowflakeEtl(appUrl.currentDatabase(), taskId)),
         editOlapEtl: (taskId?: number) => ko.pureComputed(() => appUrl.forEditOlapEtl(appUrl.currentDatabase(), taskId)),
         editElasticSearchEtl: (taskId?: number) => ko.pureComputed(() => appUrl.forEditElasticSearchEtl(appUrl.currentDatabase(), taskId)),
+        editEmbeddingsGeneration: (taskId?: number) => ko.pureComputed(() => appUrl.forEditEmbeddingsGeneration(appUrl.currentDatabase(), taskId)),
         editKafkaEtl: (taskId?: number) => ko.pureComputed(() => appUrl.forEditKafkaEtl(appUrl.currentDatabase(), taskId)),
         editRabbitMqEtl: (taskId?: number) => ko.pureComputed(() => appUrl.forEditRabbitMqEtl(appUrl.currentDatabase(), taskId)),
         editAzureQueueStorageEtl: (taskId?: number) => ko.pureComputed(() => appUrl.forEditAzureQueueStorageEtl(appUrl.currentDatabase(), taskId)),
@@ -77,6 +79,7 @@ class appUrl {
         editSnowflakeEtlTaskUrl: ko.pureComputed(() => appUrl.forEditSnowflakeEtl(appUrl.currentDatabase())),
         editOlapEtlTaskUrl: ko.pureComputed(() => appUrl.forEditOlapEtl(appUrl.currentDatabase())),
         editElasticSearchEtlTaskUrl: ko.pureComputed(() => appUrl.forEditElasticSearchEtl(appUrl.currentDatabase())),
+        editEmbeddingsGenerationTaskUrl: ko.pureComputed(() => appUrl.forEditEmbeddingsGeneration(appUrl.currentDatabase())),
         editKafkaEtlTaskUrl: ko.pureComputed(() => appUrl.forEditKafkaEtl(appUrl.currentDatabase())),
         editRabbitMqEtlTaskUrl: ko.pureComputed(() => appUrl.forEditRabbitMqEtl(appUrl.currentDatabase())),
         editAzureQueueStorageEtlTaskUrl: ko.pureComputed(() => appUrl.forEditAzureQueueStorageEtl(appUrl.currentDatabase())),
@@ -122,6 +125,11 @@ class appUrl {
         isAreaActive: (routeRoot: string) => ko.pureComputed(() => appUrl.checkIsAreaActive(routeRoot)),
         isActive: (routeTitle: string) => ko.pureComputed(() => router.navigationModel().find(m => m.isActive() && m.title === routeTitle) != null),
         databasesManagement: ko.pureComputed(() => appUrl.forDatabases()),
+
+        // AI Hub
+        aiConnectionStrings: ko.pureComputed(() => appUrl.forAiConnectionStrings(appUrl.currentDatabase())),
+        aiTasks: ko.pureComputed(() => appUrl.forAiTasks(appUrl.currentDatabase())),
+        aiTasksStats: ko.pureComputed(() => appUrl.forAiTasksStats(appUrl.currentDatabase())),
     };
 
     static checkIsAreaActive(routeRoot: string): boolean {
@@ -426,7 +434,7 @@ class appUrl {
         return "#databases/settings/revisionsBinCleaner?" + appUrl.getEncodedDbPart(db);
     }
 
-    static forConnectionStrings(db: database | string, type?: StudioEtlType, name?: string): string {
+    static forConnectionStrings(db: database | string, type?: connectionStringsTypes.StudioConnectionType, name?: string): string {
         const databaseUrlPart = appUrl.getEncodedDbPart(db);
         const typeUrlPart = type ? "&type=" + encodeURIComponent(type) : "";
         const nameUrlPart = name ? "&name=" + encodeURIComponent(name) : "";
@@ -689,7 +697,22 @@ class appUrl {
         const taskPart = taskId ? "&taskId=" + taskId : "";
         return "#databases/tasks/editRabbitMqSinkTask?" + databasePart + taskPart;
     }
-    
+
+    static forEditEmbeddingsGeneration(db: database | string, taskId?: number): string {
+        const databasePart = appUrl.getEncodedDbPart(db);
+
+        const sourceViewPart = "&sourceView=" + appUrl.getAiTaskSourceView();
+        const taskPart = taskId ? "&taskId=" + taskId : "";
+        return "#databases/tasks/editEmbeddingsGenerationTask?" + databasePart + sourceViewPart + taskPart;
+    }
+
+    static getAiTaskSourceView(): EditAiTaskSourceView {
+        if (window.location.href.includes("/ai/")) {
+            return "AiTasks";
+        }
+        return "OngoingTasks";
+    }
+
     static forSampleData(db: database): string {
         const databasePart = appUrl.getEncodedDbPart(db);
         return "#databases/tasks/sampleData?" + databasePart;
@@ -730,6 +753,21 @@ class appUrl {
 
     static forDocumentRevisionRawData(db: database, revisionChangeVector: string): string { 
         return window.location.protocol + "//" + window.location.host + "/databases/" + db.name + "/revisions?changeVector=" + encodeURIComponent(revisionChangeVector);
+    }
+
+    static forAiConnectionStrings(db: database | string): string {
+        const databasePart = appUrl.getEncodedDbPart(db);
+        return "#databases/ai/connectionStrings?" + databasePart;
+    }
+
+    static forAiTasks(db: database | string): string {
+        const databasePart = appUrl.getEncodedDbPart(db);
+        return "#databases/ai/tasks?" + databasePart;
+    }
+
+    static forAiTasksStats(db: database | string): string {
+        const databasePart = appUrl.getEncodedDbPart(db);
+        return "#databases/ai/tasksStats?" + databasePart;
     }
 
     static getDatabaseNameFromUrl(): string {
