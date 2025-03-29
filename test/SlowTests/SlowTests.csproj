@@ -55,9 +55,6 @@
     <None Remove="Data\RavenDB_23100\2024-11-19-10-43-34-8245899.ravendb-snapshot" />
     <None Remove="Smuggler\Data\DocumentWithRevisions.ravendbdump" />
     <None Remove="Smuggler\Data\RevisionsWithoutADocument.ravendbdump" />
-    <None Update="Tests\fact-tests.txt">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="..\Tests.Infrastructure\CommonTestsAssemblyInfo.cs" Link="Properties\CommonTestsAssemblyInfo.cs" />
