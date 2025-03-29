@@ -1920,7 +1920,7 @@ namespace Raven.Server.Json
                     writer.WriteString(options.Vector.NumberOfCandidatesForIndexing.ToString());
                 else
                     writer.WriteNull();
-
+                
                 writer.WriteEndObject();
             }
             else

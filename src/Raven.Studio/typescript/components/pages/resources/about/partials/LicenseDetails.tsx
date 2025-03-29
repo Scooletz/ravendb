@@ -11,6 +11,9 @@ import { useAppSelector } from "components/store";
 import { licenseSelectors } from "components/common/shell/licenseSlice";
 import { useRavenLink } from "hooks/useRavenLink";
 import Button from "react-bootstrap/Button";
+import Tooltip from "react-bootstrap/Tooltip";
+import OverlayTrigger from "react-bootstrap/OverlayTrigger";
+import { allAiExternalProviders } from "components/utils/common";
 
 export function LicenseDetails() {
     const licenseId = useAppSelector(licenseSelectors.statusValue("Id"));
@@ -230,7 +233,23 @@ function LicenseTable(props: LicenseTableProps) {
 
                                 {section.items.map((feature) => (
                                     <tr key={feature.name}>
-                                        <th scope="row">{feature.name}</th>
+                                        <th scope="row">
+                                            <span>
+                                                {feature.name}
+                                                {feature.helperInfo && (
+                                                    <OverlayTrigger
+                                                        placement="top"
+                                                        overlay={
+                                                            <Tooltip id={feature.name}>{feature.helperInfo}</Tooltip>
+                                                        }
+                                                    >
+                                                        <div className="d-inline-block">
+                                                            <Icon icon="info" color="info" className="ms-1" />
+                                                        </div>
+                                                    </OverlayTrigger>
+                                                )}
+                                            </span>
+                                        </th>
                                         {columns.map((column) => (
                                             <td
                                                 key={column}
@@ -768,6 +787,34 @@ const featureAvailabilityData: FeatureAvailabilitySection[] = [
         ],
     },
     {
+        name: "Embeddings Generation",
+        link: null,
+        items: [
+            {
+                name: "Embedded Model",
+                ...availableEverywhere,
+                fieldInLicense: null,
+                helperInfo: "bge-micro-v2",
+            },
+            {
+                name: "External Models",
+                agpl: { value: false },
+                community: { value: false },
+                professional: { value: false },
+                enterprise: { value: true },
+                developer: { value: true },
+                fieldInLicense: "HasEmbeddingsGeneration",
+                helperInfo: (
+                    <ul>
+                        {allAiExternalProviders.map((provider) => (
+                            <li key={provider}>{provider}</li>
+                        ))}
+                    </ul>
+                ),
+            },
+        ],
+    },
+    {
         name: "Integration",
         link: "https://ravendb.net/features#integration",
         items: [
@@ -1227,7 +1274,6 @@ type DisplayableLicenseField = keyof Omit<LicenseStatus, "Attributes">;
 
 interface FeatureAvailabilityItem {
     name: string;
-
     fieldInLicense: DisplayableLicenseField;
     agpl: ValueData;
     community: ValueData;
@@ -1235,6 +1281,7 @@ interface FeatureAvailabilityItem {
     enterprise: ValueData;
     developer: ValueData;
     suffix?: string;
+    helperInfo?: React.ReactNode;
 }
 
 type AvailabilityValue = boolean | number | string;

@@ -337,6 +337,20 @@ function getTasksMenuItem(appUrls: computedAppUrls) {
             }
         }),
         new leafMenuItem({
+            route: 'databases/tasks/editEmbeddingsGenerationTask',
+            moduleId: require('viewmodels/database/tasks/editEmbeddingsGenerationTask'),
+            shardingMode: "allShards",
+            title: 'Embeddings Generation Task',
+            nav: false,
+            css: "icon-plus",
+            dynamicHash: appUrls.editEmbeddingsGenerationTaskUrl,
+            itemRouteToHighlight: 'databases/tasks/ongoingTasks',
+            search: {
+                overrideTitle: "Add New Embeddings Generation Task",
+                alternativeTitles: ["Create Embeddings Generation Task"],
+            }
+        }),
+        new leafMenuItem({
             route: 'databases/tasks/editKafkaSinkTask',
             moduleId: require('viewmodels/database/tasks/editKafkaSinkTask'),
             title: 'Kafka Sink Task',

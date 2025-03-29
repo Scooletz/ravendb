@@ -1,8 +1,14 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using Raven.Client;
+using Raven.Client.Documents.Changes;
 using Raven.Client.Documents.Indexes;
+using Raven.Client.Documents.Indexes.Vector;
 using Raven.Server.Config.Categories;
+using Raven.Server.Documents.AI.Embeddings;
+using Raven.Server.Documents.Indexes.Workers;
+using Raven.Server.Documents.Indexes.Workers.Cleanup;
 using Raven.Server.ServerWide.Context;
 using Voron;
 
@@ -10,6 +16,8 @@ namespace Raven.Server.Documents.Indexes.Auto
 {
     internal sealed class AutoMapIndex : MapIndexBase<AutoMapIndexDefinition, AutoIndexField>
     {
+        private readonly HashSet<string> _referencedCollections = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
         private AutoMapIndex(AutoMapIndexDefinition definition)
             : base(IndexType.AutoMap, IndexSourceType.Documents, definition, compiled: null)
         {
@@ -35,7 +43,43 @@ namespace Raven.Server.Documents.Indexes.Auto
 
         public override IIndexedItemEnumerator GetMapEnumerator(IEnumerable<IndexItem> items, string collection, TransactionOperationContext indexContext, IndexingStatsScope stats, IndexType type)
         {
-            return new AutoIndexDocsEnumerator(items, stats);
+            return new AutoIndexDocsEnumerator(items, stats, collection);
+        }
+
+        protected override void HandleDocumentChange(DocumentChange change)
+        {
+            if (HandleAllDocs == false && Collections.Contains(change.CollectionName) == false && _referencedCollections.Contains(change.CollectionName) == false)
+                return;
+            
+            _mre.Set();
+        }
+
+        protected override IIndexingWork[] CreateIndexWorkExecutors()
+        {
+            var workers = new List<IIndexingWork>
+            {
+                new CleanupDocuments(this, DocumentDatabase.DocumentsStorage, _indexStorage, Configuration, null),
+                new MapDocuments(this, DocumentDatabase.DocumentsStorage, _indexStorage, null, Configuration)
+            };
+
+            var usesEmbeddingsGenerationTask = Definition.IndexFields.Values.Any(x => ((AutoVectorOptions)x.Vector)?.EmbeddingsGenerationTaskIdentifier != null);
+            
+            if (usesEmbeddingsGenerationTask)
+            {
+                // We only have a single collection for auto map index
+                string collection = Collections.First();
+                var referencedEmbeddingsCollection = EmbeddingsHelper.GetEmbeddingDocumentCollectionName(collection);
+
+                _referencedCollections.Add(referencedEmbeddingsCollection);
+
+                var referencedCollections = new Dictionary<string, HashSet<CollectionName>>();
+                
+                referencedCollections.Add(collection, new HashSet<CollectionName>() { new CollectionName(referencedEmbeddingsCollection) });
+                
+                workers.Add(new HandleDocumentReferences(this, referencedCollections, DocumentDatabase.DocumentsStorage, _indexStorage, Configuration));
+            }
+            
+            return workers.ToArray();
         }
 
         public override void Update(IndexDefinitionBaseServerSide definition, IndexingConfiguration configuration)

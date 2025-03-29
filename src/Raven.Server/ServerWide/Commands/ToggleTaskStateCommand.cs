@@ -136,6 +136,15 @@ namespace Raven.Server.ServerWide.Commands
                         queueSink.Disabled = Disable;
                     }
                     break;
+
+                case OngoingTaskType.EmbeddingsGeneration:
+
+                    var embeddingGenerationTask = record?.EmbeddingsGenerations?.Find(x => x.TaskId == TaskId);
+                    if (embeddingGenerationTask != null)
+                    {
+                        embeddingGenerationTask.Disabled = Disable;
+                    }
+                    break;
             }
 
             void ThrowIfServerWideTask(string name, string prefix, string typeName)

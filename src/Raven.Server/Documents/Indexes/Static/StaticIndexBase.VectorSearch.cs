@@ -2,15 +2,19 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Corax.Utils;
 using Jint;
 using Jint.Native;
 using Raven.Client.Documents.Indexes.Vector;
+using Raven.Server.Documents.AI.Embeddings;
+using Raven.Server.Documents.ETL.Providers.AI.Embeddings;
 using Raven.Server.Documents.Indexes.Persistence.Corax;
 using Raven.Server.Documents.Indexes.Static.JavaScript;
 using Raven.Server.Documents.Indexes.VectorSearch;
+using Raven.Server.Json;
 using Sparrow;
 using Sparrow.Json;
 
@@ -18,6 +22,8 @@ namespace Raven.Server.Documents.Indexes.Static;
 
 public partial class AbstractStaticIndexBase
 {
+    private static readonly object NullVectorValue = new object[] { VectorValue.Null }; 
+    
     /// <summary>
     /// Dictionary training process occurs in IsOnBeforeExecuteIndexing. Since we're not training dictionaries with vectors, and considering computation
     /// power required (e.g., generating embeddings from text), it is better to skip that part as there is no benefit in performing it.
@@ -29,7 +35,7 @@ public partial class AbstractStaticIndexBase
         return currentIndexingScope != null && currentIndexingScope.Index.IsOnBeforeExecuteIndexing;
     }
 
-    internal static IndexField RetrieveVectorField(string fieldName, object value)
+    internal static IndexField RetrieveCreateVectorField(string fieldName, object value)
     {
         var currentIndexingScope = CurrentIndexingScope.Current;
         var fieldExists = currentIndexingScope.Index.Definition.IndexFields.TryGetValue(fieldName, out var indexField);
@@ -78,9 +84,9 @@ public partial class AbstractStaticIndexBase
     {
         var currentIndexingScope = CurrentIndexingScope.Current;
         if (IsDictionaryTrainingPhase(currentIndexingScope) || IsNullValue(value))
-            return VectorValue.Null;
+            return NullVectorValue;
 
-        var indexField = RetrieveVectorField(fieldName, value);
+        var indexField = RetrieveCreateVectorField(fieldName, value);
         var vector = indexField!.Vector!.SourceEmbeddingType switch
         {
             VectorEmbeddingType.Text => VectorFromText(indexField, value),
@@ -99,7 +105,7 @@ public partial class AbstractStaticIndexBase
     internal static object CreateVector(IndexField indexField, object value, bool isAutoIndex)
     {
         if (IsDictionaryTrainingPhase(CurrentIndexingScope.Current) || IsNullValue(value))
-            return VectorValue.Null;
+            return NullVectorValue;
 
         return indexField!.Vector!.SourceEmbeddingType switch
         {
@@ -155,7 +161,7 @@ public partial class AbstractStaticIndexBase
             var enumerator = enumerable.GetEnumerator();
             using var _ = enumerator as IDisposable;
             if (enumerator.MoveNext() == false)
-                return VectorValue.Null;
+                return NullVectorValue;
 
             // We've to find first non-null value do determine the underlying type of data.
             List<object> vectorValues = new();
@@ -461,21 +467,26 @@ public partial class AbstractStaticIndexBase
 
         VectorValue CreateVectorValue(object valueToProcess)
         {
-            if (IsNullValue(valueToProcess))
-                return VectorValue.Null;
-
-            var str = valueToProcess switch
-            {
-                LazyStringValue lsv => lsv,
-                LazyCompressedStringValue lcsv => lcsv,
-                string s => s,
-                LazyJsString ljs => ljs.ToString(),
-                JsString js => js.ToString(),
-                _ => throw new NotSupportedException("Only strings are supported, but got: " + valueToProcess.GetType().FullName)
-            };
-
-            return GenerateEmbeddings.FromText(allocator, indexField.Vector, str);
+            return IsNullValue(valueToProcess) 
+                ? VectorValue.Null 
+                : GenerateEmbeddings.FromText(allocator, indexField.Vector, GetStringFromObject(valueToProcess));
         }
+    }
+
+    private static string GetStringFromObject(object valueToProcess)
+    {
+        if (IsNullValue(valueToProcess))
+            return null;
+        
+        return valueToProcess switch
+        {
+            LazyStringValue lsv => lsv,
+            LazyCompressedStringValue lcsv => lcsv,
+            string s => s,
+            LazyJsString ljs => ljs.ToString(),
+            JsString js => js.ToString(),
+            _ => throw new NotSupportedException("Only strings are supported, but got: " + valueToProcess.GetType().FullName)
+        };
     }
 
     /// <summary>
@@ -500,5 +511,119 @@ public partial class AbstractStaticIndexBase
     private static bool IsNullValue(object value)
     {
         return value is null or DynamicNullObject or DynamicJsNull or JsNull;
+    }
+
+    public static object LoadVectorJs(string fieldName, string path, string embeddingGeneratorTaskName, out IndexField vectorField)
+    {
+        if (IsDictionaryTrainingPhase(CurrentIndexingScope.Current))
+        {
+            vectorField = null;
+            return null;
+        }
+        
+        var vectors = ProcessLoadVector(fieldName, path, embeddingGeneratorTaskName, out vectorField);
+
+        //for js indexes we've no choice than create dynamic field, in such cases let's assume it is single. 
+        if (vectorField == null)
+        {
+            vectorField = RetrieveCreateVectorField(fieldName, null);
+            return new CoraxDynamicItem() { FieldName = fieldName, Field = vectorField, Value = vectors };
+        }
+        
+        return (vectorField.Id == Corax.Constants.IndexWriter.DynamicField)
+            ? new CoraxDynamicItem() { FieldName = fieldName, Field = vectorField, Value = vectors }
+            : vectors;
+    }
+    
+    public object LoadVector(string fieldName, string path, string embeddingGeneratorTaskIdentifier)
+    {
+        return LoadVectorBase(fieldName, path, embeddingGeneratorTaskIdentifier);
+    }
+    
+    public static object LoadVectorBase(string fieldName, string path, string embeddingGeneratorTaskIdentifier)
+    {
+        if (IsDictionaryTrainingPhase(CurrentIndexingScope.Current))
+            return null;
+        
+        var vectors = ProcessLoadVector(fieldName, path, embeddingGeneratorTaskIdentifier, out var vectorField);
+
+        if (vectorField == null)
+            return vectors;
+        
+        return (vectorField.Id == Corax.Constants.IndexWriter.DynamicField)
+            ? new CoraxDynamicItem() { FieldName = fieldName, Field = vectorField, Value = vectors }
+            : vectors;
+    }
+
+    private static object ProcessLoadVector(string fieldName, string path, string embeddingGeneratorTaskIdentifier, out IndexField indexField)
+    {
+        var currentIndexingScope = CurrentIndexingScope.Current;
+        currentIndexingScope.Index.IndexFieldsPersistence.SetEmbeddingsGenerationTaskIdentifier(fieldName, embeddingGeneratorTaskIdentifier);
+        var embeddingDocument = LoadVectorDocument(out var embeddingDocumentId) as DynamicBlittableJson;
+        
+        // no related document
+        if (embeddingDocument == null
+            // no embedding generator task in the document
+            || embeddingDocument.BlittableJson.TryGetMember(embeddingGeneratorTaskIdentifier, out var documentEmbeddings) == false
+            // no path in the embedding task dictionary
+            || ((BlittableJsonReaderObject)documentEmbeddings).TryGetMember(path, out var embeddingContainerObject) == false
+            // stored value has no elements
+            || IsNullValue(embeddingContainerObject))
+        {
+            indexField = null;
+            return NullVectorValue;
+        }
+
+        var embeddingGenerationTaskIdentifier = new EmbeddingsGenerationTaskIdentifier(embeddingGeneratorTaskIdentifier);
+        if (currentIndexingScope.TryGetLoadVectorField(fieldName, out indexField) == false)
+        {
+            VectorEmbeddingType expectedVectorType = VectorEmbeddingType.Single;
+            if (BlittableJsonTraverserHelper.TryRead(BlittableJsonTraverser.Default, (BlittableJsonReaderObject)documentEmbeddings,
+                    Raven.Client.Constants.Documents.Metadata.Quantization, out var quantizationFromDocument))
+            {
+                var enumAsStr = GetStringFromObject(quantizationFromDocument);
+                if (Enum.TryParse(enumAsStr.AsSpan(), out expectedVectorType) == false)
+                    expectedVectorType = VectorEmbeddingType.Single;
+            }
+        
+            indexField = currentIndexingScope.GetLoadVectorField(fieldName, embeddingGenerationTaskIdentifier,  expectedVectorType);
+        }
+        
+        if (embeddingContainerObject is BlittableJsonReaderArray bjra)
+        {
+            List<string> attachmentNames = [];
+            for (int i = 0; i < bjra.Length; i++)
+            {
+                var name = bjra.GetStringByIndex(i);
+                if (name is null)
+                    continue;
+                attachmentNames.Add(name);
+            }
+            var attachments = currentIndexingScope.LoadAttachments(embeddingDocumentId, attachmentNames);
+            return attachments is null
+                ? NullVectorValue
+                : VectorFromEmbedding(indexField, attachments.Select(x => x.GetContentAsStream()), isAutoIndex: false);
+        }
+
+        if (IsExplicitString(embeddingContainerObject))
+        {
+            var singleAttachmentName = GetStringFromObject(embeddingContainerObject);
+            var attachment = currentIndexingScope.LoadAttachment(embeddingDocument, singleAttachmentName);
+            return attachment is null 
+                ? NullVectorValue
+                : VectorFromEmbedding(indexField, attachment.GetContentAsStream(), isAutoIndex: false);
+        }
+        
+        return NullVectorValue;
+    }
+    
+    private static dynamic LoadVectorDocument(out string embeddingDocument)
+    {
+        var scope = CurrentIndexingScope.Current;
+        
+        var id = (string)scope.Source.GetId().ToString();
+        embeddingDocument = EmbeddingsHelper.GetEmbeddingDocumentId(id);
+        var collectionName = EmbeddingsHelper.GetEmbeddingDocumentCollectionName(scope.SourceCollection);
+        return scope.LoadDocument(null, embeddingDocument, collectionName.ToLowerInvariant());
     }
 }

@@ -1,9 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using Corax;
@@ -14,14 +12,12 @@ using Corax.Querying.Matches.SortingMatches.Meta;
 using Corax.Utils;
 using Lucene.Net.Analysis;
 using Lucene.Net.Analysis.Standard;
-using Raven.Client.Documents.Indexes.Vector;
 using Raven.Client.Exceptions;
 using Raven.Client.Exceptions.Corax;
 using Raven.Server.Documents.Indexes.Persistence.Corax.QueryOptimizer;
 using Raven.Server.Documents.Indexes.Persistence.Lucene;
 using Raven.Server.Documents.Indexes.Persistence.Lucene.Analyzers;
 using Raven.Server.Documents.Indexes.Persistence.Lucene.Analyzers.Collation;
-using Raven.Server.Documents.Indexes.VectorSearch;
 using Raven.Server.Documents.Queries;
 using Raven.Server.Documents.Queries.AST;
 using Raven.Server.ServerWide.Context;
@@ -30,16 +26,16 @@ using Sparrow;
 using Sparrow.Json;
 using Sparrow.Server;
 using Spatial4n.Shapes;
+using ArgumentException = System.ArgumentException;
 using RavenConstants = Raven.Client.Constants;
 using IndexSearcher = Corax.Querying.IndexSearcher;
 using CoraxConstants = Corax.Constants;
 using SpatialUnits = Raven.Client.Documents.Indexes.Spatial.SpatialUnits;
 using MoreLikeThisQuery = Raven.Server.Documents.Queries.MoreLikeThis.Corax;
-using VectorOptions = Raven.Client.Documents.Indexes.Vector.VectorOptions;
 
 namespace Raven.Server.Documents.Indexes.Persistence.Corax;
 
-public static class CoraxQueryBuilder
+public static partial class CoraxQueryBuilder
 {
     internal const int TakeAll = -1;
 
@@ -613,7 +609,6 @@ public static class CoraxQueryBuilder
                     return HandleSpatial(builderParameters, me, methodType);
                 case MethodType.Vector_Search:
                     return HandleVector(builderParameters, me, exact);
-
                 case MethodType.Regex:
                     return HandleRegex(builderParameters, me, ref leftOnlyOptimization);
                 case MethodType.MoreLikeThis:
@@ -626,149 +621,7 @@ public static class CoraxQueryBuilder
 
         throw new InvalidQueryException("Unable to understand query", metadata.QueryText, queryParameters);
     }
-
-    private static IQueryMatch HandleVector(Parameters builderParameters, MethodExpression me, bool exact)
-    {
-        var metadata = builderParameters.Metadata;
-        var (value, valueType) = QueryBuilderHelper.GetValue(builderParameters.Metadata.Query, builderParameters.Metadata, builderParameters.QueryParameters, (ValueExpression)me.Arguments[1], allowObjectsInParameters: false, allowArraysInParameters: true);
-
-        var fieldName = metadata.IsDynamic == false
-            ? QueryBuilderHelper.ExtractIndexFieldName(metadata.Query, builderParameters.QueryParameters, me.Arguments[0], metadata)
-            : metadata.GetVectorFieldName(me, builderParameters.QueryParameters);
-
-        var fieldMetadata = QueryBuilderHelper.GetFieldMetadata(builderParameters.Allocator, fieldName, builderParameters.Index, builderParameters.IndexFieldsMapping,
-            builderParameters.FieldsToFetch, builderParameters.HasDynamics, builderParameters.DynamicFields, hasBoost: builderParameters.HasBoost);
-
-        VectorOptions vectorOptions = null;
-        if (builderParameters.FieldsToFetch != null && builderParameters.FieldsToFetch.IndexFields.TryGetValue(fieldName, out var indexField))
-            vectorOptions = GetOptions(indexField);
-        else if (builderParameters.Index.Definition.IndexFields.TryGetValue(fieldName, out indexField))
-            vectorOptions = GetOptions(indexField);
-        else
-            PortableExceptions.Throw<InvalidDataException>($"Cannot find `{fieldName}` field in the index.");
-
-        VectorValue transformedEmbedding;
-        if (vectorOptions.SourceEmbeddingType is VectorEmbeddingType.Text)
-        {
-            var valueAsString = valueType switch
-            {
-                ValueTokenType.String => value.ToString(),
-                _ => throw new NotSupportedException("Vector.Search() on " + valueType)
-            };
-            transformedEmbedding = GenerateEmbeddings.FromText(builderParameters.Allocator, vectorOptions, valueAsString);
-        }
-        else if (value is string s)
-        {
-            transformedEmbedding = GenerateEmbeddings.FromBase64Array(vectorOptions, builderParameters.Allocator, s);
-        }
-        else if (value is StringSegment stringSegment)
-        {
-            transformedEmbedding = GenerateEmbeddings.FromBase64Array(vectorOptions, allocator: builderParameters.Allocator, stringSegment.ToString());
-        }
-        else if (value is BlittableJsonReaderObject json)
-        {
-            var vectorObjectFound = json.TryGetMember(Sparrow.Global.Constants.Naming.VectorPropertyName, out var vectorObject);
-            PortableExceptions.ThrowIfNot<InvalidDataException>(vectorObjectFound, "Cannot find vector property in the object.");
-
-            var vectorReader = (BlittableJsonReaderVector)vectorObject;
-            transformedEmbedding = QueryBuilderHelper.GetVectorValueFromBlittableJsonVectorReader(builderParameters.Allocator, vectorOptions, vectorReader);
-        }
-        else
-        {
-            var underlyingEnumerable = (BlittableJsonReaderArray)value;
-            var bytesUsed = underlyingEnumerable.Length * (vectorOptions.SourceEmbeddingType is VectorEmbeddingType.Single ? sizeof(float) : 1);
-            var memScope = builderParameters.Allocator.Allocate(bytesUsed, out Memory<byte> mem);
-            ref var floatRef = ref MemoryMarshal.GetReference(MemoryMarshal.Cast<byte, float>(mem.Span));
-            ref var sbyteRef = ref MemoryMarshal.GetReference(MemoryMarshal.Cast<byte, sbyte>(mem.Span));
-            ref var byteRef = ref MemoryMarshal.GetReference(mem.Span);
-
-            for (int i = 0; i < underlyingEnumerable.Length; ++i)
-            {
-                switch (vectorOptions.SourceEmbeddingType)
-                {
-                    case VectorEmbeddingType.Single:
-                        Unsafe.Add(ref floatRef, i) = underlyingEnumerable.GetByIndex<float>(i);
-                        break;
-                    case VectorEmbeddingType.Int8:
-                        Unsafe.Add(ref sbyteRef, i) = underlyingEnumerable.GetByIndex<sbyte>(i);
-                        break;
-                    default:
-                        Unsafe.AddByteOffset(ref byteRef, i) = underlyingEnumerable.GetByIndex<byte>(i);
-                        break;
-                }
-            }
-
-            transformedEmbedding = GenerateEmbeddings.FromArray(builderParameters.Allocator, memScope, mem, vectorOptions, bytesUsed);
-        }
-
-        var minimumMatch = builderParameters.Index.Configuration.CoraxVectorSearchDefaultMinimumSimilarity;
-        if (me.Arguments.Count > 2)
-        {
-            (value, valueType) = QueryBuilderHelper.GetValue(builderParameters.Metadata.Query, builderParameters.Metadata, builderParameters.QueryParameters, (ValueExpression)me.Arguments[2]);
-            minimumMatch = valueType switch
-            {
-                ValueTokenType.Null => builderParameters.Index.Configuration.CoraxVectorSearchDefaultMinimumSimilarity,
-                ValueTokenType.Long => (long)value,
-                ValueTokenType.Double => (float)(double)value,
-                _ => throw new NotSupportedException("vector.search() minimumMatch must be a float, but was: " + valueType)
-            };
-        }
-
-        int numberOfCandidates = builderParameters.Index.Configuration.CoraxVectorDefaultNumberOfCandidatesForQuerying;
-        if (me.Arguments.Count > 3)
-        {
-            (value, valueType) = QueryBuilderHelper.GetValue(builderParameters.Metadata.Query, builderParameters.Metadata, builderParameters.QueryParameters, (ValueExpression)me.Arguments[3]);
-            numberOfCandidates = valueType switch
-            {
-                ValueTokenType.Long => Convert.ToInt32(value),
-                ValueTokenType.Double => Convert.ToInt32(value),
-                ValueTokenType.Null => builderParameters.Index.Configuration.CoraxVectorDefaultNumberOfCandidatesForQuerying,
-                _ => throw new NotSupportedException("vector.search() minimumMatch must be a float, but was: " + valueType)
-            };
-        }
-        
-        if (builderParameters.Index.IndexFieldsPersistence.TryReadNumberOfDimensions(fieldName, out var numberOfDimensions) == false)
-            return builderParameters.IndexSearcher.EmptyMatch(); // no vector indexed
-
-        if (numberOfDimensions != transformedEmbedding.Length)
-        {
-            using (transformedEmbedding)
-                ThrowDifferentNumberOfDimensions();
-        }
-            
-        return builderParameters.IndexSearcher.VectorSearch(fieldMetadata, transformedEmbedding, minimumMatch, numberOfCandidates, exact, builderParameters.IsVectorSingleClause);
-
-        VectorOptions GetOptions(IndexField field)
-        {
-            // VectorOptions can be null when a user does not specify the configuration.
-            // In such cases, we will choose the input depending on the value type (similar to how we handle it during indexing).
-            if (field.Vector != null)
-                return field.Vector;
-            
-            builderParameters.Index.IndexFieldsPersistence.TryReadVectorSourceEmbeddingType(fieldName, out var vectorSourceEmbeddingType);
-            return vectorSourceEmbeddingType switch
-            {
-                VectorEmbeddingType.Single => VectorOptions.Default,
-                VectorEmbeddingType.Text => VectorOptions.DefaultText,
-                _ => throw new InvalidDataException(
-                    $"Unknown vector source embedding type: {vectorSourceEmbeddingType}. Implicit configuration support only single and text vector source embedding types.")
-            };
-        }
-
-        void ThrowDifferentNumberOfDimensions()
-        {
-            var (storedDimensions, inputDimensions) = indexField.Vector.DestinationEmbeddingType switch
-            {
-                VectorEmbeddingType.Single => (numberOfDimensions / sizeof(float), transformedEmbedding.Length / sizeof(float)),
-                VectorEmbeddingType.Int8 => (numberOfDimensions - sizeof(float), transformedEmbedding.Length - sizeof(float)),
-                VectorEmbeddingType.Binary => (numberOfDimensions, transformedEmbedding.Length),
-                _ => throw new InvalidDataException($"Unexpected embedding type - {numberOfDimensions}.")
-            };
-
-            PortableExceptions.Throw<InvalidDataException>($"Vector field `{fieldName}` has {storedDimensions} dimensions, but the vector passed to vector.search() has {inputDimensions} dimensions.");
-        }
-    }
-
+    
     private static IQueryMatch HandleIn(Parameters builderParameters, InExpression ie, bool exact)
     {
         builderParameters.BuildSteps?.Add($"In: {ie.Type} - {ie}");

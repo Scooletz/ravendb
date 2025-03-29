@@ -14,6 +14,7 @@ using Raven.Client.Documents.Indexes;
 using Raven.Client.Documents.Indexes.Analysis;
 using Raven.Client.Documents.Indexes.Spatial;
 using Raven.Client.Documents.Operations;
+using Raven.Client.Documents.Operations.AI;
 using Raven.Client.Documents.Operations.Attachments;
 using Raven.Client.Documents.Operations.Backups;
 using Raven.Client.Documents.Operations.CompareExchange;
@@ -64,6 +65,8 @@ using Raven.Server.Dashboard.Cluster.Notifications;
 using Raven.Server.Documents;
 using Raven.Server.Documents.Commands.Replication;
 using Raven.Server.Documents.ETL;
+using Raven.Server.Documents.ETL.Providers.AI.Embeddings.Stats;
+using Raven.Server.Documents.ETL.Providers.AI.Embeddings.Test;
 using Raven.Server.Documents.ETL.Providers.ElasticSearch.Test;
 using Raven.Server.Documents.ETL.Providers.OLAP;
 using Raven.Server.Documents.ETL.Providers.OLAP.Test;
@@ -139,7 +142,7 @@ namespace TypingsGenerator
 {
     public class Program
     {
-        public static readonly string TargetDirectory =  "src/Raven.Studio/";
+        public static readonly string TargetDirectory = "src/Raven.Studio/";
         public const string TypingsDirectory = "typings/server";
 
         public static void Main(string[] args)
@@ -414,7 +417,7 @@ namespace TypingsGenerator
 
             // data archival
             scripter.AddType(typeof(DataArchivalConfiguration));
-            
+
             // expiration
             scripter.AddType(typeof(ExpirationConfiguration));
 
@@ -524,7 +527,7 @@ namespace TypingsGenerator
             scripter.AddType(typeof(GetReplicationOngoingTasksProgressCommand.ReplicationTaskProgressResponse));
             scripter.AddType(typeof(GetOutgoingInternalReplicationProgressCommand.InternalReplicationTaskProgressResponse));
             scripter.AddType(typeof(InternalReplicationTaskProgress));
-            
+
             // ongoing tasks - ravenDB ETL
             scripter.AddType(typeof(EtlTaskProgress));
             scripter.AddType(typeof(OngoingTaskRavenEtl));
@@ -572,12 +575,20 @@ namespace TypingsGenerator
             scripter.AddType(typeof(KafkaConnectionSettings));
             scripter.AddType(typeof(TestQueueSinkScript));
             scripter.AddType(typeof(TestQueueSinkScriptResult));
-            
+
             // ongoing tasks - Snowflake ETL
             scripter.AddType(typeof(OngoingTaskSnowflakeEtl));
             scripter.AddType(typeof(SnowflakeEtlConfiguration));
             scripter.AddType(typeof(TestRelationalDatabaseEtlScript<SnowflakeConnectionString, SnowflakeEtlConfiguration>));
             scripter.AddType(typeof(SnowflakeEtlTable));
+
+            // ongoing tasks - AI Integration
+            scripter.AddType(typeof(EmbeddingsGeneration));
+            scripter.AddType(typeof(EmbeddingsGenerationConfiguration));
+            scripter.AddType(typeof(TestEmbeddingsGenerationScript));
+            scripter.AddType(typeof(EmbeddingsGenerationTestScriptResult));
+            scripter.AddType(typeof(AiConnectorType));
+            scripter.AddType(typeof(EmbeddingsGenerationPerformanceOperation));
 
             // connection strings
             scripter.AddType(typeof(ConnectionString));
@@ -587,6 +598,7 @@ namespace TypingsGenerator
             scripter.AddType(typeof(QueueConnectionString));
             scripter.AddType(typeof(ConnectionStringType));
             scripter.AddType(typeof(GetConnectionStringsResult));
+            scripter.AddType(typeof(AiConnectionString));
 
             // server-wide tasks
             scripter.AddType(typeof(AdminStudioServerWideHandler.ServerWideTasksResult));
@@ -676,7 +688,7 @@ namespace TypingsGenerator
 
             // version info
             scripter.AddType(typeof(LatestVersionCheck.VersionInfo));
-            
+
             // two-factor
             scripter.AddType(typeof(TwoFactorAuthenticationHandler.TotpServerConfiguration));
 

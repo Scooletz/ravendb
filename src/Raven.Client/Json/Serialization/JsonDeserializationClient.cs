@@ -7,6 +7,7 @@ using Raven.Client.Documents.Identity;
 using Raven.Client.Documents.Indexes;
 using Raven.Client.Documents.Indexes.TimeSeries;
 using Raven.Client.Documents.Operations;
+using Raven.Client.Documents.Operations.AI;
 using Raven.Client.Documents.Operations.Attachments;
 using Raven.Client.Documents.Operations.Backups;
 using Raven.Client.Documents.Operations.Backups.Sharding;
@@ -308,6 +309,8 @@ namespace Raven.Client.Json.Serialization
         public static readonly Func<BlittableJsonReaderObject, SqlEtlConfiguration> SqlEtlConfiguration = GenerateJsonDeserializationRoutine<SqlEtlConfiguration>();
         
         public static readonly Func<BlittableJsonReaderObject, SnowflakeEtlConfiguration> SnowflakeEtlConfiguration = GenerateJsonDeserializationRoutine<SnowflakeEtlConfiguration>();
+        
+        public static readonly Func<BlittableJsonReaderObject, EmbeddingsGenerationConfiguration> EmbeddingsGenerationConfiguration = GenerateJsonDeserializationRoutine<EmbeddingsGenerationConfiguration>();
 
         public static readonly Func<BlittableJsonReaderObject, ElasticSearchConnectionString> ElasticSearchConnectionString = GenerateJsonDeserializationRoutine<ElasticSearchConnectionString>();
 
@@ -320,10 +323,14 @@ namespace Raven.Client.Json.Serialization
         public static readonly Func<BlittableJsonReaderObject, OlapConnectionString> OlapConnectionString = GenerateJsonDeserializationRoutine<OlapConnectionString>();
         
         public static readonly Func<BlittableJsonReaderObject, SnowflakeConnectionString> SnowflakeConnectionString = GenerateJsonDeserializationRoutine<SnowflakeConnectionString>();
+        
+        public static readonly Func<BlittableJsonReaderObject, AiConnectionString> AiConnectionString = GenerateJsonDeserializationRoutine<AiConnectionString>();
 
         public static readonly Func<BlittableJsonReaderObject, OngoingTaskQueueSink> GetOngoingTaskQueueSinkResult = GenerateJsonDeserializationRoutine<OngoingTaskQueueSink>();
 
         public static readonly Func<BlittableJsonReaderObject, DeleteRevisionsOperation.Result> DeleteRevisionsResult = GenerateJsonDeserializationRoutine<DeleteRevisionsOperation.Result>();
+
+        public static readonly Func<BlittableJsonReaderObject, EmbeddingsGeneration> GetOngoingTaskEmbeddingsGenerationResult = GenerateJsonDeserializationRoutine<EmbeddingsGeneration>();
 
     }
 }

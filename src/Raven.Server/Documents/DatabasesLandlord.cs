@@ -46,7 +46,7 @@ namespace Raven.Server.Documents
         public readonly ConcurrentDictionary<StringSegment, DateTime> LastRecentlyUsed =
             new ConcurrentDictionary<StringSegment, DateTime>(StringSegmentComparer.OrdinalIgnoreCase);
 
-        private readonly ConcurrentDictionary<string, Timer> _wakeupTimers = new ConcurrentDictionary<string, Timer>();
+        private readonly ConcurrentDictionary<string, Lazy<DatabaseWakeupTimer>> _wakeupTimers = new ConcurrentDictionary<string, Lazy<DatabaseWakeupTimer>>();
 
         public readonly ResourceCache<DocumentDatabase> DatabasesCache = new ResourceCache<DocumentDatabase>();
         public readonly ResourceCache<ShardedDatabaseContext> ShardedDatabasesCache = new ResourceCache<ShardedDatabaseContext>();
@@ -273,15 +273,15 @@ namespace Raven.Server.Documents
 
             var database = await task;
 
-                    switch (changeType)
+            switch (changeType)
+            {
+                case ClusterDatabaseChangeType.RecordChanged:
+                    await database.StateChangedAsync(index, type, changeType);
+                    if (type == ClusterStateMachine.SnapshotInstalled)
                     {
-                        case ClusterDatabaseChangeType.RecordChanged:
-                            await database.StateChangedAsync(index, type, changeType);
-                            if (type == ClusterStateMachine.SnapshotInstalled)
-                            {
-                                database.NotifyOnPendingClusterTransaction();
-                            }
-                            break;
+                        database.NotifyOnPendingClusterTransaction();
+                    }
+                    break;
 
                 case ClusterDatabaseChangeType.ValueChanged:
                     await database.ValueChangedAsync(index, type, changeState);
@@ -572,8 +572,11 @@ namespace Raven.Server.Documents
             var handles = new List<WaitHandle>();
             foreach (var timer in _wakeupTimers.Values)
             {
+                if (timer.IsValueCreated == false)
+                    continue;
+
                 var handle = new ManualResetEvent(false);
-                timer.Dispose(handle);
+                timer.Value.Dispose(handle);
                 handles.Add(handle);
             }
 
@@ -781,9 +784,9 @@ namespace Raven.Server.Documents
 
         public Task<DocumentDatabase> TryGetOrCreateResourceStore(StringSegment databaseName, DateTime? wakeup = null, bool ignoreDisabledDatabase = false, bool ignoreBeenDeleted = false, bool ignoreNotRelevant = false, Action<string> addToInitLog = null, [CallerMemberName] string caller = null)
         {
-            if (_wakeupTimers.TryRemove(databaseName.Value, out var timer))
+            if (_wakeupTimers.TryRemove(databaseName.Value, out var timer) && timer.IsValueCreated)
             {
-                timer.Dispose();
+                timer.Value.Dispose();
             }
             if (_disposing.TryEnter(out var idx) == false)
                 ThrowServerIsBeingDisposed(databaseName);
@@ -1348,15 +1351,14 @@ namespace Raven.Server.Documents
         private void AddOrUpdateWakeupTimer(string databaseName, IdleDatabaseActivity idleDatabaseActivity)
         {
             // in case the DueTime is negative or zero, the callback will be called immediately and database will be loaded.
-            var newTimer = new Timer(_ => NextScheduledActivityCallback(databaseName, idleDatabaseActivity), null, idleDatabaseActivity.DueTime, Timeout.Infinite);
-
-            _wakeupTimers.AddOrUpdate(databaseName,
-                _ => newTimer,
+            
+            _ = _wakeupTimers.AddOrUpdate(databaseName,
+                _ => new Lazy<DatabaseWakeupTimer>(() => new DatabaseWakeupTimer(databaseName, idleDatabaseActivity, NextScheduledActivityCallback)),
                 (_, timer) =>
                 {
-                    timer.Dispose();
-                    return newTimer;
-                });
+                    timer.Value.Update(idleDatabaseActivity);
+                    return timer;
+                }).Value;
         }
 
         private static void LogUnloadFailureReason(StringSegment databaseName, string reason)
@@ -1369,8 +1371,8 @@ namespace Raven.Server.Documents
         {
             if (idleDatabaseActivity == null)
             {
-                if (_wakeupTimers.TryRemove(databaseName, out var oldTimer))
-                    oldTimer.Dispose();
+                if (_wakeupTimers.TryRemove(databaseName, out var oldTimer) && oldTimer.IsValueCreated)
+                    oldTimer.Value.Dispose();
 
                 return;
             }
@@ -1499,8 +1501,8 @@ namespace Raven.Server.Documents
             if (name == null)
                 return true;
 
-            if (_wakeupTimers.TryRemove(name, out var timer))
-                timer.Dispose();
+            if (_wakeupTimers.TryRemove(name, out var timer) && timer.IsValueCreated)
+                timer.Value.Dispose();
 
             if (idleDatabaseActivity == null)
                 return true;
@@ -1715,6 +1717,45 @@ namespace Raven.Server.Documents
                 LastIndexChange = lastIndexChange;
                 Token = token;
                 Locker = new SemaphoreSlim(1, 1);
+            }
+        }
+
+        private sealed class DatabaseWakeupTimer : IDisposable
+        {
+            private IdleDatabaseActivity _activity;
+
+            private readonly string _databaseName;
+            private readonly Action<string, IdleDatabaseActivity> _callback;
+            private readonly Timer _timer;
+
+            public DatabaseWakeupTimer([NotNull] string databaseName, [NotNull] IdleDatabaseActivity activity, [NotNull] Action<string, IdleDatabaseActivity> callback)
+            {
+                _databaseName = databaseName ?? throw new ArgumentNullException(nameof(databaseName));
+                _activity = activity ?? throw new ArgumentNullException(nameof(activity));
+                _callback = callback ?? throw new ArgumentNullException(nameof(callback));
+
+                _timer = new Timer(TimerCallback, null, _activity.DueTime, Timeout.Infinite);
+            }
+
+            public void Update(IdleDatabaseActivity activity)
+            {
+                _activity = activity;
+                _timer.Change(activity.DueTime, Timeout.Infinite);
+            }
+
+            private void TimerCallback(object state)
+            {
+                _callback(_databaseName, _activity);
+            }
+
+            public void Dispose()
+            {
+                _timer?.Dispose();
+            }
+
+            public void Dispose(WaitHandle notifyObject)
+            {
+                _timer?.Dispose(notifyObject);
             }
         }
     }

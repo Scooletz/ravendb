@@ -3,6 +3,7 @@ import { useServices } from "hooks/useServices";
 import { OngoingTasksState, ongoingTasksReducer, ongoingTasksReducerInitializer } from "./partials/OngoingTasksReducer";
 import { ExternalReplicationPanel } from "./panels/ExternalReplicationPanel";
 import {
+    OngoingTaskEmbeddingsGenerationInfo,
     OngoingTaskAmazonSqsEtlInfo,
     OngoingTaskAzureQueueStorageEtlInfo,
     OngoingTaskElasticSearchEtlInfo,
@@ -69,6 +70,7 @@ import DatabaseUtils from "components/utils/DatabaseUtils";
 import recentError from "common/notifications/models/recentError";
 import { SnowflakeEtlPanel } from "components/pages/database/tasks/ongoingTasks/panels/SnowflakeEtlPanel";
 import { AmazonSqsEtlPanel } from "components/pages/database/tasks/ongoingTasks/panels/AmazonSqsEtlPanel";
+import { EmbeddingsGenerationPanel } from "components/pages/database/tasks/ongoingTasks/panels/EmbeddingsGenerationPanel";
 
 export function OngoingTasksPage() {
     const db = useAppSelector(databaseSelectors.activeDatabase);
@@ -198,6 +200,7 @@ export function OngoingTasksPage() {
         kafkaSinks,
         rabbitMqSinks,
         elasticSearchEtls,
+        embeddingsGenerations,
         backups,
         replicationHubs,
         replicationSinks,
@@ -335,7 +338,7 @@ export function OngoingTasksPage() {
     const showInternalReplication = DatabaseUtils.hasInternalReplication(db);
 
     return (
-        <div className="content-margin">
+        <div className="content-margin ongoing-tasks-page">
             {subscriptionsClusterLimitStatus !== "notReached" && (
                 <RichAlert
                     variant={subscriptionsClusterLimitStatus === "limitReached" ? "danger" : "warning"}
@@ -417,6 +420,24 @@ export function OngoingTasksPage() {
                             />
                         )}
 
+                        {embeddingsGenerations.length > 0 && (
+                            <div key="ai-etls">
+                                <HrHeader className="ai-etl" count={embeddingsGenerations.length}>
+                                    <Icon icon="ai-etl" />
+                                    Embeddings Generation
+                                </HrHeader>
+
+                                {embeddingsGenerations.map((x) => (
+                                    <EmbeddingsGenerationPanel
+                                        {...sharedPanelProps}
+                                        key={taskKey(x.shared)}
+                                        data={x}
+                                        onToggleDetails={startTrackingEtlProgress}
+                                        showItemPreview={showItemPreview}
+                                    />
+                                ))}
+                            </div>
+                        )}
                         {externalReplications.length > 0 && (
                             <div key="external-replications" data-testid="external-replications">
                                 <HrHeader className="external-replication" count={externalReplications.length}>
@@ -806,6 +827,9 @@ function getFilteredTasks(state: OngoingTasksState, filter: OngoingTasksFilterCr
         amazonSqsEtls: filteredTasks.filter(
             (x) => x.shared.taskType === "AmazonSqsQueueEtl"
         ) as OngoingTaskAmazonSqsEtlInfo[],
+        embeddingsGenerations: filteredTasks.filter(
+            (x) => x.shared.taskType === "EmbeddingsGeneration"
+        ) as OngoingTaskEmbeddingsGenerationInfo[],
         kafkaSinks: filteredTasks.filter((x) => x.shared.taskType === "KafkaQueueSink") as OngoingTaskKafkaSinkInfo[],
         rabbitMqSinks: filteredTasks.filter(
             (x) => x.shared.taskType === "RabbitQueueSink"

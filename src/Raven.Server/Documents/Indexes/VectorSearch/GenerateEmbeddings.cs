@@ -13,10 +13,9 @@ using Microsoft.SemanticKernel.Connectors.Onnx;
 using Raven.Client.Documents.Indexes.Vector;
 using Raven.Client.Documents.Queries.Vector;
 using Raven.Server.Config;
+using Raven.Server.Documents.AI.Embeddings;
 using Sparrow;
-using Sparrow.Json;
 using Sparrow.Server;
-using InvalidOperationException = System.InvalidOperationException;
 using VectorValue = Corax.Utils.VectorValue;
 
 namespace Raven.Server.Documents.Indexes.VectorSearch;
@@ -26,11 +25,11 @@ public static class GenerateEmbeddings
     private static readonly ConstructorInfo BertOnnxTextEmbeddingGenerationServiceCtor;
 
     // Dimensions (buffer size) from internals of SmartComponents.
-    private const int F32Size = 1536;
+    public const int F32Size = 1536;
 
     private static SessionOptions OnnxSessionOptions;
 
-    internal static readonly Lazy<BertOnnxTextEmbeddingGenerationService> Embedder = new(CreateTextEmbeddingGenerationService);
+    internal static readonly Lazy<BertOnnxTextEmbeddingGenerationService> Embedder = new(() => CreateTextEmbeddingGenerationService());
 
     static GenerateEmbeddings()
     {
@@ -59,6 +58,55 @@ public static class GenerateEmbeddings
             Quantize(allocator, options.DestinationEmbeddingType, embedding.MemoryScope, embedding.Memory, embedding.UsedBytes);
     }
 
+    public static VectorValue FromArray(ByteStringContext allocator, ReadOnlySpan<byte> embedding, in VectorOptions options)
+    {
+        var embeddingDestinationType = options.DestinationEmbeddingType;
+
+        int requiredBytes;
+
+        if (options.SourceEmbeddingType == embeddingDestinationType)
+        {
+            requiredBytes = embedding.Length;
+        }
+        else
+        {
+            requiredBytes = embeddingDestinationType switch
+            {
+                VectorEmbeddingType.Single => embedding.Length * sizeof(float),
+                VectorEmbeddingType.Int8 => embedding.Length + sizeof(float),
+                VectorEmbeddingType.Binary => embedding.Length,
+                _ => throw new InvalidOperationException($"Unsupported vector embedding type {embeddingDestinationType}")
+            };
+        }
+
+        var memoryScope = allocator.Allocate(requiredBytes, out Memory<byte> memory);
+        int bytesUsed;
+
+        switch (embeddingDestinationType)
+        {
+            case VectorEmbeddingType.Int8 when options.SourceEmbeddingType is VectorEmbeddingType.Single:
+            {
+                var destination = MemoryMarshal.Cast<byte, sbyte>(memory.Span);
+                var source = MemoryMarshal.Cast<byte, float>(embedding);
+
+                VectorQuantizer.TryToInt8(source, destination, out bytesUsed);
+                break;
+            }
+            case VectorEmbeddingType.Binary when options.SourceEmbeddingType is VectorEmbeddingType.Single:
+            {
+                var source = MemoryMarshal.Cast<byte, float>(embedding);
+
+                VectorQuantizer.TryToInt1(source, memory.Span, out bytesUsed);
+                break;
+            }
+            default:
+                embedding.CopyTo(memory.Span);
+                bytesUsed = requiredBytes;
+                break;
+        }
+
+        return new VectorValue(memoryScope, memory, bytesUsed);
+    }
     public static VectorValue FromArray(ByteStringContext allocator, IDisposable memoryScope, Memory<byte> memory, in VectorOptions options, int usedBytes)
     {
         var embeddingSourceType = options.SourceEmbeddingType;
@@ -74,6 +122,44 @@ public static class GenerateEmbeddings
                 return Quantize(allocator, options.DestinationEmbeddingType, memoryScope, memory, usedBytes);
         }
     }
+    
+    public static VectorValue FromArray(ByteStringContext allocator, ReadOnlyMemory<float> readOnlyMemory, VectorEmbeddingType sourceEmbeddingType, VectorEmbeddingType embeddingDestinationType)
+    {
+        var originalMemory = MemoryMarshal.AsBytes(readOnlyMemory.Span);
+        
+        if (sourceEmbeddingType == embeddingDestinationType)
+        {
+            var memScope = allocator.Allocate(originalMemory.Length, out Memory<byte> mem);
+            originalMemory.CopyTo(mem.Span);
+
+            return new VectorValue(memScope, mem, originalMemory.Length);
+        }
+        
+        var requiredBytes = embeddingDestinationType switch
+        {
+            VectorEmbeddingType.Single => readOnlyMemory.Length * sizeof(float),
+            VectorEmbeddingType.Int8 => readOnlyMemory.Length + sizeof(float),
+            VectorEmbeddingType.Binary => readOnlyMemory.Length,
+            _ => throw new InvalidOperationException($"Unsupported vector embedding type {embeddingDestinationType}")
+        };
+        
+        var memoryScope = allocator.Allocate(requiredBytes, out Memory<byte> memory);
+        int bytesUsed;
+        switch (embeddingDestinationType)
+        {
+            case VectorEmbeddingType.Int8:
+                var asSbyes = MemoryMarshal.Cast<byte, sbyte>(memory.Span);
+                VectorQuantizer.TryToInt8(readOnlyMemory.Span, asSbyes, out bytesUsed);
+                break;
+            case VectorEmbeddingType.Binary:
+                VectorQuantizer.TryToInt1(readOnlyMemory.Span, memory.Span, out bytesUsed);
+                break;
+            default:
+                throw new InvalidOperationException($"Unsupported vector embedding type {embeddingDestinationType}");
+        }
+        
+        return new VectorValue(memoryScope, memory, bytesUsed);
+    }
 
     public static VectorValue FromBase64Array(in VectorOptions options, ByteStringContext allocator, string base64, bool isAutoIndex = false)
     {
@@ -84,7 +170,7 @@ public static class GenerateEmbeddings
         return FromArray(allocator, memScope, mem, options, bytesWritten);
     }
 
-    private static VectorValue Quantize(ByteStringContext allocator, in VectorEmbeddingType destinationFormat,
+    internal static VectorValue Quantize(ByteStringContext allocator, in VectorEmbeddingType destinationFormat,
         IDisposable memoryScope,
         Memory<byte> memory, int usedBytes)
     {
@@ -156,7 +242,7 @@ public static class GenerateEmbeddings
         }
     }
 
-    private static BertOnnxTextEmbeddingGenerationService CreateTextEmbeddingGenerationService()
+    internal static BertOnnxTextEmbeddingGenerationService CreateTextEmbeddingGenerationService(BertOnnxOptions options = null, int? dimensions = null)
     {
         using (var onnxModelStream = File.OpenRead(Path.Combine("LocalEmbeddings", "bge-micro-v2", "model.onnx")))
         using (var vocabStream = File.OpenRead(Path.Combine("LocalEmbeddings", "bge-micro-v2", "vocab.txt")))
@@ -166,13 +252,13 @@ public static class GenerateEmbeddings
             if (vocabStream == null)
                 throw new ArgumentNullException(nameof(vocabStream));
 
-            var options = new BertOnnxOptions();
+            options ??= new BertOnnxOptions();
 
             var modelBytes = new MemoryStream();
             onnxModelStream.CopyTo(modelBytes);
 
             var onnxSession = new InferenceSession(modelBytes.Length == modelBytes.GetBuffer().Length ? modelBytes.GetBuffer() : modelBytes.ToArray(), OnnxSessionOptions ?? new SessionOptions());
-            int dimensions = onnxSession.OutputMetadata.First().Value.Dimensions.Last();
+            dimensions ??= onnxSession.OutputMetadata.First().Value.Dimensions.Last();
 
             var tokenizer = new BertTokenizer();
             using (StreamReader vocabReader = new(vocabStream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, bufferSize: 1024, leaveOpen: true))

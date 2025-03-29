@@ -9,21 +9,21 @@ namespace Raven.Client.Documents.Operations.ConnectionStrings
     {
         public string Name { get; set; }
 
-        public bool Validate(ref List<string> errors)
+        public bool Validate(List<string> errors)
         {
             if (errors == null)
                 throw new ArgumentNullException(nameof(errors));
 
             var count = errors.Count;
 
-            ValidateImpl(ref errors);
+            ValidateImpl(errors);
 
             return count == errors.Count;
         }
 
         public abstract ConnectionStringType Type { get; }
 
-        protected abstract void ValidateImpl(ref List<string> errors);
+        protected abstract void ValidateImpl(List<string> errors);
 
         public virtual DynamicJsonValue ToJson()
         {
@@ -56,7 +56,7 @@ namespace Raven.Client.Documents.Operations.ConnectionStrings
 
             if (Enum.TryParse<ConnectionStringType>(type, true, out var connectionStringType) == false)
                 throw new NotSupportedException($"Unknown Connection string type: {connectionStringType}");
-            
+
             return connectionStringType;
         }
     }
@@ -69,6 +69,7 @@ namespace Raven.Client.Documents.Operations.ConnectionStrings
         Olap,
         ElasticSearch,
         Queue,
-        Snowflake
+        Snowflake,
+        Ai
     }
 }

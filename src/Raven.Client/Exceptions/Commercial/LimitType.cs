@@ -52,6 +52,9 @@ namespace Raven.Client.Exceptions.Commercial
         [Description("Snowflake ETL")]
         SnowflakeEtl,
 
+        [Description("Embeddings Generation")]
+        EmbeddingsGeneration,
+
         [Description("Cores Limit")]
         Cores,
 

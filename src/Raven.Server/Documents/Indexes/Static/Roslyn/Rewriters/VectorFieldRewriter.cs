@@ -1,7 +1,12 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Linq;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using NuGet.Packaging;
+using Raven.Server.Documents.AI.Embeddings;
+using Sparrow;
 
 namespace Raven.Server.Documents.Indexes.Static.Roslyn.Rewriters;
 
@@ -12,9 +17,9 @@ namespace Raven.Server.Documents.Indexes.Static.Roslyn.Rewriters;
 /// FieldName = CreateVector("FieldName", x.Textual)
 /// to provide a way to create dynamic field with vector
 /// </summary>
-public sealed class VectorFieldRewriter : CSharpSyntaxRewriter
+internal sealed class VectorFieldRewriter(ReferencedCollectionsRetriever referencedCollectionsRetriever, CSharpSyntaxRewriter collectionNameRetriever, bool isMapReduce = false) : CSharpSyntaxRewriter(true)
 {
-    public static readonly VectorFieldRewriter Instance = new();
+    public bool HasVectorField { get; private set; }
     
     public override SyntaxNode VisitInvocationExpression(InvocationExpressionSyntax node)
     {
@@ -23,17 +28,40 @@ public sealed class VectorFieldRewriter : CSharpSyntaxRewriter
         {
             case $"this.{nameof(StaticIndexBase.CreateVector)}":
             case $"{nameof(StaticIndexBase.CreateVector)}":
-                var parent = GetAnonymousObjectMemberDeclaratorSyntax(node);
-                var name = parent.NameEquals.Name.Identifier.Text;
+                PortableExceptions.ThrowIf<NotSupportedException>(isMapReduce, $"The '{nameof(StaticIndexBase.CreateVector)}' method is not supported in map-reduce indexes.");
+                
+                return Rewrite();
+            
+            case $"this.{nameof(StaticIndexBase.LoadVector)}":
+            case $"{nameof(StaticIndexBase.LoadVector)}":
+                PortableExceptions.ThrowIf<NotSupportedException>(isMapReduce, $"The '{nameof(StaticIndexBase.LoadVector)}' method is not supported in map-reduce indexes.");
+                
+                IEnumerable<string> names = collectionNameRetriever switch
+                {
+                    CollectionNameRetriever cnr => cnr!.CollectionNames!.Select(EmbeddingsHelper.GetEmbeddingDocumentCollectionName),
+                    CollectionNameRetrieverBase cnrb => cnrb.Collections.Select(n => EmbeddingsHelper.GetEmbeddingDocumentCollectionName(n.CollectionName)),
+                    _ => throw new InvalidOperationException($"Unknown collection name retriever. Got: {collectionNameRetriever.GetType().FullName}.")
+                };
 
-                var identifier = SyntaxFactory.Literal(name);
-                var variable = SyntaxFactory.LiteralExpression(SyntaxKind.StringLiteralExpression, identifier);
-
-                var arguments = node.ArgumentList.Arguments.Insert(0, SyntaxFactory.Argument(variable));
-                return node.WithArgumentList(SyntaxFactory.ArgumentList(arguments));
+                referencedCollectionsRetriever.CreateReferencedCollections();
+                referencedCollectionsRetriever.ReferencedCollections.AddRange(names.Distinct());
+                return Rewrite();
         }
 
         return base.VisitInvocationExpression(node);
+
+        SyntaxNode Rewrite()
+        {
+            var parent = GetAnonymousObjectMemberDeclaratorSyntax(node);
+            var name = parent.NameEquals.Name.Identifier.Text;
+
+            var identifier = SyntaxFactory.Literal(name);
+            var variable = SyntaxFactory.LiteralExpression(SyntaxKind.StringLiteralExpression, identifier);
+
+            var arguments = node.ArgumentList.Arguments.Insert(0, SyntaxFactory.Argument(variable));
+            HasVectorField = true;
+            return node.WithArgumentList(SyntaxFactory.ArgumentList(arguments));
+        }
     }
     
     private static AnonymousObjectMemberDeclaratorSyntax GetAnonymousObjectMemberDeclaratorSyntax(SyntaxNode node)

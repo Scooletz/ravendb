@@ -1,4 +1,5 @@
-﻿using Raven.Client.Documents.Operations.ConnectionStrings;
+﻿using System.Collections.Generic;
+using Raven.Client.Documents.Operations.ConnectionStrings;
 using Raven.Client.Documents.Operations.ETL;
 using Raven.Client.Documents.Operations.ETL.ElasticSearch;
 using Raven.Client.Documents.Operations.ETL.OLAP;

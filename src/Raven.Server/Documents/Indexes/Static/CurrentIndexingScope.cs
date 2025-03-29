@@ -1,14 +1,18 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using Raven.Client;
 using Raven.Client.Documents.Attachments;
 using Raven.Client.Documents.Indexes;
 using Raven.Client.Documents.Indexes.Vector;
+using Raven.Server.Documents.ETL.Providers.AI.Embeddings;
 using Raven.Server.Documents.Indexes.Persistence.Lucene.Documents;
 using Raven.Server.Documents.Indexes.Static.Spatial;
 using Raven.Server.Documents.Patch;
+using Raven.Server.Extensions;
 using Raven.Server.ServerWide;
 using Raven.Server.ServerWide.Context;
+using Sparrow;
 using Sparrow.Json;
 using Sparrow.Utils;
 using Voron;
@@ -33,7 +37,8 @@ namespace Raven.Server.Documents.Indexes.Static
         private readonly Func<string, SpatialField> _getSpatialField;
         private readonly Func<string, bool, IndexField> _getVectorField;
 
-
+        private Dictionary<string, IndexField> _loadVectorFields;
+        
         /// [collection: [key: [referenceKeys]]]
         public Dictionary<string, Dictionary<Slice, HashSet<Slice>>> ReferencesByCollection;
 
@@ -448,6 +453,67 @@ namespace Raven.Server.Documents.Indexes.Static
                 referencesByCollection.Add(key, references = new HashSet<Slice>(SliceComparer.Instance));
 
             return references;
+        }
+        
+         public bool TryGetLoadVectorField(string fieldName, out IndexField vectorField)
+        {
+            if (_loadVectorFields == null)
+            {
+                vectorField = null;
+                return false;
+            }
+            
+            return _loadVectorFields.TryGetValue(fieldName, out vectorField);
+        }
+        
+        public IndexField GetLoadVectorField(string fieldName, EmbeddingsGenerationTaskIdentifier embeddingsGenerationTaskIdentifier, VectorEmbeddingType vectorEmbeddingTypeInDocument)
+        {
+            _loadVectorFields ??= new Dictionary<string, IndexField>(StringComparer.OrdinalIgnoreCase);
+            if (_loadVectorFields.TryGetValue(fieldName, out var field))
+                return field;
+            
+            Debug.Assert(embeddingsGenerationTaskIdentifier.Value is not null);
+            var fieldExists = Index.Definition.MapFields.TryGetValue(fieldName, out var mapField);
+            var fieldHasVector = fieldExists && mapField is IndexField { Vector: not null };
+
+            IndexField vectorField;
+            switch (FieldExists: fieldExists, FieldHasVector: fieldHasVector)
+            {
+                case (FieldExists: true, FieldHasVector: true):
+                {
+                    field = (IndexField)mapField;
+                    PortableExceptions.ThrowIfNot<InvalidOperationException>(vectorEmbeddingTypeInDocument == field!.Vector.SourceEmbeddingType, $"Document contains vector in format '{vectorEmbeddingTypeInDocument}' but field '{fieldName}' is configured to source: '{field.Vector.SourceEmbeddingType}'");
+                    
+                    vectorField =  field;
+                    break;
+                }
+                case (FieldExists: true, FieldHasVector: false):
+                case (FieldExists: false, _):
+                {
+                    vectorField = IndexField.Create(fieldName,
+                        new IndexFieldOptions()
+                        {
+                            Vector = new VectorOptions()
+                            {
+                                SourceEmbeddingType = vectorEmbeddingTypeInDocument,
+                                DestinationEmbeddingType = vectorEmbeddingTypeInDocument,
+                                Dimensions = VectorOptions.DefaultText.Dimensions,
+                                NumberOfEdges = Index.Configuration.CoraxVectorDefaultNumberOfEdges,
+                                NumberOfCandidatesForIndexing = Index.Configuration.CoraxVectorDefaultNumberOfCandidatesForIndexing,
+                            }
+                        }, null, Corax.Constants.IndexWriter.DynamicField);
+                    break;
+                }
+            }
+
+            if (vectorField!.Id == Corax.Constants.IndexWriter.DynamicField)
+            {
+                DynamicFields ??= new Dictionary<string, IndexField>();
+                if (DynamicFields.TryAdd(fieldName, vectorField))
+                    IncrementDynamicFields();
+            }
+            
+            return vectorField;
         }
     }
 }

@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using Raven.Client.Documents.DataArchival;
+using Raven.Client.Documents.Indexes;
+using Raven.Client.Documents.Operations.AI;
 using Raven.Client.Documents.Operations.Backups;
 using Raven.Client.Documents.Operations.ETL;
 using Raven.Client.Documents.Operations.ETL.ElasticSearch;
@@ -34,7 +36,8 @@ namespace Raven.Client.Documents.Operations.OngoingTasks
         Subscription,
         PullReplicationAsHub,
         PullReplicationAsSink,
-        QueueSink
+        QueueSink,
+        EmbeddingsGeneration,
     }
 
     public enum OngoingTaskState
@@ -409,6 +412,26 @@ namespace Raven.Client.Documents.Operations.OngoingTasks
             json[nameof(ConnectionString)] = ConnectionString;
             json[nameof(Configuration)] = Configuration?.ToJson();
 
+            return json;
+        }
+    }
+
+    public sealed class EmbeddingsGeneration : OngoingTask
+    {
+        public EmbeddingsGeneration()
+        {
+            TaskType = OngoingTaskType.EmbeddingsGeneration;
+        }
+
+        public string ConnectionStringName { get; set; }
+
+        public EmbeddingsGenerationConfiguration Configuration { get; set; }
+
+        public override DynamicJsonValue ToJson()
+        {
+            var json = base.ToJson();
+            json[nameof(ConnectionStringName)] = ConnectionStringName;
+            json[nameof(Configuration)] = Configuration?.ToJson();
             return json;
         }
     }

@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Raven.Client;
 using Raven.Client.Documents.Changes;
+using Raven.Client.Documents.Operations.AI;
 using Raven.Client.Documents.Operations.ConnectionStrings;
 using Raven.Client.Documents.Operations.ETL;
 using Raven.Client.Documents.Operations.ETL.ElasticSearch;
@@ -16,6 +17,8 @@ using Raven.Client.Documents.Operations.ETL.Queue;
 using Raven.Client.Documents.Operations.ETL.Snowflake;
 using Raven.Client.Documents.Operations.ETL.SQL;
 using Raven.Client.ServerWide;
+using Raven.Server.Documents.ETL.Providers.AI;
+using Raven.Server.Documents.ETL.Providers.AI.Embeddings;
 using Raven.Server.Documents.ETL.Providers.ElasticSearch;
 using Raven.Server.Documents.ETL.Providers.OLAP;
 using Raven.Server.Documents.ETL.Providers.Queue;
@@ -85,6 +88,8 @@ namespace Raven.Server.Documents.ETL
         public List<QueueEtlConfiguration> QueueDestinations;
         
         public List<SnowflakeEtlConfiguration> SnowflakeDestinations;
+        
+        public List<EmbeddingsGenerationConfiguration> EmbeddingsGenerationDestinations;
 
         public long GetQueueDestinationCountByBroker(QueueBrokerType brokerType)
         {
@@ -94,7 +99,7 @@ namespace Raven.Server.Documents.ETL
 
         public void Initialize(DatabaseRecord record)
         {
-            LoadProcesses(record, record.RavenEtls, record.SqlEtls, record.OlapEtls, record.ElasticSearchEtls, record.QueueEtls, record.SnowflakeEtls, toRemove: null, null, null);
+            LoadProcesses(record, record.RavenEtls, record.SqlEtls, record.OlapEtls, record.ElasticSearchEtls, record.QueueEtls, record.SnowflakeEtls, record.EmbeddingsGenerations, toRemove: null, null, null);
         }
 
         public event Action<EtlProcess> ProcessAdded;
@@ -118,6 +123,7 @@ namespace Raven.Server.Documents.ETL
             List<ElasticSearchEtlConfiguration> newElasticSearchDestinations,
             List<QueueEtlConfiguration> newQueueDestinations,
             List<SnowflakeEtlConfiguration> newSnowflakeDestinations,
+            List<EmbeddingsGenerationConfiguration> newEmbeddingsGenerationDestinations,
             List<EtlProcess> toRemove, Dictionary<string, string> responsibleNodes,
             List<string> explanations)
         {
@@ -130,6 +136,7 @@ namespace Raven.Server.Documents.ETL
                 ElasticSearchDestinations = _databaseRecord.ElasticSearchEtls;
                 QueueDestinations = _databaseRecord.QueueEtls;
                 SnowflakeDestinations = _databaseRecord.SnowflakeEtls;
+                EmbeddingsGenerationDestinations = _databaseRecord.EmbeddingsGenerations;
 
                 var processes = new List<EtlProcess>(_processes);
 
@@ -164,6 +171,9 @@ namespace Raven.Server.Documents.ETL
                 
                 if (newSnowflakeDestinations != null && newSnowflakeDestinations.Count > 0)
                     newProcesses.AddRange(GetRelevantProcesses<SnowflakeEtlConfiguration, SnowflakeConnectionString>(newSnowflakeDestinations, ensureUniqueConfigurationNames));
+                
+                if (newEmbeddingsGenerationDestinations != null && newEmbeddingsGenerationDestinations.Count > 0)
+                    newProcesses.AddRange(GetRelevantProcesses<EmbeddingsGenerationConfiguration, AiConnectionString>(newEmbeddingsGenerationDestinations, ensureUniqueConfigurationNames));
 
                 processes.AddRange(newProcesses);
                 _processes = processes.ToArray();
@@ -249,6 +259,7 @@ namespace Raven.Server.Documents.ETL
                 ElasticSearchEtlConfiguration elasticSearchConfig = null;
                 QueueEtlConfiguration queueConfig = null;
                 SnowflakeEtlConfiguration snowflakeConfig = null;
+                EmbeddingsGenerationConfiguration embeddingsGenerationConfig = null;
 
                 var connectionStringNotFound = false;
 
@@ -302,6 +313,16 @@ namespace Raven.Server.Documents.ETL
                             connectionStringNotFound = true;
 
                         break;
+                    
+                    case EtlType.EmbeddingsGeneration:
+                        embeddingsGenerationConfig = config as EmbeddingsGenerationConfiguration;
+                        
+                        if (_databaseRecord.AiConnectionStrings.TryGetValue(config.ConnectionStringName, out var aiConnection))
+                            embeddingsGenerationConfig.Initialize(aiConnection);
+                        else
+                            connectionStringNotFound = true;
+                        
+                        break;
 
                     default:
                         ThrownUnknownEtlConfiguration(config.GetType());
@@ -343,6 +364,8 @@ namespace Raven.Server.Documents.ETL
                         process = QueueEtl<QueueItem>.CreateInstance(transform, queueConfig, _database, _serverStore);
                     if (snowflakeConfig != null)
                         process = new SnowflakeEtl(transform, snowflakeConfig, _database, _serverStore);
+                    if (embeddingsGenerationConfig != null)
+                        process = new EmbeddingsGenerationTask(transform, embeddingsGenerationConfig, _database, _serverStore);
                     yield return process;
                 }
             }
@@ -510,6 +533,7 @@ namespace Raven.Server.Documents.ETL
             var myElasticSearchEtl = new List<ElasticSearchEtlConfiguration>();
             var myQueueEtl = new List<QueueEtlConfiguration>();
             var mySnowflakeEtl = new List<SnowflakeEtlConfiguration>();
+            var myEmbeddingsGenerationEtl = new List<EmbeddingsGenerationConfiguration>();
 
             var responsibleNodes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
@@ -560,6 +584,14 @@ namespace Raven.Server.Documents.ETL
                 if (IsMyEtlTask<SnowflakeEtlConfiguration, SnowflakeConnectionString>(record, config, ref responsibleNodes, out explanations))
                 {
                     mySnowflakeEtl.Add(config);
+                }
+            }
+
+            foreach (var config in record.EmbeddingsGenerations)
+            {
+                if (IsMyEtlTask<EmbeddingsGenerationConfiguration, AiConnectionString>(record, config, ref responsibleNodes, out explanations))
+                {
+                    myEmbeddingsGenerationEtl.Add(config);
                 }
             }
 
@@ -775,12 +807,35 @@ namespace Raven.Server.Documents.ETL
                         
                         break;
                     }
+                    case EmbeddingsGenerationTask embeddingsGenerationEtl:
+                    {
+                        EmbeddingsGenerationConfiguration existing = null;
+
+                        foreach (var config in myEmbeddingsGenerationEtl)
+                        {
+                            var diff = embeddingsGenerationEtl.Configuration.Compare(config);
+
+                            if (diff == EtlConfigurationCompareDifferences.None)
+                            {
+                                existing = config;
+                                break;
+                            }
+                        }
+
+                        if (existing != null)
+                        {
+                            toRemove.Remove(processesPerConfig.Key);
+                            myEmbeddingsGenerationEtl.Remove(existing);
+                        }
+
+                        break;
+                    }
                     default:
                         throw new InvalidOperationException($"Unknown ETL process type: {process.GetType()}");
                 }
             }
 
-            LoadProcesses(record, myRavenEtl, mySqlEtl, myOlapEtl, myElasticSearchEtl, myQueueEtl, mySnowflakeEtl, toRemove.SelectMany(x => x.Value).ToList(), responsibleNodes, explanations);
+            LoadProcesses(record, myRavenEtl, mySqlEtl, myOlapEtl, myElasticSearchEtl, myQueueEtl, mySnowflakeEtl, myEmbeddingsGenerationEtl, toRemove.SelectMany(x => x.Value).ToList(), responsibleNodes, explanations);
 
             if (toRemove.Count == 0)
                 return;
@@ -800,7 +855,7 @@ namespace Raven.Server.Documents.ETL
 
                             using (process)
                             {
-                                string reason = GetStopReason(process, myRavenEtl, mySqlEtl, myOlapEtl, myElasticSearchEtl, myQueueEtl, mySnowflakeEtl, responsibleNodes, explanations);
+                                string reason = GetStopReason(process, myRavenEtl, mySqlEtl, myOlapEtl, myElasticSearchEtl, myQueueEtl, mySnowflakeEtl, myEmbeddingsGenerationEtl, responsibleNodes, explanations);
                                 process.Stop(reason);
                             }
                         }
@@ -854,6 +909,7 @@ namespace Raven.Server.Documents.ETL
             List<ElasticSearchEtlConfiguration> myElasticSearchEtl,
             List<QueueEtlConfiguration> myQueueEtl,
             List<SnowflakeEtlConfiguration> mySnowflakeEtl,
+            List<EmbeddingsGenerationConfiguration> myEmbeddingsGenerationEtl,
             Dictionary<string, string> responsibleNodes,
             List<string> explanations)
         {
@@ -924,6 +980,13 @@ namespace Raven.Server.Documents.ETL
 
                 if (existing != null)
                     differences = amazonSqsEtl.Configuration.Compare(existing, transformationDiffs);
+            }
+            else if (process is EmbeddingsGenerationTask embeddingsGenerationTask)
+            {
+                var existing = myEmbeddingsGenerationEtl.FirstOrDefault(x => x.Name.Equals(embeddingsGenerationTask.ConfigurationName, StringComparison.OrdinalIgnoreCase));
+
+                if (existing != null)
+                    differences = embeddingsGenerationTask.Configuration.Compare(existing, transformationDiffs);
             }
             else
             {
@@ -1074,10 +1137,15 @@ namespace Raven.Server.Documents.ETL
                 dict[source] = tombstoneCollections;
             }
             
-            
             foreach (var config in SnowflakeDestinations.Where(config => config.Disabled))
             {
                 var source = new TombstoneDeletionBlockageSource(ITombstoneAware.TombstoneDeletionBlockerType.SnowflakeEtl, config.Name, config.TaskId);
+                dict[source] = tombstoneCollections;
+            }
+            
+            foreach (var config in EmbeddingsGenerationDestinations.Where(config => config.Disabled))
+            {
+                var source = new TombstoneDeletionBlockageSource(ITombstoneAware.TombstoneDeletionBlockerType.EmbeddingsGeneration, config.Name, config.TaskId);
                 dict[source] = tombstoneCollections;
             }
 

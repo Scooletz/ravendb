@@ -1522,12 +1522,13 @@ Use session.Query<T>() instead of session.Advanced.DocumentQuery<T>. The session
             var fieldName = fieldFactoryAccessor.FieldName;
             var sourceQuantizationType = fieldFactoryAccessor.SourceQuantizationType;
             var targetQuantizationType = fieldFactoryAccessor.DestinationQuantizationType;
-
+            var embeddingsGenerationTaskIdentifier = fieldFactoryAccessor.EmbeddingsGenerationTaskIdentifier;
+            
             var text = fieldValueFactoryAccessor.Text;
-            var embedding = fieldValueFactoryAccessor.Embedding;
-            var base64Embedding = fieldValueFactoryAccessor.Base64Embedding;
+            var texts = fieldValueFactoryAccessor.Texts;
+            var embeddings = fieldValueFactoryAccessor.Embeddings;
 
-            VectorSearch(fieldName, sourceQuantizationType, targetQuantizationType, minimumSimilarity, numberOfCandidates, isExact, text, embedding, base64Embedding);
+            VectorSearch(fieldName, sourceQuantizationType, targetQuantizationType, minimumSimilarity, numberOfCandidates, isExact, text, texts,  embeddings, embeddingsGenerationTaskIdentifier);
         }
         
         internal void VectorSearch(VectorEmbeddingFieldFactory<T> embeddingFieldFactory, VectorFieldValueFactory embeddingValueFactory,
@@ -1536,26 +1537,30 @@ Use session.Query<T>() instead of session.Advanced.DocumentQuery<T>. The session
             var fieldName = embeddingFieldFactory.FieldName;
             var sourceQuantizationType = embeddingFieldFactory.SourceQuantizationType;
             var targetQuantizationType = embeddingFieldFactory.DestinationQuantizationType;
+            var embeddingsGenerationTaskIdentifier = embeddingFieldFactory.EmbeddingsGenerationTaskIdentifier;
             
             var text = embeddingValueFactory.Text;
-            var embedding = embeddingValueFactory.Embedding;
-            var base64Embedding = embeddingValueFactory.Base64Embedding;
+            var texts = embeddingValueFactory.Texts;
+            var embeddings = embeddingValueFactory.Embeddings;
             
-            VectorSearch(fieldName, sourceQuantizationType, targetQuantizationType, minimumSimilarity, numberOfCandidates, isExact, text, embedding, base64Embedding);
+            VectorSearch(fieldName, sourceQuantizationType, targetQuantizationType, minimumSimilarity, numberOfCandidates, isExact, text, texts, embeddings, embeddingsGenerationTaskIdentifier);
         }
         
         private void VectorSearch(string fieldName, VectorEmbeddingType sourceQuantizationType, VectorEmbeddingType targetQuantizationType, float? minimumSimilarity,
-            int? numberOfCandidates, bool isExact, string text, object embedding, string base64Embedding)
+            int? numberOfCandidates, bool isExact, string text, IEnumerable<string> texts, object embeddings, string embeddingsGenerationTaskIdentifier = null)
         {
             string queryParameterName;
             
             if (text != null)
                 queryParameterName = AddQueryParameter(text);
-            
-            else if (embedding != null)
+            else if (texts != null)
+            {
+                queryParameterName = AddQueryParameter(texts);
+            }
+            else if (embeddings != null)
             {
                 // for well-known types we can convert the array into Base64
-                queryParameterName = AddQueryParameter(embedding switch
+                queryParameterName = AddQueryParameter(embeddings switch
                 {
                     float[] fa => Convert.ToBase64String(MemoryMarshal.Cast<float, byte>(fa)
 #if !NETCOREAPP3_1_OR_GREATER
@@ -1568,15 +1573,15 @@ Use session.Query<T>() instead of session.Advanced.DocumentQuery<T>. The session
                         .ToArray()
 #endif
                     ),
-                    _  => embedding
+                    _  => embeddings
                 });
             }
             else
             {
-                queryParameterName = AddQueryParameter(base64Embedding);
+                throw new InvalidOperationException("Cannot use VectorSearch without text(s) or embedding(s).");
             }
             
-            var vectorSearchToken = new VectorSearchToken(fieldName, queryParameterName, sourceQuantizationType, targetQuantizationType, minimumSimilarity, numberOfCandidates, isExact);
+            var vectorSearchToken = new VectorSearchToken(fieldName, queryParameterName, sourceQuantizationType, targetQuantizationType, minimumSimilarity, numberOfCandidates, isExact, embeddingsGenerationTaskIdentifier);
 
             WhereTokens.AddLast(vectorSearchToken);
         }

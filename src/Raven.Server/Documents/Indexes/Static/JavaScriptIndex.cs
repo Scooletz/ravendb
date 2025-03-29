@@ -15,6 +15,7 @@ using Raven.Client;
 using Raven.Client.Documents.Indexes;
 using Raven.Client.Exceptions.Documents.Indexes;
 using Raven.Server.Config;
+using Raven.Server.Documents.AI.Embeddings;
 using Raven.Server.Documents.Indexes.Configuration;
 using Raven.Server.Documents.Indexes.Static.Counters;
 using Raven.Server.Documents.Indexes.Static.JavaScript;
@@ -22,6 +23,7 @@ using Raven.Server.Documents.Indexes.Static.TimeSeries;
 using Raven.Server.Documents.Patch;
 using Raven.Server.Extensions;
 using Raven.Server.ServerWide;
+using Sparrow;
 using Sparrow.Server;
 
 namespace Raven.Server.Documents.Indexes.Static
@@ -31,6 +33,8 @@ namespace Raven.Server.Documents.Indexes.Static
         public const string NoTracking = "noTracking";
 
         public const string Load = "load";
+        public const string LoadVectorMethodName = "loadVector";
+        public const string CreateVectorMethodName = "createVector";
 
         public const string CmpXchg = "cmpxchg";
 
@@ -121,6 +125,10 @@ function map(name, lambda) {
                 operation.Analyze(_engine);
 
                 var referencedCollections = mapReferencedCollections[i].ReferencedCollections;
+                
+                if (mapReferencedCollections[i].HasLoadVector)
+                    referencedCollections.Add(new(EmbeddingsHelper.GetEmbeddingDocumentCollectionName(mapCollection)));
+
                 if (referencedCollections.Count > 0)
                 {
                     if (ReferencedCollections.TryGetValue(mapCollection, out var collectionNames) == false)
@@ -134,7 +142,7 @@ function map(name, lambda) {
 
                 if (mapReferencedCollections[i].HasCompareExchangeReferences)
                     CollectionsWithCompareExchangeReferences.Add(mapCollection);
-
+                
                 list.Add(operation);
             }
         }
@@ -230,7 +238,7 @@ function map(name, lambda) {
                     .AddObjectConverter(new JintDateTimeConverter())
                     .AddObjectConverter(new JintTimeSpanConverter())
                     .LocalTimeZone(TimeZoneInfo.Utc)
-                    .StringCompilationAllowed = indexConfiguration.AllowStringCompilation;
+                    .Host.StringCompilationAllowed = indexConfiguration.AllowStringCompilation;
             });
 
             using (_engine.DisableMaxStatements())
@@ -242,7 +250,9 @@ function map(name, lambda) {
                 var definitions = GetDefinitions();
 
                 ProcessMaps(definitions, resolver, maps, mapReferencedCollections, out var collectionFunctions);
+                AssertVectorFieldForMapReduceIndexes(mapReferencedCollections);
 
+                
                 ProcessReduce(definition, definitions, resolver, indexVersion);
 
                 ProcessFields(definition, collectionFunctions);
@@ -251,6 +261,15 @@ function map(name, lambda) {
             _javaScriptUtils = new JavaScriptUtils(null, _engine);
         }
 
+        private void AssertVectorFieldForMapReduceIndexes(List<MapMetadata> mapReferencedCollections)
+        {
+            if (Definition.Type.IsMapReduce() == false 
+                || mapReferencedCollections.Any(x => x.HasLoadVector || x.HasCreateVector) == false)
+                return;
+            
+            ThrowIndexCreationException($"Vector fields are not supported for map-reduces indexes.");
+        }
+        
         private List<string> GetMappingFunctions(Action<List<string>> modifyMappingFunctions)
         {
             if (Definition.Maps == null || Definition.Maps.Count == 0)
@@ -357,6 +376,7 @@ function map(name, lambda) {
         {
             _engine.ExecuteWithReset(code);
 
+            
             var javascriptParser = new Parser(DefaultParserOptions);
             var program = javascriptParser.ParseScript(code);
 
@@ -368,7 +388,9 @@ function map(name, lambda) {
             return new MapMetadata
             {
                 ReferencedCollections = loadVisitor.ReferencedCollection,
-                HasCompareExchangeReferences = loadVisitor.HasCompareExchangeReferences
+                HasCompareExchangeReferences = loadVisitor.HasCompareExchangeReferences,
+                HasLoadVector = loadVisitor.HasLoadVector,
+                HasCreateVector = loadVisitor.HasCreateVector,
             };
         }
 
@@ -489,7 +511,7 @@ function map(name, lambda) {
 
             return DynamicJsNull.ImplicitNull;
         }
-
+        
         private JsValue LoadCompareExchangeValue(JsValue self, JsValue[] args)
         {
             if (args.Length != 1)
@@ -591,6 +613,10 @@ function boost(value, boost) {
 function createVector(value) {
     return { $vector: { $value: value } }
 }
+
+function loadVector(pathToEmbedding, aiTaskIdentifier) {
+    return { $loadvector: { $name: aiTaskIdentifier, $value: pathToEmbedding } }
+}
 ";
 
         protected readonly IndexDefinition Definition;
@@ -614,6 +640,10 @@ function createVector(value) {
             public HashSet<CollectionName> ReferencedCollections;
 
             public bool HasCompareExchangeReferences;
+
+            public bool HasLoadVector;
+            
+            public bool HasCreateVector;
         }
     }
 }

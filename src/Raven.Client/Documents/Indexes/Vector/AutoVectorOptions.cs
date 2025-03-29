@@ -1,4 +1,5 @@
 ﻿using System;
+using Sparrow;
 
 namespace Raven.Client.Documents.Indexes.Vector;
 
@@ -8,6 +9,8 @@ public sealed class AutoVectorOptions : VectorOptions
     /// Data source of embeddings
     /// </summary>
     public string SourceFieldName { get; set; }
+    
+    public string EmbeddingsGenerationTaskIdentifier { get; set; }
 
     public AutoVectorOptions()
     {
@@ -21,6 +24,7 @@ public sealed class AutoVectorOptions : VectorOptions
         SourceFieldName = options.SourceFieldName;
         NumberOfCandidatesForIndexing = options.NumberOfCandidatesForIndexing;
         NumberOfEdges = options.NumberOfEdges;
+        EmbeddingsGenerationTaskIdentifier = options.EmbeddingsGenerationTaskIdentifier;
     }
 
     public override bool Equals(object obj)
@@ -33,11 +37,28 @@ public sealed class AutoVectorOptions : VectorOptions
 
     public bool Equals(AutoVectorOptions other)
     {
-        return base.Equals(other) && SourceFieldName == other.SourceFieldName;
+        return base.Equals(other) 
+               && SourceFieldName == other.SourceFieldName
+               && EmbeddingsGenerationTaskIdentifier == other.EmbeddingsGenerationTaskIdentifier;
+    }
+
+    internal override void Validate()
+    {
+        base.Validate();
+        
+        PortableExceptions.ThrowIf<InvalidOperationException>(SourceFieldName is null, "Source field name cannot be null.");
+        PortableExceptions.ThrowIf<InvalidOperationException>(EmbeddingsGenerationTaskIdentifier is null, "EmbeddingsGenerationTaskIdentifier cannot be null.");
     }
 
     public override int GetHashCode()
     {
-        return HashCode.Combine(base.GetHashCode(), SourceFieldName.GetHashCode());
+        unchecked
+        {
+            var hashCode = base.GetHashCode();
+            hashCode = (hashCode * 397) ^ (SourceFieldName != null ? SourceFieldName.GetHashCode() : 0);
+            hashCode = (hashCode * 397) ^ (EmbeddingsGenerationTaskIdentifier != null ? EmbeddingsGenerationTaskIdentifier.GetHashCode() : 0);
+
+            return hashCode;
+        }
     }
 }

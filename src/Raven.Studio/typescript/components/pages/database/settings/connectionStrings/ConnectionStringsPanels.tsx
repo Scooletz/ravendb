@@ -1,12 +1,12 @@
+import "./ConnectionStringsPanels.scss";
 import { HrHeader } from "components/common/HrHeader";
 import { accessManagerSelectors } from "components/common/shell/accessManagerSliceSelectors";
 import { useAppSelector } from "components/store";
-import React from "react";
 import { useDispatch } from "react-redux";
 import Button from "react-bootstrap/Button";
 import ConnectionStringsPanel from "./ConnectionStringsPanel";
-import { Connection } from "./connectionStringsTypes";
-import { connectionStringsActions } from "./store/connectionStringsSlice";
+import { Connection, StudioConnectionType } from "./connectionStringsTypes";
+import { connectionStringsActions, connectionStringSelectors } from "./store/connectionStringsSlice";
 import { Icon } from "components/common/Icon";
 import IconName from "../../../../../../typings/server/icons";
 
@@ -18,16 +18,18 @@ interface ConnectionStringsPanelsProps {
 export default function ConnectionStringsPanels({ connections, connectionsType }: ConnectionStringsPanelsProps) {
     const dispatch = useDispatch();
     const hasDatabaseAdminAccess = useAppSelector(accessManagerSelectors.getHasDatabaseAdminAccess)();
+    const viewContext = useAppSelector(connectionStringSelectors.viewContext);
 
     if (connections.length === 0) {
         return null;
     }
 
     return (
-        <div className="mb-4">
+        <div className="mb-4 connection-strings-panels">
             <HrHeader
                 right={
-                    hasDatabaseAdminAccess && (
+                    hasDatabaseAdminAccess &&
+                    viewContext !== "ai" && (
                         <Button
                             variant="info"
                             size="sm"
@@ -53,7 +55,7 @@ export default function ConnectionStringsPanels({ connections, connectionsType }
     );
 }
 
-function getTypeLabel(type: StudioEtlType): string {
+function getTypeLabel(type: StudioConnectionType): string {
     switch (type) {
         case "Raven":
             return "RavenDB";
@@ -63,12 +65,14 @@ function getTypeLabel(type: StudioEtlType): string {
             return "Azure Queue Storage";
         case "AmazonSqs":
             return "Amazon SQS";
+        case "Ai":
+            return "AI";
         default:
             return type;
     }
 }
 
-function getIcon(type: StudioEtlType): IconName {
+function getIcon(type: StudioConnectionType): IconName {
     switch (type) {
         case "Raven":
             return "raven";
@@ -88,6 +92,8 @@ function getIcon(type: StudioEtlType): IconName {
             return "azure";
         case "AmazonSqs":
             return "amazon-sqs";
+        case "Ai":
+            return "sparkles";
         default:
             return null;
     }

@@ -12,6 +12,7 @@ import {
     ConnectionFormData,
     SnowflakeConnection,
     AmazonSqsConnection,
+    AiConnection,
 } from "../connectionStringsTypes";
 import assertUnreachable from "components/utils/assertUnreachable";
 import ApiKeyAuthentication = Raven.Client.Documents.Operations.ETL.ElasticSearch.ApiKeyAuthentication;
@@ -202,6 +203,79 @@ export function mapAmazonSqsConnectionStringToDto(connection: AmazonSqsConnectio
     };
 }
 
+export function mapAiConnectionStringToDto(connection: AiConnection): ConnectionStringDto {
+    return {
+        Type: "Ai",
+        Name: connection.name,
+        Identifier: connection.identifier,
+        AzureOpenAiSettings:
+            connection.connectorType === "azureOpenAiSettings"
+                ? {
+                      ApiKey: connection.azureOpenAiSettings.apiKey,
+                      Endpoint: connection.azureOpenAiSettings.endpoint,
+                      Model: connection.azureOpenAiSettings.model,
+                      DeploymentName: connection.azureOpenAiSettings.deploymentName,
+                      Dimensions: connection.azureOpenAiSettings.dimensions,
+                      EmbeddingsMaxConcurrentBatches: connection.azureOpenAiSettings.embeddingsMaxConcurrentBatches,
+                  }
+                : null,
+        GoogleSettings:
+            connection.connectorType === "googleSettings"
+                ? {
+                      ApiKey: connection.googleSettings.apiKey,
+                      Model: connection.googleSettings.model,
+                      AiVersion: connection.googleSettings.aiVersion,
+                      Dimensions: connection.googleSettings.dimensions,
+                      EmbeddingsMaxConcurrentBatches: connection.googleSettings.embeddingsMaxConcurrentBatches,
+                  }
+                : null,
+        HuggingFaceSettings:
+            connection.connectorType === "huggingFaceSettings"
+                ? {
+                      ApiKey: connection.huggingFaceSettings.apiKey,
+                      Endpoint: connection.huggingFaceSettings.endpoint,
+                      Model: connection.huggingFaceSettings.model,
+                      EmbeddingsMaxConcurrentBatches: connection.huggingFaceSettings.embeddingsMaxConcurrentBatches,
+                  }
+                : null,
+        OllamaSettings:
+            connection.connectorType === "ollamaSettings"
+                ? {
+                      Model: connection.ollamaSettings.model,
+                      Uri: connection.ollamaSettings.uri,
+                      EmbeddingsMaxConcurrentBatches: connection.ollamaSettings.embeddingsMaxConcurrentBatches,
+                  }
+                : null,
+        EmbeddedSettings:
+            connection.connectorType === "embeddedSettings"
+                ? {
+                      EmbeddingsMaxConcurrentBatches: connection.embeddedSettings.embeddingsMaxConcurrentBatches,
+                  }
+                : null,
+        OpenAiSettings:
+            connection.connectorType === "openAiSettings"
+                ? {
+                      ApiKey: connection.openAiSettings.apiKey,
+                      Endpoint: connection.openAiSettings.endpoint,
+                      Model: connection.openAiSettings.model,
+                      OrganizationId: connection.openAiSettings.organizationId,
+                      ProjectId: connection.openAiSettings.projectId,
+                      Dimensions: connection.openAiSettings.dimensions,
+                      EmbeddingsMaxConcurrentBatches: connection.openAiSettings.embeddingsMaxConcurrentBatches,
+                  }
+                : null,
+        MistralAiSettings:
+            connection.connectorType === "mistralAiSettings"
+                ? {
+                      ApiKey: connection.mistralAiSettings.apiKey,
+                      Endpoint: connection.mistralAiSettings.endpoint,
+                      Model: connection.mistralAiSettings.model,
+                      EmbeddingsMaxConcurrentBatches: connection.mistralAiSettings.embeddingsMaxConcurrentBatches,
+                  }
+                : null,
+    };
+}
+
 export function mapConnectionStringToDto(connection: Connection): ConnectionStringDto {
     const type = connection.type;
 
@@ -224,6 +298,8 @@ export function mapConnectionStringToDto(connection: Connection): ConnectionStri
             return mapAzureQueueStorageConnectionStringToDto(connection);
         case "AmazonSqs":
             return mapAmazonSqsConnectionStringToDto(connection);
+        case "Ai":
+            return mapAiConnectionStringToDto(connection);
         default:
             return assertUnreachable(type);
     }

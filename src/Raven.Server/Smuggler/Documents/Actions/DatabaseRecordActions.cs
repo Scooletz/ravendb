@@ -13,6 +13,7 @@ using Raven.Server.Integrations.PostgreSQL.Commands;
 using Raven.Server.Routing;
 using Raven.Server.ServerWide;
 using Raven.Server.ServerWide.Commands;
+using Raven.Server.ServerWide.Commands.AI;
 using Raven.Server.ServerWide.Commands.Analyzers;
 using Raven.Server.ServerWide.Commands.ConnectionStrings;
 using Raven.Server.ServerWide.Commands.ETL;
@@ -627,6 +628,19 @@ public sealed class DatabaseRecordActions : IDatabaseRecordActions
 
             result.DatabaseRecord.SnowflakeConnectionStringsUpdated = true;
         }
+
+        if (databaseRecord.AiConnectionStrings.Count > 0 && databaseRecordItemType.HasFlag(DatabaseRecordItemType.AiConnectionStrings))
+        {
+            if (_log.IsInfoEnabled)
+                _log.Info("Configuring AI connection strings from smuggler");
+
+            foreach (var connectionString in databaseRecord.AiConnectionStrings)
+            {
+                tasks.Add(_server.SendToLeaderAsync(new PutAiConnectionStringCommand(connectionString.Value, _name, RaftIdGenerator.DontCareId)));
+            }
+
+            result.DatabaseRecord.AiConnectionStringsUpdated = true;
+        }
         
         if (databaseRecord.SnowflakeEtls.Count > 0 && databaseRecordItemType.HasFlag(DatabaseRecordItemType.SnowflakeEtls))
         {
@@ -650,6 +664,29 @@ public sealed class DatabaseRecordActions : IDatabaseRecordActions
             result.DatabaseRecord.SnowflakeEtlsUpdated = true;
         }
 
+        if (databaseRecord.EmbeddingsGenerations.Count > 0 && databaseRecordItemType.HasFlag(DatabaseRecordItemType.EmbeddingsGenerations))
+        {
+            if (_log.IsInfoEnabled)
+                _log.Info("Configuring Embedding Generation tasks configuration from smuggler");
+
+            foreach (var etl in databaseRecord.EmbeddingsGenerations)
+            {
+                _currentDatabaseRecord?.EmbeddingsGenerations.ForEach(x =>
+                {
+                    if (x.Name.Equals(etl.Name, StringComparison.OrdinalIgnoreCase))
+                    {
+                        tasks.Add(_server.SendToLeaderAsync(new DeleteOngoingTaskCommand(x.TaskId, OngoingTaskType.EmbeddingsGeneration, _name, RaftIdGenerator.DontCareId)));
+                    }
+                });
+
+                etl.TaskId = 0;
+                etl.Disabled = true;
+                tasks.Add(_server.SendToLeaderAsync(new AddEmbeddingsGenerationCommand(etl, _name, RaftIdGenerator.DontCareId)));
+            }
+
+            result.DatabaseRecord.EmbeddingsGenerationsUpdated = true;
+        }
+
         if (tasks.Count == 0)
             return;
 
@@ -660,7 +697,7 @@ public sealed class DatabaseRecordActions : IDatabaseRecordActions
             if (index > maxIndex)
                 maxIndex = index;
         }
-
+         
         using (_server.ContextPool.AllocateOperationContext(out TransactionOperationContext context))
         {
             List<string> members;

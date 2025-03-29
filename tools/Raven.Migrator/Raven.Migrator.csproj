@@ -21,7 +21,9 @@
     <PackageReference Include="Newtonsoft.Json" />
     <PackageReference Include="Snappier" />
     <PackageReference Include="System.Data.HashFunction.Blake2" />
+    <PackageReference Include="System.Formats.Asn1" />
     <PackageReference Include="System.Private.Uri" />
+    <PackageReference Include="System.Reflection.Metadata" />
     <PackageReference Include="System.Text.RegularExpressions" />
     <PackageReference Include="ZstdSharp.Port" />
   </ItemGroup>

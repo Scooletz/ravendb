@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Numerics.Tensors;
 using System.Runtime.InteropServices;
@@ -8,12 +7,9 @@ using FastTests;
 using Raven.Client.Documents;
 using Raven.Client.Documents.Indexes;
 using Raven.Client.Documents.Indexes.Vector;
-using Raven.Client.Documents.Linq;
 using Raven.Client.Documents.Operations.Indexes;
-using Raven.Client.Documents.Queries;
 using Raven.Client.Documents.Queries.Vector;
 using Raven.Client.ServerWide.Operations;
-using Raven.Server.Config;
 using Tests.Infrastructure;
 using Xunit;
 using Xunit.Abstractions;
@@ -443,6 +439,7 @@ public class RavenDB_22076 : RavenTestBase
         public float[] EmbeddingSingles { get; set; }
         public sbyte[] EmbeddingSBytes { get; set; }
         public byte[] EmbeddingBinary { get; set; }
+        public string TextualValue { get; set; }
     }
 
     private class DummyIndexJs : AbstractJavaScriptIndexCreationTask

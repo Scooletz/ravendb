@@ -31,6 +31,8 @@ import replicationProgressCommand from "commands/database/tasks/replicationProgr
 import internalReplicationProgressCommand from "commands/database/tasks/internalReplicationProgressCommand";
 import testSnowflakeConnectionStringCommand from "commands/database/cluster/testSnowflakeConnectionStringCommand";
 import testAmazonSqsServerConnectionCommand from "commands/database/cluster/testAmazonSqsServerConnectionCommand";
+import testAiCommand from "commands/database/tasks/testAiCommand";
+import testAiConnectionStringCommand from "commands/database/cluster/testAiConnectionStringCommand";
 
 export default class TasksService {
     async getOngoingTasks(databaseName: string, location: databaseLocationSpecifier) {
@@ -110,12 +112,8 @@ export default class TasksService {
         return new saveConnectionStringCommand(databaseName, connectionString).execute();
     }
 
-    async deleteConnectionString(
-        databaseName: string,
-        type: Raven.Client.Documents.Operations.ETL.EtlType,
-        connectionStringName: string
-    ) {
-        return new deleteConnectionStringCommand(databaseName, type, connectionStringName).execute();
+    async deleteConnectionString(...args: ConstructorParameters<typeof deleteConnectionStringCommand>) {
+        return new deleteConnectionStringCommand(...args).execute();
     }
 
     async testClusterNodeConnection(serverUrl: string, databaseName?: string, bidirectional = true) {
@@ -178,5 +176,13 @@ export default class TasksService {
 
     async getBackupLocation(path: string, databaseName: string) {
         return new getBackupLocationCommand(path, databaseName).execute();
+    }
+
+    async testAi(...args: ConstructorParameters<typeof testAiCommand>) {
+        return new testAiCommand(...args).execute();
+    }
+
+    async testAiConnectionString(...args: ConstructorParameters<typeof testAiConnectionStringCommand>) {
+        return new testAiConnectionStringCommand(...args).execute();
     }
 }

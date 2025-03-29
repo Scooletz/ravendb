@@ -117,6 +117,12 @@ namespace Raven.Server.Documents.Handlers.Processors.OngoingTasks
                             if (snowflakeEtl != null)
                                 _deletingEtl = (snowflakeEtl.Name, snowflakeEtl.Transforms.Where(x => string.IsNullOrEmpty(x.Name) == false).Select(x => x.Name).ToList());
                             break;
+                        case OngoingTaskType.EmbeddingsGeneration:
+                            var embeddingsGenerations = rawRecord.EmbeddingsGenerations;
+                            var embeddingsGeneration = embeddingsGenerations?.Find(x => x.TaskId == id);
+                            if (embeddingsGeneration != null)
+                                _deletingEtl = (embeddingsGeneration.Name, embeddingsGeneration.Transforms.Select(x => x.Name).ToList());
+                            break;
                     }
                 }
             }

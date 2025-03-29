@@ -14,6 +14,7 @@ using Newtonsoft.Json;
 using Raven.Client;
 using Raven.Client.Documents.Conventions;
 using Raven.Client.Documents.Indexes;
+using Raven.Client.Documents.Operations.AI;
 using Raven.Client.Documents.Operations.Backups;
 using Raven.Client.Documents.Operations.ETL;
 using Raven.Client.Documents.Operations.ETL.SQL;
@@ -1077,6 +1078,7 @@ namespace Raven.Server.Commercial
             var elasticSearchEtlCount = 0;
             var queueEtlCount = 0;
             var snowflakeEtlCount = 0;
+            var embeddingsGenerationsCount = 0;
             var snapshotBackupsCount = 0;
             var cloudBackupsCount = 0;
             var encryptedBackupsCount = 0;
@@ -1149,6 +1151,10 @@ namespace Raven.Server.Commercial
                     if (databaseRecord.SnowflakeEtls != null &&
                         databaseRecord.SnowflakeEtls.Count > 0)
                         snowflakeEtlCount++;
+
+                    if (databaseRecord.EmbeddingsGenerations != null &&
+                        databaseRecord.EmbeddingsGenerations.Count > 0)
+                        embeddingsGenerationsCount++;
 
                     var backupTypes = GetBackupTypes(databaseRecord.PeriodicBackups);
                     if (backupTypes.HasSnapshotBackup)
@@ -1238,6 +1244,12 @@ namespace Raven.Server.Commercial
             {
                 var message = GenerateDetails(snowflakeEtlCount, "Snowflake ETL");
                 throw GenerateLicenseLimit(LimitType.SnowflakeEtl, message);
+            }
+
+            if (embeddingsGenerationsCount > 0 && newLicenseStatus.HasEmbeddingsGeneration == false)
+            {
+                var message = GenerateDetails(embeddingsGenerationsCount, "Embeddings Generation");
+                throw GenerateLicenseLimit(LimitType.EmbeddingsGeneration, message);
             }
 
             if (snapshotBackupsCount > 0 && newLicenseStatus.HasSnapshotBackups == false)
@@ -1603,6 +1615,21 @@ namespace Raven.Server.Commercial
             
             const string message = "Your current license doesn't include the Snowflake ETL feature";
             throw GenerateLicenseLimit(LimitType.SnowflakeEtl, message);
+        }
+
+        public void AssertCanAddEmbeddingsGenerationTask(AiConnectionString aiConnectionString)
+        {
+            if (IsValid(out var licenseLimit) == false)
+                throw licenseLimit;
+
+            if (LicenseStatus.HasEmbeddingsGeneration)
+                return;
+            
+            if (aiConnectionString != null && aiConnectionString.GetActiveProvider() == AiConnectorType.Embedded)
+                return;
+
+            const string message = "Your current license doesn't include the Embeddings Generation feature";
+            throw GenerateLicenseLimit(LimitType.EmbeddingsGeneration, message);
         }
 
         public void AssertCanAddConcurrentDataSubscriptions()

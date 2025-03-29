@@ -11,6 +11,7 @@ namespace Raven.Server.Documents.Indexes.Static.Roslyn
         private readonly ReferencedCollectionsRetriever _refCollectionsRetriever;
         private readonly CompareExchangeReferenceDetectorRewriter _compareExchangeReferenceDetector;
         private readonly SelectManyRewriter _selectManyRewriter;
+        private readonly VectorFieldRewriter _vectorFieldRewriter;
 
         public MapFunctionProcessor(CSharpSyntaxRewriter collectionRetriever, SelectManyRewriter selectManyRewriter)
         {
@@ -18,12 +19,13 @@ namespace Raven.Server.Documents.Indexes.Static.Roslyn
             CollectionRetriever = collectionRetriever;
             _refCollectionsRetriever = new ReferencedCollectionsRetriever();
             _compareExchangeReferenceDetector = new CompareExchangeReferenceDetectorRewriter();
+            _vectorFieldRewriter = new VectorFieldRewriter(_refCollectionsRetriever, CollectionRetriever);
         }
 
         public HashSet<string> ReferencedCollections => _refCollectionsRetriever.ReferencedCollections;
 
         public bool HasLoadCompareExchangeValue => _compareExchangeReferenceDetector.HasLoadCompareExchangeValue;
-
+        
         public override SyntaxNode Visit(SyntaxNode node)
         {
             foreach (var rewriter in new CSharpSyntaxRewriter[]
@@ -40,13 +42,13 @@ namespace Raven.Server.Documents.Indexes.Static.Roslyn
                 DynamicLambdaExpressionsRewriter.Instance,
                 RecurseRewriter.Instance,
                 SpatialFieldRewriter.Instance,
-                VectorFieldRewriter.Instance,
                 ConditionalAccessExpressionRewriter.Instance,
                 CoalesceRewriter.Instance,
                 InitializerExpressionRewriter.Instance,
                 NullRewriter.Instance,
                 IsRewriter.Instance,
-                NoTrackingRewriter.Instance
+                NoTrackingRewriter.Instance,
+                _vectorFieldRewriter,
             })
             {
                 node = rewriter.Visit(node);

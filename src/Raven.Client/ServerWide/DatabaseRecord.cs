@@ -5,6 +5,7 @@ using System.Linq;
 using Newtonsoft.Json;
 using Raven.Client.Documents.Indexes;
 using Raven.Client.Documents.Indexes.Analysis;
+using Raven.Client.Documents.Operations.AI;
 using Raven.Client.Documents.Operations.Backups;
 using Raven.Client.Documents.Operations.Configuration;
 using Raven.Client.Documents.Operations.DataArchival;
@@ -123,6 +124,8 @@ namespace Raven.Client.ServerWide
         public Dictionary<string, QueueConnectionString> QueueConnectionStrings = new Dictionary<string, QueueConnectionString>();
         
         public Dictionary<string, SnowflakeConnectionString> SnowflakeConnectionStrings = new Dictionary<string, SnowflakeConnectionString>();
+        
+        public Dictionary<string, AiConnectionString> AiConnectionStrings = new();
 
         public List<RavenEtlConfiguration> RavenEtls = new List<RavenEtlConfiguration>();
 
@@ -137,6 +140,8 @@ namespace Raven.Client.ServerWide
         public List<QueueSinkConfiguration> QueueSinks = new List<QueueSinkConfiguration>();
         
         public List<SnowflakeEtlConfiguration> SnowflakeEtls = new List<SnowflakeEtlConfiguration>();
+        
+        public List<EmbeddingsGenerationConfiguration> EmbeddingsGenerations = [];
 
         public ClientConfiguration Client;
 
@@ -480,6 +485,8 @@ namespace Raven.Client.ServerWide
                 throw new InvalidOperationException($"Can't use task name '{taskName}', there is already a Snowflake ETL task with that name");
             if (QueueSinks.Any(x => x.Name.Equals(taskName, StringComparison.OrdinalIgnoreCase)))
                 throw new InvalidOperationException($"Can't use task name '{taskName}', there is already a Queue Sink task with that name");
+            if (EmbeddingsGenerations.Any(x => x.Name.Equals(taskName, StringComparison.OrdinalIgnoreCase)))
+                throw new InvalidOperationException($"Can't use task name '{taskName}', there is already an Embeddings Generation task with that name");
         }
 
         internal string EnsureUniqueTaskName(string defaultTaskName)

@@ -26,8 +26,8 @@ namespace Raven.Server.Documents.Indexes.Persistence
     public abstract class ConverterBase : IDisposable
     {
         public static readonly BlittableJsonTraverser FlatMapReduceResultsWithTimeOnlyDateOnlySupport = BlittableJsonTraverser.CreateInstanceForIndexing(BlittableJsonTraverser.DefaultFlatMapReduceSeparators, supportTimeOnlyDateOnly: true);
-        public static readonly BlittableJsonTraverser DefaultWithTimeOnlyDateOnlySupport =  BlittableJsonTraverser.CreateInstanceForIndexing(supportTimeOnlyDateOnly: true);
-        
+        public static readonly BlittableJsonTraverser DefaultWithTimeOnlyDateOnlySupport = BlittableJsonTraverser.CreateInstanceForIndexing(supportTimeOnlyDateOnly: true);
+
         protected readonly BlittableJsonTraverser _blittableTraverser;
         protected readonly Index _index;
         protected readonly Dictionary<string, IndexField> _fields;
@@ -49,7 +49,7 @@ namespace Raven.Server.Documents.Indexes.Persistence
                 (storeValue: true, Version: _) => BlittableJsonTraverser.FlatMapReduceResults,
                 (storeValue: false, Version: _) => BlittableJsonTraverser.Default
             };
-            
+
             _indexImplicitNull = indexImplicitNull;
             _indexEmptyEntries = indexEmptyEntries;
             _keyFieldName = keyFieldName ??
@@ -83,7 +83,10 @@ namespace Raven.Server.Documents.Indexes.Persistence
         private static readonly TypeCache<ValueType> _valueTypeCache = new(32);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        protected ValueType GetValueType(object value)
+        protected ValueType GetValueType(object value) => GetValueType(value, _index.Definition.Version >= IndexDefinitionBaseServerSide.IndexVersion.ProperlyParseDictionaryToStoredField);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static ValueType GetValueType(object value, bool properlyParseDictionaryToStoredField)
         {
             ValueType GetValueTypeUnlikely(Type type)
             {
@@ -134,7 +137,7 @@ namespace Raven.Server.Documents.Indexes.Persistence
                     case char:
                         valueType = ValueType.Char;
                         break;
-                    
+
                     case string:
                         valueType = ValueType.String;
                         break;
@@ -172,11 +175,9 @@ namespace Raven.Server.Documents.Indexes.Persistence
                     case TimeOnly:
                         valueType = ValueType.TimeOnly;
                         break;
-                    
                     case VectorValue:
                         valueType = ValueType.Vector;
                         break;
-
                     default:
                         if (value is IDictionary)
                             valueType = ValueType.Dictionary;
@@ -193,7 +194,7 @@ namespace Raven.Server.Documents.Indexes.Persistence
 
                 // We call GetValueType again because by now we know which type it is and we will return immediately
                 // after checking in the cache.
-                return GetValueType(value);
+                return GetValueType(value, properlyParseDictionaryToStoredField);
             }
 
             if (value == null)
@@ -211,7 +212,7 @@ namespace Raven.Server.Documents.Indexes.Persistence
                     case ValueType.LazyCompressedString:
                         return ((LazyCompressedStringValue)value).UncompressedSize == 0 ? ValueType.EmptyString : ValueType.LazyCompressedString;
                     case ValueType.Dictionary:
-                        return (_index.Definition.Version >= IndexDefinitionBaseServerSide.IndexVersion.ProperlyParseDictionaryToStoredField)
+                        return properlyParseDictionaryToStoredField
                             ? ValueType.Dictionary
                             : ValueType.Enumerable;
                 }
@@ -221,6 +222,9 @@ namespace Raven.Server.Documents.Indexes.Persistence
 
             return GetValueTypeUnlikely(type);
         }
+
+
+
 
         protected static byte[] ToArray(ConversionScope scope, Stream stream, out int length)
         {
@@ -287,7 +291,7 @@ namespace Raven.Server.Documents.Indexes.Persistence
             return true;
         }
 
-        protected enum ValueType
+        public enum ValueType
         {
             Null,
 
@@ -336,13 +340,13 @@ namespace Raven.Server.Documents.Indexes.Persistence
             DateOnly,
 
             TimeOnly,
-            
+
             Vector,
-            
+
             CoraxSpatialPointEntry,
-            
+
             CoraxDynamicItem,
-            
+
             Dictionary
         }
 
