@@ -218,10 +218,10 @@ rvn_init_pager(const char *filename,
     }
     global_state->open_flags = open_flags;
     global_state->ref_count = 1;
-    global_state->writes_arena.lock = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
-    global_state->fsync_dir_arena.lock = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
     global_state->writes_arena = (struct arena){.eventfd = -1};
     global_state->fsync_dir_arena = (struct arena){.eventfd = -1};
+    global_state->writes_arena.lock = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
+    global_state->fsync_dir_arena.lock = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
 #if !__APPLE__
     global_state->writes_arena.eventfd = eventfd(0, EFD_CLOEXEC);
     if (global_state->writes_arena.eventfd == -1)
