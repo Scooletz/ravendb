@@ -61,19 +61,12 @@ Remove-Item .\runtimes -Force -Recurse -ErrorAction Ignore
 Remove-Item .\artifacts -Force -Recurse -ErrorAction Ignore
 
 mkdir runtimes/win-x86/native -ErrorAction Ignore > $null
-Copy-Item ../../libs/libzstd/libzstd.win.x86.dll runtimes/win-x86/native/libzstd.dll
 mkdir runtimes/win-x64/native -ErrorAction Ignore > $null
-Copy-Item ../../libs/libzstd/libzstd.win.x64.dll runtimes/win-x64/native/libzstd.dll
 mkdir runtimes/linux-x64/native -ErrorAction Ignore > $null
-Copy-Item ../../libs/libzstd/libzstd.linux.x64.so runtimes/linux-x64/native/libzstd.so
 mkdir runtimes/linux-arm/native -ErrorAction Ignore > $null
-Copy-Item ../../libs/libzstd/libzstd.linux.arm.32.so runtimes/linux-arm/native/libzstd.so
 mkdir runtimes/linux-arm64/native -ErrorAction Ignore > $null
-Copy-Item ../../libs/libzstd/libzstd.linux.arm.64.so runtimes/linux-arm64/native/libzstd.so
 mkdir runtimes/osx-x64/native -ErrorAction Ignore > $null
-Copy-Item ../../libs/libzstd/libzstd.mac.x64.dylib runtimes/osx-x64/native/libzstd.dylib
 mkdir runtimes/osx-arm64/native -ErrorAction Ignore > $null
-Copy-Item ../../libs/libzstd/libzstd.mac.arm64.dylib runtimes/osx-arm64/native/libzstd.dylib
 
 
 Write-Output "Building Windows x86"

@@ -20,13 +20,6 @@ namespace EmbeddedTests
 
         private readonly ConcurrentSet<string> _localPathsToDelete = new ConcurrentSet<string>(StringComparer.OrdinalIgnoreCase);
 
-#if NETCOREAPP3_1_OR_GREATER
-        static EmbeddedTestBase()
-        {
-            DynamicNativeLibraryResolver.Register(typeof(ZstdLib).Assembly, ZstdLib.LIBZSTD);
-        }
-#endif
-
         protected string NewDataPath([CallerMemberName] string caller = null)
         {
             var path = $".\\Databases\\{caller ?? "TestPath"}.{Interlocked.Increment(ref _pathCount)}";

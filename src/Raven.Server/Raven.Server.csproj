@@ -149,7 +149,6 @@
     <PackageReference Include="System.Security.Cryptography.ProtectedData" />
     <PackageReference Include="System.Security.Cryptography.X509Certificates" />
     <PackageReference Include="System.Text.Json" />
-    <PackageReference Include="ZstdSharp.Port" />
   </ItemGroup>
   <ItemGroup>
     <None Update="NLog.default.config">

@@ -25,6 +25,5 @@
     <PackageReference Include="System.Private.Uri" />
     <PackageReference Include="System.Reflection.Metadata" />
     <PackageReference Include="System.Text.RegularExpressions" />
-    <PackageReference Include="ZstdSharp.Port" />
   </ItemGroup>
 </Project>
