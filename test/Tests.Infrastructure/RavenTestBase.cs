@@ -185,9 +185,18 @@ namespace FastTests
                     }
 
                     var pathToUse = options.Path;
+                    // if user pass the Path, it means he responsible to delete it
                     var hardDelete = options.Path is null;
+                    // if path is defined we run in a persistent way
+                    // so we run in memory only when no path is defined _and_ RunInMemory is true
                     var runInMemory = options.RunInMemory && pathToUse == null;
+                    
                     var numOfServers = servers.Count;
+                    if (numOfServers == 0)
+                    {
+                        // not in a cluster
+                        numOfServers = 1;
+                    }
 
                     if (runInMemory == false && numOfServers == 1)
                     {
