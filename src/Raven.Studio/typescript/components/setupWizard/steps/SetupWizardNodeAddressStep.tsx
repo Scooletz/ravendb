@@ -1,5 +1,5 @@
 import { Control, useFieldArray, useForm, useFormContext, UseFormReturn, useWatch } from "react-hook-form";
-import { SetupWizardFormData } from "../setupWizardValidation";
+import { SetupWizardFormData, SetupWizardSecurityOption } from "../setupWizardValidation";
 import { Icon } from "components/common/Icon";
 import Button from "react-bootstrap/Button";
 import {
@@ -48,7 +48,10 @@ export function SetupWizardNodeAddressStep() {
         name: "nodeAddressStep.nodes",
     });
 
-    const { domainStep } = useWatch({ control });
+    const {
+        domainStep,
+        securityStep: { securityOption },
+    } = useWatch({ control });
 
     const hasDomainStep = domainStep?.domain && domainStep?.rootDomain;
     const fullDomain = `a.${domainStep.domain.toLocaleLowerCase()}.${domainStep.rootDomain}`;
@@ -80,20 +83,13 @@ export function SetupWizardNodeAddressStep() {
                 ],
                 isEditing: true, // first node should be added with default values and in editing mode
                 isNewlyAdded: false,
-                nodeUrl: hasDomainStep ? fullDomain : "",
+                nodeUrl: hasDomainStep && securityOption !== "none" ? fullDomain : undefined,
                 httpPort: 443,
                 tcpPort: 38888,
             });
         }
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-    /*
-TODO:
-Add Validation to:
-- Ip address could be hostname (localhost, hostname, etc.)
-- Ip address cannot be empty.
-- ExternalIpAddress should be required when IPs contain hostname or 0.0.0.0
-*/
     return (
         <div>
             <div className="mb-4">
@@ -161,6 +157,12 @@ function NodeDetailsPanel({ control, index, onRemove }: NodeDetailsPanelProps) {
         control,
         name: `nodeAddressStep.nodes.${index}`,
     });
+
+    const {
+        securityStep: { securityOption },
+    } = useWatch({
+        control,
+    });
     const { setupWizardService } = useServices();
 
     const asyncGetSetupParameters = useAsync(async () => setupWizardService.getSetupParameters(), []);
@@ -171,7 +173,12 @@ function NodeDetailsPanel({ control, index, onRemove }: NodeDetailsPanelProps) {
         defaultValues: { ...nodeData },
         mode: "onChange",
         resolver: yupResolver(nodeEditFormSchema),
-        context: { nodeAddressStep, currentIndex: index, isDocker: asyncGetSetupParameters.result?.IsDocker },
+        context: {
+            nodeAddressStep,
+            securityOption,
+            currentIndex: index,
+            isDocker: asyncGetSetupParameters.result?.IsDocker,
+        },
     });
 
     return (
@@ -205,9 +212,14 @@ function NodeDetailsPanelHeader({ control, index, onRemove, editNodeForm }: Node
         name: "domainStep",
     });
 
+    const securityOption = useWatch({
+        control,
+        name: "securityStep.securityOption",
+    });
+
     const { handleSubmit, reset, formState } = editNodeForm;
 
-    const nodeName = `Node ${nodeData.nodeTag}`;
+    const nodeName = `Node ${nodeData.nodeTag ?? "?"}`;
 
     const handleDiscardEdit = () => {
         if (nodeData.isNewlyAdded) {
@@ -223,8 +235,12 @@ function NodeDetailsPanelHeader({ control, index, onRemove, editNodeForm }: Node
 
     const handleSaveEdit = handleSubmit(async (formData: NodeEditFormData) => {
         setValue(`nodeAddressStep.nodes.${index}`, {
-            nodeUrl: `${formData.nodeTag.toLowerCase()}.${domainData.domain.toLocaleLowerCase()}.${domainData.rootDomain}`,
+            nodeUrl:
+                securityOption !== "none"
+                    ? `${formData.nodeTag.toLowerCase()}.${domainData.domain.toLocaleLowerCase()}.${domainData.rootDomain}`
+                    : undefined,
             ...formData,
+            nodeTag: formData.isPassive ? undefined : formData.nodeTag,
             isEditing: false,
             isNewlyAdded: false,
         });
@@ -266,7 +282,16 @@ function NodeDetailsPanelHeader({ control, index, onRemove, editNodeForm }: Node
                     ) : (
                         <>
                             <Icon color="node" icon="node" />
-                            {nodeName} {index === 0 && <small className="text-muted">(current node)</small>}
+                            {nodeName}{" "}
+                            {index === 0 && (
+                                <small className="text-muted">
+                                    {nodeData.isPassive ? (
+                                        <span className="text-info">(Passive)</span>
+                                    ) : (
+                                        "(current node)"
+                                    )}
+                                </small>
+                            )}
                         </>
                     )}
                 </RichPanelName>
@@ -336,6 +361,7 @@ function NodeDetailsPanelView({ index, control }: { index: number; control: Cont
         name: `nodeAddressStep.nodes.${index}`,
     });
 
+    const localIpPortAddress = `${nodeData.ipAddress[0].ipAddress}:${nodeData.httpPort}`;
     return (
         <RichPanelDetails>
             <RichPanelDetailItem
@@ -355,7 +381,9 @@ function NodeDetailsPanelView({ index, control }: { index: number; control: Cont
                         </PopoverWithHoverWrapper>
                     </span>
                     {/*// TODO add domain name from domain step to nodeUrl*/}
-                    <div className="text-truncate">{nodeData.nodeUrl ?? nodeData.ipAddress[0].ipAddress}</div>
+                    <div className="text-truncate" title={nodeData.nodeUrl || localIpPortAddress}>
+                        {nodeData.nodeUrl || localIpPortAddress}
+                    </div>
                 </div>
             </RichPanelDetailItem>
             <RichPanelDetailItem>
@@ -417,10 +445,6 @@ function NodeDetailsPanelView({ index, control }: { index: number; control: Cont
     );
 }
 
-const isHostnameOrSpecialIp = (address: string): boolean => {
-    return address === "0.0.0.0" || !genUtils.regexIPv4.test(address);
-};
-
 function NodeDetailsPanelEdit({
     editNodeForm,
     parentControl,
@@ -443,12 +467,24 @@ function NodeDetailsPanelEdit({
         control: parentControl,
     });
 
-    const { isExternalRequired } = useHostnameDetectionSideEffects(editNodeForm);
+    const isLoopbackOnly = useMemo(() => {
+        return nodeData.ipAddress.every((ip) => genUtils.isLocalhostIpAddress(ip.ipAddress));
+    }, [nodeData.ipAddress]);
+
+    // TODO: currently sideEffects cause a lot of re-renders, we need to optimize it
+    const { isExternalRequired } = useHostnameDetectionSideEffects({ editNodeForm, parentControl });
 
     const isDNSVisible = securityOption === "ownCertificate"; // TODO add && !this.model.certificate().wildcardCertificate()
     const isPassiveVisible = securityOption === "none" && setupMethod !== "createPackage" && nodes.length === 1;
 
+    const canCustomizeExternalIpsAndPorts = securityOption === "letsEncrypt";
+    const canCustomizeExternalTcpPorts = securityOption === "ownCertificate";
+
     const colWidth = isDNSVisible ? 6 : 4;
+
+    const shouldDisplayUnsafeMode = nodeData.ipAddress.some(
+        ({ ipAddress }) => !genUtils.isLocalhostIpAddress(ipAddress)
+    );
 
     return (
         <RichPanelDetails>
@@ -480,7 +516,13 @@ function NodeDetailsPanelEdit({
                                     <Icon icon="info" margin="ms-1" color="info" />
                                 </PopoverWithHoverWrapper>
                             </FormLabel>
-                            <FormInput type="text" name="nodeTag" control={control} />
+                            <FormInput
+                                disabled={nodeData.isPassive}
+                                placeholder={nodeData.isPassive ? "Node will start in Passive state" : "Enter Node Tag"}
+                                type="text"
+                                name="nodeTag"
+                                control={control}
+                            />
                         </FormGroup>
                     </Col>
                     {isDNSVisible && (
@@ -551,38 +593,64 @@ function NodeDetailsPanelEdit({
                     </Col>
                 </Row>
                 <IpAddressList control={control} />
-                {nodeData.ipAddress.length > 0 && (
-                    <RichAlert variant="info" icon="info" className="my-3">
-                        RavenDB will update the DNS record for{" "}
-                        <a>{`${nodeData.nodeTag.toLowerCase()}.${domainStep.domain}`}</a> to IP{" "}
-                        {nodeData.ipAddress.length > 1 && !nodeData.externalIpAddress ? "addresses" : "address"}:{" "}
-                        {nodeData.externalIpAddress ? (
-                            <a>{nodeData.externalIpAddress}</a>
-                        ) : nodeData.ipAddress.length > 0 ? (
-                            <a>{nodeData.ipAddress.map((x) => x.ipAddress).join(", ")}</a>
-                        ) : (
-                            <a>&lt;insert IP addresses&gt;</a>
-                        )}
-                    </RichAlert>
-                )}
-                <FormSwitch name="hasExternalConfig" color="primary" disabled={isExternalRequired} control={control}>
-                    <span className="d-flex gap-1">
-                        Customize external IP and ports
-                        <PopoverWithHoverWrapper
-                            message={
-                                <PopoverMessage
-                                    description="External overrides allow you to specify an alternative IP address, hostname, or
+                <div className="d-flex flex-column gap-1">
+                    {isLoopbackOnly && (
+                        <RichAlert variant="warning" icon="warning">
+                            This node won&#39;t be reachable from outside this machine.
+                        </RichAlert>
+                    )}
+                    {securityOption === "letsEncrypt" && nodeData.ipAddress.length > 0 && (
+                        <RichAlert variant="info" icon="info" className="my-3">
+                            RavenDB will update the DNS record for{" "}
+                            <a>{`${nodeData.nodeTag.toLowerCase()}.${domainStep.domain}`}</a> to IP{" "}
+                            {nodeData.ipAddress.length > 1 && !nodeData.externalIpAddress ? "addresses" : "address"}:{" "}
+                            {nodeData.externalIpAddress && nodeData.hasExternalConfig ? (
+                                <a>{nodeData.externalIpAddress}</a>
+                            ) : nodeData.ipAddress.length > 0 ? (
+                                <a>{nodeData.ipAddress.map((x) => x.ipAddress).join(", ")}</a>
+                            ) : (
+                                <a>&lt;insert IP addresses&gt;</a>
+                            )}
+                        </RichAlert>
+                    )}
+                    {securityOption === "none" && shouldDisplayUnsafeMode && (
+                        <RichAlert variant="warning" icon="warning">
+                            Node IP is not configured for local network. By proceeding, you admit that you understand
+                            the risk behind running RavenDB server in the Unsecure mode. Authentication is off, so
+                            anyone who can access this IP will be granted <i>administrative privileges</i>.
+                        </RichAlert>
+                    )}
+                </div>
+
+                {(canCustomizeExternalIpsAndPorts || canCustomizeExternalTcpPorts) && (
+                    <FormSwitch
+                        name="hasExternalConfig"
+                        color="primary"
+                        disabled={isExternalRequired}
+                        control={control}
+                    >
+                        <span className="d-flex gap-1">
+                            Customize external IP and ports
+                            <PopoverWithHoverWrapper
+                                message={
+                                    <PopoverMessage
+                                        description="External overrides allow you to specify an alternative IP address, hostname, or
                                         HTTPS port that clients should use instead of the default settings."
-                                />
-                            }
-                        >
-                            <Icon icon="info" margin="m-0" color="info" />
-                        </PopoverWithHoverWrapper>
-                    </span>
-                </FormSwitch>
+                                    />
+                                }
+                            >
+                                <Icon icon="info" margin="m-0" color="info" />
+                            </PopoverWithHoverWrapper>
+                        </span>
+                    </FormSwitch>
+                )}
                 <Collapse in={nodeData.hasExternalConfig}>
                     <div className="hstack gap-1">
-                        <EditFormExternalAddressInputs control={control} />
+                        <EditFormExternalAddressInputs
+                            control={control}
+                            canCustomizeExternalIpsAndPorts={canCustomizeExternalIpsAndPorts}
+                            canCustomizeExternalTcpPorts={canCustomizeExternalTcpPorts}
+                        />
                     </div>
                 </Collapse>
             </Form>
@@ -590,7 +658,15 @@ function NodeDetailsPanelEdit({
     );
 }
 
-function EditFormExternalAddressInputs({ control }: { control: Control<NodeEditFormData> }) {
+function EditFormExternalAddressInputs({
+    control,
+    canCustomizeExternalIpsAndPorts,
+    canCustomizeExternalTcpPorts,
+}: {
+    control: Control<NodeEditFormData>;
+    canCustomizeExternalIpsAndPorts: boolean;
+    canCustomizeExternalTcpPorts: boolean;
+}) {
     return (
         <>
             <RichPanelDetailItem className="flex-grow">
@@ -610,7 +686,6 @@ function EditFormExternalAddressInputs({ control }: { control: Control<NodeEditF
                             </PopoverWithHoverWrapper>
                         </span>
                     </FormLabel>
-                    {/*TODO When using a hostname in ip addresses, ensure that it resolves to the correct IP address.*/}
                     <FormInput
                         type="text"
                         name="externalIpAddress"
@@ -619,56 +694,60 @@ function EditFormExternalAddressInputs({ control }: { control: Control<NodeEditF
                     />
                 </FormGroup>
             </RichPanelDetailItem>
-            <RichPanelDetailItem className="flex-grow">
-                <FormGroup className="vstack w-100">
-                    <FormLabel className="fw-bold">
-                        <span className="d-flex gap-1">
-                            External HTTPS port <OptionalLabel />
-                            <PopoverWithHoverWrapper
-                                message={
-                                    <PopoverMessage
-                                        description="Defines the public HTTPS endpoint that clients and browsers should use
-                                            instead of default binding."
-                                    />
-                                }
-                            >
-                                <Icon icon="info" margin="ms-1" color="info" />
-                            </PopoverWithHoverWrapper>
-                        </span>
-                    </FormLabel>
-                    <FormInput
-                        type="number"
-                        name="externalHttpPort"
-                        placeholder="Enter external HTTPS port"
-                        control={control}
-                    />
-                </FormGroup>
-            </RichPanelDetailItem>
-            <RichPanelDetailItem className="flex-grow">
-                <FormGroup className="vstack w-100">
-                    <FormLabel className="fw-bold">
-                        <span className="d-flex gap-1">
-                            External TCP Port <OptionalLabel />
-                            <PopoverWithHoverWrapper
-                                message={
-                                    <PopoverMessage
-                                        description="Defines the publicly accessible TCP endpoint for inter-node communication
-                                            and client connections."
-                                    />
-                                }
-                            >
-                                <Icon icon="info" margin="ms-1" color="info" />
-                            </PopoverWithHoverWrapper>
-                        </span>
-                    </FormLabel>
-                    <FormInput
-                        type="number"
-                        name="externalTcpPort"
-                        placeholder="Enter external TCP port"
-                        control={control}
-                    />
-                </FormGroup>
-            </RichPanelDetailItem>{" "}
+            {canCustomizeExternalIpsAndPorts && (
+                <RichPanelDetailItem className="flex-grow">
+                    <FormGroup className="vstack w-100">
+                        <FormLabel className="fw-bold">
+                            <span className="d-flex gap-1">
+                                External HTTPS port <OptionalLabel />
+                                <PopoverWithHoverWrapper
+                                    message={
+                                        <PopoverMessage
+                                            description="Defines the public HTTPS endpoint that clients and browsers should use
+                                                instead of default binding."
+                                        />
+                                    }
+                                >
+                                    <Icon icon="info" margin="ms-1" color="info" />
+                                </PopoverWithHoverWrapper>
+                            </span>
+                        </FormLabel>
+                        <FormInput
+                            type="number"
+                            name="externalHttpPort"
+                            placeholder="Enter external HTTPS port"
+                            control={control}
+                        />
+                    </FormGroup>
+                </RichPanelDetailItem>
+            )}
+            {(canCustomizeExternalIpsAndPorts || canCustomizeExternalTcpPorts) && (
+                <RichPanelDetailItem className="flex-grow">
+                    <FormGroup className="vstack w-100">
+                        <FormLabel className="fw-bold">
+                            <span className="d-flex gap-1">
+                                External TCP Port <OptionalLabel />
+                                <PopoverWithHoverWrapper
+                                    message={
+                                        <PopoverMessage
+                                            description="Defines the publicly accessible TCP endpoint for inter-node communication
+                                                and client connections."
+                                        />
+                                    }
+                                >
+                                    <Icon icon="info" margin="ms-1" color="info" />
+                                </PopoverWithHoverWrapper>
+                            </span>
+                        </FormLabel>
+                        <FormInput
+                            type="number"
+                            name="externalTcpPort"
+                            placeholder="Enter external TCP port"
+                            control={control}
+                        />
+                    </FormGroup>
+                </RichPanelDetailItem>
+            )}
         </>
     );
 }
@@ -706,25 +785,74 @@ function AddAnotherNode({ onAddNode }: AddAnotherNodeProps) {
     );
 }
 
-function useHostnameDetectionSideEffects(editNodeForm: UseFormReturn<NodeEditFormData>) {
-    const { setValue, control } = editNodeForm;
-    const nodeData = useWatch({ control });
+interface UseHostnameDetectionSideEffectsProps {
+    editNodeForm: UseFormReturn<NodeEditFormData>;
+    parentControl: Control<SetupWizardFormData>;
+}
 
-    const hasSpecialIp = useMemo(() => {
-        return nodeData.ipAddress?.some((ip) => isHostnameOrSpecialIp(ip?.ipAddress || "")) || false;
+function useHostnameDetectionSideEffects({ editNodeForm, parentControl }: UseHostnameDetectionSideEffectsProps) {
+    const { setValue, control, watch } = editNodeForm;
+    const nodeData = useWatch({ control });
+    const { securityStep: {securityOption} } = useWatch({ control: parentControl });
+
+    const isHostname = useMemo(() => {
+        return (
+            nodeData.ipAddress.some((ip) => genUtils.isHostname(ip.ipAddress)) &&
+            securityOption === "ownCertificate"
+        );
+    }, [nodeData.ipAddress]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    const hasBindAllIp = useMemo(() => {
+        return nodeData.ipAddress.some((ip) => genUtils.isBindAllIpAddress(ip.ipAddress));
+    }, [nodeData.ipAddress]);
+
+    const ipsContainHostname = useMemo(() => {
+        return nodeData.ipAddress.some((ip) => genUtils.isHostname(ip.ipAddress));
     }, [nodeData.ipAddress]);
 
     useEffect(() => {
-        if (hasSpecialIp && !nodeData.hasExternalConfig) {
-            setValue("hasExternalConfig", true, {
-                shouldValidate: true,
-            });
-        }
-    }, [hasSpecialIp, nodeData.hasExternalConfig, setValue]);
+        const { unsubscribe } = watch((values) => {
+            const ipsContainHostname = values.ipAddress.some((ip) => genUtils.isHostname(ip.ipAddress));
+            // && securityOption === "ownCertificate";
+
+            const hasBindAllIp = values.ipAddress.some((ip) => genUtils.isBindAllIpAddress(ip?.ipAddress));
+
+            const requirePublicIpWhenBindAllUsed =
+                securityOption === "letsEncrypt" && hasBindAllIp;
+
+            // when node is passive, we need to clear the nodeTag value to show placeholder
+            if (values.isPassive) {
+                setValue("nodeTag", "");
+            }
+
+            // case: when user enter 0.0.0.0 ip address, and then remove it and uncheck the checkbox (external config). We need to clear the errors for external config.
+            // if (!values.hasExternalConfig) {
+            //     clearErrors(["externalIpAddress", "externalHttpPort", "externalTcpPort"]);
+            // }
+
+            // Automatically enable external configuration in these scenarios:
+            // 1. When using Let's Encrypt with hostnames instead of IP addresses
+            // 2. When using Let's Encrypt with bind-all address (0.0.0.0)
+            // 3. When bind-all IP is used with Let's Encrypt (requires public IP specification)
+            // TODO: extract logic to smaller conditions
+            if (
+                (((ipsContainHostname && securityOption === "letsEncrypt") ||
+                    (hasBindAllIp && securityOption === "letsEncrypt")) &&
+                    !values.hasExternalConfig) ||
+                requirePublicIpWhenBindAllUsed
+            ) {
+                setValue("hasExternalConfig", true, {
+                    shouldValidate: true,
+                });
+            }
+        });
+
+        return () => unsubscribe();
+    }, [watch]); // eslint-disable-line react-hooks/exhaustive-deps
 
     return {
-        hasSpecialIp,
-        isExternalRequired: hasSpecialIp,
+        isHostname,
+        isExternalRequired: isHostname || hasBindAllIp || ipsContainHostname,
     };
 }
 
@@ -930,30 +1058,56 @@ export const ipAddressFormSchema = yup.object().shape({
                 return (isDocker && !genUtils.isLocalhostIpAddress(value)) || !isDocker;
             }
         )
-        .required("IP address is required"),
-});
-
-export const nodeEditFormSchema = yup.object({
-    isPassive: yup.boolean(),
-    nodeTag: yup
-        .string()
-        .required("Node tag is required")
-        .matches(/^[A-Z]{1,4}$/, "Node tag must be 1 to 4 uppercase letters")
-        .test("unique", "Node tag must be unique", function (value) {
-            const { nodeAddressStep, currentIndex } = this.options.context as {
+        .test("valid-ip-in-unsecure-mode", "In unsecure mode you cannot use hostnames", function (value) {
+            const { securityOption } = this.options.context as {
                 nodeAddressStep: SetupWizardFormData["nodeAddressStep"];
+                securityOption: SetupWizardSecurityOption;
                 currentIndex: number;
             };
 
-            if (!nodeAddressStep || !nodeAddressStep.nodes) {
-                return true;
-            }
+            const isHostname = genUtils.isHostname(value);
+            const isUnsecureMode = securityOption === "none";
 
-            return (
-                nodeAddressStep.nodes.findIndex((node, idx) => node.nodeTag === value && idx !== currentIndex) === -1
-            );
-        }),
-    dnsName: yup.string(), // TODO required when visible
+            return !isHostname || !isUnsecureMode;
+        })
+        .required("Please define at least one IP for this node"),
+});
+
+export const nodeEditFormSchema = yup.object({
+    isPassive: yup.boolean().default(false),
+    nodeTag: yup.string().when("$isPassive", {
+        is: false,
+        then: (schema) =>
+            schema
+                .required("Node tag is required")
+                .matches(/^[A-Z]{1,4}$/, "Node tag must be 1 to 4 uppercase letters")
+                .test("unique", "Node tag must be unique", function (value) {
+                    const { nodeAddressStep, currentIndex } = this.options.context as {
+                        nodeAddressStep: SetupWizardFormData["nodeAddressStep"];
+                        setupWizardFormData: SetupWizardFormData;
+                        currentIndex: number;
+                    };
+
+                    if (!nodeAddressStep || !nodeAddressStep.nodes) {
+                        return true;
+                    }
+
+                    return (
+                        nodeAddressStep.nodes.findIndex(
+                            (node, idx) => node.nodeTag === value && idx !== currentIndex
+                        ) === -1
+                    );
+                })
+                .test("reserved-tag", "This node tag is reserved", (value) => {
+                    return value !== "RAFT";
+                }),
+        otherwise: (schema) => schema,
+    }),
+    dnsName: yup.string().when("$securityOption", {
+        is: "ownCertificate",
+        then: (schema) => schema.required("DNS name is required"),
+        otherwise: (schema) => schema,
+    }),
     httpPort: yup
         .number()
         .default(8080)
@@ -970,8 +1124,16 @@ export const nodeEditFormSchema = yup.object({
         .required("TCP port is required"),
     ipAddress: yup.array().of(ipAddressFormSchema).min(1, "At least one IP address is required"),
     hasExternalConfig: yup.boolean().default(false),
-    externalIpAddress: yup.string().when(["hasExternalConfig", "ipAddress"], {
-        is: function (hasExtConfig: boolean, ipAddresses: NodeEditFormData["ipAddress"]) {
+    externalIpAddress: yup.string().when(["hasExternalConfig", "ipAddress", "$securityOption"], {
+        is: function (
+            hasExtConfig: boolean,
+            ipAddresses: NodeEditFormData["ipAddress"],
+            securityOption: SetupWizardSecurityOption
+        ) {
+            if (securityOption === "none") {
+                return false;
+            }
+
             if (!hasExtConfig) {
                 return false;
             }
@@ -994,13 +1156,17 @@ export const nodeEditFormSchema = yup.object({
         },
         then: (schema) =>
             schema
-                .required("External IP address is required")
+                .required("External IP address is required when an address contains Hostname or 0.0.0.0")
                 .test(
                     "not-url",
                     "Expected valid IP Address/Hostname, not URL",
                     (value) => !value?.startsWith("http://") && !value?.startsWith("https://")
                 )
-                .ipv4("Please enter valid IP address."),
+                .test(
+                    "valid-ip-without-port",
+                    "Please enter a valid IP address without port",
+                    (value) => !value || (!/:\d+$/.test(value) && genUtils.regexIPv4.test(value))
+                ),
         otherwise: (schema) => schema.nullable(),
     }),
     externalHttpPort: yup

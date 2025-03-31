@@ -125,6 +125,10 @@ export function SetupWizardDomainStep() {
                     </PopoverWithHoverWrapper>
                 </FormLabel>
                 {/* height is set to 38px to match the height of the input field*/}
+                {/*
+                    How to present all email addresses associated with the license?
+                    https://www.figma.com/design/3XmG4txhRal5GD09d43gSP?node-id=15-12475#1192386735
+                 */}
                 <InputGroupText style={{ height: "38px" }}>{domainStep.email}</InputGroupText>
             </FormGroup>
         </div>

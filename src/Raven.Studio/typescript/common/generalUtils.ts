@@ -28,6 +28,10 @@ class genUtils {
     
     /***  IP Address Methods  ***/
 
+    static isBindAllIpAddress(ip: string) {
+        return ip === "0.0.0.0"
+    }
+    
     static isLocalhostIpAddress(ip: string): boolean {
         return ((ip === 'localhost') || (_.split(ip, '.')[0] === '127') || (ip === '::1'));
     }
