@@ -83,9 +83,11 @@ export function SetupWizardNodeAddressStep() {
                 ],
                 isEditing: true, // first node should be added with default values and in editing mode
                 isNewlyAdded: false,
+                isPassive: false,
                 nodeUrl: hasDomainStep && securityOption !== "none" ? fullDomain : undefined,
                 httpPort: 443,
                 tcpPort: 38888,
+                hasExternalConfig: false,
             });
         }
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -170,7 +172,7 @@ function NodeDetailsPanel({ control, index, onRemove }: NodeDetailsPanelProps) {
     const nodeAddressStep = getValues().nodeAddressStep;
 
     const editNodeForm = useForm<NodeEditFormData>({
-        defaultValues: { ...nodeData },
+        defaultValues: nodeData,
         mode: "onChange",
         resolver: yupResolver(nodeEditFormSchema),
         context: {
@@ -364,11 +366,7 @@ function NodeDetailsPanelView({ index, control }: { index: number; control: Cont
     const localIpPortAddress = `${nodeData.ipAddress[0].ipAddress}:${nodeData.httpPort}`;
     return (
         <RichPanelDetails>
-            <RichPanelDetailItem
-                style={{
-                    width: "30%",
-                }}
-            >
+            <RichPanelDetailItem>
                 <div className="d-flex flex-column gap-1 w-100">
                     <span className="d-flex gap-1">
                         <b>Node URL</b>
@@ -385,6 +383,27 @@ function NodeDetailsPanelView({ index, control }: { index: number; control: Cont
                     </div>
                 </div>
             </RichPanelDetailItem>
+
+            {nodeData.dnsName && (
+                <RichPanelDetailItem>
+                    <div className="d-flex flex-column gap-1 w-100">
+                        <span className="d-flex gap-1">
+                            <b>DNS Name</b>
+                            <PopoverWithHoverWrapper
+                                message={
+                                    <PopoverMessage description="Defines the address under which specific node will be available." />
+                                }
+                            >
+                                <Icon icon="info" color="info" margin="m-0" />
+                            </PopoverWithHoverWrapper>
+                        </span>
+                        <div className="text-truncate" title={nodeData.dnsName}>
+                            {nodeData.dnsName}
+                        </div>
+                    </div>
+                </RichPanelDetailItem>
+            )}
+
             <RichPanelDetailItem>
                 <div className="d-flex flex-column gap-1">
                     <span className="d-flex gap-1">
@@ -460,7 +479,7 @@ function NodeDetailsPanelEdit({
         domainStep,
         securityStep: { securityOption },
         setupMethodStep: { method: setupMethod },
-        selfSignedCertificateStep: { cns },
+        selfSignedCertificateStep: { cns, isWildcardCertificate },
         nodeAddressStep: { nodes },
     } = useWatch({
         control: parentControl,
@@ -472,7 +491,7 @@ function NodeDetailsPanelEdit({
 
     const { isExternalRequired } = useHostnameDetectionSideEffects({ editNodeForm, parentControl });
 
-    const isDNSVisible = securityOption === "ownCertificate"; // TODO add && !this.model.certificate().wildcardCertificate()
+    const isDNSVisible = securityOption === "ownCertificate" && !isWildcardCertificate;
     const isPassiveVisible = securityOption === "none" && setupMethod !== "createPackage" && nodes.length === 1;
 
     const canCustomizeExternalIpsAndPorts = securityOption === "letsEncrypt";
@@ -600,7 +619,8 @@ function NodeDetailsPanelEdit({
                     {securityOption === "letsEncrypt" && nodeData.ipAddress.length > 0 && (
                         <RichAlert variant="info" icon="info" className="my-3">
                             RavenDB will update the DNS record for{" "}
-                            <a>{`${nodeData.nodeTag.toLowerCase()}.${domainStep.domain}`}</a> to IP{" "}
+                            <a>{`${nodeData.nodeTag.toLowerCase()}.${domainStep.domain.toLowerCase()}.${domainStep.rootDomain}`}</a>{" "}
+                            to IP{" "}
                             {nodeData.ipAddress.length > 1 && !nodeData.externalIpAddress ? "addresses" : "address"}:{" "}
                             {nodeData.externalIpAddress && nodeData.hasExternalConfig ? (
                                 <a>{nodeData.externalIpAddress}</a>
@@ -791,12 +811,13 @@ interface UseHostnameDetectionSideEffectsProps {
 function useHostnameDetectionSideEffects({ editNodeForm, parentControl }: UseHostnameDetectionSideEffectsProps) {
     const { setValue, control, watch } = editNodeForm;
     const nodeData = useWatch({ control });
-    const { securityStep: {securityOption} } = useWatch({ control: parentControl });
+    const {
+        securityStep: { securityOption },
+    } = useWatch({ control: parentControl });
 
     const isHostname = useMemo(() => {
         return (
-            nodeData.ipAddress.some((ip) => genUtils.isHostname(ip.ipAddress)) &&
-            securityOption === "ownCertificate"
+            nodeData.ipAddress.some((ip) => genUtils.isHostname(ip.ipAddress)) && securityOption === "ownCertificate"
         );
     }, [nodeData.ipAddress]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -815,8 +836,7 @@ function useHostnameDetectionSideEffects({ editNodeForm, parentControl }: UseHos
 
             const hasBindAllIp = values.ipAddress.some((ip) => genUtils.isBindAllIpAddress(ip?.ipAddress));
 
-            const requirePublicIpWhenBindAllUsed =
-                securityOption === "letsEncrypt" && hasBindAllIp;
+            const requirePublicIpWhenBindAllUsed = securityOption === "letsEncrypt" && hasBindAllIp;
 
             // when node is passive, we need to clear the nodeTag value to show placeholder
             if (values.isPassive) {
@@ -835,7 +855,8 @@ function useHostnameDetectionSideEffects({ editNodeForm, parentControl }: UseHos
 
             const isLetsEncryptWithHostname = ipsContainHostname && securityOption === "letsEncrypt";
             const isLetsEncryptWithBindAll = hasBindAllIp && securityOption === "letsEncrypt";
-            const needsExternalConfig = (isLetsEncryptWithHostname || isLetsEncryptWithBindAll) && !values.hasExternalConfig;
+            const needsExternalConfig =
+                (isLetsEncryptWithHostname || isLetsEncryptWithBindAll) && !values.hasExternalConfig;
 
             if (needsExternalConfig || requirePublicIpWhenBindAllUsed) {
                 setValue("hasExternalConfig", true, {
@@ -853,14 +874,22 @@ function useHostnameDetectionSideEffects({ editNodeForm, parentControl }: UseHos
     };
 }
 
-function IpAddressList({ control, parentControl }: { control: Control<NodeEditFormData>, parentControl: Control<SetupWizardFormData> }) {
+function IpAddressList({
+    control,
+    parentControl,
+}: {
+    control: Control<NodeEditFormData>;
+    parentControl: Control<SetupWizardFormData>;
+}) {
     const { setupWizardService } = useServices();
     const { append, remove, fields } = useFieldArray<NodeEditFormData>({
         control,
         name: "ipAddress",
     });
-    
-    const {securityStep: {securityOption}} = useWatch({ control: parentControl })
+
+    const {
+        securityStep: { securityOption },
+    } = useWatch({ control: parentControl });
 
     const addIpAddress = () => {
         append({ ipAddress: "" });
@@ -1033,9 +1062,25 @@ export function SetupWizardNodeAddressStepFooter() {
             setValue("currentStep", "Additional settings");
         }
     };
+    
+    const handleBack = () => {
+        const setupWizardFormData = getValues();
+        switch (setupWizardFormData.securityStep.securityOption) {
+            case "letsEncrypt":
+            case "ownCertificate":
+                setValue("currentStep", "Domain");
+                break;
+            case "none":
+                setValue("currentStep", "Security");
+                break;
+        }
+    }
 
     return (
-        <div className="hstack justify-content-end">
+        <div className="hstack justify-content-between">
+                      <Button variant="secondary" className="rounded-pill" onClick={handleBack}>
+                <Icon icon="arrow-left" /> Back
+            </Button>
             <Button disabled={isEditing} variant="primary" className="rounded-pill" onClick={handleContinue}>
                 Continue <Icon icon="arrow-right" margin="m-0" />
             </Button>
@@ -1076,7 +1121,7 @@ export const ipAddressFormSchema = yup.object().shape({
 
 export const nodeEditFormSchema = yup.object({
     isPassive: yup.boolean().default(false),
-    nodeTag: yup.string().when("$isPassive", {
+    nodeTag: yup.string().when("isPassive", {
         is: false,
         then: (schema) =>
             schema
