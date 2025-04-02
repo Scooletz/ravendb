@@ -103,8 +103,6 @@ export default function DocumentRevisions() {
         return () => {
             dispatch(documentRevisionsActions.reset());
         };
-        // Changing the database causes re-mount
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const { databasesService } = useServices();

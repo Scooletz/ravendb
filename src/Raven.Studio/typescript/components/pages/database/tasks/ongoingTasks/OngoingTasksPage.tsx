@@ -128,8 +128,7 @@ export function OngoingTasksPage() {
 
     useEffect(() => {
         reload();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [db]);
+    }, []);
 
     const onEtlProgress = useCallback(
         (progress: EtlTaskProgress[], location: databaseLocationSpecifier) => {

@@ -188,8 +188,8 @@ function IndexErrorsPanelDetailsStatus({
     hasErrors,
     table,
 }: IndexErrorsPanelDetailsStatusProps) {
-    const { value: panelCollapsed, toggle: togglePanelCollapsed } = useBoolean(true);
-    const ref = useRef<HTMLDivElement>();
+    const { value: panelCollapsed, toggle: togglePanelCollapsed } = useBoolean(false);
+    const ref = useRef<HTMLDivElement>(null);
     const { width } = useResizeObserver({ ref });
     const mostRecentDateId = useUniqueId("most-recent-date");
 
@@ -243,22 +243,24 @@ function IndexErrorsPanelDetailsStatus({
                         </PopoverWithHoverWrapper>
                     </LazyLoad>
                 </RichPanelDetails>
-                <div ref={ref}>
-                    <Collapse in={!panelCollapsed} mountOnEnter unmountOnExit>
-                        <RichPanelDetails>
-                            <div className="w-100">
-                                <IndexErrorsPanelTable
-                                    status={asyncFetchErrorDetails.status}
-                                    refresh={asyncFetchErrorDetails.execute}
-                                    indexErrors={mappedIndexErrors}
-                                    isLoading={asyncFetchErrorDetails.loading}
-                                    width={width}
-                                    table={table}
-                                />
-                            </div>
-                        </RichPanelDetails>
-                    </Collapse>
-                </div>
+                {!isLoading && (
+                    <div ref={ref}>
+                        <Collapse in={!panelCollapsed} mountOnEnter unmountOnExit>
+                            <RichPanelDetails>
+                                <div className="w-100">
+                                    <IndexErrorsPanelTable
+                                        status={asyncFetchErrorDetails.status}
+                                        refresh={asyncFetchErrorDetails.execute}
+                                        indexErrors={mappedIndexErrors}
+                                        isLoading={asyncFetchErrorDetails.loading}
+                                        width={width}
+                                        table={table}
+                                    />
+                                </div>
+                            </RichPanelDetails>
+                        </Collapse>
+                    </div>
+                )}
             </>
         );
     }
