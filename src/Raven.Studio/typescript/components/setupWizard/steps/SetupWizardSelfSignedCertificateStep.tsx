@@ -11,6 +11,7 @@ import { useAsyncDebounce } from "components/hooks/useAsyncDebounce";
 import useBoolean from "components/hooks/useBoolean";
 import Form from "react-bootstrap/Form";
 import PopoverWithHoverWrapper from "components/common/PopoverWithHoverWrapper";
+import React from "react";
 
 export function SetupWizardSelfSignedCertificateStep() {
     const { control, setValue, clearErrors, setError } = useFormContext<SetupWizardFormData>();
@@ -176,9 +177,15 @@ export function SetupWizardSelfSignedCertificateStepFooter() {
     };
 
     // TODO loading state
-
+    const handleBack = () => {
+        setValue("currentStep", "Security");
+    }
+    
     return (
-        <div className="hstack justify-content-end">
+        <div className="hstack justify-content-between">
+                      <Button variant="secondary" className="rounded-pill" onClick={handleBack}>
+                <Icon icon="arrow-left" /> Back
+            </Button>
             <Button variant="primary" className="rounded-pill" onClick={handleContinue}>
                 Continue <Icon icon="arrow-right" margin="m-0" />
             </Button>

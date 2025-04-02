@@ -10,6 +10,7 @@ import RichAlert from "components/common/RichAlert";
 import PopoverWithHoverWrapper from "components/common/PopoverWithHoverWrapper";
 import InputGroupText from "react-bootstrap/InputGroupText";
 import ButtonWithSpinner from "components/common/ButtonWithSpinner";
+import Button from "react-bootstrap/Button";
 
 export function SetupWizardDomainStep() {
     const { control, setValue, setError, clearErrors } = useFormContext<SetupWizardFormData>();
@@ -146,7 +147,7 @@ const useDomainFormSideEffects = () => {
             setValue("domainStep.email", licenseInfo.userDomainsWithIps.email[0]);
         }
 
-        if (licenseInfo?.userDomainsWithIps?.rootDomains.length > 1) {
+        if (licenseInfo?.userDomainsWithIps?.rootDomains.length > 0) {
             setValue("domainStep.rootDomain", licenseInfo.userDomainsWithIps.rootDomains[0]); // select first root domain as default
         }
 
@@ -164,31 +165,53 @@ const createNewOption = (label: string) => ({
 export function SetupWizardDomainStepFooter() {
     const { setValue, control } = useFormContext<SetupWizardFormData>();
     const { setupWizardService } = useServices();
-    const { domainStep, licenseKeyStep } = useWatch({ control });
+    const {
+        domainStep,
+        licenseKeyStep,
+        securityStep: { securityOption },
+    } = useWatch({ control });
 
     const asyncClaimDomain = useAsyncCallback(async () => {
         const domain = domainStep.domain;
         const key = JSON.parse(licenseKeyStep.key);
-        
+
         // @ts-expect-error when validation will be fixed, ts error will disappear TODO: remove.
         if (!licenseKeyStep.licenseInfo.userDomainsWithIps.domains[domain]) {
             await setupWizardService.claimDomain(domain, key);
         }
-        
+
         setValue("currentStep", "Node address");
     });
-    
-    
+
     const handleContinue = async () => {
-        await asyncClaimDomain.execute()
-        
+        await asyncClaimDomain.execute();
+
         setValue("currentStep", "Node address");
-        
+    };
+
+    const handleBack = () => {
+        switch (securityOption) {
+            case "ownCertificate":
+                setValue("currentStep", "Self-signed certificate");
+                break;
+            case "letsEncrypt":
+            case "none":
+                setValue("currentStep", "Security");
+                break;
+        }
     };
 
     return (
-        <div className="hstack justify-content-end">
-            <ButtonWithSpinner isSpinning={asyncClaimDomain.loading} variant="primary" className="rounded-pill" onClick={handleContinue}>
+        <div className="hstack justify-content-between">
+            <Button variant="secondary" className="rounded-pill" onClick={handleBack}>
+                <Icon icon="arrow-left" /> Back
+            </Button>
+            <ButtonWithSpinner
+                isSpinning={asyncClaimDomain.loading}
+                variant="primary"
+                className="rounded-pill"
+                onClick={handleContinue}
+            >
                 Continue <Icon icon="arrow-right" margin="m-0" />
             </ButtonWithSpinner>
         </div>

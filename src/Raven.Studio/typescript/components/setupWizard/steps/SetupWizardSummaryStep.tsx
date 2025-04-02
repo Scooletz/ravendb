@@ -271,8 +271,15 @@ export function SetupWizardSummaryStepFooter() {
         setValue("currentStep", "Finish");
     };
 
+    const handleBack = () => {
+        setValue("currentStep", "Additional settings");
+    };
+    
     return (
         <div className="hstack justify-content-end">
+                      <Button variant="secondary" className="rounded-pill" onClick={handleBack}>
+                <Icon icon="arrow-left" /> Back
+            </Button>
             <Button variant="primary" className="rounded-pill" onClick={handleContinue}>
                 Finish <Icon icon="arrow-right" margin="m-0" />
             </Button>
