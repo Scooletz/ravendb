@@ -75,7 +75,7 @@ function AdditionalSettingsFormSideEffects() {
         });
 
         return () => unsubscribe();
-    }, [watch, setValue]);
+    }, [watch, setValue]); // eslint-disable-line react-hooks/exhaustive-deps
 }
 
 function ServerEnvironmentSection({

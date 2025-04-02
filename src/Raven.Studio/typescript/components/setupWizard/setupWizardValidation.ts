@@ -34,8 +34,8 @@ const subDomainAndIpsSchema = yup.object().shape({
 
 const userDomainsWithIpsSchema = yup.object().shape({
     domains: yup.object().test("is-valid-domains", "Invalid domains structure", (value) => {
-        if (!value) return true;
-        return Object.entries(value).every(([key, subDomains]) => {
+        if (!value) {return true;}
+        return Object.entries(value).every(([_key, subDomains]) => {
             return (
                 Array.isArray(subDomains) &&
                 subDomains.every((subDomain) => subDomainAndIpsSchema.isValidSync(subDomain))
