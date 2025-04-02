@@ -2,12 +2,13 @@ import "./SetupWizard.scss";
 import Button from "react-bootstrap/Button";
 import { Icon } from "components/common/Icon";
 import { FormProvider, useForm, useWatch } from "react-hook-form";
-import { SetupWizardFormData, setupWizardSchema } from "./setupWizardValidation";
+import { SetupWizardFormData, setupWizardSchema, SetupWizardStepId } from "./setupWizardValidation";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { NumberedList } from "components/common/NumberedList";
 import classNames from "classnames";
 import { SetupWizardStepItem } from "./partials/SetupWizardStepItem";
 import { useSetupWizardSteps } from "./hooks/useSetupWizardSteps";
+import useConfirm from "components/common/ConfirmDialog";
 
 const ravenLogo = require("Content/img/ravendb_logo.svg");
 
@@ -17,7 +18,7 @@ export default function SetupWizard() {
         defaultValues,
     });
 
-    const { handleSubmit, control } = form;
+    const { handleSubmit, control, setValue, getValues } = form;
 
     const formValues = useWatch({ control });
 
@@ -26,9 +27,78 @@ export default function SetupWizard() {
         setupMethod: formValues.setupMethodStep.method,
         securityOption: formValues.securityStep.securityOption,
     });
-
+    
+    const confirm = useConfirm();
+    
     const currentStepIdx = steps.findIndex((x) => x.isCurrent);
+    
+    const getStepKey = (stepTitle: SetupWizardStepId): keyof SetupWizardFormData => {
+        const stepKeyMap: Record<SetupWizardStepId, keyof SetupWizardFormData> = {
+            "Eula": "currentStep", // Not actually used but included for completeness and avoiding TypeScript errors
+            "Setup method": "setupMethodStep",
+            "Use setup package": "usePackageStep",
+            "License key": "licenseKeyStep",
+            "Domain": "domainStep",
+            "Security": "securityStep",
+            "Self-signed certificate": "selfSignedCertificateStep",
+            "Node address": "nodeAddressStep",
+            "Additional settings": "additionalSettingsStep",
+            "Summary": "currentStep", // Not actually used but included for completeness and avoiding TypeScript errors
+            "Finish": "currentStep", // Not actually used but included for completeness and avoiding TypeScript errors
+        };
+        
+        return stepKeyMap[stepTitle];
+    };
+    
+    const handleStepNavigation = async (stepTitle: SetupWizardStepId) => {
+        const targetStepIdx = steps.findIndex(s => s.title === stepTitle);
+        
+        if (targetStepIdx > currentStepIdx) {
+            return;
+        }
+        
+        if (targetStepIdx < currentStepIdx) {
+            const currentValues = getValues();
+            
+            const stepsToClear = steps
+                .filter((_, idx) => idx > targetStepIdx && idx <= currentStepIdx)
+                .map(s => s.title);
+            
+            if (stepsToClear.length > 0) {
+                const isConfirmed = await confirm({
+                    title: `Go Back to Previous Step (${stepTitle})`,
+                    message: (
+                        <div>
+                            <p>Going back to a previous step will clear data for the following steps:</p>
+                            <ul>
+                                {stepsToClear.map(step => (
+                                    <li key={step}><strong>{step}</strong></li>
+                                ))}
+                            </ul>
+                            <p>Are you sure you want to continue?</p>
+                        </div>
+                    ),
+                    actionColor: "warning",
+                    icon: "warning",
+                    confirmText: "Confirm",
+                });
 
+                if (!isConfirmed) {
+                    return;
+                }
+            }
+                
+            stepsToClear.forEach(stepTitle => {
+                const stepKey = getStepKey(stepTitle);
+                if (stepKey !== "currentStep" && stepKey in defaultValues && stepKey in currentValues) {
+                    setValue(stepKey, defaultValues[stepKey]);
+                }
+            });
+        }
+        
+        setValue("currentStep", stepTitle);
+    };
+    
     return (
         <FormProvider {...form}>
             <form onSubmit={handleSubmit(console.log)} className="h-100">
@@ -54,8 +124,11 @@ export default function SetupWizard() {
                                         isCurrent={step.isCurrent}
                                         isChecked={idx < currentStepIdx}
                                         isInactive={idx > currentStepIdx}
-                                        className={classNames("cursor-pointer", { "d-none": !step.isVisible })}
-                                        onClick={() => console.log("kalczur go to step", step.title)}
+                                        className={classNames("cursor-pointer", {
+                                            "d-none": !step.isVisible,
+                                            "cursor-not-allowed": idx > currentStepIdx
+                                        })}
+                                        onClick={() => handleStepNavigation(step.title)}
                                     >
                                         <h5 className="mb-0">{step.title}</h5>
                                         <small>{step.description}</small>

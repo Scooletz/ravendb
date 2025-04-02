@@ -27,18 +27,30 @@ function licenseRequiredField(schema: yup.Schema) {
     });
 }
 
+const subDomainAndIpsSchema = yup.object().shape({
+    Ips: yup.array().of(yup.string().required()).required(),
+    SubDomain: yup.string().required(),
+});
+
+const userDomainsWithIpsSchema = yup.object().shape({
+    domains: yup.object().test("is-valid-domains", "Invalid domains structure", (value) => {
+        if (!value) return true;
+        return Object.entries(value).every(([key, subDomains]) => {
+            return (
+                Array.isArray(subDomains) &&
+                subDomains.every((subDomain) => subDomainAndIpsSchema.isValidSync(subDomain))
+            );
+        });
+    }),
+    email: yup.array().of(yup.string().email().required()).required(),
+    rootDomains: yup.array().of(yup.string().required()).required(),
+});
+
 const licenseKeyStepSchema = yup.object({
     key: yup.string(),
     licenseInfo: yup.object({
         licenseType: yup.string<Raven.Server.Commercial.LicenseType>(),
-        userDomainsWithIps: yup.object({
-            email: yup.array().of(yup.string()),
-            rootDomains: yup.array().of(yup.string()),
-            domains: yup.object({
-                // TODO add dynamic keys - use yup.lazy() to construct an object schema based on the input value
-                // [yup.string().required()]: yup.array().of(yup.string()),
-            }),
-        }),
+        userDomainsWithIps: userDomainsWithIpsSchema,
         maxClusterSize: yup.number(),
     }),
     licenseTypeToGenerate: yup.string<LicenseTypeToGenerate>().nullable(),

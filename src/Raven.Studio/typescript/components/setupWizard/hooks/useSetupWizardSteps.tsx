@@ -104,7 +104,7 @@ export function useSetupWizardSteps({
             footer: <SetupWizardDomainStepFooter />,
             isCurrent: currentStep === "Domain",
             isAvailable:
-                (setupMethod === "newCluster" || setupMethod === "createPackage") && securityOption === "letsEncrypt",
+                (setupMethod === "newCluster" || setupMethod === "createPackage") && securityOption === "letsEncrypt" || securityOption === "ownCertificate",
             isVisible: getIsNotInStepIds(["Eula", "Setup method", "License key", "Security"]),
         },
         {
