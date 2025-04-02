@@ -31,8 +31,6 @@ export default function AiConnectionStrings() {
         return () => {
             dispatch(connectionStringsActions.reset());
         };
-        // Changing the database causes re-mount
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const loadStatus = useAppSelector(connectionStringSelectors.loadStatus);

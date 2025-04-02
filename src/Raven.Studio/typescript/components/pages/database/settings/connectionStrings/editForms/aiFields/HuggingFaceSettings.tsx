@@ -13,7 +13,6 @@ import { useAppSelector } from "components/store";
 import { databaseSelectors } from "components/common/shell/databaseSliceSelectors";
 import { useAsyncCallback } from "react-async-hook";
 import PopoverWithHoverWrapper from "components/common/PopoverWithHoverWrapper";
-import RichAlert from "components/common/RichAlert";
 import OptionalLabel from "components/common/OptionalLabel";
 import EmbeddingsMaxConcurrentBatches from "./EmbeddingsMaxConcurrentBatchesField";
 
