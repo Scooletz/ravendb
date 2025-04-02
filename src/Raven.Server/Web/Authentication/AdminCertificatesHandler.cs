@@ -94,10 +94,10 @@ namespace Raven.Server.Web.Authentication
                 {
                     var permissions = FormatPermissions(certificate);
 
-                    LogAuditFor("Certificates", "GENERATE", 
+                    LogAuditForServer("GENERATE",
                         $"Certificate {certificate?.Name}. Security Clearance: {certificate?.SecurityClearance}. Permissions: {permissions}. TwoFactor: {string.IsNullOrEmpty(twoFactorAuthenticationKey) == false}");
                 }
-                
+
                 byte[] certs = null;
                 await ServerStore.Operations.AddLocalOperation(
                         operationId.Value,
@@ -232,8 +232,7 @@ namespace Raven.Server.Web.Authentication
                 if (AuditLogger.IsAuditEnabled)
                 {
                     var permissions = FormatPermissions(certificate);
-                    LogAuditFor("Certificates",
-                        "ADD",
+                    LogAuditForServer("ADD",
                         $"New certificate {certificate?.Name} ['{certificate?.Thumbprint}']. Security Clearance: {certificate?.SecurityClearance}. Permissions:{permissions}. TwoFactor: {string.IsNullOrEmpty(twoFactorAuthenticationKey) == false}");
                 }
 
@@ -376,7 +375,7 @@ namespace Raven.Server.Web.Authentication
                 {
                     foreach (string keyToDelete in keysToDelete)
                     {
-                        LogAuditFor("Certificates", "DELETE", $"Certificate '{keyToDelete}'.");
+                        LogAuditForServer("DELETE", $"Certificate '{keyToDelete}'.");
                     }
                 }
 
@@ -426,7 +425,7 @@ namespace Raven.Server.Web.Authentication
 
                 if (AuditLogger.IsAuditEnabled)
                 {
-                    LogAuditFor("Certificates", "DELETE", $"Certificate '{thumbprint}'.");
+                    LogAuditForServer("DELETE", $"Certificate '{thumbprint}'.");
                 }
 
                 await DeleteInternal(keysToDelete, GetRaftRequestIdFromQuery());
@@ -777,7 +776,7 @@ namespace Raven.Server.Web.Authentication
                 {
                     var permissions = FormatPermissions(newCertificate);
 
-                    LogAuditFor("Certificates", "CHANGE", 
+                    LogAuditForServer("CHANGE",
                         $"Certificate {newCertificate?.Name}. Security Clearance: {newCertificate?.SecurityClearance}. Permissions: {permissions}. TwoFactor: {string.IsNullOrEmpty(twoFactorAuthenticationKey) == false}");
                 }
 
@@ -1006,9 +1005,9 @@ namespace Raven.Server.Web.Authentication
 
                 if (RavenLogManager.Instance.IsAuditEnabled)
                 {
-                    LogAuditFor("Certificates", "RENEW", "Server certificate");
+                    LogAuditForServer("RENEW", "Server certificate");
                 }
-                
+
                 try
                 {
                     var success = Server.RefreshClusterCertificate(true, GetRaftRequestIdFromQuery());

@@ -9,17 +9,18 @@ import StudioSearchDatabaseResults from "./bits/StudioSearchDatabaseResults";
 import StudioSearchSwitchToDatabaseResults from "./bits/StudioSearchSwitchToDatabaseResults";
 import StudioSearchServerResults from "./bits/StudioSearchServerResults";
 import Dropdown from "react-bootstrap/Dropdown";
+import { useOS } from "hooks/useOS";
 
 export default function StudioSearch(props: { menuItems?: menuItem[] }) {
     const { refs, isSearchDropdownOpen, searchQuery, setSearchQuery, matchStatus, results, activeItem } =
         useStudioSearch(props.menuItems);
 
+    const operatingSystem = useOS();
     return (
         <>
             <Dropdown
                 show={isSearchDropdownOpen}
                 onToggle={() => {}} // handled manually in useStudioSearchMouseEvents() to avoid button click behavior
-                ref={refs.dropdownRef}
                 className="studio-search"
             >
                 <Dropdown.Toggle variant="secondary" className="studio-search__toggle">
@@ -27,7 +28,7 @@ export default function StudioSearch(props: { menuItems?: menuItem[] }) {
                         id={studioSearchInputId}
                         ref={refs.inputRef}
                         type="search"
-                        placeholder="Use Ctrl + K to search"
+                        placeholder={operatingSystem === "MacOS" ? "Use ⌘ + K to search" : "Use Ctrl + K to search"}
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         className="flex-grow-1 studio-search__input align-self-stretch"

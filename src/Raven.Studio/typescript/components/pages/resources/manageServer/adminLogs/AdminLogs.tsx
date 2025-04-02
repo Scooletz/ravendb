@@ -56,7 +56,6 @@ export default function AdminLogs() {
             dispatch(adminLogsActions.liveClientStopped());
             dispatch(adminLogsActions.reset());
         };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const handlePageMinLevelChange = async ({ value }: SelectOption<Sparrow.Logging.LogLevel>) => {

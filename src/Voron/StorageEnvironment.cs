@@ -676,6 +676,8 @@ namespace Voron
             _cancellationTokenSource.Token.ThrowIfCancellationRequested();
 
             bool txLockTaken = false;
+            LowLevelTransaction tx = null;
+
             try
             {
                 IncrementUsageOnNewTransaction();
@@ -713,8 +715,6 @@ namespace Voron
                     }
                 }
 
-                LowLevelTransaction tx;
-
                 _cancellationTokenSource.Token.ThrowIfCancellationRequested();
 
                 tx = new LowLevelTransaction(this, transactionPersistentContext, flags, _freeSpaceHandling,
@@ -743,6 +743,9 @@ namespace Voron
                 finally
                 {
                     DecrementUsageOnTransactionCreationFailure();
+
+                    if (tx != null)
+                        ActiveTransactions.TryRemove(tx);
                 }
                 throw;
             }

@@ -473,9 +473,7 @@ namespace Raven.Server.Documents.Handlers.Admin
                     await ServerStore.AddNodeToClusterAsync(nodeUrl, nodeTag, validateNotInTopology: true, asWatcher: watcher ?? false);
 
                     if (RavenLogManager.Instance.IsAuditEnabled)
-                        LogAuditFor("Server", "ADD", $"Node {nodeTag} to cluster. Term: {ServerStore.Engine.CurrentCommittedState.Term}.");
-
-
+                        LogAuditForServer("ADD", $"Node {nodeTag} to cluster. Term: {ServerStore.Engine.CurrentCommittedState.Term}.");
 
                     using (ctx.OpenReadTransaction())
                     {
@@ -578,7 +576,7 @@ namespace Raven.Server.Documents.Handlers.Admin
                 await ServerStore.RemoveFromClusterAsync(nodeTag);
 
                 if (RavenLogManager.Instance.IsAuditEnabled)
-                    LogAuditFor("Server", "DELETE", $"Node {nodeTag} from cluster. Term: {ServerStore.Engine.CurrentCommittedState.Term}.");
+                    LogAuditForServer("DELETE", $"Node {nodeTag} from cluster. Term: {ServerStore.Engine.CurrentCommittedState.Term}.");
 
                 NoContentStatus();
                 return;
