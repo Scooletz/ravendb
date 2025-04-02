@@ -380,7 +380,6 @@ function NodeDetailsPanelView({ index, control }: { index: number; control: Cont
                             <Icon icon="info" color="info" margin="m-0" />
                         </PopoverWithHoverWrapper>
                     </span>
-                    {/*// TODO add domain name from domain step to nodeUrl*/}
                     <div className="text-truncate" title={nodeData.nodeUrl || localIpPortAddress}>
                         {nodeData.nodeUrl || localIpPortAddress}
                     </div>
@@ -471,7 +470,6 @@ function NodeDetailsPanelEdit({
         return nodeData.ipAddress.every((ip) => genUtils.isLocalhostIpAddress(ip.ipAddress));
     }, [nodeData.ipAddress]);
 
-    // TODO: currently sideEffects cause a lot of re-renders, we need to optimize it
     const { isExternalRequired } = useHostnameDetectionSideEffects({ editNodeForm, parentControl });
 
     const isDNSVisible = securityOption === "ownCertificate"; // TODO add && !this.model.certificate().wildcardCertificate()
@@ -592,7 +590,7 @@ function NodeDetailsPanelEdit({
                         </FormGroup>
                     </Col>
                 </Row>
-                <IpAddressList control={control} />
+                <IpAddressList parentControl={parentControl} control={control} />
                 <div className="d-flex flex-column gap-1">
                     {isLoopbackOnly && (
                         <RichAlert variant="warning" icon="warning">
@@ -834,13 +832,12 @@ function useHostnameDetectionSideEffects({ editNodeForm, parentControl }: UseHos
             // 1. When using Let's Encrypt with hostnames instead of IP addresses
             // 2. When using Let's Encrypt with bind-all address (0.0.0.0)
             // 3. When bind-all IP is used with Let's Encrypt (requires public IP specification)
-            // TODO: extract logic to smaller conditions
-            if (
-                (((ipsContainHostname && securityOption === "letsEncrypt") ||
-                    (hasBindAllIp && securityOption === "letsEncrypt")) &&
-                    !values.hasExternalConfig) ||
-                requirePublicIpWhenBindAllUsed
-            ) {
+
+            const isLetsEncryptWithHostname = ipsContainHostname && securityOption === "letsEncrypt";
+            const isLetsEncryptWithBindAll = hasBindAllIp && securityOption === "letsEncrypt";
+            const needsExternalConfig = (isLetsEncryptWithHostname || isLetsEncryptWithBindAll) && !values.hasExternalConfig;
+
+            if (needsExternalConfig || requirePublicIpWhenBindAllUsed) {
                 setValue("hasExternalConfig", true, {
                     shouldValidate: true,
                 });
@@ -856,12 +853,14 @@ function useHostnameDetectionSideEffects({ editNodeForm, parentControl }: UseHos
     };
 }
 
-function IpAddressList({ control }: { control: Control<NodeEditFormData> }) {
+function IpAddressList({ control, parentControl }: { control: Control<NodeEditFormData>, parentControl: Control<SetupWizardFormData> }) {
     const { setupWizardService } = useServices();
     const { append, remove, fields } = useFieldArray<NodeEditFormData>({
         control,
         name: "ipAddress",
     });
+    
+    const {securityStep: {securityOption}} = useWatch({ control: parentControl })
 
     const addIpAddress = () => {
         append({ ipAddress: "" });
@@ -890,10 +889,12 @@ function IpAddressList({ control }: { control: Control<NodeEditFormData> }) {
                             <Icon icon="info" margin="m-0" color="info" />
                         </PopoverWithHoverWrapper>
                     </span>
-                    <Button variant="link" className="text-primary text-right fw-bold" onClick={addIpAddress}>
-                        <Icon icon="plus" margin="me-1" color="primary" />
-                        Add another IP Address
-                    </Button>
+                    {securityOption !== "none" && (
+                        <Button variant="link" className="text-primary text-right fw-bold" onClick={addIpAddress}>
+                            <Icon icon="plus" margin="me-1" color="primary" />
+                            Add another IP Address
+                        </Button>
+                    )}
                 </div>
             </FormLabel>
             <div className="vstack gap-2">
