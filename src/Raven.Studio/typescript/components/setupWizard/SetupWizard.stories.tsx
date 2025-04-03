@@ -6,25 +6,17 @@ import SetupWizard from "./SetupWizard";
 import { mockServices } from "test/mocks/services/MockServices";
 import { userEvent, waitFor, expect, waitForElementToBeRemoved } from "@storybook/test";
 import { Canvas } from "storybook/internal/types";
+import { SetupWizardSecurityOption, SetupWizardStepId } from "components/setupWizard/setupWizardValidation";
 
-enum WizardStep {
-    EULA = "EULA",
-    SETUP_METHOD = "SETUP_METHOD",
-    USE_PACKAGE = "USE_PACKAGE",
-    LICENSE_KEY = "LICENSE_KEY",
-    SECURITY = "SECURITY",
-    DOMAIN = "DOMAIN",
-    SELF_SIGNED_CERTIFICATE = "SELF_SIGNED_CERTIFICATE",
-    NODE_ADDRESSES = "NODE_ADDRESSES",
-    ADDITIONAL_SETTINGS = "ADDITIONAL_SETTINGS",
-    SUMMARY = "SUMMARY",
-    FINISH = "FINISH",
-}
-
-enum SecurityOption {
-    DONT_USE_CERTIFICATE = "Don’t use certificate",
-    PROVIDE_OWN_CERTIFICATE = "Provide your own certificate",
-    GENERATE_LETS_ENCRYPT_CERTIFICATE = "Generate Let’s Encrypt certificate",
+const getSecurityOptionLabel = (option: SetupWizardSecurityOption): string => {
+    switch (option) {
+        case "none":
+            return "Don't use certificate";
+        case "ownCertificate":
+            return "Provide your own certificate";
+        case "letsEncrypt":
+            return "Generate Let’s Encrypt certificate";
+    }
 }
 
 export default {
@@ -49,23 +41,26 @@ export default {
         securityOption: {
             control: {
                 type: "select",
+                labels: {
+                    letsEncrypt: "Generate Let's Encrypt certificate",
+                    ownCertificate: "Provide your own certificate",
+                    none: "Don't use certificate",
+                }
             },
             options: [
-                SecurityOption.DONT_USE_CERTIFICATE,
-                SecurityOption.PROVIDE_OWN_CERTIFICATE,
-                SecurityOption.GENERATE_LETS_ENCRYPT_CERTIFICATE,
-            ],
+                "none", "letsEncrypt", "ownCertificate",
+            ] satisfies SetupWizardSecurityOption[],
         },
     },
     args: {
-        securityOption: SecurityOption.GENERATE_LETS_ENCRYPT_CERTIFICATE,
+        securityOption: "letsEncrypt",
         licenseType: "Community",
     },
-} satisfies Meta;
+} satisfies Meta<SetupWizardStoryArgs>;
 
 interface SetupWizardStoryArgs {
     licenseType: Raven.Server.Commercial.LicenseType;
-    securityOption: SecurityOption;
+    securityOption: SetupWizardSecurityOption;
 }
 
 export const Eula: StoryObj = {
@@ -94,14 +89,14 @@ export const Eula: StoryObj = {
 export const SetupMethod: StoryObj = {
     ...Eula,
     play: async ({ canvas }) => {
-        await navigateToStep(canvas, WizardStep.SETUP_METHOD);
+        await navigateToStep(canvas, "Setup method");
     },
 };
 
 export const UsePackage: StoryObj = {
     ...Eula,
     play: async ({ canvas }) => {
-        await navigateToStep(canvas, WizardStep.USE_PACKAGE);
+        await navigateToStep(canvas, "Use setup package");
     },
 };
 
@@ -109,21 +104,21 @@ export const LicenseKey: StoryObj<SetupWizardStoryArgs> = {
     ...Eula,
     name: "License key",
     play: async ({ canvas, args }) => {
-        await navigateToStep(canvas, WizardStep.LICENSE_KEY, args);
+        await navigateToStep(canvas, "License key", args);
     },
 };
 
 export const Security: StoryObj<SetupWizardStoryArgs> = {
     ...Eula,
     play: async ({ canvas, args }) => {
-        await navigateToStep(canvas, WizardStep.SECURITY, args);
+        await navigateToStep(canvas, "Security", args);
     },
 };
 
 export const Domain: StoryObj<SetupWizardStoryArgs> = {
     ...Eula,
     play: async ({ canvas, args }) => {
-        await navigateToStep(canvas, WizardStep.DOMAIN, args);
+        await navigateToStep(canvas, "Domain", args);
     },
 };
 
@@ -131,7 +126,7 @@ export const SelfSignedCertificate: StoryObj<SetupWizardStoryArgs> = {
     ...Eula,
     name: "Self-signed certificate",
     play: async ({ canvas, args }) => {
-        await navigateToStep(canvas, WizardStep.SELF_SIGNED_CERTIFICATE, args);
+        await navigateToStep(canvas, "Self-signed certificate", args);
     },
 };
 
@@ -139,7 +134,7 @@ export const NodeAddresses: StoryObj<SetupWizardStoryArgs> = {
     ...Eula,
     name: "Node addresses",
     play: async ({ canvas, args }) => {
-        await navigateToStep(canvas, WizardStep.NODE_ADDRESSES, args);
+        await navigateToStep(canvas, "Node address", args);
     },
 };
 
@@ -147,30 +142,30 @@ export const AdditionalSettings: StoryObj<SetupWizardStoryArgs> = {
     ...Eula,
     name: "Additional settings",
     play: async ({ canvas, args }) => {
-        await navigateToStep(canvas, WizardStep.ADDITIONAL_SETTINGS, args);
+        await navigateToStep(canvas, "Additional settings", args);
     },
 };
 
 export const Summary: StoryObj<SetupWizardStoryArgs> = {
     ...Eula,
     play: async ({ canvas, args }) => {
-        await navigateToStep(canvas, WizardStep.SUMMARY, args);
+        await navigateToStep(canvas, "Summary", args);
     },
 };
 
 export const Finish: StoryObj<SetupWizardStoryArgs> = {
     ...Eula,
     play: async ({ canvas, args }) => {
-        await navigateToStep(canvas, WizardStep.FINISH, args);
+        await navigateToStep(canvas, "Finish", args);
     },
 };
 
 
-async function navigateToStep(canvas: Canvas, targetStep: WizardStep, args?: SetupWizardStoryArgs): Promise<void> {
+async function navigateToStep(canvas: Canvas, targetStep: SetupWizardStepId, args?: SetupWizardStoryArgs): Promise<void> {
     await waitForElementToBeRemoved(canvas.getByTestId("loader"));
 
     // If target is EULA, we're already there
-    if (targetStep === WizardStep.EULA) {
+    if (targetStep === "Eula") {
         return;
     }
 
@@ -184,12 +179,12 @@ async function navigateToStep(canvas: Canvas, targetStep: WizardStep, args?: Set
     await userEvent.click(continueButton);
 
     // If target is SETUP_METHOD, we're done
-    if (targetStep === WizardStep.SETUP_METHOD) {
+    if (targetStep === "Setup method") {
         return;
     }
 
     // Handle USE_PACKAGE path
-    if (targetStep === WizardStep.USE_PACKAGE) {
+    if (targetStep === "Use setup package") {
         await userEvent.click(canvas.getByRole("heading", { name: /Use setup package/ }));
         await userEvent.click(canvas.getByRole("button", { name: /Continue/ }));
         return;
@@ -207,7 +202,7 @@ async function navigateToStep(canvas: Canvas, targetStep: WizardStep, args?: Set
         );
     }
 
-    if (targetStep === WizardStep.LICENSE_KEY) {
+    if (targetStep === "License key") {
         return;
     }
 
@@ -216,36 +211,36 @@ async function navigateToStep(canvas: Canvas, targetStep: WizardStep, args?: Set
     await waitFor(() => expect(continueButton).not.toBeDisabled());
     await userEvent.click(continueButton);
 
-    if (targetStep === WizardStep.SECURITY) {
+    if (targetStep === "Security") {
         return;
     }
 
     // Handle certificate paths
     // If security option is DONT_USE_CERTIFICATE, we cannot process further until we add a certificate
     // TODO: mock certificate file upload
-    if (targetStep === WizardStep.SELF_SIGNED_CERTIFICATE || args.securityOption === SecurityOption.PROVIDE_OWN_CERTIFICATE) {
+    if (targetStep === "Self-signed certificate" || args.securityOption === "ownCertificate") {
         await userEvent.click(canvas.getByRole("heading", { name: /Provide your own certificate/ }));
         await userEvent.click(canvas.getByRole("button", { name: /Continue/ }));
         return;
     }
 
     // For remaining steps, go through Let's Encrypt certificate path
-    await userEvent.click(canvas.getByRole("heading", { name: args.securityOption }));
-    if (args.securityOption === SecurityOption.GENERATE_LETS_ENCRYPT_CERTIFICATE) {
+    await userEvent.click(canvas.getByRole("heading", { name: getSecurityOptionLabel(args.securityOption) }));
+    if (args.securityOption === "letsEncrypt") {
         await userEvent.click(canvas.getByRole("checkbox"));
     }
     await userEvent.click(canvas.getByRole("button", { name: /Continue/ }));
 
-    if (targetStep === WizardStep.DOMAIN) {
+    if (targetStep === "Domain") {
         return;
     }
 
     // Continue to NODE_ADDRESSES
-    if (args.securityOption !== SecurityOption.DONT_USE_CERTIFICATE) {
+    if (args.securityOption !== "none") {
         await userEvent.click(canvas.getByRole("button", { name: /Continue/ }));
     }
 
-    if (targetStep === WizardStep.NODE_ADDRESSES) {
+    if (targetStep === "Node address") {
         return;
     }
 
@@ -253,14 +248,14 @@ async function navigateToStep(canvas: Canvas, targetStep: WizardStep, args?: Set
     await userEvent.click(canvas.getByRole("button", { name: /Save/ }));
     await userEvent.click(canvas.getByRole("button", { name: /Continue/ }));
 
-    if (targetStep === WizardStep.ADDITIONAL_SETTINGS) {
+    if (targetStep === "Additional settings") {
         return;
     }
 
     // Continue to SUMMARY
     await userEvent.click(canvas.getByRole("button", { name: /Continue/ }));
 
-    if (targetStep === WizardStep.SUMMARY) {
+    if (targetStep === "Summary") {
         return;
     }
 
