@@ -14,11 +14,11 @@ import assertUnreachable from "components/utils/assertUnreachable";
 import moment from "moment";
 import genUtils from "common/generalUtils";
 import Tab from "react-bootstrap/Tab";
-import Tabs from "react-bootstrap/Tabs";
 import Nav from "react-bootstrap/Nav";
 import Row from "react-bootstrap/Row";
 import Col from "react-bootstrap/Col";
 import RichAlert from "components/common/RichAlert";
+import { NumberedList, NumberedListItem } from "components/common/NumberedList";
 
 type OperationStatus = Raven.Client.Documents.Operations.OperationStatus;
 
@@ -83,36 +83,7 @@ export function SetupWizardFinishStep() {
 
     // TODO move functions to utils
 
-    const getLocalNode = () => {
-        return nodeAddressStep.nodes[0];
-    };
-
-    const getHttpPort = (port: number) => {
-        if (!port && securityStep.securityOption === "none") {
-            return 8080;
-        }
-        return port;
-    };
-
-    const getTcpPort = (port: number) => {
-        if (!port && securityStep.securityOption === "none") {
-            return 38888;
-        }
-        return port;
-    };
-
-    const getServerUrl = (dnsName: string, port: number) => {
-        if (!dnsName) {
-            return null;
-        }
-
-        let serverUrl = "https://" + dnsName;
-        if (port && port !== 443) {
-            serverUrl += ":" + port;
-        }
-
-        return serverUrl;
-    };
+    const { getLocalNode, getHttpPort, getTcpPort, getServerUrl } = useSetupWizardFinishUtils();
 
     const getNodeInfo = (
         node: SetupWizardFormData["nodeAddressStep"]["nodes"][number]
@@ -260,7 +231,7 @@ export function SetupWizardFinishStep() {
             }
         };
 
-        // finish();
+        finish();
     }, []);
 
     return (
@@ -345,11 +316,15 @@ function CompletedSummary() {
 
     const { nodeAddressStep } = useWatch({ control });
 
-    // const isSettingCluster = nodeAddressStep.nodes.length > 1;
-    const isSettingCluster = true;
+    const { getStudioUrl } = useSetupWizardFinishUtils();
+
+    const isSettingCluster = nodeAddressStep.nodes.length > 1;
+    const localNodeTag = nodeAddressStep.nodes[0].nodeTag;
+
+    const studioUrl = getStudioUrl();
 
     return (
-        <div className="mt-2 panel-bg-1 rounded border border-secondary completed-summary">
+        <div className="panel-bg-1 rounded border border-secondary completed-summary">
             <Tab.Container id="summary-tabs" defaultActiveKey="whatsNew">
                 <Nav className="mb-2">
                     <Nav.Item className="flex-grow">
@@ -365,7 +340,7 @@ function CompletedSummary() {
                         </Nav.Item>
                     )}
                 </Nav>
-                <Tab.Content className="p-4">
+                <Tab.Content className="p-4 text-break">
                     <Tab.Pane eventKey="whatsNew">
                         <Row>
                             <Col
@@ -373,7 +348,7 @@ function CompletedSummary() {
                                 className="border-secondary border-end vstack gap-2 text-center justify-content-center"
                             >
                                 <Icon icon="server" color="primary" size="lg" />
-                                <span>The new server will be available at: https://a.mateuszb-development.run</span>
+                                <span>The new server will be available at: {studioUrl}</span>
                             </Col>
                             <Col
                                 md={4}
@@ -381,8 +356,8 @@ function CompletedSummary() {
                             >
                                 <Icon icon="node" color="node" size="lg" />
                                 <span>
-                                    The current <span className="text-node fw-bold">Node A</span> has already been
-                                    configured and requires no further action on your part.
+                                    The current <span className="text-node fw-bold">Node {localNodeTag}</span> has
+                                    already been configured and requires no further action on your part.
                                 </span>
                             </Col>
                             <Col md={4} className="vstack gap-2 text-center justify-content-center">
@@ -394,25 +369,77 @@ function CompletedSummary() {
                             You&apos;ll need to restart the server before you can access RavenDB Studio.
                         </RichAlert>
                     </Tab.Pane>
-                    <Tab.Pane eventKey="cluster">Second tab content</Tab.Pane>
+                    <Tab.Pane eventKey="cluster">
+                        <Row>
+                            <Col md={6} className="vstack gap-2 text-center justify-content-center">
+                                <div>
+                                    <Icon icon="folder" addon="attachment" color="primary" size="lg" />
+                                </div>
+                                <span>The new server will be available at: {studioUrl}</span>
+                            </Col>
+                            <Col md={6} className="vstack gap-2 text-center justify-content-center">
+                                <Icon icon="cluster" color="node" size="lg" />
+                                <span>
+                                    The current <span className="text-node fw-bold">Node A</span> has already been
+                                    configured and requires no further action on your part.
+                                </span>
+                            </Col>
+                        </Row>
+                        <hr />
+                        <h5>How to setup the other nodes?</h5>
+                        <NumberedList>
+                            <NumberedListItem stepKey={1}>
+                                The next step is to download a new RavenDB server for each of the other nodes.
+                            </NumberedListItem>
+                            <NumberedListItem stepKey={2}>
+                                When you enter the Setup Wizard on a new node, please choose &apos;
+                                <b>Use Setup Package</b>&apos;.
+                                <br />
+                                Do not try to start a new setup process again in this new node, it is not supported.
+                            </NumberedListItem>
+                            <NumberedListItem stepKey={3}>
+                                You will be asked to upload the zip file which was just downloaded.
+                            </NumberedListItem>
+                            <NumberedListItem stepKey={4}>
+                                The new server node will join the already existing cluster.
+                            </NumberedListItem>
+                        </NumberedList>
+                        <RichAlert variant="info" className="mt-2">
+                            When the Setup Wizard is done and the new node was restarted, the cluster will automatically
+                            detect it.
+                            <br />
+                            There is no need to manually add it again from the studio. Simply access the
+                            &apos;Cluster&apos; view and observe the topology being updated.
+                        </RichAlert>
+                    </Tab.Pane>
                 </Tab.Content>
             </Tab.Container>
         </div>
     );
 }
 
-export function SetupWizardFinishStepFooter() {
+function useSetupWizardFinishUtils() {
     const { control } = useFormContext<SetupWizardFormData>();
 
     const { nodeAddressStep, securityStep, setupMethodStep, domainStep, selfSignedCertificateStep, usePackageStep } =
         useWatch({ control });
 
-    const { setupWizardService } = useServices();
-
-    // TODO move functions to utils
-
     const getLocalNode = () => {
         return nodeAddressStep.nodes[0];
+    };
+
+    const getHttpPort = (port: number) => {
+        if (!port && securityStep.securityOption === "none") {
+            return 8080;
+        }
+        return port;
+    };
+
+    const getTcpPort = (port: number) => {
+        if (!port && securityStep.securityOption === "none") {
+            return 38888;
+        }
+        return port;
     };
 
     const formatIpAddress = (ip: string): string => {
@@ -491,6 +518,20 @@ export function SetupWizardFinishStepFooter() {
 
         return null;
     };
+
+    return {
+        getStudioUrl,
+        getLocalNode,
+        getHttpPort,
+        getTcpPort,
+        getServerUrl,
+    };
+}
+
+export function SetupWizardFinishStepFooter() {
+    const { setupWizardService } = useServices();
+
+    const { getStudioUrl } = useSetupWizardFinishUtils();
 
     const redirectToStudio = () => {
         window.location.href = getStudioUrl();
