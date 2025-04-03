@@ -276,7 +276,7 @@ export function SetupWizardSummaryStepFooter() {
     };
     
     return (
-        <div className="hstack justify-content-end">
+        <div className="hstack justify-content-between">
                       <Button variant="secondary" className="rounded-pill" onClick={handleBack}>
                 <Icon icon="arrow-left" /> Back
             </Button>

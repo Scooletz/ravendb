@@ -9,6 +9,8 @@ import Badge from "react-bootstrap/Badge";
 import { useAsync } from "react-async-hook";
 import { useServices } from "hooks/useServices";
 import Spinner from "react-bootstrap/Spinner";
+import PopoverWithHoverWrapper from "components/common/PopoverWithHoverWrapper";
+import { ConditionalPopover } from "components/common/ConditionalPopover";
 
 export function SetupWizardSecurityStep() {
     const { control, setValue } = useFormContext<SetupWizardFormData>();
@@ -17,8 +19,6 @@ export function SetupWizardSecurityStep() {
         securityStep: { securityOption },
         licenseKeyStep: { key, licenseInfo },
     } = useWatch({ control });
-
-    // TODO Add conditional recommended badge to Secure
 
     const isSecureDisabled = !key;
     const isSecureRecommended = !!key && licenseInfo.licenseType !== "Developer";
@@ -32,28 +32,98 @@ export function SetupWizardSecurityStep() {
                     <Icon icon="lock" color="success" />
                     Secure
                     {isSecureRecommended && (
-                        <Badge pill bg="success" className="ms-1">
-                            Recommended
-                        </Badge>
+                        <PopoverWithHoverWrapper
+                            message={
+                                <div>
+                                    You&#39;re using a Production License, so we highly recommend choosing a{" "}
+                                    <b>secure setup with a certificate</b>. This ensures optimal data protection,
+                                    encrypted communication, and compliance with best security practices for your
+                                    production environment.
+                                </div>
+                            }
+                        >
+                            <Badge pill bg="success" className="ms-1">
+                                Recommended
+                            </Badge>
+                        </PopoverWithHoverWrapper>
                     )}
                 </h5>
-                <SetupWizardClickableCard
-                    icon="lets-encrypt"
-                    title="Generate Let’s Encrypt certificate"
-                    description="Secure and hassle-free communication with automatic certificate management"
-                    isSelected={securityOption === "letsEncrypt"}
-                    onClick={() => setValue("securityStep.securityOption", "letsEncrypt")}
-                    isDisabled={isSecureDisabled}
-                />
-                <SetupWizardClickableCard
-                    className="mt-2"
-                    icon="certificate"
-                    title="Provide your own certificate"
-                    description="Ideal for secure corporate setups with manual certificate management"
-                    isSelected={securityOption === "ownCertificate"}
-                    onClick={() => setValue("securityStep.securityOption", "ownCertificate")}
-                    isDisabled={isSecureDisabled}
-                />
+                <ConditionalPopover
+                    targetClassname="w-100"
+                    conditions={{
+                        isActive: isSecureDisabled,
+                        message: (
+                            <div>
+                                Secure setup methods are not available without a license. If you&#39;d like to use one
+                                of the secure options, you can go back to <u>License Key</u> step and insert an existing
+                                license or generate a free <u className="text-info">Community</u> or{" "}
+                                <u className="text-developer">Developer</u> license.
+                            </div>
+                        ),
+                    }}
+                >
+                    <SetupWizardClickableCard
+                        className="w-100"
+                        icon="lets-encrypt"
+                        title="Generate Let’s Encrypt certificate"
+                        description="Secure and hassle-free communication with automatic certificate management"
+                        isSelected={securityOption === "letsEncrypt"}
+                        onClick={() => setValue("securityStep.securityOption", "letsEncrypt")}
+                        isDisabled={isSecureDisabled}
+                        popoverMessage={
+                            <ol>
+                                <li>
+                                    Default setting for most users. RavenDB will automatically generate and manage
+                                    SSL/TLS certificates for encrypting communications between nodes and clients.
+                                </li>
+                                <li>
+                                    Ideal when you don’t have a specific custom certificate or prefer RavenDB to handle
+                                    encryption automatically.
+                                </li>
+                            </ol>
+                        }
+                    />
+                </ConditionalPopover>
+                <ConditionalPopover
+                    targetClassname="w-100"
+                    conditions={{
+                        isActive: isSecureDisabled,
+                        message: (
+                            <div>
+                                Secure setup methods are not available without a license. If you&#39;d like to use one
+                                of the secure options, you can go back to <u>License Key</u> step and insert an existing
+                                license or generate a free <u className="text-success">Community</u> or{" "}
+                                <u className="text-developer">Developer</u> license.
+                            </div>
+                        ),
+                    }}
+                >
+                    <SetupWizardClickableCard
+                        className="mt-2 w-100"
+                        icon="certificate"
+                        title="Provide your own certificate"
+                        description="Ideal for secure corporate setups with manual certificate management"
+                        isSelected={securityOption === "ownCertificate"}
+                        onClick={() => setValue("securityStep.securityOption", "ownCertificate")}
+                        isDisabled={isSecureDisabled}
+                        popoverMessage={
+                            <ol>
+                                <li>
+                                    You need to use a custom SSL/TLS certificate, often for integration with a specific
+                                    internal certificate authority or to comply with corporate security policies.
+                                </li>
+                                <li>
+                                    Useful if you need to integrate RavenDB with an existing private infrastructure that
+                                    requires specific certificates.
+                                </li>
+                                <li>
+                                    Ideal for <b>production environments</b> where you want more control over
+                                    certificate management and trust settings.
+                                </li>
+                            </ol>
+                        }
+                    />
+                </ConditionalPopover>
             </div>
             <div className="mt-4">
                 <h5 className="mb-1">
@@ -66,6 +136,22 @@ export function SetupWizardSecurityStep() {
                     description="Best for quick local development with no security requirements"
                     isSelected={securityOption === "none"}
                     onClick={() => setValue("securityStep.securityOption", "none")}
+                    popoverMessage={
+                        <ol>
+                            <li>
+                                Only in <b>trusted, isolated environments</b> (e.g., internal testing, local
+                                development, or a network that is isolated from the public internet).
+                            </li>
+                            <li>
+                                <b>Not recommended for production</b> environments as data will be transmitted
+                                unencrypted, leaving it vulnerable to eavesdropping or man-in-the-middle attacks.
+                            </li>
+                            <li>
+                                If you are aware that all nodes are within a secure, private network and you don&#39;t need
+                                encryption for performance or resource constraints.
+                            </li>
+                        </ol>
+                    }
                 />
             </div>
         </div>

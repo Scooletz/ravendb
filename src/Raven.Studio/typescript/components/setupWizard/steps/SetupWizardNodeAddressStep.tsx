@@ -341,6 +341,9 @@ interface PopoverMessageProps {
 }
 
 export function PopoverMessage({ description, alert }: PopoverMessageProps) {
+    // TODO: add link to documentation based on app version
+    
+    
     return (
         <>
             <p>{description}</p>
@@ -349,8 +352,8 @@ export function PopoverMessage({ description, alert }: PopoverMessageProps) {
             <span>
                 <Icon icon="link" />
                 Read more in our{" "}
-                <a href="#" target="_blank" className="text-primary fw-bold">
-                    documentation
+                <a href="https://ravendb.net/docs/article-page/7.0/csharp/start/installation/manual" target="_blank" className="text-primary fw-bold">
+                    documentation <Icon icon="newtab" />
                 </a>
             </span>
         </>

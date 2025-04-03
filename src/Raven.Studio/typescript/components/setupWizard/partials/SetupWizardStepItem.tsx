@@ -10,10 +10,11 @@ interface SetupWizardStepItemProps extends HTMLAttributes<HTMLLIElement> {
     isChecked?: boolean;
     isInactive?: boolean;
     className?: string;
+    stepIndicator?: ReactNode;
 }
 
 export function SetupWizardStepItem(props: SetupWizardStepItemProps) {
-    const { children, isCurrent, isChecked, isInactive, className, ...rest } = props;
+    const { children, isCurrent, isChecked, isInactive, className, stepIndicator, ...rest } = props;
 
     const dotIcon = ((): IconName => {
         if (isChecked) {
@@ -36,7 +37,12 @@ export function SetupWizardStepItem(props: SetupWizardStepItemProps) {
                     { "border-primary text-primary": isCurrent }
                 )}
             >
-                {dotIcon && <Icon icon={dotIcon} margin="m-0" />}
+                {stepIndicator && (
+                  <span className="d-flex align-items-center justify-content-center">
+                    {stepIndicator}
+                  </span>
+                )}
+                {!stepIndicator && dotIcon && <Icon icon={dotIcon} margin="m-0" />}
             </span>
             {children}
         </li>
