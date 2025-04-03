@@ -13,6 +13,14 @@ import { Icon } from "components/common/Icon";
 import assertUnreachable from "components/utils/assertUnreachable";
 import moment from "moment";
 import genUtils from "common/generalUtils";
+import Tab from "react-bootstrap/Tab";
+import Tabs from "react-bootstrap/Tabs";
+import Nav from "react-bootstrap/Nav";
+import Row from "react-bootstrap/Row";
+import Col from "react-bootstrap/Col";
+import RichAlert from "components/common/RichAlert";
+
+type OperationStatus = Raven.Client.Documents.Operations.OperationStatus;
 
 export function SetupWizardFinishStep() {
     const { control } = useFormContext<SetupWizardFormData>();
@@ -37,7 +45,7 @@ export function SetupWizardFinishStep() {
     const { databasesService, setupWizardService } = useServices();
 
     const [readme, setReadme] = useState<string>();
-    const [status, setStatus] = useState<string>();
+    const [status, setStatus] = useState<OperationStatus>("Completed");
     const [logs, setLogs] = useState<{ message: string; color?: TextColor }[]>([]);
 
     const handleWebSocketOperation = (operation: Raven.Server.NotificationCenter.Notifications.OperationChanged) => {
@@ -252,25 +260,29 @@ export function SetupWizardFinishStep() {
             }
         };
 
-        finish();
+        // finish();
     }, []);
 
     return (
-        <div>
-            <h2>Configuration in process</h2>
-            <p>Please, wait a moment. Your RavenDB will be ready in no time. </p>
-            <h3>Status: {status}</h3>
-            {readme && (
-                <pre>
-                    <b>Readme:</b>
-                    {readme}
-                </pre>
-            )}
-            <FormGroup className="mt-4">
-                <Switch selected={isShowLogs} toggleSelection={toggleIsShowLogs} color="primary">
-                    Show configuration log
-                </Switch>
-            </FormGroup>
+        <div className="finish-step">
+            <TopInfo status={status} />
+            <div className="hstack justify-content-between">
+                <FormGroup className="mt-4">
+                    <Switch selected={isShowLogs} toggleSelection={toggleIsShowLogs} color="primary">
+                        Show configuration log
+                    </Switch>
+                </FormGroup>
+                <Button
+                    variant="link"
+                    onClick={() => {
+                        console.log("TODO: download configuration log");
+                    }}
+                    size="xs"
+                >
+                    <Icon icon="download" />
+                    Download configuration log
+                </Button>
+            </div>
             {isShowLogs && (
                 <pre>
                     {logs.map((message, idx) => (
@@ -280,12 +292,111 @@ export function SetupWizardFinishStep() {
                     ))}
                 </pre>
             )}
-            {/* <div className="mt-2 p-2 panel-bg-1 rounded border border-secondary">TODO</div> */}
+
+            {status !== "Completed" && (
+                <div className="mt-2 p-2 panel-bg-1 rounded border border-secondary">TODO preety summary</div>
+            )}
+            {status === "Completed" && <CompletedSummary />}
+
             <div className="d-none">
                 <form method="post" target="hidden-form" id="setupForm">
                     <input type="hidden" name="Options" />
                 </form>
             </div>
+        </div>
+    );
+}
+
+function TopInfo({ status }: { status: OperationStatus }) {
+    return (
+        <>
+            {status === "InProgress" && (
+                <>
+                    <h3>Configuration in process</h3>
+                    <p>Please, wait a moment. Your RavenDB will be ready in no time.</p>
+                </>
+            )}
+            {status === "Faulted" && (
+                <>
+                    <h3>Setup failed</h3>
+                    <p>
+                        It seems like something went wrong. Read the error message to find out what might&apos;ve been
+                        an issue.
+                    </p>
+                </>
+            )}
+            {status === "Canceled" && (
+                <>
+                    <h3>Setup canceled</h3>
+                </>
+            )}
+            {status === "Completed" && (
+                <>
+                    <h3>All set!</h3>
+                    <p>You&apos;re almost ready to go. Follow the instructions to successfully complete the process.</p>
+                </>
+            )}
+        </>
+    );
+}
+
+function CompletedSummary() {
+    const { control } = useFormContext<SetupWizardFormData>();
+
+    const { nodeAddressStep } = useWatch({ control });
+
+    // const isSettingCluster = nodeAddressStep.nodes.length > 1;
+    const isSettingCluster = true;
+
+    return (
+        <div className="mt-2 panel-bg-1 rounded border border-secondary completed-summary">
+            <Tab.Container id="summary-tabs" defaultActiveKey="whatsNew">
+                <Nav className="mb-2">
+                    <Nav.Item className="flex-grow">
+                        <Nav.Link eventKey="whatsNew" className="whats-new-tab" style={{ backgroundImage: "none" }}>
+                            What&apos;s next?
+                        </Nav.Link>
+                    </Nav.Item>
+                    {isSettingCluster && (
+                        <Nav.Item className="flex-grow">
+                            <Nav.Link eventKey="cluster" className="cluster-tab" style={{ backgroundImage: "none" }}>
+                                Setting up a cluster
+                            </Nav.Link>
+                        </Nav.Item>
+                    )}
+                </Nav>
+                <Tab.Content className="p-4">
+                    <Tab.Pane eventKey="whatsNew">
+                        <Row>
+                            <Col
+                                md={4}
+                                className="border-secondary border-end vstack gap-2 text-center justify-content-center"
+                            >
+                                <Icon icon="server" color="primary" size="lg" />
+                                <span>The new server will be available at: https://a.mateuszb-development.run</span>
+                            </Col>
+                            <Col
+                                md={4}
+                                className="border-secondary border-end vstack gap-2 text-center justify-content-center"
+                            >
+                                <Icon icon="node" color="node" size="lg" />
+                                <span>
+                                    The current <span className="text-node fw-bold">Node A</span> has already been
+                                    configured and requires no further action on your part.
+                                </span>
+                            </Col>
+                            <Col md={4} className="vstack gap-2 text-center justify-content-center">
+                                <Icon icon="certificate" size="lg" />
+                                <span>An administrator client certificate has been installed on this machine.</span>
+                            </Col>
+                        </Row>
+                        <RichAlert variant="info" className="mt-3">
+                            You&apos;ll need to restart the server before you can access RavenDB Studio.
+                        </RichAlert>
+                    </Tab.Pane>
+                    <Tab.Pane eventKey="cluster">Second tab content</Tab.Pane>
+                </Tab.Content>
+            </Tab.Container>
         </div>
     );
 }
