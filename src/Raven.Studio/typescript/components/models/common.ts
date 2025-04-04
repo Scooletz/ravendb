@@ -55,9 +55,10 @@ export interface InputItem<T extends string | number = string> {
     count?: number;
     limit?: InputItemLimit;
     verticalSeparatorLine?: boolean;
-    popover?: ReactNode | ReactNode[];
+    popover?: ReactNode;
     popoverPlacement?: Placement;
     badgeColor?: TextColor;
+    icon?: ReactNode;
 }
 
 export type SortDirection = "asc" | "desc";

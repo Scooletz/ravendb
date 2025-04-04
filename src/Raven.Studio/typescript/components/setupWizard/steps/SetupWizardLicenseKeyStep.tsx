@@ -280,11 +280,13 @@ function LicenseTypeRadio() {
                         label: "Community",
                         value: "community",
                         badgeColor: "info",
+                        icon: <Icon icon="community" />,
                     },
                     {
                         label: "Developer",
                         value: "developer",
                         badgeColor: "success",
+                        icon: <Icon icon="console" />,
                     },
                 ]}
                 className="d-flex justify-content-center"

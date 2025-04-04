@@ -16,13 +16,12 @@ export default function ToggleItemLabel<T extends string | number = string>({
 }: ToggleItemLabelProps<T>) {
     const [target, setTarget] = useState<HTMLElement>();
 
-    const bgClass = inputItem.badgeColor ? `bg-${inputItem.badgeColor}` : "";
-
-    // TODO apply somehow bgClass
+    const bgClass = inputItem.badgeColor ? `bg-${inputItem.badgeColor}` : "bg-primary";
 
     return (
         <>
-            <label htmlFor={id} ref={setTarget}>
+            <label htmlFor={id} ref={setTarget} className={classNames("rounded-pill", bgClass)}>
+                {inputItem.icon && <span style={{ zIndex: 1 }}>{inputItem.icon}</span>}
                 <span>{inputItem.label}</span>
                 {inputItem.count !== null && inputItem.limit ? (
                     <ToggleLimitBadge count={inputItem.count} limit={inputItem.limit} />
