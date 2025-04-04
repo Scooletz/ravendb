@@ -338,10 +338,11 @@ function NodeDetailsPanelHeader({ control, index, onRemove, editNodeForm }: Node
 interface PopoverMessageProps {
     description: string | React.ReactNode;
     alert?: React.ReactNode;
+    href?: string;
 }
 
-export function PopoverMessage({ description, alert }: PopoverMessageProps) {
-    // TODO: add link to documentation based on app version
+export function PopoverMessage({ description, href = "https://ravendb.net/docs/article-page/7.0/csharp/start/installation/manual", alert }: PopoverMessageProps) {
+    // TODO: add link to documentation based on app version (useRavenLink) - waiting for access
 
     return (
         <>
@@ -352,7 +353,7 @@ export function PopoverMessage({ description, alert }: PopoverMessageProps) {
                 <Icon icon="link" />
                 Read more in our{" "}
                 <a
-                    href="https://ravendb.net/docs/article-page/7.0/csharp/start/installation/manual"
+                    href={href}
                     target="_blank"
                     className="text-primary fw-bold"
                 >

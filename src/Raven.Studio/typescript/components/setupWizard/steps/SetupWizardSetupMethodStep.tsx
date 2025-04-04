@@ -106,8 +106,6 @@ export function SetupWizardSetupMethodStepFooter() {
         }
     };
 
-    // TODO add popover
-
     return (
         <div className="d-flex justify-content-between">
             <PopoverWithHoverWrapper

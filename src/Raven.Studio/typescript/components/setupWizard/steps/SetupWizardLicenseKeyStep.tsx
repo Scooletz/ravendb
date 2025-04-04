@@ -109,6 +109,7 @@ function LicenseKeyBadge() {
         // TODO add all types colors
         switch (licenseInfo.licenseType) {
             case "Community":
+            case "Essential":
                 return "info";
             case "Developer":
                 return "success";

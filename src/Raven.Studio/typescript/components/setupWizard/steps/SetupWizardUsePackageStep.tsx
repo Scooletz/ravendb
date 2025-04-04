@@ -10,6 +10,8 @@ import messagePublisher from "common/messagePublisher";
 import { SelectOption } from "components/common/select/Select";
 import { useEffect, useMemo } from "react";
 import RichAlert from "components/common/RichAlert";
+import PopoverWithHoverWrapper from "components/common/PopoverWithHoverWrapper";
+import { PopoverMessage } from "components/setupWizard/steps/SetupWizardNodeAddressStep";
 
 export function SetupWizardUsePackageStep() {
     const { control, setValue, watch } = useFormContext<SetupWizardFormData>();
@@ -19,7 +21,6 @@ export function SetupWizardUsePackageStep() {
 
     const { setupWizardService } = useServices();
 
-    // TODO add what is this tooltip
     // TODO maybe add a tooltip explaining why node tag is disabled
 
     const asyncExtractNodeInfos = useAsync(async () => {
@@ -126,10 +127,12 @@ export function SetupWizardUsePackageStep() {
                 <FormGroup>
                     <FormLabel className="hstack justify-content-between">
                         <div>Node tag</div>
+                        <PopoverWithHoverWrapper message={<PopoverMessage description="Select which node of the predefined cluster would you like to set up now." />}>
                         <div className="text-info">
                             <Icon icon="info" />
                             What is this?
                         </div>
+                        </PopoverWithHoverWrapper>
                     </FormLabel>
                     <FormSelect
                         control={control}

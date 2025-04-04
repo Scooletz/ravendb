@@ -170,7 +170,7 @@ export function SetupWizardSecurityStepFooter() {
     const asyncGetLetsEncryptAgreement = useAsync(
         () => setupWizardService.getLetsEncryptAgreement(licenseInfo.userDomainsWithIps.email[0] ?? ""),
         []
-    ); // TODO check if there could be more than one email assigned to license
+    );
 
     const handleBack = () => {
         setValue("currentStep", "License key");
