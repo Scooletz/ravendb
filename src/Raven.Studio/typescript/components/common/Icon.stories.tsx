@@ -96,6 +96,7 @@ const allIconNames = exhaustiveStringTuple<IconName>()(
     "close",
     "cloud",
     "cluster-dashboard",
+    "cluster-debug",
     "cluster-log",
     "cluster-member",
     "cluster-node",

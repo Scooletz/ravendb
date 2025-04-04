@@ -50,6 +50,38 @@ public abstract class AbstractIndexCreateController
 
     protected virtual async ValueTask ValidateStaticIndexAsync(IndexDefinition definition)
     {
+        ValidateStaticIndexInternal(definition);
+
+        var databaseConfiguration = GetDatabaseConfiguration();
+        // pre-compile it and validate
+        var instance = IndexCompilationCache.GetIndexInstance(definition, databaseConfiguration, IndexDefinitionBaseServerSide.IndexVersion.CurrentVersion);
+        
+        if (definition.Type == IndexType.MapReduce)
+        {
+            await MapReduceIndex.ValidateReduceResultsCollectionNameAsync(
+                definition,
+                instance,
+                GetIndexes,
+                GetCollectionCountAsync,
+                NeedToCheckIfCollectionEmpty(definition, databaseConfiguration));
+        }
+    }
+
+    protected virtual void ValidateAutoIndex(IndexDefinitionBaseServerSide definition)
+    {
+        if (IndexStore.IsValidIndexName(definition.Name, false, out var errorMessage) == false)
+        {
+            throw new ArgumentException(errorMessage);
+        }
+    }
+
+    internal virtual void ValidateTestStaticIndex(IndexDefinition definition)
+    {
+        ValidateStaticIndexInternal(definition);
+    }
+    
+    private void ValidateStaticIndexInternal(IndexDefinition definition)
+    {
         if (IndexStore.IsValidIndexName(definition.Name, true, out var errorMessage) == false)
         {
             throw new ArgumentException(errorMessage);
@@ -61,23 +93,7 @@ public abstract class AbstractIndexCreateController
         ValidateAnalyzers(definition);
         
         ValidateConfiguration(definition);
-
-        var databaseConfiguration = GetDatabaseConfiguration();
-        var instance = IndexCompilationCache.GetIndexInstance(definition, databaseConfiguration, IndexDefinitionBaseServerSide.IndexVersion.CurrentVersion); // pre-compile it and validate
-
-        if (definition.Type == IndexType.MapReduce)
-        {
-            await MapReduceIndex.ValidateReduceResultsCollectionNameAsync(
-                definition,
-                instance,
-                GetIndexes,
-                GetCollectionCountAsync,
-                NeedToCheckIfCollectionEmpty(definition, databaseConfiguration));
-
-            if (string.IsNullOrEmpty(definition.PatternForOutputReduceToCollectionReferences) == false)
-                OutputReferencesPattern.ValidatePattern(definition.PatternForOutputReduceToCollectionReferences, out _);
-        }
-
+        
         if (definition.SourceType != IndexSourceType.Documents)
         {
             if (definition.ArchivedDataProcessingBehavior != null && definition.ArchivedDataProcessingBehavior != ArchivedDataProcessingBehavior.IncludeArchived)
@@ -87,14 +103,9 @@ public abstract class AbstractIndexCreateController
             }
             definition.ArchivedDataProcessingBehavior = ArchivedDataProcessingBehavior.IncludeArchived;
         }
-    }
-
-    protected virtual void ValidateAutoIndex(IndexDefinitionBaseServerSide definition)
-    {
-        if (IndexStore.IsValidIndexName(definition.Name, false, out var errorMessage) == false)
-        {
-            throw new ArgumentException(errorMessage);
-        }
+        
+        if (string.IsNullOrEmpty(definition.PatternForOutputReduceToCollectionReferences) == false)
+            OutputReferencesPattern.ValidatePattern(definition.PatternForOutputReduceToCollectionReferences, out _);
     }
 
     public async ValueTask<long> CreateIndexAsync(IndexDefinition definition, string raftRequestId, string source = null)

@@ -11,6 +11,7 @@ using Raven.Server.Documents.Indexes;
 using Raven.Server.Documents.Indexes.Static;
 using Raven.Server.ServerWide.Context;
 using Sparrow.Json.Parsing;
+using Tests.Infrastructure;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -47,10 +48,10 @@ namespace SlowTests.Issues
                     var unloadTask = failureStats.DatabaseUnloadTask;
 
                     if (unloadTask != null) // could already unload it and null DatabaseUnloadTask 
-                        await unloadTask.WaitAsync(TimeSpan.FromSeconds(30));
+                        Assert.True(await unloadTask.WaitWithoutExceptionAsync(TimeSpan.FromSeconds(30)));
                 }
 
-                handler.Execute(db.Name, new Exception("Catastrophic"), Guid.Empty, null, Environment.StackTrace);
+                handler.Execute(db.Name, new Exception("Catastrophic"), environmentId, null, Environment.StackTrace);
 
                 handler.TryGetStats(environmentId, out failureStats);
 
@@ -65,7 +66,10 @@ namespace SlowTests.Issues
                 handler.TryGetStats(environmentId, out failureStats);
 
                 Assert.True(failureStats.WillUnloadDatabase);
-                await failureStats.DatabaseUnloadTask.WaitAsync(TimeSpan.FromSeconds(30));
+                var unloadTask2 = failureStats.DatabaseUnloadTask;
+
+                if (unloadTask2 != null) // could already unload it and null DatabaseUnloadTask 
+                    Assert.True(await unloadTask2.WaitWithoutExceptionAsync(TimeSpan.FromSeconds(30)));
             }
         }
 
@@ -146,7 +150,7 @@ namespace SlowTests.Issues
 
                         Thread.Sleep(500); // errors are updated in next tx when we update the stats
                     }
-                    
+
                     Assert.Equal(1, errorCount);
 
                     using (var context = QueryOperationContext.ShortTermSingleUse(db))
@@ -176,7 +180,7 @@ namespace SlowTests.Issues
                     {
                         ["Name"] = "John",
                         [Constants.Documents.Metadata.Key] = new DynamicJsonValue
-                            {[Constants.Documents.Metadata.Collection] = "Users"}
+                        { [Constants.Documents.Metadata.Collection] = "Users" }
                     }))
                     {
                         db.DocumentsStorage.Put(context, "users/1", null, doc);
