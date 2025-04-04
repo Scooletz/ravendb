@@ -12,6 +12,7 @@ import useBoolean from "components/hooks/useBoolean";
 import Form from "react-bootstrap/Form";
 import PopoverWithHoverWrapper from "components/common/PopoverWithHoverWrapper";
 import React from "react";
+import ButtonWithSpinner from "components/common/ButtonWithSpinner";
 
 export function SetupWizardSelfSignedCertificateStep() {
     const { control, setValue, clearErrors, setError } = useFormContext<SetupWizardFormData>();
@@ -170,25 +171,46 @@ export function SetupWizardSelfSignedCertificateStep() {
 }
 
 export function SetupWizardSelfSignedCertificateStepFooter() {
-    const { setValue } = useFormContext<SetupWizardFormData>();
+    const { setValue, control } = useFormContext<SetupWizardFormData>();
+    const { setupWizardService } = useServices();
+
+    const {
+        selfSignedCertificateStep: { certificate, password },
+    } = useWatch({ control });
+
+    const asyncGetCNs = useAsyncDebounce(
+        async () => {
+            if (!certificate) {
+                return;
+            }
+            return setupWizardService.listHostsForCertificate(certificate, password);
+        },
+        [certificate, password],
+        300
+    );
 
     const handleContinue = () => {
         setValue("currentStep", "Domain");
     };
 
-    // TODO loading state
     const handleBack = () => {
         setValue("currentStep", "Security");
-    }
+    };
     
     return (
         <div className="hstack justify-content-between">
-                      <Button variant="secondary" className="rounded-pill" onClick={handleBack}>
+            <Button variant="secondary" className="rounded-pill" onClick={handleBack}>
                 <Icon icon="arrow-left" /> Back
             </Button>
-            <Button variant="primary" className="rounded-pill" onClick={handleContinue}>
+            <ButtonWithSpinner 
+                variant="primary" 
+                className="rounded-pill" 
+                onClick={handleContinue}
+                isSpinning={asyncGetCNs.loading}
+            >
                 Continue <Icon icon="arrow-right" margin="m-0" />
-            </Button>
+            </ButtonWithSpinner>
         </div>
     );
 }
+

@@ -208,6 +208,11 @@ function NodeDetailsPanelHeader({ control, index, onRemove, editNodeForm }: Node
         control,
         name: `nodeAddressStep.nodes.${index}`,
     });
+    
+    const nodeAddressNodes = useWatch({
+        control,
+        name: "nodeAddressStep.nodes",
+    })
 
     const domainData = useWatch({
         control,
@@ -325,9 +330,11 @@ function NodeDetailsPanelHeader({ control, index, onRemove, editNodeForm }: Node
                         >
                             <Icon icon="edit" margin="m-0" />
                         </Button>
-                        <Button variant="danger" onClick={handleDeleteNode}>
-                            <Icon icon="trash" margin="m-0" />
-                        </Button>
+                        {(nodeAddressNodes.filter(node => !node.isNewlyAdded).length > 1) && (
+                            <Button variant="danger" onClick={handleDeleteNode}>
+                                <Icon icon="trash" margin="m-0" />
+                            </Button>
+                        )}
                     </>
                 )}
             </RichPanelActions>
@@ -1239,3 +1246,4 @@ export const nodeEditFormSchema = yup.object({
 });
 
 export type NodeEditFormData = yup.InferType<typeof nodeEditFormSchema>;
+

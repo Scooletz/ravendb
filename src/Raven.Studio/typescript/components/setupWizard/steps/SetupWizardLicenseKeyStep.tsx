@@ -1,13 +1,12 @@
-import { useFormContext } from "react-hook-form";
-import { useWatch } from "react-hook-form";
+import { useFormContext, useWatch } from "react-hook-form";
 import { SetupWizardFormData } from "../setupWizardValidation";
 import { Icon } from "components/common/Icon";
 import Button from "react-bootstrap/Button";
 import {
+    FormCheckbox,
     FormGroup,
     FormInput,
     FormLabel,
-    FormCheckbox,
     FormMultiRadioToggle,
     FormSelect,
     OptionalLabel,
@@ -21,6 +20,8 @@ import ButtonWithSpinner from "components/common/ButtonWithSpinner";
 import { useAsyncDebounce } from "components/hooks/useAsyncDebounce";
 import Badge from "react-bootstrap/Badge";
 import messagePublisher from "common/messagePublisher";
+import IconName from "../../../../typings/server/icons";
+import { UseFormSetValue } from "react-hook-form/dist/types/form";
 
 export function SetupWizardLicenseKeyStep() {
     const { control } = useFormContext<SetupWizardFormData>();
@@ -106,13 +107,14 @@ function LicenseKeyBadge() {
     }
 
     const bg = (() => {
-        // TODO add all types colors
         switch (licenseInfo.licenseType) {
             case "Community":
             case "Essential":
                 return "info";
             case "Developer":
                 return "success";
+            case "Professional":
+                return "professional";
             case "Enterprise":
                 return "primary";
             default:
@@ -260,9 +262,8 @@ function GenerateLicenseFields() {
 }
 
 function SeeAllPlansButton() {
-    // TODO see all plans link
     return (
-        <Button variant="link" className=" p-0">
+        <Button href="https://ravendb.net/buy" variant="link" className=" p-0">
             See all plans in detail <Icon icon="newtab" />
         </Button>
     );
@@ -294,6 +295,51 @@ function LicenseTypeRadio() {
             />
         </div>
     );
+}
+
+function SkipLicenseVerificationConfirmModal({ setValue }: { setValue: UseFormSetValue<SetupWizardFormData> }) {
+    return {
+        title: (
+            <span>
+                <Icon icon="license" color="warning" />
+                You&#39;re about to skip license verification
+            </span>
+        ),
+        message: (
+            <p>
+                While you&apos;ll be able to use RavenDB, there will be some limitations:
+                <br />
+                <br />
+                <Icon icon="check" color="success" /> AGPLv3 restrictions applied
+                <br />
+                <Icon icon="check" color="success" /> Limited set of features
+                <br />
+                <Icon icon="check" color="success" /> Max of 1 node in cluster, 3 CPU cores, and 6 GB RAM memory usage
+                <br />
+                Either confirm your choice and skip the verification, or generate a new{" "}
+                <Button
+                    variant="link"
+                    className="text-info p-0 text-decoration-underline"
+                    onClick={() => setValue("licenseKeyStep.licenseTypeToGenerate", "community")}
+                >
+                    Community
+                </Button>{" "}
+                or{" "}
+                <Button
+                    variant="link"
+                    className="text-success p-0 text-decoration-underline"
+                    onClick={() => setValue("licenseKeyStep.licenseTypeToGenerate", "developer")}
+                >
+                    Developer
+                </Button>{" "}
+                license.
+            </p>
+        ),
+        actionColor: "warning" as const,
+        size: "lg" as const,
+        confirmText: "Skip verification",
+        confirmIcon: "arrow-right" as IconName,
+    };
 }
 
 export function SetupWizardLicenseKeyStepFooter() {
@@ -353,50 +399,9 @@ export function SetupWizardLicenseKeyStepFooter() {
         if (key) {
             setValue("currentStep", "Security");
         } else {
-            // TODO move to separate component
-            const isConfirmed = await confirm({
-                title: (
-                    <span>
-                        <Icon icon="license" color="warning" />
-                        You’re about to skip license verification
-                    </span>
-                ),
-                message: (
-                    <p>
-                        While you’ll be able to use RavenDB, there will be some limitations:
-                        <br />
-                        <br />
-                        <Icon icon="check" color="success" /> AGPLv3 restrictions applied
-                        <br />
-                        <Icon icon="check" color="success" /> Limited set of features
-                        <br />
-                        <Icon icon="check" color="success" /> Max of 1 node in cluster, 3 CPU cores, and 6 GB RAM memory
-                        usage
-                        <br />
-                        Either confirm your choice and skip the verification, or generate a new{" "}
-                        <Button
-                            variant="link"
-                            className="text-info p-0 text-decoration-underline"
-                            onClick={() => setValue("licenseKeyStep.licenseTypeToGenerate", "community")}
-                        >
-                            Community
-                        </Button>{" "}
-                        or{" "}
-                        <Button
-                            variant="link"
-                            className="text-success p-0 text-decoration-underline"
-                            onClick={() => setValue("licenseKeyStep.licenseTypeToGenerate", "developer")}
-                        >
-                            Developer
-                        </Button>{" "}
-                        license.
-                    </p>
-                ),
-                actionColor: "warning",
-                size: "lg",
-                confirmText: "Skip verification",
-                confirmIcon: "arrow-right",
-            });
+            const confirmOptions = SkipLicenseVerificationConfirmModal({ setValue });
+            const isConfirmed = await confirm(confirmOptions);
+            
             if (isConfirmed) {
                 setValue("currentStep", "Security");
             }

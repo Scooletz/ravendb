@@ -21,8 +21,6 @@ export function SetupWizardUsePackageStep() {
 
     const { setupWizardService } = useServices();
 
-    // TODO maybe add a tooltip explaining why node tag is disabled
-
     const asyncExtractNodeInfos = useAsync(async () => {
         if (!fileZip) {
             return [];

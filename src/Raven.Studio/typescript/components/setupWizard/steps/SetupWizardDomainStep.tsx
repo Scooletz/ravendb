@@ -55,7 +55,6 @@ export function SetupWizardDomainStep() {
                 return domain;
             }
         } catch (e) {
-            // TODO handle error when api is not available
             console.error("Error", e);
         }
     };
