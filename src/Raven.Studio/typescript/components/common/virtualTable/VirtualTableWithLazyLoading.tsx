@@ -18,6 +18,7 @@ export default function VirtualTableWithLazyLoading<T>(props: VirtualTableWithLa
     // Disable sort and filter by default for lazy loading
     table.setOptions((prev) => ({
         ...prev,
+        columnResizeMode: "onChange",
         defaultColumn: {
             ...prev.defaultColumn,
             enableSorting: false,
