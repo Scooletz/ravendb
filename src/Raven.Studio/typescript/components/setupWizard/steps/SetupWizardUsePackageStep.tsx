@@ -153,7 +153,7 @@ export function SetupWizardUsePackageStepFooter() {
     } = useWatch({ control });
 
     const handleContinue = () => {
-        setValue("currentStep", "Summary");
+        setValue("currentStep", "Finish");
     };
 
     return (

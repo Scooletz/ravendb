@@ -6,7 +6,11 @@ import SetupWizard from "./SetupWizard";
 import { mockServices } from "test/mocks/services/MockServices";
 import { userEvent, waitFor, expect, waitForElementToBeRemoved } from "@storybook/test";
 import { Canvas } from "storybook/internal/types";
-import { SetupWizardSecurityOption, SetupWizardStepId } from "components/setupWizard/setupWizardValidation";
+import {
+    SetupWizardSecurityOption,
+    SetupWizardSetupMethod,
+    SetupWizardStepId,
+} from "components/setupWizard/setupWizardValidation";
 
 const getSecurityOptionLabel = (option: SetupWizardSecurityOption): string => {
     switch (option) {
@@ -16,6 +20,17 @@ const getSecurityOptionLabel = (option: SetupWizardSecurityOption): string => {
             return "Provide your own certificate";
         case "letsEncrypt":
             return "Generate Let’s Encrypt certificate";
+    }
+}
+
+const getSetupMethodLabel = (option: SetupWizardSetupMethod): string => {
+    switch (option) {
+        case "newCluster":
+            return "Set up new cluster";
+        case "createPackage":
+            return "Create package for external setup";
+        case "usePackage":
+            return "Use setup package";
     }
 }
 
@@ -45,22 +60,35 @@ export default {
                     letsEncrypt: "Generate Let's Encrypt certificate",
                     ownCertificate: "Provide your own certificate",
                     none: "Don't use certificate",
-                }
+                } satisfies Record<SetupWizardSecurityOption, string>
             },
             options: [
                 "none", "letsEncrypt", "ownCertificate",
             ] satisfies SetupWizardSecurityOption[],
         },
+        setupMethod: {
+            control: {
+                type: "select",
+                labels: {
+                    newCluster: "Set up new cluster",
+                    createPackage: "Create package for external setup",
+                    usePackage: "Use setup package",
+                } satisfies Record<SetupWizardSetupMethod, string>
+            },
+            options: ["newCluster", "createPackage", "usePackage"] satisfies SetupWizardSetupMethod[],
+        }
     },
     args: {
         securityOption: "letsEncrypt",
         licenseType: "Community",
+        setupMethod: "newCluster"
     },
 } satisfies Meta<SetupWizardStoryArgs>;
 
 interface SetupWizardStoryArgs {
     licenseType: Raven.Server.Commercial.LicenseType;
     securityOption: SetupWizardSecurityOption;
+    setupMethod: SetupWizardSetupMethod;
 }
 
 export const Eula: StoryObj = {
@@ -191,7 +219,7 @@ async function navigateToStep(canvas: Canvas, targetStep: SetupWizardStepId, arg
     }
 
     // For all other steps, go through Set up new cluster path
-    await userEvent.click(canvas.getByRole("heading", { name: /Set up new cluster/ }));
+    await userEvent.click(canvas.getByRole("heading", { name: getSetupMethodLabel(args.setupMethod) }));
     await userEvent.click(canvas.getByRole("button", { name: /Continue/ }));
 
     // Enter license key

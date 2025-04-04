@@ -74,8 +74,8 @@ export function useSetupWizardSteps({
             component: <SetupWizardLicenseKeyStep />,
             footer: <SetupWizardLicenseKeyStepFooter />,
             isCurrent: currentStep === "License key",
-            isAvailable: setupMethod === "newCluster" || setupMethod === "usePackage",
-            isVisible: getIsNotInStepIds(["Eula", "Setup method"]),
+            isAvailable: setupMethod === "newCluster" || setupMethod === "createPackage",
+            isVisible: getIsNotInStepIds(["Eula", "Setup method", "Use setup package"]),
         },
         {
             title: "Security",
@@ -83,8 +83,8 @@ export function useSetupWizardSteps({
             component: <SetupWizardSecurityStep />,
             footer: <SetupWizardSecurityStepFooter />,
             isCurrent: currentStep === "Security",
-            isAvailable: setupMethod === "newCluster" || setupMethod === "usePackage",
-            isVisible: getIsNotInStepIds(["Eula", "Setup method"]),
+            isAvailable: setupMethod === "newCluster" || setupMethod === "createPackage",
+            isVisible: getIsNotInStepIds(["Eula", "Setup method", "Use setup package"]),
         },
         {
             title: "Self-signed certificate",
@@ -141,7 +141,7 @@ export function useSetupWizardSteps({
             footer: <SetupWizardFinishStepFooter />,
             isCurrent: currentStep === "Finish",
             isAvailable: true,
-            isVisible: getIsNotInStepIds(["Eula", "Setup method", "License key", "Security", "Use setup package"]),
+            isVisible: getIsNotInStepIds(["Eula", "Setup method", "License key", "Security"]),
         },
     ];
 
