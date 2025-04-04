@@ -524,6 +524,13 @@ function NodeDetailsPanelEdit({
                     <FormGroup>
                         <FormSwitch name="isPassive" control={control}>
                             Start node as Passive, not part of a cluster
+                            <PopoverWithHoverWrapper
+                                message={
+                                    <PopoverMessage description="When enabled, the node remains passive and does not join any cluster. This is useful when the node is meant for monitoring, initialization, or handling setup tasks without actively participating in cluster operations. It can also be used to isolate the node for testing or debugging purposes." />
+                                }
+                            >
+                                <Icon icon="info" margin="ms-1" color="info" />
+                            </PopoverWithHoverWrapper>
                         </FormSwitch>
                     </FormGroup>
                 )}

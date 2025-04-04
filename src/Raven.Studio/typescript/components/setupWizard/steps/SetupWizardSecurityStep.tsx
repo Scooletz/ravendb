@@ -65,7 +65,7 @@ export function SetupWizardSecurityStep() {
                     <SetupWizardClickableCard
                         className="w-100"
                         icon="lets-encrypt"
-                        title="Generate Let’s Encrypt certificate"
+                        title="Generate Let's Encrypt certificate"
                         description="Secure and hassle-free communication with automatic certificate management"
                         isSelected={securityOption === "letsEncrypt"}
                         onClick={() => setValue("securityStep.securityOption", "letsEncrypt")}
@@ -77,7 +77,7 @@ export function SetupWizardSecurityStep() {
                                     SSL/TLS certificates for encrypting communications between nodes and clients.
                                 </li>
                                 <li>
-                                    Ideal when you don’t have a specific custom certificate or prefer RavenDB to handle
+                                    Ideal when you don&#39;t have a specific custom certificate or prefer RavenDB to handle
                                     encryption automatically.
                                 </li>
                             </ol>
@@ -132,7 +132,7 @@ export function SetupWizardSecurityStep() {
                 </h5>
                 <SetupWizardClickableCard
                     icon="empty-set"
-                    title="Don’t use certificate"
+                    title="Don't use certificate"
                     description="Best for quick local development with no security requirements"
                     isSelected={securityOption === "none"}
                     onClick={() => setValue("securityStep.securityOption", "none")}

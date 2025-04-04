@@ -19,9 +19,9 @@ const getSecurityOptionLabel = (option: SetupWizardSecurityOption): string => {
         case "ownCertificate":
             return "Provide your own certificate";
         case "letsEncrypt":
-            return "Generate Let’s Encrypt certificate";
+            return "Generate Let's Encrypt certificate";
     }
-}
+};
 
 const getSetupMethodLabel = (option: SetupWizardSetupMethod): string => {
     switch (option) {
