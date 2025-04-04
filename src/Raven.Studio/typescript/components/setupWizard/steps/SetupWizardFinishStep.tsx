@@ -19,6 +19,8 @@ import Row from "react-bootstrap/Row";
 import Col from "react-bootstrap/Col";
 import RichAlert from "components/common/RichAlert";
 import { NumberedList, NumberedListItem } from "components/common/NumberedList";
+import Modal from "components/common/Modal";
+import { useBrowser } from "components/hooks/useBrowser";
 
 type OperationStatus = Raven.Client.Documents.Operations.OperationStatus;
 
@@ -324,17 +326,17 @@ function CompletedSummary() {
     const studioUrl = getStudioUrl();
 
     return (
-        <div className="panel-bg-1 rounded border border-secondary completed-summary">
+        <div className="summary-tab-container">
             <Tab.Container id="summary-tabs" defaultActiveKey="whatsNew">
                 <Nav className="mb-2">
                     <Nav.Item className="flex-grow">
-                        <Nav.Link eventKey="whatsNew" className="whats-new-tab" style={{ backgroundImage: "none" }}>
+                        <Nav.Link eventKey="whatsNew" className="whats-new-tab">
                             What&apos;s next?
                         </Nav.Link>
                     </Nav.Item>
                     {isSettingCluster && (
                         <Nav.Item className="flex-grow">
-                            <Nav.Link eventKey="cluster" className="cluster-tab" style={{ backgroundImage: "none" }}>
+                            <Nav.Link eventKey="cluster" className="cluster-tab">
                                 Setting up a cluster
                             </Nav.Link>
                         </Nav.Item>
@@ -528,8 +530,113 @@ function useSetupWizardFinishUtils() {
     };
 }
 
+function CertInstallationConfirm(props: { onCancel: () => void; onConfirm: () => void }) {
+    const { onCancel, onConfirm } = props;
+
+    const browser = useBrowser();
+
+    // TODO Update text for browsers tabs
+    // TODO Add link to documentation
+
+    return (
+        <Modal show onHide={onCancel} contentClassName="modal-border bulge-primary" size="lg">
+            <Modal.Header closeButton onCloseClick={onCancel}>
+                <Icon icon="certificate" color="primary" addon="check" className="fs-2" />
+                <span className="lead">Confirm certificate installation</span>
+            </Modal.Header>
+            <Modal.Body>
+                <NumberedList>
+                    <NumberedListItem stepKey={1}>
+                        <h4>Recognize certificate in your browser</h4>
+                        <div className="browser-tab-container">
+                            <Tab.Container id="summary-tabs" defaultActiveKey={browser}>
+                                <Nav className="mb-2">
+                                    <Nav.Item className="flex-grow">
+                                        <Nav.Link eventKey="Chrome" className="chrome-tab">
+                                            <Icon icon="chrome" />
+                                            Chrome
+                                        </Nav.Link>
+                                    </Nav.Item>
+                                    <Nav.Item className="flex-grow">
+                                        <Nav.Link eventKey="Firefox" className="firefox-tab">
+                                            <Icon icon="firefox" />
+                                            Firefox
+                                        </Nav.Link>
+                                    </Nav.Item>
+                                    <Nav.Item className="flex-grow">
+                                        <Nav.Link eventKey="Safari" className="safari-tab">
+                                            <Icon icon="safari" />
+                                            Safari
+                                        </Nav.Link>
+                                    </Nav.Item>
+                                    <Nav.Item className="flex-grow">
+                                        <Nav.Link eventKey="Other" className="other-tab">
+                                            <Icon icon="global" />
+                                            Other
+                                        </Nav.Link>
+                                    </Nav.Item>
+                                </Nav>
+                                <Tab.Content className="p-2 text-break">
+                                    <Tab.Pane eventKey="Chrome">
+                                        Chrome (or any{" "}
+                                        <a href="https://en.wikipedia.org/wiki/Chromium_(web_browser)#Browsers_based_on_Chromium">
+                                            Chromium-based browser
+                                        </a>
+                                        ) will let you select this certificate automatically. You may need to restart
+                                        all instances of Chrome to make sure nothing is cached.
+                                    </Tab.Pane>
+                                    <Tab.Pane eventKey="Firefox">
+                                        Firefox will let you select this certificate automatically. You may need to
+                                        restart all instances of Firefox to make sure nothing is cached.
+                                    </Tab.Pane>
+                                    <Tab.Pane eventKey="Safari">
+                                        Safari will let you select this certificate automatically. You may need to
+                                        restart all instances of Safari to make sure nothing is cached.
+                                    </Tab.Pane>
+                                    <Tab.Pane eventKey="Other">
+                                        Other browsers will require you to select the certificate manually.
+                                    </Tab.Pane>
+                                </Tab.Content>
+                            </Tab.Container>
+                        </div>
+                    </NumberedListItem>
+                    <NumberedListItem stepKey={2}>
+                        <h4>Restart server</h4>
+                        <p>
+                            Once you proceed with restart, pick your newly installed certificate from the list of
+                            available certificates.
+                            <br />
+                            <br />
+                            If Chrome doesn’t let you choose a certificate and instead you get a RavenDB authentication
+                            error, please try again in the Incognito mode (or close all instances of Chrome). It can
+                            happen because the browser caches the client certificates.
+                        </p>
+                    </NumberedListItem>
+                </NumberedList>
+            </Modal.Body>
+            <Modal.Footer className="hstack justify-content-between">
+                <a href="TODO" className="btn btn-info rounded-pill">
+                    See documentation <Icon icon="newtab" margin="ms-1" />
+                </a>
+                <div className="hstack gap-2">
+                    <Button variant="link" onClick={onCancel} className="link-muted">
+                        Cancel
+                    </Button>
+                    <Button variant="primary" onClick={onConfirm} className="rounded-pill">
+                        <Icon icon="reset" />
+                        Restart server
+                    </Button>
+                </div>
+            </Modal.Footer>
+        </Modal>
+    );
+}
+
 export function SetupWizardFinishStepFooter() {
     const { setupWizardService } = useServices();
+    const { control } = useFormContext<SetupWizardFormData>();
+    const { securityStep, setupMethodStep, usePackageStep } = useWatch({ control });
+    const { value: isCertInstallationConfirmed, toggle: toggleIsCertInstallationConfirmed } = useBoolean(false);
 
     const { getStudioUrl } = useSetupWizardFinishUtils();
 
@@ -537,18 +644,41 @@ export function SetupWizardFinishStepFooter() {
         window.location.href = getStudioUrl();
     };
 
-    const resetServer = async (waitBeforeRedirectInMs: number) => {
+    const resetServer = async () => {
         await setupWizardService.finishSetup();
+
+        const waitBeforeRedirectInMs = 2000;
         setTimeout(() => {
             redirectToStudio();
         }, waitBeforeRedirectInMs);
     };
 
+    const handleReset = () => {
+        const isSecure =
+            securityStep.securityOption !== "none" ||
+            (setupMethodStep.method === "usePackage" && usePackageStep.isZipSecure);
+
+        if (isSecure) {
+            toggleIsCertInstallationConfirmed();
+        } else {
+            resetServer();
+        }
+    };
+
     return (
         <div className="d-flex justify-content-end">
-            <Button variant="primary" onClick={() => resetServer(2000)} className="mt-2 rounded-pill">
+            <Button variant="primary" onClick={handleReset} className="mt-2 rounded-pill">
                 Reset server <Icon icon="reset" margin="m-0" />
             </Button>
+            {isCertInstallationConfirmed && (
+                <CertInstallationConfirm
+                    onCancel={toggleIsCertInstallationConfirmed}
+                    onConfirm={() => {
+                        resetServer();
+                        toggleIsCertInstallationConfirmed();
+                    }}
+                />
+            )}
         </div>
     );
 }

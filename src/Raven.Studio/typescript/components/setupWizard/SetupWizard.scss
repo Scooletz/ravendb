@@ -52,7 +52,7 @@
     }
 
     .finish-step {
-        .completed-summary {
+        .summary-tab-container {
             border-radius: var(--bs-border-radius);
             border: 1px solid var(--border-color-light);
             background-color: var(--panel-bg-1);
@@ -61,17 +61,17 @@
                 color: colors.$text-emphasis-color;
                 font-size: sizes.$font-size-base;
                 text-align: center;
+                background-image: none !important;
 
                 &[aria-selected="false"] {
                     color: colors.$text-muted-color;
                     background-color: var(--bs-body-bg);
+                    border-bottom: 1px solid var(--border-color-light);
                 }
             }
-
             .whats-new-tab {
                 &[aria-selected="false"] {
                     border-right: 1px solid var(--border-color-light);
-                    border-bottom: 1px solid var(--border-color-light);
                     border-top-left-radius: var(--bs-border-radius);
                 }
             }
@@ -79,11 +79,43 @@
             .cluster-tab {
                 &[aria-selected="false"] {
                     border-left: 1px solid var(--border-color-light);
-                    border-bottom: 1px solid var(--border-color-light);
                     border-top-right-radius: var(--bs-border-radius);
                 }
             }
         }
+    }
+}
+
+.browser-tab-container {
+    border-radius: var(--bs-border-radius);
+    border: 1px solid var(--border-color-light);
+    background-color: var(--panel-bg-2);
+
+    .nav-link {
+        color: colors.$text-emphasis-color;
+        font-size: sizes.$font-size-base;
+        text-align: center;
+        background-image: none !important;
+
+        &[aria-selected="false"] {
+            color: colors.$text-muted-color;
+            background-color: var(--bs-body-bg);
+            border-bottom: 1px solid var(--border-color-light);
+        }
+    }
+
+    .chrome-tab {
+        border-right: 1px solid var(--border-color-light);
+        border-top-left-radius: var(--bs-border-radius);
+    }
+
+    .firefox-tab,
+    .safari-tab {
+        border-right: 1px solid var(--border-color-light);
+    }
+
+    .other-tab {
+        border-top-right-radius: var(--bs-border-radius);
     }
 }
 
