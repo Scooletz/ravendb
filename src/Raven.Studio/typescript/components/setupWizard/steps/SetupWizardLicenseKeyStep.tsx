@@ -129,7 +129,7 @@ function LicenseKeyBadge() {
 function GenerateCommunity() {
     return (
         <div>
-            <HStack className="justify-content-between">
+            <HStack className="justify-content-between flex-wrap mb-2">
                 <h2>
                     Generate new <span className="text-info">Community</span> license
                 </h2>
@@ -154,7 +154,7 @@ function GenerateCommunity() {
 function GenerateDeveloper() {
     return (
         <div>
-            <HStack className="justify-content-between">
+            <HStack className="justify-content-between flex-wrap mb-2">
                 <h2>
                     Generate new <span className="text-success">Developer</span> license
                 </h2>
