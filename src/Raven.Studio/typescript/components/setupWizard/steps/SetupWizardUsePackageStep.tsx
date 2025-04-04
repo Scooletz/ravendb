@@ -39,6 +39,13 @@ export function SetupWizardUsePackageStep() {
     }));
 
     useEffect(() => {
+        if (nodeInfos.length === 1) {
+            const singleNode = nodeInfos[0];
+            setValue("usePackageStep.nodeTag", singleNode.Tag);
+        }
+    }, [nodeInfos, setValue]);
+
+    useEffect(() => {
         const subscribe = watch((values, { name }) => {
             if (name === "usePackageStep.nodeTag") {
                 const nodeInfo = nodeInfos.find((x) => x.Tag === values.usePackageStep.nodeTag);

@@ -316,12 +316,12 @@ function TopInfo({ status }: { status: OperationStatus }) {
 function CompletedSummary() {
     const { control } = useFormContext<SetupWizardFormData>();
 
-    const { nodeAddressStep } = useWatch({ control });
+    const { nodeAddressStep, usePackageStep: {nodeTag} } = useWatch({ control });
 
     const { getStudioUrl } = useSetupWizardFinishUtils();
 
     const isSettingCluster = nodeAddressStep.nodes.length > 1;
-    const localNodeTag = nodeAddressStep.nodes[0].nodeTag;
+    const localNodeTag = nodeAddressStep.nodes?.[0]?.nodeTag ?? nodeTag;
 
     const studioUrl = getStudioUrl();
 
