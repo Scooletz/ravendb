@@ -62,6 +62,7 @@ export default function FileDropzone({ onChange, validExtensions = [], maxFiles 
         <div>
             <div className={classNames("file-dropzone", { isDragging })}>
                 <input
+                    data-testid="file-input"
                     type="file"
                     ref={fileInputRef}
                     onChange={handleFileInput}
