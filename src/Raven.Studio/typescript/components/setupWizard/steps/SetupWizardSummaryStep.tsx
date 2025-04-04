@@ -25,7 +25,7 @@ export function SetupWizardSummaryStep() {
     return (
         <div>
             <div className="mb-5">
-                <h1>Summary</h1>
+                <h2>Summary</h2>
                 <p>Check if everything’s correct before proceeding.</p>
             </div>
             <div className="vstack gap-3">
@@ -274,10 +274,10 @@ export function SetupWizardSummaryStepFooter() {
     const handleBack = () => {
         setValue("currentStep", "Additional settings");
     };
-    
+
     return (
         <div className="hstack justify-content-between">
-                      <Button variant="secondary" className="rounded-pill" onClick={handleBack}>
+            <Button variant="secondary" className="rounded-pill" onClick={handleBack}>
                 <Icon icon="arrow-left" /> Back
             </Button>
             <Button variant="primary" className="rounded-pill" onClick={handleContinue}>

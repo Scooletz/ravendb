@@ -24,7 +24,7 @@ export function SetupWizardAdditionalSettingsStep() {
     return (
         <div className="setup-wizard-additional-settings">
             <div className="mb-4">
-                <h1>Additional settings</h1>
+                <h2>Additional settings</h2>
                 <p>At this optional step you may control some of optional settings regarding your setup.</p>
             </div>
             <div>
@@ -245,12 +245,12 @@ export function SetupWizardAdditionalSettingsStepFooter() {
     };
 
     const handleBack = () => {
-        setValue("currentStep", "Node address")
-    }
-    
+        setValue("currentStep", "Node address");
+    };
+
     return (
         <div className="hstack justify-content-between">
-                      <Button variant="secondary" className="rounded-pill" onClick={handleBack}>
+            <Button variant="secondary" className="rounded-pill" onClick={handleBack}>
                 <Icon icon="arrow-left" /> Back
             </Button>
             <Button variant="primary" className="rounded-pill" onClick={handleContinue}>

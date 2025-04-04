@@ -95,7 +95,7 @@ export function SetupWizardNodeAddressStep() {
     return (
         <div>
             <div className="mb-4">
-                <h1>Node addresses</h1>
+                <h2>Node addresses</h2>
                 <p>
                     Enter your server settings - IP addresses and ports to ensure clear communication and smooth work of
                     your database. If you are building a cluster this is the place to add nodes and configure them.
@@ -342,8 +342,7 @@ interface PopoverMessageProps {
 
 export function PopoverMessage({ description, alert }: PopoverMessageProps) {
     // TODO: add link to documentation based on app version
-    
-    
+
     return (
         <>
             <p>{description}</p>
@@ -352,7 +351,11 @@ export function PopoverMessage({ description, alert }: PopoverMessageProps) {
             <span>
                 <Icon icon="link" />
                 Read more in our{" "}
-                <a href="https://ravendb.net/docs/article-page/7.0/csharp/start/installation/manual" target="_blank" className="text-primary fw-bold">
+                <a
+                    href="https://ravendb.net/docs/article-page/7.0/csharp/start/installation/manual"
+                    target="_blank"
+                    className="text-primary fw-bold"
+                >
                     documentation <Icon icon="newtab" />
                 </a>
             </span>
@@ -1065,7 +1068,7 @@ export function SetupWizardNodeAddressStepFooter() {
             setValue("currentStep", "Additional settings");
         }
     };
-    
+
     const handleBack = () => {
         const setupWizardFormData = getValues();
         switch (setupWizardFormData.securityStep.securityOption) {
@@ -1077,11 +1080,11 @@ export function SetupWizardNodeAddressStepFooter() {
                 setValue("currentStep", "Security");
                 break;
         }
-    }
+    };
 
     return (
         <div className="hstack justify-content-between">
-                      <Button variant="secondary" className="rounded-pill" onClick={handleBack}>
+            <Button variant="secondary" className="rounded-pill" onClick={handleBack}>
                 <Icon icon="arrow-left" /> Back
             </Button>
             <Button disabled={isEditing} variant="primary" className="rounded-pill" onClick={handleContinue}>
