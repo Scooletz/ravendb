@@ -18,7 +18,6 @@ export = generateMenuItems;
 
 interface GenerateMenuItemsOptions {
     db: database | string;
-    isNewVersionAvailable: boolean;
     isWhatsNewVisible: boolean;
 }
 
