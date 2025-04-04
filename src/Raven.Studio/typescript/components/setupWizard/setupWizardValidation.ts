@@ -58,8 +58,8 @@ const licenseKeyStepSchema = yup.object({
     isAcceptEmails: yup.boolean(),
     firstName: licenseRequiredField(yup.string()),
     lastName: licenseRequiredField(yup.string()),
-    email: licenseRequiredField(yup.string()), // TODO email validation
-    phone: yup.string(), // TODO phone validation
+    email: licenseRequiredField(yup.string().email()),
+    phone: yup.string().phone(),
     country: licenseRequiredField(yup.string().oneOf(setupWizardConstants.allCountries)),
     jobTitle: licenseRequiredField(yup.string().oneOf(setupWizardConstants.allJobTitles)),
     industry: licenseRequiredField(yup.string().oneOf(setupWizardConstants.allIndustries)),
