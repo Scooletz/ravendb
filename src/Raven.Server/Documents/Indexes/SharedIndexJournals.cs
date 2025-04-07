@@ -73,34 +73,42 @@ public class SharedIndexJournals : IJournalMerger, IDisposable
         {
             while (_disposed is false)
             {
-                _waitForJournals.Wait();
-                _waitForJournals.Reset();
-                do
+                try
                 {
-                    var curJournal = _env.Journal.CurrentFile;
-                    using (var txw = _env.WriteTransaction())
-                    {
-                        txw.Commit();
-                    }
 
-                    if (curJournal == _env.Journal.CurrentFile)
-                        continue;
-
-                    // this will force us to do an actual commit
-                    // to our own journal, and thus force us to 
-                    // flush the journals, etc...
-                    // 
-                    // This is required to ensure that journals are properly
-                    // flushed & handled after we switch between journals
-                    using (var txw = _env.WriteTransaction())
+                    _waitForJournals.Wait();
+                    _waitForJournals.Reset();
+                    do
                     {
-                        // we do a dummy change here to force the env
-                        // to think that it has an actual transaction and thus
-                        // will force it to flush / remove older journal
-                        txw.LowLevelTransaction.ModifyPage(0);
-                        txw.Commit();
-                    }
-                } while (_env.Journal.HasBranchCommits);
+                        var curJournal = _env.Journal.CurrentFile;
+                        using (var txw = _env.WriteTransaction())
+                        {
+                            txw.Commit();
+                        }
+
+                        if (curJournal == _env.Journal.CurrentFile)
+                            continue;
+
+                        // this will force us to do an actual commit
+                        // to our own journal, and thus force us to 
+                        // flush the journals, etc...
+                        // 
+                        // This is required to ensure that journals are properly
+                        // flushed & handled after we switch between journals
+                        using (var txw = _env.WriteTransaction())
+                        {
+                            // we do a dummy change here to force the env
+                            // to think that it has an actual transaction and thus
+                            // will force it to flush / remove older journal
+                            txw.LowLevelTransaction.ModifyPage(0);
+                            txw.Commit();
+                        }
+                    } while (_env.Journal.HasBranchCommits);
+                }
+                catch (Exception e)
+                {
+                    Interlocked.Exchange(ref _env.Journal.SharedJournalState, new SharedJournalState()).SetException(e);
+                }
             }
         }
     }

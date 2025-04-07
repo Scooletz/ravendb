@@ -43,20 +43,27 @@ using Sparrow.Server.Platform;
 using Voron.Data.BTrees;
 using Voron.Impl.FreeSpace;
 using Voron.Logging;
+using static Voron.Impl.Paging.Pager;
 
 namespace Voron.Impl.Journal
 {
     public sealed unsafe class WriteAheadJournal : IDisposable
     {
         private readonly StorageEnvironment _env;
-        private readonly ConcurrentQueue<PendingJournalStateRecord> _mergedCommitsQueue = new();
-        private readonly List<Pal.journal_entry> _mergedEntriesBuffer = [];
-        private readonly List<PendingJournalStateRecord> _mergedJournalRecordsBuffer = [];
+        public SharedJournalState SharedJournalState = new ();
 
-        internal record PendingJournalStateRecord(
+        public record JournalStateRecord(
             LowLevelTransaction Transaction,
             TaskCompletionSource Tcs,
             Pal.journal_entry Entry);
+
+        public record PendingJournalStateRecord(
+            LowLevelTransaction Transaction,
+            TaskCompletionSource Tcs,
+            Pal.journal_entry Entry)
+        {
+            public JournalStateRecord JournalStateRecord => new JournalStateRecord(Transaction, Tcs, Entry);
+        }
 
         private long _currentJournalFileSize;
         private DateTime _lastFile;
@@ -242,7 +249,7 @@ namespace Voron.Impl.Journal
 
         public WriteAheadJournal.JournalApplicator Applicator => _journalApplicator;
         
-        public bool HasBranchCommits => _mergedCommitsQueue.IsEmpty is false;
+        public bool HasBranchCommits => SharedJournalState.HasBranchCommits;
 
         private JournalFile NextFile(long numberOf4Kbs)
         {
@@ -1788,28 +1795,29 @@ FinishJournalRecovery:
                 Pager.PagerTransactionState tempTxState = new() { IsWriteTransaction = true };
                 long numberOfUncompressedPages = 0;
                 long numberOf4Kbs = 0;
+                TaskCompletionSource branchCommit = null;
                 try
                 {
-                    Task branchCommit = null;
                     var rootJournal = _env.Options.RootJournal ?? this;
-                    if(_env.Options.RootJournal != null && rootJournal._rootJournalMergedCommitsCts is null)
+                    if (_env.Options.RootJournal != null && rootJournal._rootJournalMergedCommitsCts is null)
                     {
                         throw new InvalidOperationException("Unable to commit as a branch if the root journal I'm associated with is not within a shared journal scope");
                     }
 
-                    PendingJournalStateRecord journalStateRecord = null;
+                    JournalStateRecord journalStateRecord = null;
                     if (tx.ShouldWriteTransactionChangesToJournal)
                     {
                         var start = Stopwatch.GetTimestamp();
                         var entry = PrepareToWriteToJournal(tx, ref tempTxState, out numberOfUncompressedPages);
-                        var tcs = new TaskCompletionSource();
-                        branchCommit = tcs.Task;
+                        branchCommit = new TaskCompletionSource();
                         numberOf4Kbs = entry.NumberOf4Kbs;
-                        journalStateRecord = new PendingJournalStateRecord(tx, tcs, entry);
+                        var pendingJournalStateRecord = new PendingJournalStateRecord(tx, branchCommit, entry);
+                        journalStateRecord = pendingJournalStateRecord.JournalStateRecord;
                         if (this != rootJournal)
                         {
-                            rootJournal._mergedCommitsQueue.Enqueue(journalStateRecord);
+                            rootJournal.SharedJournalState.Enqueue(pendingJournalStateRecord);
                         }
+
                         if (_logger.IsDebugEnabled)
                         {
                             var elapsed = Stopwatch.GetElapsedTime(start);
@@ -1825,7 +1833,7 @@ FinishJournalRecovery:
                     else
                     {
                         Debug.Assert(tx.ShouldWriteTransactionChangesToJournal, "ShouldWriteTransactionChangesToJournal must be true for branch commit");
-                        rootJournal.SubmitBranchJournalEntry(branchCommit);
+                        rootJournal.SubmitBranchJournalEntry(branchCommit?.Task);
                     }
 
                     if (_env.Options.Encryption.IsEnabled && _env.Options.Encryption.HasExternalJournalCompressionBufferHandlerRegistration == false)
@@ -1836,6 +1844,11 @@ FinishJournalRecovery:
                     ReduceSizeOfCompressionBufferIfNeeded();
 
                     return (numberOfUncompressedPages, numberOf4Kbs);
+                }
+                catch (Exception e)
+                {
+                    branchCommit?.TrySetException(e);
+                    throw;
                 }
                 finally
                 {
@@ -1866,80 +1879,63 @@ FinishJournalRecovery:
             commitCompleted.Wait();
         }
 
-        private void WriteBuffersToJournal(LowLevelTransaction tx, PendingJournalStateRecord rootEntry)
+        private void WriteBuffersToJournal(LowLevelTransaction tx, JournalStateRecord rootEntry)
         {
-            try
+            Debug.Assert(SharedJournalState.Entries.Length is 0 || SharedJournalState.JournalRecords.Count is 0);
+
+            _forTestingPurposes?.OnWriteBuffersToJournal?.Invoke(SharedJournalState.MergedCommitsQueue);
+
+            long requiredSizeIn4Kbs = 0;
+            if (rootEntry != null)
             {
-                Debug.Assert(_mergedEntriesBuffer.Count is 0 && _mergedJournalRecordsBuffer.Count is 0);
+                SharedJournalState.PrepareForCommit(rootEntry);
+                requiredSizeIn4Kbs = rootEntry.Entry.NumberOf4Kbs;
+            }
 
-                _forTestingPurposes?.OnWriteBuffersToJournal?.Invoke(_mergedCommitsQueue);
+            while (SharedJournalState.JournalRecords.Count < _minimumSharedJournalsMergeCount)
+            {
+                if (SharedJournalState.TryDequeue(out var cur) is false)
+                    break;
 
-                long requiredSizeIn4Kbs = 0;
-                if (rootEntry != null)
+                if (CurrentFile != null) // there is an existing journal file 
                 {
-                    _mergedJournalRecordsBuffer.Add(rootEntry);
-                    _mergedEntriesBuffer.Add(rootEntry.Entry);
-                    requiredSizeIn4Kbs = rootEntry.Entry.NumberOf4Kbs;
-                }
-
-                while (_mergedEntriesBuffer.Count < _minimumSharedJournalsMergeCount)
-                {
-                    if (_mergedCommitsQueue.TryDequeue(out var cur) is false)
-                        break;
-
-                    if (CurrentFile != null) // there is an existing journal file 
-                    {
-                        // there is space to write the current entries, but not if we add the current entry, so flush and then create a new file
-                        // note that this can also happen on the first run, when requiredSizeIn4Kbs is 0
-                        if (CurrentFile.GetAvailable4Kbs(tx.CurrentStateRecord) < requiredSizeIn4Kbs + cur.Entry.NumberOf4Kbs ||
-                            // This file may not be valid for this environment, so we need to create a fresh one
-                            CurrentFile.IsValidFileFor(cur.Transaction.Environment) is false)
-                        {
-                            FlushMergedJournalEntries(tx, requiredSizeIn4Kbs);
-                            requiredSizeIn4Kbs = 0;
-                            CurrentFileIsDone();
-                        }
-                    }
-                    // there is no file available, so we want to buffer as much as possible, but not cross
-                    // the maximum log file size by batching entries
-                    else if (requiredSizeIn4Kbs + cur.Entry.NumberOf4Kbs >= _env.Options.MaxLogFileSize)
+                    // there is space to write the current entries, but not if we add the current entry, so flush and then create a new file
+                    // note that this can also happen on the first run, when requiredSizeIn4Kbs is 0
+                    if (CurrentFile.GetAvailable4Kbs(tx.CurrentStateRecord) < requiredSizeIn4Kbs + cur.Entry.NumberOf4Kbs ||
+                        // This file may not be valid for this environment, so we need to create a fresh one
+                        CurrentFile.IsValidFileFor(cur.Transaction.Environment) is false)
                     {
                         FlushMergedJournalEntries(tx, requiredSizeIn4Kbs);
                         requiredSizeIn4Kbs = 0;
                         CurrentFileIsDone();
                     }
-
-                    requiredSizeIn4Kbs += cur.Entry.NumberOf4Kbs;
-                    _mergedEntriesBuffer.Add(cur.Entry);
-                    _mergedJournalRecordsBuffer.Add(cur);
                 }
-
-                FlushMergedJournalEntries(tx, requiredSizeIn4Kbs);
-
-                if (_mergedCommitsQueue.IsEmpty is false)
+                // there is no file available, so we want to buffer as much as possible, but not cross
+                // the maximum log file size by batching entries
+                else if (requiredSizeIn4Kbs + cur.Entry.NumberOf4Kbs >= _env.Options.MaxLogFileSize)
                 {
-                    // we may have bailed early to ensure low latency for
-                    // the root env, so we tell the merger it has more work still...
-                    BranchJournalMerger?.JournalMergeSubmitted();
+                    FlushMergedJournalEntries(tx, requiredSizeIn4Kbs);
+                    requiredSizeIn4Kbs = 0;
+                    CurrentFileIsDone();
                 }
+
+                requiredSizeIn4Kbs += cur.Entry.NumberOf4Kbs;
+                SharedJournalState.PrepareForCommit(cur.JournalStateRecord);
             }
-            catch (Exception e)
+
+            FlushMergedJournalEntries(tx, requiredSizeIn4Kbs);
+
+            if (SharedJournalState.IsEmpty is false)
             {
-                foreach (var record in _mergedJournalRecordsBuffer)
-                {
-                    record.Tcs.TrySetException(e);
-                }
-                while (_mergedCommitsQueue.TryDequeue(out var cur))
-                {
-                    cur.Tcs.TrySetException(e);
-                }
-                throw;
+                // we may have bailed early to ensure low latency for
+                // the root env, so we tell the merger it has more work still...
+                BranchJournalMerger?.JournalMergeSubmitted();
             }
         }
 
         private void FlushMergedJournalEntries(LowLevelTransaction tx, long requiredSizeIn4Kbs)
         {
-            if (_mergedEntriesBuffer.Count is 0)
+            if (SharedJournalState.JournalRecords.Count is 0)
                 return;
 
             if (CurrentFile == null ||
@@ -1951,7 +1947,7 @@ FinishJournalRecovery:
                     _logger.Debug($"New journal file created {CurrentFile.Number:D19} with size {CurrentFile.JournalSize}");
             }
 
-            foreach (var rec in _mergedJournalRecordsBuffer)
+            foreach (var rec in SharedJournalState.JournalRecords)
             {
                 var environment = rec.Transaction.Environment;
                 JournalFile journalFile = environment.Journal.EnsureRegistered(CurrentFile, out var alreadyExists);
@@ -1984,7 +1980,7 @@ FinishJournalRecovery:
                     EncryptTransaction((byte*)entry.Base);
 
                 requiredSizeIn4Kbs += entry.NumberOf4Kbs;
-                _mergedEntriesBuffer.Add(entry);
+                SharedJournalState.PrepareForCommit(entry);
                 long available4Kbs = CurrentFile.GetAvailable4Kbs(tx.CurrentStateRecord);
                 // This should be rare, we have a full journal, and we _had_ enough space, but not enough after we 
                 // included the linked journal record. So we have to extend the file size directly before issuing the 
@@ -1998,48 +1994,34 @@ FinishJournalRecovery:
                 }
             }
             
-            var entries = CollectionsMarshal.AsSpan(_mergedEntriesBuffer);
+            var entries = SharedJournalState.Entries;
             var start = Stopwatch.GetTimestamp();
-            try
+
+            tx._forTestingPurposes?.ActionToCallJustBeforeWritingToJournal?.Invoke();
+            long positionIn4Kbs = CurrentFile.Write(tx, entries);
+            // We must update the _root_ transaction as well here, since if we have a batch
+            // that does not include the root env, then we have to update the position of 
+            // the journal writer
+            tx.UpdateJournal(CurrentFile.Number, positionIn4Kbs);
+
+            var elapsed = Stopwatch.GetElapsedTime(start);
+
+            foreach (var rec in SharedJournalState.JournalRecords)
             {
-                tx._forTestingPurposes?.ActionToCallJustBeforeWritingToJournal?.Invoke();
-                long positionIn4Kbs = CurrentFile.Write(tx, entries);
-                // We must update the _root_ transaction as well here, since if we have a batch
-                // that does not include the root env, then we have to update the position of 
-                // the journal writer
-                tx.UpdateJournal(CurrentFile.Number, positionIn4Kbs);
-
-                var elapsed = Stopwatch.GetElapsedTime(start);
-
-                foreach (var rec in _mergedJournalRecordsBuffer)
-                {
-                    var llt = rec.Transaction;
-                    llt.UpdateJournal(llt.WrittenToJournalNumber, positionIn4Kbs);
-                    rec.Tcs.TrySetResult();
-                }
-
-                if (_logger.IsDebugEnabled)
-                    _logger.Debug(
-                        $"Writing {new Size(4 * requiredSizeIn4Kbs, SizeUnit.Kilobytes)} to journal {CurrentFile.Number:D19} took {elapsed} with journal entries from {_mergedEntriesBuffer.Count:##,###} environments");
-
-                if (CurrentFile.GetAvailable4Kbs(tx.CurrentStateRecord) == 0)
-                {
-                    CurrentFileIsDone();
-                }
+                var llt = rec.Transaction;
+                llt.UpdateJournal(llt.WrittenToJournalNumber, positionIn4Kbs);
+                rec.Tcs.TrySetResult();
             }
-            catch (Exception e)
-            {
-                foreach (var rec in _mergedJournalRecordsBuffer)
-                {
-                    rec.Tcs.TrySetException(e);
-                }
 
-                throw;
-            }
-            finally
+            SharedJournalState.Reset();
+
+            if (_logger.IsDebugEnabled)
+                _logger.Debug(
+                    $"Writing {new Size(4 * requiredSizeIn4Kbs, SizeUnit.Kilobytes)} to journal {CurrentFile.Number:D19} took {elapsed} with journal entries from {SharedJournalState.JournalRecords.Count:##,###} environments");
+
+            if (CurrentFile.GetAvailable4Kbs(tx.CurrentStateRecord) == 0)
             {
-                _mergedEntriesBuffer.Clear();
-                _mergedJournalRecordsBuffer.Clear();
+                CurrentFileIsDone();
             }
         }
 
@@ -2506,12 +2488,6 @@ FinishJournalRecovery:
             internal Action<ConcurrentQueue<WriteAheadJournal.PendingJournalStateRecord>> OnWriteBuffersToJournal;
         }
 
-        private void RejectCommitsToMerge()
-        {
-            while (_mergedCommitsQueue.TryDequeue(out WriteAheadJournal.PendingJournalStateRecord result))
-            {
-                result.Tcs.TrySetCanceled();
-            }
-        }
+        private void RejectCommitsToMerge() => SharedJournalState.SetCancel();
     }
 }

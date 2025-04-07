@@ -1,7 +1,11 @@
 ﻿using System;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Raven.Client.Documents;
+using Raven.Client.Documents.Indexes;
+using Raven.Client.Documents.Operations.Indexes;
 using Raven.Server.Utils;
 using Tests.Infrastructure;
 using Voron;
@@ -17,6 +21,7 @@ public class SharedJournalTests(ITestOutputHelper output) : RavenTestBase(output
     public class MyJournalMerger(ManualResetEventSlim e) : IJournalMerger
     {
         public bool IsIdle => true;
+
         public void JournalMergeSubmitted()
         {
             e.Set();
@@ -28,7 +33,7 @@ public class SharedJournalTests(ITestOutputHelper output) : RavenTestBase(output
     {
         string rootPath = NewDataPath(suffix: "root");
         IOExtensions.DeleteDirectory(rootPath);
-     
+
         {
             using var rootOptions = StorageEnvironmentOptions.ForPathForTests(rootPath);
             rootOptions.ManualFlushing = true;
@@ -47,7 +52,7 @@ public class SharedJournalTests(ITestOutputHelper output) : RavenTestBase(output
                 return CreateBranchEnv(path, root);
             });
             task.ContinueWith(_ => mre.Set());
-            
+
             WaitForTaskAndExecuteBranchTransactions(task, mre, root);
 
             using var branchEnv = task.Result;
@@ -65,14 +70,14 @@ public class SharedJournalTests(ITestOutputHelper output) : RavenTestBase(output
                 });
                 WaitForValue(() => q.Count, 1 + before);
             };
-            
+
             using (var rootTx = root.WriteTransaction())
             {
                 Tree tree = rootTx.CreateTree("rootTree");
                 tree.Add("root", "yes");
                 rootTx.Commit();
             }
-            
+
             secondBranchCommit.Wait();
 
             root.FlushLogToDataFile();
@@ -80,7 +85,7 @@ public class SharedJournalTests(ITestOutputHelper output) : RavenTestBase(output
             root.SyncDataFileImmediately();
         }
     }
-    
+
     [RavenFact(RavenTestCategory.Voron)]
     public void CanCreateRootAndBranchEnvironments()
     {
@@ -95,7 +100,7 @@ public class SharedJournalTests(ITestOutputHelper output) : RavenTestBase(output
 
             using var root = new StorageEnvironment(rootOptions);
             using var _ = root.Journal.SharedJournalsScope();
-            
+
             using (var rootTx = root.WriteTransaction())
             {
                 Tree tree = rootTx.CreateTree("rootTree");
@@ -118,12 +123,12 @@ public class SharedJournalTests(ITestOutputHelper output) : RavenTestBase(output
                 }
             });
             task.ContinueWith(_ => mre.Set());
-            
+
             WaitForTaskAndExecuteBranchTransactions(task, mre, root);
         }
-        
+
         // here we restart the environments
-        
+
         {
             using var rootOptions = StorageEnvironmentOptions.ForPathForTests(rootPath);
             rootOptions.ManualFlushing = true;
@@ -163,13 +168,13 @@ public class SharedJournalTests(ITestOutputHelper output) : RavenTestBase(output
             {
                 mre.Set();
                 return t;
-            } ).Unwrap();
+            }).Unwrap();
 
             WaitForTaskAndExecuteBranchTransactions(task, mre, root);
         }
-        
+
         // here we restart the environments again
-        
+
         {
             using var rootOptions = StorageEnvironmentOptions.ForPathForTests(rootPath);
             rootOptions.ManualFlushing = true;
@@ -200,8 +205,8 @@ public class SharedJournalTests(ITestOutputHelper output) : RavenTestBase(output
             }
         }
     }
-    
-    
+
+
     [RavenFact(RavenTestCategory.Voron)]
     public void WillRestoreMissingHardLinksOnRootRecovery()
     {
@@ -216,7 +221,7 @@ public class SharedJournalTests(ITestOutputHelper output) : RavenTestBase(output
 
             using var root = new StorageEnvironment(rootOptions);
             using var _ = root.Journal.SharedJournalsScope();
-            
+
             using (var rootTx = root.WriteTransaction())
             {
                 Tree tree = rootTx.CreateTree("rootTree");
@@ -239,18 +244,18 @@ public class SharedJournalTests(ITestOutputHelper output) : RavenTestBase(output
                 }
             });
             task.ContinueWith(_ => mre.Set());
-            
+
             WaitForTaskAndExecuteBranchTransactions(task, mre, root);
         }
-        
+
         // here we restart the environments, but we'll pretend that we had a hard crash
         // and the links for the journal files for the branch were removed, so we'll need
         // to recover them during root recovery
-        foreach (string journal in Directory.GetFiles(Path.Combine(branchPath,"Journals")))
+        foreach (string journal in Directory.GetFiles(Path.Combine(branchPath, "Journals")))
         {
             File.Delete(journal);
         }
-        
+
         {
             using var rootOptions = StorageEnvironmentOptions.ForPathForTests(rootPath);
             rootOptions.ManualFlushing = true;
@@ -258,7 +263,7 @@ public class SharedJournalTests(ITestOutputHelper output) : RavenTestBase(output
 
             using var root = new StorageEnvironment(rootOptions);
             using var _ = root.Journal.SharedJournalsScope();
-            
+
             using var branch = CreateBranchEnv(branchPath, root);
 
             using (var rootTx = root.ReadTransaction())
@@ -290,13 +295,13 @@ public class SharedJournalTests(ITestOutputHelper output) : RavenTestBase(output
             {
                 mre.Set();
                 return t;
-            } ).Unwrap();
+            }).Unwrap();
 
             WaitForTaskAndExecuteBranchTransactions(task, mre, root);
         }
-        
+
         // here we restart the environments again
-        
+
         {
             using var rootOptions = StorageEnvironmentOptions.ForPathForTests(rootPath);
             rootOptions.ManualFlushing = true;
@@ -327,8 +332,8 @@ public class SharedJournalTests(ITestOutputHelper output) : RavenTestBase(output
             }
         }
     }
-    
-    
+
+
     [RavenFact(RavenTestCategory.Voron)]
     public void CanFlushWithSharedJournals()
     {
@@ -352,7 +357,7 @@ public class SharedJournalTests(ITestOutputHelper output) : RavenTestBase(output
 
             var mre = new ManualResetEventSlim(false);
             root.Journal.BranchJournalMerger = new MyJournalMerger(mre);
-            
+
             var task = Task.Run(() =>
             {
                 using var branch = CreateBranchEnv(branchPath, root);
@@ -363,18 +368,19 @@ public class SharedJournalTests(ITestOutputHelper output) : RavenTestBase(output
                     tree.Add("branch", "yes");
                     branchTx.Commit();
                 }
+
                 branch.FlushLogToDataFile();
                 branch.SyncDataFileImmediately();
             });
             task.ContinueWith(_ => mre.Set());
             WaitForTaskAndExecuteBranchTransactions(task, mre, root);
-            
+
             root.FlushLogToDataFile();
             root.SyncDataFileImmediately();
         }
-        
+
         // here we restart the environments
-        
+
         {
             using var rootOptions = StorageEnvironmentOptions.ForPathForTests(rootPath);
             rootOptions.ManualFlushing = true;
@@ -383,13 +389,14 @@ public class SharedJournalTests(ITestOutputHelper output) : RavenTestBase(output
 
             using var root = new StorageEnvironment(rootOptions);
             using var _ = root.Journal.SharedJournalsScope();
-            
+
             using (var rootTx = root.ReadTransaction())
             {
                 Assert.Equal("yes", rootTx.ReadTree("rootTree").Read("root").Reader.ToString());
                 Assert.Equal("no", rootTx.ReadTree("rootTree").Read("branch").Reader.ToString());
                 Assert.Null(rootTx.ReadTree("branchTree"));
             }
+
             using var branch = CreateBranchEnv(branchPath, root);
 
             using (var branchTx = branch.ReadTransaction())
@@ -398,13 +405,13 @@ public class SharedJournalTests(ITestOutputHelper output) : RavenTestBase(output
                 Assert.Equal("no", branchTx.ReadTree("branchTree").Read("root").Reader.ToString());
                 Assert.Equal("yes", branchTx.ReadTree("branchTree").Read("branch").Reader.ToString());
             }
-            
+
             var mre = new ManualResetEventSlim(false);
             root.Journal.BranchJournalMerger = new MyJournalMerger(mre);
             // Now do another write
             var task = Task.Run(() =>
             {
-                using (var branchTx = branch.WriteTransaction())    
+                using (var branchTx = branch.WriteTransaction())
                 {
                     Tree tree = branchTx.CreateTree("branchTree");
                     tree.Add("try", "2");
@@ -420,15 +427,15 @@ public class SharedJournalTests(ITestOutputHelper output) : RavenTestBase(output
                 tree.Add("again", "yes");
                 rootTx.Commit();
             }
-            
+
             root.FlushLogToDataFile();
             branch.FlushLogToDataFile();
             root.SyncDataFileImmediately();
             branch.SyncDataFileImmediately();
         }
     }
-    
-     
+
+
     [RavenFact(RavenTestCategory.Voron)]
     public void JournalsAreDeletesInRootAndBranch_MixedWrites()
     {
@@ -466,7 +473,7 @@ public class SharedJournalTests(ITestOutputHelper output) : RavenTestBase(output
                     tree.Add("try", "one");
                     rootTx.Commit();
                 }
-                
+
                 // journal 1 - 1
                 using (var rootTx = root.WriteTransaction())
                 {
@@ -474,7 +481,7 @@ public class SharedJournalTests(ITestOutputHelper output) : RavenTestBase(output
                     tree.Add("try", "two");
                     rootTx.Commit();
                 }
-                
+
                 // journal 1 - 2
                 // journal 1 - 3 - register link journals
                 using (var branchTx = branch.WriteTransaction())
@@ -489,31 +496,31 @@ public class SharedJournalTests(ITestOutputHelper output) : RavenTestBase(output
 
                 branch.FlushLogToDataFile();
                 branch.SyncDataFileImmediately();
-                
+
                 int filesCountAfter = Directory.GetFiles(branch.Options.JournalPath.FullPath).Length;
                 Assert.Equal(0, filesCountAfter);
-                Assert.True(filesCountBefore >  filesCountAfter, $"{filesCountBefore} > {+filesCountAfter}");
+                Assert.True(filesCountBefore > filesCountAfter, $"{filesCountBefore} > {+filesCountAfter}");
             });
             task.ContinueWith(_ => mre.Set());
 
             WaitForTaskAndExecuteBranchTransactions(task, mre, root);
 
-            
+
             Assert.Null(root.Journal.CurrentFile);
-            
+
             int filesCountBefore = Directory.GetFiles(root.Options.JournalPath.FullPath).Length;
 
             root.FlushLogToDataFile();
             root.SyncDataFileImmediately();
-            
+
             int filesCountAfter = Directory.GetFiles(root.Options.JournalPath.FullPath).Length;
             Assert.Equal(0, filesCountAfter);
 
-            Assert.True(filesCountBefore >  filesCountAfter, $"{filesCountBefore} > {+filesCountAfter}");
+            Assert.True(filesCountBefore > filesCountAfter, $"{filesCountBefore} > {+filesCountAfter}");
         }
     }
 
-    
+
     [RavenFact(RavenTestCategory.Voron)]
     public void JournalsAreDeletedInRootAndBranch()
     {
@@ -553,10 +560,10 @@ public class SharedJournalTests(ITestOutputHelper output) : RavenTestBase(output
 
                 branch.FlushLogToDataFile();
                 branch.SyncDataFileImmediately();
-                
+
                 int filesCountAfter = Directory.GetFiles(branch.Options.JournalPath.FullPath).Length;
-                
-                Assert.True(filesCountBefore >  filesCountAfter, $"{filesCountBefore} > {+filesCountAfter}");
+
+                Assert.True(filesCountBefore > filesCountAfter, $"{filesCountBefore} > {+filesCountAfter}");
             });
             task.ContinueWith(_ => mre.Set());
 
@@ -565,12 +572,13 @@ public class SharedJournalTests(ITestOutputHelper output) : RavenTestBase(output
 
             root.FlushLogToDataFile();
             root.SyncDataFileImmediately();
-            
+
             int filesCountAfter = Directory.GetFiles(root.Options.JournalPath.FullPath).Length;
-                
-            Assert.True(filesCountBefore >  filesCountAfter, $"{filesCountBefore} > {+filesCountAfter}");
+
+            Assert.True(filesCountBefore > filesCountAfter, $"{filesCountBefore} > {+filesCountAfter}");
         }
     }
+
     private static StorageEnvironment CreateBranchEnv(string branchPath, StorageEnvironment root)
     {
         var branchOptions = StorageEnvironmentOptions.ForPathForTests(branchPath);
@@ -582,7 +590,7 @@ public class SharedJournalTests(ITestOutputHelper output) : RavenTestBase(output
 
     public static void WaitForTaskAndExecuteBranchTransactions(Task task, ManualResetEventSlim mre, StorageEnvironment root)
     {
-        while(task.IsCompleted is false)
+        while (task.IsCompleted is false)
         {
             mre.Wait();
             mre.Reset();
@@ -594,8 +602,8 @@ public class SharedJournalTests(ITestOutputHelper output) : RavenTestBase(output
 
         task.Wait();
     }
-    
-    
+
+
     [RavenFact(RavenTestCategory.Voron)]
     public void CanProperlyHandleChangingDbId()
     {
@@ -628,7 +636,7 @@ public class SharedJournalTests(ITestOutputHelper output) : RavenTestBase(output
             using (var env = new StorageEnvironment(opts))
             {
                 Assert.Equal(3, env.CurrentStateRecord.TransactionId);
-                
+
                 // tx 4 - with new id
                 using (var txw = env.WriteTransaction())
                 {
@@ -637,7 +645,7 @@ public class SharedJournalTests(ITestOutputHelper output) : RavenTestBase(output
                 }
             }
         }
-        
+
         {
             using var opts = StorageEnvironmentOptions.ForPathForTests(path);
             opts.ManualSyncing = true;
@@ -649,8 +657,8 @@ public class SharedJournalTests(ITestOutputHelper output) : RavenTestBase(output
             }
         }
     }
-    
-    
+
+
     [RavenFact(RavenTestCategory.Voron)]
     public void CanRecoverRootWhenLastJournalIsJustBranchCommits()
     {
@@ -672,6 +680,7 @@ public class SharedJournalTests(ITestOutputHelper output) : RavenTestBase(output
                 tree.Add("branch", "no");
                 rootTx.Commit();
             }
+
             root.FlushLogToDataFile();
 
             var mre = new ManualResetEventSlim(false);
@@ -687,7 +696,7 @@ public class SharedJournalTests(ITestOutputHelper output) : RavenTestBase(output
                         tree.Add("root", i.ToString());
                         branchTx.Commit();
                     }
-                    
+
                 }
             });
             task.ContinueWith(_ => mre.Set());
@@ -706,8 +715,8 @@ public class SharedJournalTests(ITestOutputHelper output) : RavenTestBase(output
             root.SyncDataFileImmediately();
         }
     }
-    
-    
+
+
     [RavenFact(RavenTestCategory.Voron)]
     public void CanRecoverRootWhenLastJournalIsJustBranchCommits_WithNoRootTransactionsAtAll()
     {
@@ -754,7 +763,7 @@ public class SharedJournalTests(ITestOutputHelper output) : RavenTestBase(output
                         tree.Add("root", i.ToString());
                         branchTx.Commit();
                     }
-                    
+
                 }
             });
             task.ContinueWith(_ => mre.Set());
@@ -771,6 +780,70 @@ public class SharedJournalTests(ITestOutputHelper output) : RavenTestBase(output
 
             root.FlushLogToDataFile();
             root.SyncDataFileImmediately();
+        }
+    }
+
+    [RavenFact(RavenTestCategory.Indexes | RavenTestCategory.Voron)]
+    public async Task SharedJournalsCanHandleFailures()
+    {
+        using (var store = GetDocumentStore())
+        {
+            await new Users_ByName().ExecuteAsync(store);
+
+            using (var session = store.OpenSession())
+            {
+                session.Store(new User { Name = "John" });
+
+                session.SaveChanges();
+            }
+
+            await Indexes.WaitForIndexingAsync(store);
+
+            var database = await GetDatabase(store.Database);
+            database.IndexStore.SharedJournals.Env.ForTestingPurposesOnly().ModifyNewLowLevelTransaction = t => t.ThrowSimulateErrorOnCommitStage2();
+
+            using (var session = store.OpenSession())
+            {
+                session.Store(new User { Name = "Bob" });
+
+                session.SaveChanges();
+            }
+
+            await Assert.ThrowsAsync<InvalidOperationException>(() => Indexes.WaitForIndexingAsync(store));
+
+            database.IndexStore.SharedJournals.Env.ForTestingPurposesOnly().ModifyNewLowLevelTransaction = null;
+
+            await store.Maintenance.SendAsync(new DeleteIndexErrorsOperation());
+            await store.Maintenance.SendAsync(new EnableIndexOperation(new Users_ByName().IndexName));
+
+            using (var session = store.OpenSession())
+            {
+                session.Store(new User { Name = "Alice" });
+
+                session.SaveChanges();
+            }
+
+            await Indexes.WaitForIndexingAsync(store);
+
+            using (var session = store.OpenAsyncSession())
+            {
+                var x = await session.Query<User, Users_ByName>().ToListAsync();
+                Assert.Equal(3, x.Count);
+            }
+        }
+    }
+
+    private class User
+    {
+        public string Name { get; set; }
+    }
+
+    private class Users_ByName : AbstractIndexCreationTask<User>
+    {
+        public Users_ByName()
+        {
+            Map = users => from u in users
+                select new { u.Name };
         }
     }
 }

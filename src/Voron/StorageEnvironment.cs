@@ -739,7 +739,7 @@ namespace Voron
 
                 ActiveTransactions.Add(tx);
 
-                NewTransactionCreated?.Invoke(tx);
+                InvokeNewTransactionCreated(tx);
 
                 return tx;
             }
@@ -767,6 +767,7 @@ namespace Voron
         internal void InvokeNewTransactionCreated(LowLevelTransaction tx)
         {
             NewTransactionCreated?.Invoke(tx);
+            _forTestingPurposes?.ModifyNewLowLevelTransaction?.Invoke(tx.ForTestingPurposesOnly());
         }
 
         [Conditional("DEBUG")]
@@ -894,10 +895,9 @@ namespace Voron
 
                 GlobalFlushingBehavior.GlobalFlusher.Value.MaybeFlushEnvironment(this);
             }
-
-#if DEBUG
+      
             _forTestingPurposes?.OnWriteTransactionCompleted?.Invoke(tx);
-#endif
+      
             // this must occur when we are holding the transaction lock
             Journal.Applicator.OnTransactionCompleted(tx);
 
@@ -1638,6 +1638,7 @@ namespace Voron
         {
             internal Action ActionToCallDuringFullBackupRighAfterCopyHeaders;
             public Action<LowLevelTransaction> OnWriteTransactionCompleted { get; set; }
+            public Action<LowLevelTransaction.TestingStuff> ModifyNewLowLevelTransaction { get; set; }
         }
 
 
