@@ -1270,7 +1270,7 @@ interface FeatureAvailabilitySection {
     items: FeatureAvailabilityItem[];
 }
 
-type DisplayableLicenseField = keyof Omit<LicenseStatus, "Attributes">;
+type DisplayableLicenseField = keyof Omit<LicenseStatus, "Attributes" | "UpgradeRequired">;
 
 interface FeatureAvailabilityItem {
     name: string;
