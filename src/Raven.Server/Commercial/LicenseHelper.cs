@@ -480,7 +480,7 @@ namespace Raven.Server.Commercial
                 {
                     // Getting build number from the license storage, just in case the license is expired and we have ability to downgrade
                     var licenseStorage = new LicenseStorage();
-                    licenseStorage.Initialize(_storageEnvironment, _contextPool);
+                    licenseStorage.Initialize(serverStore: null, _storageEnvironment, _contextPool);
                     var buildInfo = licenseStorage.GetBuildInfo();
 
                     if (buildInfo != null)
