@@ -2,11 +2,9 @@
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.Intrinsics;
-using Microsoft.VisualBasic.CompilerServices;
 using Sparrow.Binary;
 using Sparrow.Compression;
 using Sparrow.Server;
-using Voron.Data.PostingLists;
 
 namespace Voron.Util.PFor;
 
@@ -95,7 +93,7 @@ public unsafe struct FastPForDecoder : IDisposable
 
     private void GrowAllocation(int sizeInElements)
     {
-        int sizeInBytes = Bits.PowerOf2(sizeInElements * sizeof(uint));
+        int sizeInBytes = Bits.NextAllocationSize(sizeInElements * sizeof(uint));
         _allocator.GrowAllocation(ref _buffer, ref _exceptionsScope, sizeInBytes);
         _exceptions = (uint*)_buffer.Ptr;
     }
@@ -108,7 +106,7 @@ public unsafe struct FastPForDecoder : IDisposable
 
         var bigDeltaStart = 0;
         ref var bigDeltaOffsets = ref _bigDeltaOffsets;
-        bigDeltaOffsets.ResetAndEnsureCapacity(_allocator, outputCount);
+        bigDeltaOffsets.Clear();
         var buffer = stackalloc uint[256];
         int read = 0;
         Span<long> outputSpan = new Span<long>(output, outputCount);
@@ -121,7 +119,8 @@ public unsafe struct FastPForDecoder : IDisposable
             switch (numOfBits)
             {
                 case FastPForEncoder.BiggerThanMaxMarker:
-                    bigDeltaOffsets.AddByRefUnsafe() = (long)_metadata;
+                    if (bigDeltaOffsets.TryAdd((long)_metadata) == false)
+                        bigDeltaOffsets.Add(_allocator, (long)_metadata);
                     // we don't need to worry about block fit, because we are ensured that we have at least
                     // 256 items to read into the output here, and these marker are for the next blcok
                     

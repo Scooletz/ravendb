@@ -11,6 +11,7 @@ using Sparrow.Platform;
 using Sparrow.Server.Logging;
 using Sparrow.Server.Platform.Posix;
 using Sparrow.Server.Platform.Posix.macOS;
+using Sparrow.Server.Platform.Win32;
 using Sparrow.Server.Utils;
 using Sparrow.Utils;
 using NativeMemory = Sparrow.Utils.NativeMemory;
@@ -31,12 +32,17 @@ namespace Sparrow.Server.LowMemory
 
         private static readonly int ProcessId;
 
+        private static readonly IntPtr ProcessHandle = IntPtr.Zero;
+
         public static readonly Size TotalPhysicalMemory;
 
         static MemoryInformation()
         {
             using (var process = Process.GetCurrentProcess())
                 ProcessId = process.Id;
+
+            if (PlatformDetails.RunningOnWindows)
+                ProcessHandle = Win32MemoryQueryMethods.GetCurrentProcess();
 
             TotalPhysicalMemory = GetMemoryInfo().TotalPhysicalMemory;
         }
@@ -259,6 +265,9 @@ namespace Sparrow.Server.LowMemory
             public UInt64 OtherTransferCount;
         }
         
+        [return: MarshalAs(UnmanagedType.Bool)]
+        [DllImport("kernel32.dll", SetLastError = true)]
+        public static extern bool IsProcessInJob(IntPtr hProcess, IntPtr hJob, out bool isInJob);
         
         [return: MarshalAs(UnmanagedType.Bool)]
         [DllImport("kernel32.dll")]
@@ -606,6 +615,8 @@ namespace Sparrow.Server.LowMemory
             var availableMemoryForProcessingInBytes = memoryStatusUllAvailPhys + sharedCleanInBytes;
 
             string remarks = null;
+            if (IsProcessInJob(ProcessHandle, IntPtr.Zero, out var isInJob) && isInJob)
+            {
             JOBOBJECT_EXTENDED_LIMIT_INFORMATION limits = default;
             if (QueryInformationJobObject(IntPtr.Zero, 
                     JOBOBJECTINFOCLASS.ExtendedLimitInformation, (void*)&limits, 
@@ -659,6 +670,7 @@ namespace Sparrow.Server.LowMemory
                     memoryStatusUllAvailPhys = Math.Min(availableMemoryForProcessingInBytes, memoryStatusUllAvailPhys);
                     remarks = "Memory limited by Job Object limits";
                 }
+            }
             }
 
             return new MemoryInfoResult
