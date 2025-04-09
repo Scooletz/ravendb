@@ -1133,15 +1133,13 @@ namespace FastTests
                 return new Options(this);
             }
         }
-
-        public int GetAvailablePort()
+        public (int Port, Socket Socket) ReservePort(int port = 0)
         {
-            var tcpListener = new TcpListener(IPAddress.Loopback, 0);
-            tcpListener.Start();
-            var port = ((IPEndPoint)tcpListener.LocalEndpoint).Port;
-            tcpListener.Stop();
-
-            return port;
+            Socket socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+            socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+            socket.Bind(new IPEndPoint(IPAddress.Loopback, port));
+            port = ((IPEndPoint)socket.LocalEndPoint).Port;
+            return (port, socket);
         }
 
         public static string GenRandomString(int size)

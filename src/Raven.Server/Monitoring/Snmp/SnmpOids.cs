@@ -379,6 +379,10 @@ namespace Raven.Server.Monitoring.Snmp
             [Description("Monitor lock contention count")]
             public const string MonitorLockContentionCount = "1.18.1";
 
+            [SnmpDataType(SnmpType.TimeTicks)]
+            [Description("Time since creation of oldest transaction")]
+            public const string ServerLongestTransaction = "1.19.1";
+
             public static Dictionary<string, string> CreateMapping()
             {
                 var dictionary = new Dictionary<string, string>();
@@ -516,7 +520,7 @@ namespace Raven.Server.Monitoring.Snmp
             [SnmpDataType(SnmpType.OctetString)]
             [Description("Cluster ID")]
             public const string Id = "3.2.3";
-            
+
             internal static Dictionary<string, string> CreateMapping()
             {
                 var dictionary = new Dictionary<string, string>();
@@ -787,7 +791,7 @@ namespace Raven.Server.Monitoring.Snmp
 
                     return dictionary;
                 }
-                
+
                 public static DynamicJsonValue ToJson(ServerStore serverStore, TransactionOperationContext context, RawDatabaseRecord record, long databaseIndex)
                 {
                     var mapping = SnmpDatabase.GetIndexMapping(context, serverStore, record.DatabaseName);
@@ -978,7 +982,7 @@ namespace Raven.Server.Monitoring.Snmp
                 [SnmpDataType(SnmpType.Integer32)]
                 [Description("Number of active Queue Sink tasks for all databases")]
                 public const string TotalNumberOfActiveQueueSinkTasks = "5.1.11.22";
-                
+
                 internal static Dictionary<string, string> CreateMapping()
                 {
                     var dictionary = new Dictionary<string, string>();
@@ -990,7 +994,7 @@ namespace Raven.Server.Monitoring.Snmp
 
                     return dictionary;
                 }
-                
+
                 public static DynamicJsonArray ToJson()
                 {
                     var array = new DynamicJsonArray();
@@ -1027,7 +1031,7 @@ namespace Raven.Server.Monitoring.Snmp
 
                 return dict;
             }
-            
+
             public static DynamicJsonValue ToJson(ServerStore serverStore, TransactionOperationContext context)
             {
                 var djv = new DynamicJsonValue
@@ -1071,7 +1075,7 @@ namespace Raven.Server.Monitoring.Snmp
                 .Union(Cluster.CreateMapping())
                 .ToDictionary();
         }
-        
+
         private static (string Oid, string Description, Type Type, SnmpType? TypeCode) GetFieldValue(FieldInfo field)
         {
             return (field.GetRawConstantValue().ToString(), field.GetCustomAttribute<DescriptionAttribute>()?.Description, field.GetCustomAttribute<SnmpEnumIndexAttribute>()?.Type, field.GetCustomAttribute<SnmpDataTypeAttribute>()?.TypeCode);
