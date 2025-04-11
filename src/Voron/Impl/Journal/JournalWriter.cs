@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
+using Sparrow;
 using Sparrow.Logging;
 using Sparrow.Platform;
 using Sparrow.Server.Logging;
@@ -21,23 +22,37 @@ namespace Voron.Impl.Journal
     {
         private const int ERROR_WORKING_SET_QUOTA = 0x5AD;
 
-        private readonly SingleUseFlag _disposed = new SingleUseFlag();
+        private readonly SingleUseFlag _disposed = new();
         private readonly StorageEnvironmentOptions _options;
+        private readonly long _journalNumber;
 
         private readonly SafeJournalHandle _writeHandle;
         private readonly RavenLogger _log;
-        private SafeJournalHandle _readHandle = new SafeJournalHandle();
+        private SafeJournalHandle _readHandle = new();
         private int _refs;
         private bool _workingSetQuotaLogged = false;
 
-        public int NumberOfAllocated4Kb { get; }
+        public int NumberOfAllocated4Kb { get; private set; }
         public bool Disposed => _disposed.IsRaised();
         public VoronPathSetting FileName { get; }
-        public bool DeleteOnClose { get; set; }
+        public bool ShouldDelete { get; set; }
 
-        public JournalWriter(StorageEnvironmentOptions options, VoronPathSetting filename, long size, PalFlags.JournalMode mode = PalFlags.JournalMode.Safe)
+        /// <summary>
+        /// This is used when we want to create a branch writer from an existing JournalFile in the root environment 
+        /// </summary>
+        public JournalWriter(StorageEnvironmentOptions options, string filename, long journalNumber, JournalFile sourceFile)
         {
             _options = options;
+            FileName = new VoronPathSetting(filename);
+            _journalNumber = journalNumber;
+            _writeHandle = new SafeJournalHandle();
+            NumberOfAllocated4Kb = (int)(sourceFile.JournalSize.GetValue(SizeUnit.Bytes) / (4 * Constants.Size.Kilobyte));
+        }
+        
+        public JournalWriter(StorageEnvironmentOptions options, VoronPathSetting filename, long journalNumber, long size, PalFlags.JournalMode mode = PalFlags.JournalMode.Safe)
+        {
+            _options = options;
+            _journalNumber = journalNumber;
             FileName = filename;
             _log = RavenLogManager.Instance.GetLoggerForVoron<JournalWriter>(options, options.BasePath.FullPath);
 
@@ -48,15 +63,18 @@ namespace Voron.Impl.Journal
             NumberOfAllocated4Kb = (int)(actualSize / (4 * Constants.Size.Kilobyte));
         }
 
-        public void Write(long posBy4Kb, byte* p, int numberOf4Kb)
+        public void Write(long posBy4Kb, Span<Pal.journal_entry> entries, long totalNumberOf4Kbs)
         {
             Debug.Assert(_options.IoMetrics != null);
 
-            using (var metrics = _options.IoMetrics.MeterIoRate(FileName.FullPath, IoMetrics.MeterType.JournalWrite, numberOf4Kb * 4L * Constants.Size.Kilobyte))
+            fixed (Pal.journal_entry* pEntries = entries)
             {
-                var result = Pal.rvn_write_journal(_writeHandle, p, numberOf4Kb * 4L * Constants.Size.Kilobyte, posBy4Kb * 4L * Constants.Size.Kilobyte, out var error);
+                using var metrics = _options.IoMetrics.MeterIoRate(FileName.FullPath, IoMetrics.MeterType.JournalWrite,
+                    totalNumberOf4Kbs * 4L * Constants.Size.Kilobyte);
+                var result = Pal.rvn_write_journal(_writeHandle, pEntries, entries.Length, posBy4Kb * 4L * Constants.Size.Kilobyte, out var error);
                 if (result != PalFlags.FailCodes.Success)
-                    PalHelper.ThrowLastError(result, error, $"Attempted to write to journal file - Path: {FileName.FullPath} Size: {numberOf4Kb * 4L * Constants.Size.Kilobyte}, numberOf4Kb={numberOf4Kb}");
+                    PalHelper.ThrowLastError(result, error,
+                        $"Attempted to write to journal file - Path: {FileName.FullPath} Size: {totalNumberOf4Kbs * 4L * Constants.Size.Kilobyte}, numberOf4Kb={totalNumberOf4Kbs}");
 
                 if (error == ERROR_WORKING_SET_QUOTA && _log.IsDebugEnabled && _workingSetQuotaLogged == false)
                 {
@@ -112,7 +130,8 @@ namespace Voron.Impl.Journal
         {
             var result = Pal.rvn_truncate_journal(_writeHandle, size, out var error);
             if (result != PalFlags.FailCodes.Success)
-                PalHelper.ThrowLastError(result, error, $"Attempted to write to journal file - Path: {FileName.FullPath} Size: {size}");
+                PalHelper.ThrowLastError(result, error, $"Attempted to truncate journal file - Path: {FileName.FullPath} Size: {size}");
+            NumberOfAllocated4Kb = checked((int)(size / (4 * Constants.Size.Kilobyte)));
         }
 
         public void AddRef()
@@ -158,9 +177,9 @@ namespace Voron.Impl.Journal
             if (exceptions != null)
                 throw new AggregateException("Failed to dispose journal writer", exceptions);
 
-            if (DeleteOnClose)
+            if (ShouldDelete)
             {
-                _options.TryStoreJournalForReuse(FileName);
+                _options.TryDeleteJournal(_journalNumber);
             }
 
             void TryExecute(Action a)

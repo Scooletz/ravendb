@@ -44,6 +44,7 @@ using Voron.Util;
 using Voron.Util.Conversion;
 using Constants = Voron.Global.Constants;
 using NativeMemory = Sparrow.Utils.NativeMemory;
+using static Voron.Impl.Journal.WriteAheadJournal.JournalApplicator;
 
 namespace Voron
 {
@@ -157,11 +158,11 @@ namespace Voron
                 _currentStateRecord = new EnvironmentStateRecord(
                     dataPagerState,
                     0,
+                    -1,
                     ImmutableDictionary<long, PageFromScratchBuffer>.Empty, 
-                    0,
                     default(TreeRootHeader), 
                     -1,
-                    (null, -1),
+                    (-1, -1),
                     null);
                 
                 _lastValidPageAfterLoad = dataPagerState.NumberOfAllocatedPages;
@@ -306,10 +307,10 @@ namespace Voron
 
         private unsafe void LoadExistingDatabase()
         {
-            var header = stackalloc TransactionHeader[1];
+            var txHeader = stackalloc TransactionHeader[1];
 
             Options.AddToInitLog?.Invoke(LogLevel.Debug, "Starting Recovery");
-            bool hadIntegrityIssues = _journal.RecoverDatabase(header, Options.AddToInitLog);
+            bool hadIntegrityIssues = _journal.RecoverDatabase(txHeader, out var lastJournalNumber, Options.AddToInitLog);
             var successString = hadIntegrityIssues ? "(with integrity issues)" : "(successfully)";
             Options.AddToInitLog?.Invoke(LogLevel.Debug, $"Recovery Ended {successString}");
 
@@ -320,19 +321,20 @@ namespace Voron
                 _options.InvokeRecoveryError(this, message, null);
             }
 
-            var entry = _headerAccessor.CopyHeader();
-            var nextPageNumber = (header->TransactionId == 0 ? entry.LastPageNumber : header->LastPageNumber) + 1;
+            var fileHeader = _headerAccessor.CopyHeader();
+            var nextPageNumber = (txHeader->TransactionId == 0 ? fileHeader.LastPageNumber : txHeader->LastPageNumber) + 1;
             
             _currentStateRecord = _currentStateRecord with
             {
-                TransactionId = header->TransactionId == 0 ? entry.TransactionId : header->TransactionId,
-                NextPageNumber = nextPageNumber
+                TransactionId = txHeader->TransactionId == 0 ? fileHeader.TransactionId : txHeader->TransactionId,
+                NextPageNumber = nextPageNumber,
+                FlushedToJournal = lastJournalNumber
             };
             var transactionPersistentContext = new TransactionPersistentContext(true);
             using (var tx = NewLowLevelTransaction(transactionPersistentContext, TransactionFlags.ReadWrite))
             using (var writeTx = new Transaction(tx))
             {
-                var rootHeader = header->TransactionId == 0 ? entry.Root : header->Root;
+                var rootHeader = txHeader->TransactionId == 0 ? fileHeader.Root : txHeader->Root;
                 var root = Tree.Open(tx, null, Constants.RootTreeNameSlice, rootHeader);
                 tx.UpdateRootsIfNeeded(root);
 
@@ -356,15 +358,18 @@ namespace Voron
                     VoronUnrecoverableErrorException.Raise(tx,
                         "The db id value in metadata tree wasn't 16 bytes in size, possible mismatch / corruption?");
 
-                var databaseGuidId = _options.GenerateNewDatabaseId == false ? new Guid(buffer) : Guid.NewGuid();
+                Guid databaseGuidId;
+                if (_options.GenerateNewDatabaseId == false)
+                {
+                    databaseGuidId = new Guid(buffer);
+                    }
+                else
+                {
+                    databaseGuidId = Guid.NewGuid();
+                    metadataTree.Add("db-id", databaseGuidId.ToByteArray());
+                }
 
                 FillBase64Id(databaseGuidId);
-
-                if (_options.GenerateNewDatabaseId)
-                {
-                    // save the new database id
-                    metadataTree?.Add("db-id", DbId.ToByteArray());
-                }
 
                 if (_options.DisableSparseRegions == false)
                 {
@@ -475,6 +480,7 @@ namespace Voron
             if (Options.SimulateFailureOnDbCreation)
                 ThrowSimulateFailureOnDbCreation();
 
+            Guid dbId = Guid.NewGuid();
             var transactionPersistentContext = new TransactionPersistentContext();
             using (var tx = NewLowLevelTransaction(transactionPersistentContext, TransactionFlags.ReadWrite))
             {
@@ -485,16 +491,23 @@ namespace Voron
 
                 using (var treesTx = new Transaction(tx))
                 {
-                    FillBase64Id(Guid.NewGuid());
+                    FillBase64Id(dbId);
 
                     var metadataTree = treesTx.CreateTree(Constants.MetadataTreeNameSlice);
-                    metadataTree.Add("db-id", DbId.ToByteArray());
+                    metadataTree.Add("db-id", dbId.ToByteArray());
                     metadataTree.Add("schema-version", EndianBitConverter.Little.GetBytes(Options.SchemaVersion));
 
                     treesTx.PrepareForCommit();
 
                     tx.Commit();
                 }
+                // we *must* modify the header after the first transaction is committed
+                // since that is the marker that tells us that this is an existing database...
+                _headerAccessor.Modify((ref FileHeader header) =>
+                {
+                    header.Journal.LastSyncedTransactionId = 0;
+                    header.Journal.LastSyncedJournal = 0;
+                });
             }
 
             Options.AfterDatabaseCreation?.Invoke(this);
@@ -726,7 +739,7 @@ namespace Voron
 
                 ActiveTransactions.Add(tx);
 
-                NewTransactionCreated?.Invoke(tx);
+                InvokeNewTransactionCreated(tx);
 
                 return tx;
             }
@@ -754,6 +767,7 @@ namespace Voron
         internal void InvokeNewTransactionCreated(LowLevelTransaction tx)
         {
             NewTransactionCreated?.Invoke(tx);
+            _forTestingPurposes?.ModifyNewLowLevelTransaction?.Invoke(tx.ForTestingPurposesOnly());
         }
 
         [Conditional("DEBUG")]
@@ -881,10 +895,9 @@ namespace Voron
 
                 GlobalFlushingBehavior.GlobalFlusher.Value.MaybeFlushEnvironment(this);
             }
-
-#if DEBUG
+      
             _forTestingPurposes?.OnWriteTransactionCompleted?.Invoke(tx);
-#endif
+      
             // this must occur when we are holding the transaction lock
             Journal.Applicator.OnTransactionCompleted(tx);
 
@@ -905,7 +918,6 @@ namespace Voron
             }
 
             long tempBuffers = 0;
-            long tempRecyclableJournals = 0;
 
             if (includeTempBuffers)
             {
@@ -919,10 +931,7 @@ namespace Voron
                         case TempBufferType.Scratch:
                             tempBuffers += file.AllocatedSpaceInBytes;
                             break;
-                        case TempBufferType.RecyclableJournal:
-                            tempRecyclableJournals += file.AllocatedSpaceInBytes;
-                            break;
-                        default:
+                           default:
                             throw new InvalidOperationException($"Unknown temp file type: {file.Type}");
                     }
                 }
@@ -935,7 +944,6 @@ namespace Voron
                 DataFileInBytes = _currentStateRecord.DataPagerState.TotalDiskSpace,
                 JournalsInBytes = journalsSize,
                 TempBuffersInBytes = tempBuffers,
-                TempRecyclableJournalsInBytes = tempRecyclableJournals
             };
         }
 
@@ -1347,7 +1355,7 @@ namespace Voron
                     TransactionId = envStateRecord.TransactionId,
                     ScratchPagesTable = GetScratchTableSummary(envStateRecord.ScratchPagesTable),
                     NextPageNumber = envStateRecord.NextPageNumber,
-                    WrittenToJournalNumber = envStateRecord.WrittenToJournalNumber,
+                    WrittenToJournalNumber = envStateRecord.FlushedToJournal,
                     ClientStateType = envStateRecord.ClientState?.GetType().ToString()
                 },
                 TransactionsToFlush = _transactionsToFlush.ToList().Select(x =>
@@ -1359,7 +1367,7 @@ namespace Voron
                         TransactionId = record.TransactionId,
                         ScratchPagesTable = GetScratchTableSummary(record.ScratchPagesTable),
                         NextPageNumber = record.NextPageNumber,
-                        WrittenToJournalNumber = record.WrittenToJournalNumber,
+                        WrittenToJournalNumber = record.FlushedToJournal,
                         ClientStateType = record.ClientState?.GetType().ToString()
                     };
                 }).ToList(),
@@ -1591,15 +1599,7 @@ namespace Voron
             return Hashing.Streamed.XXHash64.End(ref ctx);
         }
 
-        public void Cleanup(bool tryCleanupRecycledJournals = false)
-        {
-            CleanupMappedMemory();
-
-            if (tryCleanupRecycledJournals)
-                Options.TryCleanupRecycledJournals();
-        }
-
-        public void CleanupMappedMemory()
+        public void Cleanup()
         {
             Journal.TryReduceSizeOfCompressionBufferIfNeeded();
             ScratchBufferPool.Cleanup();
@@ -1638,12 +1638,14 @@ namespace Voron
         {
             internal Action ActionToCallDuringFullBackupRighAfterCopyHeaders;
             public Action<LowLevelTransaction> OnWriteTransactionCompleted { get; set; }
+            public Action<LowLevelTransaction.TestingStuff> ModifyNewLowLevelTransaction { get; set; }
         }
 
 
         // We create a single thread-safe persistent dictionary locator with enough state to deal with almost any scenario.
         internal PersistentDictionaryLocator DictionaryLocator { get; } = new PersistentDictionaryLocator(1024);
         public bool IsFlushInProgress => Journal.Applicator.FlushInProgress != 0;
+        public bool HasAdditionalTransactionsToFlush => _transactionsToFlush.IsEmpty is false;
 
         public PersistentDictionary CreateEncodingDictionary(Page dictionaryPage)
         {
@@ -1669,7 +1671,7 @@ namespace Voron
                 // we may want to update the state of the transaction (scratch table, data pager state, etc)
                 // without incrementing the transaction id, since we didn't commit a transaction to the journal
                 TransactionId = tx.WrittenToJournalNumber == -1 ? currentStateRecord.TransactionId-1 : currentStateRecord.TransactionId,
-                WrittenToJournalNumber = tx.WrittenToJournalNumber == -1 ? currentStateRecord.WrittenToJournalNumber : tx.WrittenToJournalNumber,
+                FlushedToJournal = tx.WrittenToJournalNumber == -1 ? currentStateRecord.FlushedToJournal : tx.WrittenToJournalNumber,
                 ScratchPagesTable = tx.ModifiedPagesInTransaction,
                 NextPageNumber = tx.GetNextPageNumber(),
                 Root = tx.RootObjects.ReadHeader(),
@@ -1807,11 +1809,11 @@ namespace Voron
 
         }
 
-        internal void UpdateJournal(JournalFile file, long last4KWrite)
+        internal void UpdateJournal(long journalNumber, long last4KWrite)
         {
             // this should only happen during recovery, never during active operations
             Debug.Assert(ActiveTransactions.AllTransactions.Count == 0 , "ActiveTransactions.AllTransactions.Count == 0");
-            _currentStateRecord = _currentStateRecord with { Journal = (file, last4KWrite) };
+            _currentStateRecord = _currentStateRecord with { Journal = (journalNumber, last4KWrite) };
         }
 
         internal void UpdateDataPagerState(Pager.State dataPagerState)
@@ -1830,6 +1832,14 @@ namespace Voron
             }
             value = default;
             return false;
+        }
+
+        internal bool SyncDataFileImmediately()
+        {
+            using (var operation = new SyncOperation(Journal.Applicator))
+            {
+                return operation.SyncDataFile();
+            }
         }
     }
 

@@ -6,45 +6,48 @@
 
 using Sparrow;
 using System;
+using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
 using System.Runtime.ExceptionServices;
-using Sparrow.Logging;
-using System.Threading;
-using Sparrow.Collections;
-using Sparrow.Server;
-using Voron.Util;
+using Sparrow.Server.Platform;
+using Sparrow.Threading;
 using Constants = Voron.Global.Constants;
-using Voron.Logging;
 
 namespace Voron.Impl.Journal
 {
-    public sealed unsafe class JournalFile(StorageEnvironment env, JournalWriter journalWriter, long journalNumber) : IDisposable
+    public sealed unsafe class JournalFile(StorageEnvironment env, JournalWriter journalWriter, long journalNumber, FrozenSet<Guid> recoveredJournalIds) : IDisposable
     {
         public long LastTransactionId;
 
-        internal List<TransactionHeader> _transactionHeaders = new();
+        public readonly Dictionary<StorageEnvironment, JournalFile> RegisteredEnvironments = new();
 
+        private List<TransactionHeader> _transactionHeaders = new();
+
+        public FrozenSet<Guid> RecoveredJournalIds = recoveredJournalIds;
+        
         public override string ToString()
         {
             return $"Number: {Number}";
         }
 
-        internal long GetWritePosIn4KbPosition(EnvironmentStateRecord record) => record.Journal.Current == this ? record.Journal.Last4KWritePosition : 0;
+        internal long GetWritePosIn4KbPosition(EnvironmentStateRecord record) => record.Journal.Number == Number ? record.Journal.Last4KWritePosition : 0;
 
         public long Number { get; } = journalNumber;
 
+        public SingleUseFlag DoneWriting;
+        private JournalWriter _journalWriter = journalWriter;
+        public bool NewlyCreatedFile;
 
-        public long GetAvailable4Kbs(EnvironmentStateRecord record) => (journalWriter?.NumberOfAllocated4Kb - GetWritePosIn4KbPosition(record)) ?? 0;
+        public long GetAvailable4Kbs(EnvironmentStateRecord record) => (_journalWriter?.NumberOfAllocated4Kb - GetWritePosIn4KbPosition(record)) ?? 0;
 
-        public Size JournalSize => new Size(journalWriter?.NumberOfAllocated4Kb * 4 ?? 0, SizeUnit.Kilobytes);
+        public Size JournalSize => new Size(_journalWriter?.NumberOfAllocated4Kb * 4 ?? 0, SizeUnit.Kilobytes);
 
-        internal JournalWriter JournalWriter => journalWriter;
+        internal JournalWriter JournalWriter => _journalWriter;
 
         public void Release()
         {
-            if (journalWriter?.Release() != true)
+            if (_journalWriter?.Release() != true)
                 return;
 
             Dispose();
@@ -52,16 +55,33 @@ namespace Voron.Impl.Journal
 
         public void AddRef()
         {
-            journalWriter?.AddRef();
+            _journalWriter?.AddRef();
         }
 
         public void Dispose()
         {
             _transactionHeaders = null;
-            journalWriter = null;
+            _journalWriter = null;
         }
 
-        public void SetLastReadTxHeader(long maxTransactionId, ref TransactionHeader lastReadTxHeader)
+        public (long FirstTransactionId, long LastTransactionId, int Count)  GetTransactionStatsFor(Guid journalId)
+        {
+            int count = 0;
+            long first = long.MaxValue;
+            long last = -1;
+            for (int i = 0; i < _transactionHeaders.Count; i++)
+            {
+                if(_transactionHeaders[i].JournalId != journalId)
+                    continue;
+                count++;
+                first = Math.Min(_transactionHeaders[i].TransactionId, first);
+                last = _transactionHeaders[i].TransactionId;
+            }
+
+            return (first, last, count);
+        }
+
+        public TransactionHeader GetLastReadTxHeader(long maxTransactionId)
         {
             int low = 0;
             int high = _transactionHeaders.Count - 1;
@@ -77,69 +97,52 @@ namespace Voron.Impl.Journal
                     high = mid - 1;
                 else // found the max tx id
                 {
-                    lastReadTxHeader = _transactionHeaders[mid];
-                    return;
+                    return _transactionHeaders[mid];
                 }
             }
             if (low == 0)
             {
-                lastReadTxHeader.TransactionId = -1; // not found
-                return;
+                return new TransactionHeader{ TransactionId = -1}; // not found
             }
             if (high != _transactionHeaders.Count - 1)
             {
                 throw new InvalidOperationException("Found a gap in the transaction headers held by this journal file in memory, shouldn't be possible");
             }
-            lastReadTxHeader = _transactionHeaders[_transactionHeaders.Count - 1];
+            return _transactionHeaders[^1];
         }
 
         /// <summary>
         /// Write a buffer of transactions (from lazy, usually) to the file
         /// </summary>
-        public void Write(long posBy4Kb, byte* p, int numberOf4Kbs)
+        public long Write(long posBy4Kb, Span<Pal.journal_entry> entries)
         {
-            int posBy4Kbs = 0;
-            while (posBy4Kbs < numberOf4Kbs)
+            long totalNumberOf4Kbs = 0;
+            for (int i = 0; i < entries.Length; i++)
             {
-                var readTxHeader = (TransactionHeader*)(p + (posBy4Kbs * 4 * Constants.Size.Kilobyte));
-                var totalSize = readTxHeader->CompressedSize != -1 ? readTxHeader->CompressedSize +
-                    sizeof(TransactionHeader) : readTxHeader->UncompressedSize + sizeof(TransactionHeader);
-                var roundTo4Kb = (totalSize / (4 * Constants.Size.Kilobyte)) +
-                                   (totalSize % (4 * Constants.Size.Kilobyte) == 0 ? 0 : 1);
-                if (roundTo4Kb > int.MaxValue)
-                {
-                    MathFailure(numberOf4Kbs);
-                }
-
-                // We skip to the next transaction header.
-                posBy4Kbs += (int)roundTo4Kb;
-
+                var readTxHeader = (TransactionHeader*)entries[i].Base;
+                totalNumberOf4Kbs += entries[i].NumberOf4Kbs;
                 Debug.Assert(readTxHeader->HeaderMarker == Constants.TransactionHeaderMarker);
-                _transactionHeaders.Add(*readTxHeader);
             }
 
-            JournalWriter.Write(posBy4Kb, p, numberOf4Kbs);
-        }
-
-        private static void MathFailure(int numberOf4Kbs)
-        {
-            throw new InvalidOperationException("Math failed, total size is larger than 2^31*4KB but we have just: " + numberOf4Kbs + " * 4KB");
+            JournalWriter.Write(posBy4Kb, entries, totalNumberOf4Kbs);
+            
+            return totalNumberOf4Kbs;
         }
 
         /// <summary>
         /// write transaction's raw page data into journal
         /// </summary>
-        public void Write(LowLevelTransaction tx, CompressedPagesResult pages)
+        public long Write(LowLevelTransaction tx, Span<Pal.journal_entry> pages)
         {
-            var cur4KbPos = tx.CurrentStateRecord.Journal.Current == this ? tx.CurrentStateRecord.Journal.Last4KWritePosition : 0;
+            var cur4KbPos = tx.CurrentStateRecord.Journal.Number == Number ? tx.CurrentStateRecord.Journal.Last4KWritePosition : 0;
 
-            Debug.Assert(pages.NumberOf4Kbs > 0);
+            Debug.Assert(pages.IsEmpty is false && pages[0].NumberOf4Kbs > 0, "pages.IsEmpty is false && pages[0].NumberOf4Kbs > 0");
 
             try
             {
-                Write(cur4KbPos, pages.Base, pages.NumberOf4Kbs);
-                tx.UpdateJournal(this, cur4KbPos + pages.NumberOf4Kbs);
+                long totalSizeIn4Kbs = Write(cur4KbPos, pages);
                 LastTransactionId = tx.Id;
+                return cur4KbPos + totalSizeIn4Kbs;
             }
             catch (Exception e)
             {
@@ -150,19 +153,86 @@ namespace Voron.Impl.Journal
 
         public void InitFrom(StorageEnvironment storageEnvironment, JournalReader journalReader, List<TransactionHeader> transactionHeaders)
         {
-            storageEnvironment.UpdateJournal(this, journalReader.Next4Kb);
+            storageEnvironment.UpdateJournal(Number, journalReader.Next4Kb);
             _transactionHeaders = [.. transactionHeaders];
         }
 
-        public bool DeleteOnClose
+        public bool ShouldDelete
         {
             set
             {
-                var writer = journalWriter;
+                var writer = _journalWriter;
 
                 if (writer != null)
-                    writer.DeleteOnClose = value;
+                    writer.ShouldDelete = value;
             }
+        }
+
+        public bool HasLegacyTransaction
+        {
+            get
+            {
+                foreach (var tx in _transactionHeaders)
+                {
+                    // if this journal contains any transaction with empty database 
+                    // then we cannot use it for current writes, since it may be a 
+                    // root environment and confuse any branch env reading from it
+                    if (tx.JournalId == Guid.Empty)
+                        return true;
+                }
+
+                return false;
+            }
+        }
+
+        public void SetTransactionFrom(Pal.journal_entry journalEntry)
+        {
+            _transactionHeaders.Add(*(TransactionHeader*)journalEntry.Base);
+        }
+
+        /// <summary>
+        ///  A journal file is valid for a journal id if:
+        /// - There are no existing transactions in the journal for this journal id
+        /// - There *are* existing transactions in the journal *and* that journal is a hard link
+        ///
+        /// The issue is that we may have a snapshot / manual file move that would result in breaking
+        /// of the hard link between shared journals. Consider the case of an index & database that have
+        /// a snapshot taken at time T1 for the index and T2 for the database.
+        ///
+        /// On restore, they journal for the database contains entries for the _index_, but since there is
+        /// no hard link after the restore, we miss them (which is fine and expected). But if we link the
+        /// current journal file from the data to the index, then on recovery, we'll have transactions in an
+        /// out of order manner.
+        ///
+        /// See: Snapshot_should_have_correct_index_entries_after_snapshot_and_incremental_restore_counters
+        /// </summary>
+        public bool IsValidFileFor(StorageEnvironment other)
+        {
+            if (RegisteredEnvironments.ContainsKey(other))
+            {
+                // already there, so it is fine to not check
+                // adding to this is done by EnsureRegistered call that happens 
+                // later in the sequence of operations
+                return true;
+            }
+
+            // if it isn't here, we can safely use it for the other env, because there
+            // are no existing transactions to this environment in the file
+            if (RecoveredJournalIds.Contains(other.HeaderAccessor.JournalId) is false)
+                return true;
+
+            // If this is a newly created file, we don't need to check if there is a link to
+            // the file which is the same, important since it saves us two system calls
+            // per file per each journal file
+            if (NewlyCreatedFile)
+                return true;
+            
+            // there _are_ transactions for the other env in this file, so we now need to 
+            // check whatever those are linked or not. If they are _not_ linked, this means that this
+            // is a restore of a snapshot or user manually moving files, and writing to this journal
+            // may cause a mix of transaction ids, see test:
+            // Snapshot_should_have_correct_index_entries_after_snapshot_and_incremental_restore_counters
+            return other.Options.IsLinked(other.Journal.CurrentJournalIndex, JournalWriter.FileName.FullPath, out _);
         }
     }
 }

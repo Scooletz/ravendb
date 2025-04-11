@@ -1,28 +1,12 @@
 using System;
 using System.Diagnostics;
-using System.Diagnostics.Tracing;
 using System.IO;
-using System.Linq;
 using System.Threading.Tasks;
-using Tests.Infrastructure;
-using Raven.Server.Utils;
-using SlowTests.Corax;
-using SlowTests.Sharding.Cluster;
-using Xunit;
-using FastTests.Voron.Util;
-using FastTests.Sparrow;
-using FastTests.Voron.FixedSize;
-using FastTests.Client.Indexing;
-using FastTests;
-using FastTests.Voron.Graphs;
-using Sparrow.Server.Platform;
-using SlowTests.Authentication;
-using SlowTests.Issues;
-using SlowTests.Server.Documents.PeriodicBackup;
-using Microsoft.Diagnostics.Tracing.Parsers.MicrosoftAntimalwareEngine;
-using NLog;
 using RachisTests;
-using SlowTests.SlowTests.MailingList;
+using Raven.Server.Utils;
+using SlowTests.Issues;
+using Tests.Infrastructure;
+using Xunit;
 
 namespace Tryouts;
 
@@ -38,22 +22,15 @@ public static class Program
         Console.WriteLine(Process.GetCurrentProcess().Id);
 
         for (int i = 0; i < 1000; i++)
-        {
-            Console.WriteLine($"Starting to run {i}");
-
             try
             {
-                using (var testOutputHelper = new ConsoleTestOutputHelper())
-                using (var test = new Jalchr3(testOutputHelper))
+                Console.WriteLine(i);
+                using (ConsoleTestOutputHelper testOutputHelper = new())
+                using (RavenDB_13293 test = new(testOutputHelper))
                 {
                     DebuggerAttachedTimeout.DisableLongTimespan = true;
-                   
-                    test.Streaming_documents_will_respect_the_sorting_order(
-                        new RavenTestParameters
-                        {
-                            DatabaseMode = RavenDatabaseMode.Single, 
-                            SearchEngine = RavenSearchEngineMode.Lucene
-                        });
+
+                    await test.CanPassNodeTagToRestorePatchOperation();
                 }
             }
             catch (Exception e)
@@ -61,17 +38,14 @@ public static class Program
                 Console.ForegroundColor = ConsoleColor.Red;
                 Console.WriteLine(e);
                 Console.ForegroundColor = ConsoleColor.White;
-                break;
             }
-        }
     }
 
     private static void TryRemoveDatabasesFolder()
     {
-        var p = System.AppDomain.CurrentDomain.BaseDirectory;
-        var dbPath = Path.Combine(p, "Databases");
+        string p = AppDomain.CurrentDomain.BaseDirectory;
+        string dbPath = Path.Combine(p, "Databases");
         if (Directory.Exists(dbPath))
-        {
             try
             {
                 Directory.Delete(dbPath, true);
@@ -81,6 +55,5 @@ public static class Program
             {
                 Console.WriteLine($"Could not remove Databases folder on path '{dbPath}'");
             }
-        }
     }
 }

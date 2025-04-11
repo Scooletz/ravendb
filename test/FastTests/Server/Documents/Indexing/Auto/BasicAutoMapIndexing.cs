@@ -1389,8 +1389,9 @@ namespace FastTests.Server.Documents.Indexing.Auto
                     IndexDefinitionBaseServerSide.GetIndexNameSafeForFileSystem(indexName));
 
                 Server.ServerStore.DatabasesLandlord.UnloadDirectly(dbName);
-
                 IOExtensions.DeleteDirectory(Path.Combine(indexStoragePath, "Journals"));
+                var sharedPath = database.IndexStore.SharedJournals.Env.Options.BasePath;
+                IOExtensions.DeleteDirectory(sharedPath.ToFullPath());
 
                 await ModifyDatabaseSettings(dbName, record =>
                 {
@@ -1446,6 +1447,8 @@ namespace FastTests.Server.Documents.Indexing.Auto
                 Assert.True(Directory.Exists(indexStoragePath));
 
                 IOExtensions.DeleteDirectory(Path.Combine(indexStoragePath, "Journals"));
+                var sharedPath = database.IndexStore.SharedJournals.Env.Options.BasePath;
+                IOExtensions.DeleteDirectory(sharedPath.ToFullPath());
 
                 await ModifyDatabaseSettings(dbName, record =>
                 {

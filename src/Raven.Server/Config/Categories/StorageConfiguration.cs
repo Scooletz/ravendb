@@ -3,6 +3,7 @@ using Raven.Server.Config.Attributes;
 using Raven.Server.Config.Settings;
 using Sparrow;
 using Sparrow.Platform;
+using Sparrow.Server.Platform;
 
 namespace Raven.Server.Config.Categories
 {
@@ -46,7 +47,7 @@ namespace Raven.Server.Config.Categories
         [ConfigurationEntry("Storage.MaxConcurrentFlushes", ConfigurationEntryScope.ServerWideOrPerDatabase)]
         public int MaxConcurrentFlushes { get; set; }
 
-        [Description("Time to sync after flash in seconds")]
+        [Description("Time to sync after flush in seconds")]
         [DefaultValue(30)]
         [TimeUnit(TimeUnit.Seconds)]
         [ConfigurationEntry("Storage.TimeToSyncAfterFlushInSec", ConfigurationEntryScope.ServerWideOrPerDatabase)]
@@ -70,6 +71,12 @@ namespace Raven.Server.Config.Categories
         [SizeUnit(SizeUnit.Megabytes)]
         [ConfigurationEntry("Storage.MaxScratchBufferSizeInMb", ConfigurationEntryScope.ServerWideOrPerDatabase)]
         public Size? MaxScratchBufferSize { get; set; }
+        
+        [Description("Max size of write ahead journals that Voron will use.")]
+        [DefaultValue(2048)]
+        [SizeUnit(SizeUnit.Megabytes)]
+        [ConfigurationEntry("Storage.MaxJournalFileSizeInMb", ConfigurationEntryScope.ServerWideOrPerDatabase)]
+        public Size MaxJournalFileSize { get; set; }
 
         [Description("Size of the batch that will be requested to the OS from disk when prefetching (value in powers of 2). Some OSs may not honor certain values. Experts only.")]
         [DefaultValue(1024)]
@@ -98,6 +105,11 @@ namespace Raven.Server.Config.Categories
         [DefaultValue(2)]
         [ConfigurationEntry("Storage.SyncJournalsCountThreshold", ConfigurationEntryScope.ServerWideOrPerDatabase)]
         public int SyncJournalsCountThreshold { get; set; }
+        
+        [Description("EXPERT: Determine the acceleration level that Voron will use when compressing journals.")]
+        [DefaultValue(1)]
+        [ConfigurationEntry("Storage.JournalsCompressionAcceleration", ConfigurationEntryScope.ServerWideOrPerDatabaseOrPerIndex)]
+        public int JournalsCompressionAcceleration { get; set; }
 
         /// <summary>
         /// Specifies the time interval between each IoMetrics Cleaner run
@@ -147,15 +159,37 @@ namespace Raven.Server.Config.Categories
         [ConfigurationEntry("Storage.Encrypted.DisableBuffersPooling", ConfigurationEntryScope.ServerWideOnly)]
         public bool DisableEncryptionBuffersPooling { get; set; }
 
-        [Description("Max number of recyclable journals that will be reused. ")]
-        [DefaultValue(32)]
-        [MinValue(0)]
-        [ConfigurationEntry("Storage.MaxNumberOfRecyclableJournals", ConfigurationEntryScope.ServerWideOrPerDatabase)]
-        public int MaxNumberOfRecyclableJournals { get; set; }
 
         [Description("Disable further usage of sparse regions for the FS to reclaim free pages. In order to clear existing sparse regions you need to do that manually.")]
         [DefaultValue(false)]
         [ConfigurationEntry("Storage.DisableSparseRegions", ConfigurationEntryScope.ServerWideOrPerDatabaseOrPerIndex)]
         public bool DisableSparseRegions { get; set; }
+
+        [Description("EXPERT: Avoid shared journals between database & indexes.")]
+        [DefaultValue(false)]
+        [ConfigurationEntry("Storage.AvoidSharedJournals", ConfigurationEntryScope.ServerWideOrPerDatabase)]
+        public bool AvoidSharedJournals { get; set; }
+        
+        [Description("EXPERT: Minimum amount of additional journals writes from indexes that we will merge before we'll let the transaction merger run database transactions. Higher values here means higher latency but throughput")]
+        [DefaultValue(8)]
+        [ConfigurationEntry("Storage.MinimumSharedJournalsMergeCount", ConfigurationEntryScope.ServerWideOrPerDatabase)]
+        public int MinimumSharedJournalsMergeCount { get; set; }
+        
+        [Description("EXPERT: I/O for flush and sync operation is issued for a low priority thread, giving transaction commits higher priority")]
+        [DefaultValue(false)]
+        [ConfigurationEntry("Storage.LowPriorityFlushAndSync", ConfigurationEntryScope.ServerWideOnly)]
+        public bool LowPriorityFlushAndSync { get; set; }
+        
+        
+        [Description("EXPERT: The queue size to use for I/O ring operations, using -1 will disable I/O ring entirely")]
+        [DefaultValue(1024)]
+        [ConfigurationEntry("Storage.IoRingQueueSize", ConfigurationEntryScope.ServerWideOnly)]
+        public int IoRingQueueSize { get; set; }
+        
+        
+        [Description("EXPERT: The write mode for writing to the data file (Auto/VectoredFileIo,FileIo,IoRing,Mmap).")]
+        [DefaultValue(Pal.RvnWriteMode.Auto)]
+        [ConfigurationEntry("Storage.WriteMode", ConfigurationEntryScope.ServerWideOnly)]
+        public Pal.RvnWriteMode WriteMode { get; set; }
     }
 }

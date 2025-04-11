@@ -649,7 +649,8 @@ namespace Raven.Server.ServerWide
             StorageEnvironmentOptions options;
             if (Configuration.Core.RunInMemory)
             {
-                options = StorageEnvironmentOptions.CreateMemoryOnly(null, null, null, CatastrophicFailureNotification, LoggingResource.Server, LoggingComponent.ServerStore);
+                options = StorageEnvironmentOptions.CreateMemoryOnly(path.FullPath, null, null, 
+                    CatastrophicFailureNotification, LoggingResource.Server, LoggingComponent.ServerStore);
             }
             else
             {
@@ -810,6 +811,7 @@ namespace Raven.Server.ServerWide
             options.IgnoreInvalidJournalErrors = Configuration.Storage.IgnoreInvalidJournalErrors;
             options.SkipChecksumValidationOnDatabaseLoading = Configuration.Storage.SkipChecksumValidationOnDatabaseLoading;
             options.IgnoreDataIntegrityErrorsOfAlreadySyncedTransactions = Configuration.Storage.IgnoreDataIntegrityErrorsOfAlreadySyncedTransactions;
+            options.MaxLogFileSize = Configuration.Storage.MaxJournalFileSize.GetValue(SizeUnit.Bytes);
 
             DirectoryExecUtils.SubscribeToOnDirectoryInitializeExec(options, Configuration.Storage, nameof(DirectoryExecUtils.EnvironmentType.System), DirectoryExecUtils.EnvironmentType.System, Logger);
 
@@ -3707,7 +3709,6 @@ namespace Raven.Server.ServerWide
             if (diskSpaceResult.DriveName == driveInfo?.JournalPath.DriveName)
             {
                 usage.UsedSpace += sizeOnDisk.JournalsInBytes;
-                usage.UsedSpaceByTempBuffers += includeTempBuffers ? sizeOnDisk.TempRecyclableJournalsInBytes : 0;
             }
             else
             {
@@ -3719,7 +3720,6 @@ namespace Raven.Server.ServerWide
                         Name = environment.Name,
                         Type = environment.Type.ToString(),
                         DiskSpaceResult = FillDiskSpaceResult(journalDiskSpaceResult),
-                        UsedSpaceByTempBuffers = includeTempBuffers ? sizeOnDisk.TempRecyclableJournalsInBytes : 0
                     };
                     var journalIoStatsResult = Server.DiskStatsGetter.Get(driveInfo?.JournalPath.DriveName);
                     if (journalIoStatsResult != null)

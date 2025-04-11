@@ -69,8 +69,11 @@ namespace Raven.Server.Documents
             options.IgnoreInvalidJournalErrors = _db.Configuration.Storage.IgnoreInvalidJournalErrors;
             options.SkipChecksumValidationOnDatabaseLoading = _db.Configuration.Storage.SkipChecksumValidationOnDatabaseLoading;
             options.IgnoreDataIntegrityErrorsOfAlreadySyncedTransactions = _db.Configuration.Storage.IgnoreDataIntegrityErrorsOfAlreadySyncedTransactions;
-            options.MaxNumberOfRecyclableJournals = _db.Configuration.Storage.MaxNumberOfRecyclableJournals;
+
             options.DisableSparseRegions = _db.Configuration.Storage.DisableSparseRegions;
+            options.JournalsCompressionAcceleration = _db.Configuration.Storage.JournalsCompressionAcceleration;
+            options.MinimumSharedJournalsMergeCount = _db.Configuration.Storage.MinimumSharedJournalsMergeCount;
+            options.MaxLogFileSize = _db.Configuration.Storage.MaxJournalFileSize.GetValue(SizeUnit.Bytes);
             try
             {
                 DirectoryExecUtils.SubscribeToOnDirectoryInitializeExec(options, _db.Configuration.Storage, _db.Name, DirectoryExecUtils.EnvironmentType.Configuration, _logger);

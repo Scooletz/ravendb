@@ -34,7 +34,6 @@ using Raven.Server.Documents.Indexes.Static.Counters;
 using Raven.Server.Documents.Indexes.Static.TimeSeries;
 using Raven.Server.Documents.Indexes.Test;
 using Raven.Server.Documents.Queries.Dynamic;
-using Raven.Server.Logging;
 using Raven.Server.NotificationCenter.Notifications;
 using Raven.Server.NotificationCenter.Notifications.Details;
 using Raven.Server.ServerWide;
@@ -44,7 +43,7 @@ using Sparrow.Collections;
 using Sparrow.Logging;
 using Sparrow.Server.Logging;
 using Sparrow.Threading;
-using static Raven.Server.Utils.MetricCacher.Keys;
+using Voron;
 
 namespace Raven.Server.Documents.Indexes
 {
@@ -836,23 +835,39 @@ namespace Raven.Server.Documents.Indexes
             }
         }
 
+        public Task InitializeSharedJournalsAsync()
+        {
+            if (_sharedJournals != null)
+                return Task.CompletedTask;
+            return Task.Run(() =>
+            {
+                _sharedJournals ??= new SharedIndexJournals(_documentDatabase);
+            });
+        }
+
         public Task InitializeAsync(DatabaseRecord record, long raftIndex, Action<LogLevel, string> addToInitLog)
         {
             if (_initialized)
                 throw new InvalidOperationException($"{nameof(IndexStore)} was already initialized.");
 
             InitializePath(_documentDatabase.Configuration.Indexing.StoragePath);
+            InitializePath(_documentDatabase.Configuration.Indexing.SharedJournalsPath);
 
             _initialized = true;
 
-            return Task.Run(() =>
-            {
-                if (_documentDatabase.Configuration.Indexing.RunInMemory == false)
-                    OpenIndexesFromRecord(record, raftIndex, addToInitLog);
+            return InitializeSharedJournalsAsync()
+                .ContinueWith(t =>
+                {
+                    if (t.IsCompletedSuccessfully is false)
+                        return t;
+                    
+                    if (_documentDatabase.Configuration.Indexing.RunInMemory == false)
+                        OpenIndexesFromRecord(record, raftIndex, addToInitLog);
 
-                HandleSorters(record, raftIndex);
-                HandleAnalyzers(record, raftIndex);
-            });
+                    HandleSorters(record, raftIndex);
+                    HandleAnalyzers(record, raftIndex);
+                    return Task.CompletedTask;
+                }).Unwrap();
         }
 
         public Index GetIndex(string name)
@@ -1409,6 +1424,8 @@ namespace Raven.Server.Documents.Indexes
                 exceptionAggregator.Execute(index.Dispose);
             });
 
+
+            exceptionAggregator.Execute(() => _sharedJournals?.Dispose());
             exceptionAggregator.Execute(() => SorterCompilationCache.Instance.Clear(_documentDatabase.Name));
             exceptionAggregator.Execute(() => AnalyzerCompilationCache.Instance.Clear(_documentDatabase.Name));
 
@@ -2217,6 +2234,8 @@ namespace Raven.Server.Documents.Indexes
         }
 
         internal TestingStuff ForTestingPurposes;
+        private SharedIndexJournals _sharedJournals;
+        public SharedIndexJournals SharedJournals => _sharedJournals;
 
         internal TestingStuff ForTestingPurposesOnly()
         {
@@ -2254,9 +2273,13 @@ namespace Raven.Server.Documents.Indexes
             {
                 // create the SemaphoreSlim
                 _parent.GetIndexLock(index.Name);
-
                 _parent.StartIndex(index);
             }
+        }
+
+        public void RegisterSharedJournals(StorageEnvironmentOptions branchOptions)
+        {
+            _sharedJournals.Register(branchOptions);
         }
     }
 

@@ -46,11 +46,13 @@ enum
 
 #define ALLOCATION_GRANULARITY (64*1024)
 
+#define VORON_PAGE_SIZE (8192)
+
 struct SYSTEM_INFORMATION
 {
     int32_t page_size;
     int32_t prefetch_status;
-
+    int32_t voron_page_size;
     /* can_prefetch => prefetch_status == true */
 };
 
@@ -60,6 +62,63 @@ struct RVN_RANGE_LIST
     size_t number_of_bytes;
 };
 
+typedef void (*MemoryLockCallback)(int64_t size, char* filename);
+typedef bool (*RecoveryMemoryLockFailureCallback)(int64_t size, char* filename);
+
+
+struct page_to_write
+{
+    int64_t page_num;
+    int32_t count_of_pages;
+    void* ptr;
+};
+
+struct journal_entry
+{
+    void* base;
+    int64_t number_of_4kbs;
+};
+
+typedef int32_t (*rvn_writer)(
+    void* handle,
+    struct page_to_write *buffers,
+    int32_t count,
+    int32_t *detailed_error_code
+);
+
+typedef enum rvn_write_mode
+{
+    rvn_mode_default,
+    rvn_write_mode_vectored_file_io,
+    rvn_write_mode_file_io,
+    rvn_write_mode_io_ring,
+    rvn_write_mode_mmap,
+} rvn_write_mode;
+
+typedef enum rvn_configuration_version
+{
+    none,
+    current
+} rvn_configuration_version;
+
+struct rvn_configuration
+{
+    rvn_configuration_version version;
+    int32_t pal_version;
+    int32_t io_ring_queue_size;
+    rvn_write_mode write_mode;
+    bool low_priority_io;
+
+    MemoryLockCallback memoryLockCallback;
+    RecoveryMemoryLockFailureCallback recoveryMemoryLockFailureCallback;
+};
+
+EXPORT
+int32_t rvn_startup_configure(struct rvn_configuration *cfg, int32_t *detailed_error_code);
+
+EXPORT
+rvn_writer rvn_get_writer(void* handle);
+
 EXPORT
 int32_t rvn_pager_get_file_handle(
     void *handle,
@@ -68,6 +127,7 @@ int32_t rvn_pager_get_file_handle(
 
 EXPORT
 int32_t rvn_unmap_memory(
+    void *handle,
     void* mem,
     int64_t size,
     int32_t *detailed_error_code);
@@ -131,10 +191,10 @@ EXPORT int32_t
 rvn_get_error_string(int32_t error, char *buf, int32_t buf_size, int32_t *special_errno_flags);
 
 EXPORT int32_t
-rvn_get_system_information(struct SYSTEM_INFORMATION *sys_info, int32_t *detailed_error_code);
+rvn_get_error_meaning(int32_t error);
 
 EXPORT int32_t
-rvn_mmap_dispose_handle(void *handle, int32_t *detailed_error_code);
+rvn_get_system_information(struct SYSTEM_INFORMATION *sys_info, int32_t *detailed_error_code);
 
 
 EXPORT int32_t
@@ -148,7 +208,16 @@ EXPORT int32_t
 rvn_close_journal(void* handle, int32_t* detailed_error_code);
 
 EXPORT int32_t
-rvn_write_journal(void* handle, void* buffer, int64_t size, int64_t offset, int32_t* detailed_error_code);
+rvn_write_journal(void* handle, struct journal_entry* buffer, int64_t count_of_entries, int64_t offset, int32_t* detailed_error_code);
+
+EXPORT int32_t 
+rvn_hard_link_non_durable(const char *src, const char *dst, int32_t *detailed_error_code);
+
+EXPORT int32_t 
+rvn_ensure_hard_link_non_durable(const char *src, const char *dst, int32_t *detailed_error_code);
+
+EXPORT int32_t
+rvn_is_same_hard_link(const char *src, const char *dst, char *is_same, int32_t *detailed_error_code);
 
 EXPORT int32_t
 rvn_open_journal_for_reads(const char *file_name, void **handle, int32_t *detailed_error_code);
@@ -172,6 +241,8 @@ rvn_get_path_disk_space(const char * path, uint64_t* total_free_bytes, uint64_t*
 PRIVATE int64_t
 _nearest_size_to_page_size(int64_t orig_size, int64_t sys_page_size);
 
+EXPORT int32_t
+rvn_sync_directories(void* handle, char** folders, int32_t count, int32_t *detailed_error_code);
 
 EXPORT int32_t
 rvn_mmap_anonymous(void** address, uint64_t size, int32_t *detailed_error_code);

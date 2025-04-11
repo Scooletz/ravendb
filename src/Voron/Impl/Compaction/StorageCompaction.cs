@@ -20,6 +20,7 @@ using Voron.Data.BTrees;
 using Voron.Data.Fixed;
 using Voron.Data.Tables;
 using Voron.Global;
+using Voron.Impl.FileHeaders;
 using Voron.Impl.FreeSpace;
 using Voron.Impl.Journal;
 
@@ -57,6 +58,7 @@ namespace Voron.Impl.Compaction
             using (var existingEnv = new StorageEnvironment(srcOptions))
             using (var compactedEnv = new StorageEnvironment(compactOptions))
             {
+               
                 CopyTrees(existingEnv, compactedEnv, modifyTableSchema, progressReport, token);
 
                 compactedEnv.FlushLogToDataFile();

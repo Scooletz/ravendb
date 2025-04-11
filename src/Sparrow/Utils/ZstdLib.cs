@@ -18,6 +18,7 @@ namespace Sparrow.Utils
 
         static ZstdLib()
         {
+            DynamicNativeLibraryResolver.Register(typeof(ZstdLib).Assembly, LIBZSTD);
             CreateDictionaryException = message => new InvalidOperationException(message);
         }
 

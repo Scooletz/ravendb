@@ -1,4 +1,5 @@
-﻿using System.Runtime.InteropServices;
+﻿﻿using System;
+ using System.Runtime.InteropServices;
 using Voron.Data.BTrees;
 using Voron.Impl.Backup;
 using Voron.Impl.Journal;
@@ -6,9 +7,14 @@ using Voron.Impl.Journal;
 namespace Voron.Impl.FileHeaders
 {
     [StructLayout(LayoutKind.Explicit, Pack = 1)]
-    public struct FileHeader
+    public unsafe struct FileHeader
     {
-        public static int HashOffset = (int)Marshal.OffsetOf<FileHeader>(nameof(Hash));
+        /// <summary>
+        /// This is _always_ the last 8 bytes
+        /// </summary>
+        public static int HashOffset = sizeof(FileHeader) - sizeof(ulong);
+        
+        public static int TransactionIdOffset = (int)Marshal.OffsetOf<FileHeader>(nameof(TransactionId));
 
         /// <summary>
         /// Just a value chosen to mark our files headers, this is used to 
@@ -66,17 +72,25 @@ namespace Voron.Impl.FileHeaders
         public int PageSize;
 
         /// <summary>
-        /// Hash of the header used for validation
+        /// The journal id for all the transactions in shared journals
+        /// for this environment that allows to tell which transactions
+        /// belong to this environment or to others
         /// </summary>
         [FieldOffset(154)]
+        public Guid JournalId;
+        
+        /// <summary>
+        /// Hash of the header used for validation
+        /// </summary>
+        [FieldOffset(170)]
         public ulong Hash;
-
+ 
         public override string ToString()
         {
             return
                 $"{nameof(Version)}: {Version}, {nameof(HeaderRevision)}: {HeaderRevision}, {nameof(TransactionId)}: {TransactionId}, {nameof(LastPageNumber)}: {LastPageNumber}, " +
                 $"{nameof(Root.RootPageNumber)}: {Root.RootPageNumber}, " +
-                $"{nameof(Journal.CurrentJournal)}: {Journal.CurrentJournal},  {nameof(Journal.LastSyncedJournal)}: {Journal.LastSyncedJournal},  {nameof(Journal.LastSyncedTransactionId)}: {Journal.LastSyncedJournal}, {nameof(Journal.Flags)}: {Journal.Flags}";
+                $"{nameof(JournalId)}: {JournalId},  {nameof(Journal.LastSyncedJournal)}: {Journal.LastSyncedJournal},  {nameof(Journal.LastSyncedTransactionId)}: {Journal.LastSyncedJournal}, {nameof(Journal.Flags)}: {Journal.Flags}";
         }
     }
 }

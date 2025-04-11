@@ -70,6 +70,7 @@ using Sparrow.LowMemory;
 using Sparrow.Server;
 using Sparrow.Server.Exceptions;
 using Sparrow.Server.Logging;
+using Sparrow.Server.Platform;
 using Sparrow.Server.Utils;
 using Sparrow.Threading;
 using Voron;
@@ -605,6 +606,24 @@ namespace Raven.Server.Documents.Indexes
             }
         }
 
+        private static void AttemptToLinkDatabaseAndIndexJournals(string name, StorageEnvironmentOptions indexOptions, DocumentDatabase documentDatabase)
+        {
+            if (documentDatabase.Configuration.Storage.AvoidSharedJournals is false &&
+                indexOptions.CanJournalsBeLinkedWith(documentDatabase.DocumentsStorage.Environment.Options))
+            {
+                // here we enable the root / branch model for this index
+                documentDatabase.IndexStore.RegisterSharedJournals(indexOptions);
+                return;
+            }
+
+            var logger = documentDatabase.Loggers.GetLogger(typeof(Index));
+            if (logger.IsWarnEnabled)
+            {
+                logger.Warn($"Unable to create hard links between '{documentDatabase.DocumentsStorage.Environment.Options.JournalPath}' and '{indexOptions.JournalPath}'." +
+                            $"Shared journals mode is disabled for this index: {name}");
+            }
+        }
+
         public IndexType Type { get; }
 
         public SearchEngineType SearchEngineType;
@@ -735,7 +754,8 @@ namespace Raven.Server.Documents.Indexes
             return options;
         }
 
-        private static void InitializeOptions(StorageEnvironmentOptions options, DocumentDatabase documentDatabase, string name, bool schemaUpgrader = true, SearchEngineType searchEngineType = SearchEngineType.None)
+        private static void InitializeOptions(StorageEnvironmentOptions options, DocumentDatabase documentDatabase,
+            string name, bool schemaUpgrader = true, SearchEngineType searchEngineType = SearchEngineType.None)
         {
             options.OnNonDurableFileSystemError += documentDatabase.HandleNonDurableFileSystemError;
             options.OnRecoveryError += (s, e) => documentDatabase.HandleOnIndexRecoveryError(name, s, e);
@@ -757,8 +777,11 @@ namespace Raven.Server.Documents.Indexes
             options.IgnoreInvalidJournalErrors = documentDatabase.Configuration.Storage.IgnoreInvalidJournalErrors;
             options.SkipChecksumValidationOnDatabaseLoading = documentDatabase.Configuration.Storage.SkipChecksumValidationOnDatabaseLoading;
             options.IgnoreDataIntegrityErrorsOfAlreadySyncedTransactions = documentDatabase.Configuration.Storage.IgnoreDataIntegrityErrorsOfAlreadySyncedTransactions;
-            options.MaxNumberOfRecyclableJournals = documentDatabase.Configuration.Storage.MaxNumberOfRecyclableJournals;
             options.DisableSparseRegions = documentDatabase.Configuration.Storage.DisableSparseRegions;
+            options.JournalsCompressionAcceleration = documentDatabase.Configuration.Storage.JournalsCompressionAcceleration;
+            options.MinimumSharedJournalsMergeCount = documentDatabase.Configuration.Storage.MinimumSharedJournalsMergeCount;
+            options.MaxLogFileSize = documentDatabase.Configuration.Storage.MaxJournalFileSize.GetValue(SizeUnit.Bytes);
+
 
             if (documentDatabase.ServerStore.GlobalIndexingScratchSpaceMonitor != null)
                 options.ScratchSpaceUsage.AddMonitor(documentDatabase.ServerStore.GlobalIndexingScratchSpaceMonitor);
@@ -783,6 +806,8 @@ namespace Raven.Server.Documents.Indexes
                     options.SchemaUpgrader = SchemaUpgrader.Upgrader(currentVersion.Type, null, null, null);
                 };
             }
+            
+            AttemptToLinkDatabaseAndIndexJournals(name, options, documentDatabase);
 
             if (options is not StorageEnvironmentOptions.DirectoryStorageEnvironmentOptions)
                 return;
@@ -1891,7 +1916,7 @@ namespace Raven.Server.Documents.Indexes
                                 if (_logsAppliedEvent.Wait(Configuration.MaxTimeToWaitAfterFlushAndSyncWhenExceedingScratchSpaceLimit.AsTimeSpan))
                                 {
                                     // we've just flushed let's cleanup scratch space immediately
-                                    storageEnvironment.CleanupMappedMemory();
+                                    storageEnvironment.Cleanup();
                                 }
                             }
 
@@ -1990,7 +2015,7 @@ namespace Raven.Server.Documents.Indexes
 
 
                         if (totalSizeOfJournals >= Configuration.MinimumTotalSizeOfJournalsToRunFlushAndSyncWhenReplacingSideBySideIndex)
-                            FlushAndSync(_environment, (int)Configuration.MaxTimeToWaitAfterFlushAndSyncWhenReplacingSideBySideIndex.AsTimeSpan.TotalMilliseconds, tryCleanupRecycledJournals: true);
+                            FlushAndSync(_environment, (int)Configuration.MaxTimeToWaitAfterFlushAndSyncWhenReplacingSideBySideIndex.AsTimeSpan.TotalMilliseconds);
 
                         // this side-by-side index will be replaced in a second, notify about indexing success
                         // so we know that indexing batch is no longer in progress
@@ -2268,7 +2293,7 @@ namespace Raven.Server.Documents.Indexes
                                        $"going to try flushing and syncing the environment to cleanup the storage. " +
                                        $"Will wait for flush for: {timeToWaitInMilliseconds}ms", dfe);
 
-                FlushAndSync(storageEnvironment, timeToWaitInMilliseconds, true);
+                FlushAndSync(storageEnvironment, timeToWaitInMilliseconds);
                 return;
             }
 
@@ -2278,11 +2303,10 @@ namespace Raven.Server.Documents.Indexes
             if (State == IndexState.Error)
                 return;
 
-            storageEnvironment.Options.TryCleanupRecycledJournals();
             SetErrorState($"State was changed due to excessive number of disk full errors ({diskFullErrors}).");
         }
 
-        private void FlushAndSync(StorageEnvironment storageEnvironment, int timeToWaitInMilliseconds, bool tryCleanupRecycledJournals)
+        private void FlushAndSync(StorageEnvironment storageEnvironment, int timeToWaitInMilliseconds)
         {
             try
             {
@@ -2310,7 +2334,7 @@ namespace Raven.Server.Documents.Indexes
                 return;
             }
 
-            storageEnvironment.Cleanup(tryCleanupRecycledJournals);
+            storageEnvironment.Cleanup();
         }
 
         private void SetErrorState(string reason)
@@ -2343,7 +2367,7 @@ namespace Raven.Server.Documents.Indexes
                                            $"going to try flushing and syncing the environment to cleanup the scratch buffers. " +
                                            $"Will wait for flush for: {timeToWaitInMilliseconds}ms", exception);
 
-                    FlushAndSync(storageEnvironment, timeToWaitInMilliseconds, false);
+                    FlushAndSync(storageEnvironment, timeToWaitInMilliseconds);
                 }
 
                 if (_logger.IsInfoEnabled)

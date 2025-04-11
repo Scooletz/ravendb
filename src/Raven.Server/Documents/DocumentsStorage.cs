@@ -87,6 +87,8 @@ namespace Raven.Server.Documents
         private static readonly Slice GlobalChangeVectorSlice;
         private static readonly Slice GlobalFullChangeVectorSlice;
         private readonly Action<LogLevel, string> _addToInitLog;
+        
+        public Action<LogLevel, string> AddToInitLog => _addToInitLog;
 
         private readonly RavenLogger _logger;
         private readonly string _name;
@@ -204,9 +206,10 @@ namespace Raven.Server.Documents
             options.IgnoreInvalidJournalErrors = DocumentDatabase.Configuration.Storage.IgnoreInvalidJournalErrors;
             options.SkipChecksumValidationOnDatabaseLoading = DocumentDatabase.Configuration.Storage.SkipChecksumValidationOnDatabaseLoading;
             options.IgnoreDataIntegrityErrorsOfAlreadySyncedTransactions = DocumentDatabase.Configuration.Storage.IgnoreDataIntegrityErrorsOfAlreadySyncedTransactions;
-            options.MaxNumberOfRecyclableJournals = DocumentDatabase.Configuration.Storage.MaxNumberOfRecyclableJournals;
             options.DisableSparseRegions = DocumentDatabase.Configuration.Storage.DisableSparseRegions;
-
+            options.JournalsCompressionAcceleration = DocumentDatabase.Configuration.Storage.JournalsCompressionAcceleration;
+            options.MinimumSharedJournalsMergeCount = DocumentDatabase.Configuration.Storage.MinimumSharedJournalsMergeCount;
+            options.MaxLogFileSize = DocumentDatabase.Configuration.Storage.MaxJournalFileSize.GetValue(SizeUnit.Bytes);
             try
             {
                 Initialize(options);

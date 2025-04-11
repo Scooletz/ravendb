@@ -65,6 +65,8 @@ namespace SlowTests.Issues
                 IOExtensions.DeleteFile(autoIndexPath.Combine(Constants.DatabaseFilename).FullPath);
                 IOExtensions.DeleteDirectory(autoIndexPath.Combine("Journals").FullPath);
 
+                IOExtensions.DeleteDirectory(database.IndexStore.SharedJournals.Env.Options.BasePath.FullPath);
+
                 database = await Databases.GetDocumentDatabaseInstanceFor(store);
 
                 Assert.Equal(2, database.IndexStore.Count);

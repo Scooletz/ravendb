@@ -52,8 +52,28 @@ enum
     FAIL_GET_VOLUME_DETAILS     =      42,
     FAIL_SET_SPARSE             =      43,
     FAIL_SET_SPARSE_RANGE       =      44,
-    
+    FAIL_CREATE_IO_RING         =      45,
+    FAIL_IO_RING_REGISTER_FILE  =      46,
+    FAIL_IO_RING_WRITE          =      47,
+    FAIL_IO_RING_SUBMIT         =      48,
+    FAIL_IO_RING_WRITE_RESULT   =      49,
+    FAIL_IO_RING_NO_RESULT      =      50,
+    FAIL_FLUSH_VIEW_OF_FILE     =      51,
+    FAIL_MUTEX_INIT             =      52,
+    FAIL_HARD_LINK              =      53,
+    FAIL_CREATE_EVENT           =      54,
+    FAIL_WRITE_COMPLETION       =      55,
+    FAIL_MATH_OVERFLOW          =      56,
+    FAIL_INVALID_CONFIGURATION  =      57,
+    FAIL_ALREADY_CONFIGURED     =      58,
+    FAIL_CREATE_EVENTFD         =      59,
+    FAIL_IO_RING_REG_EVENTFD    =      60,
+    FAIL_POLL_EVENTFD 			=	   61,
+    FAIL_CREATE_THREAD 			= 	   62,
+    FAIL_MUTEX_LOCK             =      63,
+    FAIL_MUTEX_UNLOCK           =      64,
 };
+
 #define ERRNO_SPECIAL_CODES_NONE        0
 #define ERRNO_SPECIAL_CODES_ENOMEM      (1 << 0)
 #define ERRNO_SPECIAL_CODES_ENOENT      (1 << 1)

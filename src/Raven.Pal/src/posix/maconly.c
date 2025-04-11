@@ -11,9 +11,23 @@
 #include <fcntl.h>
 #include <pthread.h>
 #include "rvn.h"
+#include "rvn_internal.h"
 #include "internal_posix.h"
 #include "status_codes.h"
 
+bool _io_ring_supported()
+{
+    return false;
+}
+int32_t _setup_io_ring(struct handle_global_state *global_state, int32_t *detailed_error_code)
+{
+    *detailed_error_code = ENOTSUP;
+    return FAIL_CREATE_IO_RING;
+}
+
+void _close_io_ring(struct handle_global_state *global_state)
+{
+}
 
 EXPORT uint64_t
 rvn_get_current_thread_id()
@@ -50,13 +64,13 @@ _rvn_fallocate(int32_t fd, int64_t offset, int64_t size)
     return EINVAL;
 }
 
-PRIVATE char*
-_get_strerror_r(int32_t error, char* tmp_buff, int32_t buf_size)
+PRIVATE char *
+_get_strerror_r(int32_t error, char *tmp_buff, int32_t buf_size)
 {
-  int32_t non_gnu_compliant_rc = strerror_r(error, tmp_buff, buf_size);
-  if (non_gnu_compliant_rc != 0)
-	  return tmp_buff;
-  return NULL;
+    int32_t non_gnu_compliant_rc = strerror_r(error, tmp_buff, buf_size);
+    if (non_gnu_compliant_rc != 0)
+        return tmp_buff;
+    return NULL;
 }
 
 EXPORT int32_t
@@ -66,6 +80,66 @@ rvn_test_storage_durability(
 {
     *detailed_error_code = 0;
     return SUCCESS; /* windows and mac are always true */
+}
+
+EXPORT int32_t
+rvn_sync_pager(void *handle,
+               int32_t *detailed_error_code)
+{
+    struct handle *handle_ptr = handle;
+    if (_flush_file(handle_ptr->file_fd))
+    {
+        *detailed_error_code = errno;
+        return FAIL_SYNC_FILE;
+    }
+    return SUCCESS;
+}
+
+int32_t
+rvn_one_time_init(int32_t *detailed_error_code)
+{
+    return SUCCESS;
+}
+
+int io_ring_setup_successful(void)
+{
+    return 0;
+}
+
+EXPORT
+rvn_writer rvn_get_writer(void *handle)
+{
+    struct handle *handle_ptr = handle;
+    if (handle_ptr->write_address)
+        return rvn_write_mmap;
+    return rvn_write_file_io;
+}
+
+EXPORT int32_t
+rvn_write_journal(void *handle, struct journal_entry *buffer, int64_t count_of_entries, int64_t offset, int32_t *detailed_error_code)
+{
+    struct journal_handle *jfh = (struct journal_handle *)handle;
+    for (size_t i = 0; i < count_of_entries; i++)
+    {
+        int32_t size = buffer[i].number_of_4kbs * SYS_PAGE_SIZE;
+        if (size / SYS_PAGE_SIZE != buffer[i].number_of_4kbs)
+        {
+            *detailed_error_code = EOVERFLOW;
+            return FAIL_MATH_OVERFLOW;
+        }
+        int32_t rc = _pwrite(jfh->fd, buffer[i].base, size, offset, detailed_error_code);
+        if (rc != SUCCESS)
+            return rc;
+        offset += size;
+    }
+
+    return SUCCESS;
+}
+
+EXPORT int32_t
+rvn_sync_directories(void* handle, char** folders, int32_t count, int32_t *detailed_error_code)
+{
+    return rvn_sync_directories_sync(handle, folders, count, detailed_error_code);
 }
 
 #endif

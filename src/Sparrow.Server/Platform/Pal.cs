@@ -10,22 +10,36 @@ namespace Sparrow.Server.Platform
 {
     public static unsafe class Pal
     {
-        public const int PAL_VER = 62022; // Should match auto generated rc from rvn_get_pal_ver() @ src/rvngetpalver.c
+        public const int PAL_VER = 70835; // Should match auto generated rc from rvn_get_pal_ver() @ src/rvngetpalver.c
 
-        static  Pal()
+        static Pal()
         {
             PalFlags.FailCodes rc;
             int errorCode;
+            PalDefinitions.SystemInformation sysInfo; 
             try
             {
-                var palVer = rvn_get_pal_ver();
-                if (palVer != 0 && palVer != PAL_VER)
+                var cfg = new rvn_configuration
+                {
+                    io_ring_queue_size = PalConfiguration.IoRingQueueSize,
+                    low_priority_io = PalConfiguration.LowPriorityIo,
+                    pal_version = -1, // loaded by the call
+                    version = RvnConfigurationVersion.Current,
+                    write_mode = PalConfiguration.WriteMode,
+                    memoryLockCallback = &MemoryLockUsage.UpdateLockedMemory,
+                    recoveryMemoryLockFailureCallback = &MemoryLockUsage.RecoverLockedMemoryFailure
+                };
+                rc = rvn_startup_configure(ref cfg, out errorCode);
+                if(rc != PalFlags.FailCodes.Success)
+                    PalHelper.ThrowLastError(rc, errorCode, "Failed to configure PAL library.");
+                
+                if (cfg.pal_version != PAL_VER)
                 {
                     throw new IncorrectDllException(
-                        $"{LIBRVNPAL} version '{palVer}' mismatches this RavenDB instance version (set to '{PAL_VER}'). Did you forget to set new value in 'rvn_get_pal_ver()'");
+                        $"{LIBRVNPAL} version '{cfg.pal_version}' mismatches this RavenDB instance version (set to '{PAL_VER}'). Did you forget to set new value in 'rvn_get_pal_ver()'");
                 }
 
-                rc = rvn_get_system_information(out _, out errorCode);
+                rc = rvn_get_system_information(out sysInfo, out errorCode);
             }
             catch (Exception ex)
             {
@@ -42,7 +56,11 @@ namespace Sparrow.Server.Platform
 
             if (rc != PalFlags.FailCodes.Success)
                 PalHelper.ThrowLastError(rc, errorCode, "Cannot get system information");
+            
+            PalVoronPageSize = sysInfo.VoronPageSize;
         }
+
+        public static readonly int PalVoronPageSize;
 
         private const string LIBRVNPAL = "librvnpal";
 
@@ -61,7 +79,10 @@ namespace Sparrow.Server.Platform
             CopyOnWrite = 1 << 8,
             DoNotMap = 1 << 9,
         }
-        
+
+        [DllImport(LIBRVNPAL, SetLastError = true)]
+        public static extern PalFlags.ErrnoSpecialCodes rvn_get_error_meaning(Int32 error);
+
         [DllImport(LIBRVNPAL, SetLastError = true)]
         public static extern PalFlags.FailCodes rvn_mmap_anonymous(out void* mem,
             UInt64 size,
@@ -73,7 +94,8 @@ namespace Sparrow.Server.Platform
             out Int32 errorCode);
 
         [DllImport(LIBRVNPAL, SetLastError = true)]
-        public static extern PalFlags.FailCodes rvn_unmap_memory(void* mem,
+        public static extern PalFlags.FailCodes rvn_unmap_memory(void* handle,
+            void* mem,
             Int64 size,
             out Int32 errorCode);
 
@@ -120,6 +142,14 @@ namespace Sparrow.Server.Platform
                 out handle, out readAddress, out writeAddress, out memorySize, out errorCode);
         }
 
+        [DllImport(LIBRVNPAL, SetLastError = true, CharSet = CharSet.Ansi)]
+        public static extern PalFlags.FailCodes rvn_sync_directories(
+            void* handle,
+            [MarshalAs(UnmanagedType.LPArray, ArraySubType = UnmanagedType.LPStr)] string[] folders,
+            Int32 count,
+            out Int32 errorCode);
+
+        
         [DllImport(LIBRVNPAL, SetLastError = true)]
         public static extern PalFlags.FailCodes rvn_increase_pager_size(
             void* handle,
@@ -180,6 +210,29 @@ namespace Sparrow.Server.Platform
             Int32 count,
             out Int32 errorCode);
 
+        [StructLayout(LayoutKind.Sequential)]
+        public struct page_to_write : IComparable<page_to_write>
+        {
+            public Int64 page_num;
+            public Int32 count_of_pages;
+            public void* ptr;
+
+            public int CompareTo(page_to_write other)
+            {
+                return page_num.CompareTo(other.page_num);
+            }
+        };
+
+        [UnmanagedFunctionPointer(CallingConvention.StdCall)]
+        public delegate PalFlags.FailCodes WriterFunc(
+            void* handle,
+            page_to_write* buffers,
+            Int32 count,
+            out Int32 errorCode);
+
+        [DllImport(LIBRVNPAL, SetLastError = true)]
+        public static extern WriterFunc rvn_get_writer(void* handle);
+
         [DllImport(LIBRVNPAL, SetLastError = true)]
         public static extern PalFlags.FailCodes rvn_pager_get_file_handle(
             void* handle,
@@ -223,11 +276,61 @@ namespace Sparrow.Server.Platform
             out Int32 errorCode
         );
 
+        public static PalFlags.FailCodes rvn_is_same_hard_link(string src, string dst, out bool isSame, out Int32 errorCode)
+        {
+            using var convertSrc = new Converter(src);
+            using var convertDst = new Converter(dst);
+            return rvn_is_same_hard_link(convertSrc.Pointer, convertDst.Pointer, out isSame, out errorCode);
+        }
+        
+        public static bool rvn_is_same_hard_link(string src, string dst)
+        {
+            var rc = rvn_is_same_hard_link(src, dst, out var isSame, out var errorCode);
+            if (rc != PalFlags.FailCodes.Success)
+            {
+                PalHelper.ThrowLastError(rc, errorCode, "Failed to check hard link");
+            }
+
+            return isSame;
+        }
+        
+        [DllImport(LIBRVNPAL, SetLastError = true)]
+        private static extern PalFlags.FailCodes rvn_is_same_hard_link(
+            byte* src, byte* dst, out bool isSame, out Int32 errorCode);
+
+        public static PalFlags.FailCodes rvn_ensure_hard_link_non_durable(string src, string dst, out Int32 errorCode)
+        {
+            using var convertSrc = new Converter(src);
+            using var convertDst = new Converter(dst);
+            return rvn_ensure_hard_link_non_durable(convertSrc.Pointer, convertDst.Pointer, out errorCode);
+        }
+        
+        [DllImport(LIBRVNPAL, SetLastError = true)]
+        private static extern PalFlags.FailCodes rvn_ensure_hard_link_non_durable(byte* src, byte* dst, out Int32 errorCode);
+
+        public static PalFlags.FailCodes rvn_hard_link_non_durable(string src, string dst, out Int32 errorCode)
+        {
+            using var convertSrc = new Converter(src);
+            using var convertDst = new Converter(dst);
+            return rvn_hard_link_non_durable(convertSrc.Pointer, convertDst.Pointer, out errorCode);
+        }
+
+
+        [DllImport(LIBRVNPAL, SetLastError = true)]
+        private static extern PalFlags.FailCodes rvn_hard_link_non_durable(byte* src, byte* dst, out Int32 errorCode);
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct journal_entry
+        {
+            public void* Base;
+            public Int64 NumberOf4Kbs;
+        }
+
         [DllImport(LIBRVNPAL, SetLastError = true)]
         public static extern PalFlags.FailCodes rvn_write_journal(
             SafeJournalHandle handle,
-            void* buffer,
-            Int64 size,
+            journal_entry* entries,
+            Int64 countOfEntries,
             Int64 offset,
             out Int32 errorCode
         );
@@ -314,6 +417,37 @@ namespace Sparrow.Server.Platform
             byte* tempFilename,
             out Int32 errorCode);
 
+        public enum RvnConfigurationVersion
+        {
+            None,
+            Current
+        }
+        
+        public enum RvnWriteMode
+        {
+            Auto,
+            VectoredFileIo,
+            FileIo,
+            IoRing,
+            Mmap,
+        }
+        
+        [StructLayout(LayoutKind.Sequential)]
+        public struct rvn_configuration
+        {
+            public RvnConfigurationVersion version;
+            public Int32 pal_version;
+            public Int32 io_ring_queue_size;
+            public RvnWriteMode write_mode;
+            public bool low_priority_io;
+
+            public delegate* unmanaged[Cdecl]<Int64, char*, void> memoryLockCallback;
+            public delegate* unmanaged[Cdecl]<Int64, char*, int> recoveryMemoryLockFailureCallback;
+        };
+        
+        [DllImport(LIBRVNPAL, SetLastError = true)]
+        public static extern PalFlags.FailCodes rvn_startup_configure(ref rvn_configuration cfg, out Int32 errorCode);
+        
         [DllImport(LIBRVNPAL, SetLastError = true)]
         public static extern Int32 rvn_get_pal_ver();
 

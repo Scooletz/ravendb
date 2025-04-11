@@ -6,6 +6,7 @@
 
 using Sparrow.Binary;
 using System;
+using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -128,7 +129,7 @@ namespace Voron.Impl.Backup
                     // journal files snapshot
                     var files = env.Journal.Files; // thread safety copy
 
-                    JournalInfo journalInfo = env.HeaderAccessor.Get(ptr => ptr->Journal);
+                    JournalInfo journalInfo = env.HeaderAccessor.Get((in FileHeader header) => header.Journal);
                     var startingJournal = journalInfo.LastSyncedJournal;
                     if (env.Options.JournalExists(startingJournal) == false &&
                         journalInfo.Flags.HasFlag(JournalInfoFlags.IgnoreMissingLastSyncJournal) ||
@@ -138,7 +139,7 @@ namespace Voron.Impl.Backup
                     }
 
                     for (var journalNum = startingJournal;
-                         journalNum <= journalInfo.CurrentJournal;
+                         env.Options.JournalExists(journalNum);
                          journalNum++)
                     {
                         cancellationToken.ThrowIfCancellationRequested();
@@ -149,7 +150,7 @@ namespace Voron.Impl.Backup
                         {
                             long journalSize = Bits.PowerOf2(env.Options.GetJournalFileSize(journalNum, journalInfo));
 
-                            journalFile = new JournalFile(env, env.Options.CreateJournalWriter(journalNum, journalSize), journalNum);
+                            journalFile = new JournalFile(env, env.Options.CreateJournalWriter(journalNum, journalSize), journalNum, FrozenSet<Guid>.Empty);
                         }
 
                         journalFile.AddRef();
@@ -236,12 +237,12 @@ namespace Voron.Impl.Backup
 
                     if (env.Options.IncrementalBackupEnabled)
                     {
-                        env.HeaderAccessor.Modify(header =>
+                        env.HeaderAccessor.Modify((ref FileHeader header) =>
                         {
-                            header->IncrementalBackup.LastBackedUpJournal = lastBackedupJournal;
+                            header.IncrementalBackup.LastBackedUpJournal = lastBackedupJournal;
 
                             //since we backed-up everything, no need to start next incremental backup from the middle
-                            header->IncrementalBackup.LastBackedUpJournalPage = -1;
+                            header.IncrementalBackup.LastBackedUpJournalPage = -1;
                         });
                     }
 
@@ -254,7 +255,7 @@ namespace Voron.Impl.Backup
                 }
                 finally
                 {
-                    var lastSyncedJournal = env.HeaderAccessor.Get(header => header->Journal).LastSyncedJournal;
+                    var lastSyncedJournal = env.HeaderAccessor.Get((in FileHeader header) => header.Journal.LastSyncedJournal);
                     foreach (var journalFile in usedJournals)
                     {
                         if (backupSuccess) // if backup succeeded we can remove journals
@@ -262,7 +263,7 @@ namespace Voron.Impl.Backup
                             if (journalFile.Number < lastWrittenLogFile && // prevent deletion of the current journal and journals with a greater number
                                 journalFile.Number < lastSyncedJournal) // prevent deletion of journals that aren't synced with the data file
                             {
-                                journalFile.DeleteOnClose = true;
+                                journalFile.ShouldDelete = true;
                             }
                         }
 

@@ -299,9 +299,9 @@ namespace Raven.Server.Documents
 
         public CancellationToken DatabaseShutdown => _databaseShutdown.Token;
 
-        public AsyncManualResetEvent DatabaseShutdownCompleted { get; } = new AsyncManualResetEvent();
+        public AsyncManualResetEvent DatabaseShutdownCompleted { get; } = new();
 
-        public DocumentsStorage DocumentsStorage { get; private set; }
+        public DocumentsStorage DocumentsStorage { get; }
 
         public ExpiredDocumentsCleaner ExpiredDocumentsCleaner { get; private set; }
 
@@ -425,8 +425,10 @@ namespace Raven.Server.Documents
                 _addToInitLog(LogLevel.Debug, "Initializing DocumentStorage");
                 DocumentsStorage.Initialize((options & InitializeOptions.GenerateNewDatabaseId) == InitializeOptions.GenerateNewDatabaseId);
                 _addToInitLog(LogLevel.Debug, "Starting Transaction Merger");
+            
                 TxMerger.Initialize(DocumentsStorage.ContextPool, IsEncrypted, Is32Bits);
                 TxMerger.Start();
+
                 _addToInitLog(LogLevel.Debug, "Initializing ConfigurationStorage");
                 ConfigurationStorage.Initialize();
 
@@ -1035,15 +1037,6 @@ namespace Raven.Server.Documents
             }
             ForTestingPurposes?.DisposeLog?.Invoke(Name, "Disposed all running TCP connections");
 
-            ForTestingPurposes?.DisposeLog?.Invoke(Name, "Disposing TxMerger");
-            exceptionAggregator.Execute(() =>
-            {
-                TxMerger?.Dispose();
-            });
-            ForTestingPurposes?.DisposeLog?.Invoke(Name, "Disposed TxMerger");
-
-            ForTestingPurposes?.AfterTxMergerDispose?.Invoke();
-
             // must acquire the lock in order to prevent concurrent access to index files
             if (lockTaken == false)
             {
@@ -1092,6 +1085,19 @@ namespace Raven.Server.Documents
             ForTestingPurposes?.DisposeLog?.Invoke(Name, "Disposed IndexStore");
 
             DisposeBackgroundWorkers(exceptionAggregator);
+            
+            ForTestingPurposes?.DisposeLog?.Invoke(Name, "Disposing TxMerger");
+            exceptionAggregator.Execute(() =>
+            {
+                // Note that we want to dispose the TxMerger *after* we disposed
+                // of all the indexes, since index commit on dispose should be 
+                // handled by the transaction merge (branches -> root relations)
+                // and write to the database journal
+                TxMerger?.Dispose();
+            });
+            ForTestingPurposes?.DisposeLog?.Invoke(Name, "Disposed TxMerger");
+
+            ForTestingPurposes?.AfterTxMergerDispose?.Invoke();
 
             ForTestingPurposes?.DisposeLog?.Invoke(Name, "Disposing ReplicationLoader");
             exceptionAggregator.Execute(() =>
@@ -1927,7 +1933,7 @@ namespace Raven.Server.Documents
 
                 var sizeOnDisk = environment.Environment.GenerateSizeReport(includeTempBuffers: true);
                 dataInBytes += sizeOnDisk.DataFileInBytes + sizeOnDisk.JournalsInBytes;
-                tempBuffersInBytes += sizeOnDisk.TempBuffersInBytes + sizeOnDisk.TempRecyclableJournalsInBytes;
+                tempBuffersInBytes += sizeOnDisk.TempBuffersInBytes;
             }
 
             return (new Size(dataInBytes), new Size(tempBuffersInBytes));

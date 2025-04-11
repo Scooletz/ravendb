@@ -19,6 +19,7 @@ using Sparrow.Server.Platform;
 using Sparrow.Server.Utils;
 using Voron.Exceptions;
 using Voron.Global;
+using NativeMemory = Sparrow.Utils.NativeMemory;
 
 namespace Voron.Impl.Paging;
 
@@ -48,16 +49,27 @@ public unsafe partial class Pager : IDisposable
 
     public static (Pager Pager, State State) Create(StorageEnvironmentOptions options, string filename, long initialFileSize, Pal.OpenFileFlags flags)
     {
+        if (Pal.PalVoronPageSize != Constants.Storage.PageSize)// JIT should eliminate this
+            throw new InvalidOperationException($"Expected the PAL to have page size matching Voron but was: {Pal.PalVoronPageSize}");
+        
         var pager = new Pager(options, filename, flags, GetFunctions(options, flags));
         var result = Pal.rvn_init_pager(filename, initialFileSize, flags, 
             out var handle, out var readOnlyMemory, out var writeMemory, out var memorySize, out var error);
         if (result != PalFlags.FailCodes.Success)
             RaiseError(filename, error, result, initialFileSize);
+        pager.Write = Pal.rvn_get_writer(handle);
         var state = new State(pager, readOnlyMemory, writeMemory, memorySize, handle);
         (state.TotalFileSize, state.TotalDiskSpace) = pager.GetFileSize(state);
         pager.InstallState(state);
         pager.Initialize(memorySize);
         return (pager, state);
+    }
+
+    public Pal.WriterFunc Write = WriterNotSetupYet;
+
+    private static PalFlags.FailCodes WriterNotSetupYet(void* handle, Pal.page_to_write* buffers, int count, out int errorCode)
+    {
+        throw new InvalidOperationException("The Writing function is setup at this point in time, this should never happen");
     }
 
     private static Functions GetFunctions(StorageEnvironmentOptions options, Pal.OpenFileFlags flags)
@@ -72,8 +84,23 @@ public unsafe partial class Pager : IDisposable
         return funcs;
     }
 
-    private static void RaiseError(string filename, int errorCode, PalFlags.FailCodes rc, long initialFileSize, [CallerMemberName] string? caller = null)
+    public static void RaiseError(string filename, int errorCode, PalFlags.FailCodes rc, long initialFileSize, [CallerMemberName] string? caller = null)
     {
+        if (rc == PalFlags.FailCodes.FailCreateIoRing)
+        {
+            if (Pal.rvn_get_error_meaning(errorCode) is PalFlags.ErrnoSpecialCodes.NoMem)
+            {
+                string msg = $"Failed to create IoRing because out of of memory error. This usually indicate that the kernel was unable to lock sufficient memory to create the ring.{Environment.NewLine}";
+                if (PlatformDetails.RunningOnLinux)
+                {
+                    msg +=
+                        $"Check 'ulimit -l' for the actual value you have configured. You can raise the amount of memory you can lock using:{Environment.NewLine}" +
+                        $"sudo prlimit --memlock=unlimited:unlimited --pid $${Environment.NewLine}";
+                }
+                throw new InsufficientMemoryException(msg);
+            }
+        }
+        
         if (rc == PalFlags.FailCodes.FailLockMemory)
             throw new InsufficientMemoryException(
                 $"Failed to increase the min working set size so we can lock memory for {filename}. With encrypted " +

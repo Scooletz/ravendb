@@ -6,6 +6,7 @@
 
 using Sparrow.Binary;
 using System;
+using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -107,8 +108,7 @@ namespace Voron.Impl.Backup
             var transactionPersistentContext = new TransactionPersistentContext(true);
             using (var txw = env.NewLowLevelTransaction(transactionPersistentContext, TransactionFlags.ReadWrite))
             {
-                backupInfo = env.HeaderAccessor.Get(ptr => ptr->IncrementalBackup);
-                journalInfo = env.HeaderAccessor.Get(ptr => ptr->Journal);
+                (backupInfo, journalInfo) = env.HeaderAccessor.Get((in FileHeader header) => (header.IncrementalBackup, header.Journal));
 
                 if (env.Journal.CurrentFile != null)
                 {
@@ -135,11 +135,13 @@ namespace Voron.Impl.Backup
 
                     if (firstJournalToBackup == -1)
                         firstJournalToBackup = 0; // first time that we do incremental backup
-
+                    
+                    long lastSeenJournal = firstJournalToBackup;
                     for (var journalNum = firstJournalToBackup;
-                        journalNum <= backupInfo.LastCreatedJournal;
-                        journalNum++)
+                         env.Options.JournalExists(journalNum);
+                         journalNum++)
                     {
+                        lastSeenJournal = journalNum;
                         var num = journalNum;
 
                         var journalFile = GetJournalFile(env, journalNum, backupInfo, journalInfo);
@@ -175,7 +177,7 @@ namespace Voron.Impl.Backup
                         }
 
                         lastBackedUpFile = journalFile.Number;
-                        if (journalFile.Number == backupInfo.LastCreatedJournal)
+                        if (env.Options.JournalExists(journalFile.Number + 1) is false) // this is the last file, no more after it...
                         {
                             lastBackedUpPage = startBackupAt + numberOf4KbsToCopy - 1;
                             // we used all of this file, so the next backup should start in the next file
@@ -188,11 +190,22 @@ namespace Voron.Impl.Backup
 
                         numberOfBackedUpPages += numberOf4KbsToCopy;
                     }
-
-                    env.HeaderAccessor.Modify(header =>
+                    
+                    long latestJournal = env.Options.GetLatestJournalNumber() ?? journalInfo.LastSyncedJournal;
+                    if (lastSeenJournal != latestJournal)
                     {
-                        header->IncrementalBackup.LastBackedUpJournal = lastBackedUpFile;
-                        header->IncrementalBackup.LastBackedUpJournalPage = lastBackedUpPage;
+                        throw new InvalidOperationException(
+                            $"The first incremental backup creation failed because the first journal file {StorageEnvironmentOptions.JournalName(lastSeenJournal)} was not found." +
+                            $" Expected to find journals {StorageEnvironmentOptions.JournalName(lastSeenJournal)}..{StorageEnvironmentOptions.JournalName(latestJournal)}." +
+                            $" Did you turn on the incremental backup feature after initializing the storage? " +
+                            $"In order to create backups incrementally the storage must be created with 'IncrementalBackupEnabled' option set to 'true'.");
+                    }
+
+
+                    env.HeaderAccessor.Modify((ref FileHeader header) =>
+                    {
+                        header.IncrementalBackup.LastBackedUpJournal = lastBackedUpFile;
+                        header.IncrementalBackup.LastBackedUpJournalPage = lastBackedUpPage;
                     });
                 }
                 catch (Exception)
@@ -202,7 +215,7 @@ namespace Voron.Impl.Backup
                 }
                 finally
                 {
-                    var lastSyncedJournal = env.HeaderAccessor.Get(header => header->Journal).LastSyncedJournal;
+                    var lastSyncedJournal = env.HeaderAccessor.Get((in FileHeader header) => header.Journal.LastSyncedJournal);
 
                     foreach (var jrnl in usedJournals)
                     {
@@ -213,14 +226,14 @@ namespace Voron.Impl.Backup
                                 jrnl.Number < lastSyncedJournal)
                             // prevent deletion of journals that aren't synced with the data file
                             {
-                                jrnl.DeleteOnClose = true;
+                                jrnl.ShouldDelete = true;
                             }
                         }
 
                         jrnl.Release();
                     }
                 }
-                infoNotify(string.Format("Voron Incr Backup total {0} pages", numberOfBackedUpPages));
+                infoNotify($"Voron Incr Backup total {numberOfBackedUpPages} pages");
             }
             return numberOfBackedUpPages;
         }
@@ -233,26 +246,11 @@ namespace Voron.Impl.Backup
                 journalFile.AddRef();
                 return journalFile;
             }
-            try
-            {
-                long journalSize = Bits.PowerOf2(env.Options.GetJournalFileSize(journalNum, journalInfo));
-                journalFile = new JournalFile(env, env.Options.CreateJournalWriter(journalNum, journalSize), journalNum);
-                journalFile.AddRef();
-                return journalFile;
-            }
-            catch (InvalidJournalException e)
-            {
-                if (backupInfo.LastBackedUpJournal == -1 && journalNum == 0)
-                {
-                    throw new InvalidOperationException("The first incremental backup creation failed because the first journal file " +
-                                                        StorageEnvironmentOptions.JournalName(journalNum) + " was not found. " +
-                                                        "Did you turn on the incremental backup feature after initializing the storage? " +
-                                                        "In order to create backups incrementally the storage must be created with IncrementalBackupEnabled option set to 'true'.", e);
-                }
 
-                throw;
-            }
-
+            long journalSize = Bits.PowerOf2(env.Options.GetJournalFileSize(journalNum, journalInfo));
+            journalFile = new JournalFile(env, env.Options.CreateJournalWriter(journalNum, journalSize), journalNum, FrozenSet<Guid>.Empty);
+            journalFile.AddRef();
+            return journalFile;
         }
 
         public void Restore(StorageEnvironmentOptions options, IEnumerable<string> backupPaths)
@@ -262,12 +260,30 @@ namespace Voron.Impl.Backup
             try
             {
                 options.ManualFlushing = true;
+                bool shouldDeleteInitialJournal = false;
                 using (var env = new StorageEnvironment(options))
                 {
+                    // We create a completely new environment... 
+                    if (env.CurrentReadTransactionId is 1)
+                    {
+                        shouldDeleteInitialJournal = true;
+                        env.HeaderAccessor.Modify((ref FileHeader header) =>
+                        {
+                            // The journal id should come from the first
+                            // real transaction that is being applies here
+                            header.JournalId = Guid.Empty;
+                        });
+                    }
+
                     foreach (var backupPath in backupPaths)
                     {
                         Restore(env, backupPath);
                     }
+                }
+                if (shouldDeleteInitialJournal)
+                {
+                    options.TryDeleteJournal(0);
+
                 }
             }
             finally
@@ -328,7 +344,9 @@ namespace Voron.Impl.Backup
             {
                 TransactionHeader* lastTxHeader = null;
                 var lastTxHeaderStackLocation = stackalloc TransactionHeader[1];
-                long lastTxId = env.HeaderAccessor.Get(x => x->TransactionId);
+                var envHeader = env.HeaderAccessor.CopyHeader();
+                var lastTxId = envHeader.TransactionId;
+                var journalId = envHeader.JournalId;
 
                 long journalNumber = -1;
                 var rc = Pal.rvn_pager_get_file_handle(txw.DataPagerState.Handle, out var fileHandle, out int errorCode);
@@ -365,8 +383,9 @@ namespace Voron.Impl.Backup
                                     env.Options.Encryption.IsEnabled);
                             toDispose.Add(recoveryPager);
 
-                            var reader = new JournalReader(env, journalPager, journalPagerState, txw.DataPager, recoveryPager, new HashSet<long>(),
-                                new JournalInfo { LastSyncedTransactionId = lastTxId }, new FileHeader { HeaderRevision = -1 }, lastTxHeader);
+                            var reader = new JournalReader(env, journalNumber, journalPager, journalPagerState, txw.DataPager, recoveryPager, new HashSet<long>(),
+                                       new JournalInfo { LastSyncedTransactionId = lastTxId }, new FileHeader { HeaderRevision = -1, JournalId = journalId},
+                                       lastTxHeader);
                             try
                             {
                                 while (reader.ReadOneTransactionToDataFile(ref txw.DataPagerState, ref recoverPagerState, ref txw.PagerTransactionState, fileHandle,
@@ -374,6 +393,8 @@ namespace Voron.Impl.Backup
                                 {
                                     lastTxHeader = reader.LastTransactionHeader;
                                 }
+
+                                journalId = reader.JournalId;
 
                                 reader.ZeroRecoveryBufferIfNeeded(recoverPagerState, ref txw.PagerTransactionState, env.Options);
                                 if (lastTxHeader != null)
@@ -407,17 +428,21 @@ namespace Voron.Impl.Backup
                 
                 txw.Commit();
                 
-                env.HeaderAccessor.Modify(header =>
+                env.HeaderAccessor.Modify((ref FileHeader header) => 
                 {
-                    header->TransactionId = lastTxHeader->TransactionId;
-                    header->LastPageNumber = lastTxHeader->LastPageNumber;
-                    
-                    header->Journal.LastSyncedTransactionId = lastTxHeader->TransactionId;
+                    header.TransactionId = lastTxHeader->TransactionId;
+                    header.LastPageNumber = lastTxHeader->LastPageNumber;
+                    header.JournalId = journalId;
+                    header.Journal.LastSyncedTransactionId = lastTxHeader->TransactionId;
                 
-                    header->Root = lastTxHeader->Root;
-                    
-                    Sparrow.Memory.Set(header->Journal.Reserved, 0, JournalInfo.NumberOfReservedBytes);
-                    header->Journal.Flags = JournalInfoFlags.None;
+                    header.Root = lastTxHeader->Root;
+
+                    header.Journal.Reserved1 = 0;
+                    for (int i = 0; i < JournalInfo.NumberOfReservedBytes; i++)
+                    {
+                        header.Journal.Reserved2[i] = 0;
+                    }
+                    header.Journal.Flags = JournalInfoFlags.None;
                 });
             }
             finally

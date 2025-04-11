@@ -15,7 +15,6 @@ using Raven.Server.ServerWide.Context;
 using Raven.Server.Utils;
 using Sparrow;
 using Sparrow.Json;
-using Sparrow.Logging;
 using Sparrow.LowMemory;
 using Sparrow.Server.Logging;
 using Sparrow.Server.LowMemory;
@@ -46,6 +45,7 @@ namespace Raven.Server.Documents.TransactionMerger
         private bool _runTransactions = true;
         private readonly ConcurrentQueue<MergedTransactionCommand<TOperationContext, TTransaction>> _operations = new();
         private readonly CountdownEvent _concurrentOperations = new(1);
+        private StorageEnvironment _env;
 
         private readonly ConcurrentQueue<List<MergedTransactionCommand<TOperationContext, TTransaction>>> _opsBuffers = new();
         private readonly ManualResetEventSlim _waitHandle = new(false);
@@ -81,14 +81,17 @@ namespace Raven.Server.Documents.TransactionMerger
             _timeToCheckHighDirtyMemory = configuration.Memory.TemporaryDirtyMemoryChecksPeriod;
             _lastHighDirtyMemCheck = time.GetUtcNow();
         }
-
+        
         public void Initialize([NotNull] JsonContextPoolBase<TOperationContext> contextPool, bool isEncrypted, bool is32Bits)
         {
             _contextPool = contextPool ?? throw new ArgumentNullException(nameof(contextPool));
             _isEncrypted = isEncrypted;
             _is32Bits = is32Bits;
+            _env = GetStorageEnvironment(contextPool);
             _initialized = true;
         }
+
+        protected abstract StorageEnvironment GetStorageEnvironment(JsonContextPoolBase<TOperationContext> contextPool);
 
         internal abstract TTransaction BeginAsyncCommitAndStartNewTransaction(TTransaction previousTransaction, TOperationContext currentContext);
 
@@ -101,7 +104,7 @@ namespace Raven.Server.Documents.TransactionMerger
 
         public void Start()
         {
-            _txLongRunningOperation = PoolOfThreads.GlobalRavenThreadPool.LongRunning(_ => MergeOperationThreadProc(), null, ThreadNames.ForTransactionMerging(TransactionMergerThreadName, _resourceName));
+            _txLongRunningOperation = PoolOfThreads.GlobalRavenThreadPool.LongRunning(o => MergeOperationThreadProc(), null, ThreadNames.ForTransactionMerging(TransactionMergerThreadName, _resourceName));
         }
 
         /// <summary>
@@ -155,7 +158,7 @@ namespace Raven.Server.Documents.TransactionMerger
             ThreadHelper.TrySetThreadPriority(ThreadPriority.AboveNormal, TransactionMergerThreadName, _log);
 
             var oomTimer = new Stopwatch();// this is allocated here to avoid OOM when using it
-
+            
             while (true) // this is actually only executed once, except if we are trying to recover from OOM errors
             {
                 NativeMemory.EnsureRegistered();
@@ -165,7 +168,7 @@ namespace Raven.Server.Documents.TransactionMerger
                     {
                         _recording.State?.Prepare(ref _recording.State);
 
-                        if (_operations.IsEmpty)
+                        if (_operations.IsEmpty && _env.Journal.HasBranchCommits is false)
                         {
                             if (_isEncrypted)
                             {
@@ -517,7 +520,7 @@ namespace Raven.Server.Documents.TransactionMerger
                             try
                             {
                                 //already throwing, attempt to complete previous tx
-                                CompletePreviousTransaction(previous, previous.Transaction, ref previousPendingOps, throwOnError: false);
+                                CompletePreviousTransaction(previous, returnPreviousContext, ref previousPendingOps, throwOnError: false);
                             }
                             finally
                             {
@@ -592,11 +595,6 @@ namespace Raven.Server.Documents.TransactionMerger
                         return;
                     }
 
-                    _recording.State?.TryRecord(previous, TxInstruction.DisposePrevTx, previous.Transaction.Disposed == false);
-
-                    previous.Transaction.Dispose();
-                    returnPreviousContext.Dispose();
-
                     previous = current;
                     returnPreviousContext = currentReturnContext;
 
@@ -641,18 +639,24 @@ namespace Raven.Server.Documents.TransactionMerger
         }
 
         private void CompletePreviousTransaction(
-            TOperationContext context,
-            RavenTransaction previous,
+            TOperationContext previous,
+            IDisposable returnPreviousContext,
             ref List<MergedTransactionCommand<TOperationContext, TTransaction>> previousPendingOps,
             bool throwOnError)
         {
             try
             {
-                _recording.State?.TryRecord(context, TxInstruction.EndAsyncCommit);
-                previous.EndAsyncCommit();
+                _recording.State?.TryRecord(previous, TxInstruction.EndAsyncCommit);
+                previous.Transaction.EndAsyncCommit();
 
                 if (_log.IsDebugEnabled)
-                    _log.Debug($"EndAsyncCommit on {previous.InnerTransaction.LowLevelTransaction.Id}");
+                    _log.Debug($"EndAsyncCommit on {previous.Transaction.InnerTransaction.LowLevelTransaction.Id}");
+                
+                _recording.State?.TryRecord(previous, TxInstruction.DisposePrevTx, previous.Disposed == false);
+                
+                previous.Transaction.Dispose();
+                returnPreviousContext.Dispose();
+                
                 NotifyOnThreadPool(previousPendingOps);
             }
             catch (Exception e)
@@ -661,6 +665,11 @@ namespace Raven.Server.Documents.TransactionMerger
                 {
                     op.Exception = e;
                 }
+
+                // it's safe to call this twice
+                previous.Transaction.Dispose();
+                returnPreviousContext.Dispose();
+                
                 NotifyOnThreadPool(previousPendingOps);
                 previousPendingOps = null; // RavenDB-7417
                 if (throwOnError)
@@ -755,12 +764,11 @@ namespace Raven.Server.Documents.TransactionMerger
                 break;
             } while (true);
 
-            var currentOperationsCount = _operations.Count;
-            var status = GetPendingOperationsStatus(context, currentOperationsCount == 0);
+            var status = GetPendingOperationsStatus(context, executedOps.Count is 0);
             if (_log.IsDebugEnabled)
             {
                 var opType = previousOperation == null ? string.Empty : "(async) ";
-                _log.Debug($"Merged {executedOps.Count:#,#;;0} operations in {sp.Elapsed} {opType}with {currentOperationsCount:#,#;;0} operations remaining. Status: {status}");
+                _log.Debug($"Merged {executedOps.Count:#,#;;0} operations in {sp.Elapsed} {opType}with {_operations.Count:#,#;;0} operations remaining. Status: {status}");
             }
             return status;
         }

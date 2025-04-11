@@ -11,6 +11,8 @@ using Raven.Client.Documents.Operations.Indexes;
 using Raven.Client.Documents.Session;
 using Raven.Server.Documents.Indexes;
 using Raven.Server.Utils;
+using Sparrow.Server.Platform;
+using Tests.Infrastructure;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -170,6 +172,53 @@ namespace SlowTests.Issues
             }
         }
 
+        
+        
+        [RavenFact(RavenTestCategory.Voron)]
+        public async Task IndexesJournalsUseHardLinksToShareJournals()
+        {
+            var serverPath = NewDataPath();
+            var databasePath = NewDataPath();
+            string indexStoragePath1, indexStoragePath2;
+            string databaseName;
+
+            var index = new Orders_ByOrderBy();
+
+            using (var server = GetNewServer(new ServerCreationOptions { DataDirectory = serverPath, RunInMemory = false }))
+            using (var store = GetDocumentStore(new Options { Server = server, RunInMemory = false, Path = databasePath }))
+            {
+                databaseName = store.Database;
+                await index.ExecuteAsync(store);
+
+                using (var session = store.OpenSession())
+                {
+                    var orders = session.Query<Order>()
+                        .Where(x => x.OrderedAt >= DateTime.Now)
+                        .ToList();
+                }
+
+                using (var session = store.OpenSession())
+                {
+                    for (int i = 0; i < 10; i++)
+                    {
+                        session.Store(new Order());
+                    }
+                    session.SaveChanges();
+                }
+                
+                await Indexes.WaitForIndexingAsync(store);
+
+                var database = await server.ServerStore.DatabasesLandlord.TryGetOrCreateResourceStore(store.Database);
+                indexStoragePath1 = database.IndexStore.GetIndex(index.IndexName)._environment.Options.BasePath.FullPath;
+                indexStoragePath2 = database.IndexStore.GetIndex("Auto/Orders/ByOrderedAt")._environment.Options.BasePath.FullPath;
+
+                var idx1Jrnl = Directory.GetFiles(Path.Combine(indexStoragePath1, "Journals"), "*.journal").Order().Last();
+                var idx2Jrnl = Directory.GetFiles(Path.Combine(indexStoragePath2, "Journals"), "*.journal").Order().Last();
+
+                Assert.True(Pal.rvn_is_same_hard_link(idx2Jrnl, idx1Jrnl), $"{idx2Jrnl} vs {idx1Jrnl}");
+            }
+
+        }
         [Fact]
         public void WhenUsingExactOnDateTimeOffsetWeShouldBeAbleToQueryByThisValue()
         {

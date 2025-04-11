@@ -238,20 +238,15 @@ namespace Sparrow.Utils
 
         public static void RegisterFileMapping(string fullPath, IntPtr start, long size, Func<long> getAllocatedSize)
         {
-            var lazyMapping = FileMapping.GetOrAdd(fullPath, _ =>
-            {
-                return new Lazy<FileMappingInfo>(() =>
-                {
-                    var fileType = GetFileType(fullPath);
-                    return new FileMappingInfo
-                    {
-                        FileType = fileType
-                    };
-                });
-            });
+            var lazyMapping = FileMapping.GetOrAdd(fullPath, CreateMapping);
 
             lazyMapping.Value.GetAllocatedSizeFunc = getAllocatedSize;
             lazyMapping.Value.Info.TryAdd(start, size);
+            
+            static Lazy<FileMappingInfo> CreateMapping(string path)
+            {
+                return new Lazy<FileMappingInfo>(() => new FileMappingInfo { FileType = GetFileType(path) });
+            }
         }
 
         private static FileType GetFileType(string fullPath)
@@ -277,11 +272,6 @@ namespace Sparrow.Utils
                 return FileType.DecompressionBuffer;
 
             return FileType.Data;
-        }
-
-        public static void UnregisterFileMapping(string name)
-        {
-            FileMapping.TryRemove(name, out _);
         }
 
         public static void UnregisterFileMapping(string name, IntPtr start, long size)

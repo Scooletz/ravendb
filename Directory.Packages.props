@@ -94,7 +94,7 @@
     <PackageVersion Include="Polly" Version="8.5.2" />
     <PackageVersion Include="RabbitMQ.Client" Version="6.8.1" />
     <PackageVersion Include="Raven.CodeAnalysis" Version="1.0.11" />
-    <PackageVersion Include="Raven.Pal" Version="6.2.22" />
+    <PackageVersion Include="Raven.Pal" Version="7.0.835" />
     <PackageVersion Include="SmartComponents.LocalEmbeddings" Version="0.1.0-preview10148" />
     <PackageVersion Include="Snappier" Version="1.2.0" />
     <PackageVersion Include="Snowflake.Data" Version="4.3.0" />
@@ -130,6 +130,6 @@
     <PackageVersion Include="xunit.runner.visualstudio" Version="2.8.2" />
     <PackageVersion Include="XunitLogger" Version="4.0.991" />
     <PackageVersion Include="YamlDotNet" Version="16.3.0" />
-    <PackageVersion Include="ZstdSharp.Port" Version="0.8.5" />
+    <PackageVersion Include="ZstdSharp.Port" Version="0.8.1" />
   </ItemGroup>
 </Project>

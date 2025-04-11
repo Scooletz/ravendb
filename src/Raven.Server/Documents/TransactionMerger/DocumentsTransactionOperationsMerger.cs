@@ -2,7 +2,9 @@
 using JetBrains.Annotations;
 using Raven.Server.Logging;
 using Raven.Server.ServerWide.Context;
+using Sparrow.Json;
 using Sparrow.Logging;
+using Voron;
 
 namespace Raven.Server.Documents.TransactionMerger;
 
@@ -14,6 +16,11 @@ public sealed class DocumentsTransactionOperationsMerger : AbstractTransactionOp
         : base(database.Name, database.Configuration, database.Time, database.Loggers.GetLogger<DocumentsTransactionOperationsMerger>(), database.DatabaseShutdown)
     {
         _database = database ?? throw new ArgumentNullException(nameof(database));
+    }
+
+    protected override StorageEnvironment GetStorageEnvironment(JsonContextPoolBase<DocumentsOperationContext> contextPool)
+    {
+        return ((DocumentsContextPool)contextPool).Environment;
     }
 
     internal override DocumentsTransaction BeginAsyncCommitAndStartNewTransaction(DocumentsTransaction previousTransaction, DocumentsOperationContext currentContext)

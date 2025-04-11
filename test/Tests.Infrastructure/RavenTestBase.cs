@@ -184,37 +184,29 @@ namespace FastTests
                         adminStore.Initialize();
                     }
 
-                    var hardDelete = true;
-                    var runInMemory = options.RunInMemory;
-
                     var pathToUse = options.Path;
-                    if (runInMemory == false && options.ReplicationFactor > 1)
+                    // if user pass the Path, it means he responsible to delete it
+                    var hardDelete = options.Path is null;
+                    // if path is defined we run in a persistent way
+                    // so we run in memory only when no path is defined _and_ RunInMemory is true
+                    var runInMemory = options.RunInMemory && pathToUse == null;
+                    
+                    var numOfServers = servers.Count;
+                    if (numOfServers == 0)
                     {
-                        if (pathToUse == null)
-                        {
-                            // the folders will be assigned automatically
-                        }
-                        else
-                        {
-                            throw new InvalidOperationException($"You cannot set {nameof(Options)}.{nameof(Options.Path)} when, {nameof(Options)}.{nameof(Options.ReplicationFactor)} > 1 and {nameof(Options)}.{nameof(Options.RunInMemory)} == false.");
-                        }
+                        // not in a cluster
+                        numOfServers = 1;
                     }
-                    else if (pathToUse == null)
+
+                    if (runInMemory == false && numOfServers == 1)
                     {
-                        if (options.ReplicationFactor > 1)
-                        {
-                            // the folders will be assigned automatically - when running in cluster it's better to put files in directories under dedicated server / node dir
-                        }
-                        else
-                        {
-                            pathToUse = NewDataPath(name);
-                        }
+                        pathToUse ??= NewDataPath(name);
                     }
-                    else
-                    {
-                        hardDelete = false;
-                        runInMemory = false;
-                    }
+
+
+                    if (numOfServers > 1 && pathToUse != null)
+                        throw new InvalidOperationException(
+                            $"You cannot set {nameof(Options)}.{nameof(Options.Path)} in a cluster.");
 
                     var doc = new DatabaseRecord(name)
                     {
@@ -235,6 +227,7 @@ namespace FastTests
                         doc.Settings.Add(RavenConfiguration.GetKey(x => x.Core.DataDirectory), pathToUse);
                     }
 
+                    OnCreatingNewDatabase(doc);
                     options.ModifyDatabaseRecord?.Invoke(doc);
                     var sharded = doc.IsSharded;
 
@@ -382,6 +375,11 @@ namespace FastTests
             {
                 throw new TimeoutException($"{te.Message} {Environment.NewLine} {te.StackTrace}{Environment.NewLine}Servers states:{Environment.NewLine}{Cluster.GetLastStatesFromAllServersOrderedByTime()}");
             }
+        }
+
+        protected virtual void OnCreatingNewDatabase(DatabaseRecord databaseRecord)
+        {
+            
         }
 
         private static void CheckIfDatabaseExists(RavenServer server, string name)

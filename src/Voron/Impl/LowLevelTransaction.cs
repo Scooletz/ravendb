@@ -353,9 +353,9 @@ namespace Voron.Impl
             DataPagerState = dataPagerState;
         }
 
-        internal void UpdateJournal(JournalFile file, long last4KWrite)
+        internal void UpdateJournal(long journalNumber, long last4KWrite)
         {
-            _envRecord = _envRecord with { Journal = (file, last4KWrite) };
+            _envRecord = _envRecord with { Journal = (journalNumber, last4KWrite) };
         }
 
         internal void UpdateClientState(object state)
@@ -940,7 +940,9 @@ namespace Voron.Impl
 
             CommitStage1_CompleteTransaction();
 
-            if (WriteToJournalIsRequired())
+            Debug.Assert(_writeToJournalState is not WriteToJournalState.None, "_writeToJournalState is not WriteToJournalState.None");
+
+            if (_writeToJournalState is WriteToJournalState.ModifiedPages or WriteToJournalState.BranchCommits)
             {
                 Environment.LastWorkTime = DateTime.UtcNow;
                 CommitStage2_WriteToJournal();
@@ -966,11 +968,10 @@ namespace Voron.Impl
             if (_asyncCommitNextTransaction != null)
                 ThrowAsyncCommitAlreadyCalled();
 
-            // we have to check the state before we complete the transaction
-            // because that would change whether we need to write to the journal
-            var writeToJournalIsRequired = WriteToJournalIsRequired();
-
             CommitStage1_CompleteTransaction();
+
+            Debug.Assert(_writeToJournalState is not WriteToJournalState.None, "_writeToJournalState is not WriteToJournalState.None");
+            bool writeToJournalIsRequired = _writeToJournalState is not WriteToJournalState.Skip;
 
             var nextTx = new LowLevelTransaction(this, persistentContext,
                 writeToJournalIsRequired ? Id + 1 : Id
@@ -1064,8 +1065,8 @@ namespace Voron.Impl
             Debug.Assert(_asyncCommitNextTransaction.Committed == false, "_asyncCommitNextTransaction.Committed == false");
             // we need to update the state of the file position in the journal file, which happens in stage2 (async)
             // before we can actually commit the current transaction
-            _asyncCommitNextTransaction.UpdateJournal(CurrentStateRecord.Journal.Current, CurrentStateRecord.Journal.Last4KWritePosition);
-
+            _asyncCommitNextTransaction.UpdateJournal(CurrentStateRecord.Journal.Number, CurrentStateRecord.Journal.Last4KWritePosition);
+            
             if (AsyncCommit.Result)
                 Environment.LastWorkTime = DateTime.UtcNow;
 
@@ -1079,16 +1080,29 @@ namespace Voron.Impl
             throw new InvalidOperationException("Cannot call EndAsyncCommit when we don't have an async op running");
         }
 
-        private bool WriteToJournalIsRequired()
+        private enum WriteToJournalState
         {
-            return _dirtyPages.Count > 0 || _hasFreePages;
+            None,
+            Skip,
+            ModifiedPages,
+            BranchCommits
+        }
+
+        private WriteToJournalState _writeToJournalState;
+        public bool ShouldWriteTransactionChangesToJournal
+        {
+            get
+            {
+                Debug.Assert(_writeToJournalState is not WriteToJournalState.None);
+                return _writeToJournalState is WriteToJournalState.ModifiedPages;
+            }
         }
 
         private void CommitStage2_WriteToJournal()
         {
             try
             {
-                var numberOfWrittenPages = _journal.WriteToJournal(this);
+                (long numberOfUncompressedPages, long numberOf4Kbs) = _journal.WriteToJournal(this);
 
                 if (_forTestingPurposes?.SimulateThrowingOnCommitStage2 == true)
                     _forTestingPurposes.ThrowSimulateErrorOnCommitStage2();
@@ -1096,8 +1110,8 @@ namespace Voron.Impl
                 if (_requestedCommitStats == null)
                     return;
 
-                _requestedCommitStats.NumberOfModifiedPages = numberOfWrittenPages.NumberOfUncompressedPages;
-                _requestedCommitStats.NumberOf4KbsWrittenToDisk = numberOfWrittenPages.NumberOf4Kbs;
+                _requestedCommitStats.NumberOfModifiedPages = numberOfUncompressedPages;
+                _requestedCommitStats.NumberOf4KbsWrittenToDisk = numberOf4Kbs;
             }
             catch
             {
@@ -1144,6 +1158,15 @@ namespace Voron.Impl
                 var regions = _freeSpaceHandling.GetSparseRegions(this, _sparsePageRanges);
                 _sparseRangesInTransaction = new SparseRegionsRecord(Id, regions);
             }
+
+
+            if (_dirtyPages.Count > 0 || _hasFreePages)
+                _writeToJournalState = WriteToJournalState.ModifiedPages;
+            else if(_journal.HasBranchCommits)
+                _writeToJournalState = WriteToJournalState.BranchCommits;
+            else
+                _writeToJournalState = WriteToJournalState.Skip;
+
         }
 
         public SparseRegionsRecord SparseRegionsRecord => _sparseRangesInTransaction;

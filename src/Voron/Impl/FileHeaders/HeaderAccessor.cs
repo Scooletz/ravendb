@@ -7,10 +7,10 @@
 using Sparrow;
 using System;
 using System.Diagnostics;
+using System.Drawing;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Threading;
-using Sparrow.Server;
-using Sparrow.Utils;
 using Voron.Exceptions;
 using Voron.Global;
 using Voron.Impl.Backup;
@@ -20,94 +20,67 @@ using Voron.Util;
 
 namespace Voron.Impl.FileHeaders
 {
-    public unsafe delegate void ModifyHeaderAction(FileHeader* ptr);
+    public delegate void ModifyHeaderAction(ref FileHeader header);
 
-    public unsafe delegate T GetDataFromHeaderAction<T>(FileHeader* ptr);
+    public delegate T GetDataFromHeaderAction<T>(in FileHeader header);
 
-    public sealed unsafe class HeaderAccessor : IDisposable
+    public sealed unsafe class HeaderAccessor(StorageEnvironment env) : IDisposable
     {
-        private readonly StorageEnvironment _env;
-
-        private readonly ReaderWriterLockSlim _locker = new ReaderWriterLockSlim();
+        private readonly ReaderWriterLockSlim _locker = new();
         private long _revision;
 
-        private FileHeader* _theHeader;
-        private byte* _headerPtr;
-        private readonly NativeMemory.ThreadStats _stats;
+        private FileHeader _theHeader;
+        private bool _disposed;
 
-        internal static string[] HeaderFileNames = { "headers.one", "headers.two" };
-
-        public HeaderAccessor(StorageEnvironment env)
-        {
-            _env = env;
-
-            _headerPtr = NativeMemory.AllocateMemory(sizeof(FileHeader), out _stats);
-            _theHeader = (FileHeader*)_headerPtr;
-        }
+        internal static readonly string[] HeaderFileNames = { "headers.one", "headers.two" };
 
         public bool Initialize()
         {
             _locker.EnterWriteLock();
             try
             {
-                if (_theHeader == null)
+                if (_disposed)
                     throw new ObjectDisposedException("Cannot access the header after it was disposed");
 
-                var headers = stackalloc FileHeader[2];
-                var f1 = &headers[0];
-                var f2 = &headers[1];
-                var hasHeader1 = _env.Options.ReadHeader(HeaderFileNames[0], f1);
-                var hasHeader2 = _env.Options.ReadHeader(HeaderFileNames[1], f2);
-                if (hasHeader1 == false && hasHeader2 == false)
+                var hasOne = env.Options.ReadValidHeader(HeaderFileNames[0], out var headerOne);
+                var hasTwo = env.Options.ReadValidHeader(HeaderFileNames[1], out var headerTwo);
+                if (hasOne is false && hasTwo is false)
                 {
                     // new 
-                    FillInEmptyHeader(f1);
-                    FillInEmptyHeader(f2);
-                    f1->Hash = CalculateFileHeaderHash(f1);
-                    f2->Hash = CalculateFileHeaderHash(f2);
-                    _env.Options.WriteHeader(HeaderFileNames[0], f1);
-                    _env.Options.WriteHeader(HeaderFileNames[1], f2);
+                    FillInEmptyHeader(ref headerOne);
+                    env.Options.WriteHeader(HeaderFileNames[0], headerOne);
+                    env.Options.WriteHeader(HeaderFileNames[1], headerOne);
 
-                    Memory.Copy((byte*)_theHeader, (byte*)f1, sizeof(FileHeader));
+                    _theHeader = headerOne;
                     return true; // new
                 }
 
-                if (f1->MagicMarker != Constants.MagicMarker && f2->MagicMarker != Constants.MagicMarker)
-                    throw new InvalidDataException("None of the header files start with the magic marker, probably not db files or fatal corruption on " + _env.Options.BasePath);
-
-                if (!ValidHash(f1) && !ValidHash(f2))
-                    throw new InvalidDataException("None of the header files have a valid hash, possible corruption on " + _env.Options.BasePath);
+                if (headerOne.MagicMarker != Constants.MagicMarker && headerTwo.MagicMarker != Constants.MagicMarker)
+                    throw new InvalidDataException("None of the header files start with the magic marker, probably not db files or fatal corruption on " + env.Options.BasePath);
 
                 // if one of the files is corrupted, but the other isn't, restore to the valid file
-                if (f1->MagicMarker != Constants.MagicMarker || !ValidHash(f1))
+                if (headerOne.MagicMarker != Constants.MagicMarker || hasOne is false)
                 {
-                    *f1 = *f2;
+                    headerOne = headerTwo;
                 }
                 
-                if (f2->MagicMarker != Constants.MagicMarker || !ValidHash(f2))
+                if (headerTwo.MagicMarker != Constants.MagicMarker || hasTwo is false)
                 {
-                    *f2 = *f1;
+                    headerTwo = headerOne;
                 }
 
-                if (f1->TransactionId < 0)
-                    throw new InvalidDataException("The transaction number cannot be negative on " + _env.Options.BasePath);
+                if (headerOne.TransactionId < 0)
+                    throw new InvalidDataException("The transaction number cannot be negative on " + env.Options.BasePath);
 
-                if (f1->HeaderRevision > f2->HeaderRevision)
-                {
-                    Memory.Copy((byte*)_theHeader, (byte*)f1, sizeof(FileHeader));
-                }
-                else
-                {
-                    Memory.Copy((byte*)_theHeader, (byte*)f2, sizeof(FileHeader));
-                }
-                _revision = _theHeader->HeaderRevision;
+                _theHeader = headerOne.HeaderRevision > headerTwo.HeaderRevision ? headerOne : headerTwo;
+                _revision = _theHeader.HeaderRevision;
 
-                if (_theHeader->Version != Constants.CurrentVersion)
+                if (_theHeader.Version != Constants.CurrentVersion)
                 {
                     _locker.ExitWriteLock();
                     try
                     {
-                        var updater = new VoronSchemaUpdater(this, _env.Options);
+                        var updater = new VoronSchemaUpdater(this, env.Options);
 
                         updater.Update();
                     }
@@ -117,27 +90,21 @@ namespace Voron.Impl.FileHeaders
 
                     }
 
-                    if (_theHeader->Version != Constants.CurrentVersion)
+                    if (_theHeader.Version != Constants.CurrentVersion)
                     {
                         throw new SchemaErrorException(
-                            $"The db file is for version {_theHeader->Version}, which is not compatible with the current version {Constants.CurrentVersion} on {_env.Options.BasePath}");
+                            $"The db file is for version {_theHeader.Version}, which is not compatible with the current version {Constants.CurrentVersion} on {env.Options.BasePath}");
                     }
                 }
 
-                if (_theHeader->PageSize != Constants.Storage.PageSize)
+                if (_theHeader.PageSize != Constants.Storage.PageSize)
                 {
-                    var message = string.Format("PageSize mismatch, configured to be {0:#,#} but was {1:#,#}, using the actual value in the file {1:#,#}",
-                        Constants.Storage.PageSize, _theHeader->PageSize);
-                    _env.Options.InvokeRecoveryError(this, message, null);
+                    var message =
+                        $"PageSize mismatch, configured to be {Constants.Storage.PageSize:#,#} but was {_theHeader.PageSize:#,#}, " +
+                        $"using the actual value in the file {_theHeader.PageSize:#,#}";
+                    env.Options.InvokeRecoveryError(this, message, null);
                 }
-
-                if (IsEmptyHeader(_theHeader))
-                {
-                    // db was not initialized - new db
-                    return true;
-                }
-
-                return false;
+                return IsEmptyHeader(_theHeader);
             }
             finally
             {
@@ -151,9 +118,9 @@ namespace Voron.Impl.FileHeaders
             _locker.EnterReadLock();
             try
             {
-                if (_theHeader == null)
+                if (_disposed)
                     throw new ObjectDisposedException("Cannot access the header after it was disposed");
-                return *_theHeader;
+                return _theHeader;
             }
             finally
             {
@@ -161,16 +128,17 @@ namespace Voron.Impl.FileHeaders
             }
         }
 
+        public Guid JournalId => _theHeader.JournalId;
 
         public T Get<T>(GetDataFromHeaderAction<T> action)
         {
             _locker.EnterReadLock();
             try
             {
-                if (_theHeader == null)
+                if (_disposed)
                     throw new ObjectDisposedException("Cannot access the header after it was disposed");
 
-                return action(_theHeader);
+                return action(in _theHeader);
             }
             finally
             {
@@ -183,20 +151,18 @@ namespace Voron.Impl.FileHeaders
             _locker.EnterWriteLock();
             try
             {
-                if (_theHeader == null)
+                if (_disposed)
                     throw new ObjectDisposedException("Cannot access the header after it was disposed");
 
-
-                modifyAction(_theHeader);
+                modifyAction(ref _theHeader);
           
                 _revision++;
-                _theHeader->HeaderRevision = _revision;
+                _theHeader.HeaderRevision = _revision;
 
                 var file = HeaderFileNames[_revision & 1];
-
-                _theHeader->Hash = CalculateFileHeaderHash(_theHeader);
-                _env.Options.WriteHeader(file, _theHeader);
-
+                var buffer = MemoryMarshal.AsBytes(new Span<FileHeader>(ref _theHeader));
+                _theHeader.Hash = Hashing.XXHash64.CalculateInline(buffer[..^sizeof(ulong)], (ulong)_theHeader.TransactionId);
+                env.Options.WriteHeader(file, _theHeader);
             }
             finally
             {
@@ -204,66 +170,45 @@ namespace Voron.Impl.FileHeaders
             }
         }
 
-        private void FillInEmptyHeader(FileHeader* header)
+        private void FillInEmptyHeader(ref FileHeader header)
         {
-            header->MagicMarker = Constants.MagicMarker;
-            header->Version = Constants.CurrentVersion;
-            header->HeaderRevision = -1;
-            header->TransactionId = 0;
-            header->LastPageNumber = 1;
-            header->Root.RootPageNumber = -1;
-            header->Journal.CurrentJournal = -1;
-            Memory.Set(header->Journal.Reserved, 0, JournalInfo.NumberOfReservedBytes);
-            header->Journal.Flags = Journal.JournalInfoFlags.None;
-            header->Journal.LastSyncedJournal = -1;
-            header->Journal.LastSyncedTransactionId = -1;
-            header->IncrementalBackup.LastBackedUpJournal = -1;
-            header->IncrementalBackup.LastBackedUpJournalPage = -1;
-            header->IncrementalBackup.LastCreatedJournal = -1;
-            header->PageSize = _env.Options.PageSize;
-        }
-
-        private bool IsEmptyHeader(FileHeader* header)
-        {
-            var zeroed = stackalloc byte[JournalInfo.NumberOfReservedBytes];
-            return header->MagicMarker == Constants.MagicMarker &&
-                   header->Version == Constants.CurrentVersion &&
-                   header->HeaderRevision == -1 &&
-                   header->TransactionId == 0 &&
-                   header->LastPageNumber == 1 &&
-                   header->Root.RootPageNumber == -1 &&
-                   header->Journal.CurrentJournal == -1 &&
-                   header->Journal.Flags == Journal.JournalInfoFlags.None &&
-                   Memory.IsEqualConstant(header->Journal.Reserved, 3, zeroed) &&
-                   header->Journal.LastSyncedJournal == -1 &&
-                   header->Journal.LastSyncedTransactionId == -1 &&
-                   header->IncrementalBackup.LastBackedUpJournal == -1 &&
-                   header->IncrementalBackup.LastBackedUpJournalPage == -1 &&
-                   header->IncrementalBackup.LastCreatedJournal == -1;
-        }
-
-        public static ulong CalculateFileHeaderHash(FileHeader* header)
-        {
-            var ctx = new Hashing.Streamed.XXHash64Context
+            header.MagicMarker = Constants.MagicMarker;
+            header.Version = Constants.CurrentVersion;
+            header.HeaderRevision = -1;
+            header.TransactionId = 0;
+            header.LastPageNumber = 1;
+            header.Root.RootPageNumber = -1;
+            header.Journal.Reserved1 = 0;
+            for (int i = 0; i < JournalInfo.NumberOfReservedBytes; i++)
             {
-                Seed = (ulong)header->TransactionId
-            };
-            Hashing.Streamed.XXHash64.Begin(ref ctx);
-
-            // First part of header, until the Hash field
-            Hashing.Streamed.XXHash64.Process(ref ctx, (byte*)header, FileHeader.HashOffset);
-
-            // Second part of header, after the hash field
-            var secondPartOfHeaderLength = sizeof(FileHeader) - (FileHeader.HashOffset + sizeof(ulong));
-            if (secondPartOfHeaderLength > 0)
-                Hashing.Streamed.XXHash64.Process(ref ctx, (byte*)header + FileHeader.HashOffset + sizeof(ulong), secondPartOfHeaderLength);
-
-            return Hashing.Streamed.XXHash64.End(ref ctx);
+                header.Journal.Reserved2[i] = 0;
+            }
+            header.Journal.Flags = Journal.JournalInfoFlags.None;
+            header.Journal.LastSyncedJournal = -1;
+            header.Journal.LastSyncedTransactionId = -1;
+            header.IncrementalBackup.LastBackedUpJournal = -1;
+            header.IncrementalBackup.LastBackedUpJournalPage = -1;
+            header.PageSize = env.Options.PageSize;
+            header.JournalId = Guid.NewGuid();
+            var buffer = MemoryMarshal.AsBytes(new Span<FileHeader>(ref header));
+            header.Hash = Hashing.XXHash64.CalculateInline(buffer[..^sizeof(ulong)], (ulong)header.TransactionId);
         }
 
-        public static bool ValidHash(FileHeader* header)
+        private bool IsEmptyHeader(in FileHeader header)
         {
-            return header->Hash == CalculateFileHeaderHash(header);
+            if (header.MagicMarker != Constants.MagicMarker ||
+                header.Version != Constants.CurrentVersion ||
+                header.HeaderRevision != -1 ||
+                header.TransactionId != 0) 
+                return false;
+            return header is { LastPageNumber: 1, Root.RootPageNumber: -1, Journal: { Flags: JournalInfoFlags.None } } &&
+                   header.Journal.Reserved1 == 0 &&
+                   header.Journal.Reserved2[0] == 0 && 
+                   header.Journal.Reserved2[1] == 0 && 
+                   header.Journal.Reserved2[2] == 0 &&
+                   header.Journal is { LastSyncedJournal: -1, LastSyncedTransactionId: -1 } &&
+                   header.IncrementalBackup.LastBackedUpJournal == -1 &&
+                   header.IncrementalBackup is { LastBackedUpJournalPage: -1,  };
         }
 
         public JournalInfo CopyHeaders(BackupZipArchive package, DataCopier copier, StorageEnvironmentOptions envOptions, string basePath)
@@ -271,11 +216,12 @@ namespace Voron.Impl.FileHeaders
             _locker.EnterReadLock(); //race between reading the headers while modifying them
             try
             {
-                var header = stackalloc FileHeader[1];
+                if (_disposed)
+                    throw new ObjectDisposedException("Cannot access the header after it was disposed");
                 var success = false;
                 foreach (var headerFileName in HeaderFileNames)
                 {
-                    if (envOptions.ReadHeader(headerFileName, header) == false)
+                    if (envOptions.ReadValidHeader(headerFileName, out var header) == false)
                         continue;
 
                     success = true;
@@ -285,14 +231,14 @@ namespace Voron.Impl.FileHeaders
 
                     using (var headerStream = headerPart.Open())
                     {
-                        copier.ToStream((byte*)header, sizeof(FileHeader), headerStream);
+                        copier.ToStream((byte*)&header, sizeof(FileHeader), headerStream);
                     }
                 }
 
                 if (!success)
                     throw new InvalidDataException($"Failed to read both file headers (headers.one & headers.two) from path: {basePath}, possible corruption.");
 
-                return _theHeader->Journal;
+                return _theHeader.Journal;
             }
             finally
             {
@@ -305,12 +251,9 @@ namespace Voron.Impl.FileHeaders
             _locker.EnterWriteLock();
             try
             {
-                if (_headerPtr != null)
-                {
-                    NativeMemory.Free(_headerPtr, sizeof(FileHeader), _stats);
-                    _headerPtr = null;
-                    _theHeader = null;
-                }
+                _disposed = true;
+                _theHeader = default;
+                _revision = -1;
             }
             finally
             {
