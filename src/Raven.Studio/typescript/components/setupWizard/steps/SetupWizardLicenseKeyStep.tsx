@@ -1,5 +1,5 @@
 import { useFormContext, useWatch } from "react-hook-form";
-import { SetupWizardFormData } from "../setupWizardValidation";
+import { LicenseTypeToGenerate, SetupWizardFormData } from "../setupWizardValidation";
 import { Icon } from "components/common/Icon";
 import Button from "react-bootstrap/Button";
 import {
@@ -11,7 +11,6 @@ import {
     FormSelect,
     OptionalLabel,
 } from "components/common/Form";
-import useConfirm from "components/common/ConfirmDialog";
 import { HStack } from "components/common/HStack";
 import { setupWizardConstants } from "../utils/setupWizardConstants";
 import Row from "react-bootstrap/Row";
@@ -20,8 +19,8 @@ import ButtonWithSpinner from "components/common/ButtonWithSpinner";
 import { useAsyncDebounce } from "components/hooks/useAsyncDebounce";
 import Badge from "react-bootstrap/Badge";
 import messagePublisher from "common/messagePublisher";
-import IconName from "../../../../typings/server/icons";
-import { UseFormSetValue } from "react-hook-form/dist/types/form";
+import Modal from "components/common/Modal";
+import useBoolean from "components/hooks/useBoolean";
 
 export function SetupWizardLicenseKeyStep() {
     const { control } = useFormContext<SetupWizardFormData>();
@@ -297,16 +296,29 @@ function LicenseTypeRadio() {
     );
 }
 
-function SkipLicenseVerificationConfirmModal({ setValue }: { setValue: UseFormSetValue<SetupWizardFormData> }) {
-    return {
-        title: (
-            <span>
-                <Icon icon="license" color="warning" />
-                You&#39;re about to skip license verification
-            </span>
-        ),
-        message: (
-            <p>
+function SkipLicenseVerificationConfirmModal(props: { close: () => void }) {
+    const { close } = props;
+    const { setValue } = useFormContext<SetupWizardFormData>();
+
+    const handleConfirm = () => {
+        setValue("currentStep", "Security");
+    };
+
+    const handleLicenseTypeChange = (licenseType: LicenseTypeToGenerate) => {
+        setValue("licenseKeyStep.licenseTypeToGenerate", licenseType);
+        close();
+    };
+
+    return (
+        <Modal show onHide={close} contentClassName="modal-border bulge-warning" size="lg">
+            <Modal.Header closeButton onCloseClick={close} className="pb-0">
+                <h3>
+                    <Icon icon="license" color="warning" />
+                    You&#39;re about to skip license verification
+                </h3>
+            </Modal.Header>
+
+            <Modal.Body>
                 While you&apos;ll be able to use RavenDB, there will be some limitations:
                 <br />
                 <br />
@@ -320,7 +332,7 @@ function SkipLicenseVerificationConfirmModal({ setValue }: { setValue: UseFormSe
                 <Button
                     variant="link"
                     className="text-info p-0 text-decoration-underline"
-                    onClick={() => setValue("licenseKeyStep.licenseTypeToGenerate", "community")}
+                    onClick={() => handleLicenseTypeChange("community")}
                 >
                     Community
                 </Button>{" "}
@@ -328,24 +340,30 @@ function SkipLicenseVerificationConfirmModal({ setValue }: { setValue: UseFormSe
                 <Button
                     variant="link"
                     className="text-success p-0 text-decoration-underline"
-                    onClick={() => setValue("licenseKeyStep.licenseTypeToGenerate", "developer")}
+                    onClick={() => handleLicenseTypeChange("developer")}
                 >
                     Developer
                 </Button>{" "}
                 license.
-            </p>
-        ),
-        actionColor: "warning" as const,
-        size: "lg" as const,
-        confirmText: "Skip verification",
-        confirmIcon: "arrow-right" as IconName,
-    };
+            </Modal.Body>
+            <Modal.Footer>
+                <Button variant="link" onClick={close} className="link-muted">
+                    Cancel
+                </Button>
+                <Button variant="warning" onClick={handleConfirm} className="rounded-pill">
+                    Skip verification
+                    <Icon icon="arrow-right" margin="ms-1" />
+                </Button>
+            </Modal.Footer>
+        </Modal>
+    );
 }
 
 export function SetupWizardLicenseKeyStepFooter() {
-    const confirm = useConfirm();
     const { control, setValue, trigger } = useFormContext<SetupWizardFormData>();
     const { setupWizardService } = useServices();
+
+    const { value: isLicenseSkipModalOpen, toggle: toggleIsLicenseSkipModalOpen } = useBoolean(false);
 
     const {
         licenseKeyStep: { key, licenseTypeToGenerate },
@@ -399,12 +417,7 @@ export function SetupWizardLicenseKeyStepFooter() {
         if (key) {
             setValue("currentStep", "Security");
         } else {
-            const confirmOptions = SkipLicenseVerificationConfirmModal({ setValue });
-            const isConfirmed = await confirm(confirmOptions);
-
-            if (isConfirmed) {
-                setValue("currentStep", "Security");
-            }
+            toggleIsLicenseSkipModalOpen();
         }
     };
 
@@ -434,6 +447,7 @@ export function SetupWizardLicenseKeyStepFooter() {
                     Continue <Icon icon="arrow-right" margin="m-0" />
                 </ButtonWithSpinner>
             )}
+            {isLicenseSkipModalOpen && <SkipLicenseVerificationConfirmModal close={toggleIsLicenseSkipModalOpen} />}
         </div>
     );
 }
