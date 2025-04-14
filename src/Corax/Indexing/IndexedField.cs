@@ -131,6 +131,8 @@ internal sealed class IndexedField
         VectorIndexer = source.VectorIndexer;
         _vectorOptions = source._vectorOptions;
         _isCreatedByField = false;
+        _fieldRootPage = source._fieldRootPage;
+        _hnswIsCreated = source._hnswIsCreated;
         AssertIndexedFieldClassHasNotChanged();
     }
 
@@ -268,8 +270,8 @@ internal sealed class IndexedField
         [
             nameof(_parent), nameof(Spatial), nameof(Storage), nameof(Textual), nameof(_entryToTerms), nameof(Longs), nameof(Doubles), nameof(Suggestions),
             nameof(Analyzer), nameof(NameForStatistics), nameof(Name), nameof(NameLong), nameof(NameDouble), nameof(NameTotalLengthOfTerms), nameof(Id),
-            nameof(FieldIndexingMode), nameof(ShouldIndex), nameof(HasSuggestions), nameof(ShouldStore), nameof(SupportedFeatures), nameof(IsVirtual),
-            nameof(HasMultipleTermsPerField), nameof(FieldRootPage), nameof(TermsVectorFieldRootPage), nameof(FieldSupportsPhraseQuery), nameof(IsCreatedByDelete), nameof(_vectorOptions), nameof(VectorIndexer), nameof(_isCreatedByField)
+            nameof(FieldIndexingMode), nameof(ShouldIndex), nameof(HasSuggestions), nameof(ShouldStore), nameof(_supportedFeatures), nameof(IsVirtual),
+            nameof(HasMultipleTermsPerField), nameof(FieldRootPage), nameof(TermsVectorFieldRootPage), nameof(FieldSupportsPhraseQuery), nameof(IsCreatedByDelete), nameof(_vectorOptions), nameof(VectorIndexer), nameof(_isCreatedByField), nameof(_fieldRootPage), nameof(_hnswIsCreated)
         ];
 
         var fields = this.GetType().GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static);
@@ -280,6 +282,6 @@ internal sealed class IndexedField
         {
             throw new InvalidDataException(
                 $"IndexedField has changed. Please update the following fields: {string.Join(", ", diff)} in the constructor IndexedField(IndexedField source, IndexFieldBinding binding)");
-}
+        }
     }
 }
