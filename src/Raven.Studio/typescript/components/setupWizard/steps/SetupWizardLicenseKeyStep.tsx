@@ -68,7 +68,7 @@ function NoLicenseToGenerate() {
                 <Button
                     variant="outline-success"
                     className="rounded-1"
-                    onClick={() => setValue("licenseKeyStep.licenseTypeToGenerate", "community")}
+                    onClick={() => setValue("licenseKeyStep.licenseTypeToGenerate", "developer")}
                 >
                     Get a new license <Icon icon="arrow-right" />
                 </Button>
@@ -401,7 +401,7 @@ export function SetupWizardLicenseKeyStepFooter() {
         } else {
             const confirmOptions = SkipLicenseVerificationConfirmModal({ setValue });
             const isConfirmed = await confirm(confirmOptions);
-            
+
             if (isConfirmed) {
                 setValue("currentStep", "Security");
             }
