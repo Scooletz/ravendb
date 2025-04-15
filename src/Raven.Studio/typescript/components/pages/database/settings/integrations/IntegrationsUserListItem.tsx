@@ -9,9 +9,10 @@ import {
 } from "components/common/RichPanel";
 import Collapse from "react-bootstrap/Collapse";
 import InputGroup from "react-bootstrap/InputGroup";
-import { Form, Label } from "reactstrap";
+import Form from "react-bootstrap/Form";
+
 import { Icon } from "components/common/Icon";
-import { FormInput } from "components/common/Form";
+import { FormInput, FormLabel } from "components/common/Form";
 import { HStack } from "components/common/utilities/HStack";
 import { SubmitHandler, useForm, useWatch } from "react-hook-form";
 import { accessManagerSelectors } from "components/common/shell/accessManagerSliceSelectors";
@@ -142,7 +143,7 @@ export default function IntegrationsUserList(props: IntegrationsUserListProps) {
                     <div>
                         <RichPanelDetails className="vstack gap-3 p-4">
                             <InputGroup className="vstack mb-1">
-                                <Label>Username</Label>
+                                <FormLabel>Username</FormLabel>
                                 <FormInput
                                     control={control}
                                     name="username"
@@ -152,7 +153,7 @@ export default function IntegrationsUserList(props: IntegrationsUserListProps) {
                                 />
                             </InputGroup>
                             <InputGroup className="vstack">
-                                <Label>Password</Label>
+                                <FormLabel>Password</FormLabel>
                                 <HStack className="gap-1">
                                     <div className="position-relative flex-grow">
                                         <FormInput

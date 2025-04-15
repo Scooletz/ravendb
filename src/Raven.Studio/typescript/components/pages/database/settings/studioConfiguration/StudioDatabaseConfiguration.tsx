@@ -1,8 +1,11 @@
 import Card from "react-bootstrap/Card";
 import InputGroup from "react-bootstrap/InputGroup";
-import { Col, Form, Label, Row } from "reactstrap";
+import Form from "react-bootstrap/Form";
+import Row from "react-bootstrap/Row";
+import Col from "react-bootstrap/Col";
+
 import { SubmitHandler, useForm } from "react-hook-form";
-import { FormSelect, FormSwitch } from "components/common/Form";
+import { FormLabel, FormSelect, FormSwitch } from "components/common/Form";
 import { tryHandleSubmit } from "components/utils/common";
 import { Icon } from "components/common/Icon";
 import ButtonWithSpinner from "components/common/ButtonWithSpinner";
@@ -126,7 +129,7 @@ export default function StudioDatabaseConfiguration() {
                             <Card>
                                 <Card.Body className="d-flex flex-center flex-column flex-wrap gap-4">
                                     <InputGroup className="gap-1 flex-wrap flex-column">
-                                        <Label className="mb-0 md-label">
+                                        <FormLabel className="mb-0 md-label">
                                             Database Environment{" "}
                                             <PopoverWithHoverWrapper
                                                 message={
@@ -142,7 +145,7 @@ export default function StudioDatabaseConfiguration() {
                                             >
                                                 <Icon icon="info" color="info" id="environmentInfo" />
                                             </PopoverWithHoverWrapper>
-                                        </Label>
+                                        </FormLabel>
                                         <FormSelect
                                             control={control}
                                             name="Environment"

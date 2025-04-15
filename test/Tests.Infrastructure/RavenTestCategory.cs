@@ -65,4 +65,5 @@ public enum RavenTestCategory : long
     Monitoring = 1L << 50,
     Vector = 1L << 51,
     Ai = 1L << 52,
+    Conventions = 1L << 53
 }

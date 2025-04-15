@@ -5,7 +5,9 @@ import {
     FormCheckboxes,
     FormDatePicker,
     FormDurationPicker,
+    FormGroup,
     FormInput,
+    FormLabel,
     FormPathSelector,
     FormRadio,
     FormRadioToggleWithIcon,
@@ -19,7 +21,7 @@ import { useForm } from "react-hook-form";
 import * as yup from "yup";
 import { yupResolver } from "@hookform/resolvers/yup";
 import InputGroup from "react-bootstrap/InputGroup";
-import { Input, Label } from "reactstrap";
+import ReactBootstrapForm from "react-bootstrap/Form";
 import Button from "react-bootstrap/Button";
 import { Icon } from "components/common/Icon";
 
@@ -54,51 +56,51 @@ export function Form({ isDefaultValid }: { isDefaultValid: boolean }) {
 
     return (
         <div className="vstack gap-4 w-50">
-            <div>
-                <Label>Input text</Label>
+            <FormGroup>
+                <FormLabel>Input text</FormLabel>
                 <FormInput type="text" control={control} name="inputText" />
-            </div>
-            <div>
+            </FormGroup>
+            <FormGroup>
                 <InputGroup>
                     <InputGroup.Text>@</InputGroup.Text>
-                    <Input placeholder="username" />
+                    <ReactBootstrapForm.Control placeholder="username" />
                 </InputGroup>
                 <br />
                 <InputGroup>
                     <InputGroup.Text>
                         <FormCheckbox control={control} name="inputGroupCheckbox" />
                     </InputGroup.Text>
-                    <Input placeholder="Check it out" />
+                    <ReactBootstrapForm.Control placeholder="Check it out" />
                 </InputGroup>
                 <br />
                 <InputGroup>
-                    <Input placeholder="username" />
+                    <ReactBootstrapForm.Control placeholder="username" />
                     <InputGroup.Text>@example.com</InputGroup.Text>
                 </InputGroup>
                 <br />
                 <InputGroup>
                     <InputGroup.Text>$</InputGroup.Text>
                     <InputGroup.Text>$</InputGroup.Text>
-                    <Input placeholder="Dolla dolla billz yo!" />
+                    <ReactBootstrapForm.Control placeholder="Dolla dolla billz yo!" />
                     <InputGroup.Text>$</InputGroup.Text>
                     <InputGroup.Text>$</InputGroup.Text>
                 </InputGroup>
-            </div>
-            <div>
-                <Label>Input number</Label>
+            </FormGroup>
+            <FormGroup>
+                <FormLabel>Input number</FormLabel>
                 <FormInput type="number" control={control} name="inputNumber" />
-            </div>
-            <div>
-                <Label>Input with password preview</Label>
+            </FormGroup>
+            <FormGroup>
+                <FormLabel>Input with password preview</FormLabel>
                 <FormInput type="password" control={control} name="inputPasswordPreview" passwordPreview />
-            </div>
-            <div className="mt-3">
+            </FormGroup>
+            <FormGroup>
                 <FormCheckbox control={control} name="inputCheckbox">
                     Checkbox
                 </FormCheckbox>
-            </div>
-            <div className="mt-2">
-                <Label>Checkboxes</Label>
+            </FormGroup>
+            <FormGroup className="mt-2">
+                <FormLabel>Checkboxes</FormLabel>
                 <FormCheckboxes
                     control={control}
                     name="inputCheckboxes"
@@ -107,28 +109,28 @@ export function Form({ isDefaultValid }: { isDefaultValid: boolean }) {
                         { label: "Option 2", value: false },
                     ]}
                 />
-            </div>
-            <div>
+            </FormGroup>
+            <FormGroup>
                 <FormSwitch control={control} name="inputSwitch">
                     Switch
                 </FormSwitch>
-            </div>
-            <div>
+            </FormGroup>
+            <FormGroup>
                 <FormRadio control={control} name="inputRadio">
                     Radio
                 </FormRadio>
-            </div>
-            <div>
-                <Label>Radio toggle with icon</Label>
+            </FormGroup>
+            <FormGroup>
+                <FormLabel>Radio toggle with icon</FormLabel>
                 <FormRadioToggleWithIcon
                     control={control}
                     name="inputRadioToggleWithIcon"
                     leftItem={{ label: "True", value: true, iconName: "check" }}
                     rightItem={{ label: "False", value: false, iconName: "cancel" }}
                 />
-            </div>
-            <div>
-                <Label>Select</Label>
+            </FormGroup>
+            <FormGroup>
+                <FormLabel>Select</FormLabel>
                 <FormSelect
                     control={control}
                     name="inputSelect"
@@ -137,9 +139,9 @@ export function Form({ isDefaultValid }: { isDefaultValid: boolean }) {
                         { label: "Option 2", value: 2 },
                     ]}
                 />
-            </div>
-            <div>
-                <Label>Select creatable</Label>
+            </FormGroup>
+            <FormGroup>
+                <FormLabel>Select creatable</FormLabel>
                 <FormSelectCreatable
                     control={control}
                     name="inputSelectCreatable"
@@ -148,9 +150,9 @@ export function Form({ isDefaultValid }: { isDefaultValid: boolean }) {
                         { label: "Option 2", value: 2 },
                     ]}
                 />
-            </div>
-            <div>
-                <Label>Multi select</Label>
+            </FormGroup>
+            <FormGroup>
+                <FormLabel>Multi select</FormLabel>
                 <FormSelect
                     control={control}
                     name="inputMultiSelect"
@@ -160,37 +162,39 @@ export function Form({ isDefaultValid }: { isDefaultValid: boolean }) {
                     ]}
                     isMulti
                 />
-            </div>
+            </FormGroup>
 
-            <div className="input-group">
-                <FormInput type="text" control={control} name="inputText" />
-                <Button variant="secondary" title="Test connection">
-                    <Icon icon="rocket" />
-                    Test connection
-                </Button>
-            </div>
+            <FormGroup>
+                <InputGroup>
+                    <FormInput type="text" control={control} name="inputText" />
+                    <Button variant="secondary" title="Test connection">
+                        <Icon icon="rocket" />
+                        Test connection
+                    </Button>
+                </InputGroup>
+            </FormGroup>
 
-            <div>
-                <Label>Date picker</Label>
+            <FormGroup>
+                <FormLabel>Date picker</FormLabel>
                 <FormDatePicker control={control} name="inputDatePicker" />
-            </div>
-            <div>
-                <Label>Duration picker</Label>
+            </FormGroup>
+            <FormGroup>
+                <FormLabel>Duration picker</FormLabel>
                 <FormDurationPicker control={control} name="inputDurationPicker" />
-            </div>
-            <div>
-                <Label>Ace editor</Label>
+            </FormGroup>
+            <FormGroup>
+                <FormLabel>Ace editor</FormLabel>
                 <FormAceEditor mode="javascript" control={control} name="inputAceEditor" />
-            </div>
-            <div>
-                <Label>Path selector</Label>
+            </FormGroup>
+            <FormGroup>
+                <FormLabel>Path selector</FormLabel>
                 <FormPathSelector
                     control={control}
                     name="inputPath"
                     getPathsProvider={() => () => Promise.resolve(["C:\\", "D:\\"])}
                     getPathDependencies={(path: string) => [path]}
                 />
-            </div>
+            </FormGroup>
         </div>
     );
 }

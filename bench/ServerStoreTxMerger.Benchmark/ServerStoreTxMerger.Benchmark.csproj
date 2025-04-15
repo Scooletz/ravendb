@@ -1,15 +1,15 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
-    <RuntimeFrameworkVersion>8.0.13</RuntimeFrameworkVersion>
+    <RuntimeFrameworkVersion>8.0.15</RuntimeFrameworkVersion>
     <AssemblyName>ServerStoreTxMerger.Benchmark</AssemblyName>
     <OutputType>Exe</OutputType>
     <PackageId>ServerStoreTxMerger.Benchmark</PackageId>
     <CodeAnalysisRuleSet>..\..\RavenDB.ruleset</CodeAnalysisRuleSet>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="BenchmarkDotNet" />
-    <PackageReference Include="Microsoft.Diagnostics.Tracing.TraceEvent" VersionOverride="3.1.19" />
+    <PackageReference Include="BenchmarkDotNet" />    
+    <PackageReference Include="Microsoft.Diagnostics.Tracing.TraceEvent" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="..\..\src\CommonAssemblyInfo.cs" Link="Properties\CommonAssemblyInfo.cs" />

@@ -1,4 +1,4 @@
-import React from "react";
+import { JSX } from "react";
 import Spinner from "react-bootstrap/Spinner";
 import { Icon, IconProps } from "components/common/Icon";
 import IconName from "typings/server/icons";
@@ -25,7 +25,6 @@ export default function ButtonWithSpinner(props: ButtonWithSpinnerProps) {
                 <Icon {...icon} />
             );
     }
-    /* eslint-disable local-rules/no-reactstrap-Button-color-prop */
     return (
         <Button
             variant="secondary"
@@ -42,5 +41,4 @@ export default function ButtonWithSpinner(props: ButtonWithSpinnerProps) {
             {children}
         </Button>
     );
-    /* eslint-enable local-rules/no-reactstrap-Button-color-prop */
 }

@@ -99,7 +99,7 @@ public sealed class LetsEncryptSimulationHelper
                     .UseShutdownTimeout(TimeSpan.FromMilliseconds(150));
 
                 webHost = webHostBuilder.Build();
-
+                serverStore.Server._forTestingPurposes?.UnbindSocketForPort(port);
                 await webHost.StartAsync(token);
             }
             catch (Exception e)
@@ -177,6 +177,7 @@ public sealed class LetsEncryptSimulationHelper
         {
             if (webHost != null)
                 await webHost.StopAsync(TimeSpan.Zero);
+            serverStore.Server._forTestingPurposes?.OnSimulateRunningServerFinally?.Invoke(port);
         }
     }
 }

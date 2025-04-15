@@ -128,7 +128,7 @@ namespace Raven.Server.Commercial
             {
                 OnBeforeInitialize?.Invoke();
 
-                _licenseStorage.Initialize(environment, contextPool);
+                _licenseStorage.Initialize(_serverStore, environment, contextPool);
 
                 var firstServerStartDate = _licenseStorage.GetFirstServerStartDate();
                 if (firstServerStartDate == null)
@@ -233,7 +233,31 @@ namespace Raven.Server.Commercial
 
             try
             {
-                SetLicense(GetLicenseStatus(license));
+                var licenseStatus = GetLicenseStatus(license);
+                var licenseVersionInformation = _licenseStorage.GetLicenseVersionInformation();
+                if (licenseVersionInformation == null || licenseVersionInformation.Version != licenseStatus.Version)
+                {
+                    licenseVersionInformation = new LicenseVersionInformation
+                    {
+                        Major = licenseStatus.Version.Major,
+                        Minor = licenseStatus.Version.Minor,
+                        UpdatedAt = SystemTime.UtcNow
+                    };
+
+                    try
+                    {
+                        _licenseStorage.SetLicenseVersionInformation(licenseVersionInformation);
+                    }
+                    catch
+                    {
+                        // avoid throwing here in case of an error (out of memory or out of disk space for example).
+                        // we'll set it on next license change or on startup.
+                    }
+                }
+
+                LicenseStatus.LicenseVersionInformation = licenseVersionInformation;
+
+                SetLicense(licenseStatus);
                 _serverStore.Configuration.UpdateLicenseType(LicenseStatus.Type);
             }
             catch (Exception e)
@@ -509,6 +533,7 @@ namespace Raven.Server.Commercial
             LicenseStatus = new LicenseStatus
             {
                 FirstServerStartDate = LicenseStatus.FirstServerStartDate,
+                LicenseVersionInformation = LicenseStatus.LicenseVersionInformation,
                 ErrorMessage = error,
             };
         }
@@ -522,6 +547,7 @@ namespace Raven.Server.Commercial
                 ErrorMessage = null,
                 Attributes = licenseStatus.Attributes,
                 FirstServerStartDate = LicenseStatus.FirstServerStartDate,
+                LicenseVersionInformation = LicenseStatus.LicenseVersionInformation,
             };
         }
 

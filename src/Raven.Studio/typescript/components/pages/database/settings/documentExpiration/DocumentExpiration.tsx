@@ -1,6 +1,8 @@
 import React, { useEffect } from "react";
 import Card from "react-bootstrap/Card";
-import { Col, Form, Row } from "reactstrap";
+import Form from "react-bootstrap/Form";
+import Row from "react-bootstrap/Row";
+import Col from "react-bootstrap/Col";
 import { AboutViewAnchored, AboutViewHeading, AccordionItemWrapper } from "components/common/AboutView";
 import { Icon } from "components/common/Icon";
 import { FormInput, FormSwitch } from "components/common/Form";

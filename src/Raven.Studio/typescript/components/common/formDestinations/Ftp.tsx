@@ -3,8 +3,8 @@ import Badge from "react-bootstrap/Badge";
 import Collapse from "react-bootstrap/Collapse";
 import Card from "react-bootstrap/Card";
 import InputGroup from "react-bootstrap/InputGroup";
-import { Label } from "reactstrap";
-import { FormInput, FormSwitch } from "components/common/Form";
+
+import { FormInput, FormLabel, FormSwitch } from "components/common/Form";
 import { useFormContext, useWatch } from "react-hook-form";
 import { FlexGrow } from "components/common/FlexGrow";
 import { Icon } from "components/common/Icon";
@@ -70,7 +70,7 @@ export default function Ftp() {
                         ) : (
                             <div className="vstack gap-3 mt-2">
                                 <div className="mb-2">
-                                    <Label className="d-flex align-items-center gap-1">
+                                    <FormLabel className="d-flex align-items-center gap-1">
                                         Host
                                         <PopoverWithHoverWrapper
                                             message={
@@ -96,7 +96,7 @@ export default function Ftp() {
                                                 Failed connection
                                             </Badge>
                                         ) : null}
-                                    </Label>
+                                    </FormLabel>
                                     <FormInput
                                         name={getName("url")}
                                         control={control}
@@ -106,7 +106,7 @@ export default function Ftp() {
                                     />
                                 </div>
                                 <div className="mb-2">
-                                    <Label>Username</Label>
+                                    <FormLabel>Username</FormLabel>
                                     <FormInput
                                         name={getName("userName")}
                                         control={control}
@@ -116,7 +116,7 @@ export default function Ftp() {
                                     />
                                 </div>
                                 <div className="mb-2">
-                                    <Label>Password</Label>
+                                    <FormLabel>Password</FormLabel>
                                     <FormInput
                                         name={getName("password")}
                                         control={control}
@@ -128,7 +128,7 @@ export default function Ftp() {
                                 </div>
                                 {isCertificateFieldVisible && (
                                     <div className="mb-2">
-                                        <Label>Certificate</Label>
+                                        <FormLabel>Certificate</FormLabel>
                                         <input id="filePicker" type="file" onChange={selectFile} className="d-none" />
                                         <InputGroup>
                                             <span className="static-name form-control d-flex align-items-center">

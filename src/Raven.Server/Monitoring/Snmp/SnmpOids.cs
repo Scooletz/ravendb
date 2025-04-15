@@ -379,6 +379,10 @@ namespace Raven.Server.Monitoring.Snmp
             [Description("Monitor lock contention count")]
             public const string MonitorLockContentionCount = "1.18.1";
 
+            [SnmpDataType(SnmpType.TimeTicks)]
+            [Description("Time since creation of oldest transaction")]
+            public const string ServerLongestTransaction = "1.19.1";
+
             public static Dictionary<string, string> CreateMapping()
             {
                 var dictionary = new Dictionary<string, string>();

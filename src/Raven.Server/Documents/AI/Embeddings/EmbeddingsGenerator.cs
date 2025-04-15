@@ -125,7 +125,7 @@ public class EmbeddingsGenerator(DocumentDatabase database, RavenLogger logger, 
              foreach (var (name, field) in props)
              {
                  HashSet<GenerateEmbeddings> hashes = [];
-                 foreach (var  (value,chunking) in field)
+                 foreach (var (value, chunking) in field)
                  {
                      List<string> pending = [];
                      List<ReadOnlyMemory<byte>> cachedEmbeddingsBuffers = [];
@@ -355,7 +355,7 @@ public class EmbeddingsGenerator(DocumentDatabase database, RavenLogger logger, 
 
                 try
                 {
-                    allEmbeddings = await AiHelper.GenerateEmbeddingsAsync(_embeddingGenerationService, batch, _cancellationToken);
+                    allEmbeddings = await _embeddingGenerationService.GenerateEmbeddingsAsync(batch, cancellationToken: _cancellationToken);
                 }
                 catch (HttpOperationException httpOperationException) when (httpOperationException.StatusCode == HttpStatusCode.TooManyRequests)
                 {
@@ -413,27 +413,19 @@ public class EmbeddingsGenerator(DocumentDatabase database, RavenLogger logger, 
         _work.Enqueue(works);
         _hasWork.Set();
     }
-    private AiWorker CreateAiWorker(EmbeddingsGenerationTaskIdentifier id)
+
+    private AiWorker CreateAiWorker(DatabaseRecord record, EmbeddingsGenerationConfiguration configuration)
     {
-        var record = _database.ReadDatabaseRecord();
-        foreach (var task in record.EmbeddingsGenerations)
-        {
-            if (task.Disabled)
-                throw new InvalidOperationException($"The task {id.Value} has been disabled and cannot be used");
-            
-            if (string.Equals(id.Value, task.Identifier, StringComparison.OrdinalIgnoreCase))
-            {
-                var connectionString = GetConnectionString(record, task);
-                int maxConcurrentBatches = connectionString.GetQueryEmbeddingsMaxConcurrentBatches(_database.Configuration.Ai.EmbeddingsMaxConcurrentBatches);
-                if (maxConcurrentBatches > 0) 
-                    return new AiWorker(this, _database.DocumentsStorage, task, connectionString, maxConcurrentBatches, CancellationToken);
-                
-                string message = $"{RavenConfiguration.GetKey(x => x.Ai.EmbeddingsMaxConcurrentBatches)} must be a positive value: {connectionString.Identifier}";
-                throw new InvalidConfigurationException(message);
-            }
-        }
-        
-        throw new InvalidOperationException($"Could not find an embedding task named: {id.Value}");
+        if (configuration.Disabled)
+            throw new InvalidOperationException($"The task {configuration.Name} has been disabled and cannot be used");
+
+        var connectionString = GetConnectionString(record, configuration);
+        int maxConcurrentBatches = connectionString.GetQueryEmbeddingsMaxConcurrentBatches(_database.Configuration.Ai.EmbeddingsMaxConcurrentBatches);
+        if (maxConcurrentBatches > 0)
+            return new AiWorker(this, _database.DocumentsStorage, configuration, connectionString, maxConcurrentBatches, CancellationToken);
+
+        string message = $"{RavenConfiguration.GetKey(x => x.Ai.EmbeddingsMaxConcurrentBatches)} must be a positive value: {connectionString.Identifier}";
+        throw new InvalidConfigurationException(message);
     }
 
     private static AiConnectionString GetConnectionString(DatabaseRecord record, EmbeddingsGenerationConfiguration task)
@@ -701,7 +693,7 @@ public class EmbeddingsGenerator(DocumentDatabase database, RavenLogger logger, 
 
             if (_workers.TryGetValue(identifier, out var existing) is false)
             {
-                _ = _workers.GetOrAdd(identifier, CreateAiWorker).RunAsync();
+                _ = _workers.GetOrAdd(identifier, _ => CreateAiWorker(record, configuration)).RunAsync();
                 continue;
             }
 
@@ -713,7 +705,7 @@ public class EmbeddingsGenerator(DocumentDatabase database, RavenLogger logger, 
                 {
                     _ = toDispose.ShutdownAsync();
                 }
-                _ = _workers.GetOrAdd(identifier, CreateAiWorker).RunAsync();
+                _ = _workers.GetOrAdd(identifier, _ => CreateAiWorker(record, configuration)).RunAsync();
             }
         }
 

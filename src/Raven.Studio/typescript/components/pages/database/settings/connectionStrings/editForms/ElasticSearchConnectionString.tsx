@@ -1,8 +1,9 @@
-﻿import Badge from "react-bootstrap/Badge";
-import { Form, Label } from "reactstrap";
-import { FormInput, FormSelect } from "components/common/Form";
+import Badge from "react-bootstrap/Badge";
+import Form from "react-bootstrap/Form";
+
+import { FormInput, FormLabel, FormSelect } from "components/common/Form";
 import React from "react";
-import { SubmitHandler, UseFormTrigger, useFieldArray, useForm, useWatch } from "react-hook-form";
+import { SubmitHandler, useFieldArray, useForm, UseFormTrigger, useWatch } from "react-hook-form";
 import { Icon } from "components/common/Icon";
 import { exhaustiveStringTuple } from "components/utils/common";
 import { SelectOption } from "components/common/select/Select";
@@ -21,7 +22,6 @@ import { useAsyncCallback } from "react-async-hook";
 import fileImporter from "common/fileImporter";
 import certificateUtils from "common/certificateUtils";
 import messagePublisher from "common/messagePublisher";
-import forge = require("node-forge");
 import { mapElasticSearchAuthenticationToDto } from "../store/connectionStringsMapsToDto";
 import ConnectionTestResult from "../../../../../common/connectionTests/ConnectionTestResult";
 import ConnectionStringUsedByTasks from "./shared/ConnectionStringUsedByTasks";
@@ -30,6 +30,7 @@ import ElasticSearchCertificate from "./ElasticSearchCertificate";
 import { databaseSelectors } from "components/common/shell/databaseSliceSelectors";
 import { useAppSelector } from "components/store";
 import Button from "react-bootstrap/Button";
+import forge = require("node-forge");
 import { connectionStringSelectors } from "../store/connectionStringsSlice";
 import { ConnectionStringsNameContext, connectionStringsUtils } from "../connectionStringsUtils";
 
@@ -112,7 +113,7 @@ export default function ElasticSearchConnectionString({
     return (
         <Form id="connection-string-form" onSubmit={handleSubmit(handleSave)} className="vstack gap-3">
             <div className="mb-2">
-                <Label>Name</Label>
+                <FormLabel>Name</FormLabel>
                 <FormInput
                     control={control}
                     name="name"
@@ -123,7 +124,7 @@ export default function ElasticSearchConnectionString({
                 />
             </div>
             <div className="mb-2">
-                <Label>Nodes URLs</Label>
+                <FormLabel>Nodes URLs</FormLabel>
                 <div className="vstack gap-3">
                     {formState.errors?.nodes?.message && (
                         <div className="text-danger small">{formState.errors.nodes.message}</div>
@@ -146,7 +147,7 @@ export default function ElasticSearchConnectionString({
                 </Button>
             </div>
             <div className="mb-2">
-                <Label>Authentication</Label>
+                <FormLabel>Authentication</FormLabel>
                 <FormSelect
                     name="authMethodUsed"
                     control={control}
@@ -158,7 +159,7 @@ export default function ElasticSearchConnectionString({
             {formValues.authMethodUsed === "Basic" && (
                 <div className="vstack gap-3">
                     <div className="mb-2">
-                        <Label>Username</Label>
+                        <FormLabel>Username</FormLabel>
                         <FormInput
                             control={control}
                             name="username"
@@ -168,7 +169,7 @@ export default function ElasticSearchConnectionString({
                         />
                     </div>
                     <div className="mb-2">
-                        <Label>Password</Label>
+                        <FormLabel>Password</FormLabel>
                         <FormInput
                             control={control}
                             name="password"
@@ -182,7 +183,7 @@ export default function ElasticSearchConnectionString({
             {formValues.authMethodUsed === "API Key" && (
                 <div className="vstack gap-3">
                     <div className="mb-2">
-                        <Label>API Key ID</Label>
+                        <FormLabel>API Key ID</FormLabel>
                         <FormInput
                             control={control}
                             name="apiKeyId"
@@ -192,7 +193,7 @@ export default function ElasticSearchConnectionString({
                         />
                     </div>
                     <div className="mb-2">
-                        <Label>API Key</Label>
+                        <FormLabel>API Key</FormLabel>
                         <FormInput
                             control={control}
                             name="apiKey"
@@ -205,7 +206,7 @@ export default function ElasticSearchConnectionString({
             )}
             {formValues.authMethodUsed === "Encoded API Key" && (
                 <div className="mb-2">
-                    <Label>Encoded API Key</Label>
+                    <FormLabel>Encoded API Key</FormLabel>
                     <FormInput
                         control={control}
                         name="encodedApiKey"
@@ -217,10 +218,10 @@ export default function ElasticSearchConnectionString({
             )}
             {formValues.authMethodUsed === "Certificate" && (
                 <div className="mb-2">
-                    <Label>Certificate file</Label>
+                    <FormLabel>Certificate file</FormLabel>
                     {isUploadCertificateVisible && (
                         <div>
-                            <Label className="btn btn-primary">
+                            <FormLabel className="btn btn-primary">
                                 <Icon icon="upload" />
                                 Upload existing certificate
                                 <input
@@ -233,7 +234,7 @@ export default function ElasticSearchConnectionString({
                                         )
                                     }
                                 />
-                            </Label>
+                            </FormLabel>
                         </div>
                     )}
                     {formValues.certificatesBase64?.map((cert) => (
@@ -285,7 +286,7 @@ function NodeUrl({ idx, control, formValues, isDeleteButtonVisible, onDelete, tr
 
     return (
         <div className="vstack mb-2 gap-1">
-            <Label className="mb-0 d-flex align-items-center gap-1">
+            <FormLabel className="mb-0 d-flex align-items-center gap-1">
                 <span className="small-label mb-0">URL #{idx + 1}</span>
                 {asyncTest.result?.Success ? (
                     <Badge bg="success" pill>
@@ -298,7 +299,7 @@ function NodeUrl({ idx, control, formValues, isDeleteButtonVisible, onDelete, tr
                         Failed connection
                     </Badge>
                 ) : null}
-            </Label>
+            </FormLabel>
             <div className="input-group">
                 <FormInput
                     type="text"

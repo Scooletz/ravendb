@@ -1,5 +1,6 @@
 ﻿import { useEffect } from "react";
-import { Col, Row } from "reactstrap";
+import Row from "react-bootstrap/Row";
+import Col from "react-bootstrap/Col";
 import Button from "react-bootstrap/Button";
 import { AboutViewHeading } from "components/common/AboutView";
 import { Icon } from "components/common/Icon";
@@ -41,7 +42,6 @@ export default function ConnectionStrings({ queryParams }: ReactQueryParamsProps
             dispatch(connectionStringsActions.reset());
         };
         // Changing the database causes re-mount
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const loadStatus = useAppSelector(connectionStringSelectors.loadStatus);

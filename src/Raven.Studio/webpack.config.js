@@ -9,6 +9,7 @@ const CopyPlugin = require("copy-webpack-plugin");
 const { CleanWebpackPlugin } = require('clean-webpack-plugin');
 const ZipPlugin = require("zip-webpack-plugin");
 const ForkTsCheckerWebpackPlugin = require('fork-ts-checker-webpack-plugin');
+const { defineReactCompilerLoaderOption, reactCompilerLoader } = require('react-compiler-webpack');
 
 // const BundleAnalyzerPlugin = require('webpack-bundle-analyzer').BundleAnalyzerPlugin;
 
@@ -292,6 +293,18 @@ module.exports = (env, args) => {
                         loader: 'swc-loader',
                     },
                 },
+                // Disabled temporary due to react @tanstack/react-table issue https://github.com/TanStack/table/issues/5903
+                // {
+                //     test: /\.tsx?$/,
+                //     exclude: /node_modules/,
+                //     include: [
+                //         path.resolve(__dirname, 'typescript/components/')
+                //     ],
+                //     use: {
+                //         loader: reactCompilerLoader,
+                //         options: defineReactCompilerLoaderOption()
+                //     }
+                // },
                 {
                     test: /\.html$/,
                     use: {
@@ -346,8 +359,6 @@ module.exports = (env, args) => {
                 wwwroot: path.resolve(__dirname, 'wwwroot/'),
                 d3: path.resolve(__dirname, 'wwwroot/Content/custom_d3'),
                 qrcodejs: path.resolve(__dirname, 'wwwroot/Content/custom_qrcode'),
-                ["google.analytics"]: path.resolve(__dirname, 'wwwroot/Content/custom_ga'),
-                
                 Favico: path.resolve(__dirname, 'node_modules/favico.js/favico'),
                 durandal: path.resolve(__dirname, 'node_modules/durandal/js'),
                 jquery: path.resolve(__dirname, 'node_modules/jquery/dist/jquery'),

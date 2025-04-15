@@ -255,14 +255,12 @@ namespace Sparrow.Json
             }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [Conditional("DEBUG")]
         private void ThrowOnDisposed()
         {
-#if DEBUG
             // PERF: This check will only happen in debug mode because it will fail with a NRE anyways on release.
             if (IsDisposed)
                 throw new ObjectDisposedException(nameof(UnmanagedWriteBuffer));
-#endif
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -346,7 +344,7 @@ namespace Sparrow.Json
             var head = _head;
 
             // Update Segment invariants
-            *(T*)(head.Address) = value;
+            *(T*)(head.Address + head.Used) = value;
             head.AccumulatedSizeInBytes += count;
             head.Used += count;
         }

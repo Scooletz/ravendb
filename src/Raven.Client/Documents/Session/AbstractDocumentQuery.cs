@@ -2005,7 +2005,7 @@ Use session.Query<T>() instead of session.Advanced.DocumentQuery<T>. The session
             return OrderByTokens;
         }
 
-        protected void UpdateFieldsToFetchToken(FieldsToFetchToken fieldsToFetch)
+        protected void UpdateFieldsToFetchToken(FieldsToFetchToken fieldsToFetch, bool hadInclude = false)
         {
             FieldsToFetchToken = fieldsToFetch;
 
@@ -2013,7 +2013,7 @@ Use session.Query<T>() instead of session.Advanced.DocumentQuery<T>. The session
             {
                 SelectTokens.AddLast(fieldsToFetch);
             }
-            else
+            else if (hadInclude == false)
             {
                 var current = SelectTokens.First;
                 var replaced = false;

@@ -91,8 +91,9 @@ describe("IndexTerms", () => {
         const { screen, user } = rtlRender(<IndexTermsStory pathParams={pathParams} />);
 
         const accordion = (await screen.findAllByTestId(testIdSelectors.termAccordion))[0];
+        const accordionButton = within(accordion).getByRole("button");
 
-        await user.click(accordion);
+        await user.click(accordionButton);
 
         const termPills = await within(accordion).findAllByTestId(testIdSelectors.termPill);
 
@@ -108,8 +109,9 @@ describe("IndexTerms", () => {
         );
 
         const accordion = (await screen.findAllByTestId(testIdSelectors.termAccordion))[0];
+        const accordionButton = within(accordion).getByRole("button");
 
-        await user.click(accordion);
+        await user.click(accordionButton);
 
         const termPills = within(accordion).queryAllByTestId(testIdSelectors.termPill);
 
@@ -124,8 +126,9 @@ describe("IndexTerms", () => {
         const { screen, user } = rtlRender(<IndexTermsStory pathParams={pathParams} />);
 
         const accordion = (await screen.findAllByTestId(testIdSelectors.termAccordion))[0];
+        const accordionButton = within(accordion).getByRole("button");
 
-        await user.click(accordion);
+        await user.click(accordionButton);
 
         const loadMoreBtn = await within(accordion).findByTestId(testIdSelectors.termLoadMoreButton);
 
@@ -141,8 +144,9 @@ describe("IndexTerms", () => {
         );
 
         const accordion = (await screen.findAllByTestId(testIdSelectors.termAccordion))[0];
+        const accordionButton = within(accordion).getByRole("button");
 
-        await user.click(accordion);
+        await user.click(accordionButton);
 
         const loadMoreBtn = within(accordion).queryByTestId(testIdSelectors.termLoadMoreButton);
 

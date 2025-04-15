@@ -1,6 +1,6 @@
 ﻿import Badge from "react-bootstrap/Badge";
-import { Form, Label } from "reactstrap";
-import { FormInput } from "components/common/Form";
+import Form from "react-bootstrap/Form";
+import { FormInput, FormLabel } from "components/common/Form";
 import React from "react";
 import { SubmitHandler, useForm, useWatch } from "react-hook-form";
 import { ConnectionFormData, EditConnectionStringFormProps, SnowflakeConnection } from "../connectionStringsTypes";
@@ -67,7 +67,7 @@ export default function SnowflakeConnectionString({
     return (
         <Form id="connection-string-form" onSubmit={handleSubmit(handleSave)} className="vstack gap-3">
             <div className="mb-2">
-                <Label>Name</Label>
+                <FormLabel>Name</FormLabel>
                 <FormInput
                     control={control}
                     name="name"
@@ -78,7 +78,7 @@ export default function SnowflakeConnectionString({
                 />
             </div>
             <div className="mb-2">
-                <Label className="d-flex align-items-center gap-1">
+                <FormLabel className="d-flex align-items-center gap-1">
                     Connection string{" "}
                     {asyncTest.result?.Success ? (
                         <Badge bg="success" pill>
@@ -91,7 +91,7 @@ export default function SnowflakeConnectionString({
                             Failed connection
                         </Badge>
                     ) : null}
-                </Label>
+                </FormLabel>
                 <FormInput
                     control={control}
                     name="connectionString"

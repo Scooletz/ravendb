@@ -1,5 +1,7 @@
 import Card from "react-bootstrap/Card";
-import { Col, Form, Row } from "reactstrap";
+import Form from "react-bootstrap/Form";
+import Row from "react-bootstrap/Row";
+import Col from "react-bootstrap/Col";
 import { Icon } from "components/common/Icon";
 import { AboutViewAnchored, AboutViewHeading, AccordionItemWrapper } from "components/common/AboutView";
 import AceEditor from "components/common/AceEditor";

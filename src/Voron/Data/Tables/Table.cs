@@ -31,6 +31,7 @@ namespace Voron.Data.Tables
         internal readonly Transaction _tx;
         private readonly EventHandler<InvalidOperationException> _onCorruptedDataHandler;
         private readonly Tree _tableTree;
+        private readonly bool _prefetch;
 
         private ActiveRawDataSmallSection _activeDataSmallSection;
         private FixedSizeTree _inactiveSections;
@@ -132,7 +133,7 @@ namespace Voron.Data.Tables
         /// Using this constructor WILL NOT register the Table for commit in
         /// the Transaction, and hence changes WILL NOT be committed.
         /// </summary>
-        public Table(TableSchema schema, Slice name, Transaction tx, Tree tableTree, TableSchemaStatsReference stats, byte tableType, bool doSchemaValidation = false)
+        public Table(TableSchema schema, Slice name, Transaction tx, Tree tableTree, TableSchemaStatsReference stats, byte tableType, bool doSchemaValidation = false, bool prefetch = false)
         {
             Name = name;
 
@@ -140,6 +141,7 @@ namespace Voron.Data.Tables
             _tx = tx;
             _tableType = tableType;
             _stats = stats;
+            _prefetch = prefetch;
 
             _tableTree = tableTree;
             if (_tableTree == null)
@@ -159,13 +161,14 @@ namespace Voron.Data.Tables
         /// this overload is meant to be used for global reads only, when want to use
         /// a global index to find data, without touching the actual table.
         /// </summary>
-        public Table(TableSchema schema, Transaction tx, EventHandler<InvalidOperationException> onCorruptedDataHandler = null)
+        public Table(TableSchema schema, Transaction tx, EventHandler<InvalidOperationException> onCorruptedDataHandler = null, bool prefetch = false)
         {
             _schema = schema;
             _tx = tx;
             _forGlobalReadsOnly = true;
             _tableType = 0;
             _onCorruptedDataHandler = onCorruptedDataHandler;
+            _prefetch = prefetch;
         }
 
         public bool ReadByKey(Slice key, out TableValueReader reader)
@@ -189,7 +192,7 @@ namespace Voron.Data.Tables
             {
                 if (read.HasValue == false)
                 {
-                    reader = default(TableValueReader);
+                    reader = default;
                     return false;
                 }
 
@@ -1311,7 +1314,7 @@ namespace Voron.Data.Tables
             try
             {
                 var fstIndex = GetFixedSizeTree(tree, value, 0, index.IsGlobal);
-                using (var it = fstIndex.Iterate())
+                using (var it = fstIndex.Iterate(_prefetch))
                 {
                     if (it.SeekToLast() == false)
                         yield break;
@@ -1356,7 +1359,7 @@ namespace Voron.Data.Tables
             if (tree == null)
                 yield break;
 
-            using (var it = tree.Iterate(true))
+            using (var it = tree.Iterate(_prefetch))
             {
                 if (startsWith)
                     it.SetRequiredPrefix(value);
@@ -1390,7 +1393,7 @@ namespace Voron.Data.Tables
             if (tree == null)
                 yield break;
 
-            using (var it = tree.Iterate(true))
+            using (var it = tree.Iterate(_prefetch))
             {
                 it.SetRequiredPrefix(prefix);
 
@@ -1423,7 +1426,7 @@ namespace Voron.Data.Tables
             if (tree == null)
                 return null;
 
-            using (var it = tree.Iterate(true))
+            using (var it = tree.Iterate(_prefetch))
             {
                 it.SetRequiredPrefix(value);
 
@@ -1448,7 +1451,7 @@ namespace Voron.Data.Tables
             if (tree == null)
                 yield break;
 
-            using (var it = tree.Iterate(true))
+            using (var it = tree.Iterate(_prefetch))
             {
                 if (it.SeekBackward(last) == false)
                     yield break;
@@ -1490,7 +1493,7 @@ namespace Voron.Data.Tables
             if (tree == null)
                 yield break;
 
-            using (var it = tree.Iterate(true))
+            using (var it = tree.Iterate(_prefetch))
             {
                 if (it.SeekBackward(last) == false)
                     yield break;
@@ -1522,7 +1525,7 @@ namespace Voron.Data.Tables
             if (tree == null)
                 return null;
 
-            using (var it = tree.Iterate(true))
+            using (var it = tree.Iterate(_prefetch))
             {
                 if (it.SeekBackward(last) == false)
                     return null;
@@ -1563,7 +1566,7 @@ namespace Voron.Data.Tables
             if (tree == null)
                 yield break;
             
-            using (var it = tree.Iterate(true))
+            using (var it = tree.Iterate(_prefetch))
             {
                 it.SetRequiredPrefix(requiredPrefix);
 
@@ -1594,7 +1597,7 @@ namespace Voron.Data.Tables
 
             var pk = _schema.Key;
             var tree = GetTree(pk);
-            using (var it = tree.Iterate(true))
+            using (var it = tree.Iterate(_prefetch))
             {
                 it.SetRequiredPrefix(requiredPrefix);
 
@@ -1625,7 +1628,7 @@ namespace Voron.Data.Tables
             if (tree == null)
                 yield break;
 
-            using (var it = tree.Iterate(true))
+            using (var it = tree.Iterate(_prefetch))
             {
                 if (it.Seek(value) == false)
                     yield break;
@@ -1647,7 +1650,7 @@ namespace Voron.Data.Tables
         {
             var pk = _schema.Key;
             var tree = GetTree(pk);
-            using (var it = tree.Iterate(true))
+            using (var it = tree.Iterate(_prefetch))
             {
                 if (it.Seek(value) == false)
                     yield break;
@@ -1670,7 +1673,7 @@ namespace Voron.Data.Tables
             reader = default;
             var pk = _schema.Key;
             var tree = GetTree(pk);
-            using (var it = tree.Iterate(true))
+            using (var it = tree.Iterate(_prefetch))
             {
                 if (it.Seek(value) == false)
                 {
@@ -1708,7 +1711,7 @@ namespace Voron.Data.Tables
             {
                 while (true)
                 {
-                    using (var it = tree.Iterate(true))
+                    using (var it = tree.Iterate(_prefetch))
                     {
                         if (it.Seek(value) == false)
                             return;
@@ -1744,7 +1747,7 @@ namespace Voron.Data.Tables
         {
             var fst = GetFixedSizeTree(index);
 
-            using (var it = fst.Iterate())
+            using (var it = fst.Iterate(_prefetch))
             {
                 if (it.Seek(0) == false)
                     return null;
@@ -1761,7 +1764,7 @@ namespace Voron.Data.Tables
 
             var pk = _schema.Key;
             var tree = GetTree(pk);
-            using (var it = tree.Iterate(false))
+            using (var it = tree.Iterate(_prefetch))
             {
                 if (it.Seek(slice) == false)
                 {
@@ -1780,7 +1783,7 @@ namespace Voron.Data.Tables
 
             var pk = _schema.Key;
             var tree = GetTree(pk);
-            using (var it = tree.Iterate(false))
+            using (var it = tree.Iterate(_prefetch))
             {
                 it.SetRequiredPrefix(slice);
 
@@ -1799,7 +1802,7 @@ namespace Voron.Data.Tables
         {
             var pk = _schema.Key;
             var tree = GetTree(pk);
-            using (var it = tree.Iterate(false))
+            using (var it = tree.Iterate(_prefetch))
             {
                 it.SetRequiredPrefix(prefix);
 
@@ -1859,7 +1862,7 @@ namespace Voron.Data.Tables
             // in IO deprived setups.
             // https://issues.hibernatingrhinos.com/issue/RavenDB-21106
 
-            // If we page fault on every page (specially in cold scenarios) we would be wasting a lot. Therefore we should
+            // If we page fault on every page (specially in cold scenarios) we would be wasting a lot. Therefore, we should
             // iterate with prefetching enabled.
             using var it = fst.Iterate(prefetch: true);
             if (it.Seek(seek) == false)
@@ -1966,7 +1969,7 @@ namespace Voron.Data.Tables
         {
             var fst = GetFixedSizeTree(index);
 
-            using (var it = fst.Iterate())
+            using (var it = fst.Iterate(_prefetch))
             {
                 if (it.Seek(key) == false)
                     yield break;
@@ -2010,7 +2013,7 @@ namespace Voron.Data.Tables
         {
             var fst = GetFixedSizeTree(index);
 
-            using (var it = fst.Iterate())
+            using (var it = fst.Iterate(_prefetch))
             {
                 if (it.SeekToLast() == false)
                     return null;
@@ -2024,7 +2027,7 @@ namespace Voron.Data.Tables
         public IEnumerable<TableValueHolder> SeekBackwardFromLast(TableSchema.FixedSizeKeyIndexDef index, long skip = 0)
         {
             var fst = GetFixedSizeTree(index);
-            using (var it = fst.Iterate())
+            using (var it = fst.Iterate(_prefetch))
             {
                 if (it.SeekToLast() == false)
                     yield break;
@@ -2044,7 +2047,7 @@ namespace Voron.Data.Tables
         public IEnumerable<TableValueHolder> SeekBackwardFrom(TableSchema.FixedSizeKeyIndexDef index, long key, long skip = 0)
         {
             var fst = GetFixedSizeTree(index);
-            using (var it = fst.Iterate())
+            using (var it = fst.Iterate(_prefetch))
             {
                 if (it.SeekBackward(key) == false)
                     yield break;
@@ -2066,7 +2069,7 @@ namespace Voron.Data.Tables
         {
             var fst = GetFixedSizeTree(index);
 
-            using (var it = fst.Iterate())
+            using (var it = fst.Iterate(_prefetch))
             {
                 if (it.Seek(start) == false)
                     return false;
@@ -2129,7 +2132,7 @@ namespace Voron.Data.Tables
             // them one at a time
             while (deleted < numberOfEntriesToDelete)
             {
-                using (var it = fst.Iterate())
+                using (var it = fst.Iterate(_prefetch))
                 {
                     if (it.Seek(long.MinValue) == false)
                         return deleted;
@@ -2150,7 +2153,7 @@ namespace Voron.Data.Tables
             reader = default;
             var fst = GetFixedSizeTree(index);
 
-            using (var it = fst.Iterate())
+            using (var it = fst.Iterate(_prefetch))
             {
                 if (it.Seek(value) == false)
                     return false;
@@ -2169,7 +2172,7 @@ namespace Voron.Data.Tables
 
             var fst = GetFixedSizeTree(index);
 
-            using (var it = fst.Iterate())
+            using (var it = fst.Iterate(_prefetch))
             {
                 if (it.Seek(value) == false)
                     return false;
@@ -2192,7 +2195,7 @@ namespace Voron.Data.Tables
             TableValueHolder tableValueHolder = null;
             while (true)
             {
-                using (var it = tree.Iterate(true))
+                using (var it = tree.Iterate(_prefetch))
                 {
                     it.SetRequiredPrefix(startSlice);
                     if (it.Seek(it.RequiredPrefix) == false)
@@ -2238,7 +2241,7 @@ namespace Voron.Data.Tables
             {
                 // deleting from a table can shift things around, so we delete 
                 // them one at a time
-                using (var it = tree.Iterate(true))
+                using (var it = tree.Iterate(_prefetch))
                 {
                     if (startsWith)
                         it.SetRequiredPrefix(value);
@@ -2289,7 +2292,7 @@ namespace Voron.Data.Tables
             TableValueHolder tableValueHolder = null;
             while (deleted < numberOfEntriesToDelete)
             {
-                using (var it = pkTree.Iterate(true))
+                using (var it = pkTree.Iterate(_prefetch))
                 {
                     it.SetRequiredPrefix(startSlice);
                     if (it.Seek(it.RequiredPrefix) == false)
@@ -2464,7 +2467,7 @@ namespace Voron.Data.Tables
 
             foreach (var section in new[] { inactiveSections, activeCandidateSection })
             {
-                using (var it = section.Iterate())
+                using (var it = section.Iterate(_prefetch))
                 {
                     if (it.Seek(0))
                     {

@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 interface UseStudioSearchKeyboardEventsProps {
     refs: {
         inputRef: React.RefObject<HTMLInputElement>;
-        dropdownRef: React.RefObject<any>;
         serverColumnRef: React.RefObject<HTMLDivElement>;
         databaseColumnRef: React.RefObject<HTMLDivElement>;
     };
@@ -17,14 +16,14 @@ interface UseStudioSearchKeyboardEventsProps {
 }
 
 export function useStudioSearchKeyboardEvents(props: UseStudioSearchKeyboardEventsProps) {
-    const { refs, results, activeItem, setIsDropdownOpen, setActiveItem, setSearchQuery, studioSearchInputId } = props;
+    const { refs, results, activeItem, setIsDropdownOpen, setActiveItem } = props;
 
-    const { inputRef, dropdownRef, serverColumnRef, databaseColumnRef } = refs;
+    const { inputRef, serverColumnRef, databaseColumnRef } = refs;
 
     // Handle toggle dropdown by keyboard
     useEffect(() => {
         const handleToggleDropdown = (e: KeyboardEvent) => {
-            if (e.ctrlKey && e.key.toLowerCase() === "k") {
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
                 e.preventDefault();
                 setIsDropdownOpen(true);
                 inputRef.current?.focus();
@@ -171,43 +170,6 @@ export function useStudioSearchKeyboardEvents(props: UseStudioSearchKeyboardEven
 
         columnElement.scrollTo(0, scrollToY);
     }, [activeGroup, activeIndex, databaseColumnRef, leftFlatItems, rightFlatItems, serverColumnRef]);
-
-    // Prevent space from closing the dropdown (reactstrap issue)
-    // https://github.com/reactstrap/reactstrap/issues/1945
-    // Workaround
-    const [cursorPosition, setCursorPosition] = useState([0, 0]);
-
-    useEffect(() => {
-        const handleKeyDown = (e: KeyboardEvent) => {
-            setCursorPosition([inputRef.current.selectionStart, inputRef.current.selectionEnd]);
-
-            if (e.code === "Space") {
-                e.preventDefault();
-
-                if (document.activeElement?.id === studioSearchInputId) {
-                    setSearchQuery((prev) => {
-                        const part1 = prev.substring(0, inputRef.current.selectionEnd);
-                        const part2 = prev.substring(inputRef.current.selectionEnd);
-
-                        return part1 + " " + part2;
-                    });
-                    setCursorPosition([inputRef.current.selectionStart + 1, inputRef.current.selectionEnd + 1]);
-                }
-            }
-        };
-
-        const dropdown = dropdownRef.current;
-
-        dropdown?.addEventListener("keydown", handleKeyDown);
-        return () => {
-            dropdown?.removeEventListener("keydown", handleKeyDown);
-        };
-    }, [inputRef, dropdownRef, setSearchQuery, studioSearchInputId]);
-
-    useEffect(() => {
-        inputRef.current.setSelectionRange(cursorPosition[0], cursorPosition[1]);
-    }, [cursorPosition, inputRef]);
-    // end of workaround
 }
 
 const getScrollPageNumber = (y: number, height: number): number => {

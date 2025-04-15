@@ -2,6 +2,7 @@ using System;
 using System.Buffers.Binary;
 using System.Numerics;
 using System.Runtime.CompilerServices;
+using Sparrow.Global;
 
 namespace Sparrow.Binary
 {
@@ -280,6 +281,20 @@ namespace Sparrow.Binary
             256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256
         };
 #endif
+        private const int _64M = 64 * Constants.Size.Megabyte;
+
+        public static int NextAllocationSize(int v)
+        {
+            if (v < 0)
+                throw new ArgumentOutOfRangeException(nameof(v), "Argument cannot be negative, but was: " + v);
+            if (v < _64M)
+                return PowerOf2(v);
+            
+            var plus64MbAlign  = ((v + _64M - 1) / _64M) * _64M;
+            if (plus64MbAlign < 0)
+                return int.MaxValue; //overflow handling
+            return plus64MbAlign;
+        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int PowerOf2(int v)
@@ -358,6 +373,23 @@ namespace Sparrow.Binary
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static ushort SwapBytes(ushort value)
+        {
+#if NET6_0_OR_GREATER
+            return BinaryPrimitives.ReverseEndianness(value);
+#else
+            // Manually swap the bytes of the ushort value
+            return (ushort)((value >> 8) | (value << 8));
+#endif
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static short SwapBytes(short value)
+        {
+            return (short)SwapBytes((ushort)value);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static uint SwapBytes(uint value)
         {
 #if NET6_0_OR_GREATER
@@ -373,7 +405,7 @@ namespace Sparrow.Binary
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int SwapBytes(int value)
         {
-            return (int) SwapBytes((uint) value);
+            return (int)SwapBytes((uint)value);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

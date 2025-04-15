@@ -3,7 +3,8 @@ import { Icon } from "components/common/Icon";
 import { useEffect, useRef, useState, ElementRef, PropsWithChildren } from "react";
 import { FieldPath, FieldValues, Control } from "react-hook-form";
 import InputGroup from "react-bootstrap/InputGroup";
-import { Row, Col } from "reactstrap";
+import Row from "react-bootstrap/Row";
+import Col from "react-bootstrap/Col";
 import Button from "react-bootstrap/Button";
 import { useServices } from "components/hooks/useServices";
 import { useAsync, useAsyncCallback } from "react-async-hook";
@@ -60,7 +61,6 @@ export default function FormEncryption<TFieldValues extends FieldValues, TName e
     useEffect(() => {
         asyncGenerateSecret.execute(false);
         // only on mount
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     useEffect(() => {

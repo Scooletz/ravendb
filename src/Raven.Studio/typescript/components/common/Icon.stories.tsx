@@ -1,10 +1,9 @@
 import { Meta, StoryObj } from "@storybook/react";
 import { withStorybookContexts, withBootstrap5 } from "test/storybookTestUtils";
 import { Icon } from "./Icon";
-import { exhaustiveStringTuple } from "components/utils/common";
-import IconName from "typings/server/icons";
 import copyToClipboard from "common/copyToClipboard";
 import Button from "react-bootstrap/Button";
+import IconName from "typings/server/icons";
 
 export default {
     title: "Bits/Icon",
@@ -28,7 +27,7 @@ export const IconStory: StoryObj = {
     ),
 };
 
-const allIconNames = exhaustiveStringTuple<IconName>()(
+const allIconNames: IconName[] = [
     "about",
     "accept",
     "access-admin",
@@ -96,6 +95,7 @@ const allIconNames = exhaustiveStringTuple<IconName>()(
     "close",
     "cloud",
     "cluster-dashboard",
+    "cluster-debug",
     "cluster-log",
     "cluster-member",
     "cluster-node",
@@ -178,6 +178,7 @@ const allIconNames = exhaustiveStringTuple<IconName>()(
     "disabled",
     "disconnect",
     "disconnected",
+    "discord",
     "disk-io-viewer",
     "disk-support",
     "dismiss-all",
@@ -473,9 +474,9 @@ const allIconNames = exhaustiveStringTuple<IconName>()(
     "tick",
     "timeseries-settings",
     "timeseries",
-    "tombstones",
     "toggle-off",
     "toggle-on",
+    "tombstones",
     "topology",
     "traffic-watch",
     "traffic",
@@ -504,5 +505,5 @@ const allIconNames = exhaustiveStringTuple<IconName>()(
     "web-socket",
     "windows",
     "x",
-    "zombie"
-);
+    "zombie",
+];

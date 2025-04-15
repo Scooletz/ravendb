@@ -1,5 +1,6 @@
 ﻿import { useEffect, useState } from "react";
-import { Col, Row } from "reactstrap";
+import Row from "react-bootstrap/Row";
+import Col from "react-bootstrap/Col";
 import { AboutViewAnchored, AboutViewHeading, AccordionItemWrapper } from "components/common/AboutView";
 import { Icon } from "components/common/Icon";
 import { HrHeader } from "components/common/HrHeader";
@@ -102,8 +103,6 @@ export default function DocumentRevisions() {
         return () => {
             dispatch(documentRevisionsActions.reset());
         };
-        // Changing the database causes re-mount
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const { databasesService } = useServices();

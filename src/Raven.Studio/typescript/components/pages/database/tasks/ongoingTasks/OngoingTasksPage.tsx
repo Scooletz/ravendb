@@ -44,7 +44,7 @@ import TaskUtils from "../../../../utils/TaskUtils";
 import { KafkaEtlPanel } from "./panels/KafkaEtlPanel";
 import { RabbitMqEtlPanel } from "./panels/RabbitMqEtlPanel";
 import useInterval from "hooks/useInterval";
-import { Row } from "reactstrap";
+import Row from "react-bootstrap/Row";
 import { HrHeader } from "components/common/HrHeader";
 import { EmptySet } from "components/common/EmptySet";
 import { Icon } from "components/common/Icon";
@@ -128,8 +128,7 @@ export function OngoingTasksPage() {
 
     useEffect(() => {
         reload();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [db]);
+    }, []);
 
     const onEtlProgress = useCallback(
         (progress: EtlTaskProgress[], location: databaseLocationSpecifier) => {

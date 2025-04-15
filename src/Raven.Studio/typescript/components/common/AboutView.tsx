@@ -5,7 +5,7 @@ import Button from "react-bootstrap/Button";
 import classNames from "classnames";
 import { Icon } from "./Icon";
 import IconName from "typings/server/icons";
-import { TextColor } from "components/models/common";
+import { ThemeColor } from "components/models/common";
 import { uniqueId } from "lodash";
 import LicenseRestrictedBadge, { LicenseBadgeText } from "components/common/LicenseRestrictedBadge";
 import OverlayTrigger from "react-bootstrap/OverlayTrigger";
@@ -58,7 +58,16 @@ const AboutViewFloating = (props: AboutViewProps) => {
                     ],
                 }}
                 overlay={
-                    <Popover id={aboutViewId} className="bs5 about-view-dropdown" style={{ width: "100%" }}>
+                    <Popover
+                        id={aboutViewId}
+                        className="bs5 about-view-dropdown"
+                        style={
+                            {
+                                width: "100%",
+                                "--bs-popover-max-width": "640px",
+                            } as React.CSSProperties
+                        }
+                    >
                         <Popover.Body className="p-1">
                             <AboutViewAnchored defaultOpen={defaultOpen ? "licensing" : null}>
                                 {children}
@@ -77,7 +86,7 @@ const AboutViewFloating = (props: AboutViewProps) => {
 
 interface AccordionItemWrapperProps {
     icon: IconName;
-    color: TextColor;
+    color: ThemeColor;
     heading: string;
     description: string;
     children: ReactNode;

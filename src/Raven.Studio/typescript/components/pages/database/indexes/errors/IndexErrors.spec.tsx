@@ -1,5 +1,4 @@
 import { rtlRender } from "test/rtlTestUtils";
-import React from "react";
 import { composeStories } from "@storybook/react";
 import * as stories from "./IndexErrors.stories";
 import { within } from "@testing-library/dom";

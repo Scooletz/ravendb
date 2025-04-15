@@ -2,6 +2,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Runtime.InteropServices;
 using System.Threading;
 using Sparrow.Utils;
 
@@ -10,11 +11,16 @@ namespace Sparrow.Json
     internal sealed class PerCoreContainer<T> : IEnumerable<(T Item, (int, int) Pos)>
         where T : class
     {
+        private readonly int _numberOfSlotsPerCore;
         private readonly T[][] _perCoreArrays;
+        private readonly PaddedInt[] _perCoreArrayLength;
 
         public PerCoreContainer(int numberOfSlotsPerCore = 64)
         {
+            _numberOfSlotsPerCore = numberOfSlotsPerCore;
             _perCoreArrays = new T[Environment.ProcessorCount][];
+            _perCoreArrayLength = new PaddedInt[Environment.ProcessorCount];
+
             for (int i = 0; i < _perCoreArrays.Length; i++)
             {
                 _perCoreArrays[i] = new T[numberOfSlotsPerCore];
@@ -23,7 +29,14 @@ namespace Sparrow.Json
 
         public bool TryPull(out T output)
         {
-            var coreItems = _perCoreArrays[CurrentProcessorIdHelper.GetCurrentProcessorId() % _perCoreArrays.Length];
+            int currentProcessorId = CurrentProcessorIdHelper.GetCurrentProcessorId() % _perCoreArrays.Length;
+            if (_perCoreArrayLength[currentProcessorId].Value <= 0)
+            {
+                output = default;
+                return false;
+            }
+
+            var coreItems = _perCoreArrays[currentProcessorId];
 
             for (int i = 0; i < coreItems.Length; i++)
             {
@@ -33,23 +46,34 @@ namespace Sparrow.Json
 
                 if (Interlocked.CompareExchange(ref coreItems[i], null, cur) != cur)
                     continue;
+
+                Interlocked.Decrement(ref _perCoreArrayLength[currentProcessorId].Value);
                 output = cur;
                 return true;
             }
+
             output = default;
             return false;
         }
 
         public bool TryPush(T cur)
         {
-            var core = _perCoreArrays[CurrentProcessorIdHelper.GetCurrentProcessorId() % _perCoreArrays.Length];
+            int currentProcessorId = CurrentProcessorIdHelper.GetCurrentProcessorId() % _perCoreArrays.Length;
+            if (_perCoreArrayLength[currentProcessorId].Value >= _numberOfSlotsPerCore)
+                return false;
+
+            var core = _perCoreArrays[currentProcessorId];
 
             for (int i = 0; i < core.Length; i++)
             {
                 if (core[i] != null)
                     continue;
+
                 if (Interlocked.CompareExchange(ref core[i], cur, null) == null)
+                {
+                    Interlocked.Increment(ref _perCoreArrayLength[currentProcessorId].Value);
                     return true;
+                }
             }
             return false;
         }
@@ -67,6 +91,8 @@ namespace Sparrow.Json
                         continue;
                     if (Interlocked.CompareExchange(ref array[li], null, copy) != copy)
                         continue;
+
+                    Interlocked.Decrement(ref _perCoreArrayLength[gi].Value);
                     yield return copy;
                 }
             }
@@ -83,7 +109,7 @@ namespace Sparrow.Json
                     var copy = array[li];
                     if (copy == null)
                         continue;
-                    yield return (copy, (gi,li));
+                    yield return (copy, (gi, li));
                 }
             }
         }
@@ -96,7 +122,23 @@ namespace Sparrow.Json
         public bool Remove(T item, (int, int) pos)
         {
             var array = _perCoreArrays[pos.Item1];
-            return Interlocked.CompareExchange(ref array[pos.Item2], null, item) == item;
+
+            if (Interlocked.CompareExchange(ref array[pos.Item2], null, item) == item)
+            {
+                Interlocked.Decrement(ref _perCoreArrayLength[pos.Item1].Value);
+                return true;
+            }
+
+            return false;
         }
+
+        
+    }
+
+    [StructLayout(LayoutKind.Explicit, Size = 64)]
+    internal struct PaddedInt
+    {
+        [FieldOffset(0)]
+        public int Value;
     }
 }

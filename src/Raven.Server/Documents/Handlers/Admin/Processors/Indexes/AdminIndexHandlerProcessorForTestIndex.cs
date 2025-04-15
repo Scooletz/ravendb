@@ -66,7 +66,9 @@ internal sealed class AdminIndexHandlerProcessorForTestIndex : AbstractAdminInde
             query = query.Replace(providedIndexName, testIndexName);
             
             testIndexDefinition.Name = testIndexName;
-                
+
+            RequestHandler.Database.IndexStore.Create.ValidateTestStaticIndex(testIndexDefinition);
+            
             var djv = new DynamicJsonValue() { [nameof(IndexQueryServerSide.Query)] = query, [nameof(IndexQueryServerSide.QueryParameters)] = queryParameters };
 
             var queryAsBlittable = context.ReadObject(djv, "test-index-query");
@@ -88,7 +90,7 @@ internal sealed class AdminIndexHandlerProcessorForTestIndex : AbstractAdminInde
                 using (var token = RequestHandler.CreateHttpRequestBoundTimeLimitedOperationTokenForQuery())
                 using (var queryContext = QueryOperationContext.Allocate(RequestHandler.Database))
                 {
-                    // we don't wait for non stale results because
+                    // we don't wait for non-stale results because
                     // it's handled by WaitForProcessingOfSampleDocs
                     indexQueryServerSide.WaitForNonStaleResults = false;
 

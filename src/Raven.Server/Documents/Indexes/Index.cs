@@ -2638,7 +2638,7 @@ namespace Raven.Server.Documents.Indexes
         public virtual void DeleteArchived(IndexItem indexItem, string collection, Lazy<IndexWriteOperationBase> writer, TransactionOperationContext indexContext, IndexingStatsScope stats, LazyStringValue lowerId)
         {
             if (MustDeleteArchivedDocument(indexItem))
-                HandleDelete(new Tombstone { LowerId = lowerId}, collection, writer, indexContext, stats);
+                HandleDelete(new Tombstone { LowerId = lowerId }, collection, writer, indexContext, stats);
         }
         
         private void HandleIndexChange(IndexChange change)
@@ -4184,10 +4184,15 @@ namespace Raven.Server.Documents.Indexes
             }
         }
 
-        public unsafe long CalculateIndexEtagWithReferences(
+        protected long CalculateIndexEtagWithReferences(
             HandleReferences handleReferences, HandleReferences handleCompareExchangeReferences,
             QueryOperationContext queryContext, TransactionOperationContext indexContext, QueryMetadata query, bool isStale,
-            HashSet<string> referencedCollections, AbstractStaticIndexBase compiled)
+            HashSet<string> referencedCollections, AbstractStaticIndexBase compiled) => CalculateIndexEtagWithReferences(handleReferences, handleCompareExchangeReferences, queryContext, indexContext, query, isStale, referencedCollections, compiled.ReferencedCollections, compiled.CollectionsWithCompareExchangeReferences);
+
+        protected unsafe long CalculateIndexEtagWithReferences(
+            HandleReferences handleReferences, HandleReferences handleCompareExchangeReferences,
+            QueryOperationContext queryContext, TransactionOperationContext indexContext, QueryMetadata query, bool isStale,
+            HashSet<string> referencedCollections, Dictionary<string,HashSet<CollectionName>> referencedCollectionsDict, HashSet<string> collectionsWithCompareExchangeReferences)
         {
             var minLength = MinimumSizeForCalculateIndexEtagLength(query);
             var length = minLength;
@@ -4205,7 +4210,7 @@ namespace Raven.Server.Documents.Indexes
                 // last referenced collection etags (document + tombstone)
                 // last processed reference collection etags (document + tombstone)
                 // last processed in memory (early exit batch) etags (document + tombstone)
-                length += sizeof(long) * 6 * compiled.CollectionsWithCompareExchangeReferences.Count;
+                length += sizeof(long) * 6 * collectionsWithCompareExchangeReferences.Count;
             }
 
             var indexEtagBytes = stackalloc byte[length];
@@ -4215,7 +4220,7 @@ namespace Raven.Server.Documents.Indexes
 
             var writePos = indexEtagBytes + minLength;
 
-            return StaticIndexHelper.CalculateIndexEtag(this, compiled, length, indexEtagBytes, writePos, queryContext, indexContext);
+            return StaticIndexHelper.CalculateIndexEtag(this, length, indexEtagBytes, writePos, queryContext, indexContext, referencedCollectionsDict, collectionsWithCompareExchangeReferences);
         }
 
         private static unsafe void UseAllDocumentsCounterCmpXchgAndTimeSeriesEtags(QueryOperationContext queryContext, QueryMetadata q, int length, byte* indexEtagBytes)
@@ -4346,7 +4351,7 @@ namespace Raven.Server.Documents.Indexes
 
         public string TombstoneCleanerIdentifier => $"Index '{Name}'";
 
-        public virtual Dictionary<string, long> GetLastProcessedTombstonesPerCollection(ITombstoneAware.TombstoneType tombstoneType)
+        public virtual Dictionary<string, long> GetLastProcessedTombstonesPerCollection(ITombstoneAware.TombstoneType tombstoneType, Dictionary<string, LastTombstoneInfo> lastProcessedTombstonesInfo = null)
         {
             if (tombstoneType != ITombstoneAware.TombstoneType.Documents)
                 return null;
@@ -4357,7 +4362,7 @@ namespace Raven.Server.Documents.Indexes
                 {
                     using (var tx = context.OpenReadTransaction())
                     {
-                        return GetLastProcessedDocumentTombstonesPerCollection(tx);
+                        return GetLastProcessedDocumentTombstonesPerCollection(tx, lastProcessedTombstonesInfo);
                     }
                 }
             }
@@ -4376,12 +4381,14 @@ namespace Raven.Server.Documents.Indexes
             return dict;
         }
 
-        internal Dictionary<string, long> GetLastProcessedDocumentTombstonesPerCollection(RavenTransaction tx)
+        internal Dictionary<string, long> GetLastProcessedDocumentTombstonesPerCollection(RavenTransaction tx, Dictionary<string, LastTombstoneInfo> lastProcessedTombstonesInfo = null)
         {
             var etags = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
             foreach (var collection in Collections)
             {
-                etags[collection] = _indexStorage.ReadLastProcessedTombstoneEtag(tx, collection);
+                var lastEtag = _indexStorage.ReadLastProcessedTombstoneEtag(tx, collection);
+                etags[collection] = lastEtag;
+                lastProcessedTombstonesInfo?.Add($"{Name}/{collection}", new LastTombstoneInfo(Name, collection, lastEtag, ITombstoneAware.TombstoneDeletionBlockerType.Index));
             }
 
             return etags;
@@ -4630,7 +4637,7 @@ namespace Raven.Server.Documents.Indexes
                 return CanContinueBatchResult.False;
             }
 
-            var txAllocationsInBytes = UpdateThreadAllocations(parameters.IndexingContext, parameters.IndexWriteOperation, parameters.Stats, parameters.WorkType);
+            var (txAllocationsInBytes, indexWriterUnmanagedAllocationsInBytes) = UpdateThreadAllocations(parameters.IndexingContext, parameters.IndexWriteOperation, parameters.Stats, parameters.WorkType);
 
             // we need to take the read transaction encryption size into account as we might read a lot of documents and produce very little indexing output.
             txAllocationsInBytes += parameters.QueryContext.Documents.Transaction.InnerTransaction.LowLevelTransaction.AdditionalMemoryUsageSize.GetValue(SizeUnit.Bytes);
@@ -4704,6 +4711,17 @@ namespace Raven.Server.Documents.Indexes
                 if (txAllocations > TransactionSizeLimit.Value)
                 {
                     parameters.Stats.RecordBatchCompletedReason(parameters.WorkType, $"Reached transaction size limit ({TransactionSizeLimit.Value}). Allocated {new Size(txAllocationsInBytes, SizeUnit.Bytes)} in current transaction");
+                    return CanContinueBatchResult.False;
+                }
+            }
+
+            if (SearchEngineType is SearchEngineType.Corax)
+            {
+                var currentInternalCoraxUnmanagedAllocations = new Size(indexWriterUnmanagedAllocationsInBytes, SizeUnit.Bytes);
+                if (currentInternalCoraxUnmanagedAllocations > Configuration.UnmanagedAllocationsBatchLimit)
+                {
+                    parameters.Stats.RecordBatchCompletedReason(parameters.WorkType, $"Reached Corax's unmanaged allocations limit ({Configuration.UnmanagedAllocationsBatchLimit}). Allocated {currentInternalCoraxUnmanagedAllocations} in current batch");
+
                     return CanContinueBatchResult.False;
                 }
             }
@@ -4819,12 +4837,11 @@ namespace Raven.Server.Documents.Indexes
 
                 return canContinue ? CanContinueBatchResult.True : CanContinueBatchResult.False;
             }
-
+            
             return CanContinueBatchResult.True;
         }
 
-        public long UpdateThreadAllocations(
-            TransactionOperationContext indexingContext,
+        public (long TxAllocationsInBytes, long IndexWriterUnmanagedAllocationsInBytes) UpdateThreadAllocations(TransactionOperationContext indexingContext,
             Lazy<IndexWriteOperationBase> indexWriteOperation,
             IndexingStatsScope stats,
             IndexingWorkType workType)
@@ -4837,19 +4854,20 @@ namespace Raven.Server.Documents.Indexes
 
             long indexWriterAllocations = 0;
             long luceneFilesAllocations = 0;
-
+            long indexWriterUnmanagedAllocations = 0;
             if (indexWriteOperation?.IsValueCreated == true)
             {
                 var allocations = indexWriteOperation.Value.GetAllocations();
                 indexWriterAllocations = allocations.RamSizeInBytes;
                 luceneFilesAllocations = allocations.FilesAllocationsInBytes;
+                indexWriterUnmanagedAllocations = allocations.UnmanagedAllocationsInBytes;
             }
 
             var totalTxAllocations = txAllocations + luceneFilesAllocations;
 
             if (stats != null)
             {
-                var allocatedForStats = threadAllocations + totalTxAllocations + indexWriterAllocations;
+                var allocatedForStats = threadAllocations + totalTxAllocations + indexWriterAllocations + indexWriterUnmanagedAllocations;
 
                 switch (workType)
                 {
@@ -4865,16 +4883,16 @@ namespace Raven.Server.Documents.Indexes
                 }
             }
 
-            stats?.SetAllocatedUnmanagedBytes(threadAllocations + txAllocations);
+            stats?.SetAllocatedUnmanagedBytes(threadAllocations + txAllocations + indexWriterUnmanagedAllocations);
 
-            var allocatedForProcessing = threadAllocations + indexWriterAllocations +
-                                         // we multiple it to take into account additional work
+            var allocatedForProcessing = threadAllocations + indexWriterAllocations + indexWriterUnmanagedAllocations +
+                                         // we multiply it to take into account additional work
                                          // that will need to be done during the commit phase of the index
                                          (long)(totalTxAllocations * _txAllocationsRatio);
 
             _threadAllocations.CurrentlyAllocatedForProcessing = allocatedForProcessing;
 
-            return totalTxAllocations;
+            return (totalTxAllocations, indexWriterUnmanagedAllocations);
         }
 
         private void HandleStoppedBatchesConcurrently(
