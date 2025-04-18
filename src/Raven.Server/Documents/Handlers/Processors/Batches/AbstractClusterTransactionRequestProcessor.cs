@@ -11,6 +11,7 @@ using Raven.Client.Exceptions;
 using Raven.Server.Config.Categories;
 using Raven.Server.Documents.Handlers.Batches;
 using Raven.Server.Documents.Handlers.Batches.Commands;
+using Raven.Server.Extensions;
 using Raven.Server.Rachis;
 using Raven.Server.Routing;
 using Raven.Server.ServerWide;
@@ -133,6 +134,9 @@ public abstract class AbstractClusterTransactionRequestProcessor<TRequestHandler
     private void CheckBackwardCompatibility(ref bool disableAtomicDocumentWrites)
     {
         if (disableAtomicDocumentWrites)
+            return;
+
+        if (RequestHandler.HttpContext.Request.IsFromStudio())
             return;
 
         if (RequestRouter.TryGetClientVersion(RequestHandler.HttpContext, out var clientVersion) == false)

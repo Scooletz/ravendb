@@ -125,7 +125,7 @@ public class EmbeddingsGenerator(DocumentDatabase database, RavenLogger logger, 
              foreach (var (name, field) in props)
              {
                  HashSet<GenerateEmbeddings> hashes = [];
-                 foreach (var  (value,chunking) in field)
+                 foreach (var (value, chunking) in field)
                  {
                      List<string> pending = [];
                      List<ReadOnlyMemory<byte>> cachedEmbeddingsBuffers = [];
@@ -161,7 +161,6 @@ public class EmbeddingsGenerator(DocumentDatabase database, RavenLogger logger, 
                   Configuration.Quantization
              );
          }
-
 
         public ValueTask<ReadOnlyMemory<ReadOnlyMemory<byte>>> GetEmbeddingsForQueryAsync(
             DocumentsOperationContext documentsContext, 
@@ -364,8 +363,7 @@ public class EmbeddingsGenerator(DocumentDatabase database, RavenLogger logger, 
                         $"('{RavenConfiguration.GetKey(x => x.Ai.EmbeddingsGenerationMaxBatchSize)}') or increasing the " +
                         $"limits on your model deployment.", httpOperationException);
                 }
-
-
+                
                 PortableExceptions.ThrowIf<IOException>(allEmbeddings.Count != batch.Count, "Model returned a different count of embeddings than expected");
 
                 for (int i = 0; i < allEmbeddings.Count; i++)
@@ -413,27 +411,19 @@ public class EmbeddingsGenerator(DocumentDatabase database, RavenLogger logger, 
         _work.Enqueue(works);
         _hasWork.Set();
     }
-    private AiWorker CreateAiWorker(EmbeddingsGenerationTaskIdentifier id)
+
+    private AiWorker CreateAiWorker(DatabaseRecord record, EmbeddingsGenerationConfiguration configuration)
     {
-        var record = _database.ReadDatabaseRecord();
-        foreach (var task in record.EmbeddingsGenerations)
-        {
-            if (task.Disabled)
-                throw new InvalidOperationException($"The task {id.Value} has been disabled and cannot be used");
-            
-            if (string.Equals(id.Value, task.Identifier, StringComparison.OrdinalIgnoreCase))
-            {
-                var connectionString = GetConnectionString(record, task);
-                int maxConcurrentBatches = connectionString.GetQueryEmbeddingsMaxConcurrentBatches(_database.Configuration.Ai.EmbeddingsMaxConcurrentBatches);
-                if (maxConcurrentBatches > 0) 
-                    return new AiWorker(this, _database.DocumentsStorage, task, connectionString, maxConcurrentBatches, CancellationToken);
-                
-                string message = $"{RavenConfiguration.GetKey(x => x.Ai.EmbeddingsMaxConcurrentBatches)} must be a positive value: {connectionString.Identifier}";
-                throw new InvalidConfigurationException(message);
-            }
-        }
-        
-        throw new InvalidOperationException($"Could not find an embedding task named: {id.Value}");
+        if (configuration.Disabled)
+            throw new InvalidOperationException($"The task {configuration.Name} has been disabled and cannot be used");
+
+        var connectionString = GetConnectionString(record, configuration);
+        int maxConcurrentBatches = connectionString.GetQueryEmbeddingsMaxConcurrentBatches(_database.Configuration.Ai.EmbeddingsMaxConcurrentBatches);
+        if (maxConcurrentBatches > 0)
+            return new AiWorker(this, _database.DocumentsStorage, configuration, connectionString, maxConcurrentBatches, CancellationToken);
+
+        string message = $"{RavenConfiguration.GetKey(x => x.Ai.EmbeddingsMaxConcurrentBatches)} must be a positive value: {connectionString.Identifier}";
+        throw new InvalidConfigurationException(message);
     }
 
     private static AiConnectionString GetConnectionString(DatabaseRecord record, EmbeddingsGenerationConfiguration task)
@@ -701,7 +691,7 @@ public class EmbeddingsGenerator(DocumentDatabase database, RavenLogger logger, 
 
             if (_workers.TryGetValue(identifier, out var existing) is false)
             {
-                _ = _workers.GetOrAdd(identifier, CreateAiWorker).RunAsync();
+                _ = _workers.GetOrAdd(identifier, _ => CreateAiWorker(record, configuration)).RunAsync();
                 continue;
             }
 
@@ -713,7 +703,7 @@ public class EmbeddingsGenerator(DocumentDatabase database, RavenLogger logger, 
                 {
                     _ = toDispose.ShutdownAsync();
                 }
-                _ = _workers.GetOrAdd(identifier, CreateAiWorker).RunAsync();
+                _ = _workers.GetOrAdd(identifier, _ => CreateAiWorker(record, configuration)).RunAsync();
             }
         }
 

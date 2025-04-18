@@ -2,12 +2,13 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using Corax.Analyzers;
 using Corax.Mappings;
 using Sparrow;
 using Sparrow.Collections;
-using Sparrow.Server;
 using Voron;
 using Voron.Data.Graphs;
 using Voron.Impl;
@@ -38,7 +39,7 @@ internal sealed class IndexedField
     public readonly Dictionary<long, int> Longs;
     public readonly Dictionary<double, int> Doubles;
     public Dictionary<Slice, int> Suggestions;
-    public readonly Analyzer Analyzer;
+    public Analyzer Analyzer;
     public readonly string NameForStatistics;
     public readonly Slice Name;
     public readonly Slice NameLong;
@@ -74,6 +75,8 @@ internal sealed class IndexedField
     public long TermsVectorFieldRootPage;
     public bool FieldSupportsPhraseQuery => _supportedFeatures.PhraseQuery && FieldIndexingMode is FieldIndexingMode.Search;
     public bool HasVector => _vectorOptions != null;
+    public bool IsCreatedByDelete => _isCreatedByField;
+    private bool _isCreatedByField;
 
     private bool _hnswIsCreated;
     private VectorOptions _vectorOptions;
@@ -93,13 +96,53 @@ internal sealed class IndexedField
         return Name.ToString() + " Id: " + Id;
     }
 
+    /// <summary>
+    /// This constructor allows rewriting the configuration of the indexed field once it has been created.
+    /// This is useful for dynamic field scenarios, where a delete operation can create an indexed field (in blank)
+    /// since all terms it contains have already been analyzed (from the index entry). However, when in the same batch
+    /// we have new documents, we need to update the analyzer, etc., from the binding sent by the indexing batch.
+    /// </summary>
+    public IndexedField(IndexedField source, IndexFieldBinding binding)
+    {
+        _parent = source._parent;
+        Spatial = source.Spatial;
+        Storage = source.Storage;
+        Textual = source.Textual;
+        _entryToTerms = source._entryToTerms;
+        Longs = source.Longs;
+        Doubles = source.Doubles;
+        Suggestions = source.Suggestions;
+        Analyzer = binding.Analyzer ?? source.Analyzer;
+        NameForStatistics = source.NameForStatistics;
+        Name = source.Name;
+        NameLong = source.NameLong;
+        NameDouble = source.NameDouble;
+        NameTotalLengthOfTerms = source.NameTotalLengthOfTerms;
+        Id = source.Id;
+        FieldIndexingMode = binding.FieldIndexingMode;
+        ShouldIndex = binding.FieldIndexingMode != FieldIndexingMode.No;
+        HasSuggestions = binding.HasSuggestions;
+        ShouldStore = binding.ShouldStore;
+        _supportedFeatures = source._supportedFeatures;
+        IsVirtual = source.IsVirtual;
+        HasMultipleTermsPerField = source.HasMultipleTermsPerField;
+        FieldRootPage = source.FieldRootPage;
+        TermsVectorFieldRootPage = source.TermsVectorFieldRootPage;
+        VectorIndexer = source.VectorIndexer;
+        _vectorOptions = source._vectorOptions;
+        _isCreatedByField = false;
+        _fieldRootPage = source._fieldRootPage;
+        _hnswIsCreated = source._hnswIsCreated;
+        AssertIndexedFieldClassHasNotChanged();
+    }
+
     public IndexedField(IndexFieldBinding binding, in SupportedFeatures supportedFeatures) : this(binding.FieldId, binding.FieldName, binding.FieldNameLong, binding.FieldNameDouble,
         binding.FieldTermTotalSumField, binding.Analyzer, binding.FieldIndexingMode, binding.HasSuggestions, binding.ShouldStore, supportedFeatures, binding.VectorOptions, binding.FieldNameForStatistics)
     {
     }
 
     private IndexedField(int id, Slice name, Slice nameLong, Slice nameDouble, Slice nameTotalLengthOfTerms, Analyzer analyzer,
-        FieldIndexingMode fieldIndexingMode, bool hasSuggestions, bool shouldStore, in SupportedFeatures supportedFeatures, string nameForStatistics, long fieldRootPage, long termsVectorFieldRootPage, FastList<EntriesModifications> storage, Dictionary<Slice, int> textual, Dictionary<long, int> longs, Dictionary<double, int> doubles, VectorOptions vectorOptions, IndexedField parent)
+        FieldIndexingMode fieldIndexingMode, bool hasSuggestions, bool shouldStore, in SupportedFeatures supportedFeatures, string nameForStatistics, long fieldRootPage, long termsVectorFieldRootPage, FastList<EntriesModifications> storage, Dictionary<Slice, int> textual, Dictionary<long, int> longs, Dictionary<double, int> doubles, VectorOptions vectorOptions, IndexedField parent, bool isCreatedByDelete)
     {
         _parent = parent;
         Name = name;
@@ -126,10 +169,12 @@ internal sealed class IndexedField
         IsVirtual = true;
         if (fieldIndexingMode is FieldIndexingMode.Search && _parent.EntryToTerms.IsValid == false)
             EntryToTerms = new();
+
+        _isCreatedByField = isCreatedByDelete;
     }
     
     public IndexedField(int id, Slice name, Slice nameLong, Slice nameDouble, Slice nameTotalLengthOfTerms, Analyzer analyzer,
-        FieldIndexingMode fieldIndexingMode, bool hasSuggestions, bool shouldStore, in SupportedFeatures supportedFeatures, VectorOptions vectorOptions, string nameForStatistics = null, long fieldRootPage = Constants.IndexWriter.UninitializedFieldRootPage, long termsVectorFieldRootPage = Constants.IndexWriter.UninitializedFieldRootPage)
+        FieldIndexingMode fieldIndexingMode, bool hasSuggestions, bool shouldStore, in SupportedFeatures supportedFeatures, VectorOptions vectorOptions, string nameForStatistics = null, long fieldRootPage = Constants.IndexWriter.UninitializedFieldRootPage, long termsVectorFieldRootPage = Constants.IndexWriter.UninitializedFieldRootPage, bool isCreatedByDelete = false)
     {
         Name = name;
         NameLong = nameLong;
@@ -150,11 +195,13 @@ internal sealed class IndexedField
         ShouldIndex = supportedFeatures.StoreOnly == false || fieldIndexingMode != FieldIndexingMode.No;
         NameForStatistics = nameForStatistics ?? $"Field_{Name}";
         _vectorOptions = vectorOptions;
+        _isCreatedByField = isCreatedByDelete;
+        
         if (fieldIndexingMode is FieldIndexingMode.Search)
             EntryToTerms = new();
     }
 
-    public IndexedField CreateVirtualIndexedField(IndexFieldBinding dynamicField)
+    public IndexedField CreateVirtualIndexedField(IndexFieldBinding dynamicField, bool isCreatedByDelete)
     {
         Analyzer analyzer;
         FieldIndexingMode fieldIndexingMode;
@@ -173,7 +220,7 @@ internal sealed class IndexedField
         
         return new IndexedField(Constants.IndexWriter.DynamicField, Name, NameLong, NameDouble,
             NameTotalLengthOfTerms, analyzer, fieldIndexingMode, dynamicField.HasSuggestions, dynamicField.ShouldStore,
-            _supportedFeatures, dynamicField.FieldNameForStatistics, FieldRootPage, TermsVectorFieldRootPage, Storage, Textual, Longs, Doubles, dynamicField.VectorOptions, this);
+            _supportedFeatures, dynamicField.FieldNameForStatistics, FieldRootPage, TermsVectorFieldRootPage, Storage, Textual, Longs, Doubles, dynamicField.VectorOptions, this, isCreatedByDelete);
     }
     
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -214,5 +261,27 @@ internal sealed class IndexedField
         
         PortableExceptions.ThrowIfOnDebug<InvalidOperationException>(VectorIndexer is { IsCommited: false }, "VectorIndexer is { IsDisposed: false }");
         VectorIndexer = null; // after Commit it will be recreated from scratch
+    }
+
+    [Conditional("DEBUG")]
+    private void AssertIndexedFieldClassHasNotChanged()
+    {
+        string[] knownFields =
+        [
+            nameof(_parent), nameof(Spatial), nameof(Storage), nameof(Textual), nameof(_entryToTerms), nameof(Longs), nameof(Doubles), nameof(Suggestions),
+            nameof(Analyzer), nameof(NameForStatistics), nameof(Name), nameof(NameLong), nameof(NameDouble), nameof(NameTotalLengthOfTerms), nameof(Id),
+            nameof(FieldIndexingMode), nameof(ShouldIndex), nameof(HasSuggestions), nameof(ShouldStore), nameof(_supportedFeatures), nameof(IsVirtual),
+            nameof(HasMultipleTermsPerField), nameof(FieldRootPage), nameof(TermsVectorFieldRootPage), nameof(FieldSupportsPhraseQuery), nameof(IsCreatedByDelete), nameof(_vectorOptions), nameof(VectorIndexer), nameof(_isCreatedByField), nameof(_fieldRootPage), nameof(_hnswIsCreated)
+        ];
+
+        var fields = this.GetType().GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static);
+
+        var diff = fields.Select(x => x.Name).Except(knownFields).ToArray();
+
+        if (diff.Length != 0)
+        {
+            throw new InvalidDataException(
+                $"IndexedField has changed. Please update the following fields: {string.Join(", ", diff)} in the constructor IndexedField(IndexedField source, IndexFieldBinding binding)");
+        }
     }
 }
