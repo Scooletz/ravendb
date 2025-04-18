@@ -101,8 +101,14 @@ public abstract class EmbeddingsGenerationTestBase(ITestOutputHelper output) : R
         string docId,
         VectorEmbeddingType targetQuantization = VectorEmbeddingType.Single)
     {
-        AssertEmbeddingsForPath(store, integrationIdentifier, connectionStringIdentifier, path, inputValues, docId, targetQuantization, assertMissing: false);
+        Exception innerException = null;
+        var result = WaitForValue(() => 
+            RunAssertEmbeddingsForPath(store, integrationIdentifier, connectionStringIdentifier, path, inputValues, docId, targetQuantization, assertMissing: false, out innerException), true);
+        
+        if (result is false)
+            throw innerException;
     }
+    
     protected void AssertMissingEmbeddingsForPath(
         IDocumentStore store,
         EmbeddingsGenerationTaskIdentifier integrationIdentifier,
@@ -112,9 +118,43 @@ public abstract class EmbeddingsGenerationTestBase(ITestOutputHelper output) : R
         string docId,
         VectorEmbeddingType targetQuantization = VectorEmbeddingType.Single)
     {
-        AssertEmbeddingsForPath(store, integrationIdentifier, connectionStringIdentifier, path, inputValues, docId, targetQuantization, assertMissing: true);
+        Exception innerException = null;
+        var result = WaitForValue(() =>
+            RunAssertEmbeddingsForPath(store, integrationIdentifier, connectionStringIdentifier, path, inputValues, docId, targetQuantization, assertMissing: true, out innerException), true, timeout: (int)DefaultEtlTimeout.TotalMilliseconds);
+
+        if (result is false)
+            throw innerException;
     }
-    protected void AssertEmbeddingsForPath(
+    
+    /// <summary>
+    /// Since embeddings are added to the database via TxMerger, there is no easy way to ensure the embeddings are
+    /// processed and stored.
+    /// This way we will loop the assertion in a specific time period (DefaultEtlTimeout) and wait until they appear.
+    /// If not, we will throw the inner exception to get information about which assertion failed.
+    /// </summary>
+    private bool RunAssertEmbeddingsForPath(IDocumentStore store,
+        EmbeddingsGenerationTaskIdentifier integrationIdentifier,
+        AiConnectionStringIdentifier connectionStringIdentifier,
+        string path,
+        string[] inputValues,
+        string docId,
+        VectorEmbeddingType targetQuantization,
+        bool assertMissing, out Exception exception)
+    {
+        try
+        {
+            AssertEmbeddingsForPath(store, integrationIdentifier, connectionStringIdentifier, path, inputValues, docId, targetQuantization, assertMissing);
+            exception = null;
+            return true;
+        }
+        catch (Exception e)
+        {
+            exception = e;
+            return false;
+        }
+    }
+    
+    private void AssertEmbeddingsForPath(
         IDocumentStore store,
         EmbeddingsGenerationTaskIdentifier integrationIdentifier,
         AiConnectionStringIdentifier connectionStringIdentifier,

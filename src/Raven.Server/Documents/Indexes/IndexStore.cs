@@ -861,11 +861,12 @@ namespace Raven.Server.Documents.Indexes
                     if (t.IsCompletedSuccessfully is false)
                         return t;
                     
+                    HandleSorters(record, raftIndex);
+                    HandleAnalyzers(record, raftIndex);
+                    
                     if (_documentDatabase.Configuration.Indexing.RunInMemory == false)
                         OpenIndexesFromRecord(record, raftIndex, addToInitLog);
 
-                    HandleSorters(record, raftIndex);
-                    HandleAnalyzers(record, raftIndex);
                     return Task.CompletedTask;
                 }).Unwrap();
         }

@@ -88,6 +88,8 @@ namespace FastTests.Issues
                 "Indexing.Corax.MaxMemoizationSizeInMb",
                 "Indexing.Corax.MaxAllocationsAtDictionaryTrainingInMb",
                 "Indexing.Corax.Static.ComplexFieldIndexingBehavior",
+                "Indexing.Corax.UnmanagedAllocationsBatchSizeLimitInMb",
+                
                 
                 "Storage.DisableSparseRegions",
                 "Storage.JournalsCompressionAcceleration",
