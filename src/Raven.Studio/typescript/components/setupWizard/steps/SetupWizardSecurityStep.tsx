@@ -11,6 +11,7 @@ import { useServices } from "hooks/useServices";
 import Spinner from "react-bootstrap/Spinner";
 import PopoverWithHoverWrapper from "components/common/PopoverWithHoverWrapper";
 import { ConditionalPopover } from "components/common/ConditionalPopover";
+import { useEffect } from "react";
 
 export function SetupWizardSecurityStep() {
     const { control, setValue } = useFormContext<SetupWizardFormData>();
@@ -19,6 +20,12 @@ export function SetupWizardSecurityStep() {
         securityStep: { securityOption },
         licenseKeyStep: { key, licenseInfo },
     } = useWatch({ control });
+    
+    useEffect(() => {
+        if (isSecureDisabled) {
+            setValue("securityStep.securityOption", "none");
+        }
+    }, []);
 
     const isSecureDisabled = !key;
     const isSecureRecommended = !!key && licenseInfo.licenseType !== "Developer";

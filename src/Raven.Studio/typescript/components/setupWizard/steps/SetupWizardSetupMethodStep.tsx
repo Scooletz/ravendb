@@ -9,13 +9,18 @@ import PopoverWithHoverWrapper from "components/common/PopoverWithHoverWrapper";
 import { SetupWizardStepItem } from "components/setupWizard/partials/SetupWizardStepItem";
 import { NumberedList } from "components/common/NumberedList";
 import { PopoverMessage } from "components/setupWizard/steps/SetupWizardNodeAddressStep";
+import { useEffect } from "react";
 
 export function SetupWizardSetupMethodStep() {
     const { control, setValue } = useFormContext<SetupWizardFormData>();
     const {
         setupMethodStep: { method: selectedMethod },
     } = useWatch({ control });
-
+    
+    useEffect(() => {
+        setValue("setupMethodStep.method", selectedMethod ?? "newCluster");
+    }, []);
+    
     return (
         <div>
             <h2>Choose your setup method</h2>
