@@ -129,6 +129,21 @@ public sealed class AzureQueueStorageConnectionSettings
 
         return json;
     }
+
+    private bool Equals(AzureQueueStorageConnectionSettings other)
+    {
+        return Equals(EntraId, other.EntraId) && ConnectionString == other.ConnectionString && Equals(Passwordless, other.Passwordless);
+    }
+
+    public override bool Equals(object obj)
+    {
+        return ReferenceEquals(this, obj) || obj is AzureQueueStorageConnectionSettings other && Equals(other);
+    }
+
+    public override int GetHashCode()
+    {
+        return HashCode.Combine(EntraId, ConnectionString, Passwordless);
+    }
 }
 
 public sealed class EntraId
@@ -145,6 +160,21 @@ public sealed class EntraId
                string.IsNullOrWhiteSpace(ClientId) == false &&
                string.IsNullOrWhiteSpace(ClientSecret) == false;
     }
+
+    private bool Equals(EntraId other)
+    {
+        return StorageAccountName == other.StorageAccountName && TenantId == other.TenantId && ClientId == other.ClientId && ClientSecret == other.ClientSecret;
+    }
+
+    public override bool Equals(object obj)
+    {
+        return ReferenceEquals(this, obj) || obj is EntraId other && Equals(other);
+    }
+
+    public override int GetHashCode()
+    {
+        return HashCode.Combine(StorageAccountName, TenantId, ClientId, ClientSecret);
+    }
 }
 
 // this is used for machine authentication
@@ -155,5 +185,20 @@ public sealed class Passwordless
     public bool IsValid()
     {
         return string.IsNullOrWhiteSpace(StorageAccountName) == false;
+    }
+
+    private bool Equals(Passwordless other)
+    {
+        return StorageAccountName == other.StorageAccountName;
+    }
+
+    public override bool Equals(object obj)
+    {
+        return ReferenceEquals(this, obj) || obj is Passwordless other && Equals(other);
+    }
+
+    public override int GetHashCode()
+    {
+        return (StorageAccountName != null ? StorageAccountName.GetHashCode() : 0);
     }
 }

@@ -611,7 +611,7 @@ namespace Raven.Server.Documents.ETL
 
                             foreach (var config in myRavenEtl)
                             {
-                                var diff = ravenEtl.Configuration.Compare(config);
+                                var diff = ravenEtl.Configuration.Compare(config, record.RavenConnectionStrings);
 
                                 if (diff == EtlConfigurationCompareDifferences.None)
                                 {
@@ -633,7 +633,7 @@ namespace Raven.Server.Documents.ETL
                             SqlEtlConfiguration existing = null;
                             foreach (var config in mySqlEtl)
                             {
-                                var diff = sqlEtl.Configuration.Compare(config);
+                                var diff = sqlEtl.Configuration.Compare(config, record.SqlConnectionStrings);
 
                                 if (diff == EtlConfigurationCompareDifferences.None)
                                 {
@@ -655,7 +655,7 @@ namespace Raven.Server.Documents.ETL
 
                             foreach (var config in myOlapEtl)
                             {
-                                var diff = olapEtl.Configuration.Compare(config);
+                                var diff = olapEtl.Configuration.Compare(config, record.OlapConnectionStrings);
 
                                 if (diff == EtlConfigurationCompareDifferences.None && olapEtl.Configuration.Equals(config))
                                 {
@@ -678,7 +678,7 @@ namespace Raven.Server.Documents.ETL
 
                             foreach (var config in myQueueEtl)
                             {
-                                var diff = kafkaEtl.Configuration.Compare(config);
+                                var diff = kafkaEtl.Configuration.Compare(config, record.QueueConnectionStrings);;
 
                                 if (diff == EtlConfigurationCompareDifferences.None)
                                 {
@@ -701,7 +701,7 @@ namespace Raven.Server.Documents.ETL
 
                             foreach (var config in myQueueEtl)
                             {
-                                var diff = rabbitMqEtl.Configuration.Compare(config);
+                                var diff = rabbitMqEtl.Configuration.Compare(config, record.QueueConnectionStrings);
 
                                 if (diff == EtlConfigurationCompareDifferences.None)
                                 {
@@ -724,7 +724,7 @@ namespace Raven.Server.Documents.ETL
 
                         foreach (var config in myQueueEtl)
                         {
-                            var diff = azureQueueStorageEtl.Configuration.Compare(config);
+                            var diff = azureQueueStorageEtl.Configuration.Compare(config, record.QueueConnectionStrings);;
 
                             if (diff == EtlConfigurationCompareDifferences.None)
                             {
@@ -746,7 +746,7 @@ namespace Raven.Server.Documents.ETL
                             ElasticSearchEtlConfiguration existing = null;
                             foreach (var config in myElasticSearchEtl)
                             {
-                                var diff = elasticSearchEtl.Configuration.Compare(config);
+                                var diff = elasticSearchEtl.Configuration.Compare(config, record.ElasticSearchConnectionStrings);
 
                                 if (diff == EtlConfigurationCompareDifferences.None)
                                 {
@@ -768,7 +768,7 @@ namespace Raven.Server.Documents.ETL
                             SnowflakeEtlConfiguration existing = null;
                             foreach (var config in mySnowflakeEtl)
                             {
-                                var diff = snowflakeEtl.Configuration.Compare(config);
+                                var diff = snowflakeEtl.Configuration.Compare(config, record.SnowflakeConnectionStrings);
 
                                 if (diff == EtlConfigurationCompareDifferences.None)
                                 {
@@ -790,7 +790,7 @@ namespace Raven.Server.Documents.ETL
 
                         foreach (var config in myQueueEtl)
                         {
-                            var diff = amazonSqsEtl.Configuration.Compare(config);
+                            var diff = amazonSqsEtl.Configuration.Compare(config, record.QueueConnectionStrings);
 
                             if (diff == EtlConfigurationCompareDifferences.None)
                             {
@@ -813,7 +813,7 @@ namespace Raven.Server.Documents.ETL
 
                         foreach (var config in myEmbeddingsGenerationEtl)
                         {
-                            var diff = embeddingsGenerationEtl.Configuration.Compare(config);
+                            var diff = embeddingsGenerationEtl.Configuration.Compare(config, record.AiConnectionStrings);;
 
                             if (diff == EtlConfigurationCompareDifferences.None)
                             {
@@ -855,7 +855,7 @@ namespace Raven.Server.Documents.ETL
 
                             using (process)
                             {
-                                string reason = GetStopReason(process, myRavenEtl, mySqlEtl, myOlapEtl, myElasticSearchEtl, myQueueEtl, mySnowflakeEtl, myEmbeddingsGenerationEtl, responsibleNodes, explanations);
+                                string reason = GetStopReason(process, record, myRavenEtl, mySqlEtl, myOlapEtl, myElasticSearchEtl, myQueueEtl, mySnowflakeEtl, myEmbeddingsGenerationEtl, responsibleNodes, explanations);
                                 process.Stop(reason);
                             }
                         }
@@ -903,6 +903,7 @@ namespace Raven.Server.Documents.ETL
 
         private static string GetStopReason(
             EtlProcess process,
+            DatabaseRecord record,
             List<RavenEtlConfiguration> myRavenEtl,
             List<SqlEtlConfiguration> mySqlEtl,
             List<OlapEtlConfiguration> myOlapEtl,
@@ -923,70 +924,70 @@ namespace Raven.Server.Documents.ETL
                 var existing = myRavenEtl.FirstOrDefault(x => x.Name.Equals(ravenEtl.ConfigurationName, StringComparison.OrdinalIgnoreCase));
 
                 if (existing != null)
-                    differences = ravenEtl.Configuration.Compare(existing, transformationDiffs);
+                    differences = ravenEtl.Configuration.Compare(existing, record.RavenConnectionStrings, transformationDiffs);
             }
             else if (process is SqlEtl sqlEtl)
             {
                 var existing = mySqlEtl.FirstOrDefault(x => x.Name.Equals(sqlEtl.ConfigurationName, StringComparison.OrdinalIgnoreCase));
 
                 if (existing != null)
-                    differences = sqlEtl.Configuration.Compare(existing, transformationDiffs);
+                    differences = sqlEtl.Configuration.Compare(existing, record.SqlConnectionStrings, transformationDiffs);
             }
             else if (process is OlapEtl olapEtl)
             {
                 var existing = myOlapEtl.FirstOrDefault(x => x.Name.Equals(olapEtl.ConfigurationName, StringComparison.OrdinalIgnoreCase));
 
                 if (existing != null)
-                    differences = olapEtl.Configuration.Compare(existing, transformationDiffs);
+                    differences = olapEtl.Configuration.Compare(existing, record.OlapConnectionStrings, transformationDiffs);
             }
             else if (process is ElasticSearchEtl elasticSearchEtl)
             {
                 var existing = myElasticSearchEtl.FirstOrDefault(x => x.Name.Equals(elasticSearchEtl.ConfigurationName, StringComparison.OrdinalIgnoreCase));
 
                 if (existing != null)
-                    differences = elasticSearchEtl.Configuration.Compare(existing, transformationDiffs);
+                    differences = elasticSearchEtl.Configuration.Compare(existing, record.ElasticSearchConnectionStrings, transformationDiffs);
             }
             else if (process is KafkaEtl kafkaEtl)
             {
                 var existing = myQueueEtl.FirstOrDefault(x => x.Name.Equals(kafkaEtl.ConfigurationName, StringComparison.OrdinalIgnoreCase));
 
                 if (existing != null)
-                    differences = kafkaEtl.Configuration.Compare(existing, transformationDiffs);
+                    differences = kafkaEtl.Configuration.Compare(existing, record.QueueConnectionStrings, transformationDiffs);
             }
             else if (process is RabbitMqEtl rabbitMqEtl)
             {
                 var existing = myQueueEtl.FirstOrDefault(x => x.Name.Equals(rabbitMqEtl.ConfigurationName, StringComparison.OrdinalIgnoreCase));
 
                 if (existing != null)
-                    differences = rabbitMqEtl.Configuration.Compare(existing, transformationDiffs);
+                    differences = rabbitMqEtl.Configuration.Compare(existing, record.QueueConnectionStrings, transformationDiffs);
             }
             else if (process is AzureQueueStorageEtl azureQueueStorageEtl)
             {
                 var existing = myQueueEtl.FirstOrDefault(x => x.Name.Equals(azureQueueStorageEtl.ConfigurationName, StringComparison.OrdinalIgnoreCase));
 
                 if (existing != null)
-                    differences = azureQueueStorageEtl.Configuration.Compare(existing, transformationDiffs);
+                    differences = azureQueueStorageEtl.Configuration.Compare(existing, record.QueueConnectionStrings, transformationDiffs);
             }
             else if (process is SnowflakeEtl snowflakeEtl)
             {
                 var existing = mySnowflakeEtl.FirstOrDefault(x => x.Name.Equals(snowflakeEtl.ConfigurationName, StringComparison.OrdinalIgnoreCase));
 
                 if (existing != null)
-                    differences = snowflakeEtl.Configuration.Compare(existing, transformationDiffs);
+                    differences = snowflakeEtl.Configuration.Compare(existing, record.SnowflakeConnectionStrings, transformationDiffs);
             }
             else if (process is AmazonSqsEtl amazonSqsEtl)
             {
                 var existing = myQueueEtl.FirstOrDefault(x => x.Name.Equals(amazonSqsEtl.ConfigurationName, StringComparison.OrdinalIgnoreCase));
 
                 if (existing != null)
-                    differences = amazonSqsEtl.Configuration.Compare(existing, transformationDiffs);
+                    differences = amazonSqsEtl.Configuration.Compare(existing, record.QueueConnectionStrings, transformationDiffs);
             }
             else if (process is EmbeddingsGenerationTask embeddingsGenerationTask)
             {
                 var existing = myEmbeddingsGenerationEtl.FirstOrDefault(x => x.Name.Equals(embeddingsGenerationTask.ConfigurationName, StringComparison.OrdinalIgnoreCase));
 
                 if (existing != null)
-                    differences = embeddingsGenerationTask.Configuration.Compare(existing, transformationDiffs);
+                    differences = embeddingsGenerationTask.Configuration.Compare(existing, record.AiConnectionStrings, transformationDiffs);
             }
             else
             {

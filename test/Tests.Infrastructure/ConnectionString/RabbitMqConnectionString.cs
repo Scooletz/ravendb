@@ -12,7 +12,7 @@ public class RabbitMqConnectionString : IDisposable
     private static RabbitMqConnectionString _instance;
 
     public static RabbitMqConnectionString Instance => _instance ??= new RabbitMqConnectionString();
-    
+
     private IConnection _connection;
 
     private readonly Lazy<bool> _canConnect;
@@ -26,7 +26,7 @@ public class RabbitMqConnectionString : IDisposable
         VerifiedUrl = new Lazy<string>(VerifiedNodesValueFactory);
 
         Url = new Lazy<string>(() => Environment.GetEnvironmentVariable(EnvironmentVariable) ?? string.Empty);
-        
+
         _canConnect = new Lazy<bool>(CanConnectInternal);
     }
 
@@ -52,9 +52,9 @@ public class RabbitMqConnectionString : IDisposable
             exception = null;
             try
             {
-                var connectionFactory = new ConnectionFactory() {Uri = new Uri(connectionString)};
+                var connectionFactory = new ConnectionFactory() { Uri = new Uri(connectionString), RequestedConnectionTimeout = TimeSpan.FromSeconds(2) };
                 var conn = connectionFactory.CreateConnection();
-                
+
                 // connection succeeded register for disposable
                 AssemblyLoadContext.Default.Unloading += _ =>
                 {
@@ -68,7 +68,6 @@ public class RabbitMqConnectionString : IDisposable
                     }
                 };
                 return conn;
-
             }
             catch (Exception e)
             {

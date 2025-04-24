@@ -115,6 +115,37 @@ public sealed class AiConnectionString : ConnectionString
         return AiConnectorType.None;
     }
 
+    public override bool IsEqual(ConnectionString connectionString)
+    {
+        if (base.IsEqual(connectionString) == false)
+            return false;
+
+        if (connectionString is not AiConnectionString aiConnectionString)
+            return false;
+
+        if (Identifier != aiConnectionString.Identifier)
+            return false;
+
+        var activeProvider = GetActiveProvider();
+        var otherActiveProvider = aiConnectionString.GetActiveProvider();
+
+        if (activeProvider != otherActiveProvider)
+            return false;
+
+        return activeProvider switch
+        {
+            AiConnectorType.OpenAi => OpenAiSettings.Compare(aiConnectionString.OpenAiSettings) == AiSettingsCompareDifferences.None,
+            AiConnectorType.AzureOpenAi => AzureOpenAiSettings.Compare(aiConnectionString.AzureOpenAiSettings) == AiSettingsCompareDifferences.None,
+            AiConnectorType.Ollama => OllamaSettings.Compare(aiConnectionString.OllamaSettings) == AiSettingsCompareDifferences.None,
+            AiConnectorType.Embedded => EmbeddedSettings.Compare(aiConnectionString.EmbeddedSettings) == AiSettingsCompareDifferences.None,
+            AiConnectorType.Google => GoogleSettings.Compare(aiConnectionString.GoogleSettings) == AiSettingsCompareDifferences.None,
+            AiConnectorType.HuggingFace => HuggingFaceSettings.Compare(aiConnectionString.HuggingFaceSettings) == AiSettingsCompareDifferences.None,
+            AiConnectorType.MistralAi => MistralAiSettings.Compare(aiConnectionString.MistralAiSettings) == AiSettingsCompareDifferences.None,
+            AiConnectorType.None => true,
+            _ => false
+        };
+    }
+
     public override DynamicJsonValue ToJson()
     {
         var json = base.ToJson();

@@ -642,7 +642,11 @@ namespace Raven.Server.Web.System
 
                 if (RavenLogManager.Instance.IsAuditEnabled)
                 {
-                    LogAuditForServer("DELETE", $"Attempt to delete database(s) [{string.Join(", ", parameters.DatabaseNames)}] from ({string.Join(", ", parameters.FromNodes ?? Enumerable.Empty<string>())})");
+                    var msg = $"Attempt to delete database(s) [{string.Join(", ", parameters.DatabaseNames)}])";
+                    if (parameters.FromNodes is { Length: > 0 })
+                        msg += $" from nodes [{string.Join(", ", parameters.FromNodes)}]";
+                    
+                    LogAuditForServer("DELETE", msg);
                 }
 
                 using (context.OpenReadTransaction())
@@ -722,7 +726,11 @@ namespace Raven.Server.Web.System
 
                 if (RavenLogManager.Instance.IsAuditEnabled)
                 {
-                    LogAuditForServer("DELETE", $"Database(s) [{string.Join(", ", databasesToDelete)}] from ({string.Join(", ", parameters.FromNodes ?? Enumerable.Empty<string>())})");
+                    var msg = $"Database(s) [{string.Join(", ", parameters.DatabaseNames)}])";
+                    if (parameters.FromNodes is { Length: > 0 })
+                        msg += $" from nodes [{string.Join(", ", parameters.FromNodes)}]";
+                    
+                    LogAuditForServer("DELETE", msg);
                 }
 
                 long index = -1;
