@@ -59,7 +59,7 @@ export function SetupWizardDomainStep() {
         }
     };
 
-    const rootDomainOptions = licenseInfo.userDomainsWithIps.rootDomains.map((domain) => ({
+    const rootDomainOptions = (licenseInfo?.userDomainsWithIps?.rootDomains ?? []).map((domain) => ({
         value: domain,
         label: domain,
     }));

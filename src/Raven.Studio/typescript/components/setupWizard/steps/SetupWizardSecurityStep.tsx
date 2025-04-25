@@ -28,7 +28,7 @@ export function SetupWizardSecurityStep() {
     }, []);
 
     const isSecureDisabled = !key;
-    const isSecureRecommended = !!key && licenseInfo.licenseType !== "Developer";
+    const isSecureRecommended = !!key && licenseInfo?.licenseType !== "Developer";
 
     return (
         <div>
