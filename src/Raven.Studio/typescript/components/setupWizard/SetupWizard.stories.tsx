@@ -93,7 +93,7 @@ interface SetupWizardStoryArgs {
 
 export const Eula: StoryObj = {
     render: () => {
-        const { setupWizardService } = mockServices;
+        const { setupWizardService, resourcesService } = mockServices;
 
         setupWizardService.withEula();
         setupWizardService.withNodesInfoFromPackage();
@@ -105,6 +105,7 @@ export const Eula: StoryObj = {
         setupWizardService.withCheckDomainAvailability();
         setupWizardService.withClaimDomain();
         setupWizardService.withLetsEncryptAgreement();
+        resourcesService.withFolderPathOptions_ServerLocal();
 
         return (
             <div style={{ height: 1000 }}>

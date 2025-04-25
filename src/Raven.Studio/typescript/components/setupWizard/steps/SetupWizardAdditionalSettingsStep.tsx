@@ -11,6 +11,7 @@ import { getLicenseType } from "components/setupWizard/utils/setupWizardUtils";
 import PopoverWithHoverWrapper from "components/common/PopoverWithHoverWrapper";
 import { PopoverMessage } from "components/setupWizard/steps/SetupWizardNodeAddressStep";
 import { ConditionalPopover } from "components/common/ConditionalPopover";
+import { useServices } from "hooks/useServices";
 
 export function SetupWizardAdditionalSettingsStep() {
     const { control } = useFormContext<SetupWizardFormData>();
@@ -178,6 +179,15 @@ interface AdvancedSettingsContentProps {
 }
 
 function AdvancedSettingsContent({ control, isVisible }: AdvancedSettingsContentProps) {
+    const { resourcesService } = useServices();
+    
+    const getLocalFolderPathsProvider = (path: string) => {
+        return async () => {
+            const dto = await resourcesService.getFolderPathOptions_ServerLocal(path, true);
+            return dto?.List || [];
+        };
+    };
+    
     return (
         <div
             className={classNames({
@@ -203,7 +213,7 @@ function AdvancedSettingsContent({ control, isVisible }: AdvancedSettingsContent
                     name="additionalSettingsStep.dataDirectory"
                     control={control}
                     placeholder="/data"
-                    getPathsProvider={() => () => Promise.resolve(["C:\\", "D:\\"])}
+                    getPathsProvider={(path: string) => getLocalFolderPathsProvider(path)}
                     getPathDependencies={(path: string) => [path]}
                 />
             </FormGroup>
@@ -226,7 +236,7 @@ function AdvancedSettingsContent({ control, isVisible }: AdvancedSettingsContent
                     name="additionalSettingsStep.setupCertificatePath"
                     control={control}
                     placeholder="/etc/ravendb/security/server.pfx"
-                    getPathsProvider={() => () => Promise.resolve(["C:\\", "D:\\"])}
+                    getPathsProvider={(path: string) => getLocalFolderPathsProvider(path)}
                     getPathDependencies={(path: string) => [path]}
                 />
             </FormGroup>
