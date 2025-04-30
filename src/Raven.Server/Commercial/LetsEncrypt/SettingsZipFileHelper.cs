@@ -8,6 +8,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
+using Raven.Client.Documents.Indexes;
 using Raven.Client.Exceptions;
 using Raven.Client.Exceptions.Security;
 using Raven.Server.Config;
@@ -119,6 +120,8 @@ public static class SettingsZipFileHelper
                 {
                     settingsJson.Modifications[RavenConfiguration.GetKey(x => x.Core.FeaturesAvailability)] = FeaturesAvailability.Experimental;
                 }
+                
+                ModifySettingsJson(parameters.SetupInfo, ref settingsJson);
 
                 if (parameters.SetupInfo.Environment != StudioConfiguration.StudioEnvironment.None)
                 {
@@ -153,6 +156,10 @@ public static class SettingsZipFileHelper
                     currentNodeSettingsJson.Modifications ??= new DynamicJsonValue(currentNodeSettingsJson);
 
                     parameters.Progress?.AddInfo($"Creating settings file 'settings.json' for node {node.Key}.");
+                    
+                    if (parameters.SetupInfo.ZipOnly == false)
+                        parameters.Progress?.SetupActionSteps.CreatingSettingsJsonStatus.SetState(State.InProgress);
+                    
                     parameters.OnProgress?.Invoke(parameters.Progress);
 
                     if (node.Value.Addresses.Count != 0)
@@ -188,9 +195,11 @@ public static class SettingsZipFileHelper
                         try
                         {
                             parameters.OnWriteSettingsJsonLocally?.Invoke(indentedJson);
+                            parameters.Progress?.SetupActionSteps.CreatingSettingsJsonStatus.SetState(State.Completed);
                         }
                         catch (Exception e)
                         {
+                            parameters.Progress?.SetupActionSteps.CreatingSettingsJsonStatus.SetError(ErrorType.SettingsJsonError, e.Message);
                             throw new InvalidOperationException("Failed to write settings file 'settings.json' for the local sever.", e);
                         }
                     }
@@ -286,7 +295,6 @@ public static class SettingsZipFileHelper
     }
     internal static async Task<byte[]> GetSetupZipFileUnsecuredSetup(GetSetupZipFileParameters parameters)
     {
-
         parameters.Progress?.AddInfo("Writing settings files to zip archive.");
         parameters.OnProgress?.Invoke(parameters.Progress);
 
@@ -326,6 +334,8 @@ public static class SettingsZipFileHelper
                 {
                     settingsJson.Modifications[RavenConfiguration.GetKey(x => x.Core.FeaturesAvailability)] = FeaturesAvailability.Experimental;
                 }
+                
+                ModifySettingsJson(parameters.UnsecuredSetupInfo, ref settingsJson);
 
                 if (parameters.UnsecuredSetupInfo.Environment != StudioConfiguration.StudioEnvironment.None && parameters.ZipOnly == false)
                 {
@@ -333,6 +343,8 @@ public static class SettingsZipFileHelper
                         await parameters.OnPutServerWideStudioConfigurationValues(parameters.UnsecuredSetupInfo.Environment);
                 }
 
+                parameters.Progress?.SetupActionSteps.CreatingSettingsJsonStatus.SetState(State.InProgress);
+                
                 foreach (var node in parameters.UnsecuredSetupInfo.NodeSetupInfos)
                 {
                     var currentNodeSettingsJson = settingsJson.Clone(context);
@@ -361,6 +373,7 @@ public static class SettingsZipFileHelper
                         }
                         catch (Exception e)
                         {
+                            parameters.Progress?.SetupActionSteps.CreatingSettingsJsonStatus.SetError(ErrorType.SettingsJsonError, e.Message);
                             throw new InvalidOperationException("Failed to write settings file 'settings.json' for the local sever.", e);
                         }
                     }
@@ -384,6 +397,8 @@ public static class SettingsZipFileHelper
                         throw new InvalidOperationException($"Failed to write settings.json for node '{node.Key}' in zip archive.", e);
                     }
                 }
+                
+                parameters.Progress?.SetupActionSteps.CreatingSettingsJsonStatus.SetState(State.Completed);
 
                 parameters.Progress?.AddInfo("Adding readme file to zip archive.");
                 parameters.OnProgress?.Invoke(parameters.Progress);
@@ -446,6 +461,40 @@ public static class SettingsZipFileHelper
         }
     }
 
+    private static void ModifySettingsJson(SetupInfoBase setupInfo, ref BlittableJsonReaderObject settingsJson)
+    {
+        if (setupInfo.DataDirectory != null)
+        {
+            if (Path.IsPathRooted(setupInfo.DataDirectory))
+                throw new ArgumentException($"{nameof(setupInfo.DataDirectory)} path has to be relative.");
+                    
+            settingsJson.Modifications[RavenConfiguration.GetKey(x => x.Core.DataDirectory)] = setupInfo.DataDirectory;
+        }
+
+        if (setupInfo.LogsPath != null)
+        {
+            if (Path.IsPathRooted(setupInfo.LogsPath))
+                throw new ArgumentException($"{nameof(setupInfo.LogsPath)} path has to be relative.");
+            
+            settingsJson.Modifications[RavenConfiguration.GetKey(x => x.Logs.Path)] = setupInfo.LogsPath;
+        }
+
+        if (setupInfo.AutoIndexingEngineType != null)
+        {
+            if (Enum.TryParse(typeof(SearchEngineType), setupInfo.AutoIndexingEngineType, ignoreCase: true, out _) == false)
+                throw new ArgumentException($"Unknown type of {nameof(SearchEngineType)} - {setupInfo.AutoIndexingEngineType}");
+            
+            settingsJson.Modifications[RavenConfiguration.GetKey(x => x.Indexing.AutoIndexingEngineType)] = setupInfo.AutoIndexingEngineType;
+        }
+
+        if (setupInfo.StaticIndexingEngineType != null)
+        {
+            if (Enum.TryParse(typeof(SearchEngineType), setupInfo.StaticIndexingEngineType, ignoreCase: true, out _) == false)
+                throw new ArgumentException($"Unknown type of {nameof(SearchEngineType)} - {setupInfo.StaticIndexingEngineType}");
+            
+            settingsJson.Modifications[RavenConfiguration.GetKey(x => x.Indexing.StaticIndexingEngineType)] = setupInfo.StaticIndexingEngineType;
+        }
+    }
 
     public static void WriteSettingsJsonLocally(string settingsPath, string json)
     {

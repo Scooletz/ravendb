@@ -65,7 +65,7 @@ namespace Raven.Server.Commercial
             {
                 if (Logger is { IsInfoEnabled: true })
                     Logger.Info(tuple.Message, tuple.Exception);
-            });
+            }, SetupMode.Unsecured, zipOnly);
 
             try
             {
@@ -74,6 +74,7 @@ namespace Raven.Server.Commercial
                 progress.AddInfo("Setting up RavenDB in 'Unsecured Mode'.");
                 progress.AddInfo("Starting validation.");
                 onProgress(progress);
+                progress.SetupActionSteps.ValidationStatus.SetState(State.InProgress);
 
                 try
                 {
@@ -81,6 +82,8 @@ namespace Raven.Server.Commercial
                 }
                 catch (Exception e)
                 {
+                    progress.SetupActionSteps.ValidationStatus.SetError(ErrorType.ValidationError, e.Message);
+
                     throw new AggregateException(e);
                 }
 
@@ -88,7 +91,11 @@ namespace Raven.Server.Commercial
 
                 progress.Processed++;
                 progress.AddInfo("Validation is successful.");
+                progress.SetupActionSteps.ValidationStatus.SetState(State.Completed);
+
                 progress.AddInfo("Creating new RavenDB configuration settings.");
+                progress.SetupActionSteps.ConfigurationSettingsStatus.SetState(State.InProgress);
+
                 onProgress(progress);
 
                 try
@@ -114,7 +121,11 @@ namespace Raven.Server.Commercial
                         OnPutServerWideStudioConfigurationValues = async studioEnvironment =>
                         {
                             var res = await serverStore.PutValueInClusterAsync(new PutServerWideStudioConfigurationCommand(
-                                new ServerWideStudioConfiguration { Disabled = false, Environment = studioEnvironment },
+                                new ServerWideStudioConfiguration
+                                {
+                                    Disabled = false,
+                                    Environment = studioEnvironment
+                                },
                                 RaftIdGenerator.DontCareId));
                             await serverStore.Cluster.WaitForIndexNotification(res.Index);
                         }
@@ -122,11 +133,14 @@ namespace Raven.Server.Commercial
                 }
                 catch (Exception e)
                 {
+                    progress.SetupActionSteps.ConfigurationSettingsStatus.SetError(ErrorType.ConfigurationSettingsError, e.Message);
                     throw new InvalidOperationException("Could not create configuration settings.", e);
                 }
 
                 progress.Processed++;
                 progress.AddInfo("Configuration settings created.");
+                progress.SetupActionSteps.ConfigurationSettingsStatus.SetState(State.Completed);
+
                 progress.AddInfo("Setting up RavenDB in 'Unsecured Mode' finished successfully.");
                 onProgress(progress);
             }
@@ -138,23 +152,23 @@ namespace Raven.Server.Commercial
             return progress;
         }
 
-        public static async Task<IOperationResult> SetupSecuredTask(Action<IOperationProgress> onProgress,
-            SetupInfo setupInfo,
-            ServerStore serverStore,
-            CancellationToken token)
+        public static async Task<IOperationResult> SetupSecuredTask(Action<IOperationProgress> onProgress, SetupInfo setupInfo, ServerStore serverStore, CancellationToken token)
         {
             var zipOnly = setupInfo.ZipOnly;
             var progress = new SetupProgressAndResult(tuple =>
             {
                 if (Logger is { IsInfoEnabled: true })
                     Logger.Info(tuple.Message, tuple.Exception);
-            });
+            }, SetupMode.Secured, zipOnly);
 
             try
             {
                 AssertNoClusterDefined(serverStore);
 
                 progress.AddInfo("Setting up RavenDB in 'Secured Mode'.");
+
+                progress.SetupActionSteps.ValidationStatus.SetState(State.InProgress);
+
                 progress.AddInfo("Starting validation.");
                 onProgress(progress);
 
@@ -166,18 +180,24 @@ namespace Raven.Server.Commercial
                 }
                 catch (Exception e)
                 {
+                    progress.SetupActionSteps.ValidationStatus.SetError(ErrorType.ValidationError, e.Message);
                     throw new InvalidOperationException("Validation failed.", e);
                 }
 
                 progress.Processed++;
                 progress.AddInfo("Validation is successful.");
+
+                progress.SetupActionSteps.ValidationStatus.SetState(State.Completed);
+
                 progress.AddInfo("Creating new RavenDB configuration settings.");
+
+                progress.SetupActionSteps.ConfigurationSettingsStatus.SetState(State.InProgress);
+
                 onProgress(progress);
 
                 try
                 {
-                    var completeClusterConfigurationResult =
-                        await CompleteClusterConfigurationAndGetSettingsZipSecuredSetup(onProgress, progress, SetupMode.Secured, setupInfo, serverStore, token);
+                    var completeClusterConfigurationResult = await CompleteClusterConfigurationAndGetSettingsZipSecuredSetup(onProgress, progress, SetupMode.Secured, setupInfo, serverStore, token);
 
                     progress.SettingsZipFile = await SettingsZipFileHelper.GetSetupZipFileSecuredSetup(new GetSetupZipFileParameters
                     {
@@ -196,19 +216,26 @@ namespace Raven.Server.Commercial
                         },
                         OnPutServerWideStudioConfigurationValues = async studioEnvironment =>
                         {
-                            var res = await serverStore.PutValueInClusterAsync(new PutServerWideStudioConfigurationCommand(
-                                new ServerWideStudioConfiguration { Disabled = false, Environment = studioEnvironment }, RaftIdGenerator.DontCareId));
+                            var res = await serverStore.PutValueInClusterAsync(new PutServerWideStudioConfigurationCommand(new ServerWideStudioConfiguration
+                            {
+                                Disabled = false,
+                                Environment = studioEnvironment
+                            }, RaftIdGenerator.DontCareId));
                             await serverStore.Cluster.WaitForIndexNotification(res.Index);
                         }
                     });
                 }
                 catch (Exception e)
                 {
+                    progress.SetupActionSteps.ValidationStatus.SetError(ErrorType.ConfigurationSettingsError, e.Message);
                     throw new InvalidOperationException("Could not create configuration settings.", e);
                 }
 
                 progress.Processed++;
                 progress.AddInfo("Configuration settings created.");
+
+                progress.SetupActionSteps.ConfigurationSettingsStatus.SetState(State.Completed);
+
                 progress.AddInfo("Setting up RavenDB in 'Secured Mode' finished successfully.");
                 onProgress(progress);
             }
@@ -246,8 +273,7 @@ namespace Raven.Server.Commercial
             }
             catch (Exception e)
             {
-                throw new InvalidOperationException($"Failed to update DNS record(s) and challenge(s) in {setupInfo.Domain.ToLower()}.{setupInfo.RootDomain.ToLower()}",
-                    e);
+                throw new InvalidOperationException($"Failed to update DNS record(s) and challenge(s) in {setupInfo.Domain.ToLower()}.{setupInfo.RootDomain.ToLower()}", e);
             }
 
             if (Logger.IsOperationsEnabled)
@@ -274,16 +300,17 @@ namespace Raven.Server.Commercial
             return cert;
         }
 
-        public static async Task<IOperationResult> ContinueUnsecuredClusterSetupTask(Action<IOperationProgress> onProgress,
-            ContinueSetupInfo continueSetupInfo,
-            ServerStore serverStore,
-            CancellationToken token)
+        public static async Task<IOperationResult> ContinueUnsecuredClusterSetupTask(Action<IOperationProgress> onProgress, ContinueSetupInfo continueSetupInfo, ServerStore serverStore, CancellationToken token)
         {
             var progress = new SetupProgressAndResult(tuple =>
             {
                 if (Logger is { IsInfoEnabled: true })
                     Logger.Info(tuple.Message, tuple.Exception);
-            }) { Processed = 0, Total = 4 };
+            }, SetupMode.Unsecured)
+            {
+                Processed = 0,
+                Total = 4
+            };
 
             try
             {
@@ -351,8 +378,7 @@ namespace Raven.Server.Commercial
 
                     try
                     {
-                        await CompleteUnsecuredConfigurationForNewNode(onProgress, progress, continueSetupInfo, settingsJsonObject, serverStore, firstNodeTag,
-                            otherNodesUrls, license, context);
+                        await CompleteUnsecuredConfigurationForNewNode(onProgress, progress, continueSetupInfo, settingsJsonObject, serverStore, firstNodeTag, otherNodesUrls, license, context);
                     }
                     catch (Exception e)
                     {
@@ -375,16 +401,17 @@ namespace Raven.Server.Commercial
             return progress;
         }
 
-        public static async Task<IOperationResult> ContinueClusterSetupTask(Action<IOperationProgress> onProgress,
-            ContinueSetupInfo continueSetupInfo,
-            ServerStore serverStore,
-            CancellationToken token)
+        public static async Task<IOperationResult> ContinueClusterSetupTask(Action<IOperationProgress> onProgress, ContinueSetupInfo continueSetupInfo, ServerStore serverStore, CancellationToken token)
         {
             var progress = new SetupProgressAndResult(tuple =>
             {
                 if (Logger is { IsInfoEnabled: true })
                     Logger.Info(tuple.Message, tuple.Exception);
-            }) { Processed = 0, Total = 4 };
+            }, SetupMode.Secured)
+            {
+                Processed = 0,
+                Total = 4
+            };
 
             try
             {
@@ -606,16 +633,19 @@ namespace Raven.Server.Commercial
             }
         }
 
-        public static async Task<IOperationResult> SetupLetsEncryptTask(Action<IOperationProgress> onProgress,
-            SetupInfo setupInfo,
-            ServerStore serverStore,
+        public static async Task<IOperationResult> SetupLetsEncryptTask(Action<IOperationProgress> onProgress, SetupInfo setupInfo, ServerStore serverStore,
             CancellationToken token)
         {
+            var zipOnly = setupInfo.ZipOnly;
             var progress = new SetupProgressAndResult(tuple =>
                 {
                     if (Logger is { IsInfoEnabled: true })
                         Logger.Info(tuple.Message, tuple.Exception);
-            }) { Processed = 0, Total = 4 };
+                }, SetupMode.LetsEncrypt, zipOnly)
+            {
+                Processed = 0,
+                Total = 4
+            };
 
             try
             {
@@ -625,6 +655,8 @@ namespace Raven.Server.Commercial
 
                 AssertNoClusterDefined(serverStore);
                 progress.AddInfo("Setting up RavenDB in Let's Encrypt security mode.");
+                progress.SetupActionSteps.ValidationStatus.SetState(State.InProgress);
+
                 onProgress(progress);
                 try
                 {
@@ -632,9 +664,13 @@ namespace Raven.Server.Commercial
                 }
                 catch (Exception e)
                 {
+                    progress.SetupActionSteps.ValidationStatus.SetError(ErrorType.ValidationError, e.Message);
                     throw new InvalidOperationException("Validation of supplied settings failed.", e);
                 }
 
+                progress.SetupActionSteps.ValidationStatus.SetState(State.Completed);
+
+                progress.SetupActionSteps.LetsEncryptStatus.SetState(State.InProgress);
                 progress.AddInfo($"Getting challenge(s) from Let's Encrypt. Using e-mail: {setupInfo.Email}.");
                 onProgress(progress);
 
@@ -650,6 +686,7 @@ namespace Raven.Server.Commercial
                     : "Using cached Let's Encrypt certificate.");
 
                 progress.AddInfo($"Updating DNS record(s) and challenge(s) in {setupInfo.Domain.ToLower()}.{setupInfo.RootDomain.ToLower()}.");
+                progress.SetupActionSteps.DnsRecordsStatus.SetState(State.InProgress);
 
                 onProgress(progress);
 
@@ -666,12 +703,14 @@ namespace Raven.Server.Commercial
                 }
                 catch (Exception e)
                 {
-                    throw new InvalidOperationException(
-                        $"Failed to update DNS record(s) and challenge(s) in {setupInfo.Domain.ToLower()}.{setupInfo.RootDomain.ToLower()}", e);
+                    progress.SetupActionSteps.DnsRecordsStatus.SetError(ErrorType.DnsSetupError, e.Message);
+                    throw new InvalidOperationException($"Failed to update DNS record(s) and challenge(s) in {setupInfo.Domain.ToLower()}.{setupInfo.RootDomain.ToLower()}", e);
                 }
 
                 progress.Processed++;
                 progress.AddInfo($"Successfully updated DNS record(s) and challenge(s) in {setupInfo.Domain.ToLower()}.{setupInfo.RootDomain.ToLower()}");
+                progress.SetupActionSteps.DnsRecordsStatus.SetState(State.Completed);
+
                 progress.AddInfo("Completing Let's Encrypt challenge(s)...");
                 onProgress(progress);
 
@@ -680,6 +719,8 @@ namespace Raven.Server.Commercial
                     OnValidationSuccessful = () =>
                     {
                         progress.AddInfo("Let's Encrypt challenge(s) completed successfully.");
+
+                        progress.SetupActionSteps.AcquiringLetsEncryptCertificateStatus.SetState(State.InProgress);
                         progress.AddInfo("Acquiring certificate.");
                         onProgress(progress);
                     },
@@ -692,6 +733,10 @@ namespace Raven.Server.Commercial
 
                 progress.Processed++;
                 progress.AddInfo("Successfully acquired certificate from Let's Encrypt.");
+                progress.SetupActionSteps.AcquiringLetsEncryptCertificateStatus.SetState(State.Completed);
+                progress.SetupActionSteps.LetsEncryptStatus.SetState(State.Completed);
+
+                progress.SetupActionSteps.ValidationStatus.SetState(State.InProgress);
                 progress.AddInfo("Starting validation.");
                 onProgress(progress);
 
@@ -701,19 +746,22 @@ namespace Raven.Server.Commercial
                 }
                 catch (Exception e)
                 {
+                    progress.SetupActionSteps.ValidationStatus.SetError(ErrorType.ValidationError, e.Message);
                     throw new InvalidOperationException("Validation failed.", e);
                 }
 
                 progress.Processed++;
                 progress.AddInfo("Validation is successful.");
+                progress.SetupActionSteps.ValidationStatus.SetState(State.Completed);
+
                 progress.AddInfo("Creating new RavenDB configuration settings.");
+                progress.SetupActionSteps.ConfigurationSettingsStatus.SetState(State.InProgress);
 
                 onProgress(progress);
 
                 try
                 {
-                    var completeClusterConfigurationResult =
-                        await CompleteClusterConfigurationAndGetSettingsZipSecuredSetup(onProgress, progress, SetupMode.LetsEncrypt, setupInfo, serverStore, token);
+                    var completeClusterConfigurationResult = await CompleteClusterConfigurationAndGetSettingsZipSecuredSetup(onProgress, progress, SetupMode.LetsEncrypt, setupInfo, serverStore, token);
 
                     progress.SettingsZipFile = await SettingsZipFileHelper.GetSetupZipFileSecuredSetup(new GetSetupZipFileParameters
                     {
@@ -730,9 +778,12 @@ namespace Raven.Server.Commercial
                             return serverStore.Configuration.GetSetting(RavenConfiguration.GetKey(x => x.Core.SetupResultingServerCertificatePath)) ?? certificateFileName;
                         },
                         OnPutServerWideStudioConfigurationValues = async studioEnvironment =>
+                    {
+                        var res = await serverStore.PutValueInClusterAsync(new PutServerWideStudioConfigurationCommand(new ServerWideStudioConfiguration
                         {
-                            var res = await serverStore.PutValueInClusterAsync(new PutServerWideStudioConfigurationCommand(
-                                new ServerWideStudioConfiguration { Disabled = false, Environment = studioEnvironment }, RaftIdGenerator.DontCareId));
+                            Disabled = false,
+                            Environment = studioEnvironment
+                        }, RaftIdGenerator.DontCareId));
 
                         await serverStore.Cluster.WaitForIndexNotification(res.Index);
                     },
@@ -741,11 +792,14 @@ namespace Raven.Server.Commercial
                 }
                 catch (Exception e)
                 {
+                    progress.SetupActionSteps.ConfigurationSettingsStatus.SetError(ErrorType.ConfigurationSettingsError, e.Message);
                     throw new InvalidOperationException("Failed to create the configuration settings.", e);
                 }
 
                 progress.Processed++;
                 progress.AddInfo("Configuration settings created.");
+                progress.SetupActionSteps.ConfigurationSettingsStatus.SetState(State.Completed);
+
                 progress.AddInfo("Setting up RavenDB in Let's Encrypt security mode finished successfully.");
                 onProgress(progress);
             }
@@ -869,8 +923,7 @@ namespace Raven.Server.Commercial
                 onProgress(progress);
             }
 
-            var certPath = serverStore.Configuration.GetSetting(RavenConfiguration.GetKey(x => x.Core.SetupResultingServerCertificatePath)) ??
-                           Path.Combine(AppContext.BaseDirectory, certificateFileName);
+            var certPath = serverStore.Configuration.GetSetting(RavenConfiguration.GetKey(x => x.Core.SetupResultingServerCertificatePath)) ?? Path.Combine(AppContext.BaseDirectory, certificateFileName);
 
             try
             {

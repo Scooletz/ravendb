@@ -380,6 +380,123 @@ namespace Raven.Server.Commercial
         Finish
     }
 
+    public enum State
+    {
+        Pending, 
+        InProgress, 
+        Completed, 
+        Error, 
+        Skipped
+    }
+
+    public enum ErrorType
+    {
+        LetsEncryptChallengeError,
+        DnsSetupError,
+        ValidationError,
+        ConfigurationSettingsError,
+        ClientCertificateError,
+        SettingsJsonError,
+    }
+
+    public class SetupActionInfo
+    {
+        private State State { get; set; }
+        private ErrorType? ErrorType { get; set; }
+        private string ErrorMessage { get; set; }
+        private string[] ErrorReasons { get; set; }
+
+        public void SetState(State state)
+        {
+            State = state;
+        }
+
+        public void SetError(ErrorType errorType, string errorMessage)
+        {
+            State = State.Error;
+            ErrorType = errorType;
+            ErrorMessage = errorMessage;
+
+            ErrorReasons = errorType switch
+            {
+                Commercial.ErrorType.DnsSetupError => ["Are you blocked by a firewall? Make sure the port is open."],
+                Commercial.ErrorType.LetsEncryptChallengeError => ["Check if relevant DNS record was added.", "Flush your DNS cache.", "Change your DNS server."],
+                _ => []
+            };
+        }
+
+        public DynamicJsonValue ToJson()
+        {
+            return new DynamicJsonValue()
+            {
+                [nameof(State)] = State,
+                [nameof(ErrorType)] = ErrorType,
+                [nameof(ErrorMessage)] = ErrorMessage,
+                [nameof(ErrorReasons)] = ErrorReasons
+            };
+        }
+    }
+
+    public class SetupActionSteps
+    {
+        public SetupActionInfo LetsEncryptStatus { get; set; }
+        public SetupActionInfo DnsRecordsStatus { get; set; }
+        public SetupActionInfo AcquiringLetsEncryptCertificateStatus { get; set; }
+        public SetupActionInfo ValidationStatus { get; set; }
+        public SetupActionInfo ConfigurationSettingsStatus { get; set; }
+        public SetupActionInfo ClientCertificateStatus { get; set; }
+        public SetupActionInfo CreatingSettingsJsonStatus { get; set; }
+
+        public SetupActionSteps(SetupMode mode, bool zipOnly)
+        {
+            LetsEncryptStatus = new SetupActionInfo();
+            DnsRecordsStatus = new SetupActionInfo();
+            AcquiringLetsEncryptCertificateStatus = new SetupActionInfo();
+            ValidationStatus = new SetupActionInfo();
+            ConfigurationSettingsStatus = new SetupActionInfo();
+            ClientCertificateStatus = new SetupActionInfo();
+            CreatingSettingsJsonStatus = new SetupActionInfo();
+            
+            switch (mode)
+            {
+                case SetupMode.Unsecured:
+                    LetsEncryptStatus.SetState(State.Skipped);
+                    DnsRecordsStatus.SetState(State.Skipped);
+                    AcquiringLetsEncryptCertificateStatus.SetState(State.Skipped);
+                    ClientCertificateStatus.SetState(State.Skipped);
+                    break;
+                case SetupMode.Secured:
+                    LetsEncryptStatus.SetState(State.Skipped);
+                    DnsRecordsStatus.SetState(State.Skipped);
+                    AcquiringLetsEncryptCertificateStatus.SetState(State.Skipped);
+                    break;
+                case SetupMode.LetsEncrypt:
+                    break;
+                default:
+                    throw new NotSupportedException($"Setup mode {mode} is not supported for tracking progress.");
+            }
+            
+            if (zipOnly)
+                CreatingSettingsJsonStatus.SetState(State.Skipped);
+        }
+
+        public DynamicJsonValue ToJson()
+        {
+            var json = new DynamicJsonValue(GetType())
+            {
+                [nameof(LetsEncryptStatus)] = LetsEncryptStatus.ToJson(),
+                [nameof(DnsRecordsStatus)] = DnsRecordsStatus.ToJson(),
+                [nameof(AcquiringLetsEncryptCertificateStatus)] = AcquiringLetsEncryptCertificateStatus.ToJson(),
+                [nameof(ValidationStatus)] = ValidationStatus.ToJson(),
+                [nameof(ConfigurationSettingsStatus)] = ConfigurationSettingsStatus.ToJson(),
+                [nameof(ClientCertificateStatus)] = ClientCertificateStatus.ToJson(),
+                [nameof(CreatingSettingsJsonStatus)] = CreatingSettingsJsonStatus.ToJson()
+            };
+            
+            return json;
+        }
+    }
+
     public sealed class SetupProgressAndResult : IOperationResult, IOperationProgress
     {
         private readonly Action<(string Message, Exception Exception)> _onMessage;
@@ -391,11 +508,14 @@ namespace Raven.Server.Commercial
         public readonly ConcurrentQueue<string> Messages;
         public byte[] SettingsZipFile; // not sent as part of the result
 
-        public SetupProgressAndResult(Action<(string Message, Exception Exception)> onMessage)
+        public SetupActionSteps SetupActionSteps { get; set; }
+
+        public SetupProgressAndResult(Action<(string Message, Exception Exception)> onMessage, SetupMode setupMode, bool zipOnly = false)
         {
             _onMessage = onMessage;
             Messages = new ConcurrentQueue<string>();
             Certificate = null;
+            SetupActionSteps = new SetupActionSteps(setupMode, zipOnly);
         }
 
         public string Message { get; private set; }
@@ -407,7 +527,8 @@ namespace Raven.Server.Commercial
                 [nameof(Processed)] = Processed,
                 [nameof(Total)] = Total,
                 [nameof(Readme)] = Readme,
-                [nameof(Messages)] = Messages.ToArray()
+                [nameof(Messages)] = Messages.ToArray(),
+                [nameof(SetupActionSteps)] = SetupActionSteps.ToJson()
             };
 
             if (Certificate != null)
