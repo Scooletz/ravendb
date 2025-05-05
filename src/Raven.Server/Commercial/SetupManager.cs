@@ -736,7 +736,6 @@ namespace Raven.Server.Commercial
                 progress.SetupActionSteps.AcquiringLetsEncryptCertificateStatus.SetState(State.Completed);
                 progress.SetupActionSteps.LetsEncryptStatus.SetState(State.Completed);
 
-                progress.SetupActionSteps.ValidationStatus.SetState(State.InProgress);
                 progress.AddInfo("Starting validation.");
                 onProgress(progress);
 
@@ -746,13 +745,11 @@ namespace Raven.Server.Commercial
                 }
                 catch (Exception e)
                 {
-                    progress.SetupActionSteps.ValidationStatus.SetError(ErrorType.ValidationError, e.Message);
                     throw new InvalidOperationException("Validation failed.", e);
                 }
 
                 progress.Processed++;
                 progress.AddInfo("Validation is successful.");
-                progress.SetupActionSteps.ValidationStatus.SetState(State.Completed);
 
                 progress.AddInfo("Creating new RavenDB configuration settings.");
                 progress.SetupActionSteps.ConfigurationSettingsStatus.SetState(State.InProgress);
