@@ -8,6 +8,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using FastTests.Utils;
+using Newtonsoft.Json;
 using Raven.Client;
 using Raven.Client.Documents;
 using Raven.Client.Documents.Conventions;
@@ -2391,6 +2392,28 @@ select incl(c)"
             {
                 Assert.Equal(count, await session.Query<TestObj>().CountAsync());
             }
+        }
+        
+        [RavenFact(RavenTestCategory.ClusterTransactions)]
+        public async Task TestCase()
+        {
+            using var store = GetDocumentStore();
+            using (var session = store.OpenAsyncSession(new SessionOptions{TransactionMode = TransactionMode.ClusterWide}))
+            {
+                await session.StoreAsync(new TestObj());
+                await session.SaveChangesAsync();
+            }
+            
+            var httpClient = store.GetRequestExecutor().HttpClient;
+            var response = await httpClient.GetAsync($"{store.Urls[0]}/databases/{store.Database}/admin/debug/cluster/txinfo");
+            var textResult = await response.Content.ReadAsStringAsync();
+            var result = JsonConvert.DeserializeObject<RequestResult>(textResult);
+            Assert.Equal(1, result.Results.Count());
+        }
+    
+        private class RequestResult
+        {
+            public IEnumerable<object> Results { get; set; }
         }
     }
 }
