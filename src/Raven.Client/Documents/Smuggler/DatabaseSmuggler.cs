@@ -104,6 +104,28 @@ namespace Raven.Client.Documents.Smuggler
             }, tcs.Task, token);
         }
 
+        public Task<Operation> ExportAsync(DatabaseSmugglerExportOptions options, Stream toStream, CancellationToken token = default)
+        {
+            var tcs = new TaskCompletionSource<object>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            return ExportAsync(options, async stream =>
+            {
+                try
+                {
+                    await stream.CopyToAsync(toStream, 8192, token).ConfigureAwait(false);
+                    tcs.TrySetResult(null);
+                }
+                catch (Exception e)
+                {
+                    if (Logger.IsErrorEnabled)
+                        Logger.Error("Could not export to provided stream.", e);
+
+                    tcs.TrySetException(e);
+                    throw new InvalidOperationException("Could not export to provided stream.", e);
+                }
+            }, tcs.Task, token);
+        }
+
         private async Task<Operation> ExportAsync(DatabaseSmugglerExportOptions options, Func<Stream, Task> handleStreamResponse, Task additionalTask, CancellationToken token = default)
         {
             if (options == null)

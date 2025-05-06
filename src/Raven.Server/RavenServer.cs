@@ -2292,7 +2292,19 @@ namespace Raven.Server
                     tcpClient.ReceiveTimeout = tcpClient.SendTimeout = sendTimeout;
 
                     Stream stream = tcpClient.GetStream();
-                    (stream, cert) = await AuthenticateAsServerIfSslNeeded(stream).ConfigureAwait(false);
+
+                    try
+                    {
+                        (stream, cert) = await AuthenticateAsServerIfSslNeeded(stream).ConfigureAwait(false);
+                    }
+                    catch (Exception e)
+                    {
+                        if (_auditLogger.IsAuditEnabled)
+                        {
+                            _auditLogger.Audit($"Failed to authenticate TCP connection '{remoteEndPoint}' with error: {e}");
+                        }
+                        throw;
+                    }
 
                     if (_forTestingPurposes != null && _forTestingPurposes.ThrowExceptionInListenToNewTcpConnection)
                         throw new Exception("Simulated TCP failure.");
@@ -2313,7 +2325,22 @@ namespace Raven.Server
                             if (_forTestingPurposes != null && _forTestingPurposes.ThrowExceptionInTrafficWatchTcp)
                                 throw new Exception("Simulated TCP failure.");
 
-                            header = await NegotiateOperationVersion(stream, buffer, tcpClient, _auditLogger, cert, tcp).ConfigureAwait(false);
+                            try
+                            {
+                                header = await NegotiateOperationVersion(stream, buffer, tcpClient, _auditLogger, cert, tcp).ConfigureAwait(false);
+                            }
+                            catch (Exception e)
+                            {
+                                if (_auditLogger.IsAuditEnabled)
+                                {
+                                    _auditLogger.Audit(
+                                        $"Failed to negotiate TCP connection from '{remoteEndPoint}' with certificate '{cert?.Subject} ({cert?.Thumbprint})'. Error: {e}");
+                                }
+                                throw;
+                            }
+
+                            if (_auditLogger.IsAuditEnabled)
+                                _auditLogger.Audit($"Opened TCP connection '{remoteEndPoint}' with certificate '{cert?.Subject} ({cert?.Thumbprint})'. Accepted for {header.Operation} on {header.DatabaseName ?? "Server"}.");
 
                             if (ShouldUseDataCompression(header))
                             {
@@ -2347,7 +2374,7 @@ namespace Raven.Server
                         finally
                         {
                             if (_auditLogger.IsAuditEnabled)
-                                _auditLogger.Audit($"Closed TCP connection {remoteEndPoint} with certificate '{cert?.Subject} ({cert?.Thumbprint})'.");
+                                _auditLogger.Audit($"Closed TCP connection '{remoteEndPoint}' with certificate '{cert?.Subject} ({cert?.Thumbprint})'.");
                         }
                     }
                 }

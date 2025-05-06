@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Raven.Client.Documents.Operations;
+using Raven.Client.Documents.Queries;
 using Raven.Server.Documents;
 using Raven.Server.Documents.TransactionMerger.Commands;
 using Raven.Server.ServerWide;
@@ -13,12 +14,12 @@ namespace Raven.Server.Web.Studio
     {
         private readonly HashSet<string> _excludeIds;
 
-        public StudioCollectionRunner(DocumentDatabase database, DocumentsOperationContext context, HashSet<string> excludeIds) : base(database, context, null)
+        public StudioCollectionRunner(DocumentDatabase database, DocumentsOperationContext context, HashSet<string> excludeIds) : base(database, context, collectionQuery: null)
         {
             _excludeIds = excludeIds;
         }
 
-        public override Task<IOperationResult> ExecuteDelete(string collectionName, long start, long take, CollectionOperationOptions options, Action<IOperationProgress> onProgress, OperationCancelToken token)
+        public override Task<IOperationResult> ExecuteDelete(string collectionName, long start, long take, QueryOperationOptions options, Action<IOperationProgress> onProgress, OperationCancelToken token)
         {
             if (_excludeIds.Count == 0)
                 return base.ExecuteDelete(collectionName, start, take, options, onProgress, token);
@@ -26,10 +27,11 @@ namespace Raven.Server.Web.Studio
             // specific collection w/ exclusions
             return ExecuteOperation(collectionName, start, take, options, Context, onProgress, key =>
             {
-                if (_excludeIds.Contains(key) == false)
-                    return new DeleteDocumentCommand(key, null, Database);
+                if (_excludeIds.Contains(key)) 
+                    return null;
+                var command = new DeleteDocumentCommand(key, changeVector: null, Database);
 
-                return null;
+                return new BulkOperationCommand<DeleteDocumentCommand>(command, getDetails: null, afterExecuted: null);
             }, token);
         }
     }
