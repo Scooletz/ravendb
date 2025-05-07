@@ -494,7 +494,7 @@ namespace Raven.Server.Documents.PeriodicBackup
                     {
                         var backupKind = backupTask._isFullBackup ? BackupKind.Full : BackupKind.Incremental;
                         var configurationString = context.ReadObject(periodicBackup.Configuration.ToAuditJson(), nameof(PeriodicBackupConfiguration)).ToString();
-                        _auditLog.Audit($"EXPORT {backupKind} backup executed automatically as scheduled with configuration: '{configurationString}'");
+                        _auditLog.Audit($"BACKUP {backupKind} backup executed automatically as scheduled with configuration: '{configurationString}'");
                     }
                 }
             }

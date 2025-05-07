@@ -60,14 +60,28 @@ internal abstract class AbstractOperationQueriesHandlerProcessor<TRequestHandler
 
     protected QueryOperationOptions GetQueryOperationOptions()
     {
-        return new QueryOperationOptions
+        var options = new QueryOperationOptions
         {
             AllowStale = RequestHandler.GetBoolValueQueryString("allowStale", required: false) ?? false,
             MaxOpsPerSecond = RequestHandler.GetIntValueQueryString("maxOpsPerSec", required: false),
             StaleTimeout = RequestHandler.GetTimeSpanQueryString("staleTimeout", required: false),
             RetrieveDetails = RequestHandler.GetBoolValueQueryString("details", required: false) ?? false,
-            IgnoreMaxStepsForScript = RequestHandler.GetBoolValueQueryString("ignoreMaxStepsForScript", required: false) ?? false
+            IgnoreMaxStepsForScript = RequestHandler.GetBoolValueQueryString("ignoreMaxStepsForScript", required: false) ?? false,
         };
+        var waitForIndexesTimeout = RequestHandler.GetTimeSpanQueryString("waitForIndexesTimeout", required: false);
+
+        if (waitForIndexesTimeout == null)
+            return options;
+
+        var throwOnTimeoutInWaitForIndexes = RequestHandler.GetBoolValueQueryString("ThrowOnTimeoutInWaitForIndexes", required: false) ?? false;
+        var waitForSpecificIndexes = RequestHandler.GetStringValuesQueryString("waitForSpecificIndexes", required: false);
+        options.IndexPatchOptions = new IndexPatchOptions()
+        {
+            WaitForIndexesTimeout = waitForIndexesTimeout.Value,
+            WaitForSpecificIndexes = waitForSpecificIndexes,
+            ThrowOnTimeoutInWaitForIndexes = throwOnTimeoutInWaitForIndexes,
+        };
+        return options;
     }
 
     protected static string GetOperationDescription(IndexQueryServerSide query)
