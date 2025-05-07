@@ -821,8 +821,13 @@ Use session.Query<T>() instead of session.Advanced.DocumentQuery<T>. The session
             AppendOperatorIfNeeded(tokens);
             NegateIfNeeded(tokens, fieldName);
 
-            var fromParameterName = AddQueryParameter(start == null ? "*" : TransformValue(new WhereParams { Value = start, FieldName = fieldName }, forRange: true));
-            var toParameterName = AddQueryParameter(end == null ? "NULL" : TransformValue(new WhereParams { Value = end, FieldName = fieldName }, forRange: true));
+            var fromParameterName = AddQueryParameter(start == null ? 
+                Constants.Documents.Querying.Terms.LeftNullValueOfBetweenQuery 
+                : TransformValue(new WhereParams { Value = start, FieldName = fieldName }, forRange: true));
+            
+            var toParameterName = AddQueryParameter(end == null 
+                ? Constants.Documents.Querying.Terms.RightNullValueOfBetweenQuery 
+                : TransformValue(new WhereParams { Value = end, FieldName = fieldName }, forRange: true));
 
             var whereToken = WhereToken.Create(WhereOperator.Between, fieldName, null, new WhereToken.WhereOptions(exact, fromParameterName, toParameterName));
             tokens.AddLast(whereToken);
@@ -1763,6 +1768,12 @@ Use session.Query<T>() instead of session.Advanced.DocumentQuery<T>. The session
 
             var lastToken = tokens.Last.Value;
 
+            if (lastToken is TrueToken)
+            {
+                tokens.AddLast(GetDefaultOperatorToken());
+                return;
+            }
+
             if (lastToken is WhereToken == false && lastToken is CloseSubclauseToken == false)
                 return;
 
@@ -1779,12 +1790,18 @@ Use session.Query<T>() instead of session.Advanced.DocumentQuery<T>. The session
                 current = current.Previous;
             }
 
-            var token = DefaultOperator == QueryOperator.And ? QueryOperatorToken.And : QueryOperatorToken.Or;
+            var token = GetDefaultOperatorToken();
 
             if (lastWhere.Options?.SearchOperator != null)
                 token = QueryOperatorToken.Or; // default to OR operator after search if AND was not specified explicitly
 
             tokens.AddLast(token);
+            return;
+
+            QueryOperatorToken GetDefaultOperatorToken()
+            {
+                return DefaultOperator == QueryOperator.And ? QueryOperatorToken.And : QueryOperatorToken.Or;
+            }
         }
 
         private IEnumerable<object> TransformEnumerable(string fieldName, IEnumerable<object> values)

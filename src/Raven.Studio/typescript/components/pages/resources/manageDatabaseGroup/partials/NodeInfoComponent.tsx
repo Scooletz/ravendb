@@ -1,7 +1,6 @@
-﻿import React from "react";
+﻿import React, { CSSProperties } from "react";
 import Button from "react-bootstrap/Button";
 import useUniqueId from "components/hooks/useUniqueId";
-import { useDraggableItem } from "hooks/useDraggableItem";
 import { DatabaseSharedInfo, NodeInfo } from "components/models/databases";
 import appUrl from "common/appUrl";
 import {
@@ -21,6 +20,8 @@ import { useAppSelector } from "components/store";
 import OverlayTrigger from "react-bootstrap/OverlayTrigger";
 import Tooltip from "react-bootstrap/Tooltip";
 import Dropdown from "react-bootstrap/Dropdown";
+import { useSortable } from "@dnd-kit/sortable";
+import { useSortableStyles } from "hooks/useSortableStyles";
 
 interface OrchestratorInfoComponentProps {
     node: NodeInfo;
@@ -265,26 +266,28 @@ export function ShardInfoComponent(props: ShardInfoComponentProps) {
 
 interface NodeInfoReorderComponentProps {
     node: NodeInfo;
-    findCardIndex: (node: NodeInfo) => number;
-    setOrder: (order: React.SetStateAction<NodeInfo[]>) => void;
 }
 
-const tagExtractor = (node: NodeInfo) => node.tag;
+export function NodeInfoReorderComponent({ node }: NodeInfoReorderComponentProps) {
+    const sortable = useSortable({
+        id: node.tag,
+    });
+    const style = useSortableStyles(sortable);
 
-export function NodeInfoReorderComponent(props: NodeInfoReorderComponentProps) {
-    const { node, setOrder, findCardIndex } = props;
-
-    const { drag, drop, isDragging } = useDraggableItem("node", node, tagExtractor, findCardIndex, setOrder);
-
-    const opacity = isDragging ? 0.5 : 1;
+    const { attributes, listeners, setNodeRef } = sortable;
 
     return (
-        <div ref={(node) => drag(drop(node)) as TODO} style={{ opacity }}>
-            <DatabaseGroupItem className="item-reorder">
-                <DatabaseGroupNode>{node.tag}</DatabaseGroupNode>
-
-                <DatabaseGroupType node={node} />
-            </DatabaseGroupItem>
+        <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+            <NodeInfoReorderPreview node={node} />
         </div>
+    );
+}
+
+export function NodeInfoReorderPreview({ node }: { node: NodeInfo }) {
+    return (
+        <DatabaseGroupItem className="item-reorder">
+            <DatabaseGroupNode>{node.tag}</DatabaseGroupNode>
+            <DatabaseGroupType node={node} />
+        </DatabaseGroupItem>
     );
 }

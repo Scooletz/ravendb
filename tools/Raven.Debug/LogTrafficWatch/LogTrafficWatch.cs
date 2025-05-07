@@ -75,7 +75,6 @@ namespace Raven.Debug.LogTrafficWatch
         {
             Console.WriteLine("Stop collection traffic watch. Exiting...");
             Dispose();
-            Environment.Exit(0);
         }
 
         public static string ToWebSocketPath(string path)
@@ -88,13 +87,16 @@ namespace Raven.Debug.LogTrafficWatch
 
         public async Task Connect()
         {
-
-            while (true)
+            while (_cancellationTokenSource.Token.IsCancellationRequested == false)
             {
                 try
                 {
                     _runningTask = ConnectInternal();
                     await _runningTask.ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (_cancellationTokenSource.Token.IsCancellationRequested)
+                {
+                    return;
                 }
                 catch (Exception e)
                 {

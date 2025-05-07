@@ -47,5 +47,11 @@ namespace Raven.Client.Documents.Queries
         /// Determines whether operation details about each document should be returned by server.
         /// </summary>
         public bool RetrieveDetails { get; set; }
+
+        /// <summary>
+        /// Advanced indexing options for patch operations.
+        /// Set the timeout, index preferences, and error-handling options.
+        /// </summary>
+        public IndexPatchOptions IndexPatchOptions { get; set; }
     }
 }

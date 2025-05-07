@@ -832,6 +832,10 @@ class editDocument extends shardViewModelBase {
         copyToClipboard.copy(this.changeVector().map(vectorItem => vectorItem.fullFormat).join(", "), "Change Vector has been copied to clipboard");
     }
 
+    copyRevisionTimestampToClipboard(revisionTimestamp: string) {
+        copyToClipboard.copy(revisionTimestamp, "Revision timestamp has been copied to clipboard");
+    }
+
     togglePropertiesPanel() {
         this.propertiesPanelVisible.toggle();
     }

@@ -99,6 +99,8 @@ namespace Raven.Client.Documents.Operations
                         .Append(_operationId.Value);
                 }
 
+                AppendIndexPatchOptions(path, _options);
+
                 var request = new HttpRequestMessage
                 {
                     Method = HttpMethods.Patch,
@@ -118,6 +120,20 @@ namespace Raven.Client.Documents.Operations
 
                 url = path.ToString();
                 return request;
+            }
+
+            internal static void AppendIndexPatchOptions(StringBuilder path, QueryOperationOptions options)
+            {
+                if (options.IndexPatchOptions == null) 
+                    return;
+                path.Append("&waitForIndexesTimeout=").Append(options.IndexPatchOptions.WaitForIndexesTimeout);
+                path.Append("&throwOnTimeoutInWaitForIndexes=").Append(options.IndexPatchOptions.ThrowOnTimeoutInWaitForIndexes.ToString());
+                if (options.IndexPatchOptions.WaitForSpecificIndexes == null) 
+                    return;
+                foreach (var specificIndex in options.IndexPatchOptions.WaitForSpecificIndexes)
+                {
+                    path.Append("&waitForSpecificIndexes=").Append(Uri.EscapeDataString(specificIndex));
+                }
             }
 
             public override void SetResponse(JsonOperationContext context, BlittableJsonReaderObject response, bool fromCache)
