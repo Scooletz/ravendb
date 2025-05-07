@@ -14,6 +14,7 @@ using Raven.Server.ServerWide;
 using Raven.Server.ServerWide.Context;
 using Raven.Server.Utils;
 using Sparrow.Json;
+using Sparrow.Logging;
 
 namespace Raven.Server.Documents.Handlers.Processors.OngoingTasks
 {
@@ -66,7 +67,16 @@ namespace Raven.Server.Documents.Handlers.Processors.OngoingTasks
                         writer.WriteOperationIdAndNodeTag(context, operationId, ServerStore.NodeTag);
                     }
 
-                    RequestHandler.LogTaskToAudit(Web.RequestHandler.BackupDatabaseOnceTag, operationId, json);
+                    if (RavenLogManager.Instance.IsAuditEnabled)
+                    {
+                        var target = $"'{Web.RequestHandler.BackupDatabaseOnceTag}' with operation ID: '{operationId}'";
+
+                        var configurationJson = backupConfiguration.ToAuditJson();
+                        if (configurationJson != null)
+                            target += $" Configuration: {context.ReadObject(configurationJson, Web.RequestHandler.BackupDatabaseOnceTag)}";
+
+                        RequestHandler.LogAuditForDatabase(RequestHandler.DatabaseName, action: "BACKUP", target);
+                    }
                 }
                 catch (Exception e)
                 {

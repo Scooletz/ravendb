@@ -76,6 +76,8 @@ namespace Corax.Indexing
         private Lookup<Int64LookupKey> _entryIdToLocation;
         private IndexFieldsMapping _dynamicFieldsMapping;
         private PostingList _largePostingListSet;
+        public int? MaximumConcurrentBatchesForHnswAcceleration;
+        
         private long _compactTreeDictionaryId = Constants.IndexSearcher.InvalidId;
 
         /// <summary>
@@ -995,6 +997,8 @@ namespace Corax.Indexing
                 {
                     using var __ = staticFieldScope.For(CommitOperation.VectorValues);
                     RegisterVectorRootPage(indexedField.FieldRootPage);
+                    if (MaximumConcurrentBatchesForHnswAcceleration != null)
+                        indexedField.VectorIndexer.MaxConcurrentBatches = MaximumConcurrentBatchesForHnswAcceleration.Value;
                     indexedField.VectorIndexer.Commit();
                 }
                 

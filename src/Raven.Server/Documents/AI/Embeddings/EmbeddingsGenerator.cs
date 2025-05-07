@@ -394,9 +394,9 @@ public class EmbeddingsGenerator(DocumentDatabase database, RavenLogger logger, 
             }
         }
 
-        public bool ModifiedFrom(EmbeddingsGenerationConfiguration updated, AiConnectionString updateConnectionString)
+        public bool ModifiedFrom(EmbeddingsGenerationConfiguration updated, AiConnectionString updateConnectionString, Dictionary<string, AiConnectionString> connectionStrings)
         {
-            return Configuration.Compare(updated) != EtlConfigurationCompareDifferences.None ||
+            return Configuration.Compare(updated, connectionStrings) != EtlConfigurationCompareDifferences.None ||
                    _connectionString.Compare(updateConnectionString) != AiSettingsCompareDifferences.None;
         }
 
@@ -697,7 +697,7 @@ public class EmbeddingsGenerator(DocumentDatabase database, RavenLogger logger, 
 
             var newConStr = GetConnectionString(record, configuration);
 
-            if (existing.ModifiedFrom(configuration, newConStr))
+            if (existing.ModifiedFrom(configuration, newConStr, record.AiConnectionStrings))
             {
                 if (_workers.TryRemove(identifier, out var toDispose))
                 {

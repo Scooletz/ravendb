@@ -21,7 +21,7 @@ namespace Raven.Server.Documents.QueueSink;
 public class QueueSinkLoader : IDisposable
 {
     private const string AlertTitle = "Queue Sink loader";
-    
+
     private QueueSinkProcess[] _processes = new QueueSinkProcess[0];
 
     private readonly HashSet<string> _uniqueConfigurationNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -32,7 +32,7 @@ public class QueueSinkLoader : IDisposable
     private readonly ServerStore _serverStore;
     protected RavenLogger Logger;
     public QueueSinkProcess[] Processes => _processes;
-    
+
     public event Action<(string ConfigurationName, string ScriptName, QueueSinkProcessStatistics Statistics)> BatchCompleted;
 
     public void OnBatchCompleted(string configurationName, string scriptName, QueueSinkProcessStatistics statistics)
@@ -120,10 +120,7 @@ public class QueueSinkLoader : IDisposable
             if (connectionStringNotFound)
             {
                 LogConfigurationError(config,
-                    new List<string>
-                    {
-                        $"Connection string named '{config.ConnectionStringName}' was not found."
-                    });
+                    new List<string> { $"Connection string named '{config.ConnectionStringName}' was not found." });
 
                 continue;
             }
@@ -143,27 +140,24 @@ public class QueueSinkLoader : IDisposable
             }
         }
     }
-    
+
     private bool ValidateConfiguration(QueueSinkConfiguration config, HashSet<string> uniqueNames)
+    {
+        if (config.Validate(out List<string> errors) == false)
         {
-            if (config.Validate(out List<string> errors) == false)
-            {
-                LogConfigurationError(config, errors);
-                return false;
-            }
-
-            if (uniqueNames.Add(config.Name) == false)
-            {
-                LogConfigurationError(config,
-                    new List<string>
-                    {
-                        $"Queue Sink with name '{config.Name}' is already defined"
-                    });
-                return false;
-            }
-
-            return true;
+            LogConfigurationError(config, errors);
+            return false;
         }
+
+        if (uniqueNames.Add(config.Name) == false)
+        {
+            LogConfigurationError(config,
+                new List<string> { $"Queue Sink with name '{config.Name}' is already defined" });
+            return false;
+        }
+
+        return true;
+    }
 
     private void OnProcessRemoved(QueueSinkProcess process)
     {
@@ -214,7 +208,7 @@ public class QueueSinkLoader : IDisposable
 
         return processState ?? new QueueSinkProcessState();
     }
-    
+
     private void LogConfigurationError(QueueSinkConfiguration config, List<string> errors)
     {
         var errorMessage =
@@ -229,7 +223,10 @@ public class QueueSinkLoader : IDisposable
         _database.NotificationCenter.Add(alert);
     }
 
-    private static string GetStopReason(QueueSinkProcess process, List<QueueSinkConfiguration> myQueueSink,
+    private static string GetStopReason(
+        QueueSinkProcess process,
+        DatabaseRecord record,
+        List<QueueSinkConfiguration> myQueueSink,
         Dictionary<string, string> responsibleNodes)
     {
         QueueSinkConfigurationCompareDifferences? differences = null;
@@ -244,7 +241,7 @@ public class QueueSinkLoader : IDisposable
                 x.Name.Equals(process.Configuration.Name, StringComparison.OrdinalIgnoreCase));
 
             if (existing != null)
-                differences = process.Configuration.Compare(existing, transformationDiffs);
+                differences = process.Configuration.Compare(existing, record.QueueConnectionStrings, transformationDiffs);
         }
         else
         {
@@ -296,12 +293,12 @@ public class QueueSinkLoader : IDisposable
             var process = processesPerConfig.First();
 
             Debug.Assert(processesPerConfig.All(x => x.GetType() == process.GetType()));
-            
+
             QueueSinkConfiguration existing = null;
 
             foreach (var config in myQueueSink)
             {
-                var diff = process.Configuration.Compare(config);
+                var diff = process.Configuration.Compare(config, record.QueueConnectionStrings);
 
                 if (diff == QueueSinkConfigurationCompareDifferences.None)
                 {
@@ -335,7 +332,7 @@ public class QueueSinkLoader : IDisposable
 
                         using (process)
                         {
-                            string reason = GetStopReason(process, myQueueSink, responsibleNodes);
+                            string reason = GetStopReason(process, record, myQueueSink, responsibleNodes);
                             process.Stop(reason);
                         }
                     }

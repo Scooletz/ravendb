@@ -94,6 +94,8 @@ namespace Raven.Server.Config.Categories
             EncryptedTransactionSizeLimit = defaultEncryptedTransactionSizeLimit;
             MaxAllocationsAtDictionaryTraining = defaultMaxAllocationsAtDictionaryTraining;
 
+            MaxMemoizationSize = Size.Max(new Size(512, SizeUnit.Megabytes), totalMem / 10);
+
             MaxNumberOfThreadsForLocalEmbeddingsGeneration = Environment.ProcessorCount switch
             {
                 <= 2 => 1,
@@ -585,7 +587,7 @@ namespace Raven.Server.Config.Categories
         public bool CoraxIncludeSpatialDistance { get; set; }
         
         [Description("The maximum amount of memory that Corax can use for a memoization clause during query processing")]
-        [DefaultValue(512)]
+        [DefaultValue(DefaultValueSetInConstructor)]
         [SizeUnit(SizeUnit.Megabytes)]
         [IndexUpdateType(IndexUpdateType.Refresh)]
         [ConfigurationEntry("Indexing.Corax.MaxMemoizationSizeInMb", ConfigurationEntryScope.ServerWideOrPerDatabaseOrPerIndex)]
@@ -645,7 +647,13 @@ namespace Raven.Server.Config.Categories
         [IndexUpdateType(IndexUpdateType.None)]
         [ConfigurationEntry("Indexing.Corax.VectorSearch.MaxNumberOfThreadsForLocalEmbeddingsGeneration", ConfigurationEntryScope.ServerWideOnly)]
         public int MaxNumberOfThreadsForLocalEmbeddingsGeneration { get; set; }
-        
+
+        [Description("Expert: The maximum number of concurrent batches for HNSW distance computation acceleration.")]
+        [DefaultValue(512)]
+        [IndexUpdateType(IndexUpdateType.None)]
+        [ConfigurationEntry("Indexing.Corax.VectorSearch.MaximumConcurrentBatchesForHnswAcceleration", ConfigurationEntryScope.ServerWideOrPerDatabaseOrPerIndex)]
+        public int MaximumConcurrentBatchesForHnswAcceleration { get; set; }
+
         protected override void ValidateProperty(PropertyInfo property)
         {
             base.ValidateProperty(property);

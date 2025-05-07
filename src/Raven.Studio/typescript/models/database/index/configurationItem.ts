@@ -46,12 +46,12 @@ class configurationItem {
         "Indexing.Corax.MaxAllocationsAtDictionaryTrainingInMb",
         "Indexing.Corax.Static.ComplexFieldIndexingBehavior",
         "Indexing.Corax.UnmanagedAllocationsBatchSizeLimitInMb",
-
-
         "Indexing.Corax.VectorSearch.DefaultMinimumSimilarity",
         "Indexing.Corax.VectorSearch.DefaultNumberOfEdges",
         "Indexing.Corax.VectorSearch.DefaultNumberOfCandidatesForIndexing",
         "Indexing.Corax.VectorSearch.DefaultNumberOfCandidatesForQuerying",
+        "Indexing.Corax.VectorSearch.OrderByScoreAutomatically",
+        "Indexing.Corax.VectorSearch.MaximumConcurrentBatchesForHnswAcceleration",
         "Indexing.Corax.VectorSearch.OrderByScoreAutomatically",
         "Storage.DisableSparseRegions",
         "Storage.JournalsCompressionAcceleration"
