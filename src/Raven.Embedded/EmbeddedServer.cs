@@ -272,46 +272,88 @@ namespace Raven.Embedded
             if (domainBind == false)
                 throw new InvalidOperationException("Should not happen!");
 
-            string? url = null;
-            var startupDuration = Stopwatch.StartNew();
+            var stderrBuilder = new StringBuilder();
+            var stdoutBuilder = new StringBuilder();
 
-            var outputString = await ProcessHelper.ReadOutput(process.StandardOutput, startupDuration, _serverOptions, async (line, builder) =>
+            var stderrTcs = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var stdoutTcs = new TaskCompletionSource<(string Url, string Stdout)>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            // DataReceived callbacks run on ThreadPool threads → can overlap.
+            // Lock prevents AppendLine/ToString races.
+            process.ErrorDataReceived += (_, receivedEventArgs) =>
             {
-                if (line == null)
+                if (receivedEventArgs.Data == null)
                 {
-                    var errorString = await ProcessHelper.ReadOutput(process.StandardError, startupDuration, _serverOptions, null).ConfigureAwait(false);
+                    string final;
+                    lock (stderrBuilder)
+                        final = stderrBuilder.ToString();
 
-                    ShutdownServerProcess(process);
-
-                    throw new InvalidOperationException(BuildStartupExceptionMessage(builder.ToString(), errorString));
+                    stderrTcs.TrySetResult(final);
+                    return;
                 }
+
+                lock (stderrBuilder)
+                    stderrBuilder.AppendLine(receivedEventArgs.Data);
+            };
+
+            process.OutputDataReceived += (_, receivedEventArgs) =>
+            {
+                if (receivedEventArgs.Data == null)
+                    return;
+
+                lock (stdoutBuilder)
+                    stdoutBuilder.AppendLine(receivedEventArgs.Data);
 
                 const string prefix = "Server available on: ";
-                if (line.StartsWith(prefix))
-                {
-                    url = line.Substring(prefix.Length);
-                    return true;
-                }
+                if (receivedEventArgs.Data.StartsWith(prefix) == false)
+                    return;
 
-                return false;
-            }).ConfigureAwait(false);
+                var url = receivedEventArgs.Data.Substring(prefix.Length);
+                string final;
+                lock (stdoutBuilder)
+                    final = stdoutBuilder.ToString();
 
-            if (url == null)
+                stdoutTcs.TrySetResult((url, Stdout: final));
+            };
+
+            process.BeginErrorReadLine();
+            process.BeginOutputReadLine();
+
+            var timeoutTask = Task.Delay(_serverOptions.MaxServerStartupTimeDuration);
+
+            var firstCompletedTask = await Task.WhenAny(stdoutTcs.Task, stderrTcs.Task, timeoutTask).ConfigureAwait(false);
+            if (firstCompletedTask == stdoutTcs.Task)
             {
-                var errorString = await ProcessHelper.ReadOutput(process.StandardError, startupDuration, _serverOptions, null).ConfigureAwait(false);
-
-                ShutdownServerProcess(process);
-
-                throw new InvalidOperationException(BuildStartupExceptionMessage(outputString, errorString));
+                (string? url, _) = stdoutTcs.Task.Result;
+                return (new Uri(url), process);
             }
 
-            return (new Uri(url), process);
+            string stdoutString;
+            lock (stdoutBuilder)
+                stdoutString = stdoutBuilder.ToString();
+
+            string stderrString;
+            if (firstCompletedTask == stderrTcs.Task)
+            {
+                stderrString = stderrTcs.Task.Result;
+                await Task.WhenAny(Task.Delay(TimeSpan.FromSeconds(5)), stdoutTcs.Task).ConfigureAwait(false); // extra 5 sec grace in case more error lines still arrive
+            }
+            else // timeout
+            {
+                lock (stderrBuilder)
+                    stderrString = stderrBuilder.ToString();
+            }
+
+            ShutdownServerProcess(process);
+            throw BuildServerStartupException(stdoutString, stderrString, isTimeout: firstCompletedTask == timeoutTask);
         }
 
-        private static string BuildStartupExceptionMessage(string? outputString, string? errorString)
+        private Exception BuildServerStartupException(string? outputString, string? errorString, bool isTimeout)
         {
             var sb = new StringBuilder();
-            sb.AppendLine("Unable to start the RavenDB Server");
+            sb.AppendLine(isTimeout
+                ? $"Server failed to start in {_serverOptions?.MaxServerStartupTimeDuration.TotalSeconds} s."
+                : "Unable to start the RavenDB Server");
 
             if (string.IsNullOrWhiteSpace(errorString) == false)
             {
@@ -325,7 +367,9 @@ namespace Raven.Embedded
                 sb.AppendLine(outputString);
             }
 
-            return sb.ToString();
+            return isTimeout
+                ? new TimeoutException(sb.ToString())
+                : new InvalidOperationException(sb.ToString());
         }
 
         public void OpenStudioInBrowser()

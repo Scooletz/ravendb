@@ -46,9 +46,9 @@ describe("can complete where", function () {
         }
     });
 
-    it("vector.search(embedding.text(Name),  <- suggest embedding.for, parameter or string input", async () => {
+    it("vector.search(embedding.text(Name),  <- suggest embedding.forDoc, parameter or string input", async () => {
         const suggestions = await autocomplete("from CollectionWithoutDefinedFields where vector.search(embedding.text(Name), |", new EmptyMetadataProvider());
-        for (let specialFunction of ['embedding.for', 'parameter', 'textual value']) {
+        for (let specialFunction of ['embedding.forDoc', 'parameter', 'textual value']) {
             const matchingItem = suggestions.find(x => x.value.startsWith(specialFunction));
             expect(matchingItem)
                 .toBeTruthy();
