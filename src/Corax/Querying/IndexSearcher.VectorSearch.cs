@@ -34,7 +34,7 @@ public partial class IndexSearcher
 
         Page page = default;
         var singleEntryId = EntryIdEncodings.GetContainerId(rawId);
-        var reader = GetEntryTermsReader(singleEntryId, ref page);
+        using var _ = GetEntryTermsReader(singleEntryId, ref page, out var reader);
 
         var searchState = new Hnsw.SearchState(_transaction.LowLevelTransaction, metadata.FieldName);
         

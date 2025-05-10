@@ -118,7 +118,7 @@ public sealed unsafe partial class IndexSearcher : IDisposable
         }
     }
 
-    public EntryTermsReader GetEntryTermsReader(long id, ref Page p)
+    public void GetEntryTermsReader(long id, ref Page p, out EntryTermsReader reader, CompactKey existingKey)
     {
         PortableExceptions.ThrowIfNullOnDebug(existingKey);
         
