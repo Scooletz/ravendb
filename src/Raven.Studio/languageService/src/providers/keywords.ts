@@ -256,11 +256,11 @@ export class AutocompleteKeywords extends BaseAutocompleteProvider implements Au
                 score: AUTOCOMPLETE_SCORING.functionVectorTextual,
                 snippet: `$\${1} `
             },{
-                value: "embedding.for(",
-                caption: "embedding.for('documentId')",
+                value: "embedding.forDoc(",
+                caption: "embedding.forDoc('documentId')",
                 meta: AUTOCOMPLETE_META.function,
                 score: AUTOCOMPLETE_SCORING.functionVectorTextual,
-                snippet: `embedding.for('\${1}')`
+                snippet: `embedding.forDoc('\${1}')`
         }]
     }
     
