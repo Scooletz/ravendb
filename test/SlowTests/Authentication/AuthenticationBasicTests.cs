@@ -728,7 +728,7 @@ namespace SlowTests.Authentication
             customSettings[RavenConfiguration.GetKey(x => x.Licensing.CanForceUpdate)] = "false";
             customSettings[RavenConfiguration.GetKey(x => x.Licensing.CanRenew)] = "false";
 
-            return certificatesBase.SetupServerAuthentication(customSettings, serverUrl);
+            return certificatesBase.SetupServerAuthentication(customSettings, serverUrl, certificates);
         }
 
         private static void StoreSampleDoc(DocumentStore store, string docName)
