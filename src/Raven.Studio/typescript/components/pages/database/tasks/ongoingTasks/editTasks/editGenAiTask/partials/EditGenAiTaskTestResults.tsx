@@ -15,6 +15,9 @@ import SizeGetter from "components/common/SizeGetter";
 import Badge from "react-bootstrap/Badge";
 import PopoverWithHoverWrapper from "components/common/PopoverWithHoverWrapper";
 import { EmptySet } from "components/common/EmptySet";
+import AceUnifiedDiff from "components/common/AceUnifiedDiff";
+import { Switch } from "components/common/Checkbox";
+import useBoolean from "components/hooks/useBoolean";
 
 export default function EditGenAiTaskTestResults() {
     const dispatch = useAppDispatch();
@@ -144,6 +147,8 @@ function UpdateScriptResult() {
     const updateScriptTest = useAppSelector(editGenAiTaskSelectors.updateScriptTest);
     const { handleUpdateScriptTest } = useEditGenAiTaskTests();
 
+    const { value: isSplitDiff, toggle: toggleIsSplitDiff } = useBoolean(false);
+
     return (
         <>
             <HStack className="mb-3 justify-content-between">
@@ -175,14 +180,29 @@ function UpdateScriptResult() {
                 <EmptySet>No results</EmptySet>
             ) : (
                 <div className="flex-grow-1">
-                    <SizeGetter isHeighRequired render={({ height }) => <UpdateScriptAceDiff height={height} />} />
+                    <HStack className="justify-content-between">
+                        <div>Test result</div>
+                        <Switch selected={isSplitDiff} toggleSelection={toggleIsSplitDiff} color="primary">
+                            Split view
+                        </Switch>
+                    </HStack>
+                    <SizeGetter
+                        isHeighRequired
+                        render={({ height }) =>
+                            isSplitDiff ? (
+                                <UpdateScriptDiffSplit height={height} />
+                            ) : (
+                                <UpdateScriptDiffUnified height={height} />
+                            )
+                        }
+                    />
                 </div>
             )}
         </>
     );
 }
 
-function UpdateScriptAceDiff({ height }: { height: number }) {
+function UpdateScriptDiffSplit({ height }: { height: number }) {
     const updateScriptTest = useAppSelector(editGenAiTaskSelectors.updateScriptTest);
 
     const oldDoc = useAppSelector(editGenAiTaskSelectors.updateScriptDocumentInput);
@@ -207,20 +227,38 @@ function UpdateScriptAceDiff({ height }: { height: number }) {
 
     return (
         <VStack gap={2} className="update-script-result">
-            <div className="border border-secondary rounded-2 ">
-                <div className="text-center border-bottom border-secondary py-1 panel-harder-bg">Original document</div>
+            <div className="diff-wrapper">
+                <div className="diff-header">Original document</div>
                 <AceEditor
                     aceRef={oldDocRef}
                     value={oldDoc.data}
                     mode="json"
-                    height={`${height / 2 - 50}px`}
+                    height={`${height / 2 - 100}px`}
                     readOnly
                 />
             </div>
-            <div className="border border-secondary rounded-2">
-                <div className="text-center border-bottom border-secondary py-1">Modified document</div>
-                <AceEditor aceRef={newDocRef} value={newDoc} mode="json" height={`${height / 2 - 50}px`} readOnly />
+            <div className="diff-wrapper">
+                <div className="diff-header">Modified document</div>
+                <AceEditor aceRef={newDocRef} value={newDoc} mode="json" height={`${height / 2 - 100}px`} readOnly />
             </div>
         </VStack>
+    );
+}
+
+function UpdateScriptDiffUnified({ height }: { height: number }) {
+    const updateScriptTest = useAppSelector(editGenAiTaskSelectors.updateScriptTest);
+
+    const oldDoc = useAppSelector(editGenAiTaskSelectors.updateScriptDocumentInput);
+    const newDoc = updateScriptTest.data ?? "";
+
+    if (oldDoc.status !== "success") {
+        return null;
+    }
+
+    return (
+        <div className="diff-wrapper">
+            <div className="diff-header">Modified document</div>
+            <AceUnifiedDiff value1={oldDoc.data} value2={newDoc} height={`${height - 100}px`} mode="json" />
+        </div>
     );
 }

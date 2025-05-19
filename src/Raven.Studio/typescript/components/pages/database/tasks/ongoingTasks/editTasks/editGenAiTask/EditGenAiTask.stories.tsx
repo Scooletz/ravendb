@@ -34,7 +34,7 @@ export const Basic: StoryObj = {
         tasksService.withTestGenAi();
 
         return (
-            <div style={{ height: 700 }}>
+            <div style={{ height: "90vh" }}>
                 <EditGenAiTask />
             </div>
         );
