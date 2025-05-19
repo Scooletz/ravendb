@@ -25,11 +25,13 @@ import Collapse from "react-bootstrap/Collapse";
 import useConfirm from "components/common/ConfirmDialog";
 import RichAlert from "components/common/RichAlert";
 import classNames from "classnames";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Switch } from "components/common/Checkbox";
 import { ConditionalPopover } from "components/common/ConditionalPopover";
 import EditGenAiTaskFormVirtualList from "./EditGenAiTaskFormVirtualList";
 import { SelectOption } from "components/common/select/Select";
+
+type PlaygroundTab = "document" | "context" | "modelOutput";
 
 export default function EditGenAiTaskPlayground() {
     const dispatch = useAppDispatch();
@@ -121,17 +123,19 @@ export default function EditGenAiTaskPlayground() {
 
     // TODO info tooltip
 
-    const getActiveTab = () => {
+    const [activeTab, setActiveTab] = useState<PlaygroundTab>("document");
+
+    useEffect(() => {
         if (currentStep === "modelInput") {
-            return "context";
+            return setActiveTab("context");
         }
 
         if (currentStep === "updateScript") {
-            return "modelOutput";
+            return setActiveTab("modelOutput");
         }
 
-        return "document";
-    };
+        setActiveTab("document");
+    }, [currentStep]);
 
     useEffect(() => {
         if (formValues.playgroundDocument) {
@@ -167,10 +171,10 @@ export default function EditGenAiTaskPlayground() {
             </HStack>
             <Collapse in={!isPlaygroundCollapsed} mountOnEnter unmountOnExit>
                 <div className="panel-bg-1 border border-secondary rounded-2 mt-1">
-                    <Tab.Container id="playground-tabs" activeKey={getActiveTab()}>
+                    <Tab.Container id="playground-tabs" activeKey={activeTab}>
                         <HStack className="panel-bg-2 border-bottom border-secondary p-2 justify-content-between">
                             <Nav>
-                                <Nav.Item>
+                                <Nav.Item onClick={() => setActiveTab("document")}>
                                     <ConditionalPopover
                                         conditions={{
                                             isActive: currentStep !== "context",
@@ -191,7 +195,7 @@ export default function EditGenAiTaskPlayground() {
                                     </ConditionalPopover>
                                 </Nav.Item>
                                 {(currentStep === "modelInput" || currentStep === "updateScript") && (
-                                    <Nav.Item>
+                                    <Nav.Item onClick={() => setActiveTab("context")}>
                                         <ConditionalPopover
                                             conditions={{
                                                 isActive: currentStep !== "modelInput",
@@ -212,7 +216,7 @@ export default function EditGenAiTaskPlayground() {
                                     </Nav.Item>
                                 )}
                                 {currentStep === "updateScript" && (
-                                    <Nav.Item>
+                                    <Nav.Item onClick={() => setActiveTab("modelOutput")}>
                                         <ConditionalPopover
                                             conditions={{
                                                 isActive: currentStep !== "updateScript",
