@@ -67,21 +67,23 @@
     .test-results {
         height: 100%;
 
-        .ace-editor {
-            border: none;
-        }
+        .update-script-result {
+            .ace-editor {
+                border: none;
+            }
 
-        .diff-wrapper {
-            border: 1px solid colors.$border-color-light;
-            border-radius: sizes.$border-radius;
+            .diff-wrapper {
+                border: 1px solid colors.$border-color-light;
+                border-radius: sizes.$border-radius;
 
-            .diff-header {
-                text-align: center;
-                border-bottom: 1px solid colors.$border-color-light;
-                border-top-left-radius: sizes.$border-radius;
-                border-top-right-radius: sizes.$border-radius;
-                background-color: colors.$panel-bg-2;
-                padding: 2px sizes.$gutter;
+                .diff-header {
+                    text-align: center;
+                    border-bottom: 1px solid colors.$border-color-light;
+                    border-top-left-radius: sizes.$border-radius;
+                    border-top-right-radius: sizes.$border-radius;
+                    background-color: colors.$panel-bg-2;
+                    padding: 2px sizes.$gutter;
+                }
             }
         }
     }

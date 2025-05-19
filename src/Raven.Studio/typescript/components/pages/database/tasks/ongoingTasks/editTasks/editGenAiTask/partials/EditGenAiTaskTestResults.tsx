@@ -179,7 +179,7 @@ function UpdateScriptResult() {
             {updateScriptTest.data == null ? (
                 <EmptySet>No results</EmptySet>
             ) : (
-                <div className="flex-grow-1">
+                <div className="flex-grow-1 update-script-result">
                     <HStack className="justify-content-between">
                         <div>Test result</div>
                         <Switch selected={isSplitDiff} toggleSelection={toggleIsSplitDiff} color="primary">
