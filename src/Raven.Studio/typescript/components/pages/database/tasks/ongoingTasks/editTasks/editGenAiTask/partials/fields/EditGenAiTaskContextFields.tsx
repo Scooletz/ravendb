@@ -10,10 +10,11 @@ import EditGenAiLoadFile from "../EditGenAiLoadFile";
 import { useRef } from "react";
 import ReactAce from "react-ace/lib/ace";
 import Button from "react-bootstrap/Button";
-
-import "ace-builds/src-noconflict/ext-beautify";
 import PopoverWithHoverWrapper from "components/common/PopoverWithHoverWrapper";
 import { Icon } from "components/common/Icon";
+import "ace-builds/src-noconflict/ext-beautify";
+import { AceEditorFullScreenAction } from "components/common/ace/AceEditor";
+
 const beautify = ace.require("ace/ext/beautify").beautify;
 
 export default function EditGenAiTaskContextFields() {
@@ -50,7 +51,13 @@ export default function EditGenAiTaskContextFields() {
                     </div>
                     <EditGenAiLoadFile name="script" />
                 </FormLabel>
-                <FormAceEditor aceRef={scriptRef} control={control} name="script" mode="javascript" />
+                <FormAceEditor
+                    aceRef={scriptRef}
+                    control={control}
+                    name="script"
+                    mode="javascript"
+                    actions={[{ component: <AceEditorFullScreenAction editorRef={scriptRef} /> }]}
+                />
             </FormGroup>
         </>
     );

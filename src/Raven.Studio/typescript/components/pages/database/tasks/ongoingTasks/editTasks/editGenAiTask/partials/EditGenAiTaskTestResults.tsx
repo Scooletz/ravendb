@@ -1,6 +1,6 @@
 import { useAppDispatch, useAppSelector } from "components/store";
 import { editGenAiTaskActions, editGenAiTaskSelectors } from "../store/editGenAiTaskSlice";
-import AceEditor from "components/common/AceEditor";
+import AceEditor from "components/common/ace/AceEditor";
 import aceDiff from "common/helpers/text/aceDiff";
 import ReactAce from "react-ace/lib/ace";
 import { useRef, useEffect } from "react";
@@ -13,7 +13,7 @@ import SizeGetter from "components/common/SizeGetter";
 import Badge from "react-bootstrap/Badge";
 import PopoverWithHoverWrapper from "components/common/PopoverWithHoverWrapper";
 import { EmptySet } from "components/common/EmptySet";
-import AceUnifiedDiff from "components/common/AceUnifiedDiff";
+import AceUnifiedDiff from "components/common/ace/AceUnifiedDiff";
 import { Switch } from "components/common/Checkbox";
 import useBoolean from "components/hooks/useBoolean";
 

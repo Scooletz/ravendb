@@ -4,7 +4,7 @@ import Row from "react-bootstrap/Row";
 import Col from "react-bootstrap/Col";
 import { Icon } from "components/common/Icon";
 import { AboutViewAnchored, AboutViewHeading, AccordionItemWrapper } from "components/common/AboutView";
-import AceEditor from "components/common/AceEditor";
+import AceEditor from "components/common/ace/AceEditor";
 import { SubmitHandler, useForm } from "react-hook-form";
 import { tryHandleSubmit } from "components/utils/common";
 import { AdminJsConsoleFormData, adminJsConsoleYupResolver } from "./AdminJsConsoleValidation";

@@ -6,7 +6,7 @@ import InputGroup from "react-bootstrap/InputGroup";
 import Form from "react-bootstrap/Form";
 import Button from "react-bootstrap/Button";
 import { RadioToggleWithIcon } from "./toggles/RadioToggle";
-import AceEditor, { AceEditorProps } from "./AceEditor";
+import AceEditor, { AceEditorProps } from "./ace/AceEditor";
 import classNames from "classnames";
 import DurationPicker, { DurationPickerProps } from "./DurationPicker";
 import SelectCreatable from "./select/SelectCreatable";

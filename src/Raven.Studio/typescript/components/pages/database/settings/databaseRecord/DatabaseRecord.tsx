@@ -12,7 +12,7 @@ import { useAppSelector } from "components/store";
 import { accessManagerSelectors } from "components/common/shell/accessManagerSliceSelectors";
 import useBoolean from "components/hooks/useBoolean";
 import { Switch } from "components/common/Checkbox";
-import AceEditor from "components/common/AceEditor";
+import AceEditor from "components/common/ace/AceEditor";
 import { useServices } from "components/hooks/useServices";
 import { useAsyncCallback } from "react-async-hook";
 import { LoadError } from "components/common/LoadError";

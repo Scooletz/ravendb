@@ -6,7 +6,7 @@ import { useAppDispatch, useAppSelector } from "components/store";
 import { editGenAiTaskActions, editGenAiTaskSelectors } from "../../store/editGenAiTaskSlice";
 import { AboutViewHeading } from "components/common/AboutView";
 import useBoolean from "components/hooks/useBoolean";
-import AceEditor from "components/common/AceEditor";
+import AceEditor from "components/common/ace/AceEditor";
 import { AceEditorMode } from "components/models/aceEditor";
 import Collapse from "react-bootstrap/Collapse";
 import { ThemeColor } from "components/models/common";

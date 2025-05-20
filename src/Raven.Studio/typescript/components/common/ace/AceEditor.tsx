@@ -1,11 +1,17 @@
-import React, { LegacyRef, useEffect, useState } from "react";
+import React, { LegacyRef, ReactNode, RefObject, useEffect, useState } from "react";
 import { AceEditorMode, LanguageService } from "components/models/aceEditor";
 import { Ace } from "ace-builds";
 import { setCompleters } from "ace-builds/src-noconflict/ext-language_tools";
 import ReactAce, { IAceEditorProps, IAceOptions, ICommand } from "react-ace";
 import "./AceEditor.scss";
 import classNames from "classnames";
-import { Icon } from "./Icon";
+import Button from "react-bootstrap/Button";
+import { Icon } from "../Icon";
+
+interface ActionItem {
+    component: ReactNode;
+    position?: "top" | "bottom";
+}
 
 export interface AceEditorProps extends IAceEditorProps {
     mode: AceEditorMode;
@@ -13,11 +19,22 @@ export interface AceEditorProps extends IAceEditorProps {
     validationErrorMessage?: string;
     execute?: (...args: any) => any;
     setIsValid?: (isValid: boolean) => void;
-    aceRef?: LegacyRef<ReactAce>;
+    aceRef?: RefObject<ReactAce>;
+    actions?: ActionItem[];
 }
 
 export default function AceEditor(props: AceEditorProps) {
-    const { aceRef, setOptions, languageService, validationErrorMessage, execute, setIsValid, ...rest } = props;
+    const {
+        aceRef,
+        setOptions,
+        languageService,
+        validationErrorMessage,
+        execute,
+        setIsValid,
+        actions = [],
+        onLoad,
+        ...rest
+    } = props;
 
     const overriddenSetOptions: IAceOptions = {
         enableBasicAutocompletion: true,
@@ -108,17 +125,33 @@ export default function AceEditor(props: AceEditorProps) {
                     setOptions={overriddenSetOptions}
                     onValidate={onValidate}
                     commands={commands}
-                    onLoad={removeFindNextCommand} // (ctrl+k is used for studio search)
+                    onLoad={(editor) => {
+                        // (ctrl+k is used for studio search)
+                        removeFindNextCommand(editor);
+                        onLoad?.(editor);
+                    }}
                     {...rest}
                 />
-                <div className="vstack gap-2 py-2 px-1 panel-bg-2 border-top-right-radius border-bottom-right-radius border-left">
-                    <div>
-                        <Icon icon="info" margin="m-0" />
+                {actions.length > 0 && (
+                    <div className="vstack gap-2 py-2 px-1 panel-bg-2 border-top-right-radius border-bottom-right-radius border-left">
+                        <div className="d-flex flex-column h-100">
+                            <div className="flex-grow-0">
+                                {actions
+                                    .filter((action) => !action.position || action.position === "top")
+                                    .map((action, index) => (
+                                        <div key={index}>{action.component}</div>
+                                    ))}
+                            </div>
+                            <div className="flex-grow-1 d-flex flex-column justify-content-end">
+                                {actions
+                                    .filter((icon) => icon.position === "bottom")
+                                    .map((action, index) => (
+                                        <div key={index}>{action.component}</div>
+                                    ))}
+                            </div>
+                        </div>
                     </div>
-                    <div style={{ justifySelf: "flex-end" }}>
-                        <Icon icon="info" margin="m-0" />
-                    </div>
-                </div>
+                )}
                 <span className="fullScreenModeLabel">Press Shift+F11 to enter full screen mode</span>
             </div>
             {errorMessage && (
@@ -147,3 +180,18 @@ const defaultCommands: ICommand[] = [
 const removeFindNextCommand = (editor: Ace.Editor) => {
     editor.commands.removeCommand(editor.commands.byName.findnext);
 };
+
+export function AceEditorFullScreenAction(props: { editorRef: RefObject<ReactAce> }) {
+    return (
+        <Button
+            variant="link"
+            onClick={() => {
+                props.editorRef.current?.editor.container.requestFullscreen();
+            }}
+            className="p-0 text-reset"
+            size="sm"
+        >
+            <Icon icon="fullscreen" margin="m-0" />
+        </Button>
+    );
+}

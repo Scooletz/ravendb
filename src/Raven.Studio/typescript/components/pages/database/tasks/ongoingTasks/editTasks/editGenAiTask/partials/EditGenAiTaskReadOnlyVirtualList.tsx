@@ -1,5 +1,5 @@
 import { useVirtualizer } from "@tanstack/react-virtual";
-import AceEditor from "components/common/AceEditor";
+import AceEditor from "components/common/ace/AceEditor";
 import { useAppDispatch, useAppSelector } from "components/store";
 import { useRef } from "react";
 import Badge from "react-bootstrap/Badge";
