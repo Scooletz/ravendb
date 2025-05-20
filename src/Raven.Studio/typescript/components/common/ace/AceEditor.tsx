@@ -1,12 +1,12 @@
-import React, { LegacyRef, ReactNode, RefObject, useEffect, useState } from "react";
+import { ReactNode, RefObject, useEffect, useState } from "react";
 import { AceEditorMode, LanguageService } from "components/models/aceEditor";
 import { Ace } from "ace-builds";
 import { setCompleters } from "ace-builds/src-noconflict/ext-language_tools";
 import ReactAce, { IAceEditorProps, IAceOptions, ICommand } from "react-ace";
 import "./AceEditor.scss";
 import classNames from "classnames";
-import Button from "react-bootstrap/Button";
-import { Icon } from "../Icon";
+import AceEditorContext from "./AceEditorContext";
+import AceEditorFullScreenAction from "./AceEditorFullScreenAction";
 
 interface ActionItem {
     component: ReactNode;
@@ -23,7 +23,7 @@ export interface AceEditorProps extends IAceEditorProps {
     actions?: ActionItem[];
 }
 
-export default function AceEditor(props: AceEditorProps) {
+function AceEditor(props: AceEditorProps) {
     const {
         aceRef,
         setOptions,
@@ -108,58 +108,60 @@ export default function AceEditor(props: AceEditorProps) {
         : defaultCommands;
 
     return (
-        <div className={classNames("ace-editor", { "has-error": errorMessage })}>
-            <div className="react-ace-wrapper">
-                <ReactAce
-                    ref={aceRef}
-                    mode="csharp"
-                    theme="raven"
-                    editorProps={{ $blockScrolling: Infinity }}
-                    fontSize={14}
-                    style={{ lineHeight: "26px" }}
-                    showPrintMargin={true}
-                    showGutter={true}
-                    highlightActiveLine={true}
-                    width="100%"
-                    height="200px"
-                    setOptions={overriddenSetOptions}
-                    onValidate={onValidate}
-                    commands={commands}
-                    onLoad={(editor) => {
-                        // (ctrl+k is used for studio search)
-                        removeFindNextCommand(editor);
-                        onLoad?.(editor);
-                    }}
-                    {...rest}
-                />
-                {actions.length > 0 && (
-                    <div className="vstack gap-2 py-2 px-1 panel-bg-2 border-top-right-radius border-bottom-right-radius border-left">
-                        <div className="d-flex flex-column h-100">
-                            <div className="flex-grow-0">
-                                {actions
-                                    .filter((action) => !action.position || action.position === "top")
-                                    .map((action, index) => (
-                                        <div key={index}>{action.component}</div>
-                                    ))}
-                            </div>
-                            <div className="flex-grow-1 d-flex flex-column justify-content-end">
-                                {actions
-                                    .filter((icon) => icon.position === "bottom")
-                                    .map((action, index) => (
-                                        <div key={index}>{action.component}</div>
-                                    ))}
+        <AceEditorContext.Provider value={{ reactAce: aceRef?.current ?? null }}>
+            <div className={classNames("ace-editor", { "has-error": errorMessage })}>
+                <div className="react-ace-wrapper">
+                    <ReactAce
+                        ref={aceRef}
+                        mode="csharp"
+                        theme="raven"
+                        editorProps={{ $blockScrolling: Infinity }}
+                        fontSize={14}
+                        style={{ lineHeight: "26px" }}
+                        showPrintMargin={true}
+                        showGutter={true}
+                        highlightActiveLine={true}
+                        width="100%"
+                        height="200px"
+                        setOptions={overriddenSetOptions}
+                        onValidate={onValidate}
+                        commands={commands}
+                        onLoad={(editor) => {
+                            // (ctrl+k is used for studio search)
+                            removeFindNextCommand(editor);
+                            onLoad?.(editor);
+                        }}
+                        {...rest}
+                    />
+                    {actions.length > 0 && (
+                        <div className="vstack gap-2 py-2 px-1 panel-bg-2 border-top-right-radius border-bottom-right-radius border-left">
+                            <div className="d-flex flex-column h-100">
+                                <div className="flex-grow-0">
+                                    {actions
+                                        .filter((action) => !action.position || action.position === "top")
+                                        .map((action, index) => (
+                                            <div key={index}>{action.component}</div>
+                                        ))}
+                                </div>
+                                <div className="flex-grow-1 d-flex flex-column justify-content-end">
+                                    {actions
+                                        .filter((icon) => icon.position === "bottom")
+                                        .map((action, index) => (
+                                            <div key={index}>{action.component}</div>
+                                        ))}
+                                </div>
                             </div>
                         </div>
+                    )}
+                    <span className="fullScreenModeLabel">Press Shift+F11 to enter full screen mode</span>
+                </div>
+                {errorMessage && (
+                    <div className="bg-faded-danger py-1 px-2">
+                        <small>{errorMessage}</small>
                     </div>
                 )}
-                <span className="fullScreenModeLabel">Press Shift+F11 to enter full screen mode</span>
             </div>
-            {errorMessage && (
-                <div className="bg-faded-danger py-1 px-2">
-                    <small>{errorMessage}</small>
-                </div>
-            )}
-        </div>
+        </AceEditorContext.Provider>
     );
 }
 
@@ -181,17 +183,6 @@ const removeFindNextCommand = (editor: Ace.Editor) => {
     editor.commands.removeCommand(editor.commands.byName.findnext);
 };
 
-export function AceEditorFullScreenAction(props: { editorRef: RefObject<ReactAce> }) {
-    return (
-        <Button
-            variant="link"
-            onClick={() => {
-                props.editorRef.current?.editor.container.requestFullscreen();
-            }}
-            className="p-0 text-reset"
-            size="sm"
-        >
-            <Icon icon="fullscreen" margin="m-0" />
-        </Button>
-    );
-}
+AceEditor.FullScreenAction = AceEditorFullScreenAction;
+
+export default AceEditor;

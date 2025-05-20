@@ -13,7 +13,7 @@ import Button from "react-bootstrap/Button";
 import PopoverWithHoverWrapper from "components/common/PopoverWithHoverWrapper";
 import { Icon } from "components/common/Icon";
 import "ace-builds/src-noconflict/ext-beautify";
-import { AceEditorFullScreenAction } from "components/common/ace/AceEditor";
+import AceEditor from "components/common/ace/AceEditor";
 
 const beautify = ace.require("ace/ext/beautify").beautify;
 
@@ -56,7 +56,7 @@ export default function EditGenAiTaskContextFields() {
                     control={control}
                     name="script"
                     mode="javascript"
-                    actions={[{ component: <AceEditorFullScreenAction editorRef={scriptRef} /> }]}
+                    actions={[{ component: <AceEditor.FullScreenAction /> }]}
                 />
             </FormGroup>
         </>
