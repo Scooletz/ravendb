@@ -9,7 +9,13 @@ export default function AceEditorFormatAction() {
     const { reactAce } = useAceEditorContext();
 
     return (
-        <Button variant="link" onClick={() => beautify(reactAce?.editor.session)} className="p-0 text-reset" size="sm">
+        <Button
+            variant="link"
+            onClick={() => beautify(reactAce?.editor.session)}
+            className="p-0 text-reset"
+            size="sm"
+            title="Format"
+        >
             <Icon icon="indent" margin="m-0" />
         </Button>
     );

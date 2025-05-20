@@ -13,6 +13,7 @@ export default function AceEditorFullScreenAction() {
             }}
             className="p-0 text-reset"
             size="sm"
+            title="Full screen"
         >
             <Icon icon="fullscreen" margin="m-0" />
         </Button>
