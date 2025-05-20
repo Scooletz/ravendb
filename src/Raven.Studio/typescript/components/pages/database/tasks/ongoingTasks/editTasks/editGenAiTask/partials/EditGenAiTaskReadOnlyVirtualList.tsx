@@ -51,7 +51,7 @@ export default function EditGenAiTaskReadOnlyVirtualList({ data }: EditGenAiTask
                         >
                             <div style={{ position: "relative" }}>
                                 <AceEditor key={virtualRow.key} mode="json" value={entry} readOnly={true} />
-                                <Badge bg="secondary" style={{ position: "absolute", bottom: 10, right: 10 }}>
+                                <Badge bg="secondary" style={{ position: "absolute", bottom: 10, right: 40 }}>
                                     {virtualRow.index + 1}
                                 </Badge>
                             </div>

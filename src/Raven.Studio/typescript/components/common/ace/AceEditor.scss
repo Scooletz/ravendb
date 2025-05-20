@@ -34,6 +34,19 @@ $pre-bg: colors.$well-bg-var;
             height: 0;
             opacity: 0.3;
         }
+
+        .actions {
+            display: flex;
+            flex: 1 1 auto;
+            flex-direction: column;
+            align-self: stretch;
+            gap: sizes.$gutter-xs;
+            padding: sizes.$gutter-xs sizes.$gutter-xxs;
+            background-color: colors.$panel-bg-2-var;
+            border-top-right-radius: var(--bs-border-radius);
+            border-bottom-right-radius: var(--bs-border-radius);
+            border-left: 1px solid colors.$border-color-light-var;
+        }
     }
     .ace_autocomplete {
         line-height: 2;

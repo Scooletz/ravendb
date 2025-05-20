@@ -134,16 +134,16 @@ function AceEditor(props: AceEditorProps) {
                         {...rest}
                     />
                     {actions.length > 0 && (
-                        <div className="vstack gap-2 py-2 px-1 panel-bg-2 border-top-right-radius border-bottom-right-radius border-left">
+                        <div className="actions">
                             <div className="d-flex flex-column h-100">
-                                <div className="flex-grow-0">
+                                <div className="flex-grow-0 vstack gap-1">
                                     {actions
                                         .filter((action) => !action.position || action.position === "top")
                                         .map((action, index) => (
                                             <div key={index}>{action.component}</div>
                                         ))}
                                 </div>
-                                <div className="flex-grow-1 d-flex flex-column justify-content-end">
+                                <div className="flex-grow-1 d-flex flex-column justify-content-end vstack gap-1">
                                     {actions
                                         .filter((icon) => icon.position === "bottom")
                                         .map((action, index) => (

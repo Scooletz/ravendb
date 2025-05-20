@@ -85,7 +85,7 @@ export default function EditGenAiTaskFormVirtualList({
                                         <Icon icon="trash" margin="m-0" />
                                     </Button>
                                 )}
-                                <Badge bg="secondary" style={{ position: "absolute", bottom: 10, right: 10 }}>
+                                <Badge bg="secondary" style={{ position: "absolute", bottom: 10, right: 40 }}>
                                     {field.idx != null ? field.idx + 1 : "?"}
                                 </Badge>
                             </div>
