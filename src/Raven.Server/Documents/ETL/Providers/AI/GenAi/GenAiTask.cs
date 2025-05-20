@@ -46,15 +46,15 @@ public sealed class GenAiTask : EtlProcess<AiEtlItem, GenAiScriptResult, GenAiCo
     {
         Metrics = new EtlMetricsCountersManager();
 
-        if (string.IsNullOrWhiteSpace(configuration.JsonSchema))
-            configuration.JsonSchema = AbstractChatCompletionClient.GetSchemaFor(configuration.SampleObject);
-        
         if (configuration.TestMode == false)
             _chatCompletionClient = GetClient();
     }
 
     private AbstractChatCompletionClient GetClient()
     {
+        if (string.IsNullOrWhiteSpace(Configuration.JsonSchema))
+            Configuration.JsonSchema = AbstractChatCompletionClient.GetSchemaFor(Configuration.SampleObject);
+
         var connectorType = Configuration.Connection.GetActiveProvider();
         AbstractChatCompletionClient client = connectorType switch
         {
