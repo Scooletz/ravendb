@@ -22,16 +22,17 @@ $pre-bg: colors.$well-bg-var;
     }
     .react-ace-wrapper {
         display: flex;
-        flex-direction: column;
         align-items: end;
+        position: relative;
 
         .fullScreenModeLabel {
-            position: relative;
+            position: absolute;
             font-size: 12px;
             opacity: 0.4;
             bottom: 42px;
-            right: 26px;
+            right: 38px;
             height: 0;
+            opacity: 0.3;
         }
     }
     .ace_autocomplete {

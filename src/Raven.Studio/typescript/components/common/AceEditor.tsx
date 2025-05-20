@@ -5,6 +5,7 @@ import { setCompleters } from "ace-builds/src-noconflict/ext-language_tools";
 import ReactAce, { IAceEditorProps, IAceOptions, ICommand } from "react-ace";
 import "./AceEditor.scss";
 import classNames from "classnames";
+import { Icon } from "./Icon";
 
 export interface AceEditorProps extends IAceEditorProps {
     mode: AceEditorMode;
@@ -110,6 +111,14 @@ export default function AceEditor(props: AceEditorProps) {
                     onLoad={removeFindNextCommand} // (ctrl+k is used for studio search)
                     {...rest}
                 />
+                <div className="vstack gap-2 py-2 px-1 panel-bg-2 border-top-right-radius border-bottom-right-radius border-left">
+                    <div>
+                        <Icon icon="info" margin="m-0" />
+                    </div>
+                    <div style={{ justifySelf: "flex-end" }}>
+                        <Icon icon="info" margin="m-0" />
+                    </div>
+                </div>
                 <span className="fullScreenModeLabel">Press Shift+F11 to enter full screen mode</span>
             </div>
             {errorMessage && (
