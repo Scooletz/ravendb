@@ -23,7 +23,7 @@ export function EditGenAiTaskStepSummary() {
     return (
         <>
             <div className="hstack justify-content-between">
-                <AboutViewHeading title="Sum up task configuration" marginBottom={2} icon="ai-etl" />
+                <AboutViewHeading title="Summary of task configuration" marginBottom={2} icon="ai-etl" />
                 <EditGenAiTaskInfoHub />
             </div>
             <p className="mb-4">TODO Description</p>

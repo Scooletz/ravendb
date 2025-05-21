@@ -51,7 +51,7 @@ export function useEditGenAiTaskSteps(): EditGenAiTaskStep[] {
         },
         {
             id: "summary",
-            title: "Sum up task configuration",
+            title: "Summary of task configuration",
             component: <EditGenAiTaskStepSummary />,
             footer: <EditGenAiTaskStepSummaryFooter />,
             isCurrent: currentStep === "summary",

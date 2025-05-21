@@ -19,11 +19,11 @@ export default function EditGenAiTaskSteps({ steps }: EditGenAiTaskStepsProps) {
         <>
             <div className="mb-3">
                 <span>
-                    {currentStepIdx}/{steps.length} steps completed
+                    {currentStepIdx}/{4} steps completed
                 </span>
                 <ProgressBar
                     now={currentStepIdx}
-                    max={steps.length}
+                    max={4}
                     variant="primary"
                     style={{ height: 7 }}
                     className="w-50 mt-1"

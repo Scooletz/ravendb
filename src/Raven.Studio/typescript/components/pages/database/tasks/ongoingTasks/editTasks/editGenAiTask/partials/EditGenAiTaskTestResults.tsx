@@ -33,7 +33,7 @@ export default function EditGenAiTaskTestResults() {
                     <div className="hstack mb-3 justify-content-between">
                         <h3 className="mb-0">
                             <Icon icon="test" />
-                            Task context test results
+                            Context test results
                         </h3>
                         <div className="hstack gap-2">
                             <ButtonWithSpinner
@@ -67,7 +67,7 @@ export default function EditGenAiTaskTestResults() {
                     <div className="hstack mb-3 justify-content-between">
                         <h3 className="mb-0">
                             <Icon icon="test" />
-                            Model input test results
+                            Model test results
                         </h3>
                         <div className="hstack gap-2">
                             <ButtonWithSpinner
