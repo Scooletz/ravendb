@@ -13,16 +13,19 @@ using Voron.Global;
 using Voron.Impl;
 using Voron.Impl.Journal;
 using Voron.Impl.Paging;
+using Voron.Util.RateLimiting;
 
 namespace Voron.Util
 {
     public sealed unsafe class DataCopier
     {
         private readonly byte[] _buffer;
+        private readonly RateGate _rateGate;
 
-        public DataCopier(int bufferSize)
+        public DataCopier(int bufferSize, RateGate rateGate = null)
         {
             _buffer = new byte[bufferSize];
+            _rateGate = rateGate;
         }
 
         public void ToStream(byte* ptr, long count, Stream output)
@@ -60,6 +63,8 @@ namespace Voron.Util
                     for (var i = startPage; i < startPage + numberOfPages; i += steps)
                     {
                         cancellationToken.ThrowIfCancellationRequested();
+
+                    _rateGate?.WaitToProceed();
 
                         var pagesToCopy = (int) (i + steps > numberOfPages ? numberOfPages - i : steps);
                         src.EnsureMapped(txr.DataPagerState, ref txState, i, pagesToCopy);

@@ -23,6 +23,7 @@ using Voron.Impl.FileHeaders;
 using Voron.Impl.Journal;
 using Voron.Impl.Paging;
 using Voron.Util;
+using Voron.Util.RateLimiting;
 using Voron.Util.Settings;
 
 namespace Voron.Impl.Backup
@@ -71,19 +72,21 @@ namespace Voron.Impl.Backup
             ZipArchive archive,
             SnapshotBackupCompressionAlgorithm compressionAlgorithm,
             CompressionLevel compressionLevel,
+            int? maxReadOpsPerSecond = null,
             Action<(string Message, int FilesCount)> infoNotify = null,
             CancellationToken cancellationToken = default)
         {
             infoNotify ??= (_ => { });
             infoNotify(("Voron backup db started", 0));
 
+            using var rateGate = maxReadOpsPerSecond.HasValue ? new RateGate(maxReadOpsPerSecond.Value, TimeSpan.FromSeconds(1)) : null;
             foreach (var e in envs)
             {
                 infoNotify(($"Voron backup {e.Name} started", 0));
                 var basePath = Path.Combine(e.Folder, e.Name);
 
                 var env = e.Env;
-                var copier = new DataCopier(Constants.Storage.PageSize * 16);
+                var copier = new DataCopier(Constants.Storage.PageSize * 16, rateGate);
                 Backup(env, compressionAlgorithm, compressionLevel, env.DataPager, archive, basePath, copier, infoNotify, cancellationToken);
             }
 
@@ -281,19 +284,22 @@ namespace Voron.Impl.Backup
             VoronPathSetting voronDataDir,
             VoronPathSetting journalDir = null,
             Action<string> onProgress = null,
+            int? maxReadOpsPerSecond = null,
             CancellationToken cancellationToken = default)
         {
             using (var zip = ZipFile.Open(backupPath.FullPath, ZipArchiveMode.Read, System.Text.Encoding.UTF8))
-                Restore(zip.Entries, voronDataDir, journalDir, onProgress, cancellationToken);
+                Restore(zip.Entries, voronDataDir, journalDir, onProgress, maxReadOpsPerSecond, cancellationToken);
         }
 
         public void Restore(IEnumerable<ZipArchiveEntry> entries,
             VoronPathSetting voronDataDir,
             VoronPathSetting journalDir = null,
             Action<string> onProgress = null,
+            int? maxReadOpsPerSecond = null,
             CancellationToken cancellationToken = default)
         {
             journalDir ??= voronDataDir.Combine("Journals");
+            var rateGate = maxReadOpsPerSecond.HasValue ? new RateGate(maxReadOpsPerSecond.Value, TimeSpan.FromSeconds(1)) : null;
 
             if (Directory.Exists(voronDataDir.FullPath) == false)
                 Directory.CreateDirectory(voronDataDir.FullPath);
@@ -324,6 +330,8 @@ namespace Voron.Impl.Backup
                     var isZstd = decompressionStream is ZstdStream;
                     decompressionStream.CopyTo(output, readCount =>
                     {
+                        rateGate?.WaitToProceed();
+
                         totalRead += readCount;
                         if (swForProgress.ElapsedMilliseconds > 5000)
                         {

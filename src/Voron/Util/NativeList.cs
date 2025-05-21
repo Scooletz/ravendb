@@ -38,7 +38,7 @@ public unsafe struct NativeList<T>()
         get
         {
             Debug.Assert(index >= 0 && index < Count);
-            return ref Unsafe.AsRef<T>((T*) _storage.Ptr +index);
+            return ref Unsafe.AsRef<T>((T*) _storage.Ptr + index);
         }
     }
 

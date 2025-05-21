@@ -743,7 +743,7 @@ namespace FastTests
             Process.Start("xdg-open", url);
         }
 
-        protected string NewDataPath([CallerMemberName] string prefix = null, string suffix = null, bool forceCreateDir = false, ServerCreationOptions.Usage usage = ServerCreationOptions.Usage.Local)
+        protected internal string NewDataPath([CallerMemberName] string prefix = null, string suffix = null, bool forceCreateDir = false, ServerCreationOptions.Usage usage = ServerCreationOptions.Usage.Local)
         {
             if (suffix != null)
                 prefix += suffix;
