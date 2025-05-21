@@ -23,17 +23,21 @@ import Collapse from "react-bootstrap/Collapse";
 import useConfirm from "components/common/ConfirmDialog";
 import RichAlert from "components/common/RichAlert";
 import classNames from "classnames";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Switch } from "components/common/Checkbox";
 import { ConditionalPopover } from "components/common/ConditionalPopover";
 import EditGenAiTaskFormVirtualList from "./EditGenAiTaskFormVirtualList";
 import { SelectOption } from "components/common/select/Select";
 import PopoverWithHoverWrapper from "components/common/PopoverWithHoverWrapper";
+import AceEditor from "components/common/ace/AceEditor";
+import ReactAce from "react-ace";
 
 type PlaygroundTab = "document" | "context" | "modelOutput";
 
 export default function EditGenAiTaskPlayground() {
     const dispatch = useAppDispatch();
+
+    const documentRef = useRef<ReactAce>(null);
 
     const databaseName = useAppSelector(databaseSelectors.activeDatabaseName);
     const currentStep = useAppSelector(editGenAiTaskSelectors.currentStep);
@@ -310,10 +314,28 @@ export default function EditGenAiTaskPlayground() {
                                             </Button>
                                         </div>
                                         <FormAceEditor
+                                            aceRef={documentRef}
                                             control={control}
                                             name="playgroundDocument"
                                             mode="json"
                                             readOnly={!isPlaygroundEditMode}
+                                            actions={[
+                                                { component: <AceEditor.FullScreenAction /> },
+                                                { component: <AceEditor.FormatAction /> },
+                                                isPlaygroundEditMode
+                                                    ? {
+                                                          component: (
+                                                              <AceEditor.LoadFileAction
+                                                                  onLoad={(value) =>
+                                                                      setValue("playgroundDocument", value, {
+                                                                          shouldValidate: true,
+                                                                      })
+                                                                  }
+                                                              />
+                                                          ),
+                                                      }
+                                                    : null,
+                                            ]}
                                         />
                                     </div>
                                 )}

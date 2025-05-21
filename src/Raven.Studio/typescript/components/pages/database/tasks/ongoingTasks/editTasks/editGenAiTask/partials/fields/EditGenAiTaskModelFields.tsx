@@ -5,10 +5,11 @@ import { useFormContext, useWatch } from "react-hook-form";
 import { Icon } from "components/common/Icon";
 import Button from "react-bootstrap/Button";
 import Badge from "react-bootstrap/Badge";
-import { ReactNode } from "react";
+import { ReactNode, useRef } from "react";
 import IconName from "typings/server/icons";
-import EditGenAiLoadFile from "../EditGenAiLoadFile";
 import PopoverWithHoverWrapper from "components/common/PopoverWithHoverWrapper";
+import AceEditor from "components/common/ace/AceEditor";
+import ReactAce from "react-ace";
 
 export default function EditGenAiTaskModelFields() {
     const {
@@ -16,7 +17,12 @@ export default function EditGenAiTaskModelFields() {
         setValue,
         formState: { errors },
     } = useFormContext();
+
     const formValues = useWatch({ control });
+
+    const promptRef = useRef<ReactAce>(null);
+    const sampleObjectRef = useRef<ReactAce>(null);
+    const jsonSchemaRef = useRef<ReactAce>(null);
 
     return (
         <>
@@ -27,7 +33,13 @@ export default function EditGenAiTaskModelFields() {
                         <Icon icon="info" color="info" margin="ms-1" />
                     </PopoverWithHoverWrapper>
                 </FormLabel>
-                <FormAceEditor control={control} name="prompt" mode="text" />
+                <FormAceEditor
+                    aceRef={promptRef}
+                    control={control}
+                    name="prompt"
+                    mode="text"
+                    actions={[{ component: <AceEditor.FullScreenAction /> }]}
+                />
             </FormGroup>
             {formValues.schemaProvider == null && (
                 <div>
@@ -73,15 +85,28 @@ export default function EditGenAiTaskModelFields() {
                                 <Icon icon="info" color="info" margin="ms-1" />
                             </PopoverWithHoverWrapper>
                         </div>
-                        <div className="hstack gap-2">
-                            <EditGenAiLoadFile name="sampleObject" />
-                            <Button variant="link" size="xs" onClick={() => setValue("schemaProvider", "jsonSchema")}>
-                                <Icon icon="edit" />
-                                Provide JSON Schema manually
-                            </Button>
-                        </div>
+                        <Button variant="link" size="xs" onClick={() => setValue("schemaProvider", "jsonSchema")}>
+                            <Icon icon="edit" />
+                            Provide JSON Schema manually
+                        </Button>
                     </FormLabel>
-                    <FormAceEditor control={control} name="sampleObject" mode="json" />
+                    <FormAceEditor
+                        aceRef={sampleObjectRef}
+                        control={control}
+                        name="sampleObject"
+                        mode="json"
+                        actions={[
+                            { component: <AceEditor.FullScreenAction /> },
+                            { component: <AceEditor.FormatAction /> },
+                            {
+                                component: (
+                                    <AceEditor.LoadFileAction
+                                        onLoad={(value) => setValue("sampleObject", value, { shouldValidate: true })}
+                                    />
+                                ),
+                            },
+                        ]}
+                    />
                 </FormGroup>
             )}
             {formValues.schemaProvider === "jsonSchema" && (
@@ -93,15 +118,28 @@ export default function EditGenAiTaskModelFields() {
                                 <Icon icon="info" color="info" margin="ms-1" />
                             </PopoverWithHoverWrapper>
                         </div>
-                        <div className="hstack gap-2">
-                            <EditGenAiLoadFile name="jsonSchema" />
-                            <Button variant="link" size="xs" onClick={() => setValue("schemaProvider", "sampleObject")}>
-                                <Icon icon="default" />
-                                Use sample object
-                            </Button>
-                        </div>
+                        <Button variant="link" size="xs" onClick={() => setValue("schemaProvider", "sampleObject")}>
+                            <Icon icon="default" />
+                            Use sample object
+                        </Button>
                     </FormLabel>
-                    <FormAceEditor control={control} name="jsonSchema" mode="json" />
+                    <FormAceEditor
+                        aceRef={jsonSchemaRef}
+                        control={control}
+                        name="jsonSchema"
+                        mode="json"
+                        actions={[
+                            { component: <AceEditor.FullScreenAction /> },
+                            { component: <AceEditor.FormatAction /> },
+                            {
+                                component: (
+                                    <AceEditor.LoadFileAction
+                                        onLoad={(value) => setValue("jsonSchema", value, { shouldValidate: true })}
+                                    />
+                                ),
+                            },
+                        ]}
+                    />
                 </FormGroup>
             )}
         </>

@@ -8,8 +8,8 @@ import Badge from "react-bootstrap/Badge";
 import { editGenAiTaskActions, editGenAiTaskSelectors } from "../store/editGenAiTaskSlice";
 import { useAppDispatch, useAppSelector } from "components/store";
 import classNames from "classnames";
-import Button from "react-bootstrap/Button";
-import { Icon } from "components/common/Icon";
+import AceEditor from "components/common/ace/AceEditor";
+import ReactAce from "react-ace";
 
 interface EditGenAiTaskFormVirtualListProps {
     fields: FieldArrayWithId<EditGenAiTaskFormData>[];
@@ -27,8 +27,6 @@ export default function EditGenAiTaskFormVirtualList({
     const dispatch = useAppDispatch();
 
     const hoverIndex = useAppSelector(editGenAiTaskSelectors.hoverIndex);
-
-    const { control } = useFormContext<EditGenAiTaskFormData>();
 
     const listRef = useRef<HTMLDivElement>(null);
 
@@ -69,22 +67,13 @@ export default function EditGenAiTaskFormVirtualList({
                             onMouseLeave={() => dispatch(editGenAiTaskActions.hoverIndexSet(null))}
                         >
                             <div style={{ position: "relative" }}>
-                                <FormAceEditor
+                                <Editor
                                     key={field.id}
-                                    control={control}
-                                    name={`${name}.${virtualRow.index}.value`}
-                                    mode="json"
-                                    readOnly={isReadOnly}
+                                    index={virtualRow.index}
+                                    name={name}
+                                    isReadOnly={isReadOnly}
+                                    handleRemove={handleRemove}
                                 />
-                                {!isReadOnly && (
-                                    <Button
-                                        variant="danger"
-                                        style={{ position: "absolute", top: 10, right: 10 }}
-                                        onClick={() => handleRemove(virtualRow.index)}
-                                    >
-                                        <Icon icon="trash" margin="m-0" />
-                                    </Button>
-                                )}
                                 <Badge bg="secondary" style={{ position: "absolute", bottom: 10, right: 40 }}>
                                     {field.idx != null ? field.idx + 1 : "?"}
                                 </Badge>
@@ -94,5 +83,37 @@ export default function EditGenAiTaskFormVirtualList({
                 })}
             </div>
         </div>
+    );
+}
+
+interface EditorProps {
+    index: number;
+    name: Extract<FieldPath<EditGenAiTaskFormData>, "playgroundContexts" | "playgroundModelOutputs">;
+    isReadOnly: boolean;
+    handleRemove: (index: number) => void;
+}
+
+function Editor({ index, name, isReadOnly, handleRemove }: EditorProps) {
+    const aceRef = useRef<ReactAce>(null);
+
+    const { control } = useFormContext<EditGenAiTaskFormData>();
+
+    return (
+        <FormAceEditor
+            aceRef={aceRef}
+            control={control}
+            name={`${name}.${index}.value`}
+            mode="json"
+            readOnly={isReadOnly}
+            actions={[
+                { component: <AceEditor.FullScreenAction /> },
+                { component: <AceEditor.FormatAction /> },
+                !isReadOnly
+                    ? {
+                          component: <AceEditor.DeleteAction onDelete={() => handleRemove(index)} />,
+                      }
+                    : null,
+            ]}
+        />
     );
 }

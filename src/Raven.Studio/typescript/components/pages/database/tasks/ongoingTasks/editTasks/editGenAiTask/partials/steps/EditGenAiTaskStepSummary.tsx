@@ -23,9 +23,10 @@ export function EditGenAiTaskStepSummary() {
     return (
         <>
             <div className="hstack justify-content-between">
-                <AboutViewHeading title="Sum up task configuration" marginBottom={4} icon="ai-etl" />
+                <AboutViewHeading title="Sum up task configuration" marginBottom={2} icon="ai-etl" />
                 <EditGenAiTaskInfoHub />
             </div>
+            <p className="mb-4">TODO Description</p>
             <div className="hstack justify-content-between">
                 <div>Basic configuration</div>
                 <Button variant="link" onClick={() => dispatch(editGenAiTaskActions.currentStepSet("basic"))} size="sm">

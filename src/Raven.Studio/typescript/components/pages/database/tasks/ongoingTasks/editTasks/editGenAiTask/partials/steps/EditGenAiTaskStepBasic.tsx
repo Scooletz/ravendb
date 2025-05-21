@@ -17,9 +17,10 @@ export function EditGenAiTaskStepBasic() {
     return (
         <div>
             <div className="hstack justify-content-between">
-                <AboutViewHeading title="Configure GenAI task settings" marginBottom={4} icon="ai-etl" />
+                <AboutViewHeading title="Configure GenAI task settings" marginBottom={2} icon="ai-etl" />
                 <EditGenAiTaskInfoHub />
             </div>
+            <p className="mb-4">TODO Description</p>
             <EditGenAiTaskBasicFields />
             <div className="mt-2">
                 <ConnectionTestResult testResult={connectionStringTest.data} />

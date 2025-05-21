@@ -8,6 +8,8 @@ import classNames from "classnames";
 import AceEditorContext from "./AceEditorContext";
 import AceEditorFullScreenAction from "./AceEditorFullScreenAction";
 import AceEditorFormatAction from "./AceEditorFormatAction";
+import AceEditorLoadFileAction from "./AceEditorLoadFileAction";
+import AceEditorDeleteAction from "./AceEditorDeleteAction";
 
 interface ActionItem {
     component: ReactNode;
@@ -43,8 +45,11 @@ function AceEditor(props: AceEditorProps) {
         showLineNumbers: true,
         tabSize: 4,
         fontSize: "14px",
+        showPrintMargin: false,
         ...setOptions,
     };
+
+    const validActions = actions.filter(Boolean);
 
     const [aceErrorMessage, setAceErrorMessage] = useState<string>(null);
 
@@ -109,7 +114,7 @@ function AceEditor(props: AceEditorProps) {
         : defaultCommands;
 
     return (
-        <AceEditorContext.Provider value={{ reactAce: aceRef?.current ?? null }}>
+        <AceEditorContext.Provider value={aceRef ? { reactAce: aceRef.current } : null}>
             <div className={classNames("ace-editor", { "has-error": errorMessage })}>
                 <div className="react-ace-wrapper">
                     <ReactAce
@@ -138,14 +143,14 @@ function AceEditor(props: AceEditorProps) {
                         <div className="actions">
                             <div className="d-flex flex-column h-100">
                                 <div className="flex-grow-0 vstack gap-1">
-                                    {actions
+                                    {validActions
                                         .filter((action) => !action.position || action.position === "top")
                                         .map((action, index) => (
                                             <div key={index}>{action.component}</div>
                                         ))}
                                 </div>
                                 <div className="flex-grow-1 d-flex flex-column justify-content-end vstack gap-1">
-                                    {actions
+                                    {validActions
                                         .filter((icon) => icon.position === "bottom")
                                         .map((action, index) => (
                                             <div key={index}>{action.component}</div>
@@ -186,5 +191,7 @@ const removeFindNextCommand = (editor: Ace.Editor) => {
 
 AceEditor.FullScreenAction = AceEditorFullScreenAction;
 AceEditor.FormatAction = AceEditorFormatAction;
+AceEditor.LoadFileAction = AceEditorLoadFileAction;
+AceEditor.DeleteAction = AceEditorDeleteAction;
 
 export default AceEditor;

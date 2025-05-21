@@ -6,7 +6,6 @@ import { EditGenAiTaskFormData } from "../../utils/editGenAiTaskValidation";
 import { useAppSelector } from "components/store";
 import { collectionsTrackerSelectors } from "components/common/shell/collectionsTrackerSlice";
 import { SelectOption } from "components/common/select/Select";
-import EditGenAiLoadFile from "../EditGenAiLoadFile";
 import { useRef } from "react";
 import ReactAce from "react-ace/lib/ace";
 import PopoverWithHoverWrapper from "components/common/PopoverWithHoverWrapper";
@@ -14,7 +13,7 @@ import { Icon } from "components/common/Icon";
 import AceEditor from "components/common/ace/AceEditor";
 
 export default function EditGenAiTaskContextFields() {
-    const { control } = useFormContext<EditGenAiTaskFormData>();
+    const { control, setValue } = useFormContext<EditGenAiTaskFormData>();
 
     const collectionOptions: SelectOption[] = useAppSelector(collectionsTrackerSelectors.collectionNames).map((x) => ({
         value: x,
@@ -35,21 +34,28 @@ export default function EditGenAiTaskContextFields() {
                 <FormSelectCreatable control={control} name="collectionName" options={collectionOptions} />
             </FormGroup>
             <FormGroup>
-                <FormLabel className="hstack justify-content-between">
-                    <div>
-                        Context extraction script
-                        <PopoverWithHoverWrapper message="TODO">
-                            <Icon icon="info" color="info" margin="ms-1" />
-                        </PopoverWithHoverWrapper>
-                    </div>
-                    <EditGenAiLoadFile name="script" />
+                <FormLabel>
+                    Context extraction script
+                    <PopoverWithHoverWrapper message="TODO">
+                        <Icon icon="info" color="info" margin="ms-1" />
+                    </PopoverWithHoverWrapper>
                 </FormLabel>
                 <FormAceEditor
                     aceRef={scriptRef}
                     control={control}
                     name="script"
                     mode="javascript"
-                    actions={[{ component: <AceEditor.FullScreenAction /> }, { component: <AceEditor.FormatAction /> }]}
+                    actions={[
+                        { component: <AceEditor.FullScreenAction /> },
+                        { component: <AceEditor.FormatAction /> },
+                        {
+                            component: (
+                                <AceEditor.LoadFileAction
+                                    onLoad={(value) => setValue("script", value, { shouldValidate: true })}
+                                />
+                            ),
+                        },
+                    ]}
                 />
             </FormGroup>
         </>

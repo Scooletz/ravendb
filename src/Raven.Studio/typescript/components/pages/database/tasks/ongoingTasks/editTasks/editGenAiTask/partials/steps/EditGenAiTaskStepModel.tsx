@@ -15,9 +15,10 @@ export function EditGenAiTaskStepModel() {
     return (
         <>
             <div className="hstack justify-content-between">
-                <AboutViewHeading title="Model input" marginBottom={4} icon="ai-etl" />
+                <AboutViewHeading title="Model input" marginBottom={2} icon="ai-etl" />
                 <EditGenAiTaskInfoHub />
             </div>
+            <p className="mb-4">TODO Description</p>
             <EditGenAiTaskModelFields />
         </>
     );

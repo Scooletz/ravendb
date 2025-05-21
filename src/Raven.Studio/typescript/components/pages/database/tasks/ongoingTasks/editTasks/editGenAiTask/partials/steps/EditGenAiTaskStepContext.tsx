@@ -15,9 +15,10 @@ export function EditGenAiTaskStepContext() {
     return (
         <>
             <div className="hstack justify-content-between">
-                <AboutViewHeading title="Specify task context" marginBottom={4} icon="ai-etl" />
+                <AboutViewHeading title="Specify task context" marginBottom={2} icon="ai-etl" />
                 <EditGenAiTaskInfoHub />
             </div>
+            <p className="mb-4">TODO Description</p>
             <EditGenAiTaskContextFields />
         </>
     );

@@ -10,30 +10,48 @@ import { AboutViewHeading } from "components/common/AboutView";
 import { useEditGenAiTaskTests } from "../../hooks/useEditGenAiTaskTests";
 import ButtonWithSpinner from "components/common/ButtonWithSpinner";
 import { ConditionalPopover } from "components/common/ConditionalPopover";
-import EditGenAiLoadFile from "../EditGenAiLoadFile";
 import PopoverWithHoverWrapper from "components/common/PopoverWithHoverWrapper";
 import EditGenAiTaskInfoHub from "../../EditGenAiTaskInfoHub";
+import AceEditor from "components/common/ace/AceEditor";
+import ReactAce from "react-ace";
+import { useRef } from "react";
 
 export function EditGenAiTaskStepUpdate() {
-    const { control } = useFormContext<EditGenAiTaskFormData>();
+    const { control, setValue } = useFormContext<EditGenAiTaskFormData>();
+
+    const scriptRef = useRef<ReactAce>(null);
 
     return (
         <>
             <div className="hstack justify-content-between">
-                <AboutViewHeading title="Provide document update script" marginBottom={4} icon="ai-etl" />
+                <AboutViewHeading title="Provide document update script" marginBottom={2} icon="ai-etl" />
                 <EditGenAiTaskInfoHub />
             </div>
+            <p className="mb-4">TODO Description</p>
             <FormGroup>
-                <FormLabel className="hstack justify-content-between">
-                    <div>
-                        Update script
-                        <PopoverWithHoverWrapper message="TODO">
-                            <Icon icon="info" color="info" margin="ms-1" />
-                        </PopoverWithHoverWrapper>
-                    </div>
-                    <EditGenAiLoadFile name="update" />
+                <FormLabel>
+                    Update script
+                    <PopoverWithHoverWrapper message="TODO">
+                        <Icon icon="info" color="info" margin="ms-1" />
+                    </PopoverWithHoverWrapper>
                 </FormLabel>
-                <FormAceEditor control={control} name="update" mode="javascript" />
+                <FormAceEditor
+                    aceRef={scriptRef}
+                    control={control}
+                    name="update"
+                    mode="javascript"
+                    actions={[
+                        { component: <AceEditor.FullScreenAction /> },
+                        { component: <AceEditor.FormatAction /> },
+                        {
+                            component: (
+                                <AceEditor.LoadFileAction
+                                    onLoad={(value) => setValue("update", value, { shouldValidate: true })}
+                                />
+                            ),
+                        },
+                    ]}
+                />
             </FormGroup>
         </>
     );

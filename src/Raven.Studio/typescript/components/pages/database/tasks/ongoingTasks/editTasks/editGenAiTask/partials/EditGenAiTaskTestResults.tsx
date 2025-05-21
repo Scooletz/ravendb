@@ -233,17 +233,26 @@ function UpdateScriptDiffSplit({ height }: { height: number }) {
                     mode="json"
                     height={`${height / 2 - 100}px`}
                     readOnly
+                    actions={[{ component: <AceEditor.FullScreenAction /> }]}
                 />
             </div>
             <div className="diff-wrapper">
                 <div className="diff-header">Modified document</div>
-                <AceEditor aceRef={newDocRef} value={newDoc} mode="json" height={`${height / 2 - 100}px`} readOnly />
+                <AceEditor
+                    aceRef={newDocRef}
+                    value={newDoc}
+                    mode="json"
+                    height={`${height / 2 - 100}px`}
+                    readOnly
+                    actions={[{ component: <AceEditor.FullScreenAction /> }]}
+                />
             </div>
         </div>
     );
 }
 
 function UpdateScriptDiffUnified({ height }: { height: number }) {
+    const ref = useRef<ReactAce>(null);
     const updateScriptTest = useAppSelector(editGenAiTaskSelectors.updateScriptTest);
 
     const oldDoc = useAppSelector(editGenAiTaskSelectors.updateScriptDocumentInput);
@@ -256,7 +265,14 @@ function UpdateScriptDiffUnified({ height }: { height: number }) {
     return (
         <div className="diff-wrapper">
             <div className="diff-header">Modified document</div>
-            <AceUnifiedDiff value1={oldDoc.data} value2={newDoc} height={`${height - 100}px`} mode="json" />
+            <AceUnifiedDiff
+                aceRef={ref}
+                value1={oldDoc.data}
+                value2={newDoc}
+                height={`${height - 100}px`}
+                mode="json"
+                actions={[{ component: <AceEditor.FullScreenAction /> }]}
+            />
         </div>
     );
 }

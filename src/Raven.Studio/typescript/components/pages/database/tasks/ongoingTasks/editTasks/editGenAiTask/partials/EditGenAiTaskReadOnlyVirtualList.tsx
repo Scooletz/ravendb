@@ -5,6 +5,7 @@ import { useRef } from "react";
 import Badge from "react-bootstrap/Badge";
 import classNames from "classnames";
 import { editGenAiTaskActions, editGenAiTaskSelectors } from "../store/editGenAiTaskSlice";
+import ReactAce from "react-ace";
 
 interface EditGenAiTaskReadOnlyVirtualListProps {
     data: string[];
@@ -50,7 +51,7 @@ export default function EditGenAiTaskReadOnlyVirtualList({ data }: EditGenAiTask
                             onMouseLeave={() => dispatch(editGenAiTaskActions.hoverIndexSet(null))}
                         >
                             <div style={{ position: "relative" }}>
-                                <AceEditor key={virtualRow.key} mode="json" value={entry} readOnly={true} />
+                                <Editor key={virtualRow.key} value={entry} />
                                 <Badge bg="secondary" style={{ position: "absolute", bottom: 10, right: 40 }}>
                                     {virtualRow.index + 1}
                                 </Badge>
@@ -60,5 +61,23 @@ export default function EditGenAiTaskReadOnlyVirtualList({ data }: EditGenAiTask
                 })}
             </div>
         </div>
+    );
+}
+
+interface EditorProps {
+    value: string;
+}
+
+function Editor({ value }: EditorProps) {
+    const aceRef = useRef<ReactAce>(null);
+
+    return (
+        <AceEditor
+            aceRef={aceRef}
+            mode="json"
+            value={value}
+            readOnly={true}
+            actions={[{ component: <AceEditor.FullScreenAction /> }]}
+        />
     );
 }
