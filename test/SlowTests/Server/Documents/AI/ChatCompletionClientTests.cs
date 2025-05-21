@@ -132,7 +132,7 @@ public class ChatCompletionClientTests : RavenTestBase
     [RavenTheory(RavenTestCategory.Ai)]
     [InlineData(AiConnectorType.OpenAi)]
     [InlineData(AiConnectorType.Ollama)]
-    public async Task OpenAiClient_OtherErrors(AiConnectorType aiType)
+    public async Task OtherErrors(AiConnectorType aiType)
     {
         var prompt = "Check if the following blog post comment is spam or not";
         var context =

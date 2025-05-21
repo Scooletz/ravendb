@@ -29,17 +29,19 @@ namespace Raven.Server.Documents.AI;
 
 public abstract class AbstractChatCompletionClient : IDisposable
 {
+    public static readonly DocumentConventions DefaultConventions = new DocumentConventions { UseHttpCompression = false };
+    private static readonly Regex GoDurationRegex = new Regex(
+        @"(?<value>\d+(?:\.\d+)?)(?<unit>ns|us|µs|ms|s|m|h)",
+        RegexOptions.Compiled | RegexOptions.CultureInvariant
+    );
     private readonly string _model;
     private readonly HttpClientCacheKey _httpClientCacheKey;
     private readonly HttpClient _client;
     private readonly string _structuredOutputSchema;
-    public static readonly DocumentConventions DefaultConventions = new DocumentConventions { UseHttpCompression = false };
     private readonly DocumentConventions _conventions;
     private readonly TransactionContextPool _contextPool;
     private readonly AuthenticationHeaderValue _auth;
     private readonly Uri _baseUri;
-
-
     public AbstractChatCompletionClient(Uri baseUri, string model, string apiKey, string structuredOutputSchema, TransactionContextPool contextPool, DocumentConventions conventions)
     {
         _model = model;
@@ -303,6 +305,9 @@ public abstract class AbstractChatCompletionClient : IDisposable
     {
         time = TimeSpan.Zero;
 
+        if (string.IsNullOrEmpty(input))
+            return false;
+
         // As int: 1684293600
         if (int.TryParse(input, out var seconds1))
         {
@@ -318,41 +323,38 @@ public abstract class AbstractChatCompletionClient : IDisposable
         }
 
         // As Duration (go style): 17ms, 1m8.754s, 5m, 1h
-        var pattern = @"(?<value>\d+(?:\.\d+)?)(?<unit>ns|us|µs|ms|s|m|h)";
-        var matches = Regex.Matches(input, pattern);
+        var matches = GoDurationRegex.Matches(input);
         if (matches.Count == 0)
-            throw new FormatException($"Invalid Go‐duration: '{input}'");
+            return false;
 
-        TimeSpan total = TimeSpan.Zero;
         foreach (Match m in matches)
         {
             var v = double.Parse(m.Groups["value"].Value, CultureInfo.InvariantCulture);
             switch (m.Groups["unit"].Value)
             {
                 case "h":
-                    total += TimeSpan.FromHours(v);
+                    time += TimeSpan.FromHours(v);
                     break;
                 case "m":
-                    total += TimeSpan.FromMinutes(v);
+                    time += TimeSpan.FromMinutes(v);
                     break;
                 case "s":
-                    total += TimeSpan.FromSeconds(v);
+                    time += TimeSpan.FromSeconds(v);
                     break;
                 case "ms":
-                    total += TimeSpan.FromMilliseconds(v);
+                    time += TimeSpan.FromMilliseconds(v);
                     break;
                 case "us":
                 case "µs":
-                    total += TimeSpan.FromTicks((long)(v * 10));
+                    time += TimeSpan.FromTicks((long)(v * 10));
                     break; // 1 µs = 10 ticks
                 case "ns":
-                    total += TimeSpan.FromTicks((long)(v / 100));
+                    time += TimeSpan.FromTicks((long)(v / 100));
                     break; // 1 ns = 1/100 tick
                 default:
                     return false;
             }
         }
-        time = total;
         return true;
     }
 
