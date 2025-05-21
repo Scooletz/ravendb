@@ -112,57 +112,54 @@ namespace Raven.Server.Smuggler.Migration
                 buildInfo.TryGet(nameof(BuildInfo.FullVersion), out string fullVersion);
 
                 MajorVersion version;
-                if ((buildVersion >= 90 && buildVersion <= 1000) || buildVersion >= 90000)
+                switch (buildVersion)
                 {
-                    version = MajorVersion.GreaterThanCurrent;
-                }
-                else if ((buildVersion >= 80 && buildVersion <= 89) || buildVersion >= 80000)
-                {
-                    version = MajorVersion.V8;
-                }
-                else if ((buildVersion >= 70 && buildVersion <= 79) || buildVersion >= 70000)
-                {
-                    version = MajorVersion.V7;
-                }
-                else if ((buildVersion >= 60 && buildVersion <= 69) || buildVersion >= 60000)
-                {
-                    version = MajorVersion.V6;
-                }
-                else if ((buildVersion >= 50 && buildVersion <= 59) || buildVersion >= 50000)
-                {
-                    version = MajorVersion.V5;
-                }
-                else if ((buildVersion >= 40 && buildVersion <= 49) || buildVersion >= 40000)
-                {
-                    version = MajorVersion.V4;
-                }
-                else if (buildVersion >= 35000)
-                {
-                    version = MajorVersion.V35;
-                }
-                else if (buildVersion >= 30000)
-                {
-                    version = MajorVersion.V30;
-                }
-                else if (buildVersion >= 20000)
-                {
-                    version = MajorVersion.V2;
-                }
-                else if (buildVersion >= 3500)
-                {
-                    version = MajorVersion.V35;
-                }
-                else if (buildVersion >= 3000)
-                {
-                    version = MajorVersion.V30;
-                }
-                else if (productVersion.StartsWith("2.") || buildVersion >= 2000)
-                {
-                    version = MajorVersion.V2;
-                }
-                else
-                {
-                    version = MajorVersion.Unknown;
+                    case >= 90 and <= 1000 or >= 90000:
+                        version = MajorVersion.GreaterThanCurrent;
+                        break;
+                    case >= 80 and <= 89 or >= 80000:
+                        version = MajorVersion.V8;
+                        break;
+                    case >= 70 and <= 79 or >= 70000:
+                        version = MajorVersion.V7;
+                        break;
+                    case >= 60 and <= 69 or >= 60000:
+                        version = MajorVersion.V6;
+                        break;
+                    case >= 50 and <= 59 or >= 50000:
+                        version = MajorVersion.V5;
+                        break;
+                    case >= 40 and <= 49 or >= 40000:
+                        version = MajorVersion.V4;
+                        break;
+                    case >= 35000:
+                        version = MajorVersion.V35;
+                        break;
+                    case >= 30000:
+                        version = MajorVersion.V30;
+                        break;
+                    case >= 20000:
+                        version = MajorVersion.V2;
+                        break;
+                    case >= 3500:
+                        version = MajorVersion.V35;
+                        break;
+                    case >= 3000:
+                        version = MajorVersion.V30;
+                        break;
+                    default:
+                    {
+                        if (productVersion.StartsWith("2.") || buildVersion >= 2000)
+                        {
+                            version = MajorVersion.V2;
+                        }
+                        else
+                        {
+                            version = MajorVersion.Unknown;
+                        }
+
+                        break;
+                    }
                 }
 
                 return new BuildInfo
@@ -250,7 +247,7 @@ namespace Raven.Server.Smuggler.Migration
 
             try
             {
-                return (buildMajorVersion == MajorVersion.V4 || buildMajorVersion == MajorVersion.V5 || buildMajorVersion == MajorVersion.V6 || buildMajorVersion == MajorVersion.V7 || buildMajorVersion == MajorVersion.V8 || buildMajorVersion == MajorVersion.GreaterThanCurrent)
+                return buildMajorVersion is MajorVersion.V4 or MajorVersion.V5 or MajorVersion.V6 or MajorVersion.V7 or MajorVersion.V8 or MajorVersion.GreaterThanCurrent
                     ? await Importer.GetDatabasesToMigrate(_serverUrl, _httpClient, _serverStore.ServerShutdown)
                     : await AbstractLegacyMigrator.GetResourcesToMigrate(_serverUrl, _httpClient, false, _apiKey, _enableBasicAuthenticationOverUnsecuredHttp, _skipServerCertificateValidation, isLegacyOAuthToken, _serverStore.ServerShutdown);
             }
