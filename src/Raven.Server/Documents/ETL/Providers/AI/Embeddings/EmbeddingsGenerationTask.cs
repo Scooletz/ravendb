@@ -25,7 +25,7 @@ namespace Raven.Server.Documents.ETL.Providers.AI.Embeddings;
 public sealed class EmbeddingsGenerationTask : EtlProcess<AiEtlItem, EmbeddingGenerationScriptResult, EmbeddingsGenerationConfiguration, AiConnectionString,
     EmbeddingsGenerationStatsScope, EmbeddingsGenerationPerformanceOperation>
 {
-    private const string EmbeddingsTaskTag = "AI/Embeddings Generation";
+    public const string EmbeddingsTaskTag = "AI/Embeddings Generation";
 
     private int _fallbackCounter = 0;
     

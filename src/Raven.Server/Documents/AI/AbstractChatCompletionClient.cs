@@ -69,6 +69,8 @@ public abstract class AbstractChatCompletionClient : IDisposable
 
     public async Task<(string Result, string Usage)> CompleteAsync(string prompt, string context, CancellationToken token)
     {
+        _forTestingPurposes?.SimulateFailure?.Invoke(context);
+
         using var _ = _contextPool.AllocateOperationContext(out JsonOperationContext ctx);
         using var request = GetRequest(ctx, prompt, context);
         using var response = await _client.SendAsync(request, token).ConfigureAwait(false);
@@ -475,6 +477,8 @@ public abstract class AbstractChatCompletionClient : IDisposable
         }
 
         internal Action<AsyncBlittableJsonTextWriter> ModifyPayload;
+
+        internal Action<string> SimulateFailure;
     }
 
     private static class Constants

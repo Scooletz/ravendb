@@ -690,7 +690,6 @@ for(const comment of this.Comments)
         );
     }
 
-
     private async Task ShouldResendContextOnConfigChange(Action<GenAiConfiguration> changeConfig)
     {
         using var store = GetDocumentStore();
@@ -840,8 +839,6 @@ for(const comment of this.Comments)
             Assert.NotEqual(originalHash, newHash);
         }
     }
-
-
 
     internal record Comment(string Text, string Author)
     {

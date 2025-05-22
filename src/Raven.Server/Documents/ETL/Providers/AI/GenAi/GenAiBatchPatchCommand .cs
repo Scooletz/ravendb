@@ -81,7 +81,7 @@ internal sealed class GenAiBatchPatchCommand : PatchDocumentCommandBase
 
                     var msg = $"Failed to apply update script for context in document '{item.DocId}'. " +
                               $"Context was: {item.ContextOutput.Context}{Environment.NewLine}" +
-                              $"Error: {e.Message}";
+                              $"Error: {e}";
 
                     _statistics.RecordPartialLoadError(msg, item.DocId);
                     _logger.Log(LogLevel.Warn, msg);
@@ -111,7 +111,7 @@ internal sealed class GenAiBatchPatchCommand : PatchDocumentCommandBase
             catch (Exception e)
             {
                 var msg = $"Failed to update context hash metadata ('{GenAiTask.GenAiHashesMetadataKey}') for document '{id}'. " +
-                          $"Error: {e.Message}";
+                          $"Error: {e}";
                 _statistics.RecordPartialLoadError(msg, id);
                 _logger.Log(LogLevel.Warn, msg);
             }
