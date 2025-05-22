@@ -1,6 +1,4 @@
 import { FormAceEditor, FormLabel, FormGroup, FormValidationMessage } from "components/common/Form";
-import Row from "react-bootstrap/Row";
-import Col from "react-bootstrap/Col";
 import { useFormContext, useWatch } from "react-hook-form";
 import { Icon } from "components/common/Icon";
 import Button from "react-bootstrap/Button";
@@ -56,8 +54,8 @@ export default function EditGenAiTaskModelFields() {
                             <Icon icon="info" color="info" margin="ms-1" />
                         </PopoverWithHoverWrapper>
                     </div>
-                    <Row>
-                        <Col>
+                    <div className="hstack gap-1">
+                        <div className="flex-grow-1 vstack">
                             <SchemaProviderButton
                                 icon="default"
                                 title={
@@ -68,16 +66,17 @@ export default function EditGenAiTaskModelFields() {
                                 description="Choose if you want to generate schema out of sample object"
                                 handleClick={() => setValue("schemaProvider", "sampleObject")}
                             />
-                        </Col>
-                        <Col>
+                        </div>
+                        <div>or</div>
+                        <div className="flex-grow-1 vstack">
                             <SchemaProviderButton
                                 icon="edit"
                                 title="Provide JSON Schema manually"
                                 description="Choose if you want to manually provide the schema"
                                 handleClick={() => setValue("schemaProvider", "jsonSchema")}
                             />
-                        </Col>
-                    </Row>
+                        </div>
+                    </div>
                     {errors.schemaProvider && (
                         <FormValidationMessage>{errors.schemaProvider?.message.toString()}</FormValidationMessage>
                     )}
@@ -170,7 +169,7 @@ interface SchemaProviderButtonProps {
 
 function SchemaProviderButton({ icon, title, description, handleClick }: SchemaProviderButtonProps) {
     return (
-        <div className="border border-secondary rounded p-2 cursor-pointer h-100" onClick={handleClick}>
+        <div className="border border-secondary rounded p-2 cursor-pointer h-100 flex-grow-1" onClick={handleClick}>
             <div className="text-emphasis hstack gap-2 h-100">
                 <div>
                     <Icon icon={icon} margin="m-0" style={{ fontSize: 24 }} />
@@ -188,7 +187,12 @@ function PromptSyntaxHelp() {
     const samplePrompt =
         "Check if the following blog post comment is spam or not. A spam comment typically includes irrelevant or promotional content, excessive links, misleading information, or is written with the intent to manipulate search rankings or advertise products/services. Consider the language, intent, and relevance of the comment to the blog post topic. ";
 
-    return <Code code={samplePrompt} elementToCopy={samplePrompt} language="plaintext" whiteSpace="normal" />;
+    return (
+        <div>
+            <div>Sample prompt</div>
+            <Code code={samplePrompt} elementToCopy={samplePrompt} language="plaintext" whiteSpace="normal" />
+        </div>
+    );
 }
 
 function SampleObjectSyntaxHelp() {
@@ -197,7 +201,12 @@ function SampleObjectSyntaxHelp() {
     "Reason": "Concise reason for why this comment was marked as spam or ham"
 }`;
 
-    return <Code code={code} elementToCopy={code} language="json" />;
+    return (
+        <div>
+            <div>Sample object</div>
+            <Code code={code} elementToCopy={code} language="json" />
+        </div>
+    );
 }
 
 function JsonSchemaSyntaxHelp() {
@@ -223,5 +232,10 @@ function JsonSchemaSyntaxHelp() {
   }
 }`;
 
-    return <Code code={code} elementToCopy={code} language="json" />;
+    return (
+        <div>
+            <div>Sample JSON Schema</div>
+            <Code code={code} elementToCopy={code} language="json" />
+        </div>
+    );
 }

@@ -32,7 +32,13 @@ export interface ModalHeaderProps extends ReactBootstrapModalHeaderProps {
 export function ModalHeader({ children, closeButton = true, onCloseClick, className, ...props }: ModalHeaderProps) {
     return (
         <ReactBootstrapModal.Header className={classNames("position-relative", className)} {...props}>
-            {closeButton && <CloseButton onClick={onCloseClick} className="position-absolute end-0 m-1 top-0" />}
+            {closeButton && (
+                <CloseButton
+                    onClick={onCloseClick}
+                    className="position-absolute end-0 m-1 top-0"
+                    style={{ zIndex: 1 }}
+                />
+            )}
             {children}
         </ReactBootstrapModal.Header>
     );

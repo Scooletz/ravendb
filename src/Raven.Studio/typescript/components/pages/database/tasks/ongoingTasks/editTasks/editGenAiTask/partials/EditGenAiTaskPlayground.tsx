@@ -124,8 +124,6 @@ export default function EditGenAiTaskPlayground() {
         }
     };
 
-    // TODO info tooltip
-
     const [activeTab, setActiveTab] = useState<PlaygroundTab>("document");
 
     useEffect(() => {
@@ -182,17 +180,17 @@ export default function EditGenAiTaskPlayground() {
                                 <Nav.Item onClick={() => setActiveTab("document")}>
                                     <ConditionalPopover
                                         conditions={{
-                                            isActive: currentStep !== "context",
+                                            isActive: currentStep !== "context" && currentStep !== "updateScript",
                                             message:
                                                 "This configuration doesn’t give any additional context to the active step.",
                                         }}
                                     >
                                         <Nav.Link
                                             eventKey="document"
-                                            className={classNames(
-                                                { "text-danger": !!errors.playgroundDocument },
-                                                { "text-muted": currentStep !== "context" }
-                                            )}
+                                            className={classNames({
+                                                "text-muted":
+                                                    currentStep !== "context" && currentStep !== "updateScript",
+                                            })}
                                         >
                                             <Icon icon="document" />
                                             Document

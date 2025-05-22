@@ -11,6 +11,7 @@ import { AceEditorMode } from "components/models/aceEditor";
 import Collapse from "react-bootstrap/Collapse";
 import { ThemeColor } from "components/models/common";
 import EditGenAiTaskInfoHub from "../../EditGenAiTaskInfoHub";
+import EditGenAiTaskCancelButton from "../EditGenAiTaskCancelButton";
 
 export function EditGenAiTaskStepSummary() {
     const dispatch = useAppDispatch();
@@ -127,13 +128,16 @@ export function EditGenAiTaskStepSummaryFooter() {
 
     return (
         <div className="hstack justify-content-between">
-            <Button
-                variant="secondary"
-                className="rounded-pill"
-                onClick={() => dispatch(editGenAiTaskActions.currentStepSet("updateScript"))}
-            >
-                <Icon icon="arrow-left" /> Back
-            </Button>
+            <div className="hstack gap-2">
+                <EditGenAiTaskCancelButton />
+                <Button
+                    variant="secondary"
+                    className="rounded-pill"
+                    onClick={() => dispatch(editGenAiTaskActions.currentStepSet("updateScript"))}
+                >
+                    <Icon icon="arrow-left" /> Back
+                </Button>
+            </div>
 
             <Button type="submit" variant="primary" className="rounded-pill">
                 Save <Icon icon="save" margin="ms-1" />

@@ -10,6 +10,7 @@ import ButtonWithSpinner from "components/common/ButtonWithSpinner";
 import { useEditGenAiTaskTests } from "../../hooks/useEditGenAiTaskTests";
 import { ConditionalPopover } from "components/common/ConditionalPopover";
 import EditGenAiTaskInfoHub from "../../EditGenAiTaskInfoHub";
+import EditGenAiTaskCancelButton from "../EditGenAiTaskCancelButton";
 
 export function EditGenAiTaskStepContext() {
     return (
@@ -46,13 +47,16 @@ export function EditGenAiTaskStepContextFooter() {
 
     return (
         <div className="hstack justify-content-between">
-            <Button
-                variant="secondary"
-                className="rounded-pill"
-                onClick={() => dispatch(editGenAiTaskActions.currentStepSet("basic"))}
-            >
-                <Icon icon="arrow-left" /> Back
-            </Button>
+            <div className="hstack gap-2">
+                <EditGenAiTaskCancelButton />
+                <Button
+                    variant="secondary"
+                    className="rounded-pill"
+                    onClick={() => dispatch(editGenAiTaskActions.currentStepSet("basic"))}
+                >
+                    <Icon icon="arrow-left" /> Back
+                </Button>
+            </div>
             <div className="hstack gap-2">
                 <ConditionalPopover
                     conditions={[

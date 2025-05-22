@@ -41,6 +41,7 @@ export function LicenseSummary(props: LicenseSummaryProps) {
 
     const licenseStatus = useAppSelector(licenseSelectors.status);
     const isCloud = useAppSelector(licenseSelectors.statusValue("IsCloud"));
+    const licenseType = useAppSelector(licenseSelectors.statusValue("Type"));
 
     const [refreshing, setRefreshing] = useState<boolean>(false);
 
@@ -60,7 +61,12 @@ export function LicenseSummary(props: LicenseSummaryProps) {
                 <div className="vstack gap-4">
                     <Row>
                         <OverallInfoItem icon="license" label="License type">
-                            <span className={classNames({ "text-cloud": isCloud })}>
+                            <span
+                                className={classNames({
+                                    "text-cloud": isCloud,
+                                    "text-ai": licenseType === "EnterpriseAi",
+                                })}
+                            >
                                 {licenseModel.licenseTypeTextProvider(licenseStatus)}
                             </span>
                         </OverallInfoItem>

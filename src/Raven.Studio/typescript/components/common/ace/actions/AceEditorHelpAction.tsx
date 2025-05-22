@@ -1,27 +1,20 @@
 import Button from "react-bootstrap/Button";
 import useDialog, { DialogOptions } from "../../Dialog";
 import { Icon } from "../../Icon";
-import { ReactNode } from "react";
 
-interface AceEditorHelpActionProps extends Omit<DialogOptions, "title"> {
-    title?: ReactNode;
+interface AceEditorHelpActionProps extends DialogOptions {
     tooltipTitle?: string;
 }
 
-export default function AceEditorHelpAction({
-    title = "Syntax help",
-    tooltipTitle = "Syntax help",
-    actionColor = "info",
-    modalSize = "lg",
-    ...rest
-}: AceEditorHelpActionProps) {
+export default function AceEditorHelpAction({ tooltipTitle = "Syntax help", ...rest }: AceEditorHelpActionProps) {
     const dialog = useDialog();
 
     const handleOpen = () => {
         dialog({
-            title,
-            actionColor,
-            modalSize,
+            actionColor: "primary",
+            modalSize: "lg",
+            hasNoBottomClose: true,
+            hasNoHeaderPadding: true,
             ...rest,
         });
     };

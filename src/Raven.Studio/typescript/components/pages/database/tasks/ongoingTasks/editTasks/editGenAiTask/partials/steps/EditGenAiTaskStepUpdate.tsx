@@ -16,6 +16,7 @@ import AceEditor from "components/common/ace/AceEditor";
 import ReactAce from "react-ace";
 import { useRef } from "react";
 import Code from "components/common/Code";
+import EditGenAiTaskCancelButton from "../EditGenAiTaskCancelButton";
 
 export function EditGenAiTaskStepUpdate() {
     const { control, setValue } = useFormContext<EditGenAiTaskFormData>();
@@ -83,13 +84,16 @@ export function EditGenAiTaskStepUpdateFooter() {
 
     return (
         <div className="hstack justify-content-between">
-            <Button
-                variant="secondary"
-                className="rounded-pill"
-                onClick={() => dispatch(editGenAiTaskActions.currentStepSet("modelInput"))}
-            >
-                <Icon icon="arrow-left" /> Back
-            </Button>
+            <div className="hstack gap-2">
+                <EditGenAiTaskCancelButton />
+                <Button
+                    variant="secondary"
+                    className="rounded-pill"
+                    onClick={() => dispatch(editGenAiTaskActions.currentStepSet("modelInput"))}
+                >
+                    <Icon icon="arrow-left" /> Back
+                </Button>
+            </div>
             <div className="hstack gap-2">
                 <ConditionalPopover
                     conditions={[
@@ -130,5 +134,10 @@ if ($output.Blocked) {
     this.Comments.splice(idx, 1); // remove
 }`;
 
-    return <Code code={code} elementToCopy={code} language="javascript" />;
+    return (
+        <div>
+            <div>Sample update script</div>
+            <Code code={code} elementToCopy={code} language="javascript" />
+        </div>
+    );
 }

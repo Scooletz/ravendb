@@ -7,28 +7,13 @@ import { EditGenAiTaskFormData } from "../utils/editGenAiTaskValidation";
 
 export function useEditGenAiTaskTests() {
     const dispatch = useAppDispatch();
-    const { control, trigger, setError, clearErrors, setValue } = useFormContext<EditGenAiTaskFormData>();
+    const { control, trigger, setValue } = useFormContext<EditGenAiTaskFormData>();
     const formValues = useWatch<EditGenAiTaskFormData>({ control });
 
     const databaseName = useAppSelector(databaseSelectors.activeDatabaseName);
     const taskId = useAppSelector(editGenAiTaskSelectors.taskId);
 
-    const handleDocumentTrigger = async (): Promise<boolean> => {
-        if (!formValues.playgroundDocument) {
-            setError("playgroundDocument", { message: "Please provide a document" });
-            return false;
-        } else {
-            clearErrors("playgroundDocument");
-            return true;
-        }
-    };
-
     const handleContextTest = async () => {
-        const isDocumentValid = await handleDocumentTrigger();
-        if (!isDocumentValid) {
-            return;
-        }
-
         const areTestRelatedFieldsValid = await trigger(["collectionName", "script"]);
         if (!areTestRelatedFieldsValid) {
             return;
@@ -57,11 +42,6 @@ export function useEditGenAiTaskTests() {
     };
 
     const handleModelInputTest = async () => {
-        const isDocumentValid = await handleDocumentTrigger();
-        if (!isDocumentValid) {
-            return;
-        }
-
         const areTestRelatedFieldsValid = await trigger(["prompt", "schemaProvider", "sampleObject", "jsonSchema"]);
         if (!areTestRelatedFieldsValid) {
             return;
@@ -112,11 +92,6 @@ export function useEditGenAiTaskTests() {
     };
 
     const handleUpdateScriptTest = async () => {
-        const isDocumentValid = await handleDocumentTrigger();
-        if (!isDocumentValid) {
-            return;
-        }
-
         const areTestRelatedFieldsValid = await trigger(["prompt", "sampleObject", "jsonSchema"]);
         if (!areTestRelatedFieldsValid) {
             return;

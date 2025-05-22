@@ -75,6 +75,7 @@ function ScriptSyntaxHelp() {
 
     return (
         <div>
+            <div>Sample context script</div>
             <Code code={code} language="javascript" elementToCopy={code} />
         </div>
     );

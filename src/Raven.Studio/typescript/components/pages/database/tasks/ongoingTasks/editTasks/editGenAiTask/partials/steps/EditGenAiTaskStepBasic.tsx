@@ -10,6 +10,7 @@ import { databaseSelectors } from "components/common/shell/databaseSliceSelector
 import ButtonWithSpinner from "components/common/ButtonWithSpinner";
 import ConnectionTestResult from "components/common/connectionTests/ConnectionTestResult";
 import EditGenAiTaskInfoHub from "../../EditGenAiTaskInfoHub";
+import EditGenAiTaskCancelButton from "../EditGenAiTaskCancelButton";
 
 export function EditGenAiTaskStepBasic() {
     const connectionStringTest = useAppSelector(editGenAiTaskSelectors.connectionStringTest);
@@ -60,20 +61,24 @@ export function EditGenAiTaskStepBasicFooter() {
     };
 
     return (
-        <div className="hstack gap-2 justify-content-end">
-            <ButtonWithSpinner
-                variant="info"
-                className="rounded-pill"
-                onClick={handleTest}
-                isSpinning={connectionStringTest.status === "loading"}
-                icon="test"
-            >
-                Test connection
-            </ButtonWithSpinner>
+        <div className="hstack gap-2 justify-content-between">
+            <EditGenAiTaskCancelButton />
 
-            <Button variant="primary" className="rounded-pill" onClick={handleNext}>
-                Next <Icon icon="arrow-right" margin="ms-1" />
-            </Button>
+            <div className="hstack gap-2">
+                <ButtonWithSpinner
+                    variant="info"
+                    className="rounded-pill"
+                    onClick={handleTest}
+                    isSpinning={connectionStringTest.status === "loading"}
+                    icon="test"
+                >
+                    Test connection
+                </ButtonWithSpinner>
+
+                <Button variant="primary" className="rounded-pill" onClick={handleNext}>
+                    Next <Icon icon="arrow-right" margin="ms-1" />
+                </Button>
+            </div>
         </div>
     );
 }

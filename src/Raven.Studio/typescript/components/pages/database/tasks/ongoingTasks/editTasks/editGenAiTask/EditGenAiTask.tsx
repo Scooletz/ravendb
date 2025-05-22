@@ -4,8 +4,6 @@ import { yupResolver } from "@hookform/resolvers/yup";
 import { useServices } from "components/hooks/useServices";
 import { useAppDispatch, useAppSelector } from "components/store";
 import { databaseSelectors } from "components/common/shell/databaseSliceSelectors";
-import { useAppUrls } from "components/hooks/useAppUrls";
-import router from "plugins/router";
 import { tryHandleSubmit } from "components/utils/common";
 import { editGenAiTaskActions, editGenAiTaskSelectors } from "./store/editGenAiTaskSlice";
 import { useEffect } from "react";
@@ -15,6 +13,7 @@ import { editGenAiTaskUtils } from "./utils/editGenAiTaskUtils";
 import EditGenAiTaskTestResults from "./partials/EditGenAiTaskTestResults";
 import EditGenAiTaskSteps from "./partials/EditGenAiTaskSteps";
 import EditGenAiTaskPlayground from "./partials/EditGenAiTaskPlayground";
+import useEditGenAiCancel from "./hooks/useEditGenAiCancel";
 
 interface QueryParams {
     taskId: string;
@@ -47,6 +46,8 @@ export default function EditGenAiTask({ queryParams }: ReactQueryParamsProps<Que
         };
     }, []);
 
+    const cancel = useEditGenAiCancel();
+
     const form = useForm<EditGenAiTaskFormData>({
         mode: "all",
         resolver: yupResolver(editGenAiTaskSchema),
@@ -56,7 +57,7 @@ export default function EditGenAiTask({ queryParams }: ReactQueryParamsProps<Que
                     const dto = await tasksService.getGenAiTaskInfo(databaseName, taskId);
                     return editGenAiTaskUtils.getDefaultValues(dto);
                 } catch {
-                    goBack();
+                    cancel();
                 }
             }
 
@@ -66,23 +67,13 @@ export default function EditGenAiTask({ queryParams }: ReactQueryParamsProps<Que
 
     const { handleSubmit, reset } = form;
 
-    const { appUrl } = useAppUrls();
-
     const handleSave: SubmitHandler<EditGenAiTaskFormData> = (data) => {
         return tryHandleSubmit(async () => {
             const scriptsToReset = data.isResetScript ? [data.scriptToReset] : undefined;
             await tasksService.saveGenAiTask(databaseName, editGenAiTaskUtils.mapToDto(data, taskId), scriptsToReset);
             reset(data);
-            goBack();
+            cancel();
         });
-    };
-
-    const goBack = () => {
-        if (queryParams?.sourceView === "AiTasks") {
-            router.navigate(appUrl.forAiTasks(databaseName));
-        } else {
-            router.navigate(appUrl.forOngoingTasks(databaseName));
-        }
     };
 
     const steps = useEditGenAiTaskSteps();
