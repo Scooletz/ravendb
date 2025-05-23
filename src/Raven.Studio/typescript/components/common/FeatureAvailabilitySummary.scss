@@ -24,6 +24,7 @@
         --decoration-color: var(--license-color);
     }
     .community,
+    .essential,
     .free {
         --license-color: var(--license-community);
         --decoration-color: var(--license-color);
@@ -32,9 +33,13 @@
         --license-color: var(--license-professional);
         --decoration-color: var(--license-color);
     }
-    .enterprise,
-    .production {
+    .enterprise {
         --license-color: var(--license-enterprise);
+        --decoration-color: var(--license-color);
+    }
+    .enterprise-ai,
+    .production {
+        --license-color: var(--license-enterprise-ai);
         --decoration-color: var(--license-color);
     }
     .current {
@@ -147,7 +152,7 @@
 
             td.current {
                 border: bs5variables.$border-width solid;
-                border-color: var(--decoration-color) !important;
+                border-right-color: var(--decoration-color) !important;
                 border-top: 0;
                 border-bottom: 0;
             }
@@ -169,7 +174,6 @@
                         border-bottom: bs5variables.$border-width solid var(--decoration-color);
                         border-radius: 0 0 $table-border-radius $table-border-radius;
                         color: var(--decoration-color);
-                        text-transform: uppercase;
                         letter-spacing: 0.16em;
                         font-weight: bold;
                         font-size: bs5variables.$font-size-xs;
