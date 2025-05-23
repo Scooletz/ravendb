@@ -67,7 +67,6 @@ export default function EditGenAiTaskModelFields() {
                                 handleClick={() => setValue("schemaProvider", "sampleObject")}
                             />
                         </div>
-                        <div>or</div>
                         <div className="flex-grow-1 vstack">
                             <SchemaProviderButton
                                 icon="edit"
