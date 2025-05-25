@@ -18,7 +18,8 @@ export default function EditGenAiTaskInfoHub() {
             >
                 <div>
                     <p>
-                        You can configure a <strong>GenAI task</strong> to analyze and enrich your documents using LLMs.
+                        You can configure a <strong>GenAI task</strong> to analyze and enrich your documents using{" "}
+                        <strong>LLMs</strong>.
                         <br />
                         The task can automatically update existing documents or create new ones based on AI-generated
                         content.
@@ -46,12 +47,12 @@ export default function EditGenAiTaskInfoHub() {
                             </li>
                             <li className="mt-1">
                                 <strong>Prompt</strong>
-                                <br /> Define the instruction sent to the LLM.
+                                <br /> Define the instruction sent to the model.
                                 <br /> It will be applied to each context object.
                             </li>
                             <li className="mt-1">
                                 <strong>JSON schema</strong>
-                                <br /> Specify the expected format of the output objects the LLM should generate.
+                                <br /> Specify the expected format of the output objects the model should generate.
                                 <br /> An output object will be returned for each input context object.
                             </li>
                         </ul>
