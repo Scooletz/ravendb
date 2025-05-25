@@ -27,6 +27,11 @@ using SlowTests.SlowTests.MailingList;
 using SlowTests.Server.Documents.AI;
 using SlowTests.Server.Documents.AI.Embeddings;
 using FastTests.Corax.Vectors;
+using FastTests.GenAi;
+using Raven.Client.Documents.Operations.AI;
+using Newtonsoft.Json.Schema;
+using Raven.Server.Documents.AI.AiGen;
+using Raven.Server.Documents.AI;
 
 namespace Tryouts;
 
@@ -43,18 +48,18 @@ public static class Program
         var sources = EventSource.GetSources();
         var runtime = sources.FirstOrDefault(x => x.Name == "System.Runtime");
         runtime?.Dispose();
-        for (int i = 0; i < 200; i++)
+        for (int i = 0; i < 1; i++)
         {
             Console.WriteLine($"Starting to run {i}");
-
+            
             try
             {
                 using (var testOutputHelper = new ConsoleTestOutputHelper())
-                using (var test = new MultiVectorSearchClientAPI(testOutputHelper))
+                using (var test = new ChatCompletionClientTests(testOutputHelper))
                 {
                     DebuggerAttachedTimeout.DisableLongTimespan = true;
-
-                    test.CanSearchByMultipleVectorsByRavenVector();
+                    var p = GetGenAiConfig(RavenAiIntegration.OpenAi);
+                    await test.OtherErrors(p.Options, p.Configuration);
                 }
             }
             catch (Exception e)
@@ -64,6 +69,24 @@ public static class Program
                 Console.ForegroundColor = ConsoleColor.White;
             }
         }
+    }
+
+    private static (RavenTestBase.Options Options, GenAiConfiguration Configuration) GetGenAiConfig(RavenAiIntegration type, RavenDatabaseMode databaseMode = RavenDatabaseMode.Single)
+    {
+        var att = new RavenGenAiDataAttribute();
+        var connector = att.GetAiConnectionStringsNewInstance(type, "").First();
+        var config = connector.GetEtlConfiguration();
+        var options = RavenTestBase.Options.ForMode(databaseMode);
+        return (options, config);
+    }
+
+    private static (RavenTestBase.Options Options, EmbeddingsGenerationConfiguration Configuration) GetEmbeddingsConfig(RavenAiIntegration type, RavenDatabaseMode databaseMode = RavenDatabaseMode.Single)
+    {
+        var att = new RavenAiEmbeddingsDataAttribute();
+        var connector = att.GetAiConnectionStringsNewInstance(type, "").First();
+        var config = connector.GetEtlConfiguration();
+        var options = RavenTestBase.Options.ForMode(databaseMode);
+        return (options, config);
     }
 
     private static void TryRemoveDatabasesFolder()

@@ -164,7 +164,7 @@ public sealed class EmbeddingsGenerationTask : EtlProcess<AiEtlItem, EmbeddingGe
 
     public EmbeddingsGenerationTestScriptResult RunTest(IEnumerable<EmbeddingGenerationScriptResult> records, DocumentsOperationContext context)
     {
-        (ITextEmbeddingGenerationService embeddingService, _) = AiHelper.CreateServicesForTest(
+        (ITextEmbeddingGenerationService embeddingService, _) = AiHelper.CreateEmbeddingServicesForTest(
             new EmbeddingsGenerationConfiguration { Connection = new AiConnectionString { EmbeddedSettings = new EmbeddedSettings() } });
 
         var result = new EmbeddingsGenerationTestScriptResult();

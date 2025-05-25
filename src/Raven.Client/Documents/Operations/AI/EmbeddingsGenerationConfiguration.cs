@@ -10,13 +10,9 @@ using Sparrow.Json.Parsing;
 
 namespace Raven.Client.Documents.Operations.AI;
 
-public sealed class EmbeddingsGenerationConfiguration : EtlConfiguration<AiConnectionString>
+public sealed class EmbeddingsGenerationConfiguration : AbstractAiIntegrationConfiguration
 {
     public string Identifier { get; set; }
-
-    [JsonDeserializationIgnore]
-    [JsonIgnore]
-    public AiConnectorType AiConnectorType => Connection?.GetActiveProvider() ?? AiConnectorType.None;
 
     public override string GetDestination() => Identifier;
     public override string GetDefaultTaskName() => Identifier;

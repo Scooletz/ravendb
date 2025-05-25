@@ -7,13 +7,8 @@ using Sparrow.Json.Parsing;
 
 namespace Raven.Client.Documents.Operations.AI;
 
-public class GenAiConfiguration : EtlConfiguration<AiConnectionString>
+public class GenAiConfiguration : AbstractAiIntegrationConfiguration
 {
-
-    [JsonDeserializationIgnore]
-    [JsonIgnore]
-    public AiConnectorType AiConnectorType => Connection?.GetActiveProvider() ?? AiConnectorType.None;
-
     public override string GetDestination() => Name;
     public override string GetDefaultTaskName() => Name;
 

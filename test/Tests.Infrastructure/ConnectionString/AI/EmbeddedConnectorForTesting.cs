@@ -3,7 +3,7 @@ using Raven.Client.Documents.Operations.AI;
 
 namespace Tests.Infrastructure.ConnectionString.AI;
 
-public class EmbeddedConnectorForTesting : BaseAiConnectorForTesting<EmbeddedConnectorForTesting>
+public class EmbeddedConnectorForTesting : AbstractEmbeddingsConnectorForTesting<EmbeddedConnectorForTesting>
 {
     public override Lazy<AiConnectorType> AiConnectorType { get; init; } = new(Raven.Client.Documents.Operations.AI.AiConnectorType.Embedded);
 

@@ -62,7 +62,7 @@ public sealed class GenAiTask : EtlProcess<AiEtlItem, GenAiScriptResult, GenAiCo
         {
             AiConnectorType.Ollama => new OllamaChatCompletionClient(Configuration, Database.ServerStore.ContextPool, AbstractChatCompletionClient.DefaultConventions),
             AiConnectorType.OpenAi => new OpenAiChatCompletionClient(Configuration, Database.ServerStore.ContextPool, AbstractChatCompletionClient.DefaultConventions),
-            _ => throw new NotSupportedException(connectorType.ToString())
+            _ => throw new NotSupportedException($"The specified model (\"{connectorType.ToString()}\") is not supported.")
         };
 
         return client;
