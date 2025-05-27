@@ -69,7 +69,7 @@ if($output.Blocked)
                 {
                     Script = @"for (const comment of this.Comments)
 {
-    context({Text: comment.Text, Author: comment.Author, Id: comment.Id});
+    ai.genContext({Text: comment.Text, Author: comment.Author, Id: comment.Id});
 }"
 
                 };
@@ -177,7 +177,7 @@ if($output.Blocked)
             Script = @"
 for (const comment of this.Comments)
 {
-    context({Text: comment.Text, Author: comment.Author, Id: comment.Id});
+    ai.genContext({Text: comment.Text, Author: comment.Author, Id: comment.Id});
 }
 "
         };
@@ -280,7 +280,7 @@ if($output.Blocked)
                 Script = @"
 for (const comment of this.Comments)
 {
-    context({Text: comment.Text, Author: comment.Author, Id: comment.Id});
+    ai.genContext({Text: comment.Text, Author: comment.Author, Id: comment.Id});
 }
 "
             };
@@ -382,7 +382,7 @@ this.Comments[idx].Spam = $output.Blocked;
                 Script = @"
 for (const comment of this.Comments)
 {
-    context({Text: comment.Text, Author: comment.Author, Id: comment.Id});
+    ai.genContext({Text: comment.Text, Author: comment.Author, Id: comment.Id});
 }
 "
             };
@@ -489,7 +489,7 @@ this.Comments[idx].Spam = $output.Blocked;
                 Script = @"
 for (const comment of this.Comments)
 {
-    context({Text: comment.Text, Author: comment.Author, Id: comment.Id});
+    ai.genContext({Text: comment.Text, Author: comment.Author, Id: comment.Id});
 }
 "
             };
@@ -600,7 +600,7 @@ Provide an explanation, confidence level (0.0–1.0), and summarize the comment 
                     Script = @"
 for (const comment of this.Comments)
 {
-    context({Text: comment.Text, Author: comment.Author, Id: comment.Id});
+    ai.genContext({Text: comment.Text, Author: comment.Author, Id: comment.Id});
 }
 "
                 };
@@ -696,7 +696,7 @@ for (const comment of this.Comments)
                     Script = @"
 for (const comment of this.Comments)
 {
-    context({Text: comment.Text, Author: comment.Author, Id: comment.Id});
+    ai.genContext({Text: comment.Text, Author: comment.Author, Id: comment.Id});
 }
 "
                 };
@@ -814,7 +814,7 @@ if($output.Blocked)
                     Script = @"
 for (const comment of this.Comments)
 {
-    context({Text: comment.Text, Author: comment.Author, Id: comment.Id});
+    ai.genContext({Text: comment.Text, Author: comment.Author, Id: comment.Id});
 }
 "
                 };
@@ -1023,7 +1023,7 @@ if($output.Blocked)
                     Script = @"
 for (const comment of this.Comments)
 {
-    context({Text: comment.Text, Author: comment.Author, Id: comment.Id});
+    ai.genContext({Text: comment.Text, Author: comment.Author, Id: comment.Id});
 }
 "
                 };
@@ -1124,7 +1124,7 @@ for (const comment of this.Comments)
                     Script = @"
 for (const comment of this.Comments)
 {
-    context({Text: comment.Text, Author: comment.Author, Id: comment.Id});
+    ai.genContext({Text: comment.Text, Author: comment.Author, Id: comment.Id});
 }
 "
                 };
@@ -1293,7 +1293,7 @@ this.Comments[idx].Spam = $output.Blocked;
                         Script = @"
 for (const comment of this.Comments)
 {
-    context({Text: comment.Text, Author: comment.Author, Id: comment.Id});
+    ai.genContext({Text: comment.Text, Author: comment.Author, Id: comment.Id});
 }
 "
                     }
@@ -1451,7 +1451,7 @@ this.Comments[idx].Spam = $output.Blocked;
             Script = @"
 for (const comment of this.Comments)
 {
-    context({Text: comment.Text, Author: comment.Author, Id: comment.Id});
+    ai.genContext({Text: comment.Text, Author: comment.Author, Id: comment.Id});
 }
 "
         };

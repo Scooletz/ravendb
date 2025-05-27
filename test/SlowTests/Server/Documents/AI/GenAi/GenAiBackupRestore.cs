@@ -33,7 +33,7 @@ public class GenAiBackupRestore(ITestOutputHelper output) : RavenTestBase(output
             config.Collection = "Posts";
             config.SampleObject = JsonConvert.SerializeObject(new { Translation = "foo" });
             config.UpdateScript = "this.Translation = $output.Translation";
-            config.GenAiTransformation = new GenAiTransformation { Script = "context({ Sentence: this.Body });" };
+            config.GenAiTransformation = new GenAiTransformation { Script = "ai.genContext({ Sentence: this.Body });" };
             src.Maintenance.Send(new PutConnectionStringOperation<AiConnectionString>(config.Connection));
 
             src.Maintenance.Send(new AddGenAiOperation(config));
@@ -70,7 +70,7 @@ public class GenAiBackupRestore(ITestOutputHelper output) : RavenTestBase(output
             config.Collection = "Posts";
             config.SampleObject = sampleObject;
             config.UpdateScript = "this.GenAnswer = $output.Answer";
-            config.GenAiTransformation = new GenAiTransformation { Script = "context({ Question: this.Body });" };
+            config.GenAiTransformation = new GenAiTransformation { Script = "ai.genContext({ Question: this.Body });" };
             store.Maintenance.Send(new PutConnectionStringOperation<AiConnectionString>(config.Connection));
             store.Maintenance.Send(new AddGenAiOperation(config));
 
@@ -80,7 +80,7 @@ public class GenAiBackupRestore(ITestOutputHelper output) : RavenTestBase(output
             const string id = "posts/1";
             using (var session = store.OpenAsyncSession())
             {
-                await session.StoreAsync(new GenAiBasics.Post([new GenAiBasics.Comment("42", "Douglas Adams")], "What is the answer to life?", "So long, and Thanks"), id);
+                await session.StoreAsync(new GenAiBasics.Post([new GenAiBasics.Comment("42", "Douglas Adams")], "So long, and Thanks", "What is the answer to life?"), id);
                 await session.SaveChangesAsync();
             }
 
@@ -196,7 +196,7 @@ public class GenAiBackupRestore(ITestOutputHelper output) : RavenTestBase(output
             config.Collection = "Posts";
             config.SampleObject = JsonConvert.SerializeObject(new { Answer = "42" });
             config.UpdateScript = "this.GenAnswer = $output.Answer";
-            config.GenAiTransformation = new GenAiTransformation { Script = "context({ Question: this.Body });" };
+            config.GenAiTransformation = new GenAiTransformation { Script = "ai.genContext({ Question: this.Body });" };
 
             await store.Maintenance.SendAsync(new AddGenAiOperation(config));
 

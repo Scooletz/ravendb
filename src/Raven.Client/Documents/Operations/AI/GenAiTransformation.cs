@@ -9,9 +9,9 @@ public class GenAiTransformation
     public bool ValidateScript(out string error)
     {
         error = string.Empty;
-        if (Script.Contains("context")) 
+        if (Script.Contains("ai.genContext")) 
             return true;
-        error = "You must call the context(ctx) function in your script";
+        error = "You must call the ai.genContext(ctx) function in your script";
         return false;
 
     }

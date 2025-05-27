@@ -5,6 +5,8 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using Jint;
 using Jint.Native;
+using Jint.Native.Object;
+using Jint.Runtime.Descriptors;
 using Jint.Runtime.Interop;
 using Raven.Client;
 using Raven.Client.Documents.Operations.AI;
@@ -42,8 +44,10 @@ internal sealed class GenAiScriptTransformer : EtlTransformer<GenAiItem, GenAiSc
         if (debugMode)
             DocumentScript.DebugMode = true;
 
-        var contextFunc = new ClrFunction(DocumentScript.ScriptEngine, "context", AddContext);
-        DocumentScript.ScriptEngine.SetValue("context", contextFunc);
+        var contextFunc = new ClrFunction(DocumentScript.ScriptEngine, "genContext", AddContext);
+        ObjectInstance aiObject = new JsObject(DocumentScript.ScriptEngine);
+        aiObject.FastSetProperty("genContext", new PropertyDescriptor(contextFunc, false, false, false));
+        DocumentScript.ScriptEngine.SetValue("ai", aiObject);
 
         _configurationPartialHash = GetInitialHash(_configuration);
     }
@@ -87,7 +91,7 @@ internal sealed class GenAiScriptTransformer : EtlTransformer<GenAiItem, GenAiSc
     
     private JsValue AddContext(JsValue self, JsValue[] args)
     {
-        const string methodDecl = "context(ctx);";
+        const string methodDecl = "ai.genContext(ctx);";
         if (args.Length != 1)
             throw new InvalidOperationException($"Invalid number of arguments for {methodDecl}, got {args.Length} but expected 1.");
 

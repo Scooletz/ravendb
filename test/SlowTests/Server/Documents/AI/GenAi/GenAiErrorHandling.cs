@@ -28,11 +28,11 @@ public class GenAiErrorHandling(ITestOutputHelper output) : RavenTestBase(output
         {
             store.Maintenance.Send(new PutConnectionStringOperation<AiConnectionString>(config.Connection));
 
-            // function 'context(ctx)' must be called with a single argument
+            // function 'ai.genContext(ctx)' must be called with a single argument
             var badScript =
                 @"for (const comment of this.Comments)
 {
-    context({Text: comment.Text, Author: comment.Author, Id: comment.Id}, comment.Hash); 
+    ai.genContext({Text: comment.Text, Author: comment.Author, Id: comment.Id}, comment.Hash); 
 }";
 
             config.Prompt = "Check if the following blog post comment is spam or not";
@@ -68,7 +68,7 @@ this.Comments[idx].IsSpam = $output.Blocked;
 
             Assert.True(value);
             Assert.NotNull(error);
-            Assert.True(error.Error.Contains("Invalid number of arguments for context(ctx)"));
+            Assert.True(error.Error.Contains("Invalid number of arguments for ai.genContext(ctx)"));
             Assert.Equal(docId, error.DocumentId);
         }
     }
@@ -97,7 +97,7 @@ if($output.Blocked)
             {
                 Script = @"for (const comment of this.Comments)
 {
-    context({Text: comment.Text, Author: comment.Author, Id: comment.Id});
+    ai.genContext({Text: comment.Text, Author: comment.Author, Id: comment.Id});
 }"
             };
 
@@ -158,7 +158,7 @@ if($output.Blocked)
             {
                 Script = @"for (const comment of this.Comments)
 {
-    context({Text: comment.Text, Author: comment.Author, Id: comment.Id});
+    ai.genContext({Text: comment.Text, Author: comment.Author, Id: comment.Id});
 }"
             };
 
@@ -221,7 +221,7 @@ this.Comments[idx].IsBlocked = $output.Blocked;";
             {
                 Script = @"for (const comment of this.Comments)
 {
-    context({Text: comment.Text, Author: comment.Author, Id: comment.Id});
+    ai.genContext({Text: comment.Text, Author: comment.Author, Id: comment.Id});
 }"
             };
 
@@ -302,7 +302,7 @@ this.Comments[idx].IsBlocked = $output.Blocked;";
         config.Collection = "Posts";
         config.SampleObject = JsonConvert.SerializeObject(new { Result = "text" });
         config.UpdateScript = "this.Result = $output.Result;";
-        config.GenAiTransformation = new GenAiTransformation { Script = "for (const comment of this.Comments) context({Text: comment.Text, Id: comment.Id});" };
+        config.GenAiTransformation = new GenAiTransformation { Script = "for (const comment of this.Comments) ai.genContext({Text: comment.Text, Id: comment.Id});" };
 
         store.Maintenance.Send(new AddGenAiOperation(config));
 
@@ -413,7 +413,7 @@ this.Comments[idx].IsSpam = $output.Blocked;";
         {
             Script = @"for (const comment of this.Comments)
 {
-    context({Text: comment.Text, Author: comment.Author, Id: comment.Id});
+    ai.genContext({Text: comment.Text, Author: comment.Author, Id: comment.Id});
 }"
         };
 

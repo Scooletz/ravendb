@@ -48,7 +48,7 @@ if($output.Blocked)
             Script = @"
 for(const comment of this.Comments)
 {
-    context({Text: comment.Text, Author: comment.Author, Id: comment.Id});
+    ai.genContext({Text: comment.Text, Author: comment.Author, Id: comment.Id});
 }
 "
         };
@@ -79,7 +79,7 @@ if($output.Blocked)
             Script = @"
 for(const comment of this.Comments)
 {
-    context({Text: comment.Text, Author: comment.Author, Id: comment.Id});
+    ai.genContext({Text: comment.Text, Author: comment.Author, Id: comment.Id});
 }
 "
         };
@@ -101,12 +101,11 @@ for(const comment of this.Comments)
             session.SaveChanges();
         }
 
-        using(var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15)))
-            etl.Wait(cts.Token);
+        Assert.True(etl.Wait(TimeSpan.FromSeconds(30)));
     }
 
     [RavenTheory(RavenTestCategory.Ai)]
-    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single, CheckCanConnect = false, NightlyBuildRequired = false, Skip = "Failing test")]
+    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single, CheckCanConnect = false, NightlyBuildRequired = false)]
     public async Task CanGetGenAiOngoingTask(Options options, GenAiConfiguration config)
     {
         using var store = GetDocumentStore(options);
@@ -126,7 +125,7 @@ if($output.Blocked)
             Script = @"
 for(const comment of this.Comments)
 {
-    context({Text: comment.Text, Author: comment.Author, Id: comment.Id});
+    ai.genContext({Text: comment.Text, Author: comment.Author, Id: comment.Id});
 }
 "
         };
@@ -174,7 +173,7 @@ if($output.Blocked)
             Script = @"
 for(const comment of this.Comments)
 {
-    context({Text: comment.Text, Author: comment.Author, Id: comment.Id});
+    ai.genContext({Text: comment.Text, Author: comment.Author, Id: comment.Id});
 }
 "
         };
@@ -222,7 +221,7 @@ if($output.Blocked)
             Script = @"
 for(const comment of this.Comments)
 {
-    context({Text: comment.Text, Author: comment.Author, Id: comment.Id});
+    ai.genContext({Text: comment.Text, Author: comment.Author, Id: comment.Id});
 }
 "
         };
@@ -259,7 +258,7 @@ if($output.Blocked)
             Script = @"
 for(const comment of this.Comments)
 {
-    context({Text: comment.Text, Author: comment.Author, Id: comment.Id});
+    ai.genContext({Text: comment.Text, Author: comment.Author, Id: comment.Id});
 }
 "
         };
@@ -306,7 +305,7 @@ if($output.Blocked)
             Script = @"
 for(const comment of this.Comments)
 {
-    context({Text: comment.Text, Author: comment.Author, Id: comment.Id});
+    ai.genContext({Text: comment.Text, Author: comment.Author, Id: comment.Id});
 }
 "
         };
@@ -440,7 +439,7 @@ this.Comments[idx].IsSpam = $output.Blocked;
             Script = @"
 for(const comment of this.Comments)
 {
-    context({Text: comment.Text, Author: comment.Author, Id: comment.Id});
+    ai.genContext({Text: comment.Text, Author: comment.Author, Id: comment.Id});
 }
 "
         };
@@ -587,7 +586,7 @@ for(const comment of this.Comments)
         config.JsonSchema = schema;
         config.UpdateScript = "this.TextInPolish = $output.Translation;";
         config.Collection = "Posts";
-        config.GenAiTransformation = new GenAiTransformation { Script = "context({ Text: this.Body });" };
+        config.GenAiTransformation = new GenAiTransformation { Script = "ai.genContext({ Text: this.Body });" };
 
         store.Maintenance.Send(new AddGenAiOperation(config));
 
