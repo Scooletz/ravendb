@@ -304,12 +304,11 @@ export function FormSelectAutocomplete<
 
     return (
         <FormSelectCreatable<Option, IsMulti, Group, TFieldValues, TName>
-            inputValue={value}
+            inputValue={value ?? ""}
             onInputChange={onInputChange}
             components={{ Input: InputNotHidden }}
             tabSelectsValue
             controlShouldRenderValue={false}
-            closeMenuOnSelect
             {...props}
         />
     );
