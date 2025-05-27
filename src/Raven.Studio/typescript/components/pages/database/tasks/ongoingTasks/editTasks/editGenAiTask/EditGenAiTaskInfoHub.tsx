@@ -2,10 +2,26 @@ import AboutViewFloating, { AccordionItemWrapper } from "components/common/About
 import { useAppSelector } from "components/store";
 import { databaseSelectors } from "components/common/shell/databaseSliceSelectors";
 import { useAppUrls } from "hooks/useAppUrls";
+import FeatureAvailabilitySummaryWrapper from "components/common/FeatureAvailabilitySummary";
+import { licenseSelectors } from "components/common/shell/licenseSlice";
+import { FeatureAvailabilityData } from "components/common/FeatureAvailabilitySummary";
+import { useLimitedFeatureAvailability } from "components/utils/licenseLimitsUtils";
 
 export default function EditGenAiTaskInfoHub() {
     const { appUrl } = useAppUrls();
     const activeDatabaseName = useAppSelector(databaseSelectors.activeDatabaseName);
+
+    const hasGenAi = useAppSelector(licenseSelectors.statusValue("HasGenAi"));
+
+    const featureAvailability = useLimitedFeatureAvailability({
+        defaultFeatureAvailability,
+        overwrites: [
+            {
+                featureName: defaultFeatureAvailability[0].featureName,
+                value: hasGenAi,
+            },
+        ],
+    });
 
     return (
         <AboutViewFloating>
@@ -59,7 +75,8 @@ export default function EditGenAiTaskInfoHub() {
                     </div>
                     <p>
                         <strong>Handle MODEL OUTPUT:</strong>
-                        <br /> Provide an "update script" that will process each output object returned by the model.
+                        <br /> Provide an &quot;update script&quot; that will process each output object returned by the
+                        model.
                         <br /> You can modify existing documents or create new ones based on the generated results, as
                         needed.
                     </p>
@@ -78,6 +95,18 @@ export default function EditGenAiTaskInfoHub() {
                     <br /> will trigger the task to retrieve content from the model and apply the update script.
                 </p>
             </AccordionItemWrapper>
+            <FeatureAvailabilitySummaryWrapper isUnlimited={hasGenAi} data={featureAvailability} />
         </AboutViewFloating>
     );
 }
+
+const defaultFeatureAvailability: FeatureAvailabilityData[] = [
+    {
+        featureName: "GenAI",
+        featureIcon: "ai-etl",
+        community: { value: false },
+        professional: { value: false },
+        enterprise: { value: false },
+        enterpriseAi: { value: true },
+    },
+];

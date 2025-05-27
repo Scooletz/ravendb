@@ -11,18 +11,28 @@ import ButtonWithSpinner from "components/common/ButtonWithSpinner";
 import ConnectionTestResult from "components/common/connectionTests/ConnectionTestResult";
 import EditGenAiTaskInfoHub from "../../EditGenAiTaskInfoHub";
 import EditGenAiTaskCancelButton from "../EditGenAiTaskCancelButton";
+import { licenseSelectors } from "components/common/shell/licenseSlice";
 
 export function EditGenAiTaskStepBasic() {
+    const hasGenAi = useAppSelector(licenseSelectors.statusValue("HasGenAi"));
+
     const connectionStringTest = useAppSelector(editGenAiTaskSelectors.connectionStringTest);
 
     return (
         <div>
             <div className="hstack justify-content-between">
-                <AboutViewHeading title="Configure GenAI task settings" marginBottom={2} icon="ai-etl" />
+                <AboutViewHeading
+                    title="Configure GenAI task settings"
+                    marginBottom={2}
+                    icon="ai-etl"
+                    licenseBadgeText={hasGenAi ? null : "Enterprise Ai"}
+                />
                 <EditGenAiTaskInfoHub />
             </div>
             <p className="mb-4">TODO Description</p>
-            <EditGenAiTaskBasicFields />
+            <div className={hasGenAi ? "" : "item-disabled pe-none"}>
+                <EditGenAiTaskBasicFields />
+            </div>
             <div className="mt-2">
                 <ConnectionTestResult testResult={connectionStringTest.data} />
             </div>
@@ -31,6 +41,7 @@ export function EditGenAiTaskStepBasic() {
 }
 
 export function EditGenAiTaskStepBasicFooter() {
+    const hasGenAi = useAppSelector(licenseSelectors.statusValue("HasGenAi"));
     const dispatch = useAppDispatch();
 
     const { control, trigger } = useFormContext<EditGenAiTaskFormData>();
@@ -64,21 +75,23 @@ export function EditGenAiTaskStepBasicFooter() {
         <div className="hstack gap-2 justify-content-between">
             <EditGenAiTaskCancelButton />
 
-            <div className="hstack gap-2">
-                <ButtonWithSpinner
-                    variant="info"
-                    className="rounded-pill"
-                    onClick={handleTest}
-                    isSpinning={connectionStringTest.status === "loading"}
-                    icon="test"
-                >
-                    Test connection
-                </ButtonWithSpinner>
+            {hasGenAi && (
+                <div className="hstack gap-2">
+                    <ButtonWithSpinner
+                        variant="info"
+                        className="rounded-pill"
+                        onClick={handleTest}
+                        isSpinning={connectionStringTest.status === "loading"}
+                        icon="test"
+                    >
+                        Test connection
+                    </ButtonWithSpinner>
 
-                <Button variant="primary" className="rounded-pill" onClick={handleNext}>
-                    Next <Icon icon="arrow-right" margin="ms-1" />
-                </Button>
-            </div>
+                    <Button variant="primary" className="rounded-pill" onClick={handleNext}>
+                        Next <Icon icon="arrow-right" margin="ms-1" />
+                    </Button>
+                </div>
+            )}
         </div>
     );
 }
