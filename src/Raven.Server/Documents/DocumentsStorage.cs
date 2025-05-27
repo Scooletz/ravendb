@@ -2379,7 +2379,10 @@ namespace Raven.Server.Documents
                 Size = new Client.Util.Size(),
                 DocumentsSize = new Client.Util.Size(),
                 RevisionsSize = new Client.Util.Size(),
-                TombstonesSize = new Client.Util.Size()
+                TombstonesSize = new Client.Util.Size(),
+                TimeSeriesDeletedRangesSize = new Client.Util.Size(),
+                CounterEntriesSize = new Client.Util.Size(),
+                TimeSeriesSegmentsSize = new Client.Util.Size()
             };
             CollectionName collectionName = GetCollection(collection, throwIfDoesNotExist: false);
 
@@ -2388,17 +2391,30 @@ namespace Raven.Server.Documents
                 TableReport collectionTableReport = GetReportForTable(context, DocsSchema, collectionName.GetTableName(CollectionTableType.Documents));
 
                 collectionDetails.CountOfDocuments = collectionTableReport.NumberOfEntries;
+                collectionDetails.CountOfRevisions = RevisionsStorage.GetNumberOfRevisionDocumentsForCollection(context, collection);
+                collectionDetails.CountOfTombstones = TombstonesCountForCollection(context, collection);
+                collectionDetails.CountOfCounterEntries = CountersStorage.GetNumberOfCountersDocumentsForCollection(context, collection);
+                collectionDetails.CountOfTimeSeriesDeletedRanges = TimeSeriesStorage.GetNumberOfTimeSeriesDeletedRangesForCollection(context, collection);
+                collectionDetails.CountOfTimeSeriesSegments = TimeSeriesStorage.GetNumberOfTimeSeriesSegmentsForCollection(context, collection);
 
                 var documentsSize = collectionTableReport.DataSizeInBytes;
                 var revisionsSize = GetReportForTable(context, RevisionsStorage.RevisionsSchema, collectionName.GetTableName(CollectionTableType.Revisions))
                     .DataSizeInBytes;
                 var tombstonesSize = GetReportForTable(context, TombstonesSchema, collectionName.GetTableName(CollectionTableType.Tombstones)).DataSizeInBytes;
+                var timeSeriesDeletedRangesSize = GetReportForTable(context, TimeSeriesDeleteRangesSchema, collectionName.GetTableName(CollectionTableType.TimeSeriesDeletedRanges)).DataSizeInBytes;
+
+                var counterEntriesSize = GetReportForTable(context, CountersSchema, collectionName.GetTableName(CollectionTableType.CounterGroups)).DataSizeInBytes;
+                var timeSeriesSegmentsSize = GetReportForTable(context, TimeSeriesSchema, collectionName.GetTableName(CollectionTableType.TimeSeries)).DataSizeInBytes;
 
                 collectionDetails.DocumentsSize.SizeInBytes = documentsSize;
                 collectionDetails.RevisionsSize.SizeInBytes = revisionsSize;
                 collectionDetails.TombstonesSize.SizeInBytes = tombstonesSize;
+                collectionDetails.TimeSeriesDeletedRangesSize.SizeInBytes = timeSeriesDeletedRangesSize;
 
-                collectionDetails.Size.SizeInBytes = documentsSize + revisionsSize + tombstonesSize;
+                collectionDetails.CounterEntriesSize.SizeInBytes = counterEntriesSize;
+                collectionDetails.TimeSeriesSegmentsSize.SizeInBytes = timeSeriesSegmentsSize;
+
+                collectionDetails.Size.SizeInBytes = documentsSize + revisionsSize + tombstonesSize + timeSeriesDeletedRangesSize + counterEntriesSize + timeSeriesSegmentsSize;
             }
 
             return collectionDetails;
