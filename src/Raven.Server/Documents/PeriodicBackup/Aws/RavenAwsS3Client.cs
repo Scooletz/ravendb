@@ -29,7 +29,7 @@ namespace Raven.Server.Documents.PeriodicBackup.Aws
         private static readonly Size TotalBlocksSizeLimit = new Size(5, SizeUnit.Terabytes);
 
         private AmazonS3Client _client;
-        private readonly string _bucketName;
+        internal readonly string _bucketName;
         private readonly bool _usingCustomServerUrl;
         public readonly string RemoteFolderName;
 
@@ -90,7 +90,7 @@ namespace Raven.Server.Documents.PeriodicBackup.Aws
                 credentials = new BasicAWSCredentials(s3Settings.AwsAccessKey, s3Settings.AwsSecretKey);
             else
                 credentials = new SessionAWSCredentials(s3Settings.AwsAccessKey, s3Settings.AwsSecretKey, s3Settings.AwsSessionToken);
-
+            
             _client = new AmazonS3Client(credentials, config);
 
             _bucketName = s3Settings.BucketName;
@@ -99,6 +99,11 @@ namespace Raven.Server.Documents.PeriodicBackup.Aws
             _storageClass = s3Settings.StorageClass?.ToAmazonS3StorageClass() ?? Amazon.S3.S3StorageClass.Standard;;
             _progress = progress;
             _cancellationToken = cancellationToken;
+        }
+
+        public async Task<GetObjectMetadataResponse> GetMetaDataAsync(string key)
+        {
+            return await _client.GetObjectMetadataAsync(_bucketName, key: key, _cancellationToken);
         }
 
         public void PutObject(string key, Stream stream, Dictionary<string, string> metadata)

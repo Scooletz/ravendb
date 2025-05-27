@@ -576,9 +576,7 @@ public sealed unsafe partial class IndexSearcher : IDisposable
             _nullTermsMarkersLoaded = true;
             
             InitNullPostingList();
-            
-            if (_nullPostingListsTree != null)
-                LoadSpecialTermMarkers(_nullPostingListsTree, out _nullTermsMarkers);
+            LoadSpecialTermMarkers(_nullPostingListsTree, out _nullTermsMarkers);
         }
 
         if (_nonExistingTermsMarkersLoaded == false)
@@ -586,9 +584,7 @@ public sealed unsafe partial class IndexSearcher : IDisposable
             _nonExistingTermsMarkersLoaded = true;
             
             InitNonExistingPostingList();
-            
-            if (_nonExistingPostingListsTree != null)
-                LoadSpecialTermMarkers(_nonExistingPostingListsTree, out _nonExistingTermsMarkers);
+            LoadSpecialTermMarkers(_nonExistingPostingListsTree, out _nonExistingTermsMarkers);
         }
 
         _vectorFieldsMarkers ??= _metadataTree?.Read(Constants.IndexWriter.VectorFieldsRootPagesSlice)?.Reader.ToUnmanagedSpan<long>().ToSpan().ToArray() ?? [];
@@ -597,6 +593,11 @@ public sealed unsafe partial class IndexSearcher : IDisposable
     public static void LoadSpecialTermMarkers(Tree postingList, out HashSet<long> termsMarkers)
     {
         termsMarkers = new HashSet<long>();
+        
+        // In case when posting list does not exist, we will return an empty hashset to prevent NRE.
+        if (postingList is null)
+            return;
+        
         using (var it = postingList.Iterate(prefetch: false))
         {
             if (it.Seek(Slices.BeforeAllKeys))

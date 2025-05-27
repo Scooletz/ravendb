@@ -3112,12 +3112,13 @@ namespace Raven.Server.Documents.Revisions
             var table = context.Transaction.InnerTransaction.OpenTable(_documentsStorage.TombstonesSchema, RevisionsTombstones);
             return table?.NumberOfEntries ?? 0;
         }
+
         public long GetNumberOfRevisionDocumentsForCollection(DocumentsOperationContext context, string collection)
         {
             var table = GetExistingTable(context.Transaction.InnerTransaction, new CollectionName(collection));
             if (table == null)
                 return 0;
-            return table.GetNumberOfEntriesFor(RevisionsSchema.FixedSizeIndexes[CollectionRevisionsEtagsSlice]);
+            return table.NumberOfEntries;
         }
 
         public long GetNumberOfNonDeletedRevisions(DocumentsOperationContext context)
