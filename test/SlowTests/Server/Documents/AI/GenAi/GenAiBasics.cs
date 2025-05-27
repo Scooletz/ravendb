@@ -33,25 +33,22 @@ public class GenAiBasics(ITestOutputHelper output) : RavenTestBase(output)
     {
         using var store = GetDocumentStore(options);
         store.Maintenance.Send(new PutConnectionStringOperation<AiConnectionString>(config.Connection));
+
         config.Prompt = "Check if the following blog post comment is spam or not";
         config.Collection = "Posts";
         config.SampleObject = JsonConvert.SerializeObject(new { Blocked = true, Reason = "Concise reason for why this comment was marked as spam or ham" });
-        config.Update = @"    
+        config.UpdateScript = @"    
 const idx = this.Comments.findIndex(c => c.Id == $input.Id);  
 if($output.Blocked)
 {
     this.Comments.splice(idx, 1); // remove
-}
-else 
-{
-    this.Comments[idx].AiHash = $aiHash; // remember this decision
 }";
         config.GenAiTransformation = new GenAiTransformation
         {
             Script = @"
 for(const comment of this.Comments)
 {
-    context({Text: comment.Text, Author: comment.Author, Id: comment.Id}, comment.AiHash);
+    context({Text: comment.Text, Author: comment.Author, Id: comment.Id});
 }
 "
         };
@@ -71,7 +68,7 @@ for(const comment of this.Comments)
         config.Prompt = "Check if the following blog post comment is spam or not";
         config.Collection = "Posts";
         config.SampleObject = JsonConvert.SerializeObject(new { Blocked = true, Reason = "Concise reason for why this comment was marked as spam or ham" });
-        config.Update = @"    
+        config.UpdateScript = @"    
 const idx = this.Comments.findIndex(c => c.Id == $input.Id);  
 if($output.Blocked)
 {
@@ -108,7 +105,6 @@ for(const comment of this.Comments)
             etl.Wait(cts.Token);
     }
 
-    // todo: Fix test
     [RavenTheory(RavenTestCategory.Ai)]
     [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single, CheckCanConnect = false, NightlyBuildRequired = false, Skip = "Failing test")]
     public async Task CanGetGenAiOngoingTask(Options options, GenAiConfiguration config)
@@ -119,7 +115,7 @@ for(const comment of this.Comments)
         config.Prompt = "Check if the following blog post comment is spam or not";
         config.Collection = "Posts";
         config.SampleObject = JsonConvert.SerializeObject(new { Blocked = true, Reason = "Concise reason for why this comment was marked as spam or ham" });
-        config.Update = @"    
+        config.UpdateScript = @"    
 const idx = this.Comments.findIndex(c => c.Id == $input.Id);  
 if($output.Blocked)
 {
@@ -151,7 +147,7 @@ for(const comment of this.Comments)
         Assert.Equal(config.Collection, genAiTaskInfo.Configuration.Collection);
         Assert.Equal(config.Prompt, genAiTaskInfo.Configuration.Prompt);
         Assert.Equal(config.SampleObject, genAiTaskInfo.Configuration.SampleObject);
-        Assert.Equal(config.Update, genAiTaskInfo.Configuration.Update);
+        Assert.Equal(config.UpdateScript, genAiTaskInfo.Configuration.UpdateScript);
         // Assert.Equal(config.AiConnectorType, genAiTaskInfo.Configuration.AiConnectorType); // todo: fix serverside return 'AiConnectorType: None'
         Assert.Equal(config.GenAiTransformation.Script, genAiTaskInfo.Configuration.GenAiTransformation.Script);
     }
@@ -166,7 +162,7 @@ for(const comment of this.Comments)
         config.Prompt = "Check if the following blog post comment is spam or not";
         config.Collection = "Posts";
         config.SampleObject = JsonConvert.SerializeObject(new { Blocked = true, Reason = "Concise reason for why this comment was marked as spam or ham" });
-        config.Update = @"    
+        config.UpdateScript = @"    
 const idx = this.Comments.findIndex(c => c.Id == $input.Id);  
 if($output.Blocked)
 {
@@ -192,7 +188,7 @@ for(const comment of this.Comments)
         var newUpdateScript = @"const idx = this.Comments.findIndex(c => c.Id == $input.Id);
 this.Comments[idx].LegitComment = $output.Blocked == false;
 ";
-        config.Update = newUpdateScript;
+        config.UpdateScript = newUpdateScript;
 
         store.Maintenance.Send(new UpdateEtlOperation<AiConnectionString>(taskId, config));
 
@@ -201,7 +197,7 @@ this.Comments[idx].LegitComment = $output.Blocked == false;
 
         var genAiTaskInfo = taskInfo as Raven.Client.Documents.Operations.OngoingTasks.GenAi;
         Assert.NotNull(genAiTaskInfo);
-        Assert.Equal(newUpdateScript, genAiTaskInfo.Configuration.Update);
+        Assert.Equal(newUpdateScript, genAiTaskInfo.Configuration.UpdateScript);
     }
 
     [RavenTheory(RavenTestCategory.Ai)]
@@ -214,7 +210,7 @@ this.Comments[idx].LegitComment = $output.Blocked == false;
         config.Prompt = "Check if the following blog post comment is spam or not";
         config.Collection = "Posts";
         config.SampleObject = JsonConvert.SerializeObject(new { Blocked = true, Reason = "Concise reason for why this comment was marked as spam or ham" });
-        config.Update = @"    
+        config.UpdateScript = @"    
 const idx = this.Comments.findIndex(c => c.Id == $input.Id);  
 if($output.Blocked)
 {
@@ -252,7 +248,7 @@ for(const comment of this.Comments)
         config.Prompt = "Check if the following blog post comment is spam or not";
         config.Collection = "Posts";
         config.SampleObject = JsonConvert.SerializeObject(new { Blocked = true, Reason = "Concise reason for why this comment was marked as spam or ham" });
-        config.Update = @"    
+        config.UpdateScript = @"    
 const idx = this.Comments.findIndex(c => c.Id == $input.Id);  
 if($output.Blocked)
 {
@@ -299,7 +295,7 @@ for(const comment of this.Comments)
         config.Prompt = "Check if the following blog post comment is spam or not";
         config.Collection = "Posts";
         config.SampleObject = JsonConvert.SerializeObject(new { Blocked = true, Reason = "Concise reason for why this comment was marked as spam or ham" });
-        config.Update = @"    
+        config.UpdateScript = @"    
 const idx = this.Comments.findIndex(c => c.Id == $input.Id);  
 if($output.Blocked)
 {
@@ -338,7 +334,7 @@ for(const comment of this.Comments)
             Assert.NotNull(postDoc);
 
             Assert.True(postDoc.TryGet(Constants.Documents.Metadata.Key, out BlittableJsonReaderObject metadata));
-            Assert.True(metadata.TryGet(GenAiTask.GenAiHashesMetadataKey, out BlittableJsonReaderObject hashesSection));
+            Assert.True(metadata.TryGet(Constants.Documents.Metadata.GenAiHashes, out BlittableJsonReaderObject hashesSection));
             Assert.True(hashesSection.TryGet(taskName, out BlittableJsonReaderArray hashes));
             Assert.NotNull(hashes);
 
@@ -368,7 +364,7 @@ for(const comment of this.Comments)
             Assert.NotNull(postDoc);
 
             Assert.True(postDoc.TryGet(Constants.Documents.Metadata.Key, out BlittableJsonReaderObject metadata));
-            Assert.True(metadata.TryGet(GenAiTask.GenAiHashesMetadataKey, out BlittableJsonReaderObject hashesSection));
+            Assert.True(metadata.TryGet(Constants.Documents.Metadata.GenAiHashes, out BlittableJsonReaderObject hashesSection));
             Assert.True(hashesSection.TryGet(taskName, out BlittableJsonReaderArray hashes));
             Assert.NotNull(hashes);
 
@@ -435,7 +431,7 @@ if($output.Blocked)
         configuration.Prompt = "Check if the following blog post comment is spam or not";
         configuration.Collection = "Posts";
         configuration.SampleObject = JsonConvert.SerializeObject(new { Blocked = true, Reason = "Concise reason for why this comment was marked as spam or ham" });
-        configuration.Update = @"    
+        configuration.UpdateScript = @"    
 const idx = this.Comments.findIndex(c => c.Id == $input.Id);
 this.Comments[idx].IsSpam = $output.Blocked;
 ";
@@ -573,7 +569,7 @@ for(const comment of this.Comments)
     public async Task ShouldResendContextWhenUpdateScriptChanges(Options options, GenAiConfiguration configuration)
     {
         await ShouldResendContextOnConfigChange(configuration,
-            changeConfig: config => config.Update = "this.Translated = $output.Translation;"
+            changeConfig: config => config.UpdateScript = "this.Translated = $output.Translation;"
         );
     }
 
@@ -589,10 +585,9 @@ for(const comment of this.Comments)
 
         config.Prompt = "Translate this text to Polish";
         config.JsonSchema = schema;
-        config.Update = "this.TextInPolish = $output.Translation;";
+        config.UpdateScript = "this.TextInPolish = $output.Translation;";
         config.Collection = "Posts";
         config.GenAiTransformation = new GenAiTransformation { Script = "context({ Text: this.Body });" };
-
 
         store.Maintenance.Send(new AddGenAiOperation(config));
 
@@ -611,7 +606,7 @@ for(const comment of this.Comments)
         {
             var doc = await session.LoadAsync<BlittableJsonReaderObject>(docId);
             Assert.True(doc.TryGet(Constants.Documents.Metadata.Key, out BlittableJsonReaderObject metadata));
-            Assert.True(metadata.TryGet(GenAiTask.GenAiHashesMetadataKey, out BlittableJsonReaderObject hashesSection));
+            Assert.True(metadata.TryGet(Constants.Documents.Metadata.GenAiHashes, out BlittableJsonReaderObject hashesSection));
             Assert.True(hashesSection.TryGet(config.Name, out BlittableJsonReaderArray hashesArray));
             Assert.NotNull(hashesArray);
             originalHash = hashesArray.Last().ToString();
@@ -652,7 +647,7 @@ for(const comment of this.Comments)
         Assert.NotNull(genAiTaskInfo);
         Assert.Equal(genAiTaskInfo.Configuration.Prompt, config.Prompt);
         Assert.Equal(genAiTaskInfo.Configuration.JsonSchema, config.JsonSchema);
-        Assert.Equal(genAiTaskInfo.Configuration.Update, config.Update);
+        Assert.Equal(genAiTaskInfo.Configuration.UpdateScript, config.UpdateScript);
 
         WaitForUserToContinueTheTest(store);
 
@@ -676,9 +671,6 @@ for(const comment of this.Comments)
 
         // assert that context was sent again
 
-        WaitForUserToContinueTheTest(store);
-
-
         etlProcess = db.EtlLoader.Processes.FirstOrDefault() as GenAiTask;
         Assert.NotNull(etlProcess);
 
@@ -701,7 +693,7 @@ for(const comment of this.Comments)
         {
             var doc = await session.LoadAsync<BlittableJsonReaderObject>(docId);
             Assert.True(doc.TryGet(Constants.Documents.Metadata.Key, out BlittableJsonReaderObject metadata));
-            Assert.True(metadata.TryGet(GenAiTask.GenAiHashesMetadataKey, out BlittableJsonReaderObject hashesSection));
+            Assert.True(metadata.TryGet(Constants.Documents.Metadata.GenAiHashes, out BlittableJsonReaderObject hashesSection));
             Assert.True(hashesSection.TryGet(config.Name, out BlittableJsonReaderArray hashesArray));
             Assert.NotNull(hashesArray);
 

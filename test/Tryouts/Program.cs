@@ -9,7 +9,7 @@ using Raven.Server.Utils;
 using Xunit;
 using FastTests;
 using Raven.Client.Documents.Operations.AI;
-using SlowTests.Server.Documents.AI.GenAi;
+using SlowTests.Server.Documents.AI;
 
 namespace Tryouts;
 

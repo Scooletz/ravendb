@@ -63,6 +63,7 @@ internal sealed class GenAiScriptTransformer : EtlTransformer<GenAiItem, GenAiSc
 
     protected override void LoadToFunction(string tableName, ScriptRunnerResult colsAsObject)
     {
+        throw new NotSupportedException("loadTo() function is not supported in GenAI Task");
     }
 
     public override IEnumerable<GenAiScriptResult> GetTransformedResults()

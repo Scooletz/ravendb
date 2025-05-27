@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 using FastTests;
 using Raven.Client.Documents.Operations.AI;
 using Raven.Server.Documents.AI;
-using Raven.Server.Documents.AI.AiGen;
+using Raven.Server.Documents.AI.GenAi;
 using Raven.Server.Logging;
 using Raven.Server.ServerWide.Context;
 using Sparrow.Logging;

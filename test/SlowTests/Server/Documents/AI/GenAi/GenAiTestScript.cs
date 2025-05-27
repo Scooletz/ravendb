@@ -58,7 +58,7 @@ public class GenAiTestScript(ITestOutputHelper output) : RavenTestBase(output)
                 config.Collection = "Posts";
                 config.Prompt = "Check if the following blog post comment is spam or not";
                 config.SampleObject = JsonConvert.SerializeObject(new { Blocked = true, Reason = "Concise reason for why this comment was marked as spam or harmful" });
-                config.Update = @"    
+                config.UpdateScript = @"    
 const idx = this.Comments.findIndex(c => c.Id == $input.Id);  
 if($output.Blocked)
 {
@@ -165,7 +165,7 @@ if($output.Blocked)
         config.Collection = "Posts";
         config.Prompt = "Check if the following blog post comment is spam or not";
         config.SampleObject = JsonConvert.SerializeObject(new { Blocked = true, Reason = "Concise reason for why this comment was marked as spam or harmful" });
-        config.Update = @"    
+        config.UpdateScript = @"    
 const idx = this.Comments.findIndex(c => c.Id == $input.Id);  
 if($output.Blocked)
 {
@@ -268,7 +268,7 @@ for (const comment of this.Comments)
             config.Prompt = "Check if the following blog post comment is spam or not";
             config.SampleObject = JsonConvert.SerializeObject(
                 new { Blocked = true, Reason = "Concise reason for why this comment was marked as spam or harmful" });
-            config.Update = @"    
+            config.UpdateScript = @"    
 const idx = this.Comments.findIndex(c => c.Id == $input.Id);  
 if($output.Blocked)
 {
@@ -373,7 +373,7 @@ for (const comment of this.Comments)
             config.Prompt = "Check if the following blog post comment is spam or not";
             config.SampleObject = JsonConvert.SerializeObject(
                 new { Blocked = true, Reason = "Concise reason for why this comment was marked as spam or harmful" });
-            config.Update = @"    
+            config.UpdateScript = @"    
 const idx = this.Comments.findIndex(c => c.Id == $input.Id);  
 this.Comments[idx].Spam = $output.Blocked;
 ";
@@ -428,7 +428,7 @@ for (const comment of this.Comments)
 
             testGenAiScript.Input = thirdRun.Results;
 
-            testGenAiScript.Configuration.Update = @"    
+            testGenAiScript.Configuration.UpdateScript = @"    
 const idx = this.Comments.findIndex(c => c.Id == $input.Id);  
 this.Comments[idx].Reason = $output.Reason;
 ";
@@ -480,7 +480,7 @@ this.Comments[idx].Reason = $output.Reason;
             config.Collection = "Posts";
             config.Prompt = "Check if the following blog post comment is spam or not";
             config.SampleObject = JsonConvert.SerializeObject(new { Blocked = true, Reason = "Concise reason for why this comment was marked as spam or harmful" });
-            config.Update = @"
+            config.UpdateScript = @"
 const idx = this.Comments.findIndex(c => c.Id == $input.Id);  
 this.Comments[idx].Spam = $output.Blocked;
 ";
@@ -802,7 +802,7 @@ for (const comment of this.Comments)
                 config.Collection = "Posts";
                 config.Prompt = "Check if the following blog post comment is spam or not";
                 config.SampleObject = JsonConvert.SerializeObject(new { Blocked = true, Reason = "Concise reason for why this comment was marked as spam or harmful" });
-                config.Update = @"    
+                config.UpdateScript = @"    
 const idx = this.Comments.findIndex(c => c.Id == $input.Id);  
 if($output.Blocked)
 {
@@ -1011,7 +1011,7 @@ for (const comment of this.Comments)
                 config.Collection = "Posts";
                 config.Prompt = "Check if the following blog post comment is spam or not";
                 config.SampleObject = JsonConvert.SerializeObject(new { Blocked = true, Reason = "Concise reason for why this comment was marked as spam or harmful" });
-                config.Update = @"    
+                config.UpdateScript = @"    
 const idx = this.Comments.findIndex(c => c.Id == $input.Id);  
 if($output.Blocked)
 {
@@ -1128,7 +1128,7 @@ for (const comment of this.Comments)
 }
 "
                 };
-                config.Update = @"const idx = this.Comments.findIndex(c => c.Id == $input.Id);  
+                config.UpdateScript = @"const idx = this.Comments.findIndex(c => c.Id == $input.Id);  
 if($output.Blocked)
 {
     this.Comments.splice(idx, 1); // remove
@@ -1284,7 +1284,7 @@ if($output.Blocked)
                         Blocked = true,
                         Reason = "Concise reason for why this comment was marked as spam or harmful"
                     }),
-                    Update = @"    
+                    UpdateScript = @"    
 const idx = this.Comments.findIndex(c => c.Id == $input.Id);  
 this.Comments[idx].Spam = $output.Blocked;
 ",
@@ -1442,7 +1442,7 @@ for (const comment of this.Comments)
         {
             Blocked = true, Reason = "Concise reason for why this comment was marked as spam or harmful"
         }));
-        config.Update = @"    
+        config.UpdateScript = @"    
 const idx = this.Comments.findIndex(c => c.Id == $input.Id);  
 this.Comments[idx].Spam = $output.Blocked;
 ";
@@ -1483,7 +1483,7 @@ for (const comment of this.Comments)
             Assert.NotNull(finalRun.OutputDocument);
 
             Assert.True(finalRun.OutputDocument.TryGet(Constants.Documents.Metadata.Key, out BlittableJsonReaderObject metadata));
-            Assert.True(metadata.TryGet(GenAiTask.GenAiHashesMetadataKey, out BlittableJsonReaderObject hashesSection));
+            Assert.True(metadata.TryGet(Constants.Documents.Metadata.GenAiHashes, out BlittableJsonReaderObject hashesSection));
             Assert.True(hashesSection.TryGet(testGenAiScript.Configuration.Name, out BlittableJsonReaderArray hashesArr));
 
             var hashes = hashesArr.Select(x => x.ToString()).ToList();
@@ -1491,7 +1491,7 @@ for (const comment of this.Comments)
             List<string> expectedHashes = new();
             var prompt = testGenAiScript.Configuration.Prompt;
             var schema = testGenAiScript.Configuration.JsonSchema;
-            var update = testGenAiScript.Configuration.Update;
+            var update = testGenAiScript.Configuration.UpdateScript;
 
             foreach (var item in finalRun.Results)
             {
@@ -1535,7 +1535,7 @@ for (const comment of this.Comments)
 
         public override HttpRequestMessage CreateRequest(JsonOperationContext ctx, ServerNode node, out string url)
         {
-            url = $"{node.Url}/databases/{node.Database}/admin/ai/genai/test";
+            url = $"{node.Url}/databases/{node.Database}/admin/ai/gen-ai/test";
 
             var request = new HttpRequestMessage
             {

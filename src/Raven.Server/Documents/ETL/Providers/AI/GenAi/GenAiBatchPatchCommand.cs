@@ -69,12 +69,6 @@ internal sealed class GenAiBatchPatchCommand : PatchDocumentCommandBase
                 _patch = (_patchRequest, CreatePatchArgs(context, item));
                 PatchResult patchResult = null;
 
-                //            _database = context.DocumentDatabase;
-                // _returnRun = _database.Scripts.GetScriptRunner(_patch.Run, readOnly: false, out _run);
-                // _disposableStatement = _ignoreMaxStepsForScript ? _run.ScriptEngine.DisableMaxStatements() : null;
-                // _disposableScriptRunner = _patchIfMissing.Run != null ? _database.Scripts.GetScriptRunner(_patchIfMissing.Run, readOnly: false, out _runIfMissing) : null;
-                // _isInitialized = true;
-
                 try
                 {
                     patchResult = ExecuteOnDocument(context, item.DocId, expectedChangeVector: null, runner, runIfMissing: null);

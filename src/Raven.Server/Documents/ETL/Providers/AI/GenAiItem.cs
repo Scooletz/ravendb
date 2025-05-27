@@ -6,8 +6,4 @@ public sealed class GenAiItem : ExtractedItem
     {
            
     }
-
-    public GenAiItem(Tombstone tombstone, string collection, EtlItemType type) : base(tombstone, collection, type)
-    {
-    }
 }

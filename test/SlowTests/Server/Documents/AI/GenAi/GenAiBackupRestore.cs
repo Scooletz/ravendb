@@ -11,7 +11,6 @@ using Raven.Client.Documents.Operations.ConnectionStrings;
 using Raven.Client.Documents.Smuggler;
 using Raven.Client.ServerWide.Operations;
 using Raven.Server.Documents.ETL;
-using Raven.Server.Documents.ETL.Providers.AI.GenAi;
 using Sparrow.Json;
 using Tests.Infrastructure;
 using Xunit;
@@ -33,7 +32,7 @@ public class GenAiBackupRestore(ITestOutputHelper output) : RavenTestBase(output
             config.Prompt = "Translate the following sentence";
             config.Collection = "Posts";
             config.SampleObject = JsonConvert.SerializeObject(new { Translation = "foo" });
-            config.Update = "this.Translation = $output.Translation";
+            config.UpdateScript = "this.Translation = $output.Translation";
             config.GenAiTransformation = new GenAiTransformation { Script = "context({ Sentence: this.Body });" };
             src.Maintenance.Send(new PutConnectionStringOperation<AiConnectionString>(config.Connection));
 
@@ -51,7 +50,7 @@ public class GenAiBackupRestore(ITestOutputHelper output) : RavenTestBase(output
             Assert.Equal(config.ConnectionStringName, imported.ConnectionStringName);
             Assert.Equal(config.Prompt, imported.Prompt);
             Assert.Equal(config.SampleObject, imported.SampleObject);
-            Assert.Equal(config.Update, imported.Update);
+            Assert.Equal(config.UpdateScript, imported.UpdateScript);
             Assert.Equal(config.Collection, imported.Collection);
             Assert.Equal(config.GenAiTransformation.Script, imported.GenAiTransformation.Script);
         }
@@ -70,7 +69,7 @@ public class GenAiBackupRestore(ITestOutputHelper output) : RavenTestBase(output
             config.Prompt = "Give a short answer to the following question";
             config.Collection = "Posts";
             config.SampleObject = sampleObject;
-            config.Update = "this.GenAnswer = $output.Answer";
+            config.UpdateScript = "this.GenAnswer = $output.Answer";
             config.GenAiTransformation = new GenAiTransformation { Script = "context({ Question: this.Body });" };
             store.Maintenance.Send(new PutConnectionStringOperation<AiConnectionString>(config.Connection));
             store.Maintenance.Send(new AddGenAiOperation(config));
@@ -95,7 +94,7 @@ public class GenAiBackupRestore(ITestOutputHelper output) : RavenTestBase(output
                 Assert.NotNull(genAnswer);
 
                 Assert.True(doc.TryGet(Constants.Documents.Metadata.Key, out BlittableJsonReaderObject metadata));
-                Assert.True(metadata.TryGet(GenAiTask.GenAiHashesMetadataKey, out BlittableJsonReaderObject hashesSection));
+                Assert.True(metadata.TryGet(Constants.Documents.Metadata.GenAiHashes, out BlittableJsonReaderObject hashesSection));
                 Assert.Equal(1, hashesSection.Count);
 
                 Assert.True(hashesSection.TryGet(config.Name, out BlittableJsonReaderArray hashes));
@@ -144,7 +143,7 @@ public class GenAiBackupRestore(ITestOutputHelper output) : RavenTestBase(output
                 Assert.Equal(srcGenConfig.ConnectionStringName, dstGenConfig.ConnectionStringName);
                 Assert.Equal(srcGenConfig.Prompt, dstGenConfig.Prompt);
                 Assert.Equal(srcGenConfig.JsonSchema, dstGenConfig.JsonSchema);
-                Assert.Equal(srcGenConfig.Update, dstGenConfig.Update);
+                Assert.Equal(srcGenConfig.UpdateScript, dstGenConfig.UpdateScript);
                 Assert.Equal(srcGenConfig.Collection, dstGenConfig.Collection);
                 Assert.Equal(srcGenConfig.GenAiTransformation.Script, dstGenConfig.GenAiTransformation.Script);
 
@@ -168,7 +167,7 @@ public class GenAiBackupRestore(ITestOutputHelper output) : RavenTestBase(output
                     Assert.NotNull(genAnswer);
 
                     Assert.True(doc.TryGet(Constants.Documents.Metadata.Key, out BlittableJsonReaderObject metadata));
-                    Assert.True(metadata.TryGet(GenAiTask.GenAiHashesMetadataKey, out BlittableJsonReaderObject hashesSection));
+                    Assert.True(metadata.TryGet(Constants.Documents.Metadata.GenAiHashes, out BlittableJsonReaderObject hashesSection));
                     Assert.Equal(1, hashesSection.Count);
 
                     Assert.True(hashesSection.TryGet(config.Name, out BlittableJsonReaderArray hashes));
@@ -196,7 +195,7 @@ public class GenAiBackupRestore(ITestOutputHelper output) : RavenTestBase(output
             config.Prompt = "What is the answer to life?";
             config.Collection = "Posts";
             config.SampleObject = JsonConvert.SerializeObject(new { Answer = "42" });
-            config.Update = "this.GenAnswer = $output.Answer";
+            config.UpdateScript = "this.GenAnswer = $output.Answer";
             config.GenAiTransformation = new GenAiTransformation { Script = "context({ Question: this.Body });" };
 
             await store.Maintenance.SendAsync(new AddGenAiOperation(config));
@@ -234,7 +233,7 @@ public class GenAiBackupRestore(ITestOutputHelper output) : RavenTestBase(output
                 Assert.Equal(config.ConnectionStringName, restoredGenConfig.ConnectionStringName);
                 Assert.Equal(config.Prompt, restoredGenConfig.Prompt);
                 Assert.Equal(config.SampleObject, restoredGenConfig.SampleObject);
-                Assert.Equal(config.Update, restoredGenConfig.Update);
+                Assert.Equal(config.UpdateScript, restoredGenConfig.UpdateScript);
                 Assert.Equal(config.Collection, restoredGenConfig.Collection);
                 Assert.Equal(config.GenAiTransformation.Script, restoredGenConfig.GenAiTransformation.Script);
             }
