@@ -44,6 +44,7 @@ export default function OngoingTaskAddModal(props: OngoingTaskAddModalProps) {
     const hasKafkaSink = useAppSelector(licenseSelectors.statusValue("HasQueueSink"));
     const hasRabbitMqSink = useAppSelector(licenseSelectors.statusValue("HasQueueSink"));
     const hasPeriodicBackups = useAppSelector(licenseSelectors.statusValue("HasPeriodicBackup"));
+    const hasGenAi = useAppSelector(licenseSelectors.statusValue("HasGenAi"));
 
     const { appUrl } = useAppUrls();
 
@@ -111,6 +112,7 @@ export default function OngoingTaskAddModal(props: OngoingTaskAddModalProps) {
                     >
                         <Icon icon="ai-etl" margin="m-0" />
                         <h4 className="mt-1 mb-0">GenAI</h4>
+                        {!hasGenAi && <LicenseRestrictedBadge licenseRequired="Enterprise Ai" />}
                     </TaskItem>
                     <TaskItem
                         title="Create new AI task"
