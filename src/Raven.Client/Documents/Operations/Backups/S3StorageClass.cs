@@ -1,3 +1,5 @@
+using System;
+
 namespace Raven.Client.Documents.Operations.Backups;
 
 public enum S3StorageClass
@@ -42,11 +44,6 @@ public enum S3StorageClass
     OneZoneInfrequentAccess,
 
     /// <summary>
-    /// The OUTPOSTS storage class for objects stored in a S3 Outpost
-    /// </summary>
-    Outposts,
-
-    /// <summary>
     /// REDUCED_REDUNDANCY provides the same availability as standard, but at a lower durability.
     /// <para></para>
     /// Durability 99.99%; Availability 99.99% over a given year.
@@ -69,12 +66,6 @@ public enum S3StorageClass
     /// Durability 99.999999999%; Availability 99.9% over a given year.
     /// </summary>
     StandardInfrequentAccess,
-
-    /// <summary>
-    /// The SNOW storage is for objects stored in Amazon S3 compatible object storage
-    /// for Snow family devices.
-    /// </summary>
-    Snow,
 
     /// <summary>
     /// The EXPRESS_ONEZONE storage class for faster access to S3
