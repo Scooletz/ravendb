@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.InteropServices;
+using Jint;
 using Raven.Client;
-using Raven.Client.Documents.Operations;
-using Raven.Server.Documents.Handlers.Batches;
 using Raven.Server.Documents.Patch;
 using Raven.Server.Documents.TransactionMerger.Commands;
 using Raven.Server.ServerWide.Context;
@@ -14,13 +14,14 @@ using PatchRequest = Raven.Server.Documents.Patch.PatchRequest;
 
 namespace Raven.Server.Documents.ETL.Providers.AI.GenAi;
 
-internal sealed class GenAiBatchPatchCommand : PatchDocumentCommandBase
+internal sealed class GenAiBatchPatchCommand : DocumentMergedTransactionCommand
 {
     private readonly List<GenAiResultItem> _items;
     private readonly PatchRequest _patchRequest;
     private readonly string _taskName;
     private readonly RavenLogger _logger;
     private readonly EtlProcessStatistics _statistics;
+    private readonly DocumentDatabase _database;
 
     public GenAiBatchPatchCommand(DocumentsOperationContext context,
         List<GenAiResultItem> items,
@@ -28,22 +29,18 @@ internal sealed class GenAiBatchPatchCommand : PatchDocumentCommandBase
         string taskName,
         RavenLogger logger, 
         EtlProcessStatistics statistics)
-        : base(
-              context,
-              skipPatchIfChangeVectorMismatch: false,
-              patch: default,
-              patchIfMissing: default,
-              createIfMissing: null,
-              isTest: false,
-              debugMode: false,
-              collectResultsNeeded: true,
-              returnDocument: false)
     {
         _items = items ?? throw new ArgumentException(nameof(items));
         _patchRequest = patchRequest ?? throw new ArgumentException(nameof(patchRequest));
-        _taskName = taskName ?? throw new ArgumentException(nameof(taskName));
         _logger = logger ?? throw new ArgumentException(nameof(logger));
         _statistics = statistics ?? throw new ArgumentException(nameof(statistics));
+
+        if (string.IsNullOrEmpty(taskName))
+            throw new ArgumentException(nameof(taskName));
+        _taskName = taskName;
+
+        if (context == null)
+            throw new ArgumentNullException(nameof(context));
         _database = context.DocumentDatabase;
     }
 
@@ -58,63 +55,53 @@ internal sealed class GenAiBatchPatchCommand : PatchDocumentCommandBase
                 if (item.UpdateHash == false)
                     continue;
 
-                if (hashes.TryGetValue(item.DocId, out var tuple) == false)
-                    hashes[item.DocId] = tuple = (null, []);
-                
+                ref var tuple = ref CollectionsMarshal.GetValueRefOrAddDefault(hashes, item.DocId, out var exists);
+                if (exists is false)
+                {
+                    Document document = GetCurrentDocument(context, item.DocId);
+                    if (document is null)
+                        continue; // document was probably deleted while we talked to the model, skipping this
+
+                    tuple = (document.Data, []);
+                }
+
                 tuple.Hashes.Add(item.ContextOutput.AiHash);
 
                 if (item.ModelOutput is null)
-                    continue; 
+                    continue;
 
-                _patch = (_patchRequest, CreatePatchArgs(context, item));
-                PatchResult patchResult = null;
-
+                var args = CreatePatchArgs(context, item);
                 try
                 {
-                    patchResult = ExecuteOnDocument(context, item.DocId, expectedChangeVector: null, runner, runIfMissing: null);
+                    var documentInstance = (BlittableObjectInstance)runner.Translate(context, tuple.Doc).AsObject();
+                    using (var scriptResult = runner.Run(context, context, "execute", item.DocId, [documentInstance, args]))
+                    using (var old = tuple.Doc)
+                    {
+                        tuple.Doc = scriptResult.TranslateToObject(context);
+                    }
                 }
                 catch (Exception e)
                 {
                     // do not update metadata hash, log error, raise alert
-
                     tuple.Hashes.Remove(item.ContextOutput.AiHash);
-
                     var msg = $"Failed to apply update script for context in document '{item.DocId}'. " +
                               $"Context was: {item.ContextOutput.Context}{Environment.NewLine}" +
                               $"Error: {e}";
-
                     _statistics.RecordPartialLoadError(msg, item.DocId);
                     _logger.Log(LogLevel.Warn, msg);
-
-                    continue;
                 }
-
-                tuple.Doc = patchResult?.ModifiedDocument;
-                hashes[item.DocId] = tuple;
             }
         }
 
         // update metadata for each doc in same transaction
-        foreach (var kvp in hashes)
+        foreach (var (id, (doc, allHashes)) in hashes)
         {
-            var id = kvp.Key;
-            var doc = kvp.Value.Doc;
-            var hashesList = kvp.Value.Hashes;
+            // this indicates that there was an error in the update script
+            // and that we should not update this document
+            if (allHashes.Count is 0)
+                continue;
 
-            if (doc == null)
-                continue; // document was deleted?
-
-            try
-            {
-                UpdateHashesInMetadata(id, doc, _taskName, new DynamicJsonArray(hashesList), context);
-            }
-            catch (Exception e)
-            {
-                var msg = $"Failed to update context hash metadata ('{Constants.Documents.Metadata.GenAiHashes}') for document '{id}'. " +
-                          $"Error: {e}";
-                _statistics.RecordPartialLoadError(msg, id);
-                _logger.Log(LogLevel.Warn, msg);
-            }
+            UpdateHashesInMetadata(id, doc, _taskName, allHashes, context);
         }
 
         return _items.Count;
@@ -131,7 +118,7 @@ internal sealed class GenAiBatchPatchCommand : PatchDocumentCommandBase
         return context.ReadObject(djv, item.DocId);
     }
 
-    internal static BlittableJsonReaderObject UpdateHashesInMetadata(string id, BlittableJsonReaderObject doc, string taskName, DynamicJsonArray allHashes, DocumentsOperationContext context)
+    internal static BlittableJsonReaderObject UpdateHashesInMetadata(string id, BlittableJsonReaderObject doc, string taskName, List<string> allHashes, DocumentsOperationContext context)
     {
         if (doc.TryGet(Constants.Documents.Metadata.Key, out BlittableJsonReaderObject metadata) == false)
         {
@@ -188,7 +175,7 @@ internal sealed class GenAiBatchPatchCommand : PatchDocumentCommandBase
 
         using (var old = doc)
         {
-            doc = context.ReadObject(doc, id);
+            doc = context.ReadObject(old, id);
         }
 
         context.DocumentDatabase.DocumentsStorage.Put(context, id, expectedChangeVector: null, doc);
@@ -196,21 +183,25 @@ internal sealed class GenAiBatchPatchCommand : PatchDocumentCommandBase
         return doc;
     }
 
-    public override string HandleReply(DynamicJsonArray reply, HashSet<string> modifiedCollections)
+    private Document GetCurrentDocument(DocumentsOperationContext context, string id)
     {
-        // TODO
+        var originalDocument = _database.DocumentsStorage.Get(context, id);
 
-        reply?.Add(new DynamicJsonValue
+        if (originalDocument != null)
         {
-            [nameof(BatchRequestParser.CommandData.Type)] = "GenAiBatchPATCH"
-        });
+            using (var oldData = originalDocument.Data)
+            {
+                // we clone it, to keep it safe from defrag due to the patch modifications
+                originalDocument.Data = originalDocument.Data?.CloneOnTheSameContext();
+            }
+        }
 
-        return null;
+        return originalDocument;
     }
 
     public override IReplayableCommandDto<DocumentsOperationContext, DocumentsTransaction, DocumentMergedTransactionCommand> ToDto(DocumentsOperationContext context)
     {
-        throw new NotSupportedException("Replay not supported for GenAiBatchPatchCommand");
+        throw new NotSupportedException($"Replay not supported for {nameof(GenAiBatchPatchCommand)}");
     }
 }
 
