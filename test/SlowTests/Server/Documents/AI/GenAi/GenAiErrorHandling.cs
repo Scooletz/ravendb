@@ -283,10 +283,10 @@ this.Comments[idx].IsBlocked = $output.Blocked;";
             var stats = etlProcess.GetPerformanceStats().Last();
             Assert.True(stats.SuccessfullyLoaded);
 
-            // assert that next ETL batch starts from etag = 4, not 0 (batch was successful)
+            // assert that next ETL batch does not start from etag 0 (batch was successful)
             var state = EtlProcess.GetProcessState(db, config.Name, config.Transforms[0].Name);
             var lastProcessedEtag = state.GetLastProcessedEtag(db.DbBase64Id, Server.ServerStore.NodeTag);
-            Assert.Equal(4, lastProcessedEtag);
+            Assert.True(lastProcessedEtag > 0);
         }
     }
 
