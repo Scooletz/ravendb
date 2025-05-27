@@ -19,7 +19,6 @@ using Raven.Client.Documents.Conventions;
 using Raven.Client.Http;
 using Raven.Client.Json;
 using Raven.Client.Util;
-using Raven.Server.ServerWide.Context;
 using Sparrow.Json;
 using Sparrow.Server.Json.Sync;
 using JsonSerializer = System.Text.Json.JsonSerializer;
@@ -27,22 +26,19 @@ using JsonSerializer = System.Text.Json.JsonSerializer;
 
 namespace Raven.Server.Documents.AI;
 
-public abstract class AbstractChatCompletionClient : IDisposable
+public abstract class AbstractChatCompletionClient<TContext> : IChatCompletionClient, IChatCompletionClientForTesting
+    where TContext : JsonOperationContext
 {
-    public static readonly DocumentConventions DefaultConventions = new DocumentConventions { UseHttpCompression = false };
-    private static readonly Regex GoDurationRegex = new Regex(
-        @"(?<value>\d+(?:\.\d+)?)(?<unit>ns|us|µs|ms|s|m|h)",
-        RegexOptions.Compiled | RegexOptions.CultureInvariant
-    );
     private readonly string _model;
     private readonly HttpClientCacheKey _httpClientCacheKey;
     private readonly HttpClient _client;
     private readonly string _structuredOutputSchema;
     private readonly DocumentConventions _conventions;
-    private readonly TransactionContextPool _contextPool;
+    private readonly JsonContextPoolBase<TContext> _contextPool;
     private readonly AuthenticationHeaderValue _auth;
     private readonly Uri _baseUri;
-    public AbstractChatCompletionClient(Uri baseUri, string model, string apiKey, string structuredOutputSchema, TransactionContextPool contextPool, DocumentConventions conventions)
+
+    protected AbstractChatCompletionClient(Uri baseUri, string model, string apiKey, string structuredOutputSchema, JsonContextPoolBase<TContext> contextPool, DocumentConventions conventions)
     {
         _model = model;
 
@@ -63,7 +59,7 @@ public abstract class AbstractChatCompletionClient : IDisposable
             }
         });
 
-        _structuredOutputSchema = structuredOutputSchema;
+        _structuredOutputSchema = structuredOutputSchema ?? string.Empty;
         _contextPool = contextPool;
     }
 
@@ -171,8 +167,7 @@ public abstract class AbstractChatCompletionClient : IDisposable
 
                 writer.WriteEndObject();
             }
-        }, DefaultConventions);
-
+        }, IChatCompletionClient.DefaultConventions);
 
         content.Headers.Add(Constants.RequestFields.HeaderContentType, Constants.RequestFields.MediaTypeApplicationJson);
 
@@ -294,7 +289,7 @@ public abstract class AbstractChatCompletionClient : IDisposable
         }
     }
 
-    private string GetRequestId(HttpResponseHeaders headers)
+    private static string GetRequestId(HttpResponseHeaders headers)
     {
         if (headers.TryGetValues(Constants.Headers.RequestId, out var values) == false || values.IsNullOrEmpty())
         {
@@ -325,7 +320,7 @@ public abstract class AbstractChatCompletionClient : IDisposable
         }
 
         // As Duration (go style): 17ms, 1m8.754s, 5m, 1h
-        var matches = GoDurationRegex.Matches(input);
+        var matches = IChatCompletionClient.GoDurationRegex.Matches(input);
         if (matches.Count == 0)
             return false;
 
@@ -456,29 +451,18 @@ public abstract class AbstractChatCompletionClient : IDisposable
 
     internal static string GetAllowedUniqueName(string schemaOrSampleObject)
     {
-        var hash =  AttachmentsStorageHelper.CalculateHash(MemoryMarshal.AsBytes(schemaOrSampleObject.AsSpan()));
+        var hash = AttachmentsStorageHelper.CalculateHash(MemoryMarshal.AsBytes(schemaOrSampleObject.AsSpan()));
         return Base64UrlEncoder.Encode(Encoding.UTF8.GetBytes(hash));
     }
 
-    private TestingStuff _forTestingPurposes;
+    private IChatCompletionClientForTesting.TestingStuff _forTestingPurposes;
 
-    internal TestingStuff ForTestingPurposesOnly()
+    public IChatCompletionClientForTesting.TestingStuff ForTestingPurposesOnly()
     {
         if (_forTestingPurposes != null)
             return _forTestingPurposes;
 
-        return _forTestingPurposes = new TestingStuff();
-    }
-
-    internal sealed class TestingStuff
-    {
-        internal TestingStuff()
-        {
-        }
-
-        internal Action<AsyncBlittableJsonTextWriter> ModifyPayload;
-
-        internal Action<string> SimulateFailure;
+        return _forTestingPurposes = new IChatCompletionClientForTesting.TestingStuff();
     }
 
     private static class Constants

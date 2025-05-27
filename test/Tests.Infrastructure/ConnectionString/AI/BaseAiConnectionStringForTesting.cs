@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Threading;
-using Microsoft.SemanticKernel.ChatCompletion;
 using Microsoft.SemanticKernel.Embeddings;
+using Raven.Client.Documents.Conventions;
 using Raven.Client.Documents.Operations.AI;
 using Raven.Client.Documents.Operations.ETL;
 using Raven.Server.Documents.AI;
@@ -41,7 +41,7 @@ public abstract class BaseAiConnectorForTesting<T, TConfig> : IAiConnectorForTes
     public abstract Lazy<AiConnectorType> AiConnectorType { get; init; }
 
     protected string[] RequiredEnvironmentVariables = [];
-    
+
     public virtual bool MissingRequiredApiKey(out string environmentVariableName)
     {
         foreach (var envVar in RequiredEnvironmentVariables)
@@ -174,8 +174,40 @@ public abstract class AbstractGenAiConnectorForTesting<T> : BaseAiConnectorForTe
 {
     protected override bool TryConnect(out InMemoryLoggerProvider logger, CancellationToken token)
     {
-        (IChatCompletionService service, logger) = AiHelper.CreateChatCompletionServicesForTest(_aiIntegrationConfiguration.Value);
-        service.GetChatMessageContentsAsync(prompt: "Reply with exact word only: raven", cancellationToken: token).GetAwaiter().GetResult();
-        return true;
+        var configuration = _aiIntegrationConfiguration.Value;
+        var connectorType = configuration.Connection.GetActiveProvider();
+        using (var contextPool = new JsonContextPool())
+        {
+            IChatCompletionClient client = connectorType switch
+            {
+                Raven.Client.Documents.Operations.AI.AiConnectorType.Ollama => new OllamaChatCompletionClient(configuration, contextPool, IChatCompletionClient.DefaultConventions),
+                Raven.Client.Documents.Operations.AI.AiConnectorType.OpenAi => new OpenAiChatCompletionClient(configuration, contextPool, IChatCompletionClient.DefaultConventions),
+                _ => throw new NotSupportedException($"The specified model (\"{connectorType.ToString()}\") is not supported.")
+            };
+
+            logger = null;
+            var result = client.CompleteAsync(prompt: "Reply with exact word only: raven", null, token).GetAwaiter().GetResult();
+
+            return true;
+        }
+    }
+
+    private class OpenAiChatCompletionClient : AbstractChatCompletionClient<JsonOperationContext>
+    {
+        public OpenAiChatCompletionClient(GenAiConfiguration configuration, JsonContextPool contextPool, DocumentConventions conventions) : base(baseUri: new Uri(configuration.Connection.OpenAiSettings.Endpoint),
+            model: configuration.Connection.OpenAiSettings.Model, apiKey: configuration.Connection.OpenAiSettings.ApiKey,
+            structuredOutputSchema: configuration.JsonSchema, contextPool, conventions)
+        {
+        }
+    }
+
+    private class OllamaChatCompletionClient : AbstractChatCompletionClient<JsonOperationContext>
+    {
+        public OllamaChatCompletionClient(GenAiConfiguration configuration, JsonContextPool contextPool, DocumentConventions conventions) : base(baseUri: new Uri(configuration.Connection.OllamaSettings.Uri),
+            model: configuration.Connection.OllamaSettings.Model, apiKey: null, structuredOutputSchema: configuration.JsonSchema, contextPool, conventions)
+        {
+        }
     }
 }
+
+

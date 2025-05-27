@@ -12,6 +12,7 @@ using Raven.Client.Documents.Operations.ETL;
 using Raven.Client.Documents.Operations.OngoingTasks;
 using Raven.Server.Documents;
 using Raven.Server.Documents.AI;
+using Raven.Server.Documents.AI.GenAi;
 using Raven.Server.Documents.ETL;
 using Raven.Server.Documents.ETL.Providers.AI.GenAi;
 using Raven.Server.Documents.ETL.Providers.AI.GenAi.Stats;
@@ -395,7 +396,7 @@ for(const comment of this.Comments)
                 {
                     ["Context"] = ctxBlittable,
                     ["Prompt"] = "Check if the following blog post comment is spam or not",
-                    ["Schema"] = AbstractChatCompletionClient.GetSchemaFor(JsonConvert.SerializeObject(new
+                    ["Schema"] = OllamaChatCompletionClient.GetSchemaFor(JsonConvert.SerializeObject(new
                     {
                         Blocked = true,
                         Reason = "Concise reason for why this comment was marked as spam or ham"
@@ -558,7 +559,7 @@ for(const comment of this.Comments)
                     OriginalLanguage = "the original language of the provided text",
                     TranslatedTo = "the language that you translated the text to"
                 });
-                config.JsonSchema = AbstractChatCompletionClient.GetSchemaFor(newSample);
+                config.JsonSchema = OllamaChatCompletionClient.GetSchemaFor(newSample);
             }
         );
     }
@@ -580,7 +581,7 @@ for(const comment of this.Comments)
         store.Maintenance.Send(new PutConnectionStringOperation<AiConnectionString>(config.Connection));
 
         var sampleObject = JsonConvert.SerializeObject(new { Translation = "translated text" });
-        var schema = AbstractChatCompletionClient.GetSchemaFor(sampleObject);
+        var schema = OllamaChatCompletionClient.GetSchemaFor(sampleObject);
 
         config.Prompt = "Translate this text to Polish";
         config.JsonSchema = schema;

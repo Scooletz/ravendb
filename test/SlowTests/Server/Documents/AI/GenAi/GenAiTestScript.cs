@@ -14,6 +14,7 @@ using Raven.Client.Http;
 using Raven.Client.Json;
 using Raven.Server.Documents;
 using Raven.Server.Documents.AI;
+using Raven.Server.Documents.AI.GenAi;
 using Raven.Server.Documents.ETL.Providers.AI.GenAi;
 using Raven.Server.Documents.ETL.Providers.AI.GenAi.Test;
 using Raven.Server.ServerWide.Context;
@@ -25,8 +26,12 @@ using Xunit.Abstractions;
 
 namespace SlowTests.Server.Documents.AI.GenAi;
 
-public class GenAiTestScript(ITestOutputHelper output) : RavenTestBase(output)
+public class GenAiTestScript : RavenTestBase
 {
+    public GenAiTestScript(ITestOutputHelper output) : base(output)
+    {
+    }
+
     [RavenTheory(RavenTestCategory.Etl | RavenTestCategory.Ai)]
     [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single, CheckCanConnect = false, NightlyBuildRequired = false)]
     public async Task CanTestGenAiScript(Options options, GenAiConfiguration config)
@@ -1438,7 +1443,7 @@ for (const comment of this.Comments)
 
         config.Collection = "Posts";
         config.Prompt = "Check if the following blog post comment is spam or not";
-        config.JsonSchema = AbstractChatCompletionClient.GetSchemaFor(JsonConvert.SerializeObject(new
+        config.JsonSchema = OllamaChatCompletionClient.GetSchemaFor(JsonConvert.SerializeObject(new
         {
             Blocked = true, Reason = "Concise reason for why this comment was marked as spam or harmful"
         }));
@@ -1505,16 +1510,16 @@ for (const comment of this.Comments)
             Assert.Equal(expectedHashes.Count, hashes.Count);
 
             var expectedStr = string.Join(',', expectedHashes);
-            output.WriteLine("expected hashes: " + expectedStr);
+            Output.WriteLine("expected hashes: " + expectedStr);
 
             var actualStr = string.Join(',', hashes);
 
-            output.WriteLine("actual hashes: " + actualStr);
+            Output.WriteLine("actual hashes: " + actualStr);
 
 
             foreach (var hash in expectedHashes)
             {
-                output.WriteLine("checking for " + hash + " in hashes");
+                Output.WriteLine("checking for " + hash + " in hashes");
 
                 Assert.Contains(hash, hashes);
             }

@@ -37,7 +37,7 @@ public sealed class GenAiTask : EtlProcess<GenAiItem, GenAiScriptResult, GenAiCo
 
     private const string TestDocumentId = "GenAi/TestDocument";
     private int _maxConcurrency;
-    private AbstractChatCompletionClient _chatCompletionClient;
+    private IChatCompletionClient _chatCompletionClient;
 
     public GenAiTask(Transformation transformation, GenAiConfiguration configuration, DocumentDatabase database, ServerStore serverStore)
         : base(transformation, configuration, database, serverStore, GenAiTaskTag)
@@ -49,16 +49,16 @@ public sealed class GenAiTask : EtlProcess<GenAiItem, GenAiScriptResult, GenAiCo
             _chatCompletionClient = GetClient();
     }
 
-    private AbstractChatCompletionClient GetClient()
+    private IChatCompletionClient GetClient()
     {
         if (string.IsNullOrWhiteSpace(Configuration.JsonSchema))
-            Configuration.JsonSchema = AbstractChatCompletionClient.GetSchemaFor(Configuration.SampleObject);
+            Configuration.JsonSchema = OllamaChatCompletionClient.GetSchemaFor(Configuration.SampleObject);
 
         var connectorType = Configuration.Connection.GetActiveProvider();
-        AbstractChatCompletionClient client = connectorType switch
+        IChatCompletionClient client = connectorType switch
         {
-            AiConnectorType.Ollama => new OllamaChatCompletionClient(Configuration, Database.ServerStore.ContextPool, AbstractChatCompletionClient.DefaultConventions),
-            AiConnectorType.OpenAi => new OpenAiChatCompletionClient(Configuration, Database.ServerStore.ContextPool, AbstractChatCompletionClient.DefaultConventions),
+            AiConnectorType.Ollama => new OllamaChatCompletionClient(Configuration, Database.ServerStore.ContextPool, IChatCompletionClient.DefaultConventions),
+            AiConnectorType.OpenAi => new OpenAiChatCompletionClient(Configuration, Database.ServerStore.ContextPool, IChatCompletionClient.DefaultConventions),
             _ => throw new NotSupportedException($"The specified model (\"{connectorType.ToString()}\") is not supported.")
         };
 
@@ -464,5 +464,5 @@ public sealed class GenAiTask : EtlProcess<GenAiItem, GenAiScriptResult, GenAiCo
         return results;
     }
 
-    internal AbstractChatCompletionClient GetChatCompletionClient() => _chatCompletionClient;
+    internal IChatCompletionClient GetChatCompletionClient() => _chatCompletionClient;
 }

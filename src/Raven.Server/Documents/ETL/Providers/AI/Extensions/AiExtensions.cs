@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.SemanticKernel;
-using Microsoft.SemanticKernel.ChatCompletion;
 using Microsoft.SemanticKernel.Embeddings;
 using OllamaSharp;
 using OpenAI;
@@ -40,11 +39,6 @@ public static class AiExtensions
         return builder;
     }
 
-    public static IKernelBuilder AddCustomBertOnnxChatCompletion(this IKernelBuilder builder, string serviceId = null)
-    {
-        builder.Services.AddKeyedSingleton<IChatCompletionService>(serviceId);
-        return builder;
-    }
 
     public static void Configure(this IKernelBuilder kernelBuilder, AiConnectionString connectionString, bool withLogging)
     {
@@ -80,7 +74,6 @@ public static class AiExtensions
                 var openAIClient = new OpenAIClient(apiKey, openAiOptions);
 
                 kernelBuilder.AddOpenAITextEmbeddingGeneration(openAiSettings.Model, openAIClient, dimensions: openAiSettings.Dimensions);
-                kernelBuilder.AddOpenAIChatCompletion(openAiSettings.Model, openAIClient);
                 break;
 
             case AiConnectorType.AzureOpenAi:
@@ -92,11 +85,6 @@ public static class AiExtensions
                     azureOpenAiSettings.ApiKey,
                     modelId: azureOpenAiSettings.Model,
                     dimensions: azureOpenAiSettings.Dimensions);
-                kernelBuilder.AddAzureOpenAIChatCompletion(
-                    azureOpenAiSettings.DeploymentName,
-                    azureOpenAiSettings.Endpoint,
-                    azureOpenAiSettings.ApiKey,
-                    modelId: azureOpenAiSettings.Model);
                 break;
 
             case AiConnectorType.Ollama:
@@ -106,12 +94,10 @@ public static class AiExtensions
                 var ollamaApiClient = new OllamaApiClient(ollamaApiConfig);
 
                 kernelBuilder.AddOllamaTextEmbeddingGeneration(ollamaApiClient);
-                kernelBuilder.AddOllamaChatCompletion(ollamaApiClient);
                 break;
 
             case AiConnectorType.Embedded:
                 kernelBuilder.AddCustomBertOnnxTextEmbeddingGeneration();
-                kernelBuilder.AddCustomBertOnnxChatCompletion();
                 break;
 
             case AiConnectorType.Google:
@@ -124,10 +110,6 @@ public static class AiExtensions
                         googleSettings.ApiKey,
                         googleSettings.AiVersion.Value.ToGoogleApiVersion(),
                         dimensions: googleSettings.Dimensions);
-                    kernelBuilder.AddGoogleAIGeminiChatCompletion(
-                        googleSettings.Model,
-                        googleSettings.ApiKey,
-                        googleSettings.AiVersion.Value.ToGoogleApiVersion());
                 }
                 else
                 {
@@ -135,9 +117,6 @@ public static class AiExtensions
                         googleSettings.Model,
                         googleSettings.ApiKey,
                         dimensions: googleSettings.Dimensions);
-                    kernelBuilder.AddGoogleAIGeminiChatCompletion(
-                        googleSettings.Model,
-                        googleSettings.ApiKey);
                 }
 
                 break;
@@ -150,10 +129,6 @@ public static class AiExtensions
                     huggingFaceSettings.Model,
                     huggingFaceUri,
                     huggingFaceSettings.ApiKey);
-                kernelBuilder.AddHuggingFaceChatCompletion(
-                    huggingFaceSettings.Model,
-                    huggingFaceUri,
-                    huggingFaceSettings.ApiKey);
                 break;
 
             case AiConnectorType.MistralAi:
@@ -161,10 +136,6 @@ public static class AiExtensions
                 var mistralUri = new Uri(mistralSettings.Endpoint);
 
                 kernelBuilder.AddMistralTextEmbeddingGeneration(
-                    mistralSettings.Model,
-                    mistralSettings.ApiKey,
-                    mistralUri);
-                kernelBuilder.AddMistralChatCompletion(
                     mistralSettings.Model,
                     mistralSettings.ApiKey,
                     mistralUri);

@@ -234,7 +234,7 @@ this.Comments[idx].IsBlocked = $output.Blocked;";
             var etlProcess = db.EtlLoader.Processes.FirstOrDefault() as GenAiTask;
             Assert.NotNull(etlProcess);
 
-            var chatCompletionClient = etlProcess.GetChatCompletionClient();
+            var chatCompletionClient = (IChatCompletionClientForTesting)etlProcess.GetChatCompletionClient();
             chatCompletionClient.ForTestingPurposesOnly().SimulateFailure = (ctx) =>
             {
                 if (ctx.Contains("win $$$$"))
@@ -311,7 +311,8 @@ this.Comments[idx].IsBlocked = $output.Blocked;";
         Assert.NotNull(etlProcess);
 
         int triggerOn = 2;
-        etlProcess.GetChatCompletionClient().ForTestingPurposesOnly().SimulateFailure = (ctx) =>
+        var chatCompletionClient = (IChatCompletionClientForTesting)etlProcess.GetChatCompletionClient();
+        chatCompletionClient.ForTestingPurposesOnly().SimulateFailure = (ctx) =>
         {
             if (--triggerOn <= 0)
                 throw new RateLimitException("rate limit") { RetryAfter = TimeSpan.FromMinutes(10), RequestId = "test" };
@@ -423,7 +424,7 @@ this.Comments[idx].IsSpam = $output.Blocked;";
         var etlProcess = db.EtlLoader.Processes.FirstOrDefault() as GenAiTask;
         Assert.NotNull(etlProcess);
 
-        var chatCompletionClient = etlProcess.GetChatCompletionClient();
+        var chatCompletionClient = (IChatCompletionClientForTesting)etlProcess.GetChatCompletionClient();
         chatCompletionClient.ForTestingPurposesOnly().SimulateFailure = (ctx) =>
         {
             if (ctx.Contains("alex"))

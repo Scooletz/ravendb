@@ -25,7 +25,7 @@ public class ChatCompletionClientTests : RavenTestBase
     {
     }
 
-    private static string name = AbstractChatCompletionClient.GetAllowedUniqueName(DateTime.UtcNow.ToString());
+    private static string name = OllamaChatCompletionClient.GetAllowedUniqueName(DateTime.UtcNow.ToString());
 
     private static string defaultJsonSchema = @"{
   ""name"": """+ name + @""",
@@ -109,7 +109,8 @@ public class ChatCompletionClientTests : RavenTestBase
 
         using (var client = GetChatCompletionClient(configuration, contextPool))
         {
-            client.ForTestingPurposesOnly().ModifyPayload = writer =>
+            var clientForTesting = (IChatCompletionClientForTesting)client;
+            clientForTesting.ForTestingPurposesOnly().ModifyPayload = writer =>
             {
                 writer.WritePropertyName("model1");
                 writer.WriteString("abc");
@@ -254,7 +255,7 @@ public class ChatCompletionClientTests : RavenTestBase
         }
     }
 
-    private AbstractChatCompletionClient GetChatCompletionClient(GenAiConfiguration configuration, TransactionContextPool contextPool, string jsonSchema = null)
+    private static IChatCompletionClient GetChatCompletionClient(GenAiConfiguration configuration, TransactionContextPool contextPool, string jsonSchema = null)
     {
         jsonSchema ??= defaultJsonSchema;
         configuration.JsonSchema = jsonSchema;
@@ -262,8 +263,8 @@ public class ChatCompletionClientTests : RavenTestBase
         var connectorType = configuration.Connection.GetActiveProvider();
         return connectorType switch
         {
-            AiConnectorType.Ollama => new OllamaChatCompletionClient(configuration, contextPool, AbstractChatCompletionClient.DefaultConventions),
-            AiConnectorType.OpenAi => new OpenAiChatCompletionClient(configuration, contextPool, AbstractChatCompletionClient.DefaultConventions),
+            AiConnectorType.Ollama => new OllamaChatCompletionClient(configuration, contextPool, IChatCompletionClient.DefaultConventions),
+            AiConnectorType.OpenAi => new OpenAiChatCompletionClient(configuration, contextPool, IChatCompletionClient.DefaultConventions),
             _ => throw new NotSupportedException($"The specified model (\"{connectorType.ToString()}\") is not supported.")
         };
     }

@@ -5,7 +5,6 @@ using Microsoft.Extensions.Logging;
 using Raven.Client.Documents.Operations.AI;
 using Raven.Server.Documents.ETL.Providers.AI;
 using Raven.Server.Documents.ETL.Providers.AI.Extensions;
-using Microsoft.SemanticKernel.ChatCompletion;
 using Microsoft.SemanticKernel.Services;
 
 namespace Raven.Server.Documents.AI;
@@ -24,11 +23,6 @@ public static class AiHelper
     [Experimental("SKEXP0001")]
     public static (ITextEmbeddingGenerationService, InMemoryLoggerProvider) CreateEmbeddingServicesForTest(EmbeddingsGenerationConfiguration configuration)
         => CreateAiServicesForTest<ITextEmbeddingGenerationService, EmbeddingsGenerationConfiguration>(configuration);
-
-
-    public static (IChatCompletionService, InMemoryLoggerProvider) CreateChatCompletionServicesForTest(GenAiConfiguration configuration)
-        => CreateAiServicesForTest<IChatCompletionService, GenAiConfiguration>(configuration);
-
 
     private static (TService, InMemoryLoggerProvider) CreateAiServicesForTest<TService, TConfig>(TConfig configuration)
         where TConfig : AbstractAiIntegrationConfiguration

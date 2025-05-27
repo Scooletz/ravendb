@@ -22,7 +22,7 @@ public class ChatCompletionClientStressTests : RavenTestBase
     {
     }
 
-    private static string name = AbstractChatCompletionClient.GetAllowedUniqueName(DateTime.UtcNow.ToString());
+    private static string name = OllamaChatCompletionClient.GetAllowedUniqueName(DateTime.UtcNow.ToString());
 
     private static string defaultJsonSchema = @"{
   ""name"": """ + name + @""",
@@ -98,7 +98,7 @@ public class ChatCompletionClientStressTests : RavenTestBase
         });
     }
 
-    private AbstractChatCompletionClient GetChatCompletionClient(GenAiConfiguration configuration, TransactionContextPool contextPool, string jsonSchema = null)
+    private static IChatCompletionClient GetChatCompletionClient(GenAiConfiguration configuration, TransactionContextPool contextPool, string jsonSchema = null)
     {
         jsonSchema ??= defaultJsonSchema;
         configuration.JsonSchema = jsonSchema;
@@ -106,8 +106,8 @@ public class ChatCompletionClientStressTests : RavenTestBase
         var connectorType = configuration.Connection.GetActiveProvider();
         return connectorType switch
         {
-            AiConnectorType.Ollama => new OllamaChatCompletionClient(configuration, contextPool, AbstractChatCompletionClient.DefaultConventions),
-            AiConnectorType.OpenAi => new OpenAiChatCompletionClient(configuration, contextPool, AbstractChatCompletionClient.DefaultConventions),
+            AiConnectorType.Ollama => new OllamaChatCompletionClient(configuration, contextPool, IChatCompletionClient.DefaultConventions),
+            AiConnectorType.OpenAi => new OpenAiChatCompletionClient(configuration, contextPool, IChatCompletionClient.DefaultConventions),
             _ => throw new NotSupportedException($"The specified model (\"{connectorType.ToString()}\") is not supported.")
         };
     }
