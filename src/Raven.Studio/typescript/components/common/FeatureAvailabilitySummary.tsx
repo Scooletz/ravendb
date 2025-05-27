@@ -410,13 +410,9 @@ function formatAvailabilityValue(data: FeatureAvailabilityValueData, canBeEnable
         <>
             <div className="overwritten-value">
                 {formattedValue}
-                <OverlayTrigger
-                    overlay={<Tooltip id={id}>Default value for your license is {data.value.toString()}.</Tooltip>}
-                >
-                    <div className="d-inline-block">
-                        <Icon id={id} icon="info" color="info" margin="m-0" />
-                    </div>
-                </OverlayTrigger>
+                <PopoverWithHoverWrapper message={`Default value for your license is ${data.value.toString()}.`}>
+                    <Icon id={id} icon="info" color="info" margin="m-0" />
+                </PopoverWithHoverWrapper>
             </div>
         </>
     );
