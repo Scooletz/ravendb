@@ -20,51 +20,30 @@ namespace SlowTests.Server.Documents.AI.GenAi;
 
 public class GenAiErrorHandling(ITestOutputHelper output) : RavenTestBase(output)
 {
-    [RavenFact(RavenTestCategory.Etl)]
-    public async Task GenAi_ShouldRaiseAlertOnInvalidContextExtractionScript()
+    [RavenTheory(RavenTestCategory.Etl | RavenTestCategory.Ai)]
+    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single, CheckCanConnect = false, NightlyBuildRequired = false)]
+    public async Task GenAi_ShouldRaiseAlertOnInvalidContextExtractionScript(Options options, GenAiConfiguration config)
     {
-        using (var store = GetDocumentStore())
+        using (var store = GetDocumentStore(options))
         {
-            store.Maintenance.Send(new PutConnectionStringOperation<AiConnectionString>(new AiConnectionString
-            {
-                Name = "ollama-local",
-                Identifier = "ollama-local",
-                OllamaSettings = new OllamaSettings
-                {
-                    Uri = "http://127.0.0.1:11434/",
-                    Model = "llama3.2:latest"
-                }
-            }));
-
-            const string taskName = "Check blog comments spam";
+            store.Maintenance.Send(new PutConnectionStringOperation<AiConnectionString>(config.Connection));
 
             // function 'context(ctx)' must be called with a single argument
             var badScript =
-@"for (const comment of this.Comments)
+                @"for (const comment of this.Comments)
 {
     context({Text: comment.Text, Author: comment.Author, Id: comment.Id}, comment.Hash); 
 }";
 
-            var config = new GenAiConfiguration
-            {
-                Name = taskName,
-                ConnectionStringName = "ollama-local",
-                Prompt = "Check if the following blog post comment is spam or not",
-                Collection = "Posts",
-                SampleObject = JsonConvert.SerializeObject(new
-                {
-                    Blocked = true,
-                    Reason = "Concise reason for why this comment was marked as spam or ham"
-                }),
-                Update = @"    
+            config.Prompt = "Check if the following blog post comment is spam or not";
+            config.Collection = "Posts";
+            config.SampleObject = JsonConvert.SerializeObject(new { Blocked = true, Reason = "Concise reason for why this comment was marked as spam or ham" });
+            config.Update = @"    
 const idx = this.Comments.findIndex(c => c.Id == $input.Id);
 this.Comments[idx].IsSpam = $output.Blocked;
-",
-                GenAiTransformation = new GenAiTransformation
-                {
-                    Script = badScript
-                }
-            };
+";
+            config.GenAiTransformation = new GenAiTransformation { Script = badScript };
+
 
             store.Maintenance.Send(new AddGenAiOperation(config));
 
@@ -94,52 +73,34 @@ this.Comments[idx].IsSpam = $output.Blocked;
         }
     }
 
-    [RavenFact(RavenTestCategory.Etl)]
-    public async Task GenAi_ShouldRaiseAlertOnInvalidUpdateScript()
+    [RavenTheory(RavenTestCategory.Etl | RavenTestCategory.Ai)]
+    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single, CheckCanConnect = false, NightlyBuildRequired = false)]
+    public async Task GenAi_ShouldRaiseAlertOnInvalidUpdateScript(Options options, GenAiConfiguration config)
     {
-        using (var store = GetDocumentStore())
+        using (var store = GetDocumentStore(options))
         {
-            store.Maintenance.Send(new PutConnectionStringOperation<AiConnectionString>(new AiConnectionString
-            {
-                Name = "ollama-local",
-                Identifier = "ollama-local",
-                OllamaSettings = new OllamaSettings
-                {
-                    Uri = "http://127.0.0.1:11434/",
-                    Model = "llama3.2:latest"
-                }
-            }));
-
-            const string taskName = "Check blog comments spam";
+            store.Maintenance.Send(new PutConnectionStringOperation<AiConnectionString>(config.Connection));
 
             // function 'context(ctx)' must be called with a single argument
             var badScript =
-@"const idx = this.Comments.findIndexf(c => c.Id == $input.Id);  
+                @"const idx = this.Comments.findIndexf(c => c.Id == $input.Id);  
 if($output.Blocked)
 {
     this.Comments.splice(idx, 1); // remove
 }";
 
-            var config = new GenAiConfiguration
+            config.Prompt = "Check if the following blog post comment is spam or not";
+            config.Collection = "Posts";
+            config.SampleObject = JsonConvert.SerializeObject(new { Blocked = true, Reason = "Concise reason for why this comment was marked as spam or ham" });
+            config.Update = badScript;
+            config.GenAiTransformation = new GenAiTransformation
             {
-                Name = taskName,
-                ConnectionStringName = "ollama-local",
-                Prompt = "Check if the following blog post comment is spam or not",
-                Collection = "Posts",
-                SampleObject = JsonConvert.SerializeObject(new
-                {
-                    Blocked = true,
-                    Reason = "Concise reason for why this comment was marked as spam or ham"
-                }),
-                Update = badScript,
-                GenAiTransformation = new GenAiTransformation
-                {
-                    Script = @"for (const comment of this.Comments)
+                Script = @"for (const comment of this.Comments)
 {
     context({Text: comment.Text, Author: comment.Author, Id: comment.Id});
 }"
-                }
             };
+
 
             store.Maintenance.Send(new AddGenAiOperation(config));
 
@@ -170,27 +131,17 @@ if($output.Blocked)
         }
     }
 
-    [RavenFact(RavenTestCategory.Etl)]
-    public async Task GenAi_UpdateScriptErrorsShouldBeHandledPerContext()
+    [RavenTheory(RavenTestCategory.Etl | RavenTestCategory.Ai)]
+    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single, CheckCanConnect = false, NightlyBuildRequired = false)]
+    public async Task GenAi_UpdateScriptErrorsShouldBeHandledPerContext(Options options, GenAiConfiguration config)
     {
-        using (var store = GetDocumentStore())
+        using (var store = GetDocumentStore(options))
         {
-            store.Maintenance.Send(new PutConnectionStringOperation<AiConnectionString>(new AiConnectionString
-            {
-                Name = "ollama-local",
-                Identifier = "ollama-local",
-                OllamaSettings = new OllamaSettings
-                {
-                    Uri = "http://127.0.0.1:11434/",
-                    Model = "llama3.2:latest"
-                }
-            }));
-
-            const string taskName = "Check blog comments spam";
+            store.Maintenance.Send(new PutConnectionStringOperation<AiConnectionString>(config.Connection));
 
             // first comment should manage to apply this update script (noop), second comment should fail
             var badScript =
-@"if($input.Id != '42')
+                @"if($input.Id != '42')
     return;
 
 const idx = this.Comments.findIndexf(c => c.Id == $input.Id);  
@@ -199,25 +150,16 @@ if($output.Blocked)
     this.Comments.splice(idx, 1); // remove
 }";
 
-            var config = new GenAiConfiguration
+            config.Prompt = "Check if the following blog post comment is spam or not";
+            config.Collection = "Posts";
+            config.SampleObject = JsonConvert.SerializeObject(new { Blocked = true, Reason = "Concise reason for why this comment was marked as spam or ham" });
+            config.Update = badScript;
+            config.GenAiTransformation = new GenAiTransformation
             {
-                Name = taskName,
-                ConnectionStringName = "ollama-local",
-                Prompt = "Check if the following blog post comment is spam or not",
-                Collection = "Posts",
-                SampleObject = JsonConvert.SerializeObject(new
-                {
-                    Blocked = true,
-                    Reason = "Concise reason for why this comment was marked as spam or ham"
-                }),
-                Update = badScript,
-                GenAiTransformation = new GenAiTransformation
-                {
-                    Script = @"for (const comment of this.Comments)
+                Script = @"for (const comment of this.Comments)
 {
     context({Text: comment.Text, Author: comment.Author, Id: comment.Id});
 }"
-                }
             };
 
             store.Maintenance.Send(new AddGenAiOperation(config));
@@ -262,44 +204,25 @@ if($output.Blocked)
         }
     }
 
-    [RavenFact(RavenTestCategory.Etl)]
-    public async Task GenAi_LoadError_ModelRefusedToAnswer()
+    [RavenTheory(RavenTestCategory.Etl | RavenTestCategory.Ai)]
+    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single, CheckCanConnect = false, NightlyBuildRequired = false)]
+    public async Task GenAi_LoadError_ModelRefusedToAnswer(Options options, GenAiConfiguration config)
     {
-        using (var store = GetDocumentStore())
+        using (var store = GetDocumentStore(options))
         {
-            store.Maintenance.Send(new PutConnectionStringOperation<AiConnectionString>(new AiConnectionString
-            {
-                Name = "ollama-local",
-                Identifier = "ollama-local",
-                OllamaSettings = new OllamaSettings
-                {
-                    Uri = "http://127.0.0.1:11434/",
-                    Model = "llama3.2:latest"
-                }
-            }));
+            store.Maintenance.Send(new PutConnectionStringOperation<AiConnectionString>(config.Connection));
 
-            const string taskName = "Check blog comments spam";
-
-            var config = new GenAiConfiguration
+            config.Prompt = "Check if the following blog post comment is spam or not";
+            config.Collection = "Posts";
+            config.SampleObject = JsonConvert.SerializeObject(new { Blocked = true, Reason = "Concise reason for why this comment was marked as spam or ham" });
+            config.Update = @"const idx = this.Comments.findIndex(c => c.Id == $input.Id);  
+this.Comments[idx].IsBlocked = $output.Blocked;";
+            config.GenAiTransformation = new GenAiTransformation
             {
-                Name = taskName,
-                ConnectionStringName = "ollama-local",
-                Prompt = "Check if the following blog post comment is spam or not",
-                Collection = "Posts",
-                SampleObject = JsonConvert.SerializeObject(new
-                {
-                    Blocked = true,
-                    Reason = "Concise reason for why this comment was marked as spam or ham"
-                }),
-                Update = @"const idx = this.Comments.findIndex(c => c.Id == $input.Id);  
-this.Comments[idx].IsBlocked = $output.Blocked;",
-                GenAiTransformation = new GenAiTransformation
-                {
-                    Script = @"for (const comment of this.Comments)
+                Script = @"for (const comment of this.Comments)
 {
     context({Text: comment.Text, Author: comment.Author, Id: comment.Id});
 }"
-                }
             };
 
             store.Maintenance.Send(new AddGenAiOperation(config));
@@ -367,35 +290,19 @@ this.Comments[idx].IsBlocked = $output.Blocked;",
         }
     }
 
-    [RavenFact(RavenTestCategory.Etl)]
-    public async Task GenAi_ShouldRespectRateLimitErrorAndFallback()
+    [RavenTheory(RavenTestCategory.Etl | RavenTestCategory.Ai)]
+    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single, CheckCanConnect = false, NightlyBuildRequired = false)]
+    public async Task GenAi_ShouldRespectRateLimitErrorAndFallback(Options options, GenAiConfiguration config)
     {
-        using var store = GetDocumentStore();
+        using var store = GetDocumentStore(options);
 
-        store.Maintenance.Send(new PutConnectionStringOperation<AiConnectionString>(new AiConnectionString
-        {
-            Name = "ollama-local",
-            Identifier = "ollama-local",
-            OllamaSettings = new OllamaSettings
-            {
-                Uri = "http://127.0.0.1:11434/",
-                Model = "llama3.2:latest"
-            }
-        }));
+        store.Maintenance.Send(new PutConnectionStringOperation<AiConnectionString>(config.Connection));
 
-        var config = new GenAiConfiguration
-        {
-            Name = "RateLimitTest",
-            ConnectionStringName = "ollama-local",
-            Prompt = "Translate this text to sanskrit",
-            Collection = "Posts",
-            SampleObject = JsonConvert.SerializeObject(new { Result = "text" }),
-            Update = "this.Result = $output.Result;",
-            GenAiTransformation = new GenAiTransformation
-            {
-                Script = "for (const comment of this.Comments) context({Text: comment.Text, Id: comment.Id});"
-            }
-        };
+        config.Prompt = "Translate this text to sanskrit";
+        config.Collection = "Posts";
+        config.SampleObject = JsonConvert.SerializeObject(new { Result = "text" });
+        config.Update = "this.Result = $output.Result;";
+        config.GenAiTransformation = new GenAiTransformation { Script = "for (const comment of this.Comments) context({Text: comment.Text, Id: comment.Id});" };
 
         store.Maintenance.Send(new AddGenAiOperation(config));
 
@@ -407,11 +314,7 @@ this.Comments[idx].IsBlocked = $output.Blocked;",
         etlProcess.GetChatCompletionClient().ForTestingPurposesOnly().SimulateFailure = (ctx) =>
         {
             if (--triggerOn <= 0)
-                throw new RateLimitException("rate limit")
-                {
-                    RetryAfter = TimeSpan.FromMinutes(10), 
-                    RequestId = "test"
-                };
+                throw new RateLimitException("rate limit") { RetryAfter = TimeSpan.FromMinutes(10), RequestId = "test" };
         };
 
         const string docId = "posts/1";
@@ -492,44 +395,26 @@ this.Comments[idx].IsBlocked = $output.Blocked;",
         }
     }
 
-    [RavenFact(RavenTestCategory.Etl)]
-    public async Task GenAi_LoadError_AuthFailure_ShouldOnlyTrackSuccess()
+    
+    [RavenTheory(RavenTestCategory.Etl | RavenTestCategory.Ai)]
+    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single, CheckCanConnect = false, NightlyBuildRequired = false)]
+    public async Task GenAi_LoadError_AuthFailure_ShouldOnlyTrackSuccess(Options options, GenAiConfiguration config)
     {
         using var store = GetDocumentStore();
 
-        store.Maintenance.Send(new PutConnectionStringOperation<AiConnectionString>(new AiConnectionString
-        {
-            Name = "ollama-local",
-            Identifier = "ollama-local",
-            OllamaSettings = new OllamaSettings
-            {
-                Uri = "http://127.0.0.1:11434/",
-                Model = "llama3.2:latest"
-            }
-        }));
+        store.Maintenance.Send(new PutConnectionStringOperation<AiConnectionString>(config.Connection));
 
-        const string taskName = "Check blog comments spam";
-
-        var config = new GenAiConfiguration
+        config.Prompt = "Check if the following blog post comment is spam or not";
+        config.Collection = "Posts";
+        config.SampleObject = JsonConvert.SerializeObject(new { Blocked = true, Reason = "Concise reason for why this comment was marked as spam or ham" });
+        config.Update = @"const idx = this.Comments.findIndex(c => c.Id == $input.Id); 
+this.Comments[idx].IsSpam = $output.Blocked;";
+        config.GenAiTransformation = new GenAiTransformation
         {
-            Name = taskName,
-            ConnectionStringName = "ollama-local",
-            Prompt = "Check if the following blog post comment is spam or not",
-            Collection = "Posts",
-            SampleObject = JsonConvert.SerializeObject(new
-            {
-                Blocked = true,
-                Reason = "Concise reason for why this comment was marked as spam or ham"
-            }),
-            Update = @"const idx = this.Comments.findIndex(c => c.Id == $input.Id); 
-this.Comments[idx].IsSpam = $output.Blocked;",
-            GenAiTransformation = new GenAiTransformation
-            {
-                Script = @"for (const comment of this.Comments)
+            Script = @"for (const comment of this.Comments)
 {
     context({Text: comment.Text, Author: comment.Author, Id: comment.Id});
 }"
-            }
         };
 
         store.Maintenance.Send(new AddGenAiOperation(config));
@@ -542,10 +427,7 @@ this.Comments[idx].IsSpam = $output.Blocked;",
         chatCompletionClient.ForTestingPurposesOnly().SimulateFailure = (ctx) =>
         {
             if (ctx.Contains("alex"))
-                throw new UnsuccessfulRequestException("Unauthorized", HttpStatusCode.Unauthorized)
-                {
-                    RequestId = "fake-request-id"
-                };
+                throw new UnsuccessfulRequestException("Unauthorized", HttpStatusCode.Unauthorized) { RequestId = "fake-request-id" };
         };
 
         const string docId = "posts/1";
@@ -560,7 +442,6 @@ this.Comments[idx].IsSpam = $output.Blocked;",
             session.Store(post, docId);
             session.SaveChanges();
         }
-
 
         EtlErrorInfo error = null;
         var value = await WaitForValueAsync(async () =>
@@ -578,7 +459,7 @@ this.Comments[idx].IsSpam = $output.Blocked;",
             var doc = session.Load<BlittableJsonReaderObject>(docId);
             Assert.True(doc.TryGet(Constants.Documents.Metadata.Key, out BlittableJsonReaderObject metadata));
             Assert.True(metadata.TryGet(GenAiTask.GenAiHashesMetadataKey, out BlittableJsonReaderObject hashesSection));
-            Assert.True(hashesSection.TryGet(taskName, out BlittableJsonReaderArray hashes));
+            Assert.True(hashesSection.TryGet(config.Name, out BlittableJsonReaderArray hashes));
 
             // Only one comment should have succeeded
             Assert.Equal(1, hashes.Length);
@@ -613,7 +494,7 @@ this.Comments[idx].IsSpam = $output.Blocked;",
             var doc = session.Load<BlittableJsonReaderObject>(docId);
             Assert.True(doc.TryGet(Constants.Documents.Metadata.Key, out BlittableJsonReaderObject metadata));
             Assert.True(metadata.TryGet(GenAiTask.GenAiHashesMetadataKey, out BlittableJsonReaderObject hashesSection));
-            Assert.True(hashesSection.TryGet(taskName, out BlittableJsonReaderArray hashes));
+            Assert.True(hashesSection.TryGet(config.Name, out BlittableJsonReaderArray hashes));
 
             // now both contexts should have their hash in metadata
             Assert.Equal(2, hashes.Length);
@@ -637,6 +518,5 @@ this.Comments[idx].IsSpam = $output.Blocked;",
         lastProcessedEtag = state.GetLastProcessedEtag(db.DbBase64Id, Server.ServerStore.NodeTag);
         Assert.True(lastProcessedEtag > 0);
     }
-
 
 }

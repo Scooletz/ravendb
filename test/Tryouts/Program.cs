@@ -6,32 +6,10 @@ using System.Linq;
 using System.Threading.Tasks;
 using Tests.Infrastructure;
 using Raven.Server.Utils;
-using SlowTests.Corax;
-using SlowTests.Sharding.Cluster;
 using Xunit;
-using FastTests.Voron.Util;
-using FastTests.Sparrow;
-using FastTests.Voron.FixedSize;
-using FastTests.Client.Indexing;
 using FastTests;
-using FastTests.Voron.Graphs;
-using Sparrow.Server.Platform;
-using SlowTests.Authentication;
-using SlowTests.Issues;
-using SlowTests.Server.Documents.PeriodicBackup;
-using Microsoft.Diagnostics.Tracing.Parsers.MicrosoftAntimalwareEngine;
-using NLog;
-using RachisTests;
-using SlowTests.Server;
-using SlowTests.SlowTests.MailingList;
-using SlowTests.Server.Documents.AI;
-using SlowTests.Server.Documents.AI.Embeddings;
-using FastTests.Corax.Vectors;
-using FastTests.GenAi;
 using Raven.Client.Documents.Operations.AI;
-using Newtonsoft.Json.Schema;
-using Raven.Server.Documents.AI.AiGen;
-using Raven.Server.Documents.AI;
+using SlowTests.Server.Documents.AI.GenAi;
 
 namespace Tryouts;
 
@@ -59,7 +37,7 @@ public static class Program
                 {
                     DebuggerAttachedTimeout.DisableLongTimespan = true;
                     var p = GetGenAiConfig(RavenAiIntegration.OpenAi);
-                    await test.OtherErrors(p.Options, p.Configuration);
+                    await test.GenAiClientSanityTest(p.Options, p.Configuration);
                 }
             }
             catch (Exception e)

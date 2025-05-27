@@ -21,38 +21,21 @@ namespace SlowTests.Server.Documents.AI.GenAi;
 
 public class GenAiBackupRestore(ITestOutputHelper output) : RavenTestBase(output)
 {
-    [RavenFact(RavenTestCategory.Etl | RavenTestCategory.Ai | RavenTestCategory.Smuggler)]
-    public async Task CanExportAndImportGenAiConfiguration()
+    [RavenTheory(RavenTestCategory.Etl | RavenTestCategory.Ai | RavenTestCategory.Smuggler)]
+    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single, CheckCanConnect = false, NightlyBuildRequired = false)]
+    public async Task CanExportAndImportGenAiConfiguration(Options options, GenAiConfiguration config)
     {
         var exportFile = GetTempFileName();
 
-        using (var src = GetDocumentStore())
-        using (var dst = GetDocumentStore())
+        using (var src = GetDocumentStore(options))
+        using (var dst = GetDocumentStore(options))
         {
-            var config = new GenAiConfiguration
-            {
-                Name = "SmugglerTestTask",
-                ConnectionStringName = "ollama-local",
-                Prompt = "Translate the following sentence",
-                Collection = "Posts",
-                SampleObject = JsonConvert.SerializeObject(new { Translation = "foo" }),
-                Update = "this.Translation = $output.Translation",
-                GenAiTransformation = new GenAiTransformation
-                {
-                    Script = "context({ Sentence: this.Body });"
-                }
-            };
-
-            src.Maintenance.Send(new PutConnectionStringOperation<AiConnectionString>(new AiConnectionString
-            {
-                Name = "ollama-local",
-                Identifier = "ollama-local",
-                OllamaSettings = new OllamaSettings
-                {
-                    Uri = "http://127.0.0.1:11434/",
-                    Model = "llama3.2:latest"
-                }
-            }));
+            config.Prompt = "Translate the following sentence";
+            config.Collection = "Posts";
+            config.SampleObject = JsonConvert.SerializeObject(new { Translation = "foo" });
+            config.Update = "this.Translation = $output.Translation";
+            config.GenAiTransformation = new GenAiTransformation { Script = "context({ Sentence: this.Body });" };
+            src.Maintenance.Send(new PutConnectionStringOperation<AiConnectionString>(config.Connection));
 
             src.Maintenance.Send(new AddGenAiOperation(config));
 
@@ -75,40 +58,21 @@ public class GenAiBackupRestore(ITestOutputHelper output) : RavenTestBase(output
     }
 
     [RavenTheory(RavenTestCategory.Etl | RavenTestCategory.Ai | RavenTestCategory.BackupExportImport)]
-    [InlineData(BackupType.Backup)]
-    [InlineData(BackupType.Snapshot)]
-    public async Task CanBackupAndRestoreGenAiEtl(BackupType backupType)
+    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single, CheckCanConnect = false, NightlyBuildRequired = false, Data = new object[] { BackupType.Backup })]
+    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single, CheckCanConnect = false, NightlyBuildRequired = false, Data = new object[] { BackupType.Snapshot })]
+    public async Task CanBackupAndRestoreGenAiEtl(Options options, GenAiConfiguration config, BackupType backupType)
     {
         var backupPath = NewDataPath();
         var sampleObject = JsonConvert.SerializeObject(new { Answer = "42" });
 
         using (var store = GetDocumentStore())
         {
-            var config = new GenAiConfiguration
-            {
-                Name = "TestGenAiTask",
-                ConnectionStringName = "ollama-local",
-                Prompt = "Give a short answer to the following question",
-                Collection = "Posts",
-                SampleObject = sampleObject,
-                Update = "this.GenAnswer = $output.Answer",
-                GenAiTransformation = new GenAiTransformation
-                {
-                    Script = "context({ Question: this.Body });"
-                }
-            };
-
-            store.Maintenance.Send(new PutConnectionStringOperation<AiConnectionString>(new AiConnectionString
-            {
-                Name = "ollama-local",
-                Identifier = "ollama-local",
-                OllamaSettings = new OllamaSettings
-                {
-                    Uri = "http://127.0.0.1:11434/",
-                    Model = "llama3.2:latest"
-                }
-            }));
-
+            config.Prompt = "Give a short answer to the following question";
+            config.Collection = "Posts";
+            config.SampleObject = sampleObject;
+            config.Update = "this.GenAnswer = $output.Answer";
+            config.GenAiTransformation = new GenAiTransformation { Script = "context({ Question: this.Body });" };
+            store.Maintenance.Send(new PutConnectionStringOperation<AiConnectionString>(config.Connection));
             store.Maintenance.Send(new AddGenAiOperation(config));
 
             var etlDone = Etl.WaitForEtlToComplete(store);
@@ -219,37 +183,21 @@ public class GenAiBackupRestore(ITestOutputHelper output) : RavenTestBase(output
         }
     }
 
-    [RavenFact(RavenTestCategory.Sharding | RavenTestCategory.Etl | RavenTestCategory.Ai | RavenTestCategory.BackupExportImport)]
-    public async Task CanBackupAndRestoreGenAiInShardedDatabase()
+    [RavenTheory(RavenTestCategory.Sharding | RavenTestCategory.Etl | RavenTestCategory.Ai | RavenTestCategory.BackupExportImport)]
+    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Sharded, CheckCanConnect = false, NightlyBuildRequired = false)]
+    public async Task CanBackupAndRestoreGenAiInShardedDatabase(Options options, GenAiConfiguration config)
     {
         var backupPath = NewDataPath(suffix: "BackupFolder");
 
-        using (var store = Sharding.GetDocumentStore())
+        using (var store = GetDocumentStore(options))
         {
-            store.Maintenance.Send(new PutConnectionStringOperation<AiConnectionString>(new AiConnectionString
-            {
-                Name = "ollama-local",
-                Identifier = "ollama-local",
-                OllamaSettings = new OllamaSettings
-                {
-                    Uri = "http://127.0.0.1:11434/",
-                    Model = "llama3.2:latest"
-                }
-            }));
+            store.Maintenance.Send(new PutConnectionStringOperation<AiConnectionString>(config.Connection));
 
-            var config = new GenAiConfiguration
-            {
-                Name = "TestGenAiTask",
-                ConnectionStringName = "ollama-local",
-                Prompt = "What is the answer to life?",
-                Collection = "Posts",
-                SampleObject = JsonConvert.SerializeObject(new { Answer = "42" }),
-                Update = "this.GenAnswer = $output.Answer",
-                GenAiTransformation = new GenAiTransformation
-                {
-                    Script = "context({ Question: this.Body });"
-                }
-            };
+            config.Prompt = "What is the answer to life?";
+            config.Collection = "Posts";
+            config.SampleObject = JsonConvert.SerializeObject(new { Answer = "42" });
+            config.Update = "this.GenAnswer = $output.Answer";
+            config.GenAiTransformation = new GenAiTransformation { Script = "context({ Question: this.Body });" };
 
             await store.Maintenance.SendAsync(new AddGenAiOperation(config));
 

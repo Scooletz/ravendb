@@ -91,6 +91,7 @@ public abstract class BaseAiConnectorForTesting<T, TConfig> : IAiConnectorForTes
     {
         var connectionString = CreateAiConnectionStringImpl();
         connectionString.Name = ConnectionStringName.Value;
+        connectionString.Identifier = Guid.NewGuid().ToString();
 
         return connectionString;
     }
