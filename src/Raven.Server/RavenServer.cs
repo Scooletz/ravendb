@@ -573,7 +573,7 @@ namespace Raven.Server
 
                 if (Configuration.Core.SetupMode == SetupMode.LetsEncrypt)
                 {
-                    msg += $" Automatic renewal is no longer possible. Please check the logs for errors and contact support@ravendb.net.";
+                    msg += $" Automatic renewal is no longer possible. Please check the logs for errors and contact support at https://ravendb.net/support/request.";
                 }
 
                 ServerStore.NotificationCenter.Add(AlertRaised.Create(null, CertificateReplacement.CertReplaceAlertTitle, msg, AlertType.Certificates_Expiration, NotificationSeverity.Error));
@@ -589,7 +589,7 @@ namespace Raven.Server
                 {
                     if (ServerStore.LicenseManager.LicenseStatus.CanAutoRenewLetsEncryptCertificate)
                     {
-                        msg += " You are using a Let's Encrypt server certificate which was supposed to renew automatically. Please check the logs for errors and contact support@ravendb.net.";
+                        msg += " You are using a Let's Encrypt server certificate which was supposed to renew automatically. Please check the logs for errors and contact support at https://ravendb.net/support/request.";
                     }
                     else
                     {

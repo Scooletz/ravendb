@@ -19,7 +19,7 @@ namespace SlowTests.Authentication
 {
     public class AuthenticationDebugPackageTests : RavenTestBase
     {
-        private readonly string[] _routesToSkip = new string[] { "/admin/debug/threads/stack-trace" };
+        private readonly string[] _routesToSkip = RavenTestHelper.ServerEndpointsToIgnore.Select(x => x.Path).Union(RavenTestHelper.DatabaseEndpointsToIgnore.Select(x => x.Path)).ToArray();
 
         public AuthenticationDebugPackageTests(ITestOutputHelper output) : base(output)
         {
@@ -277,7 +277,9 @@ namespace SlowTests.Authentication
         private void AssertArchiveContainsAllEntriesAndOnlyThem(HashSet<string> debugEntries, ZipArchive archive)
         {
             var archiveEntries = archive.Entries.Select(entry => entry.FullName)
-                .Where(e => e.Contains($"{DateTime.UtcNow:yyyy-MM-dd}") == false && (e.LastIndexOf(".error") == -1 || e.LastIndexOf(".error") != e.Length - 6))
+                .Where(e => 
+                    (e.Contains($"{DateTime.UtcNow:yyyy-MM-dd}") == false && e.Contains($"{DateTime.UtcNow.AddDays(-1):yyyy-MM-dd}") == false) // We might have entries from previous day
+                    && (e.LastIndexOf(".error") == -1 || e.LastIndexOf(".error") != e.Length - 6))
                 .Select(e => e.Replace(".txt", "").Replace(".json", "")).ToHashSet();
             foreach (var e in debugEntries)
                 Assert.True(archiveEntries.Contains(e), $"{e} is missing from the debug package");

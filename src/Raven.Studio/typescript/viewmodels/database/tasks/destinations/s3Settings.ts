@@ -3,6 +3,9 @@ import jsonUtil = require("common/jsonUtil");
 import genUtils = require("common/generalUtils");
 import popoverUtils = require("common/popoverUtils");
 import tasksCommonContent = require("models/database/tasks/tasksCommonContent");
+import common = require("components/utils/common");
+
+type S3StorageClass = Raven.Client.Documents.Operations.Backups.S3StorageClass;
 
 class s3Settings extends amazonSettings {
     
@@ -18,6 +21,10 @@ class s3Settings extends amazonSettings {
 
     targetOperation: string;
 
+    storageClassOptions = common.storageClassOptions;
+    storageClass = ko.observable<S3StorageClass>("Standard");
+    storageClassLabel: KnockoutComputed<string>;
+
     constructor(dto: Raven.Client.Documents.Operations.Backups.S3Settings, allowedRegions: Array<string>, targetOperation: string) {
         super(dto, "S3", allowedRegions);
 
@@ -26,6 +33,7 @@ class s3Settings extends amazonSettings {
         this.forcePathStyle(dto.ForcePathStyle);
         this.useCustomS3Host(!!dto.CustomServerUrl);
         this.targetOperation = targetOperation;
+        this.storageClass(dto.StorageClass ?? "Standard");
         
         this.initValidation();
 
@@ -40,6 +48,7 @@ class s3Settings extends amazonSettings {
             this.customServerUrl,
             this.forcePathStyle,
             this.useCustomS3Host,
+            this.storageClass,
             
             this.configurationScriptDirtyFlag().isDirty
         ], false, jsonUtil.newLineNormalizingHashFunction);
@@ -52,6 +61,7 @@ class s3Settings extends amazonSettings {
 
         this.accessKeyPropertyName = ko.pureComputed(() => s3Settings.getAccessKeyPropertyName(this.useCustomS3Host(), this.customServerUrl()));
         this.secretKeyPropertyName = ko.pureComputed(() => s3Settings.getSecretKeyPropertyName(this.useCustomS3Host(), this.customServerUrl()));
+        this.storageClassLabel = ko.computed(() => this.storageClassOptions.find(option => option.value === this.storageClass())?.label);
     }
 
     static getAccessKeyPropertyName(useCustomS3Host: boolean, customServerUrl: string) {
@@ -151,6 +161,7 @@ class s3Settings extends amazonSettings {
         dto.BucketName = this.bucketName();
         dto.CustomServerUrl = !this.hasConfigurationScript() && this.useCustomS3Host() ? this.customServerUrl() : undefined;
         dto.ForcePathStyle = !this.hasConfigurationScript() && this.useCustomS3Host() ? this.forcePathStyle() : false;
+        dto.StorageClass = this.storageClass();
         
         return genUtils.trimProperties(dto, ["CustomServerUrl", "RemoteFolderName", "AwsRegionName", "AwsAccessKey"]);
     }
@@ -167,6 +178,7 @@ class s3Settings extends amazonSettings {
             GetBackupConfigurationScript: null,
             ForcePathStyle: false,
             CustomServerUrl: null,
+            StorageClass: "Standard",
         }, allowedRegions, targetOperation);
     }
     
