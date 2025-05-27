@@ -236,7 +236,7 @@ namespace Raven.Server.Documents
         }
 
         [DoesNotReturn]
-        private static void ThrowFailedToFinalizeHash()
+        internal static void ThrowFailedToFinalizeHash()
         {
             throw new InvalidOperationException("Failed to finalize generic hash");
         }
@@ -248,7 +248,7 @@ namespace Raven.Server.Documents
         }
 
         [DoesNotReturn]
-        private static void ThrowFailedToUpdateHash()
+        internal static void ThrowFailedToUpdateHash()
         {
             throw new InvalidOperationException("Failed to update generic hash");
         }

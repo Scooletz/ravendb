@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using Jint;
 using Jint.Native;
 using Jint.Runtime.Interop;
@@ -14,19 +15,21 @@ using Raven.Server.Documents.Patch;
 using Raven.Server.Documents.TimeSeries;
 using Raven.Server.ServerWide.Context;
 using Sparrow.Json;
-using Sparrow.Json.Parsing;
+using Sparrow.Platform;
 
 namespace Raven.Server.Documents.ETL.Providers.AI.GenAi;
 
 internal sealed class GenAiScriptTransformer : EtlTransformer<GenAiItem, GenAiScriptResult, GenAiStatsScope, GenAiPerformanceOperation>
 {
     private readonly GenAiConfiguration _configuration;
-    private List<GenAiScriptResult> _currentRun;
+    private readonly byte[] _configurationPartialHash;
     private readonly PatchRequest _mainScript;
-
+    private List<GenAiScriptResult> _currentRun;
+    
     public GenAiScriptTransformer(DocumentDatabase database, DocumentsOperationContext context, Transformation transformation, PatchRequest behaviorFunctions, GenAiConfiguration configuration) : base(database, context, null, behaviorFunctions)
     {
         _configuration = configuration;
+        _configurationPartialHash = GetInitialHash(_configuration);
         _mainScript = new PatchRequest(transformation.Script, PatchRequestType.GenAi);
     }
 
@@ -118,17 +121,44 @@ internal sealed class GenAiScriptTransformer : EtlTransformer<GenAiItem, GenAiSc
         return true; // hash not found, should send
     }
 
-    private string CalculateHash(BlittableJsonReaderObject contextObj)
+    private static unsafe byte[] GetInitialHash(GenAiConfiguration cfg)
     {
-        var djv = new DynamicJsonValue
+        var result = new byte[Sodium.crypto_generichash_statebytes()];
+        fixed (byte* state = result)
         {
-            ["Context"] = contextObj,
-            ["Prompt"] = _configuration.Prompt,
-            ["Schema"] = _configuration.JsonSchema,
-            ["Update"] = _configuration.UpdateScript
-        };
+            if (Sodium.crypto_generichash_init(state, null, UIntPtr.Zero, Sodium.GenericHashSize) != 0)
+                ComputeHttpEtags.ThrowFailToInitHash();
 
-        using var ctx = Context.ReadObject(djv, "hash");
-        return AttachmentsStorageHelper.CalculateHash(ctx.AsSpan());
+            UpdateHashString(state, cfg.Prompt);
+            UpdateHashString(state, cfg.JsonSchema);
+            UpdateHashString(state, cfg.UpdateScript);
+            UpdateHashString(state, cfg.ConnectionStringName);
+            return result;
+        }
+
+        static void UpdateHashString(byte* state, string str)
+        {
+            fixed (char* p = str)
+            {
+                if (Sodium.crypto_generichash_update(state, (byte*)p, (ulong)(str.Length * sizeof(char))) != 0)
+                    ComputeHttpEtags.ThrowFailedToUpdateHash();
+            }
+        }
+    }
+
+    [SkipLocalsInit]
+    private unsafe string CalculateHash(BlittableJsonReaderObject contextObj)
+    {
+        var state = stackalloc byte[_configurationPartialHash.Length];
+        _configurationPartialHash.CopyTo(new Span<byte>(state, _configurationPartialHash.Length));
+
+        if (Sodium.crypto_generichash_update(state, contextObj.BasePointer, (ulong)contextObj.Size) != 0)
+            ComputeHttpEtags.ThrowFailedToUpdateHash();
+
+        var hash = stackalloc byte[Sodium.GenericHashSize];
+        if (Sodium.crypto_generichash_final(state, hash, Sodium.GenericHashSize) != 0)
+            ComputeHttpEtags.ThrowFailedToUpdateHash();
+
+        return Convert.ToBase64String(new ReadOnlySpan<byte>(hash, Sodium.GenericHashSize));
     }
 }
