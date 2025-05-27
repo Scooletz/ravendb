@@ -63,6 +63,11 @@ namespace Raven.Server.Documents.PeriodicBackup.Restore
             return _remoteFolderName;
         }
 
+        public Task ValidateConfigurationsAsync()
+        {
+            return Task.CompletedTask;
+        }
+
         public void Dispose()
         {
             _client?.Dispose();

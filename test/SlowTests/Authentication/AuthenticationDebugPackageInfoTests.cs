@@ -19,7 +19,7 @@ namespace SlowTests.Authentication
 {
     public class AuthenticationDebugPackageTests : RavenTestBase
     {
-        private readonly string[] _routesToSkip = new string[] { "/admin/debug/threads/stack-trace" };
+        private readonly string[] _routesToSkip = RavenTestHelper.ServerEndpointsToIgnore.Select(x => x.Path).Union(RavenTestHelper.DatabaseEndpointsToIgnore.Select(x => x.Path)).ToArray();
 
         public AuthenticationDebugPackageTests(ITestOutputHelper output) : base(output)
         {
@@ -63,7 +63,8 @@ namespace SlowTests.Authentication
                 "replication.outgoing-reconnect-queue.json", "stats.json", "subscriptions.json", "tcp.json", "documents.huge.json", "identities.json",
                 "queries.running.json", "queries.cache.list.json", "script-runners.json", "storage.report.json",
                 "admin.txinfo.json", "admin.cluster.txinfo.json", "admin.configuration.settings.json", "etl.stats.json", "etl.progress.json",
-                "admin.tombstones.state.json", "indexes.performance.json", "replication.progress.json", "replication.internal.outgoing.progress.json"
+                "admin.tombstones.state.json", "indexes.performance.json", "replication.progress.json", "replication.internal.outgoing.progress.json", 
+                "collections.stats.detailed.json"
             };
 
             var dbName = GetDatabaseName();
@@ -81,7 +82,8 @@ namespace SlowTests.Authentication
                 "replication.outgoing-reconnect-queue.json", "stats.json", "subscriptions.json", "tcp.json", "documents.huge.json", "identities.json",
                 "queries.running.json", "queries.cache.list.json", "script-runners.json", "storage.report.json",
                 "admin.txinfo.json", "admin.cluster.txinfo.json", "admin.configuration.settings.json", "etl.stats.json", "etl.progress.json",
-                "admin.tombstones.state.json", "indexes.performance.json", "replication.progress.json", "replication.internal.outgoing.progress.json"
+                "admin.tombstones.state.json", "indexes.performance.json", "replication.progress.json", "replication.internal.outgoing.progress.json",
+                "collections.stats.detailed.json"
             };
 
             var dbName = GetDatabaseName();
@@ -99,7 +101,8 @@ namespace SlowTests.Authentication
                 "replication.outgoing-reconnect-queue.json", "stats.json", "subscriptions.json", "tcp.json", "documents.huge.json", "identities.json",
                 "queries.running.json", "queries.cache.list.json", "script-runners.json", "storage.report.json",
                 "admin.txinfo.json", "admin.cluster.txinfo.json", "admin.configuration.settings.json", "etl.stats.json", "etl.progress.json",
-                "admin.tombstones.state.json", "indexes.performance.json", "replication.progress.json", "replication.internal.outgoing.progress.json"
+                "admin.tombstones.state.json", "indexes.performance.json", "replication.progress.json", "replication.internal.outgoing.progress.json",
+                "collections.stats.detailed.json"
             };
 
             var dbName = GetDatabaseName();
@@ -117,7 +120,8 @@ namespace SlowTests.Authentication
                 "replication.outgoing-failures.json", "replication.incoming-last-activity-time.json", "replication.incoming-rejection-info.json",
                 "replication.outgoing-reconnect-queue.json", "stats.json", "subscriptions.json", "tcp.json", "documents.huge.json", "identities.json",
                 "queries.running.json", "queries.cache.list.json", "script-runners.json", "storage.report.json",
-                "etl.stats.json", "etl.progress.json", "indexes.performance.json", "replication.progress.json", "replication.internal.outgoing.progress.json"
+                "etl.stats.json", "etl.progress.json", "indexes.performance.json", "replication.progress.json", "replication.internal.outgoing.progress.json",
+                "collections.stats.detailed.json"
             };
 
             var dbName = GetDatabaseName();
@@ -277,7 +281,9 @@ namespace SlowTests.Authentication
         private void AssertArchiveContainsAllEntriesAndOnlyThem(HashSet<string> debugEntries, ZipArchive archive)
         {
             var archiveEntries = archive.Entries.Select(entry => entry.FullName)
-                .Where(e => e.Contains($"{DateTime.UtcNow:yyyy-MM-dd}") == false && (e.LastIndexOf(".error") == -1 || e.LastIndexOf(".error") != e.Length - 6))
+                .Where(e => 
+                    (e.Contains($"{DateTime.UtcNow:yyyy-MM-dd}") == false && e.Contains($"{DateTime.UtcNow.AddDays(-1):yyyy-MM-dd}") == false) // We might have entries from previous day
+                    && (e.LastIndexOf(".error") == -1 || e.LastIndexOf(".error") != e.Length - 6))
                 .Select(e => e.Replace(".txt", "").Replace(".json", "")).ToHashSet();
             foreach (var e in debugEntries)
                 Assert.True(archiveEntries.Contains(e), $"{e} is missing from the debug package");
