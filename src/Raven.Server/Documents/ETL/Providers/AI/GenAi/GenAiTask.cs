@@ -165,6 +165,7 @@ public sealed class GenAiTask : EtlProcess<GenAiItem, GenAiScriptResult, GenAiCo
             List<Task<(string Result, string Usage)>> tasks = [];
             Task[] executingTasks = new Task[Math.Max(1, _maxConcurrency)];
             Array.Fill(executingTasks, Task.CompletedTask);
+            List<GenAiResultItem> itemsSentToModel = [];
 
             foreach (var item in items)
             {
@@ -193,6 +194,7 @@ public sealed class GenAiTask : EtlProcess<GenAiItem, GenAiScriptResult, GenAiCo
                     task = Task.FromException<(string Result, string Usage)>(e);
                 }
 
+                itemsSentToModel.Add(item);
                 tasks.Add(task);
                 executingTasks[idx] = task;
             }
@@ -207,7 +209,7 @@ public sealed class GenAiTask : EtlProcess<GenAiItem, GenAiScriptResult, GenAiCo
                 // in ProcessModelResults
             }
 
-            return ProcessModelResults(items, context, tasks, statsScope);
+            return ProcessModelResults(itemsSentToModel, context, tasks, statsScope);
         }
     }
 
