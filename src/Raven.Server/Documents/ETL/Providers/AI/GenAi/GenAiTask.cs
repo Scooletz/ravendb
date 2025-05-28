@@ -315,25 +315,36 @@ public sealed class GenAiTask : EtlProcess<GenAiItem, GenAiScriptResult, GenAiCo
         List<Exception> exceptions = null;
         BlittableJsonReaderObject outputDocument = null;
 
-        Document document;
-        if (testGenAiScript.Document != null)
-        {
-            document = new Document
-            {
-                Data = testGenAiScript.Document, 
-                ChangeVector = ChangeVectorUtils.NewChangeVector(context.DocumentDatabase.ServerStore.NodeTag, long.MaxValue, context.DocumentDatabase.DbBase64Id),
-                Id = context.GetLazyString(TestDocumentId)
-            };
-        }
-        else
-        {
-            if (string.IsNullOrEmpty(testGenAiScript.DocumentId))
-                throw new InvalidOperationException("Document or DocumentId must be provided to run GenAI test");
+        Document document = null;
 
-            context.OpenReadTransaction();
-            document = context.DocumentDatabase.DocumentsStorage.Get(context, testGenAiScript.DocumentId)?.Clone(context);
-            if (document == null)
-                throw new InvalidOperationException($"Document {testGenAiScript.DocumentId} does not exist");
+        switch (testGenAiScript.TestStage)
+        {
+            case TestStage.CreateContextObjects:
+            case TestStage.ApplyUpdateScript:
+                if (testGenAiScript.Document != null)
+                {
+                    document = new Document
+                    {
+                        Data = testGenAiScript.Document,
+                        ChangeVector = ChangeVectorUtils.NewChangeVector(context.DocumentDatabase.ServerStore.NodeTag, long.MaxValue, context.DocumentDatabase.DbBase64Id),
+                        Id = context.GetLazyString(TestDocumentId)
+                    };
+                }
+                else
+                {
+                    if (string.IsNullOrEmpty(testGenAiScript.DocumentId))
+                        throw new InvalidOperationException("Document or DocumentId must be provided to run GenAI test");
+
+                    context.OpenReadTransaction();
+                    document = context.DocumentDatabase.DocumentsStorage.Get(context, testGenAiScript.DocumentId)?.Clone(context);
+                    if (document == null)
+                        throw new InvalidOperationException($"Document {testGenAiScript.DocumentId} does not exist");
+                }
+                break;
+            case TestStage.SendToModel:
+                break;
+            default:
+                throw new InvalidOperationException("Unknown TestStage type : " + testGenAiScript.TestStage.GetType());
         }
 
         using var scope = new GenAiStatsScope(new EtlRunStats());
@@ -373,7 +384,7 @@ public sealed class GenAiTask : EtlProcess<GenAiItem, GenAiScriptResult, GenAiCo
                         // so it needs to be written to storage before the patch.
                         // the write-tx is not commited so this won't be persisted.
 
-                        if (document.Data.HasParent)
+                        if (document!.Data.HasParent)
                         {
                             using (var old = document.Data)
                             {
@@ -397,7 +408,7 @@ public sealed class GenAiTask : EtlProcess<GenAiItem, GenAiScriptResult, GenAiCo
                             ["input"] = item.ContextOutput.Context
                         };
 
-                        var args = context.ReadObject(dvj, document.Id);
+                        var args = context.ReadObject(dvj, document!.Id);
                         var cmd = lastPatch = new PatchDocumentCommand(
                             context: context,
                             id: document.Id,
@@ -431,7 +442,7 @@ public sealed class GenAiTask : EtlProcess<GenAiItem, GenAiScriptResult, GenAiCo
 
         return new GenAiTestScriptResult
         {
-            InputDocument = document.Data,
+            InputDocument = document?.Data,
             Results = items,
             OutputDocument = outputDocument,
             TransformationErrors = Statistics.TransformationErrorsInCurrentBatch.Errors.ToList()
