@@ -33,9 +33,9 @@ export function getLicenseAvailabilityType(licenseType: Raven.Server.Commercial.
             return "community";
         case "Professional":
             return "professional";
-        case "Developer":
         case "Enterprise":
             return "enterprise";
+        case "Developer":
         case "EnterpriseAi":
             return "enterpriseAi";
         default:
