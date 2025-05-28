@@ -15,7 +15,7 @@ export default function AiTasksInfoHub() {
                     create new tasks, edit existing ones, or delete them as needed.
                 </p>
                 <div>
-                    <strong>Gen AI tasks</strong>:
+                    <strong>GenAI tasks</strong>:
                     <ul>
                         <li>Use large language models (LLMs) to analyze and enrich your documents.</li>
                         <li>Automatically update documents or create new ones based on AI-generated content.</li>
