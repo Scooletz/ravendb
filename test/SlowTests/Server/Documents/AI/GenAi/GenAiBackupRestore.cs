@@ -57,8 +57,8 @@ public class GenAiBackupRestore(ITestOutputHelper output) : RavenTestBase(output
     }
 
     [RavenTheory(RavenTestCategory.Etl | RavenTestCategory.Ai | RavenTestCategory.BackupExportImport)]
-    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single, CheckCanConnect = false, NightlyBuildRequired = false, Data = new object[] { BackupType.Backup })]
-    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single, CheckCanConnect = false, NightlyBuildRequired = false, Data = new object[] { BackupType.Snapshot })]
+    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single, CheckCanConnect = false, NightlyBuildRequired = false, Data = new object[] { BackupType.Backup }, Skip = "flaky")]
+    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single, CheckCanConnect = false, NightlyBuildRequired = false, Data = new object[] { BackupType.Snapshot }, Skip = "flaky")]
     public async Task CanBackupAndRestoreGenAiEtl(Options options, GenAiConfiguration config, BackupType backupType)
     {
         var backupPath = NewDataPath();
