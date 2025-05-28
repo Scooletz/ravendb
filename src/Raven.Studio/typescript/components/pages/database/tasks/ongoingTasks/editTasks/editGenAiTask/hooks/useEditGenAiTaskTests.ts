@@ -98,13 +98,21 @@ export function useEditGenAiTaskTests() {
         }
 
         const input: Raven.Server.Documents.ETL.Providers.AI.GenAi.GenAiResultItem[] =
-            formValues.playgroundModelOutputs.map((x) => {
+            formValues.playgroundModelOutputs.map((_, idx) => {
                 return {
-                    ContextOutput: null,
+                    ContextOutput: {
+                        Context: JSON.parse(formValues.playgroundContexts[idx].value),
+                        AiHash: formValues.isForceSendingCachedObjects
+                            ? null
+                            : formValues.playgroundContexts[idx].aiHash,
+                        IsCached: formValues.isForceSendingCachedObjects
+                            ? false
+                            : formValues.playgroundContexts[idx].isCached,
+                    },
                     DebugActions: null,
                     DebugOutput: [],
                     ModelOutput: {
-                        Output: JSON.parse(x.value),
+                        Output: JSON.parse(formValues.playgroundModelOutputs[idx].value),
                         Usage: {
                             total_tokens: 0,
                             prompt_tokens: 0,

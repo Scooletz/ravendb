@@ -213,12 +213,7 @@ export default function EditGenAiTaskPlayground() {
                                 </Nav.Item>
                                 {(currentStep === "modelInput" || currentStep === "updateScript") && (
                                     <Nav.Item onClick={() => setActiveTab("context")}>
-                                        <Nav.Link
-                                            eventKey="context"
-                                            className={classNames({
-                                                "text-muted": currentStep !== "modelInput",
-                                            })}
-                                        >
+                                        <Nav.Link eventKey="context">
                                             <Icon icon="indent" />
                                             Context input
                                         </Nav.Link>

@@ -94,7 +94,16 @@ export function EditGenAiTaskStepUpdateFooter() {
         }
     };
 
-    const isTestButtonDisabled = !formValues.playgroundDocument || formValues.playgroundModelOutputs.length === 0;
+    const isTestButtonDisabled =
+        !formValues.playgroundDocument ||
+        formValues.playgroundContexts.length === 0 ||
+        formValues.playgroundModelOutputs.length === 0 ||
+        formValues.playgroundContexts.length !== formValues.playgroundModelOutputs.length;
+
+    console.log("kalczur", {
+        playgroundContexts: formValues.playgroundContexts,
+        playgroundModelOutputs: formValues.playgroundModelOutputs,
+    });
 
     return (
         <div className="hstack justify-content-between">
@@ -113,11 +122,33 @@ export function EditGenAiTaskStepUpdateFooter() {
                     conditions={[
                         {
                             isActive: !formValues.playgroundDocument,
-                            message: "You need to select or provide a document to test this step.",
+                            message:
+                                "To test the the update script, select or provide a sample document in the playground.",
+                        },
+                        {
+                            isActive: formValues.playgroundContexts.length === 0,
+                            message:
+                                "To test the update script, either generate context objects in the 'Generate context objects' step or enter custom ones using Edit mode.",
                         },
                         {
                             isActive: formValues.playgroundModelOutputs.length === 0,
-                            message: "Please add some model outputs to the playground.",
+                            message:
+                                "To test the update script, either generate model output objects in the previous step or enter custom ones here using Edit mode.",
+                        },
+                        {
+                            isActive: formValues.playgroundContexts.length !== formValues.playgroundModelOutputs.length,
+                            message:
+                                "To test the update script, the number of context objects and model output objects must be the same.",
+                        },
+                        {
+                            isActive: true,
+                            message: (
+                                <>
+                                    Click to test the update script.
+                                    <br />
+                                    The updated sample source document will be shown in the results pane.
+                                </>
+                            ),
                         },
                     ]}
                 >
