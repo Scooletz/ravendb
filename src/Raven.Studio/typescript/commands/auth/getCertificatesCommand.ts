@@ -7,7 +7,7 @@ class getCertificatesCommand extends commandBase {
         super();
     }
     
-    execute(): JQueryPromise<{ Certificates: Array<Raven.Client.ServerWide.Operations.Certificates.CertificateDefinition & { HasTwoFactor: boolean; }>, LoadedServerCert: string, WellKnownAdminCerts: string[], WellKnownIssuers: string[] }> {
+    execute(): JQueryPromise<CertificatesResponseDto> {
         const args = {
             secondary: this.includeSecondary,
             metadataOnly: this.metadataOnly
