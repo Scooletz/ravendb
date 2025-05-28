@@ -52,22 +52,52 @@
             </div>
             <div class="btn-bar toolbar">
                 <div class="pull-left-sm">
-                    <button type="submit" class="btn btn-primary save-btn" 
-                            data-bind="enable: isSaveEnabled, css: { 'btn-spinner': isSaving }, visible: !inReadOnlyMode() && !inDiffMode(), 
-                                       attr: { 'title': isSaveEnabled ? 'Save your changes' : ''}, requiredAccess: 'DatabaseReadWrite'">
-                        <i class="icon-save"></i>
-                        <span>Save</span>
-                    </button>
+                    <div class="btn-group">
+                        <button type="submit" class="btn btn-primary save-btn" 
+                                data-bind="enable: isSaveEnabled, css: { 'btn-spinner': isSaving }, visible: !inReadOnlyMode() && !inDiffMode(), 
+                                           attr: { 'title': isSaveEnabled ? 'Save your changes' : ''}, requiredAccess: 'DatabaseReadWrite'">
+                            <i class="icon-save"></i>
+                            <span>Save</span>
+                        </button>
+                        <button type="button" class="btn btn-primary dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
+                                data-bind="visible: !inReadOnlyMode() && !inDiffMode(), enable: isSaveEnabled, requiredAccess: 'DatabaseReadWrite'">
+                            <span class="caret"></span>
+                            <span class="sr-only">Toggle Dropdown</span>
+                        </button>
+                        <ul class="dropdown-menu">
+                            <li>
+                                <a href="#" data-bind="click: () => handleSaveDocument(true), enable: isSaveEnabled">
+                                    <i class="icon-cluster"></i>
+                                    <span>Save document via cluster wide transaction</span>
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
                     <button type="button" class="clone-btn btn btn-default"
                             data-bind="click: tryCreateClone, enable: cloneEnabled, visible: !isDeleteRevision() && !inDiffMode() && !isClone(), requiredAccess: 'DatabaseReadWrite'">
                         <i class="icon-clone"></i>
                         <span>Clone</span>
                     </button>
-                    <button type="button" class="delete-btn btn btn-danger"
-                            data-bind="click: deleteDocument, enable: !isCreatingNewDocument(), visible: !inReadOnlyMode() && !inDiffMode() && !isClone() && !isCreatingNewDocument(), requiredAccess: 'DatabaseReadWrite'">
-                        <i class="icon-trash"></i>
-                        <span>Delete</span>
-                    </button>
+                    <div class="btn-group">
+                        <button type="button" class="delete-btn btn btn-danger"
+                                data-bind="click: deleteDocument, enable: !isCreatingNewDocument(), visible: !inReadOnlyMode() && !inDiffMode() && !isClone() && !isCreatingNewDocument(), requiredAccess: 'DatabaseReadWrite'">
+                            <i class="icon-trash"></i>
+                            <span>Delete</span>
+                        </button>
+                        <button type="button" class="btn btn-danger dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
+                                data-bind="visible: !inReadOnlyMode() && !inDiffMode() && !isClone() && !isCreatingNewDocument(), enable: !isCreatingNewDocument(), requiredAccess: 'DatabaseReadWrite'">
+                            <span class="caret"></span>
+                            <span class="sr-only">Toggle Dropdown</span>
+                        </button>
+                        <ul class="dropdown-menu">
+                            <li>
+                                <a href="#" data-bind="click: () => handleDeleteDocument(true), enable: !isCreatingNewDocument()">
+                                    <i class="icon-cluster"></i>
+                                    <span>Delete document via cluster wide transaction</span>
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
                     <a data-bind="attr: { href: latestRevisionUrl }, visible: inReadOnlyMode() && !isDeleteRevision()" class="btn btn-default">
                         <i class="icon-latest"></i>
                         <span>See the current document</span>
@@ -119,6 +149,11 @@
                     <div data-bind="if: comparingWith" class="margin-left margin-left-sm inline-block">
                         <div class="btn-group">
                             <div data-bind="visible: diffMode() !== 'manual'">
+                                <button
+                                  data-bind="click: () => copyRevisionTimestampToClipboard($root.comparingWith().__metadata.lastModified())"
+                                  title="Copy older revision timestamp to clipboard" class="btn btn-sm btn-default">
+                                    <i class="icon-copy"></i>
+                                </button>
                                 <span data-bind="text: $root.comparingWith().__metadata.lastModified()"></span>
                                 <i title="Conflicted revision" data-bind="visible: $root.comparingWith().__metadata.hasFlag('Conflicted')" class="icon-conflicts"></i>
                                 <i title="Resolved revision" data-bind="visible: $root.comparingWith().__metadata.hasFlag('Resolved')" class="icon-tick"></i>
@@ -156,6 +191,10 @@
                     </span>
                     <div class="flex-grow"></div>
                     <div class="margin-left margin-left-sm inline-block">
+                        <button data-bind="click: () => copyRevisionTimestampToClipboard(document().__metadata.lastModified())"
+                                title="Copy newer revision timestamp to clipboard" class="btn btn-sm btn-default">
+                            <i class="icon-copy"></i>
+                        </button>
                         <div class="btn-group">
                             <button class="btn btn-sm btn-default" title="Newer revision"
                                     data-bind="click: _.partial(revisionNavigate, 'newer', 'right'), enable: canNavigateObservable('newer', 'right')">

@@ -129,10 +129,7 @@ namespace Voron.Data.Lookups
                     if (state.LastSearchPosition < state.Header->NumberOfEntries)
                     {
                         var read = Math.Min(results.Length, state.Header->NumberOfEntries - state.LastSearchPosition);
-                        for (int i = 0; i < read; i++)
-                        {
-                            results[i] = GetKeyData(ref state, state.LastSearchPosition++);
-                        }
+                        GetKeyDataInBulk(ref state, state.LastSearchPosition, results.Slice(0, read));
                         return read;
                     }
                     if (_tree.GoToNextPage(ref _cursor) == false)
@@ -147,6 +144,7 @@ namespace Voron.Data.Lookups
             {
                 if (_cursor._pos < 0 || _isFinished)
                     return 0;
+                
                 ref var state = ref _cursor._stk[_cursor._pos];
                 while (true)
                 {
@@ -154,17 +152,7 @@ namespace Voron.Data.Lookups
                     if (state.LastSearchPosition < state.Header->NumberOfEntries)
                     {
                         var read = Math.Min(results.Length, state.Header->NumberOfEntries - state.LastSearchPosition);
-                        for (int i = 0; i < read; i++)
-                        {
-                            results[i] = GetValue(ref state, state.LastSearchPosition++);
-                            
-                            if (results[i] == lastId)
-                            {
-                                _isFinished = true;
-                                return includeMax ? i + 1 : i;
-                            }
-                        }
-                        return read;
+                        return GetValueDataInBulkUpTo(ref state, state.LastSearchPosition, lastId, includeMax, results.Slice(0, read), out _isFinished);
                     }
                     if (_tree.GoToNextPage(ref _cursor) == false)
                     {

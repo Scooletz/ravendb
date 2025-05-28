@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
@@ -7,6 +8,7 @@ using System.Runtime.CompilerServices;
 using Raven.Client.Documents.Changes;
 using Raven.Client.Exceptions;
 using Raven.Client.Exceptions.Documents;
+using Raven.Client.Extensions;
 using Raven.Server.ServerWide;
 using Raven.Server.ServerWide.Context;
 using Raven.Server.Utils;
@@ -176,6 +178,19 @@ namespace Raven.Server.Documents
                     var oldFlags = TableValueToFlags((int)DocumentsTable.Flags, ref oldValue);
 
                     newFlags = _documentsStorage.GetFlagsFromOldDocumentForPut(newFlags, oldFlags, nonPersistentFlags);
+                    
+                    // if doc was Archived and isn't currently unarchived, leave the Archived flag
+                    if (oldFlags.Contain(DocumentFlags.Archived))
+                    {
+                        if (document.TryGetMetadata(out BlittableJsonReaderObject newDocMetadata))
+                        {
+                            newDocMetadata.TryGet(Constants.Documents.Metadata.Archived, out bool isStillArchived);
+                            if (isStillArchived)
+                            {
+                                newFlags |= DocumentFlags.Archived;
+                            }
+                        }
+                    }
                 }
 
                 var result = _documentsStorage.BuildChangeVectorAndResolveConflicts(context, lowerId, newEtag, document, changeVector, expectedChangeVector, newFlags, oldChangeVector);
@@ -589,7 +604,9 @@ namespace Raven.Server.Documents
 
             public DynamicJsonArray GetMetadata(DocumentsOperationContext context, string id)
             {
-                return _storage.CountersStorage.GetCountersForDocumentList(context, id);
+                var names = _storage.CountersStorage.GetCountersForDocument(context, id);
+                var countersNamesList = new SortedSet<string>(names, StringComparer.OrdinalIgnoreCase);
+                return new DynamicJsonArray(countersNamesList);
             }
 
             public DocumentFlags HasFlag => DocumentFlags.HasCounters;
@@ -615,7 +632,9 @@ namespace Raven.Server.Documents
 
             public DynamicJsonArray GetMetadata(DocumentsOperationContext context, string id)
             {
-                return _storage.TimeSeriesStorage.GetTimeSeriesNamesForDocument(context, id);
+                var names = _storage.TimeSeriesStorage.Stats.GetTimeSeriesNamesForDocumentOriginalCasing(context, id);
+                var tsNamesList = new SortedSet<string>(names, StringComparer.OrdinalIgnoreCase);
+                return new DynamicJsonArray(tsNamesList);
             }
 
             public DocumentFlags HasFlag => DocumentFlags.HasTimeSeries;

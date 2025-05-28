@@ -290,6 +290,9 @@ namespace Raven.Client.Documents.Linq
 
         private static Expression SimplifyExpression(Expression expression)
         {
+            if (TryUnwrapImplicitOperatorIfNeeded(expression, out var newExpression))
+                expression = newExpression;
+
             while (true)
             {
                 switch (expression.NodeType)
@@ -342,7 +345,15 @@ namespace Raven.Client.Documents.Linq
                 if (val == null)
                     return null;
                 if (_conventions.SaveEnumsAsIntegers == false)
-                    return Enum.GetName(enumType, val);
+                {
+                    var enumName = Enum.GetName(enumType, val);
+                    if (enumName == null) 
+                        return null;
+                    
+                    var field = enumType.GetField(enumName);
+                    var attr = field?.GetCustomAttribute<EnumMemberAttribute>();
+                    return attr?.Value ?? enumName;
+                }
                 return Convert.ToInt32(val);
             }
         }
@@ -393,6 +404,9 @@ namespace Raven.Client.Documents.Linq
                 case ExpressionType.Call:
                     if (expression is MethodCallExpression mce)
                     {
+                        if (TryUnwrapImplicitOperatorIfNeeded(expression, out var newExpression))
+                            return GetValueFromExpressionWithoutConversion(newExpression, out value);
+
                         if (mce.Method.DeclaringType == typeof(RavenQuery) &&
                             mce.Method.Name == nameof(RavenQuery.CmpXchg))
                         {
@@ -635,6 +649,19 @@ namespace Raven.Client.Documents.Linq
         public static bool IsIncludeCall(MethodCallExpression mce)
         {
             return mce.Method.DeclaringType == typeof(RavenQuery) && mce.Method.Name == nameof(RavenQuery.Include);
+        }
+
+        private static bool TryUnwrapImplicitOperatorIfNeeded(Expression expression, out Expression newExpression)
+        {
+            newExpression = expression;
+
+            if (expression is MethodCallExpression { Method.Name: "op_Implicit" } callExpression)
+            {
+                newExpression = callExpression.Arguments[0];
+                return true;
+            }
+
+            return false;
         }
     }
 }

@@ -820,6 +820,10 @@ class editDocument extends shardViewModelBase {
     copyChangeVectorToClipboard() {
         copyToClipboard.copy(this.changeVector().map(vectorItem => vectorItem.fullFormat).join(", "), "Change Vector has been copied to clipboard");
     }
+    
+    copyRevisionTimestampToClipboard(revisionTimestamp: string) {
+        copyToClipboard.copy(revisionTimestamp, "Revision timestamp has been copied to clipboard");
+    }
 
     togglePropertiesPanel() {
         this.propertiesPanelVisible.toggle();
@@ -952,6 +956,10 @@ class editDocument extends shardViewModelBase {
     }
 
     saveDocument() {
+        this.handleSaveDocument(false);
+    }
+
+    handleSaveDocument(isClusterWide = false) {
         if (!this.isSaveEnabled()) {
             return ;
         }
@@ -961,7 +969,7 @@ class editDocument extends shardViewModelBase {
                 .then((canSave: boolean) => {
                     if (canSave) {
                         eventsCollector.default.reportEvent("document", "save");
-                        this.saveInternal(this.userSpecifiedId());
+                        this.saveInternal(this.userSpecifiedId(), false, isClusterWide);
                     }
                 });
         }
@@ -985,7 +993,7 @@ class editDocument extends shardViewModelBase {
         return true;
     }
     
-    private saveInternal(documentId: string, forceRevisionCreation = false) {
+    private saveInternal(documentId: string, forceRevisionCreation = false, isClusterWide = false) {
         let message = "";
         let updatedDto: any;
 
@@ -1040,9 +1048,11 @@ class editDocument extends shardViewModelBase {
         // as result we don't know exact destination document id.
         const newDoc = new document(updatedDto);
         
+        const transactionMode: Raven.Client.Documents.Session.TransactionMode = isClusterWide ? "ClusterWide" : "SingleNode";
+
         const saveCommand = forceRevisionCreation ?
-            new forceRevisionCreationCommand(documentId, this.db) :
-            new saveDocumentCommand(documentId, newDoc, this.db);
+                            new forceRevisionCreationCommand(documentId, this.db) :
+                            new saveDocumentCommand(documentId, newDoc, this.db, true, transactionMode);
         
         this.isSaving(true);
         saveCommand
@@ -1393,7 +1403,7 @@ class editDocument extends shardViewModelBase {
     }
 
     private getRevisionPhysicalSize(changeVector: string): JQueryPromise<Raven.Client.Documents.Commands.SizeDetails> {
-        return new getDocumentRevisionsPhysicalSizeCommand(changeVector, this.activeDatabase()).execute().done((response) => {
+        return new getDocumentRevisionsPhysicalSizeCommand(changeVector, this.db).execute().done((response) => {
             this.sizeOnDiskActual(response.HumaneActualSize);
             this.sizeOnDiskAllocated(response.HumaneAllocatedSize);
             this.isCompressed(response.IsCompressed);
@@ -1426,10 +1436,17 @@ class editDocument extends shardViewModelBase {
     }
 
     deleteDocument() {
+        this.handleDeleteDocument(false);
+    }
+
+    handleDeleteDocument(isClusterWide = false) {
         eventsCollector.default.reportEvent("document", "delete");
         const doc = this.document();
         if (doc) {
-            const viewModel = new deleteDocuments([doc.getId()], this.db);
+            
+            const transactionMode: Raven.Client.Documents.Session.TransactionMode = isClusterWide ? "ClusterWide" : "SingleNode";
+
+            const viewModel = new deleteDocuments([doc.getId()], this.db, transactionMode);
             viewModel.deletionTask.done(() => {
                 this.dirtyFlag().reset();
                 this.connectedDocuments.onDocumentDeleted();

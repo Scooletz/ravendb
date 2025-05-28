@@ -2831,12 +2831,6 @@ namespace Raven.Server.Documents.TimeSeries
             return tx.OpenTable(tableSchema, tableName);
         }
 
-        public DynamicJsonArray GetTimeSeriesNamesForDocument(DocumentsOperationContext context, string docId)
-        {
-            return new DynamicJsonArray(Stats.GetTimeSeriesNamesForDocumentOriginalCasing(context, docId));
-        }
-
-
         public long GetLastTimeSeriesEtag(DocumentsOperationContext context)
         {
             var table = new Table(TimeSeriesSchema, context.Transaction.InnerTransaction);
@@ -3015,6 +3009,28 @@ namespace Raven.Server.Documents.TimeSeries
                     Debug.Assert(tss.EnsureNoOverlap(context, slicer.TimeSeriesKeySlice, collectionName, segment, baseline), "Segment is overlapping another segment");
                 }
             }
+        }
+
+        public long GetNumberOfTimeSeriesDeletedRangesForCollection(DocumentsOperationContext context, string collection)
+        {
+            var table = GetExistingTable(context.Transaction.InnerTransaction, new CollectionName(collection), CollectionTableType.TimeSeriesDeletedRanges, DeleteRangesSchema);
+            if (table == null)
+                return 0;
+            return table.NumberOfEntries;
+        }
+
+        public long GetNumberOfTimeSeriesSegmentsForCollection(DocumentsOperationContext context, string collection)
+        {
+            var table = GetExistingTable(context.Transaction.InnerTransaction, new CollectionName(collection), CollectionTableType.TimeSeries, TimeSeriesSchema);
+            if (table == null)
+                return 0;
+            return table.NumberOfEntries;
+        }
+
+        private Table GetExistingTable(Transaction tx, CollectionName collection, CollectionTableType type, TableSchema tableSchema)
+        {
+            string tableName = collection.GetTableName(type);
+            return tx.OpenTable(tableSchema, tableName);
         }
     }
 

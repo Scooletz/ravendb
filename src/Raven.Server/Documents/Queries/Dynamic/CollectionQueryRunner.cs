@@ -96,21 +96,14 @@ namespace Raven.Server.Documents.Queries.Dynamic
         {
             var runner = new CollectionRunner(Database, queryContext.Documents, query);
 
-            return runner.ExecuteDelete(query.Metadata.CollectionName, query.Start, query.PageSize, new CollectionOperationOptions
-            {
-                MaxOpsPerSecond = options.MaxOpsPerSecond
-            }, onProgress, token);
+            return runner.ExecuteDelete(query.Metadata.CollectionName, query.Start, query.PageSize, options, onProgress, token);
         }
 
         public override Task<IOperationResult> ExecutePatchQuery(IndexQueryServerSide query, QueryOperationOptions options, PatchRequest patch, BlittableJsonReaderObject patchArgs, QueryOperationContext queryContext, Action<IOperationProgress> onProgress, OperationCancelToken token)
         {
             var runner = new CollectionRunner(Database, queryContext.Documents, query);
-
-            return runner.ExecutePatch(query.Metadata.CollectionName, query.Start, query.PageSize, new CollectionOperationOptions
-            {
-                IgnoreMaxStepsForScript = options.IgnoreMaxStepsForScript,
-                MaxOpsPerSecond = options.MaxOpsPerSecond
-            }, patch, patchArgs, onProgress, token);
+            return runner.ExecutePatch(query.Metadata.CollectionName, query.Start, query.PageSize, options, patch, patchArgs,
+                onProgress, token);
         }
 
         public override Task<SuggestionQueryResult> ExecuteSuggestionQuery(IndexQueryServerSide query, QueryOperationContext queryContext, long? existingResultEtag, OperationCancelToken token)

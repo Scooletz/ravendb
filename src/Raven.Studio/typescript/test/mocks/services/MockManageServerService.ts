@@ -86,4 +86,32 @@ export default class MockManageServerService extends AutoMockService<ManageServe
     withGetClusterLogEntry() {
         return this.mockResolvedValue(this.mocks.getClusterLogEntry, null, ManageServerStubs.getClusterLogEntry());
     }
+
+    withCertificates(dto?: MockedValue<CertificatesResponseDto>) {
+        return this.mockResolvedValue(this.mocks.getCertificates, dto, ManageServerStubs.certificates());
+    }
+
+    withAdminStats(dto?: MockedValue<Raven.Server.ServerWide.ServerStatistics>) {
+        return this.mockResolvedValue(this.mocks.getAdminStats, dto, ManageServerStubs.adminStats());
+    }
+
+    withServerCertificateRenewalDate(dto?: MockedValue<string>) {
+        return this.mockResolvedValue(
+            this.mocks.getServerCertificateRenewalDate,
+            dto,
+            ManageServerStubs.serverCertificateRenewalDate()
+        );
+    }
+
+    withServerCertificateSetupMode(dto?: MockedValue<Raven.Server.Commercial.SetupMode>) {
+        return this.mockResolvedValue(
+            this.mocks.getServerCertificateSetupMode,
+            dto,
+            ManageServerStubs.serverCertificateSetupMode()
+        );
+    }
+
+    withGenerateTwoFactorSecret(dto?: MockedValue<{ Secret: string }>) {
+        return this.mockResolvedValue(this.mocks.generateTwoFactorSecret, dto, ManageServerStubs.twoFactorSecret());
+    }
 }

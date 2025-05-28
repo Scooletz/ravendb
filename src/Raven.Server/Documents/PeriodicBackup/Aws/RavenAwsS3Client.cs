@@ -22,18 +22,19 @@ namespace Raven.Server.Documents.PeriodicBackup.Aws
     {
         private readonly Progress _progress;
         private readonly CancellationToken _cancellationToken;
-        internal Size MaxUploadPutObject = new Size(256, SizeUnit.Megabytes);
-        internal Size MinOnePartUploadSizeLimit = new Size(100, SizeUnit.Megabytes);
+        internal Size MaxUploadPutObject = new Size(1, SizeUnit.Gigabytes);
+        internal Size MinOnePartUploadSizeLimit = new Size(512, SizeUnit.Megabytes);
         internal readonly AmazonS3Config Config;
 
         private static readonly Size TotalBlocksSizeLimit = new Size(5, SizeUnit.Terabytes);
 
         private AmazonS3Client _client;
-        private readonly string _bucketName;
+        internal readonly string _bucketName;
         private readonly bool _usingCustomServerUrl;
         public readonly string RemoteFolderName;
 
         public readonly string Region;
+        private readonly Amazon.S3.S3StorageClass _storageClass;
 
         public RavenAwsS3Client(S3Settings s3Settings, Config.Categories.BackupConfiguration configuration, Progress progress = null, CancellationToken cancellationToken = default)
         {
@@ -89,14 +90,20 @@ namespace Raven.Server.Documents.PeriodicBackup.Aws
                 credentials = new BasicAWSCredentials(s3Settings.AwsAccessKey, s3Settings.AwsSecretKey);
             else
                 credentials = new SessionAWSCredentials(s3Settings.AwsAccessKey, s3Settings.AwsSecretKey, s3Settings.AwsSessionToken);
-
+            
             _client = new AmazonS3Client(credentials, config);
 
             _bucketName = s3Settings.BucketName;
             RemoteFolderName = s3Settings.RemoteFolderName;
             Region = s3Settings.AwsRegionName == null ? string.Empty : s3Settings.AwsRegionName.ToLower();
+            _storageClass = s3Settings.StorageClass?.ToAmazonS3StorageClass() ?? Amazon.S3.S3StorageClass.Standard;;
             _progress = progress;
             _cancellationToken = cancellationToken;
+        }
+
+        public async Task<GetObjectMetadataResponse> GetMetaDataAsync(string key)
+        {
+            return await _client.GetObjectMetadataAsync(_bucketName, key: key, _cancellationToken);
         }
 
         public void PutObject(string key, Stream stream, Dictionary<string, string> metadata)
@@ -106,7 +113,7 @@ namespace Raven.Server.Documents.PeriodicBackup.Aws
 
         public IMultiPartUploader GetUploader(string key, Dictionary<string, string> metadata)
         {
-            return new AwsS3MultiPartUploader(_client, _bucketName, _progress, key, metadata, _cancellationToken);
+            return new AwsS3MultiPartUploader(_client, _bucketName, _storageClass, _progress, key, metadata, _cancellationToken);
         }
 
         public async Task PutObjectAsync(string key, Stream stream, Dictionary<string, string> metadata)
@@ -126,7 +133,7 @@ namespace Raven.Server.Documents.PeriodicBackup.Aws
                 {
                     _progress?.UploadProgress.ChangeType(UploadType.Chunked);
 
-                    var multiPartUploader = new AwsS3MultiPartUploader(_client, _bucketName, _progress, key, metadata, _cancellationToken);
+                    var multiPartUploader = new AwsS3MultiPartUploader(_client, _bucketName, _storageClass, _progress, key, metadata, _cancellationToken);
 
                     await multiPartUploader.InitializeAsync();
 
@@ -147,6 +154,7 @@ namespace Raven.Server.Documents.PeriodicBackup.Aws
                     Key = key,
                     BucketName = _bucketName,
                     InputStream = stream,
+                    StorageClass = _storageClass,
                     StreamTransferProgress = (_, args) =>
                     {
                         _progress?.UploadProgress.ChangeState(UploadState.Uploading);
@@ -194,16 +202,17 @@ namespace Raven.Server.Documents.PeriodicBackup.Aws
         {
             try
             {
-                var response = await _client.ListObjectsV2Async(new ListObjectsV2Request
-                {
-                    BucketName = _bucketName,
-                    ContinuationToken = continuationToken,
-                    Delimiter = delimiter,
-                    Prefix = prefix,
-                    StartAfter = startAfter
-                }, _cancellationToken);
+                var response = await _client.ListObjectsV2Async(
+                    new ListObjectsV2Request
+                    {
+                        BucketName = _bucketName,
+                        ContinuationToken = continuationToken,
+                        Delimiter = delimiter,
+                        Prefix = prefix,
+                        StartAfter = startAfter
+                    }, _cancellationToken);
 
-                var result = new ListObjectsResult
+                var result = new ListObjectsResult 
                 {
                     ContinuationToken = response.NextContinuationToken,
                 };
@@ -217,10 +226,17 @@ namespace Raven.Server.Documents.PeriodicBackup.Aws
                 }
                 else
                 {
-                    result.FileInfoDetails = response
-                        .S3Objects
-                        .Select(x => new S3FileInfoDetails { FullPath = x.Key, LastModified = x.LastModified })
-                        .ToList();
+                    if (response.KeyCount > 0)
+                    {
+                        result.FileInfoDetails = response
+                            .S3Objects
+                            .Select(x => new S3FileInfoDetails { FullPath = x.Key, LastModified = x.LastModified.GetValueOrDefault() })
+                            .ToList();
+                    }
+                    else
+                    {
+                        result.FileInfoDetails = new List<S3FileInfoDetails>();
+                    }
                 }
 
                 return result;
@@ -326,9 +342,8 @@ namespace Raven.Server.Documents.PeriodicBackup.Aws
             using (var cancellationToken = new CancellationTokenSource(5000))
             using (var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken.Token, _cancellationToken))
             {
-                var aclResponse = await _client.GetACLAsync(_bucketName, cts.Token);
+                var aclResponse = await _client.GetBucketAclAsync(new GetBucketAclRequest { BucketName = _bucketName }, cts.Token);
                 var permissions = aclResponse
-                    .AccessControlList
                     .Grants
                     .Select(x => x.Permission.Value)
                     .ToHashSet();

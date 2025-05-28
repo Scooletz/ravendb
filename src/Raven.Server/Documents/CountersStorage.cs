@@ -249,6 +249,20 @@ namespace Raven.Server.Documents
             };
         }
 
+        public long GetNumberOfCountersDocumentsForCollection(DocumentsOperationContext context, string collection)
+        {
+            var table = GetExistingTable(context.Transaction.InnerTransaction, new CollectionName(collection));
+            if (table == null)
+                return 0;
+            return table.NumberOfEntries;
+        }
+
+        private Table GetExistingTable(Transaction tx, CollectionName collection)
+        {
+            string tableName = collection.GetTableName(CollectionTableType.CounterGroups);
+            return tx.OpenTable(CountersSchema, tableName);
+        }
+
         internal static CounterReplicationItem CreateReplicationBatchItem(DocumentsOperationContext context, ref TableValueReader reader)
         {
             var data = GetCounterValuesData(context, ref reader);
@@ -1538,11 +1552,6 @@ namespace Raven.Server.Documents
             }
 
             return all;
-        }
-
-        public DynamicJsonArray GetCountersForDocumentList(DocumentsOperationContext context, string docId)
-        {
-            return new DynamicJsonArray(GetCountersForDocument(context, docId));
         }
 
         internal static BlittableJsonReaderObject GetCounterValuesData(JsonOperationContext context, ref TableValueReader existing)

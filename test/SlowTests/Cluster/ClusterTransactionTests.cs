@@ -4,9 +4,11 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using FastTests.Utils;
+using Newtonsoft.Json;
 using Raven.Client;
 using Raven.Client.Documents;
 using Raven.Client.Documents.Conventions;
@@ -31,6 +33,7 @@ using Raven.Server.ServerWide.Commands;
 using Raven.Server.ServerWide.Context;
 using Raven.Tests.Core.Utils.Entities;
 using Sparrow;
+using Sparrow.Json;
 using Sparrow.Server;
 using Tests.Infrastructure;
 using Xunit;
@@ -1122,8 +1125,16 @@ namespace SlowTests.Cluster
                     }
                 }.Initialize())
                 {
-                    // let the document with the revision to replicate
-                    Assert.True(WaitForDocument(revivedStore, "foo/bar"));
+                    try
+                    {
+                        // let the document with the revision to replicate
+                        Assert.True(WaitForDocument(revivedStore, "foo/bar"));
+                    }
+                    catch
+                    {
+                        Output.WriteLine(await CollectDebugInfo(leader, revived, leaderStore, revivedStore, options));
+                        throw;
+                    }
                     using (var session = revivedStore.OpenAsyncSession())
                     {
                         session.Advanced.MaxNumberOfRequestsPerSession = int.MaxValue;
@@ -1168,6 +1179,72 @@ namespace SlowTests.Cluster
                         }), 2);
                         Assert.Equal(2, count);
                     }
+                }
+            }
+        }
+
+        private async Task<string> CollectDebugInfo(RavenServer leader, RavenServer revived, IDocumentStore leaderStore, IDocumentStore revivedStore, Options options)
+        {
+            var sb = new StringBuilder();
+            sb.Append("*********************************************************ClusterTransactionRequestWithRevisions(").Append(options.DatabaseMode)
+                .AppendLine(") Failed - Debug info -START-**********************************************************");
+
+            var nodeA = leader; //Servers[0];
+            var nodeB = revived;
+
+            if (nodeA != Servers[0])
+                sb.Append("nodeA (leader) is not Servers[0] - leader is '").Append(leader.ServerStore.NodeTag).Append("' and Servers[0] is '")
+                    .Append(Servers[0].ServerStore.NodeTag).AppendLine("'");
+
+            if (nodeB != Servers[1])
+                sb.Append("nodeB (revived) is not Servers[1] - revived is '").Append(revived.ServerStore.NodeTag).Append("' and Servers[1] is '")
+                    .Append(Servers[1].ServerStore.NodeTag).AppendLine("'");
+
+            sb.AppendLine("*********************************nodeA debug view*********************************");
+            GetDebugView(nodeA, sb);
+            sb.AppendLine("*********************************nodeA All Replication Items**********************");
+
+            var resA = string.Empty;
+            var resB = string.Empty;
+            using (var ctx = JsonOperationContext.ShortTermSingleUse())
+            {
+                var rA = await leaderStore.Maintenance.ForNode(nodeA.ServerStore.NodeTag).ForDatabase(leaderStore.Database)
+                    .SendAsync(ctx, new GetAllReplicationItemsOperation());
+
+                var rB = await revivedStore.Maintenance.ForNode(nodeB.ServerStore.NodeTag).ForDatabase(revivedStore.Database)
+                    .SendAsync(ctx, new GetAllReplicationItemsOperation());
+
+                resA = $"DatabaseChangeVector: {rA.DatabaseChangeVector} \nResults: {rA.Results}";
+                resB = $"DatabaseChangeVector: {rB.DatabaseChangeVector} \nResults: {rB.Results}";
+            }
+            sb.AppendLine(resA).AppendLine();
+
+            sb.AppendLine("*********************************nodeB debug view*********************************");
+            GetDebugView(nodeB, sb);
+            sb.AppendLine("*********************************nodeB All Replication Items**********************");
+            sb.AppendLine(resB).AppendLine();
+            
+            sb.AppendLine();
+            sb.Append("*********************************nodeA GetClusterDebugLogs*****************************");
+            GetDebugLogsForNode(nodeA, sb);
+            sb.AppendLine();
+            sb.Append("*********************************nodeB GetClusterDebugLogs******************************");
+            GetDebugLogsForNode(nodeB, sb);
+            
+            sb.AppendLine().AppendLine();
+            sb.Append("*********************************************************ClusterTransactionRequestWithRevisions(").Append(options.DatabaseMode)
+                .AppendLine(") Failed - Debug info -END-**********************************************************");
+            return sb.ToString();
+            
+            void GetDebugView(RavenServer server, StringBuilder sb)
+            {
+                var debugViewA = server.ServerStore.Engine.DebugView();
+                using (server.ServerStore.Engine.ContextPool.AllocateOperationContext(out ClusterOperationContext context))
+                using (context.OpenReadTransaction())
+                {
+                    debugViewA.PopulateLogs(context, fromIndex: null, take: Int32.MaxValue, detailed: true);
+                    var b = context.ReadObject(debugViewA.ToJson(), "");
+                    sb.AppendLine(b.ToString());
                 }
             }
         }
@@ -2315,6 +2392,28 @@ select incl(c)"
             {
                 Assert.Equal(count, await session.Query<TestObj>().CountAsync());
             }
+        }
+        
+        [RavenFact(RavenTestCategory.ClusterTransactions)]
+        public async Task TestCase()
+        {
+            using var store = GetDocumentStore();
+            using (var session = store.OpenAsyncSession(new SessionOptions{TransactionMode = TransactionMode.ClusterWide}))
+            {
+                await session.StoreAsync(new TestObj());
+                await session.SaveChangesAsync();
+            }
+            
+            var httpClient = store.GetRequestExecutor().HttpClient;
+            var response = await httpClient.GetAsync($"{store.Urls[0]}/databases/{store.Database}/admin/debug/cluster/txinfo");
+            var textResult = await response.Content.ReadAsStringAsync();
+            var result = JsonConvert.DeserializeObject<RequestResult>(textResult);
+            Assert.Equal(1, result.Results.Count());
+        }
+    
+        private class RequestResult
+        {
+            public IEnumerable<object> Results { get; set; }
         }
     }
 }
