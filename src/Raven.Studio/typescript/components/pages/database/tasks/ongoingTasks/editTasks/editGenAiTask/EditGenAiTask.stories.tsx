@@ -124,18 +124,22 @@ async function navigateToStep(canvas: Canvas, step: EditGenAiTaskStepId) {
 
 const sampleContextScript = `for(const comment of this.Comments)
 {
-    context({Text: comment.Text, Author: comment.Author, Id: comment.Id});
+    ai.genContext({Text: comment.Text, Author: comment.Author, Id: comment.Id});
 }`;
 
-const samplePrompt = "Check if the following blog post comment is spam or not";
+const samplePrompt =
+    "Check if the following blog post comment is spam or not. A spam comment typically includes irrelevant or promotional content, excessive links, misleading information, or is written with the intent to manipulate search rankings or advertise products/services. Consider the language, intent, and relevance of the comment to the blog post topic. ";
 
 const sampleObject = `{
     "Blocked": true,
     "Reason": "Concise reason for why this comment was marked as spam or ham"
 }`;
 
-const sampleUpdateScript = `const idx = this.Comments.findIndex(c => c.Id == $input.Id);  
-if($output.Blocked)
-{
+const sampleUpdateScript = `const contextObj = $input;
+const resultObj = $output;
+
+const idx = this.Comments.findIndex(comment => comment.Id == contextObj.Id);
+
+if (resultObj.Blocked) {
     this.Comments.splice(idx, 1); // remove
 }`;
