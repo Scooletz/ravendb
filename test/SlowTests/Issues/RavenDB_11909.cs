@@ -106,7 +106,7 @@ namespace SlowTests.Issues
                 nameof(DatabaseRecord.QueueSinks),
                 nameof(DatabaseRecord.SnowflakeEtls),
                 nameof(DatabaseRecord.EmbeddingsGenerations),
-                nameof(DatabaseRecord.GenAiEtls)
+                nameof(DatabaseRecord.GenAis)
             };
 
             var dbRecordType = typeof(DatabaseRecord);

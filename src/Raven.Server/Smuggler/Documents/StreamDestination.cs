@@ -519,8 +519,8 @@ namespace Raven.Server.Smuggler.Documents
                         if (databaseRecordItemType.Contain(DatabaseRecordItemType.GenAiEtls))
                         {
                             _writer.WriteComma();
-                            _writer.WritePropertyName(nameof(databaseRecord.GenAiEtls));
-                            WriteGenAiTasks(databaseRecord.GenAiEtls);
+                            _writer.WritePropertyName(nameof(databaseRecord.GenAis));
+                            WriteGenAiTasks(databaseRecord.GenAis);
                         }
 
                         if (databaseRecord.Integrations != null)

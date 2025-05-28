@@ -161,7 +161,7 @@ namespace Raven.Server.Smuggler.Documents
                 }
             }
 
-            foreach (var genAiTask in databaseRecord.GenAiEtls)
+            foreach (var genAiTask in databaseRecord.GenAis)
             {
                 if (string.IsNullOrEmpty(genAiTask.MentorNode) == false)
                 {

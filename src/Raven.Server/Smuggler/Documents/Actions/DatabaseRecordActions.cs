@@ -686,14 +686,14 @@ public sealed class DatabaseRecordActions : IDatabaseRecordActions
             result.DatabaseRecord.EmbeddingsGenerationsUpdated = true;
         }
 
-        if (databaseRecord.GenAiEtls.Count > 0 && databaseRecordItemType.HasFlag(DatabaseRecordItemType.GenAiEtls))
+        if (databaseRecord.GenAis.Count > 0 && databaseRecordItemType.HasFlag(DatabaseRecordItemType.GenAiEtls))
         {
             if (_log.IsInfoEnabled)
                 _log.Info("Configuring GenAI tasks configuration from smuggler");
 
-            foreach (var etl in databaseRecord.GenAiEtls)
+            foreach (var etl in databaseRecord.GenAis)
             {
-                _currentDatabaseRecord?.GenAiEtls.ForEach(x =>
+                _currentDatabaseRecord?.GenAis.ForEach(x =>
                 {
                     if (x.Name.Equals(etl.Name, StringComparison.OrdinalIgnoreCase))
                     {

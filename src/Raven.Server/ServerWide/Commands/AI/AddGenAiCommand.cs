@@ -23,7 +23,7 @@ public sealed class AddGenAiCommand : AddEtlCommand<GenAiConfiguration, AiConnec
     {
         Validate(record);
 
-        Add(ref record.GenAiEtls, record, etag);
+        Add(ref record.GenAis, record, etag);
     }
 
     private void Validate(DatabaseRecord databaseRecord)
@@ -40,9 +40,9 @@ public sealed class AddGenAiCommand : AddEtlCommand<GenAiConfiguration, AiConnec
         if (EmbeddingsGenerationConfiguration.ValidateIdentifier(Configuration.Identifier, out var errors) == false)
             throw new RachisApplyException($"Invalid identifier format. Validation errors:{Environment.NewLine} - {string.Join($"{Environment.NewLine} - ", errors)}");
 
-        var isUpdate = databaseRecord.GenAiEtls.Any(x => x.Name == Configuration.Name);
+        var isUpdate = databaseRecord.GenAis.Any(x => x.Name == Configuration.Name);
 
-        var identifierConflicts = databaseRecord?.GenAiEtls
+        var identifierConflicts = databaseRecord?.GenAis
             .Where(x => x.Identifier == Configuration.Identifier && x.Name != Configuration.Name)
             .ToArray();
 

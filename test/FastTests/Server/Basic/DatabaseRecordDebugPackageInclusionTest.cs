@@ -40,7 +40,7 @@ namespace FastTests.Server.Basic
                 nameof(DatabaseRecord.SnowflakeEtls),
                 nameof(DatabaseRecord.AiConnectionStrings),
                 nameof(DatabaseRecord.EmbeddingsGenerations),
-                nameof(DatabaseRecord.GenAiEtls),
+                nameof(DatabaseRecord.GenAis),
             };
             
             foreach (var safe in ServerWideDebugInfoPackageHandler.FieldsThatShouldBeExposedForDebug)

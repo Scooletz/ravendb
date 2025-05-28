@@ -961,7 +961,7 @@ public sealed partial class ClusterStateMachine
         if (licenseStatus.HasGenAi)
             return;
 
-        if (databaseRecord.GenAiEtls.Count == 0)
+        if (databaseRecord.GenAis.Count == 0)
             return;
 
         throw new LicenseLimitException(LimitType.GenAi, "Your license doesn't support using the AI Generation feature.");

@@ -42,10 +42,10 @@ public class GenAiBackupRestore(ITestOutputHelper output) : RavenTestBase(output
             await (await dst.Smuggler.ImportAsync(new DatabaseSmugglerImportOptions(), exportFile)).WaitForCompletionAsync();
 
             var dstRecord = await dst.Maintenance.Server.SendAsync(new GetDatabaseRecordOperation(dst.Database));
-            Assert.Equal(1, dstRecord.GenAiEtls.Count);
+            Assert.Equal(1, dstRecord.GenAis.Count);
             Assert.Equal(1, dstRecord.AiConnectionStrings.Count);
 
-            var imported = dstRecord.GenAiEtls.First();
+            var imported = dstRecord.GenAis.First();
             Assert.Equal(config.Name, imported.Name);
             Assert.Equal(config.ConnectionStringName, imported.ConnectionStringName);
             Assert.Equal(config.Prompt, imported.Prompt);
@@ -134,10 +134,10 @@ public class GenAiBackupRestore(ITestOutputHelper output) : RavenTestBase(output
                 var dst = await store.Maintenance.Server.SendAsync(new GetDatabaseRecordOperation(restoredDb));
 
                 Assert.Equal(src.AiConnectionStrings.Count, dst.AiConnectionStrings.Count);
-                Assert.Equal(src.GenAiEtls.Count, dst.GenAiEtls.Count);
+                Assert.Equal(src.GenAis.Count, dst.GenAis.Count);
 
-                var srcGenConfig = src.GenAiEtls.First();
-                var dstGenConfig = dst.GenAiEtls.First();
+                var srcGenConfig = src.GenAis.First();
+                var dstGenConfig = dst.GenAis.First();
 
                 Assert.Equal(srcGenConfig.Name, dstGenConfig.Name);
                 Assert.Equal(srcGenConfig.ConnectionStringName, dstGenConfig.ConnectionStringName);
@@ -224,10 +224,10 @@ public class GenAiBackupRestore(ITestOutputHelper output) : RavenTestBase(output
             }))
             {
                 var restored = await store.Maintenance.Server.SendAsync(new GetDatabaseRecordOperation(restoreName));
-                Assert.Equal(1, restored.GenAiEtls.Count);
+                Assert.Equal(1, restored.GenAis.Count);
                 Assert.Equal(1, restored.AiConnectionStrings.Count);
 
-                var restoredGenConfig = restored.GenAiEtls.First();
+                var restoredGenConfig = restored.GenAis.First();
 
                 Assert.Equal(config.Name, restoredGenConfig.Name);
                 Assert.Equal(config.ConnectionStringName, restoredGenConfig.ConnectionStringName);

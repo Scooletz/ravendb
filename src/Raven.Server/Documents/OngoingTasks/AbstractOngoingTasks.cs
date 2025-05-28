@@ -148,10 +148,10 @@ public abstract class AbstractOngoingTasks<TSubscriptionConnectionsState>
 
     private IEnumerable<GenAi> GetGenAiTasks(ClusterTopology clusterTopology, DatabaseRecord databaseRecord)
     {
-        if (databaseRecord.GenAiEtls == null || databaseRecord.GenAiEtls.Count == 0)
+        if (databaseRecord.GenAis == null || databaseRecord.GenAis.Count == 0)
             yield break;
 
-        foreach (var genAiTask in databaseRecord.GenAiEtls)
+        foreach (var genAiTask in databaseRecord.GenAis)
             yield return CreateGenAiTaskInfo(clusterTopology, databaseRecord, genAiTask);
     }
 
@@ -333,8 +333,8 @@ public abstract class AbstractOngoingTasks<TSubscriptionConnectionsState>
             case OngoingTaskType.GenAi:
 
                 var genAiConfig = taskName != null
-                    ? databaseRecord.GenAiEtls.Find(x => x.Name.Equals(taskName, StringComparison.OrdinalIgnoreCase))
-                    : databaseRecord.GenAiEtls?.Find(x => x.TaskId == taskId);
+                    ? databaseRecord.GenAis.Find(x => x.Name.Equals(taskName, StringComparison.OrdinalIgnoreCase))
+                    : databaseRecord.GenAis?.Find(x => x.TaskId == taskId);
 
                 if (genAiConfig == null)
                     return null;

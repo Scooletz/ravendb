@@ -147,7 +147,7 @@ namespace Raven.Server.ServerWide.Commands
                     break;
                 case OngoingTaskType.GenAi:
 
-                    var genAiTask = record?.GenAiEtls?.Find(x => x.TaskId == TaskId);
+                    var genAiTask = record?.GenAis?.Find(x => x.TaskId == TaskId);
                     if (genAiTask != null)
                     {
                         genAiTask.Disabled = Disable;

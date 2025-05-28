@@ -490,15 +490,15 @@ namespace Raven.Server.Smuggler.Documents
                     }
                 }
 
-                if (reader.TryGet(nameof(databaseRecord.GenAiEtls), out BlittableJsonReaderArray genAiTasks) &&
+                if (reader.TryGet(nameof(databaseRecord.GenAis), out BlittableJsonReaderArray genAiTasks) &&
                     genAiTasks != null)
                 {
-                    databaseRecord.GenAiEtls = new List<GenAiConfiguration>();
+                    databaseRecord.GenAis = new List<GenAiConfiguration>();
                     foreach (BlittableJsonReaderObject etl in genAiTasks)
                     {
                         try
                         {
-                            databaseRecord.GenAiEtls.Add(JsonDeserializationCluster.GenAiConfiguration(etl));
+                            databaseRecord.GenAis.Add(JsonDeserializationCluster.GenAiConfiguration(etl));
                         }
                         catch (Exception e)
                         {

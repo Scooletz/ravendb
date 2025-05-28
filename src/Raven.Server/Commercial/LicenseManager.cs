@@ -1183,8 +1183,8 @@ namespace Raven.Server.Commercial
                         databaseRecord.EmbeddingsGenerations.Count > 0)
                         embeddingsGenerationsCount++;
 
-                    if (databaseRecord.GenAiEtls != null &&
-                        databaseRecord.GenAiEtls.Count > 0)
+                    if (databaseRecord.GenAis != null &&
+                        databaseRecord.GenAis.Count > 0)
                         genAiCount++;
 
                     var backupTypes = GetBackupTypes(databaseRecord.PeriodicBackups);

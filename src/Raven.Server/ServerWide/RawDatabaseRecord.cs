@@ -944,12 +944,12 @@ namespace Raven.Server.ServerWide
             get
             {
                 if (_materializedRecord != null)
-                    return _materializedRecord.GenAiEtls;
+                    return _materializedRecord.GenAis;
 
                 if (_genAiConfigurationTasks == null)
                 {
                     _genAiConfigurationTasks = [];
-                    if (_record.TryGet(nameof(DatabaseRecord.GenAiEtls), out BlittableJsonReaderArray bjra) && bjra != null)
+                    if (_record.TryGet(nameof(DatabaseRecord.GenAis), out BlittableJsonReaderArray bjra) && bjra != null)
                     {
                         foreach (BlittableJsonReaderObject element in bjra)
                             _genAiConfigurationTasks.Add(JsonDeserializationCluster.GenAiConfiguration(element));

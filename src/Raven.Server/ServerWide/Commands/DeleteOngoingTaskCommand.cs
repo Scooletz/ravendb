@@ -172,10 +172,10 @@ namespace Raven.Server.ServerWide.Commands
                     }
                     break;
                 case OngoingTaskType.GenAi:
-                    var genAiTask = record.GenAiEtls?.Find(x => x.TaskId == TaskId);
+                    var genAiTask = record.GenAis?.Find(x => x.TaskId == TaskId);
                     if (genAiTask != null)
                     {
-                        record.GenAiEtls.Remove(genAiTask);
+                        record.GenAis.Remove(genAiTask);
                     }
                     break;
             }

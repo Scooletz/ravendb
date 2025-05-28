@@ -99,7 +99,7 @@ namespace Raven.Server.Documents.ETL
 
         public void Initialize(DatabaseRecord record)
         {
-            LoadProcesses(record, record.RavenEtls, record.SqlEtls, record.OlapEtls, record.ElasticSearchEtls, record.QueueEtls, record.SnowflakeEtls, record.EmbeddingsGenerations, record.GenAiEtls, toRemove: null, null, null);
+            LoadProcesses(record, record.RavenEtls, record.SqlEtls, record.OlapEtls, record.ElasticSearchEtls, record.QueueEtls, record.SnowflakeEtls, record.EmbeddingsGenerations, record.GenAis, toRemove: null, null, null);
         }
 
         public event Action<EtlProcess> ProcessAdded;
@@ -138,7 +138,7 @@ namespace Raven.Server.Documents.ETL
                 QueueDestinations = _databaseRecord.QueueEtls;
                 SnowflakeDestinations = _databaseRecord.SnowflakeEtls;
                 EmbeddingsGenerationDestinations = _databaseRecord.EmbeddingsGenerations;
-                GenAiDestinations = _databaseRecord.GenAiEtls;
+                GenAiDestinations = _databaseRecord.GenAis;
 
                 var processes = new List<EtlProcess>(_processes);
 
@@ -614,7 +614,7 @@ namespace Raven.Server.Documents.ETL
                 }
             }
             
-            foreach (var config in record.GenAiEtls)
+            foreach (var config in record.GenAis)
             {
                 if (IsMyEtlTask<GenAiConfiguration, AiConnectionString>(record, config, ref responsibleNodes, out explanations))
                 {
