@@ -17,4 +17,6 @@ export const useDirtyFlag = (isDirty: boolean, customDialog?: () => JQueryDeferr
 
         setIsDirty(false, null);
     }, [isDirty, customDialog, setIsDirty]);
+
+    return { setIsDirty };
 };

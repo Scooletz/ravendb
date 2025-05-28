@@ -14,6 +14,7 @@ import EditGenAiTaskTestResults from "./partials/EditGenAiTaskTestResults";
 import EditGenAiTaskSteps from "./partials/EditGenAiTaskSteps";
 import EditGenAiTaskPlayground from "./partials/EditGenAiTaskPlayground";
 import useEditGenAiCancel from "./hooks/useEditGenAiCancel";
+import { useDirtyFlag } from "components/hooks/useDirtyFlag";
 
 interface QueryParams {
     taskId: string;
@@ -65,6 +66,8 @@ export default function EditGenAiTask({ queryParams }: ReactQueryParamsProps<Que
         },
     });
 
+    const { setIsDirty } = useDirtyFlag(form.formState.isDirty);
+
     const { handleSubmit, reset } = form;
 
     const handleSave: SubmitHandler<EditGenAiTaskFormData> = (data) => {
@@ -72,6 +75,7 @@ export default function EditGenAiTask({ queryParams }: ReactQueryParamsProps<Que
             const scriptsToReset = data.isResetScript ? [data.scriptToReset] : undefined;
             await tasksService.saveGenAiTask(databaseName, editGenAiTaskUtils.mapToDto(data, taskId), scriptsToReset);
             reset(data);
+            setIsDirty(false);
             cancel();
         });
     };
