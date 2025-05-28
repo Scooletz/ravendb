@@ -66,7 +66,17 @@ export default function EditGenAiTaskBasicFields() {
         <>
             <FormGroup>
                 <FormLabel>Task Name</FormLabel>
-                <FormInput type="text" control={control} name="name" placeholder="My task" />
+                <FormInput
+                    type="text"
+                    control={control}
+                    name="name"
+                    placeholder="My task"
+                    onBlur={() => {
+                        if (!formValues.identifier) {
+                            handleGenerateIdentifier();
+                        }
+                    }}
+                />
             </FormGroup>
             <FormGroup>
                 <FormLabel>
