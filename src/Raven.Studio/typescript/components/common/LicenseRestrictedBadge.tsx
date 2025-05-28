@@ -4,7 +4,7 @@ import classNames from "classnames";
 import { useAppSelector } from "components/store";
 import { licenseSelectors } from "./shell/licenseSlice";
 
-export type LicenseBadgeText = "Professional +" | "Enterprise" | "Enterprise Ai";
+export type LicenseBadgeText = "Professional +" | "Enterprise" | "Enterprise AI";
 
 interface LicenseRestrictedBadgeProps {
     className?: string;
@@ -36,7 +36,7 @@ function getClassName(licenseBadgeText: LicenseBadgeText, isCloud: boolean): Lic
             return "enterprise";
         case "Professional +":
             return "professional";
-        case "Enterprise Ai":
+        case "Enterprise AI":
             return "enterprise-ai";
         default:
             return null;

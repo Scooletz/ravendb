@@ -112,7 +112,7 @@ export default function OngoingTaskAddModal(props: OngoingTaskAddModalProps) {
                     >
                         <Icon icon="ai-etl" margin="m-0" />
                         <h4 className="mt-1 mb-0">GenAI</h4>
-                        {!hasGenAi && <LicenseRestrictedBadge licenseRequired="Enterprise Ai" />}
+                        {!hasGenAi && <LicenseRestrictedBadge licenseRequired="Enterprise AI" />}
                     </TaskItem>
                     <TaskItem
                         title="Create new AI task"
