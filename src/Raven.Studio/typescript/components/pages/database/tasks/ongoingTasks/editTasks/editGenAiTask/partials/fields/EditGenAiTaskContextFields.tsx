@@ -1,4 +1,4 @@
-import { FormLabel, FormSelectCreatable } from "components/common/Form";
+import { FormLabel, FormSelectAutocomplete } from "components/common/Form";
 import { FormGroup } from "components/common/Form";
 import { FormAceEditor } from "components/common/Form";
 import { useFormContext } from "react-hook-form";
@@ -32,7 +32,7 @@ export default function EditGenAiTaskContextFields() {
                         <Icon icon="info" color="info" margin="ms-1" />
                     </PopoverWithHoverWrapper>
                 </FormLabel>
-                <FormSelectCreatable control={control} name="collectionName" options={collectionOptions} />
+                <FormSelectAutocomplete control={control} name="collectionName" options={collectionOptions} />
             </FormGroup>
             <FormGroup>
                 <FormLabel>
