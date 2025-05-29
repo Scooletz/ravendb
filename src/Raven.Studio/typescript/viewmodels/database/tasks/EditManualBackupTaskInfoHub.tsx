@@ -65,6 +65,7 @@ export function EditManualBackupTaskInfoHub() {
             <FeatureAvailabilitySummaryWrapper
                 isUnlimited={hasEncryptedBackups && hasCloudBackups && hasSnapshotBackups}
                 data={featureAvailability}
+                isOpenedByDefault={!hasEncryptedBackups && !hasCloudBackups && !hasSnapshotBackups}
             />
         </AboutViewFloating>
     );

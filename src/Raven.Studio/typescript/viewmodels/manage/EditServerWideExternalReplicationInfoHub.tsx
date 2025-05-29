@@ -48,8 +48,8 @@ export function EditServerWideExternalReplicationInfoHub() {
                 </div>
             </AccordionItemWrapper>
             <FeatureAvailabilitySummaryWrapper
-                isUnlimited={hasServerWideExternalReplication}
                 data={featureAvailability}
+                isUnlimited={hasServerWideExternalReplication}
             />
         </AboutViewFloating>
     );

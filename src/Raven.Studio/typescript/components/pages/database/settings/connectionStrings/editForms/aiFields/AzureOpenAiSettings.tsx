@@ -1,4 +1,4 @@
-import { FormInput, FormSelectCreatable, FormLabel } from "components/common/Form";
+import { FormInput, FormLabel, FormSelectAutocomplete } from "components/common/Form";
 import { Icon } from "components/common/Icon";
 import OptionalLabel from "components/common/OptionalLabel";
 import {
@@ -68,7 +68,7 @@ export default function AzureOpenAiSettings({ isUsedByAnyTask }: { isUsedByAnyTa
                         <Icon icon="info" color="info" id="model" margin="ms-1" />
                     </PopoverWithHoverWrapper>
                 </FormLabel>
-                <FormSelectCreatable
+                <FormSelectAutocomplete
                     control={control}
                     name="azureOpenAiSettings.model"
                     isDisabled={isUsedByAnyTask}

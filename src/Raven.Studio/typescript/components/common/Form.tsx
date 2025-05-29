@@ -6,7 +6,7 @@ import InputGroup from "react-bootstrap/InputGroup";
 import Form from "react-bootstrap/Form";
 import Button from "react-bootstrap/Button";
 import { RadioToggleWithIcon } from "./toggles/RadioToggle";
-import AceEditor, { AceEditorProps } from "./AceEditor";
+import AceEditor, { AceEditorProps } from "./ace/AceEditor";
 import classNames from "classnames";
 import DurationPicker, { DurationPickerProps } from "./DurationPicker";
 import SelectCreatable from "./select/SelectCreatable";
@@ -323,6 +323,7 @@ export function FormSelectAutocomplete<
         field: { onChange, value },
     } = useController({
         name: props.name,
+        control: props.control,
     });
 
     const onInputChange = (value: string, action: InputActionMeta) => {
@@ -333,12 +334,11 @@ export function FormSelectAutocomplete<
 
     return (
         <FormSelectCreatable<Option, IsMulti, Group, TFieldValues, TName>
-            inputValue={value}
+            inputValue={value ?? ""}
             onInputChange={onInputChange}
             components={{ Input: InputNotHidden }}
             tabSelectsValue
             controlShouldRenderValue={false}
-            closeMenuOnSelect
             {...props}
         />
     );
@@ -681,10 +681,10 @@ export function FormPathSelector<
     );
 }
 
-export function FormValidationMessage(props: { children: string }) {
-    const { children } = props;
+export function FormValidationMessage(props: { children: string; className?: string }) {
+    const { children, className } = props;
     return (
-        <div className="validation-message text-start w-100 ">
+        <div className={classNames("validation-message text-start w-100", className)}>
             <div className="badge bg-danger rounded-pill">{children}</div>
         </div>
     );

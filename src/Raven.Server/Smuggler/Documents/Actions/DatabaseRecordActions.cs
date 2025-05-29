@@ -23,7 +23,6 @@ using Raven.Server.ServerWide.Commands.QueueSink;
 using Raven.Server.ServerWide.Commands.Sorters;
 using Raven.Server.ServerWide.Context;
 using Raven.Server.Smuggler.Documents.Data;
-using Sparrow.Logging;
 using Sparrow.Server.Logging;
 
 namespace Raven.Server.Smuggler.Documents.Actions;
@@ -685,6 +684,29 @@ public sealed class DatabaseRecordActions : IDatabaseRecordActions
             }
 
             result.DatabaseRecord.EmbeddingsGenerationsUpdated = true;
+        }
+
+        if (databaseRecord.GenAis.Count > 0 && databaseRecordItemType.HasFlag(DatabaseRecordItemType.GenAiEtls))
+        {
+            if (_log.IsInfoEnabled)
+                _log.Info("Configuring GenAI tasks configuration from smuggler");
+
+            foreach (var etl in databaseRecord.GenAis)
+            {
+                _currentDatabaseRecord?.GenAis.ForEach(x =>
+                {
+                    if (x.Name.Equals(etl.Name, StringComparison.OrdinalIgnoreCase))
+                    {
+                        tasks.Add(_server.SendToLeaderAsync(new DeleteOngoingTaskCommand(x.TaskId, OngoingTaskType.GenAi, _name, RaftIdGenerator.DontCareId)));
+                    }
+                });
+
+                etl.TaskId = 0;
+                etl.Disabled = true;
+                tasks.Add(_server.SendToLeaderAsync(new AddGenAiCommand(etl, _name, RaftIdGenerator.DontCareId)));
+            }
+
+            result.DatabaseRecord.GenAiTasksUpdated = true;
         }
 
         if (tasks.Count == 0)

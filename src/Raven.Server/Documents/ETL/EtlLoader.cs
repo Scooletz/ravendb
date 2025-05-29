@@ -17,8 +17,8 @@ using Raven.Client.Documents.Operations.ETL.Queue;
 using Raven.Client.Documents.Operations.ETL.Snowflake;
 using Raven.Client.Documents.Operations.ETL.SQL;
 using Raven.Client.ServerWide;
-using Raven.Server.Documents.ETL.Providers.AI;
 using Raven.Server.Documents.ETL.Providers.AI.Embeddings;
+using Raven.Server.Documents.ETL.Providers.AI.GenAi;
 using Raven.Server.Documents.ETL.Providers.ElasticSearch;
 using Raven.Server.Documents.ETL.Providers.OLAP;
 using Raven.Server.Documents.ETL.Providers.Queue;
@@ -29,13 +29,11 @@ using Raven.Server.Documents.ETL.Providers.Queue.RabbitMq;
 using Raven.Server.Documents.ETL.Providers.Raven;
 using Raven.Server.Documents.ETL.Providers.RelationalDatabase.Snowflake;
 using Raven.Server.Documents.ETL.Providers.RelationalDatabase.SQL;
-using Raven.Server.Logging;
 using Raven.Server.NotificationCenter;
 using Raven.Server.NotificationCenter.Notifications;
 using Raven.Server.ServerWide;
 using Raven.Server.ServerWide.Context;
 using Raven.Server.Utils;
-using Sparrow.Logging;
 using Sparrow.Server.Logging;
 
 namespace Raven.Server.Documents.ETL
@@ -91,6 +89,8 @@ namespace Raven.Server.Documents.ETL
         
         public List<EmbeddingsGenerationConfiguration> EmbeddingsGenerationDestinations;
 
+        public List<GenAiConfiguration> GenAiDestinations;
+
         public long GetQueueDestinationCountByBroker(QueueBrokerType brokerType)
         {
             var items = QueueDestinations.Where(x => x.BrokerType == brokerType);
@@ -99,7 +99,7 @@ namespace Raven.Server.Documents.ETL
 
         public void Initialize(DatabaseRecord record)
         {
-            LoadProcesses(record, record.RavenEtls, record.SqlEtls, record.OlapEtls, record.ElasticSearchEtls, record.QueueEtls, record.SnowflakeEtls, record.EmbeddingsGenerations, toRemove: null, null, null);
+            LoadProcesses(record, record.RavenEtls, record.SqlEtls, record.OlapEtls, record.ElasticSearchEtls, record.QueueEtls, record.SnowflakeEtls, record.EmbeddingsGenerations, record.GenAis, toRemove: null, null, null);
         }
 
         public event Action<EtlProcess> ProcessAdded;
@@ -124,6 +124,7 @@ namespace Raven.Server.Documents.ETL
             List<QueueEtlConfiguration> newQueueDestinations,
             List<SnowflakeEtlConfiguration> newSnowflakeDestinations,
             List<EmbeddingsGenerationConfiguration> newEmbeddingsGenerationDestinations,
+            List<GenAiConfiguration> newGenAiDestinations,
             List<EtlProcess> toRemove, Dictionary<string, string> responsibleNodes,
             List<string> explanations)
         {
@@ -137,6 +138,7 @@ namespace Raven.Server.Documents.ETL
                 QueueDestinations = _databaseRecord.QueueEtls;
                 SnowflakeDestinations = _databaseRecord.SnowflakeEtls;
                 EmbeddingsGenerationDestinations = _databaseRecord.EmbeddingsGenerations;
+                GenAiDestinations = _databaseRecord.GenAis;
 
                 var processes = new List<EtlProcess>(_processes);
 
@@ -174,6 +176,9 @@ namespace Raven.Server.Documents.ETL
                 
                 if (newEmbeddingsGenerationDestinations != null && newEmbeddingsGenerationDestinations.Count > 0)
                     newProcesses.AddRange(GetRelevantProcesses<EmbeddingsGenerationConfiguration, AiConnectionString>(newEmbeddingsGenerationDestinations, ensureUniqueConfigurationNames));
+
+                if (newGenAiDestinations != null && newGenAiDestinations.Count > 0)
+                    newProcesses.AddRange(GetRelevantProcesses<GenAiConfiguration, AiConnectionString>(newGenAiDestinations, ensureUniqueConfigurationNames));
 
                 processes.AddRange(newProcesses);
                 _processes = processes.ToArray();
@@ -260,6 +265,7 @@ namespace Raven.Server.Documents.ETL
                 QueueEtlConfiguration queueConfig = null;
                 SnowflakeEtlConfiguration snowflakeConfig = null;
                 EmbeddingsGenerationConfiguration embeddingsGenerationConfig = null;
+                GenAiConfiguration genAiConfig = null;
 
                 var connectionStringNotFound = false;
 
@@ -317,8 +323,18 @@ namespace Raven.Server.Documents.ETL
                     case EtlType.EmbeddingsGeneration:
                         embeddingsGenerationConfig = config as EmbeddingsGenerationConfiguration;
                         
-                        if (_databaseRecord.AiConnectionStrings.TryGetValue(config.ConnectionStringName, out var aiConnection))
-                            embeddingsGenerationConfig.Initialize(aiConnection);
+                        if (_databaseRecord.AiConnectionStrings.TryGetValue(config.ConnectionStringName, out var embeddingsConStr))
+                            embeddingsGenerationConfig.Initialize(embeddingsConStr);
+                        else
+                            connectionStringNotFound = true;
+                        
+                        break;
+                    
+                    case EtlType.GenAi:
+                        genAiConfig = config as GenAiConfiguration;
+                        
+                        if (_databaseRecord.AiConnectionStrings.TryGetValue(config.ConnectionStringName, out var genAiConStr))
+                            genAiConfig.Initialize(genAiConStr);
                         else
                             connectionStringNotFound = true;
                         
@@ -366,6 +382,8 @@ namespace Raven.Server.Documents.ETL
                         process = new SnowflakeEtl(transform, snowflakeConfig, _database, _serverStore);
                     if (embeddingsGenerationConfig != null)
                         process = new EmbeddingsGenerationTask(transform, embeddingsGenerationConfig, _database, _serverStore);
+                    if (genAiConfig != null)
+                        process = new GenAiTask(transform, genAiConfig, _database, _serverStore);
                     yield return process;
                 }
             }
@@ -534,6 +552,7 @@ namespace Raven.Server.Documents.ETL
             var myQueueEtl = new List<QueueEtlConfiguration>();
             var mySnowflakeEtl = new List<SnowflakeEtlConfiguration>();
             var myEmbeddingsGenerationEtl = new List<EmbeddingsGenerationConfiguration>();
+            var myGenAiEtl = new List<GenAiConfiguration>();
 
             var responsibleNodes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
@@ -592,6 +611,14 @@ namespace Raven.Server.Documents.ETL
                 if (IsMyEtlTask<EmbeddingsGenerationConfiguration, AiConnectionString>(record, config, ref responsibleNodes, out explanations))
                 {
                     myEmbeddingsGenerationEtl.Add(config);
+                }
+            }
+            
+            foreach (var config in record.GenAis)
+            {
+                if (IsMyEtlTask<GenAiConfiguration, AiConnectionString>(record, config, ref responsibleNodes, out explanations))
+                {
+                    myGenAiEtl.Add(config);
                 }
             }
 
@@ -830,12 +857,35 @@ namespace Raven.Server.Documents.ETL
 
                         break;
                     }
+                    case GenAiTask genAiTask:
+                    {
+                        GenAiConfiguration existing = null;
+
+                        foreach (var config in myGenAiEtl)
+                        {
+                            var diff = genAiTask.Configuration.Compare(config, record.AiConnectionStrings);
+
+                            if (diff == EtlConfigurationCompareDifferences.None)
+                            {
+                                existing = config;
+                                break;
+                            }
+                        }
+
+                        if (existing != null)
+                        {
+                            toRemove.Remove(processesPerConfig.Key);
+                            myGenAiEtl.Remove(existing);
+                        }
+
+                        break;
+                    }
                     default:
                         throw new InvalidOperationException($"Unknown ETL process type: {process.GetType()}");
                 }
             }
 
-            LoadProcesses(record, myRavenEtl, mySqlEtl, myOlapEtl, myElasticSearchEtl, myQueueEtl, mySnowflakeEtl, myEmbeddingsGenerationEtl, toRemove.SelectMany(x => x.Value).ToList(), responsibleNodes, explanations);
+            LoadProcesses(record, myRavenEtl, mySqlEtl, myOlapEtl, myElasticSearchEtl, myQueueEtl, mySnowflakeEtl, myEmbeddingsGenerationEtl, myGenAiEtl, toRemove.SelectMany(x => x.Value).ToList(), responsibleNodes, explanations);
 
             if (toRemove.Count == 0)
                 return;
@@ -855,7 +905,7 @@ namespace Raven.Server.Documents.ETL
 
                             using (process)
                             {
-                                string reason = GetStopReason(process, record, myRavenEtl, mySqlEtl, myOlapEtl, myElasticSearchEtl, myQueueEtl, mySnowflakeEtl, myEmbeddingsGenerationEtl, responsibleNodes, explanations);
+                                string reason = GetStopReason(process, record, myRavenEtl, mySqlEtl, myOlapEtl, myElasticSearchEtl, myQueueEtl, mySnowflakeEtl, myEmbeddingsGenerationEtl, myGenAiEtl, responsibleNodes, explanations);
                                 process.Stop(reason);
                             }
                         }
@@ -911,6 +961,7 @@ namespace Raven.Server.Documents.ETL
             List<QueueEtlConfiguration> myQueueEtl,
             List<SnowflakeEtlConfiguration> mySnowflakeEtl,
             List<EmbeddingsGenerationConfiguration> myEmbeddingsGenerationEtl,
+            List<GenAiConfiguration> myGenAiEtl,
             Dictionary<string, string> responsibleNodes,
             List<string> explanations)
         {
@@ -988,6 +1039,13 @@ namespace Raven.Server.Documents.ETL
 
                 if (existing != null)
                     differences = embeddingsGenerationTask.Configuration.Compare(existing, record.AiConnectionStrings, transformationDiffs);
+            }
+            else if (process is GenAiTask genAiTask)
+            {
+                var existing = myGenAiEtl.FirstOrDefault(x => x.Name.Equals(genAiTask.ConfigurationName, StringComparison.OrdinalIgnoreCase));
+
+                if (existing != null)
+                    differences = genAiTask.Configuration.Compare(existing, record.AiConnectionStrings, transformationDiffs);
             }
             else
             {

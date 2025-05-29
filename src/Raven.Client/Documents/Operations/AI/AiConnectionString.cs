@@ -95,6 +95,31 @@ public sealed class AiConnectionString : ConnectionString
         return result;
     }
 
+    internal bool UsingEncryptedCommunicationChannel()
+    {
+        AiConnectorType aiConnectorType = GetActiveProvider();
+        switch (aiConnectorType)
+        {
+            case AiConnectorType.Ollama:
+                return OllamaSettings.Uri.StartsWith("https");
+            case AiConnectorType.OpenAi:
+                return this.OpenAiSettings.Endpoint.StartsWith("https");
+            case AiConnectorType.AzureOpenAi:
+                return this.AzureOpenAiSettings.Endpoint.StartsWith("https");
+            case AiConnectorType.MistralAi:
+                return this.MistralAiSettings.Endpoint.StartsWith("https");
+            case AiConnectorType.HuggingFace:
+                // Endpoint is optional for HuggingFace, it will use the default endpoint if not provided, which is HTTPS
+                return string.IsNullOrWhiteSpace(this.HuggingFaceSettings.Endpoint) || this.HuggingFaceSettings.Endpoint.StartsWith("https");
+            case AiConnectorType.Embedded:
+            case AiConnectorType.Google:
+                return true;
+
+            default:
+                throw new NotSupportedException($"Unknown AI connector type: {aiConnectorType}");
+        }
+    }
+
     public AiConnectorType GetActiveProvider()
     {
         if (OpenAiSettings != null)
@@ -177,5 +202,28 @@ public sealed class AiConnectionString : ConnectionString
                GoogleSettings ??
                HuggingFaceSettings ??
                (AbstractAiSettings)MistralAiSettings;
+    }
+
+    internal bool TryGetParametersForGenAiTesting(out string uri, out string apiKey, out string model)
+    {
+        uri = null;
+        apiKey = null;
+        model = null;
+
+        var provider = GetActiveProvider();
+        switch (provider)
+        {
+            case AiConnectorType.OpenAi:
+                uri = OpenAiSettings.Endpoint;
+                apiKey = OpenAiSettings.ApiKey;
+                model = OpenAiSettings.Model;
+                return true;
+            case AiConnectorType.Ollama:
+                uri = OllamaSettings.Uri; 
+                model = OllamaSettings.Model;
+                return true;
+        }
+
+        return false;
     }
 }

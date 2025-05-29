@@ -145,6 +145,11 @@
                 background-color: colors.$color-5;
             }
         }
+        &.enterprise-ai {
+            &:before {
+                background-color: colors.$brand-ai;
+            }
+        }
         &:before {
             content: "";
             display: block;

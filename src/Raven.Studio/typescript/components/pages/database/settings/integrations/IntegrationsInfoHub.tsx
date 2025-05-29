@@ -69,7 +69,11 @@ export function IntegrationsInfoHub() {
                     <Icon icon="newtab" /> Docs - Integrations
                 </a>
             </AccordionItemWrapper>
-            <FeatureAvailabilitySummaryWrapper isUnlimited={hasAllFeaturesInLicense} data={featureAvailability} />
+            <FeatureAvailabilitySummaryWrapper
+                isUnlimited={hasAllFeaturesInLicense}
+                data={featureAvailability}
+                isOpenedByDefault={!hasPostgreSql && !hasPowerBi}
+            />
         </AboutViewAnchored>
     );
 }

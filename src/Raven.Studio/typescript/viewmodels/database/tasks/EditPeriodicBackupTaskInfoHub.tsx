@@ -68,6 +68,7 @@ export function EditPeriodicBackupTaskInfoHub() {
             <FeatureAvailabilitySummaryWrapper
                 isUnlimited={hasPeriodicBackups && hasSnapshotBackups}
                 data={featureAvailability}
+                isOpenedByDefault={!hasPeriodicBackups && !hasSnapshotBackups}
             />
         </AboutViewFloating>
     );

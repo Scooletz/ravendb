@@ -3,14 +3,14 @@ using Raven.Client.Documents.Operations.AI;
 
 namespace Tests.Infrastructure.ConnectionString.AI;
 
-public sealed class AzureOpenAiConnectorForTesting : BaseAiConnectorForTesting<AzureOpenAiConnectorForTesting>
+public sealed class EmbeddingsAzureOpenAiConnectorForTesting : AbstractEmbeddingsConnectorForTesting<EmbeddingsAzureOpenAiConnectorForTesting>
 {
     private const string EnvironmentVariableApiKey = "RAVEN_AI_INTEGRATION_AZURE_OPENAI_API_KEY";
     private const string EnvironmentVariableDeploymentEndpoint = "RAVEN_AI_INTEGRATION_AZURE_OPENAI_DEPLOYMENT_ENDPOINT";
     private const string EnvironmentVariableDeploymentName = "RAVEN_AI_INTEGRATION_AZURE_OPENAI_DEPLOYMENT_NAME";
     private const string Model = "text-embedding-3-small";
 
-    public AzureOpenAiConnectorForTesting()
+    public EmbeddingsAzureOpenAiConnectorForTesting()
     {
         RequiredEnvironmentVariables = [EnvironmentVariableApiKey, EnvironmentVariableDeploymentEndpoint, EnvironmentVariableDeploymentName];
     }

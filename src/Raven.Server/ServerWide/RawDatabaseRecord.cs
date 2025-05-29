@@ -935,6 +935,31 @@ namespace Raven.Server.ServerWide
             }
         }
 
+        
+        
+        private List<GenAiConfiguration> _genAiConfigurationTasks;
+
+        public List<GenAiConfiguration> GenAis
+        {
+            get
+            {
+                if (_materializedRecord != null)
+                    return _materializedRecord.GenAis;
+
+                if (_genAiConfigurationTasks == null)
+                {
+                    _genAiConfigurationTasks = [];
+                    if (_record.TryGet(nameof(DatabaseRecord.GenAis), out BlittableJsonReaderArray bjra) && bjra != null)
+                    {
+                        foreach (BlittableJsonReaderObject element in bjra)
+                            _genAiConfigurationTasks.Add(JsonDeserializationCluster.GenAiConfiguration(element));
+                    }
+                }
+
+                return _genAiConfigurationTasks;
+            }
+        }
+
         private Dictionary<string, string> _settings;
 
         public Dictionary<string, string> Settings

@@ -6,27 +6,10 @@ using System.Linq;
 using System.Threading.Tasks;
 using Tests.Infrastructure;
 using Raven.Server.Utils;
-using SlowTests.Corax;
-using SlowTests.Sharding.Cluster;
 using Xunit;
-using FastTests.Voron.Util;
-using FastTests.Sparrow;
-using FastTests.Voron.FixedSize;
-using FastTests.Client.Indexing;
 using FastTests;
-using FastTests.Voron.Graphs;
-using Sparrow.Server.Platform;
-using SlowTests.Authentication;
-using SlowTests.Issues;
-using SlowTests.Server.Documents.PeriodicBackup;
-using Microsoft.Diagnostics.Tracing.Parsers.MicrosoftAntimalwareEngine;
-using NLog;
-using RachisTests;
-using SlowTests.Server;
-using SlowTests.SlowTests.MailingList;
+using Raven.Client.Documents.Operations.AI;
 using SlowTests.Server.Documents.AI;
-using SlowTests.Server.Documents.AI.Embeddings;
-using FastTests.Corax.Vectors;
 
 namespace Tryouts;
 
@@ -43,18 +26,18 @@ public static class Program
         var sources = EventSource.GetSources();
         var runtime = sources.FirstOrDefault(x => x.Name == "System.Runtime");
         runtime?.Dispose();
-        for (int i = 0; i < 200; i++)
+        for (int i = 0; i < 1; i++)
         {
             Console.WriteLine($"Starting to run {i}");
-
+            
             try
             {
                 using (var testOutputHelper = new ConsoleTestOutputHelper())
-                using (var test = new MultiVectorSearchClientAPI(testOutputHelper))
+                using (var test = new ChatCompletionClientTests(testOutputHelper))
                 {
                     DebuggerAttachedTimeout.DisableLongTimespan = true;
-
-                    test.CanSearchByMultipleVectorsByRavenVector();
+                    var p = GetGenAiConfig(RavenAiIntegration.OpenAi);
+                    await test.GenAiClientSanityTest(p.Options, p.Configuration);
                 }
             }
             catch (Exception e)
@@ -64,6 +47,24 @@ public static class Program
                 Console.ForegroundColor = ConsoleColor.White;
             }
         }
+    }
+
+    private static (RavenTestBase.Options Options, GenAiConfiguration Configuration) GetGenAiConfig(RavenAiIntegration type, RavenDatabaseMode databaseMode = RavenDatabaseMode.Single)
+    {
+        var att = new RavenGenAiDataAttribute();
+        var connector = att.GetAiConnectionStringsNewInstance(type, "").First();
+        var config = connector.GetAiConfiguration();
+        var options = RavenTestBase.Options.ForMode(databaseMode);
+        return (options, config);
+    }
+
+    private static (RavenTestBase.Options Options, EmbeddingsGenerationConfiguration Configuration) GetEmbeddingsConfig(RavenAiIntegration type, RavenDatabaseMode databaseMode = RavenDatabaseMode.Single)
+    {
+        var att = new RavenAiEmbeddingsDataAttribute();
+        var connector = att.GetAiConnectionStringsNewInstance(type, "").First();
+        var config = connector.GetAiConfiguration();
+        var options = RavenTestBase.Options.ForMode(databaseMode);
+        return (options, config);
     }
 
     private static void TryRemoveDatabasesFolder()

@@ -458,6 +458,7 @@ namespace Raven.Server.ServerWide
                     case nameof(AddQueueSinkCommand):
                     case nameof(AddSnowflakeEtlCommand):
                     case nameof(AddEmbeddingsGenerationCommand):
+                    case nameof(AddGenAiCommand):
                     case nameof(UpdateRavenEtlCommand):
                     case nameof(UpdateSqlEtlCommand):
                     case nameof(UpdateOlapEtlCommand):
@@ -466,6 +467,7 @@ namespace Raven.Server.ServerWide
                     case nameof(UpdateQueueSinkCommand):
                     case nameof(UpdateSnowflakeEtlCommand):
                     case nameof(UpdateEmbeddingsGenerationCommand):
+                    case nameof(UpdateGenAiCommand):
                     case nameof(DeleteOngoingTaskCommand):
                     case nameof(PutRavenConnectionStringCommand):
                     case nameof(PutSqlConnectionStringCommand):
@@ -1762,7 +1764,8 @@ namespace Raven.Server.ServerWide
             nameof(DatabaseRecord.QueueEtls),
             nameof(DatabaseRecord.SnowflakeEtls),
             nameof(DatabaseRecord.QueueSinks),
-            nameof(DatabaseRecord.EmbeddingsGenerations)
+            nameof(DatabaseRecord.EmbeddingsGenerations),
+            nameof(DatabaseRecord.GenAis)
         };
 
         private unsafe List<string> AddDatabase(ClusterOperationContext context, string type, BlittableJsonReaderObject cmd, long index, ServerStore serverStore)
@@ -2794,7 +2797,8 @@ namespace Raven.Server.ServerWide
                 case nameof(AddQueueEtlCommand):
                 case nameof(AddQueueSinkCommand):
                 case nameof(AddSnowflakeEtlCommand):
-                case nameof(AddEmbeddingsGenerationCommand):
+                case nameof(AddEmbeddingsGenerationCommand): 
+                case nameof(AddGenAiCommand):
                 case nameof(AddRavenEtlCommand):
                 case nameof(AddSqlEtlCommand):
                 case nameof(DeleteIndexCommand):

@@ -18,9 +18,11 @@
 
     &.hidden {
         display: none !important;
+        display: none !important;
     }
 
     &:not(.hidden) {
+        display: block;
         display: block;
     }
 }

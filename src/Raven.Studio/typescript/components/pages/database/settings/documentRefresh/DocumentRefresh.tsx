@@ -257,6 +257,7 @@ export default function DocumentRefresh() {
                             </AccordionItemWrapper>
                             <FeatureAvailabilitySummaryWrapper
                                 isUnlimited={!minPeriodForRefreshInHours}
+                                isOpenedByDefault={false}
                                 data={featureAvailability}
                             />
                         </AboutViewAnchored>

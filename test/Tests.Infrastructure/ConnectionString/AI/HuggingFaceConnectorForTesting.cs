@@ -3,12 +3,12 @@ using Raven.Client.Documents.Operations.AI;
 
 namespace Tests.Infrastructure.ConnectionString.AI;
 
-public class HuggingFaceConnectorForTesting : BaseAiConnectorForTesting<HuggingFaceConnectorForTesting>
+public class EmbeddingsHuggingFaceConnectorForTesting : AbstractEmbeddingsConnectorForTesting<EmbeddingsHuggingFaceConnectorForTesting>
 {
     private const string EnvironmentVariable = "RAVEN_AI_INTEGRATION_HUGGINGFACE_API_KEY";
     private const string Model = "sentence-transformers/all-MiniLM-L6-v2";
 
-    public HuggingFaceConnectorForTesting()
+    public EmbeddingsHuggingFaceConnectorForTesting()
     {
         RequiredEnvironmentVariables = [EnvironmentVariable];
     }

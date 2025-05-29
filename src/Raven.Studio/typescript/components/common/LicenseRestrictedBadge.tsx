@@ -4,7 +4,7 @@ import classNames from "classnames";
 import { useAppSelector } from "components/store";
 import { licenseSelectors } from "./shell/licenseSlice";
 
-export type LicenseBadgeText = "Professional +" | "Enterprise";
+export type LicenseBadgeText = "Professional +" | "Enterprise" | "Enterprise AI";
 
 interface LicenseRestrictedBadgeProps {
     className?: string;
@@ -24,7 +24,9 @@ export default function LicenseRestrictedBadge({ className, licenseRequired }: L
     );
 }
 
-function getClassName(licenseBadgeText: LicenseBadgeText, isCloud: boolean): "enterprise" | "professional" {
+type LicenseClassName = "enterprise" | "professional" | "enterprise-ai";
+
+function getClassName(licenseBadgeText: LicenseBadgeText, isCloud: boolean): LicenseClassName {
     if (isCloud) {
         return "enterprise";
     }
@@ -34,6 +36,8 @@ function getClassName(licenseBadgeText: LicenseBadgeText, isCloud: boolean): "en
             return "enterprise";
         case "Professional +":
             return "professional";
+        case "Enterprise AI":
+            return "enterprise-ai";
         default:
             return null;
     }

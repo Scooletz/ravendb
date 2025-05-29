@@ -1,4 +1,4 @@
-import { FormInput, FormSelectCreatable, FormLabel } from "components/common/Form";
+import { FormInput, FormLabel, FormSelectAutocomplete } from "components/common/Form";
 import { Icon } from "components/common/Icon";
 import {
     ConnectionFormData,
@@ -56,7 +56,7 @@ export default function HuggingFaceSettings({ isUsedByAnyTask }: { isUsedByAnyTa
                         <Icon icon="info" color="info" id="endpoint" margin="ms-1" />
                     </PopoverWithHoverWrapper>
                 </FormLabel>
-                <FormSelectCreatable
+                <FormSelectAutocomplete
                     control={control}
                     name="huggingFaceSettings.endpoint"
                     placeholder="Select an endpoint (or enter new one)"

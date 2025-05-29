@@ -32,7 +32,6 @@ using Raven.Server.Documents.Handlers;
 using Raven.Server.Documents.TimeSeries;
 using Raven.Server.Json;
 using Raven.Server.Logging;
-using Raven.Server.Routing;
 using Raven.Server.ServerWide;
 using Raven.Server.ServerWide.Commands;
 using Raven.Server.Smuggler.Documents.Data;
@@ -487,6 +486,24 @@ namespace Raven.Server.Smuggler.Documents
                         {
                             if (_log.IsInfoEnabled)
                                 _log.Info("Wasn't able to import the embeddings generations configuration from smuggler file. Skipping.", e);
+                        }
+                    }
+                }
+
+                if (reader.TryGet(nameof(databaseRecord.GenAis), out BlittableJsonReaderArray genAiTasks) &&
+                    genAiTasks != null)
+                {
+                    databaseRecord.GenAis = new List<GenAiConfiguration>();
+                    foreach (BlittableJsonReaderObject etl in genAiTasks)
+                    {
+                        try
+                        {
+                            databaseRecord.GenAis.Add(JsonDeserializationCluster.GenAiConfiguration(etl));
+                        }
+                        catch (Exception e)
+                        {
+                            if (_log.IsInfoEnabled)
+                                _log.Info("Wasn't able to import the GenAI configuration from smuggler file. Skipping.", e);
                         }
                     }
                 }

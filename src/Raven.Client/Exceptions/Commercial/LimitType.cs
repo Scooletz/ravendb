@@ -55,6 +55,9 @@ namespace Raven.Client.Exceptions.Commercial
         [Description("Embeddings Generation")]
         EmbeddingsGeneration,
 
+        [Description("Gen AI")]
+        GenAi,
+
         [Description("Cores Limit")]
         Cores,
 

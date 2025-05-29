@@ -76,3 +76,5 @@ Object.defineProperty(HTMLElement.prototype, "offsetWidth", {
 if (!window.ResizeObserver) {
   window.ResizeObserver = ROP.ResizeObserver;
 }
+
+global.structuredClone = (val) => JSON.parse(JSON.stringify(val))

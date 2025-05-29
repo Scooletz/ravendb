@@ -3,12 +3,12 @@ using Raven.Client.Documents.Operations.AI;
 
 namespace Tests.Infrastructure.ConnectionString.AI;
 
-public class GoogleConnectorForTesting : BaseAiConnectorForTesting<GoogleConnectorForTesting>
+public class EmbeddingsGoogleConnectorForTesting : AbstractEmbeddingsConnectorForTesting<EmbeddingsGoogleConnectorForTesting>
 {
     private const string EnvironmentVariable = "RAVEN_AI_INTEGRATION_GOOGLE_API_KEY";
     private const string Model = "text-embedding-004";
 
-    public GoogleConnectorForTesting()
+    public EmbeddingsGoogleConnectorForTesting()
     {
         RequiredEnvironmentVariables = [EnvironmentVariable];
     }

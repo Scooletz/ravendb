@@ -202,6 +202,10 @@ namespace Raven.Server.ServerWide
             [nameof(UpdateEmbeddingsGenerationCommand)] = 70_001,
             [nameof(PutAiConnectionStringCommand)] = 70_001,
             [nameof(RemoveAiConnectionStringCommand)] = 70_001,
+            
+            [nameof(AddGenAiCommand)] = 71_000,
+            [nameof(UpdateGenAiCommand)] = 71_000
+
         };
 
         public bool CanPutCommand(string command)

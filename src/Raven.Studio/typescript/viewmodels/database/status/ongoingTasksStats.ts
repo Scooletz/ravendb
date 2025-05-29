@@ -498,6 +498,8 @@ class ongoingTasksStats extends shardViewModelBase {
             "Load/Local/Child" : undefined as string,
             "Load/Upload" : undefined as string,
             "Load/Upload/Child" : undefined as string,
+            "GenAI": undefined as string,
+            "Model/Load": undefined as string,
             "ConnectionPending": undefined as string,
             "ConnectionActive": undefined as string,
             "Batch": undefined as string,
@@ -1837,6 +1839,8 @@ class ongoingTasksStats extends shardViewModelBase {
                 return "RabbitMQ Sink";
             case "EmbeddingsGeneration":
                 return "Embeddings Generation";
+            case "GenAi":
+                return "GenAI";
             default:
                 throw new Error("Unknown stats type: " + type);
         }
@@ -2119,7 +2123,7 @@ class ongoingTasksStats extends shardViewModelBase {
             
             const isReplication = type === "OutgoingPull" || type === "OutgoingExternal" || type === "OutgoingInternal" ||
                                   type === "IncomingPull" || type === "IncomingExternal" || type === "IncomingInternal";
-            
+
             const isEtl = type === "Raven" || 
                 type === "Sql" || 
                 type === "Snowflake" ||
@@ -2129,7 +2133,8 @@ class ongoingTasksStats extends shardViewModelBase {
                 type === "AzureQueueStorage" ||
                 type === "AmazonSqs" ||
                 type === "RabbitMQ" ||
-                type === "EmbeddingsGeneration";
+                type === "EmbeddingsGeneration" ||
+                type === "GenAi";
             
             const isSubscription = type === "SubscriptionConnection" || type === "SubscriptionBatch" || type === "AggregatedBatchesInfo";
             const isRootItem = context.rootStats.Details === context.item;
@@ -2367,7 +2372,7 @@ class ongoingTasksStats extends shardViewModelBase {
                                 }
                             });
                             break;
-                        case "Load":
+                        case "Load": {
                             if (baseElement.SuccessfullyLoaded != null) {
                                 tooltipHtml += `<div class="tooltip-li">Successfully loaded: <div class="value">${baseElement.SuccessfullyLoaded ? "Yes" : "No"} </div></div>`;
                             }
@@ -2375,7 +2380,18 @@ class ongoingTasksStats extends shardViewModelBase {
                             if (baseElement.LastLoadedEtag) {
                                 tooltipHtml += `<div class="tooltip-li">Last loaded Etag: <div class="value">${baseElement.LastLoadedEtag} </div></div>`;
                             }
+
+                            if (type === "GenAi") {
+                                const elementWithData = context.item as Raven.Server.Documents.ETL.Providers.AI.GenAi.Stats.GenAiPerformanceOperation;
+                                tooltipHtml += `<div class="tooltip-li">Total tokens used: <div class="value">${elementWithData.TotalTokensUsed} </div></div>`;
+                                tooltipHtml += `<div class="tooltip-li">Completion tokens used: <div class="value">${elementWithData.CompletionTokensUsed} </div></div>`;
+                                tooltipHtml += `<div class="tooltip-li">Prompt tokens used: <div class="value">${elementWithData.PromptTokensUsed} </div></div>`;
+                                tooltipHtml += `<div class="tooltip-li">Total cached contexts: <div class="value">${elementWithData.TotalCachedContexts} </div></div>`;
+                                tooltipHtml += `<div class="tooltip-li">Total sent to model: <div class="value">${elementWithData.TotalSentToModel} </div></div>`;
+                            }
+
                             break;
+                        }
                         case "Storage/Embeddings": {
                             const elementWithData = context.item as Raven.Server.Documents.ETL.Providers.AI.Embeddings.Stats.EmbeddingsGenerationPerformanceOperation;
                             tooltipHtml += `<div class="tooltip-li">Put embeddings documents: <div class="value">${elementWithData.NumberOfPutEmbeddingDocuments}</div></div>`;
@@ -2386,6 +2402,15 @@ class ongoingTasksStats extends shardViewModelBase {
                             const elementWithData = context.item as Raven.Server.Documents.ETL.Providers.AI.Embeddings.Stats.EmbeddingsGenerationPerformanceOperation;
                             tooltipHtml += `<div class="tooltip-li">Generated embeddings: <div class="value">${elementWithData.NumberOfGeneratedEmbeddings}</div></div>`;
                             tooltipHtml += `<div class="tooltip-li">Embeddings in cache: <div class="value">${elementWithData.NumberOfEmbeddingsInCache}</div></div>`;
+                            break;
+                        }
+                        case "Model/Load": {
+                            const elementWithData = context.item as Raven.Server.Documents.ETL.Providers.AI.GenAi.Stats.GenAiPerformanceOperation;
+                            tooltipHtml += `<div class="tooltip-li">Total tokens used: <div class="value">${elementWithData.TotalTokensUsed} </div></div>`;
+                            tooltipHtml += `<div class="tooltip-li">Completion tokens used: <div class="value">${elementWithData.CompletionTokensUsed} </div></div>`;
+                            tooltipHtml += `<div class="tooltip-li">Prompt tokens used: <div class="value">${elementWithData.PromptTokensUsed} </div></div>`;
+                            tooltipHtml += `<div class="tooltip-li">Total cached contexts: <div class="value">${elementWithData.TotalCachedContexts} </div></div>`;
+                            tooltipHtml += `<div class="tooltip-li">Total sent to model: <div class="value">${elementWithData.TotalSentToModel} </div></div>`;
                             break;
                         }
                     }

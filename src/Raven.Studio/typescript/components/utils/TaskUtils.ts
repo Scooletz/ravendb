@@ -113,6 +113,8 @@ export default class TaskUtils {
                 return "QueueEtl";
             case "EmbeddingsGeneration":
                 return "EmbeddingsGeneration";
+            case "GenAi":
+                return "GenAi";
             default:
                 throw new Error("Unknown etl type mapping: " + etlType);
         }

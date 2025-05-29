@@ -146,6 +146,15 @@ public abstract class AbstractOngoingTasks<TSubscriptionConnectionsState>
             yield return CreateEmbeddingsGenerationTaskInfo(clusterTopology, databaseRecord, aiIntegration);
     }
 
+    private IEnumerable<GenAi> GetGenAiTasks(ClusterTopology clusterTopology, DatabaseRecord databaseRecord)
+    {
+        if (databaseRecord.GenAis == null || databaseRecord.GenAis.Count == 0)
+            yield break;
+
+        foreach (var genAiTask in databaseRecord.GenAis)
+            yield return CreateGenAiTaskInfo(clusterTopology, databaseRecord, genAiTask);
+    }
+
     public IEnumerable<OngoingTask> GetAllTasks(ClusterOperationContext context, ClusterTopology clusterTopology, DatabaseRecord databaseRecord)
     {
         foreach (var task in CollectSubscriptionTasks(context, clusterTopology))
@@ -185,6 +194,9 @@ public abstract class AbstractOngoingTasks<TSubscriptionConnectionsState>
             yield return task;
 
         foreach (var task in GetEmbeddingsGenerationTasks(clusterTopology, databaseRecord))
+            yield return task;
+
+        foreach (var task in GetGenAiTasks(clusterTopology, databaseRecord))
             yield return task;
     }
 
@@ -318,6 +330,16 @@ public abstract class AbstractOngoingTasks<TSubscriptionConnectionsState>
                     return null;
 
                 return CreateEmbeddingsGenerationTaskInfo(clusterTopology, databaseRecord, embeddingsGeneration);
+            case OngoingTaskType.GenAi:
+
+                var genAiConfig = taskName != null
+                    ? databaseRecord.GenAis.Find(x => x.Name.Equals(taskName, StringComparison.OrdinalIgnoreCase))
+                    : databaseRecord.GenAis?.Find(x => x.TaskId == taskId);
+
+                if (genAiConfig == null)
+                    return null;
+
+                return CreateGenAiTaskInfo(clusterTopology, databaseRecord, genAiConfig);
             default:
                 return null;
         }
@@ -645,6 +667,29 @@ public abstract class AbstractOngoingTasks<TSubscriptionConnectionsState>
         var taskState = OngoingTasksHandler.GetEtlTaskState(configuration);
 
         return new EmbeddingsGeneration
+        {
+            TaskId = configuration.TaskId,
+            TaskName = configuration.Name,
+            TaskState = taskState,
+            TaskConnectionStatus = connectionStatus,
+            MentorNode = configuration.MentorNode,
+            PinToMentorNode = configuration.PinToMentorNode,
+            ConnectionStringName = configuration.ConnectionStringName,
+            ResponsibleNode = new NodeId { NodeTag = tag, NodeUrl = clusterTopology.GetUrlFromTag(tag) },
+            Error = error,
+            Configuration = configuration
+        };
+
+    }
+
+    private GenAi CreateGenAiTaskInfo(ClusterTopology clusterTopology, DatabaseRecord databaseRecord,
+        GenAiConfiguration configuration)
+    {
+        databaseRecord.AiConnectionStrings.TryGetValue(configuration.ConnectionStringName, out var connection);
+        var connectionStatus = GetEtlTaskConnectionStatus(databaseRecord, configuration, out var tag, out var error);
+        var taskState = OngoingTasksHandler.GetEtlTaskState(configuration);
+
+        return new GenAi
         {
             TaskId = configuration.TaskId,
             TaskName = configuration.Name,
