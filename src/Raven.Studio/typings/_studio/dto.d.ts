@@ -660,9 +660,11 @@ declare module Raven.Server.Documents.ETL.Providers.RelationalDatabase.Common.Te
     }
 }
 
-declare module Raven.Server.Documents.ETL.Providers.Raven.Test {
-    interface RavenEtlTestScriptResult extends testEtlScriptResult {
-    }
+interface RavenEtlTestScriptResult extends Raven.Server.Documents.ETL.Test.TestEtlScriptResult {
+    Commands: Array<Raven.Client.Documents.Commands.Batches.ICommandData>;
+}
+
+interface TestRavenEtlScript extends Raven.Server.Documents.ETL.Test.TestEtlScript<Raven.Client.Documents.Operations.ETL.RavenEtlConfiguration, Raven.Client.Documents.Operations.ETL.RavenConnectionString> {
 }
 
 declare module Raven.Server.Documents.ETL.Providers.OLAP.Test {
@@ -880,9 +882,9 @@ interface TimeSeriesOperation extends Raven.Client.Documents.Operations.TimeSeri
 type StudioTaskType = "Replication" | "PullReplicationAsHub" | "PullReplicationAsSink" | "Backup" | "Subscription" |
     "RavenEtl" | "SqlEtl" | "SnowflakeEtl" | "OlapEtl" | "ElasticSearchEtl" | 
     "KafkaQueueEtl" | "RabbitQueueEtl" | "AzureQueueStorageQueueEtl" | "AmazonSqsQueueEtl" |
-    "KafkaQueueSink" | "RabbitQueueSink" | "EmbeddingsGeneration";
+    "KafkaQueueSink" | "RabbitQueueSink" | "EmbeddingsGeneration" | "GenAi";
 
-type StudioEtlType = "Raven" | "Sql" | "Snowflake" | "Olap" | "ElasticSearch" | "Kafka" | "RabbitMQ" | "AzureQueueStorage" | "AmazonSqs" | "EmbeddingsGeneration";
+type StudioEtlType = "Raven" | "Sql" | "Snowflake" | "Olap" | "ElasticSearch" | "Kafka" | "RabbitMQ" | "AzureQueueStorage" | "AmazonSqs" | "EmbeddingsGeneration" | "GenAi";
 
 type StudioQueueSinkType = "KafkaQueueSink" | "RabbitQueueSink";
 
@@ -1075,3 +1077,23 @@ type GetConnectionStringsResult = Omit<Raven.Client.Documents.Operations.Connect
 
 type AzureQueueStorageAuthenticationType = "connectionString" | "entraId" | "passwordless";
 type AmazonSqsAuthenticationType = "basic" | "passwordless";
+
+type CertificateDto = Partial<Raven.Client.ServerWide.Operations.Certificates.CertificateDefinition> & { HasTwoFactor?: boolean; }
+
+type CertificatesResponseDto = {
+    Certificates: CertificateDto[],
+    LoadedServerCert: string,
+    WellKnownAdminCerts: string[],
+    WellKnownIssuers: string[]
+}
+
+type GenAiConfiguration = Omit<Raven.Client.Documents.Operations.AI.GenAiConfiguration, "Identifier">;
+
+type AiConnectionStringsSettings =
+    | Raven.Client.Documents.Operations.AI.OpenAiSettings
+    | Raven.Client.Documents.Operations.AI.AzureOpenAiSettings
+    | Raven.Client.Documents.Operations.AI.OllamaSettings
+    | Raven.Client.Documents.Operations.AI.EmbeddedSettings
+    | Raven.Client.Documents.Operations.AI.GoogleSettings
+    | Raven.Client.Documents.Operations.AI.HuggingFaceSettings
+    | Raven.Client.Documents.Operations.AI.MistralAiSettings;

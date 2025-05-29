@@ -88,6 +88,7 @@ export function DatabaseCustomSortersInfoHub({ databaseSortersCount }: DatabaseC
                     clusterLimitReachStatus === "notReached" &&
                     hasServerWideCustomSorters
                 }
+                isOpenedByDefault={false}
                 data={featureAvailability}
             />
         </AboutViewAnchored>

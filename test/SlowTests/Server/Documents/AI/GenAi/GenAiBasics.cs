@@ -1,0 +1,711 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using FastTests;
+using Newtonsoft.Json;
+using Raven.Client;
+using Raven.Client.Documents.Operations.AI;
+using Raven.Client.Documents.Operations.ConnectionStrings;
+using Raven.Client.Documents.Operations.ETL;
+using Raven.Client.Documents.Operations.OngoingTasks;
+using Raven.Server.Documents;
+using Raven.Server.Documents.AI;
+using Raven.Server.Documents.AI.GenAi;
+using Raven.Server.Documents.ETL;
+using Raven.Server.Documents.ETL.Providers.AI.GenAi;
+using Raven.Server.Documents.ETL.Providers.AI.GenAi.Stats;
+using Raven.Server.Documents.ETL.Stats;
+using Raven.Server.Utils;
+using Sparrow.Json;
+using Sparrow.Json.Parsing;
+using Tests.Infrastructure;
+using Xunit;
+using Xunit.Abstractions;
+
+namespace SlowTests.Server.Documents.AI.GenAi;
+
+public class GenAiBasics(ITestOutputHelper output) : RavenTestBase(output)
+{
+    [RavenTheory(RavenTestCategory.Ai)]
+    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single, CheckCanConnect = false, NightlyBuildRequired = false)]
+    public void CanCreateGenAiTask(Options options, GenAiConfiguration config)
+    {
+        using var store = GetDocumentStore(options);
+        store.Maintenance.Send(new PutConnectionStringOperation<AiConnectionString>(config.Connection));
+
+        config.Prompt = "Check if the following blog post comment is spam or not";
+        config.Collection = "Posts";
+        config.SampleObject = JsonConvert.SerializeObject(new { Blocked = true, Reason = "Concise reason for why this comment was marked as spam or ham" });
+        config.UpdateScript = @"    
+const idx = this.Comments.findIndex(c => c.Id == $input.Id);  
+if($output.Blocked)
+{
+    this.Comments.splice(idx, 1); // remove
+}";
+        config.GenAiTransformation = new GenAiTransformation
+        {
+            Script = @"
+for(const comment of this.Comments)
+{
+    ai.genContext({Text: comment.Text, Author: comment.Author, Id: comment.Id});
+}
+"
+        };
+
+        store.Maintenance.Send(new AddGenAiOperation(config));
+    }
+
+    [RavenTheory(RavenTestCategory.Ai)]
+    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single, CheckCanConnect = false, NightlyBuildRequired = false)]
+    public void CanProcessDocuments(Options options, GenAiConfiguration config)
+    {
+        using var store = GetDocumentStore(options);
+        store.Maintenance.Send(new PutConnectionStringOperation<AiConnectionString>(config.Connection));
+
+        var etl = Etl.WaitForEtlToComplete(store);
+
+        config.Prompt = "Check if the following blog post comment is spam or not";
+        config.Collection = "Posts";
+        config.SampleObject = JsonConvert.SerializeObject(new { Blocked = true, Reason = "Concise reason for why this comment was marked as spam or ham" });
+        config.UpdateScript = @"    
+const idx = this.Comments.findIndex(c => c.Id == $input.Id);  
+if($output.Blocked)
+{
+    this.Comments.splice(idx, 1); // remove
+}";
+        config.GenAiTransformation = new GenAiTransformation
+        {
+            Script = @"
+for(const comment of this.Comments)
+{
+    ai.genContext({Text: comment.Text, Author: comment.Author, Id: comment.Id});
+}
+"
+        };
+
+        store.Maintenance.Send(new AddGenAiOperation(config));
+
+        using (var session = store.OpenSession())
+        {
+            var p = new Post(
+                [
+                    new Comment("Surefire investment property in caiman islands, win $$$$ for sure, qucik!", "homepage"),
+                    new Comment(
+                        "Probably... That piece of code was written (and never looked at) in 2017, IIRC It wasn't a real issue (since it is cached) except for this particular scenario.",
+                        "Oren Eini")
+                ],
+                "I, pencil",
+                "A B52 pencil...");
+            session.Store(p);
+            session.SaveChanges();
+        }
+
+        Assert.True(etl.Wait(TimeSpan.FromSeconds(30)));
+    }
+
+    [RavenTheory(RavenTestCategory.Ai)]
+    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single, CheckCanConnect = false, NightlyBuildRequired = false)]
+    public async Task CanGetGenAiOngoingTask(Options options, GenAiConfiguration config)
+    {
+        using var store = GetDocumentStore(options);
+        store.Maintenance.Send(new PutConnectionStringOperation<AiConnectionString>(config.Connection));
+
+        config.Prompt = "Check if the following blog post comment is spam or not";
+        config.Collection = "Posts";
+        config.SampleObject = JsonConvert.SerializeObject(new { Blocked = true, Reason = "Concise reason for why this comment was marked as spam or ham" });
+        config.UpdateScript = @"    
+const idx = this.Comments.findIndex(c => c.Id == $input.Id);  
+if($output.Blocked)
+{
+    this.Comments.splice(idx, 1); // remove
+}";
+        config.GenAiTransformation = new GenAiTransformation
+        {
+            Script = @"
+for(const comment of this.Comments)
+{
+    ai.genContext({Text: comment.Text, Author: comment.Author, Id: comment.Id});
+}
+"
+        };
+
+        store.Maintenance.Send(new AddGenAiOperation(config));
+
+        var op = new GetOngoingTaskInfoOperation(config.Name, OngoingTaskType.GenAi);
+        var taskInfo = await store.Maintenance.SendAsync(op);
+
+        Assert.NotNull(taskInfo);
+        Assert.Equal(config.Name, taskInfo.TaskName);
+        Assert.Equal(OngoingTaskType.GenAi, taskInfo.TaskType);
+        Assert.Equal(OngoingTaskConnectionStatus.Active, taskInfo.TaskConnectionStatus);
+
+        var genAiTaskInfo = taskInfo as Raven.Client.Documents.Operations.OngoingTasks.GenAi;
+        Assert.NotNull(genAiTaskInfo);
+        Assert.Equal(config.ConnectionStringName, genAiTaskInfo.ConnectionStringName);
+        Assert.Equal(config.Collection, genAiTaskInfo.Configuration.Collection);
+        Assert.Equal(config.Prompt, genAiTaskInfo.Configuration.Prompt);
+        Assert.Equal(config.SampleObject, genAiTaskInfo.Configuration.SampleObject);
+        Assert.Equal(config.UpdateScript, genAiTaskInfo.Configuration.UpdateScript);
+        // Assert.Equal(config.AiConnectorType, genAiTaskInfo.Configuration.AiConnectorType); // todo: fix serverside return 'AiConnectorType: None'
+        Assert.Equal(config.GenAiTransformation.Script, genAiTaskInfo.Configuration.GenAiTransformation.Script);
+    }
+
+    [RavenTheory(RavenTestCategory.Ai)]
+    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single, CheckCanConnect = false, NightlyBuildRequired = false)]
+    public async Task CanEditGenAiTask(Options options, GenAiConfiguration config)
+    {
+        using var store = GetDocumentStore(options);
+        store.Maintenance.Send(new PutConnectionStringOperation<AiConnectionString>(config.Connection));
+
+        config.Prompt = "Check if the following blog post comment is spam or not";
+        config.Collection = "Posts";
+        config.SampleObject = JsonConvert.SerializeObject(new { Blocked = true, Reason = "Concise reason for why this comment was marked as spam or ham" });
+        config.UpdateScript = @"    
+const idx = this.Comments.findIndex(c => c.Id == $input.Id);  
+if($output.Blocked)
+{
+    this.Comments.splice(idx, 1); // remove
+}
+";
+        config.GenAiTransformation = new GenAiTransformation
+        {
+            Script = @"
+for(const comment of this.Comments)
+{
+    ai.genContext({Text: comment.Text, Author: comment.Author, Id: comment.Id});
+}
+"
+        };
+
+        store.Maintenance.Send(new AddGenAiOperation(config));
+
+        var op = new GetOngoingTaskInfoOperation(config.Name, OngoingTaskType.GenAi);
+        var taskInfo = await store.Maintenance.SendAsync(op);
+        var taskId = taskInfo.TaskId;
+
+        var newUpdateScript = @"const idx = this.Comments.findIndex(c => c.Id == $input.Id);
+this.Comments[idx].LegitComment = $output.Blocked == false;
+";
+        config.UpdateScript = newUpdateScript;
+
+        store.Maintenance.Send(new UpdateEtlOperation<AiConnectionString>(taskId, config));
+
+        op = new GetOngoingTaskInfoOperation(config.Name, OngoingTaskType.GenAi);
+        taskInfo = await store.Maintenance.SendAsync(op);
+
+        var genAiTaskInfo = taskInfo as Raven.Client.Documents.Operations.OngoingTasks.GenAi;
+        Assert.NotNull(genAiTaskInfo);
+        Assert.Equal(newUpdateScript, genAiTaskInfo.Configuration.UpdateScript);
+    }
+
+    [RavenTheory(RavenTestCategory.Ai)]
+    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single, CheckCanConnect = false, NightlyBuildRequired = false)]
+    public async Task CanDeleteGenAiTask(Options options, GenAiConfiguration config)
+    {
+        using var store = GetDocumentStore(options);
+        store.Maintenance.Send(new PutConnectionStringOperation<AiConnectionString>(config.Connection));
+
+        config.Prompt = "Check if the following blog post comment is spam or not";
+        config.Collection = "Posts";
+        config.SampleObject = JsonConvert.SerializeObject(new { Blocked = true, Reason = "Concise reason for why this comment was marked as spam or ham" });
+        config.UpdateScript = @"    
+const idx = this.Comments.findIndex(c => c.Id == $input.Id);  
+if($output.Blocked)
+{
+    this.Comments.splice(idx, 1); // remove
+}
+";
+        config.GenAiTransformation = new GenAiTransformation
+        {
+            Script = @"
+for(const comment of this.Comments)
+{
+    ai.genContext({Text: comment.Text, Author: comment.Author, Id: comment.Id});
+}
+"
+        };
+
+        store.Maintenance.Send(new AddGenAiOperation(config));
+
+        var taskInfo = await store.Maintenance.SendAsync(new GetOngoingTaskInfoOperation(config.Name, OngoingTaskType.GenAi));
+        Assert.NotNull(taskInfo);
+        var taskId = taskInfo.TaskId;
+
+        store.Maintenance.Send(new DeleteOngoingTaskOperation(taskId, OngoingTaskType.GenAi));
+        taskInfo = await store.Maintenance.SendAsync(new GetOngoingTaskInfoOperation(config.Name, OngoingTaskType.GenAi));
+        Assert.Null(taskInfo);
+    }
+
+    [RavenTheory(RavenTestCategory.Ai)]
+    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single, CheckCanConnect = false, NightlyBuildRequired = false)]
+    public async Task CanToggleGenAiTaskState(Options options, GenAiConfiguration config)
+    {
+        using var store = GetDocumentStore(options);
+        store.Maintenance.Send(new PutConnectionStringOperation<AiConnectionString>(config.Connection));
+
+        config.Prompt = "Check if the following blog post comment is spam or not";
+        config.Collection = "Posts";
+        config.SampleObject = JsonConvert.SerializeObject(new { Blocked = true, Reason = "Concise reason for why this comment was marked as spam or ham" });
+        config.UpdateScript = @"    
+const idx = this.Comments.findIndex(c => c.Id == $input.Id);  
+if($output.Blocked)
+{
+    this.Comments.splice(idx, 1); // remove
+}";
+        config.GenAiTransformation = new GenAiTransformation
+        {
+            Script = @"
+for(const comment of this.Comments)
+{
+    ai.genContext({Text: comment.Text, Author: comment.Author, Id: comment.Id});
+}
+"
+        };
+
+        store.Maintenance.Send(new AddGenAiOperation(config));
+
+        var taskInfo = await store.Maintenance.SendAsync(new GetOngoingTaskInfoOperation(config.Name, OngoingTaskType.GenAi));
+        Assert.Equal(OngoingTaskState.Enabled, taskInfo.TaskState);
+        var taskId = taskInfo.TaskId;
+
+        // disable task
+        await store.Maintenance.SendAsync(new ToggleOngoingTaskStateOperation(taskId, OngoingTaskType.GenAi, disable: true));
+
+        taskInfo = await store.Maintenance.SendAsync(new GetOngoingTaskInfoOperation(config.Name, OngoingTaskType.GenAi));
+        Assert.Equal(OngoingTaskState.Disabled, taskInfo.TaskState);
+
+        // re-enable task
+        await store.Maintenance.SendAsync(new ToggleOngoingTaskStateOperation(taskId, OngoingTaskType.GenAi, disable: false));
+        taskInfo = await store.Maintenance.SendAsync(new GetOngoingTaskInfoOperation(config.Name, OngoingTaskType.GenAi));
+        Assert.Equal(OngoingTaskState.Enabled, taskInfo.TaskState);
+    }
+
+    [RavenTheory(RavenTestCategory.Ai)]
+    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single, CheckCanConnect = false, NightlyBuildRequired = false, Skip = "need to fix")]
+    public async Task ShouldTrackAiHashesInMetadata(Options options, GenAiConfiguration config)
+    {
+        using var store = GetDocumentStore(options);
+        store.Maintenance.Send(new PutConnectionStringOperation<AiConnectionString>(config.Connection));
+
+        var etl = Etl.WaitForEtlToComplete(store);
+
+        var taskName = config.Name;
+        config.Prompt = "Check if the following blog post comment is spam or not";
+        config.Collection = "Posts";
+        config.SampleObject = JsonConvert.SerializeObject(new { Blocked = true, Reason = "Concise reason for why this comment was marked as spam or ham" });
+        config.UpdateScript = @"    
+const idx = this.Comments.findIndex(c => c.Id == $input.Id);  
+if($output.Blocked)
+{
+    this.Comments.splice(idx, 1); // remove
+}";
+        config.GenAiTransformation = new GenAiTransformation
+        {
+            Script = @"
+for(const comment of this.Comments)
+{
+    ai.genContext({Text: comment.Text, Author: comment.Author, Id: comment.Id});
+}
+"
+        };
+        store.Maintenance.Send(new AddGenAiOperation(config));
+
+        const string docId = "posts/1";
+
+        var post = new Post([
+            new Comment("Free crypto airdrop! Sign up now at scamcoin.fake", "evil bot"),
+            new Comment("Great article. Helped me understand indexing in RavenDB.", "alex"),
+            new Comment("Surefire investment property in caiman islands, win $$$$ for sure, qucik!", "homepage")
+        ], "Understanding RavenDB Indexing", "Indexes in RavenDB are powerful...");
+
+        using (var session = store.OpenSession())
+        {
+            session.Store(post, docId);
+            session.SaveChanges();
+        }
+
+        etl.Wait();
+
+        using (var session = store.OpenAsyncSession())
+        {
+            var postDoc = await session.LoadAsync<BlittableJsonReaderObject>(docId);
+            Assert.NotNull(postDoc);
+
+            Assert.True(postDoc.TryGet(Constants.Documents.Metadata.Key, out BlittableJsonReaderObject metadata));
+            Assert.True(metadata.TryGet(Constants.Documents.Metadata.GenAiHashes, out BlittableJsonReaderObject hashesSection));
+            Assert.True(hashesSection.TryGet(taskName, out BlittableJsonReaderArray hashes));
+            Assert.NotNull(hashes);
+
+            var expectedHashes = GetExpectedHashes(post, docId);
+            var actualHashes = hashes.Select(h => h.ToString()).ToList();
+
+            Assert.Equal(expectedHashes.Count, actualHashes.Count);
+            foreach (var expected in expectedHashes)
+                Assert.Contains(expected, actualHashes);
+        }
+
+        etl = Etl.WaitForEtlToComplete(store);
+
+        // Update the document to trigger a new context output
+        using (var session = store.OpenSession())
+        {
+            post = session.Load<Post>(docId);
+            post.Comments.Add(new Comment("Nice summary. Bookmarked for future reference.", "emma"));
+            session.SaveChanges();
+        }
+
+        etl.Wait();
+
+        using (var session = store.OpenAsyncSession())
+        {
+            var postDoc = await session.LoadAsync<BlittableJsonReaderObject>(docId);
+            Assert.NotNull(postDoc);
+
+            Assert.True(postDoc.TryGet(Constants.Documents.Metadata.Key, out BlittableJsonReaderObject metadata));
+            Assert.True(metadata.TryGet(Constants.Documents.Metadata.GenAiHashes, out BlittableJsonReaderObject hashesSection));
+            Assert.True(hashesSection.TryGet(taskName, out BlittableJsonReaderArray hashes));
+            Assert.NotNull(hashes);
+
+            var expectedHashes = GetExpectedHashes(post, docId);
+            var actualHashes = hashes.Select(h => h.ToString()).ToList();
+
+            Assert.Equal(expectedHashes.Count, actualHashes.Count);
+            foreach (var expected in expectedHashes)
+                Assert.Contains(expected, actualHashes);
+        }
+
+        static List<string> GetExpectedHashes(Post post, string docId)
+        {
+            var results = new List<string>();
+            using var context = JsonOperationContext.ShortTermSingleUse();
+
+            foreach (var comment in post.Comments)
+            {
+                var contextObj = new DynamicJsonValue
+                {
+                    [nameof(Comment.Text)] = comment.Text,
+                    [nameof(Comment.Author)] = comment.Author,
+                    [nameof(Comment.Id)] = comment.Id
+                };
+
+                var ctxBlittable = context.ReadObject(contextObj, docId);
+
+                var wrapped = new DynamicJsonValue
+                {
+                    ["Context"] = ctxBlittable,
+                    ["Prompt"] = "Check if the following blog post comment is spam or not",
+                    ["Schema"] = OllamaChatCompletionClient.GetSchemaFor(JsonConvert.SerializeObject(new
+                    {
+                        Blocked = true,
+                        Reason = "Concise reason for why this comment was marked as spam or ham"
+                    })),
+                    ["Update"] = @"    
+const idx = this.Comments.findIndex(c => c.Id == $input.Id);  
+if($output.Blocked)
+{
+    this.Comments.splice(idx, 1); // remove
+}"
+                };
+
+                using var fullObj = context.ReadObject(wrapped, docId);
+                var hash = AttachmentsStorageHelper.CalculateHash(fullObj.AsSpan());
+
+                results.Add(hash);
+            }
+
+            return results;
+        }
+    }
+
+    [RavenTheory(RavenTestCategory.Ai)]
+    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single, CheckCanConnect = false, NightlyBuildRequired = false, Skip = "need to fix")]
+    public async Task CanGetGenAiStats(Options options, GenAiConfiguration configuration)
+    {
+        using var store = GetDocumentStore();
+
+        store.Maintenance.Send(new PutConnectionStringOperation<AiConnectionString>(configuration.Connection));
+
+        var etlDone = Etl.WaitForEtlToComplete(store);
+        configuration.Prompt = "Check if the following blog post comment is spam or not";
+        configuration.Collection = "Posts";
+        configuration.SampleObject = JsonConvert.SerializeObject(new { Blocked = true, Reason = "Concise reason for why this comment was marked as spam or ham" });
+        configuration.UpdateScript = @"    
+const idx = this.Comments.findIndex(c => c.Id == $input.Id);
+this.Comments[idx].IsSpam = $output.Blocked;
+";
+        configuration.GenAiTransformation = new GenAiTransformation
+        {
+            Script = @"
+for(const comment of this.Comments)
+{
+    ai.genContext({Text: comment.Text, Author: comment.Author, Id: comment.Id});
+}
+"
+        };
+
+        store.Maintenance.Send(new AddGenAiOperation(configuration));
+
+
+        var db = await GetDatabase(store.Database);
+
+        var etlProcess = db.EtlLoader.Processes.FirstOrDefault() as GenAiTask;
+        Assert.NotNull(etlProcess);
+
+        const string docId = "posts/1";
+
+        var post = new Post([
+            new Comment("Free crypto airdrop! Sign up now at scamcoin.fake", "evil bot"),
+            new Comment("Great article. Helped me understand indexing in RavenDB.", "alex"),
+            new Comment("Surefire investment property in caiman islands, win $$$$ for sure, qucik!", "homepage")
+        ], "Understanding RavenDB Indexing", "Indexes in RavenDB are powerful...");
+
+        using (var session = store.OpenSession())
+        {
+            session.Store(post, docId);
+            session.SaveChanges();
+        }
+
+        etlDone.Wait();
+
+        var stats = etlProcess.GetPerformanceStats()
+            .Where(x => x.NumberOfLoadedItems > 0)
+            .ToArray();
+
+        Assert.Equal(1, stats[0].NumberOfExtractedItems[EtlItemType.Document]);
+
+        var loadDetails = stats[0].Details.Operations[^1];
+
+        Assert.Equal("Load", loadDetails.Name);
+
+        var genAiStats = loadDetails.Operations.FirstOrDefault(x => x.Name == GenAiOperations.LoadToModel) as GenAiPerformanceOperation;
+        Assert.NotNull(genAiStats);
+
+        Assert.Equal(3, genAiStats.NumberOfContextObjects);
+        Assert.Equal(0, genAiStats.TotalCachedContexts);
+        Assert.Equal(3, genAiStats.TotalSentToModel);
+
+        Assert.True(genAiStats.CompletionTokensUsed > 0);
+        Assert.True(genAiStats.PromptTokensUsed > 0);
+        var expectedTotalTokens = genAiStats.CompletionTokensUsed + genAiStats.PromptTokensUsed;
+        Assert.Equal(expectedTotalTokens, genAiStats.TotalTokensUsed);
+
+        using (var session = store.OpenAsyncSession())
+        {
+            etlDone = Etl.WaitForEtlToComplete(store);
+
+            // add a new comment
+
+            var doc = await session.LoadAsync<Post>(docId);
+            doc.Comments.Add(new Comment("new spam comment", "evil hacker"));
+
+            var etag = ChangeVectorUtils.GetEtagById(session.Advanced.GetChangeVectorFor(doc), db.DbBase64Id);
+
+            await session.SaveChangesAsync();
+
+            Assert.True(etlDone.Wait(TimeSpan.FromMinutes(1)));
+
+            EtlPerformanceStats[] stats2 = null;
+
+            var value = await WaitForValueAsync(() =>
+            {
+                stats2 = etlProcess.GetPerformanceStats()
+                    .Where(x => x.NumberOfLoadedItems > 0 && x.LastLoadedEtag > etag)
+                    .ToArray();
+                return stats2.Length > 0;
+            }, true, timeout: 60_000);
+
+            Assert.True(value);
+            Assert.Equal(1, stats2[^1].NumberOfExtractedItems[EtlItemType.Document]);
+
+            var loadDetails2 = stats2[^1].Details.Operations[^1];
+
+            Assert.Equal("Load", loadDetails2.Name);
+
+            var genAiStats2 = loadDetails2.Operations.FirstOrDefault(x => x.Name == GenAiOperations.LoadToModel) as GenAiPerformanceOperation;
+            Assert.NotNull(genAiStats2);
+
+            // only the newly added comment should be sent to model, the rest should be cached
+            Assert.Equal(4, genAiStats2.NumberOfContextObjects);
+            Assert.Equal(3, genAiStats2.TotalCachedContexts);
+            Assert.Equal(1, genAiStats2.TotalSentToModel);
+
+            Assert.True(genAiStats2.CompletionTokensUsed > 0);
+            Assert.True(genAiStats2.PromptTokensUsed > 0);
+            Assert.True(genAiStats2.TotalTokensUsed > 0);
+        }
+    }
+
+    [RavenTheory(RavenTestCategory.Ai)]
+    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single, CheckCanConnect = false, NightlyBuildRequired = false)]
+    public async Task ShouldResendContextWhenPromptChanges(Options options, GenAiConfiguration configuration)
+    {
+        await ShouldResendContextOnConfigChange(configuration,
+            changeConfig: config => config.Prompt = "please convert the text to Hebrew"
+        );
+    }
+
+    [RavenTheory(RavenTestCategory.Ai)]
+    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single, CheckCanConnect = false, NightlyBuildRequired = false)]
+    public async Task ShouldResendContextWhenSchemaChanges(Options options, GenAiConfiguration configuration)
+    {
+        await ShouldResendContextOnConfigChange(configuration,
+            changeConfig: config =>
+            {
+                var newSample = JsonConvert.SerializeObject(new
+                {
+                    Translation = "translated sentence",
+                    OriginalLanguage = "the original language of the provided text",
+                    TranslatedTo = "the language that you translated the text to"
+                });
+                config.JsonSchema = OllamaChatCompletionClient.GetSchemaFor(newSample);
+            }
+        );
+    }
+
+    [RavenTheory(RavenTestCategory.Ai)]
+    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single, CheckCanConnect = false, NightlyBuildRequired = false)]
+    public async Task ShouldResendContextWhenUpdateScriptChanges(Options options, GenAiConfiguration configuration)
+    {
+        await ShouldResendContextOnConfigChange(configuration,
+            changeConfig: config => config.UpdateScript = "this.Translated = $output.Translation;"
+        );
+    }
+
+    private async Task ShouldResendContextOnConfigChange(GenAiConfiguration config, Action<GenAiConfiguration> changeConfig)
+    {
+        using var store = GetDocumentStore();
+        const string docId = "posts/1";
+
+        store.Maintenance.Send(new PutConnectionStringOperation<AiConnectionString>(config.Connection));
+
+        var sampleObject = JsonConvert.SerializeObject(new { Translation = "translated text" });
+        var schema = OllamaChatCompletionClient.GetSchemaFor(sampleObject);
+
+        config.Prompt = "Translate this text to Polish";
+        config.JsonSchema = schema;
+        config.UpdateScript = "this.TextInPolish = $output.Translation;";
+        config.Collection = "Posts";
+        config.GenAiTransformation = new GenAiTransformation { Script = "ai.genContext({ Text: this.Body });" };
+
+        store.Maintenance.Send(new AddGenAiOperation(config));
+
+        var etlDone = Etl.WaitForEtlToComplete(store);
+
+        using (var session = store.OpenSession())
+        {
+            session.Store(new Post([new Comment("RavenDB is amazing", "Alex")], "Understanding RavenDB Indexing", "Indexes in RavenDB are powerful..."), docId);
+            session.SaveChanges();
+        }
+
+        Assert.True(etlDone.Wait(TimeSpan.FromMinutes(1)));
+
+        string originalHash;
+        using (var session = store.OpenAsyncSession())
+        {
+            var doc = await session.LoadAsync<BlittableJsonReaderObject>(docId);
+            Assert.True(doc.TryGet(Constants.Documents.Metadata.Key, out BlittableJsonReaderObject metadata));
+            Assert.True(metadata.TryGet(Constants.Documents.Metadata.GenAiHashes, out BlittableJsonReaderObject hashesSection));
+            Assert.True(hashesSection.TryGet(config.Name, out BlittableJsonReaderArray hashesArray));
+            Assert.NotNull(hashesArray);
+            originalHash = hashesArray.Last().ToString();
+        }
+
+        var db = await GetDatabase(store.Database);
+        var etlProcess = db.EtlLoader.Processes.FirstOrDefault() as GenAiTask;
+        Assert.NotNull(etlProcess);
+
+        var stats = etlProcess.GetPerformanceStats()
+            .Where(x => x.NumberOfLoadedItems > 0)
+            .ToArray();
+
+        Assert.NotEmpty(stats);
+        var loadDetails = stats[0].Details.Operations[^1];
+        var genAiStats = loadDetails.Operations.FirstOrDefault(x => x.Name == GenAiOperations.LoadToModel) as GenAiPerformanceOperation;
+        Assert.Equal(1, genAiStats?.NumberOfContextObjects);
+        Assert.Equal(1, genAiStats?.TotalSentToModel);
+
+        var taskId = etlProcess.TaskId;
+
+        // disable task
+        await store.Maintenance.SendAsync(new ToggleOngoingTaskStateOperation(taskId, OngoingTaskType.GenAi, disable: true));
+
+        var taskInfo = await store.Maintenance.SendAsync(new GetOngoingTaskInfoOperation(config.Name, OngoingTaskType.GenAi));
+        Assert.Equal(OngoingTaskState.Disabled, taskInfo.TaskState);
+
+        // update the configuration
+        changeConfig(config);
+        store.Maintenance.Send(new UpdateEtlOperation<AiConnectionString>(taskId, config));
+
+        // re-enable task
+        await store.Maintenance.SendAsync(new ToggleOngoingTaskStateOperation(taskId, OngoingTaskType.GenAi, disable: false));
+        taskInfo = await store.Maintenance.SendAsync(new GetOngoingTaskInfoOperation(config.Name, OngoingTaskType.GenAi));
+        Assert.Equal(OngoingTaskState.Enabled, taskInfo.TaskState);
+
+        var genAiTaskInfo = taskInfo as Raven.Client.Documents.Operations.OngoingTasks.GenAi;
+        Assert.NotNull(genAiTaskInfo);
+        Assert.Equal(genAiTaskInfo.Configuration.Prompt, config.Prompt);
+        Assert.Equal(genAiTaskInfo.Configuration.JsonSchema, config.JsonSchema);
+        Assert.Equal(genAiTaskInfo.Configuration.UpdateScript, config.UpdateScript);
+
+        WaitForUserToContinueTheTest(store);
+
+        etlDone = Etl.WaitForEtlToComplete(store);
+        long etag = 0;
+        using (var session = store.OpenSession())
+        {
+            // modify the doc to trigger etl 
+            // the post's Body remains the same - this change won't affect the generated context object 
+            // context should be resent because of the hash-mismatch, not because of the comments addition
+
+            var doc = session.Load<Post>(docId);
+            doc.Comments.Add(new Comment("spam comment", "evil bot"));
+
+            etag = ChangeVectorUtils.GetEtagById(session.Advanced.GetChangeVectorFor(doc), db.DbBase64Id);
+
+            session.SaveChanges();
+        }
+
+        Assert.True(etlDone.Wait(TimeSpan.FromMinutes(1)));
+
+        // assert that context was sent again
+
+        etlProcess = db.EtlLoader.Processes.FirstOrDefault() as GenAiTask;
+        Assert.NotNull(etlProcess);
+
+        var stats2 = etlProcess.GetPerformanceStats()
+            .Where(x => x.NumberOfLoadedItems > 0 && x.LastLoadedEtag > etag)
+            .ToArray();
+        Assert.NotEmpty(stats2);
+
+        Assert.Equal(1, stats2[^1].NumberOfExtractedItems[EtlItemType.Document]);
+
+        var loadDetails2 = stats2[^1].Details.Operations[^1];
+        var genAiStats2 = loadDetails2.Operations.FirstOrDefault(x => x.Name == GenAiOperations.LoadToModel) as GenAiPerformanceOperation;
+        Assert.NotNull(genAiStats2);
+
+        Assert.Equal(1, genAiStats2.NumberOfContextObjects);
+        Assert.Equal(1, genAiStats2.TotalSentToModel);
+        Assert.Equal(0, genAiStats2.TotalCachedContexts);
+
+        using (var session = store.OpenAsyncSession())
+        {
+            var doc = await session.LoadAsync<BlittableJsonReaderObject>(docId);
+            Assert.True(doc.TryGet(Constants.Documents.Metadata.Key, out BlittableJsonReaderObject metadata));
+            Assert.True(metadata.TryGet(Constants.Documents.Metadata.GenAiHashes, out BlittableJsonReaderObject hashesSection));
+            Assert.True(hashesSection.TryGet(config.Name, out BlittableJsonReaderArray hashesArray));
+            Assert.NotNull(hashesArray);
+
+            var newHash = hashesArray.Last().ToString();
+            Assert.NotEqual(originalHash, newHash);
+        }
+    }
+
+    internal record Comment(string Text, string Author)
+    {
+        public string Id { get; set; } = Guid.NewGuid().ToString();
+    }
+
+    internal record Post(List<Comment> Comments, string Title, string Body);
+}

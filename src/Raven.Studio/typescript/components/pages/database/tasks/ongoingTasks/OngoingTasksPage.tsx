@@ -21,6 +21,7 @@ import {
     OngoingTaskSharedInfo,
     OngoingTaskSnowflakeEtlInfo,
     OngoingTaskSqlEtlInfo,
+    OngoingTaskGenAiInfo,
 } from "components/models/tasks";
 import { RavenEtlPanel } from "./panels/RavenEtlPanel";
 import { SqlEtlPanel } from "./panels/SqlEtlPanel";
@@ -71,6 +72,7 @@ import recentError from "common/notifications/models/recentError";
 import { SnowflakeEtlPanel } from "components/pages/database/tasks/ongoingTasks/panels/SnowflakeEtlPanel";
 import { AmazonSqsEtlPanel } from "components/pages/database/tasks/ongoingTasks/panels/AmazonSqsEtlPanel";
 import { EmbeddingsGenerationPanel } from "components/pages/database/tasks/ongoingTasks/panels/EmbeddingsGenerationPanel";
+import { GenAiPanel } from "./panels/GenAiPanel";
 
 export function OngoingTasksPage() {
     const db = useAppSelector(databaseSelectors.activeDatabase);
@@ -200,6 +202,7 @@ export function OngoingTasksPage() {
         rabbitMqSinks,
         elasticSearchEtls,
         embeddingsGenerations,
+        genAiTasks,
         backups,
         replicationHubs,
         replicationSinks,
@@ -419,8 +422,27 @@ export function OngoingTasksPage() {
                             />
                         )}
 
+                        {genAiTasks.length > 0 && (
+                            <div key="genAI">
+                                <HrHeader className="ai-etl" count={genAiTasks.length}>
+                                    <Icon icon="ai-etl" />
+                                    GenAI
+                                </HrHeader>
+
+                                {genAiTasks.map((x) => (
+                                    <GenAiPanel
+                                        {...sharedPanelProps}
+                                        key={taskKey(x.shared)}
+                                        data={x}
+                                        onToggleDetails={startTrackingEtlProgress}
+                                        showItemPreview={showItemPreview}
+                                    />
+                                ))}
+                            </div>
+                        )}
+
                         {embeddingsGenerations.length > 0 && (
-                            <div key="ai-etls">
+                            <div key="embeddings-generations">
                                 <HrHeader className="ai-etl" count={embeddingsGenerations.length}>
                                     <Icon icon="ai-etl" />
                                     Embeddings Generation
@@ -829,6 +851,7 @@ function getFilteredTasks(state: OngoingTasksState, filter: OngoingTasksFilterCr
         embeddingsGenerations: filteredTasks.filter(
             (x) => x.shared.taskType === "EmbeddingsGeneration"
         ) as OngoingTaskEmbeddingsGenerationInfo[],
+        genAiTasks: filteredTasks.filter((x) => x.shared.taskType === "GenAi") as OngoingTaskGenAiInfo[],
         kafkaSinks: filteredTasks.filter((x) => x.shared.taskType === "KafkaQueueSink") as OngoingTaskKafkaSinkInfo[],
         rabbitMqSinks: filteredTasks.filter(
             (x) => x.shared.taskType === "RabbitQueueSink"

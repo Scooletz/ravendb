@@ -90,6 +90,7 @@ export function DatabaseCustomAnalyzersInfoHub({ databaseAnalyzersCount }: Datab
                     clusterLimitReachStatus === "notReached" &&
                     hasServerWideCustomAnalyzers
                 }
+                isOpenedByDefault={false}
                 data={featureAvailability}
             />
         </AboutViewAnchored>

@@ -24,7 +24,7 @@ export function getLicenseLimitReachStatus(count: number, limit: number): Licens
     return "notReached";
 }
 
-export type LicenseAvailabilityType = "community" | "professional" | "enterprise";
+export type LicenseAvailabilityType = "community" | "professional" | "enterprise" | "enterpriseAi";
 
 export function getLicenseAvailabilityType(licenseType: Raven.Server.Commercial.LicenseType): LicenseAvailabilityType {
     switch (licenseType) {
@@ -33,9 +33,11 @@ export function getLicenseAvailabilityType(licenseType: Raven.Server.Commercial.
             return "community";
         case "Professional":
             return "professional";
-        case "Developer":
         case "Enterprise":
             return "enterprise";
+        case "Developer":
+        case "EnterpriseAi":
+            return "enterpriseAi";
         default:
             return null;
     }
@@ -111,7 +113,17 @@ export function useLimitedFeatureAvailability({
 }: UseLimitedFeatureAvailabilityProps) {
     const licenseType = useAppSelector(licenseSelectors.licenseType);
 
-    const featureAvailability: FeatureAvailabilityData[] = _.cloneDeep(defaultFeatureAvailability);
+    const featureAvailability: FeatureAvailabilityData[] = defaultFeatureAvailability.map((x) => {
+        if (x.enterpriseAi) {
+            return x;
+        }
+
+        // use enterprise if enterpriseAi is not defined
+        return {
+            ...x,
+            enterpriseAi: structuredClone(x.enterprise),
+        };
+    });
 
     const type = getLicenseAvailabilityType(licenseType);
     if (!type) {

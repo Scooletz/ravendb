@@ -20,7 +20,7 @@ import { accessManagerSelectors } from "components/common/shell/accessManagerSli
 import DatabaseUtils from "components/utils/DatabaseUtils";
 import { databaseSelectors } from "components/common/shell/databaseSliceSelectors";
 
-type ConnectionStringsViewContext = "ai" | "connectionString";
+export type ConnectionStringsViewContext = "connectionStrings" | "aiConnectionStrings" | "taskEmbeddings" | "taskGenAi";
 
 interface ConnectionStringsState {
     loadStatus: loadStatus;
@@ -49,7 +49,7 @@ const initialState: ConnectionStringsState = {
         type: null,
     },
     initialEditConnection: null,
-    viewContext: "connectionString",
+    viewContext: "connectionStrings",
 };
 
 export const connectionStringsSlice = createSlice({

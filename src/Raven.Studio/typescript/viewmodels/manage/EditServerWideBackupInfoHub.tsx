@@ -73,8 +73,9 @@ export function EditServerWideBackupInfoHub() {
                 </a>
             </AccordionItemWrapper>
             <FeatureAvailabilitySummaryWrapper
-                isUnlimited={hasServerWideBackups && hasSnapshotBackups}
                 data={featureAvailability}
+                isUnlimited={hasServerWideBackups && hasSnapshotBackups}
+                isOpenedByDefault={!hasServerWideBackups && !hasSnapshotBackups}
             />
         </AboutViewFloating>
     );

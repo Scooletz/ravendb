@@ -31,8 +31,9 @@ import replicationProgressCommand from "commands/database/tasks/replicationProgr
 import internalReplicationProgressCommand from "commands/database/tasks/internalReplicationProgressCommand";
 import testSnowflakeConnectionStringCommand from "commands/database/cluster/testSnowflakeConnectionStringCommand";
 import testAmazonSqsServerConnectionCommand from "commands/database/cluster/testAmazonSqsServerConnectionCommand";
-import testAiCommand from "commands/database/tasks/testAiCommand";
 import testAiConnectionStringCommand from "commands/database/cluster/testAiConnectionStringCommand";
+import saveEtlTaskCommand from "commands/database/tasks/saveEtlTaskCommand";
+import testGenAiCommand from "commands/database/tasks/testGenAiCommand";
 
 export default class TasksService {
     async getOngoingTasks(databaseName: string, location: databaseLocationSpecifier) {
@@ -178,11 +179,19 @@ export default class TasksService {
         return new getBackupLocationCommand(path, databaseName).execute();
     }
 
-    async testAi(...args: ConstructorParameters<typeof testAiCommand>) {
-        return new testAiCommand(...args).execute();
-    }
-
     async testAiConnectionString(...args: ConstructorParameters<typeof testAiConnectionStringCommand>) {
         return new testAiConnectionStringCommand(...args).execute();
+    }
+
+    async getGenAiTaskInfo(...args: Parameters<typeof getOngoingTaskInfoCommand.forGenAi>) {
+        return getOngoingTaskInfoCommand.forGenAi(...args).execute();
+    }
+
+    async saveGenAiTask(...args: Parameters<typeof saveEtlTaskCommand.forGenAi>) {
+        return saveEtlTaskCommand.forGenAi(...args).execute();
+    }
+
+    async testGenAi(...args: ConstructorParameters<typeof testGenAiCommand>) {
+        return new testGenAiCommand(...args).execute();
     }
 }

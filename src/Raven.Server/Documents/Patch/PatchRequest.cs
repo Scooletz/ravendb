@@ -20,7 +20,8 @@ namespace Raven.Server.Documents.Patch
         QueueEtl,
         QueueSink,
         SnowflakeEtl,
-        EmbeddingsGeneration
+        EmbeddingsGeneration,
+        GenAi
     }
 
     /// <summary>
@@ -90,6 +91,7 @@ namespace Raven.Server.Documents.Patch
                 case PatchRequestType.QueueSink:
                 // modify and return the document
                 case PatchRequestType.Patch:
+                case PatchRequestType.GenAi:
                 case PatchRequestType.EmbeddingsGeneration:
                     return $@"
  function __actual_func(args) {{ 

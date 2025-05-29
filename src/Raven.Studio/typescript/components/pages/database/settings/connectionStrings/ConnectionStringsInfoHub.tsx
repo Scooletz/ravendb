@@ -81,7 +81,11 @@ export function ConnectionStringsInfoHub() {
                     </ul>
                 </div>
             </AccordionItemWrapper>
-            <FeatureAvailabilitySummaryWrapper isUnlimited={hasAll} data={featureAvailability} />
+            <FeatureAvailabilitySummaryWrapper
+                data={featureAvailability}
+                isUnlimited={hasAll}
+                isOpenedByDefault={false}
+            />
         </AboutViewAnchored>
     );
 }

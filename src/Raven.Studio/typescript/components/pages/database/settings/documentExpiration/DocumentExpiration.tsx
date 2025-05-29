@@ -259,6 +259,7 @@ export default function DocumentExpiration() {
                             <FeatureAvailabilitySummaryWrapper
                                 isUnlimited={!minPeriodForExpirationInHours}
                                 data={featureAvailability}
+                                isOpenedByDefault={false}
                             />
                         </AboutViewAnchored>
                     </Col>

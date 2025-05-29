@@ -373,6 +373,10 @@ select {
         background-color: var(--faded-enterprise) !important;
         color: var(--license-enterprise);
     }
+    &.enterprise-ai {
+        background-color: var(--faded-enterprise-ai) !important;
+        color: var(--license-enterprise-ai);
+    }
 }
 
 .cursor-pointer {
@@ -402,6 +406,13 @@ select {
         content: "chevron-down" !important;
         font-family: "icomoon" !important;
         text-align: center;
+    }
+}
+
+.open-modal-button {
+    &::after {
+        content: "open-modal" !important;
+        transform: none !important;
     }
 }
 

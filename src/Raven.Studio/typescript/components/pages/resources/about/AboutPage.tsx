@@ -1,9 +1,8 @@
-﻿import React, { useState } from "react";
+﻿import "./AboutPage.scss";
+import React, { useState } from "react";
 import Badge from "react-bootstrap/Badge";
 import Card from "react-bootstrap/Card";
 import { Icon } from "components/common/Icon";
-import "./AboutPage.scss";
-
 import classNames from "classnames";
 import { LicenseSummary } from "components/pages/resources/about/partials/LicenseSummary";
 import { VersionsSummary } from "components/pages/resources/about/partials/VersionsSummary";

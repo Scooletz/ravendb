@@ -12,6 +12,7 @@ using Raven.Server.Documents.Expiration;
 using Raven.Server.Json;
 using Raven.Server.Rachis;
 using Raven.Server.ServerWide.Commands;
+using Raven.Server.ServerWide.Commands.AI;
 using Raven.Server.ServerWide.Commands.Analyzers;
 using Raven.Server.ServerWide.Commands.ConnectionStrings;
 using Raven.Server.ServerWide.Commands.ETL;
@@ -174,8 +175,13 @@ public sealed partial class ClusterStateMachine
                 AssertDocumentsCompressionLicenseLimits(serverStore, databaseRecord, context);
                 break;
             case nameof(PutAiConnectionStringCommand):
+            case nameof(AddEmbeddingsGenerationCommand):
                 AssertEmbeddingsGeneration(databaseRecord, serverStore.LicenseManager.LicenseStatus);
                 break;
+            case nameof(AddGenAiCommand):
+                AssertGenAi(databaseRecord, serverStore.LicenseManager.LicenseStatus);
+                break;
+
         }
     }
 
@@ -215,6 +221,7 @@ public sealed partial class ClusterStateMachine
             AssertAnalyzers(databaseRecord, newLicenseLimits, context, items, type);
             AssertSnowflakeEtl(databaseRecord, newLicenseLimits);
             AssertEmbeddingsGeneration(databaseRecord, newLicenseLimits);
+            AssertGenAi(databaseRecord, newLicenseLimits);
             
             if (AssertPeriodicBackup(newLicenseLimits, context) == false && databaseRecord.PeriodicBackups.Count > 0)
                 throw new LicenseLimitException(LimitType.PeriodicBackup, $"Your license doesn't support periodic backup.");
@@ -932,17 +939,32 @@ public sealed partial class ClusterStateMachine
     {
         if (licenseStatus.HasEmbeddingsGeneration)
             return;
-        
-        if (databaseRecord.AiConnectionStrings.Count == 0)
+
+        if (databaseRecord.AiConnectionStrings.Count == 0 || databaseRecord.EmbeddingsGenerations.Count == 0)
             return;
 
-        var countOfExternalConnectors = databaseRecord.AiConnectionStrings
-            .Count(item => item.Value.GetActiveProvider() != AiConnectorType.Embedded);
-        
-        if (countOfExternalConnectors == 0)
+        foreach (var config in databaseRecord.EmbeddingsGenerations)
+        {
+            var connectionStringName = config.ConnectionStringName ?? string.Empty;
+            AiConnectionString aiConnectionString = null;
+            databaseRecord.AiConnectionStrings?.TryGetValue(connectionStringName, out aiConnectionString);
+
+            if (aiConnectionString == null || aiConnectionString.GetActiveProvider() == AiConnectorType.Embedded)
+                continue;
+
+            throw new LicenseLimitException(LimitType.EmbeddingsGeneration, "Your license doesn't support using the Embeddings Generation feature.");
+        }
+    }
+
+    private static void AssertGenAi(DatabaseRecord databaseRecord, LicenseStatus licenseStatus)
+    {
+        if (licenseStatus.HasGenAi)
             return;
-        
-        throw new LicenseLimitException(LimitType.EmbeddingsGeneration, "Your license doesn't support using the Embeddings Generation feature.");
+
+        if (databaseRecord.GenAis.Count == 0)
+            return;
+
+        throw new LicenseLimitException(LimitType.GenAi, "Your license doesn't support using the AI Generation feature.");
     }
 
     private void AssertTimeSeriesConfigurationLicenseLimits(ServerStore serverStore, DatabaseRecord databaseRecord, ClusterOperationContext context)

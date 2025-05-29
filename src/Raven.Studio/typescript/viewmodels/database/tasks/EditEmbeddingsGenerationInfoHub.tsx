@@ -100,6 +100,7 @@ export function EditEmbeddingsGenerationInfoHub() {
             <FeatureAvailabilitySummaryWrapper
                 isUnlimited={hasEmbeddingsGeneration}
                 data={featureAvailability}
+                isOpenedByDefault={false}
             />
         </AboutViewFloating>
     );

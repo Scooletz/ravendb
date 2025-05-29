@@ -31,8 +31,11 @@ using Xunit;
 using Raven.Server.Documents;
 using System.Text;
 using Newtonsoft.Json;
+using Raven.Client.Documents.Operations.AI;
 using Raven.Client.Util;
 using Raven.Server;
+using Raven.Server.Documents.ETL.Providers.AI.Embeddings;
+using Raven.Server.Documents.ETL.Providers.AI.GenAi;
 using Raven.Server.Documents.ETL.Providers.RelationalDatabase.Snowflake;
 using Raven.Server.Documents.ETL.Providers.RelationalDatabase.SQL;
 using Tests.Infrastructure;
@@ -252,6 +255,10 @@ namespace FastTests
                     tag = QueueEtl<QueueItem>.QueueEtlTag;
                 else if (typeof(T) == typeof(SnowflakeConnectionString))
                     tag = SnowflakeEtl.SnowflakeEtlTag;
+                else if (config is GenAiConfiguration)
+                    tag = GenAiTask.GenAiTaskTag;
+                else if (config is EmbeddingsGenerationConfiguration)
+                    tag = EmbeddingsGenerationTask.EmbeddingsTaskTag;
                 else
                     throw new NotSupportedException($"Unknown ETL type: {typeof(T)}");
 
@@ -283,6 +290,10 @@ namespace FastTests
                     tag = QueueEtl<QueueItem>.QueueEtlTag;
                 else if (typeof(T) == typeof(SnowflakeConnectionString))
                     tag = SnowflakeEtl.SnowflakeEtlTag;
+                else if (config is GenAiConfiguration)
+                    tag = GenAiTask.GenAiTaskTag;
+                else if (config is EmbeddingsGenerationConfiguration)
+                    tag = EmbeddingsGenerationTask.EmbeddingsTaskTag;
                 else
                     throw new NotSupportedException($"Unknown ETL type: {typeof(T)}");
 

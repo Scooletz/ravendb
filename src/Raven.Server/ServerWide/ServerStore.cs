@@ -43,6 +43,7 @@ using Raven.Server.Config;
 using Raven.Server.Config.Settings;
 using Raven.Server.Dashboard;
 using Raven.Server.Documents;
+using Raven.Server.Documents.AI;
 using Raven.Server.Documents.Indexes;
 using Raven.Server.Documents.Indexes.Analysis;
 using Raven.Server.Documents.Indexes.Sorting;
@@ -2211,12 +2212,26 @@ namespace Raven.Server.ServerWide
                         break;
 
                     case EtlType.EmbeddingsGeneration:
+                    {
                         var aiIntegration = JsonDeserializationCluster.EmbeddingsGenerationConfiguration(etlConfiguration);
                         aiIntegration.Validate(out var aiIntegrationErr, validateName: false, validateConnection: false);
                         if (ValidateConnectionString(rawRecord, aiIntegration.ConnectionStringName, aiIntegration.EtlType) == false)
-                            aiIntegrationErr.Add($"Could not find connection string named '{aiIntegration.ConnectionStringName}'. Please supply an existing connection string.");
+                            aiIntegrationErr.Add(
+                                $"Could not find connection string named '{aiIntegration.ConnectionStringName}'. Please supply an existing connection string.");
                         ThrowInvalidConfigurationIfNecessary(etlConfiguration, aiIntegrationErr);
                         command = new AddEmbeddingsGenerationCommand(aiIntegration, databaseName, raftRequestId);
+                    }
+                        break;
+                    case EtlType.GenAi:
+                    {
+                        var aiIntegration = JsonDeserializationCluster.GenAiConfiguration(etlConfiguration);
+                        aiIntegration.Validate(out var aiIntegrationErr, validateName: false, validateConnection: false);
+                        if (ValidateConnectionString(rawRecord, aiIntegration.ConnectionStringName, aiIntegration.EtlType) == false)
+                            aiIntegrationErr.Add(
+                                $"Could not find connection string named '{aiIntegration.ConnectionStringName}'. Please supply an existing connection string.");
+                        ThrowInvalidConfigurationIfNecessary(etlConfiguration, aiIntegrationErr);
+                        command = new AddGenAiCommand(aiIntegration, databaseName, raftRequestId);
+                    }
                         break;
 
                     default:
@@ -2276,12 +2291,17 @@ namespace Raven.Server.ServerWide
             return await SendToLeaderAsync(command);
         }
 
-        [DoesNotReturn]
         private void ThrowInvalidConfigurationIfNecessary(BlittableJsonReaderObject etlConfiguration, IReadOnlyCollection<string> errors)
         {
             if (errors.Count <= 0)
                 return;
 
+            ThrowInvalidConfiguration(etlConfiguration, errors);
+        }
+
+        [DoesNotReturn]
+        private void ThrowInvalidConfiguration(BlittableJsonReaderObject etlConfiguration, IReadOnlyCollection<string> errors)
+        {
             var sb = new StringBuilder();
             sb
                 .AppendLine("Invalid ETL configuration.")
@@ -2347,6 +2367,7 @@ namespace Raven.Server.ServerWide
                     var snowflakeConnectionString = databaseRecord.SnowflakeConnectionStrings;
                     return snowflakeConnectionString != null && snowflakeConnectionString.TryGetValue(connectionStringName, out _);
                 case EtlType.EmbeddingsGeneration:
+                case EtlType.GenAi:
                     var aiConnectionStrings = databaseRecord.AiConnectionStrings;
                     return aiConnectionStrings != null && aiConnectionStrings.TryGetValue(connectionStringName, out _);
                 default:
@@ -2435,7 +2456,16 @@ namespace Raven.Server.ServerWide
 
                         command = new UpdateEmbeddingsGenerationCommand(id, aiIntegration, databaseName, raftRequestId);
                         break;
+                    case EtlType.GenAi:
+                        var genAi = JsonDeserializationCluster.GenAiConfiguration(etlConfiguration);
+                        genAi.Validate(out var genAiErr, validateName: false, validateConnection: false);
+                        if (ValidateConnectionString(rawRecord, genAi.ConnectionStringName, genAi.EtlType) == false)
+                            genAiErr.Add($"Could not find AI connection string named '{genAi.ConnectionStringName}'. Please supply an existing connection string.");
 
+                        ThrowInvalidConfigurationIfNecessary(etlConfiguration, genAiErr);
+
+                        command = new UpdateGenAiCommand(id, genAi, databaseName, raftRequestId);
+                        break;
                     default:
                         throw new NotSupportedException($"Unknown ETL configuration type. Configuration: {etlConfiguration}");
                 }

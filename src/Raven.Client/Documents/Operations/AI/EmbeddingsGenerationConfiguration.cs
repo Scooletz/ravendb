@@ -10,13 +10,9 @@ using Sparrow.Json.Parsing;
 
 namespace Raven.Client.Documents.Operations.AI;
 
-public sealed class EmbeddingsGenerationConfiguration : EtlConfiguration<AiConnectionString>
+public sealed class EmbeddingsGenerationConfiguration : AbstractAiIntegrationConfiguration
 {
     public string Identifier { get; set; }
-
-    [JsonDeserializationIgnore]
-    [JsonIgnore]
-    public AiConnectorType AiConnectorType => Connection?.GetActiveProvider() ?? AiConnectorType.None;
 
     public override string GetDestination() => Identifier;
     public override string GetDefaultTaskName() => Identifier;
@@ -113,26 +109,7 @@ public sealed class EmbeddingsGenerationConfiguration : EtlConfiguration<AiConne
 
     public override bool UsingEncryptedCommunicationChannel()
     {
-        switch (AiConnectorType)
-        {
-            case AiConnectorType.Ollama:
-                return Connection.OllamaSettings.Uri.StartsWith("https");
-            case AiConnectorType.OpenAi:
-                return Connection.OpenAiSettings.Endpoint.StartsWith("https");
-            case AiConnectorType.AzureOpenAi:
-                return Connection.AzureOpenAiSettings.Endpoint.StartsWith("https");
-            case AiConnectorType.MistralAi:
-                return Connection.MistralAiSettings.Endpoint.StartsWith("https");
-            case AiConnectorType.HuggingFace:
-                // Endpoint is optional for HuggingFace, it will use the default endpoint if not provided, which is HTTPS
-                return string.IsNullOrWhiteSpace(Connection.HuggingFaceSettings.Endpoint) || Connection.HuggingFaceSettings.Endpoint.StartsWith("https");
-            case AiConnectorType.Embedded:
-            case AiConnectorType.Google:
-                return true;
-
-            default:
-                throw new NotSupportedException($"Unknown AI connector type: {AiConnectorType}");
-        }
+        return Connection?.UsingEncryptedCommunicationChannel() ?? false;
     }
 
     public override DynamicJsonValue ToJson()

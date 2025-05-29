@@ -20,7 +20,7 @@ import MistralAiSettings from "./aiFields/MistralAiSettings";
 import { useAppUrls } from "components/hooks/useAppUrls";
 import TaskUtils from "components/utils/TaskUtils";
 import PopoverWithHoverWrapper from "components/common/PopoverWithHoverWrapper";
-import { connectionStringSelectors } from "../store/connectionStringsSlice";
+import { connectionStringSelectors, ConnectionStringsViewContext } from "../store/connectionStringsSlice";
 import { useAppSelector } from "components/store";
 import { ConnectionStringsNameContext, connectionStringsUtils } from "../connectionStringsUtils";
 import { components, OptionProps } from "react-select";
@@ -37,6 +37,7 @@ export interface AiConnectionStringProps extends EditConnectionStringFormProps {
 
 export default function AiConnectionString({ initialConnection, isForNewConnection, onSave }: AiConnectionStringProps) {
     const usedNames = useAppSelector(connectionStringSelectors.connections)["Ai"].map((x) => x.name);
+    const viewContext = useAppSelector(connectionStringSelectors.viewContext);
 
     const form = useForm<FormData>({
         mode: "all",
@@ -127,17 +128,7 @@ export default function AiConnectionString({ initialConnection, isForNewConnecti
                         control={control}
                         name="connectorType"
                         placeholder="Select connector"
-                        options={
-                            [
-                                { label: "Azure OpenAI", value: "azureOpenAiSettings", icon: "openai" },
-                                { label: "Google AI", value: "googleSettings", icon: "google-gemini" },
-                                { label: "Hugging Face", value: "huggingFaceSettings", icon: "huggingface" },
-                                { label: "Ollama", value: "ollamaSettings", icon: "ollama" },
-                                { label: "OpenAI", value: "openAiSettings", icon: "openai" },
-                                { label: "Mistral AI", value: "mistralAiSettings", icon: "mistralai" },
-                                { label: "Embedded (bge-micro-v2)", value: "embeddedSettings", icon: "onnx" },
-                            ] satisfies SelectOptionWithIcon<FormData["connectorType"]>[]
-                        }
+                        options={getConnectorOptions(viewContext)}
                         isDisabled={isUsedByAnyTask}
                         components={{
                             Option: SettingsOptionComponent,
@@ -187,6 +178,26 @@ export function SettingsOptionComponent(props: OptionProps<SelectOptionWithIcon>
             </components.Option>
         </div>
     );
+}
+
+function getConnectorOptions(
+    viewContext: ConnectionStringsViewContext
+): SelectOptionWithIcon<FormData["connectorType"]>[] {
+    const allOptions: SelectOptionWithIcon<FormData["connectorType"]>[] = [
+        { label: "Azure OpenAI", value: "azureOpenAiSettings", icon: "openai" },
+        { label: "Google AI", value: "googleSettings", icon: "google-gemini" },
+        { label: "Hugging Face", value: "huggingFaceSettings", icon: "huggingface" },
+        { label: "Ollama", value: "ollamaSettings", icon: "ollama" },
+        { label: "OpenAI", value: "openAiSettings", icon: "openai" },
+        { label: "Mistral AI", value: "mistralAiSettings", icon: "mistralai" },
+        { label: "Embedded (bge-micro-v2)", value: "embeddedSettings", icon: "onnx" },
+    ];
+
+    if (viewContext === "taskGenAi") {
+        return [...allOptions.filter((x) => x.value === "ollamaSettings" || x.value === "openAiSettings")].reverse();
+    }
+
+    return allOptions;
 }
 
 const schema = yupObjectSchema<FormData>({

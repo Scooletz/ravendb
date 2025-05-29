@@ -23,6 +23,8 @@ using Raven.Client.Util;
 using Raven.Server.Documents.ETL.Metrics;
 using Raven.Server.Documents.ETL.Providers.AI;
 using Raven.Server.Documents.ETL.Providers.AI.Embeddings;
+using Raven.Server.Documents.ETL.Providers.AI.GenAi;
+using Raven.Server.Documents.ETL.Providers.AI.GenAi.Test;
 using Raven.Server.Documents.ETL.Providers.ElasticSearch;
 using Raven.Server.Documents.ETL.Providers.OLAP;
 using Raven.Server.Documents.ETL.Providers.OLAP.Test;
@@ -543,50 +545,9 @@ namespace Raven.Server.Documents.ETL
                 return false;
             }
 
-            if (currentItem is ToOlapItem)
+            if (ExtractionLimitReached(ctx, stats, currentItem, batchSize))
             {
-                if (stats.NumberOfExtractedItems[EtlItemType.Document] >= Database.Configuration.Etl.OlapMaxNumberOfExtractedDocuments)
-                {
-                    var reason = $"Stopping the batch because it has already processed max number of extracted documents : {stats.NumberOfExtractedItems[EtlItemType.Document]}";
-
-                    if (Logger.IsInfoEnabled)
-                        Logger.Info($"[{Name}] {reason}");
-
-                    stats.RecordBatchTransformationCompleteReason(reason);
-
-                    return false;
-                }
-            }
-            
-            else if (currentItem is EmbeddingsGenerationItem)
-            {
-                if (stats.NumberOfExtractedItems[EtlItemType.Document] >= Database.Configuration.Ai.EmbeddingsGenerationMaxBatchSize)
-                {
-                    var reason = $"Stopping the batch because it has already processed max number of extracted documents : {stats.NumberOfExtractedItems[EtlItemType.Document]}";
-
-                    if (Logger.IsInfoEnabled)
-                        Logger.Info($"[{Name}] {reason}");
-
-                    stats.RecordBatchTransformationCompleteReason(reason);
-
-                    return false;
-                }
-            }
-
-            else
-            {
-                if (stats.NumberOfExtractedItems[EtlItemType.Document] >= Database.Configuration.Etl.MaxNumberOfExtractedDocuments ||
-                    stats.NumberOfExtractedItems.Sum(x => x.Value) >= Database.Configuration.Etl.MaxNumberOfExtractedItems)
-                {
-                    var reason = $"Stopping the batch because it has already processed max number of items ({string.Join(',', stats.NumberOfExtractedItems.Select(x => $"{x.Key} - {x.Value:#,#;;0}"))})";
-
-                    if (Logger.IsInfoEnabled)
-                        Logger.Info($"[{Name}] {reason}");
-
-                    stats.RecordBatchTransformationCompleteReason(reason);
-
-                    return false;
-                }
+                return false;
             }
 
             if (stats.Duration >= Database.Configuration.Etl.ExtractAndTransformTimeout.AsTimeSpan)
@@ -657,6 +618,24 @@ namespace Raven.Server.Documents.ETL
             }
 
             return true;
+        }
+
+        protected virtual bool ExtractionLimitReached(DocumentsOperationContext ctx, TStatsScope stats, TExtracted currentItem, int batchSize)
+        {
+            if (stats.NumberOfExtractedItems[EtlItemType.Document] >= Database.Configuration.Etl.MaxNumberOfExtractedDocuments ||
+                stats.NumberOfExtractedItems.Sum(x => x.Value) >= Database.Configuration.Etl.MaxNumberOfExtractedItems)
+            {
+                var reason = $"Stopping the batch because it has already processed max number of items ({string.Join(',', stats.NumberOfExtractedItems.Select(x => $"{x.Key} - {x.Value:#,#;;0}"))})";
+
+                if (Logger.IsInfoEnabled)
+                    Logger.Info($"[{Name}] {reason}");
+
+                stats.RecordBatchTransformationCompleteReason(reason);
+
+                return true;
+            }
+
+            return false;
         }
 
         protected void UpdateMetrics(DateTime startTime, TStatsScope stats)
@@ -1098,29 +1077,24 @@ namespace Raven.Server.Documents.ETL
             where TC : EtlConfiguration<TCS>
             where TCS : ConnectionString
         {
-            using var tx = testScript.IsDelete ? context.OpenWriteTransaction() : context.OpenReadTransaction(); // we open write tx to test deletion but we won't commit it
-            var document = database.DocumentsStorage.Get(context, testScript.DocumentId);
-
-            if (document == null)
-                throw new InvalidOperationException($"Document {testScript.DocumentId} does not exist");
-
             TCS connection = null;
 
             var relationalTestScript = testScript as TestRelationalDatabaseEtlScript<TCS, TC>;
+            var connectionStringRequiredForTesting = relationalTestScript != null || typeof(TC) == typeof(GenAiConfiguration);
 
-            if (relationalTestScript != null)
+            if (connectionStringRequiredForTesting)
             {
                 // we need to have connection string when testing SQL ETL because we need to have the factory name
                 // and if PerformRolledBackTransaction = true is specified then we need make a connection to SQL
 
                 List<string> csErrors = [];
 
-                if (relationalTestScript.Connection != null)
+                if (testScript.Configuration.Connection != null)
                 {
-                    if (relationalTestScript.Connection.Validate(csErrors) == false)
+                    if (testScript.Configuration.Connection.Validate(csErrors) == false)
                         throw new InvalidOperationException($"Invalid connection string due to {string.Join(";", csErrors)}");
 
-                    connection = relationalTestScript.Connection as TCS;
+                    connection = testScript.Configuration.Connection as TCS;
                 }
                 else
                 {
@@ -1172,6 +1146,30 @@ namespace Raven.Server.Documents.ETL
     
                         connection = snowflakeConnection as TCS;
                     }
+                    else if (typeof(TCS) == typeof(AiConnectionString))
+                    {
+                        Dictionary<string, AiConnectionString> connectionStrings;
+                        using (serverStore.ContextPool.AllocateOperationContext(out TransactionOperationContext ctx))
+                        using (ctx.OpenReadTransaction())
+                        using (var rawRecord = serverStore.Cluster.ReadRawDatabaseRecord(ctx, database.Name))
+                        {
+                            connectionStrings = rawRecord.AiConnectionStrings;
+                            if (connectionStrings == null)
+                                throw new InvalidOperationException($"{nameof(DatabaseRecord.AiConnectionStrings)} was not found in the database record");
+                        }
+
+                        if (connectionStrings.TryGetValue(testScript.Configuration.ConnectionStringName, out var aiConnection) == false)
+                        {
+                            throw new InvalidOperationException(
+                                $"Connection string named '{testScript.Configuration.ConnectionStringName}' was not found in the database record");
+                        }
+
+                        if (aiConnection.Validate(csErrors) == false)
+                            throw new InvalidOperationException(
+                                $"Invalid '{testScript.Configuration.ConnectionStringName}' connection string due to {string.Join(";", csErrors)}");
+
+                        connection = aiConnection as TCS;
+                    }
                     else
                     {
                         throw new InvalidOperationException($"Unexpected connection string type {typeof(TCS)}");
@@ -1194,6 +1192,29 @@ namespace Raven.Server.Documents.ETL
                 throw new InvalidOperationException($"Invalid number of transformations. You have provided {testScript.Configuration.Transforms.Count} " +
                                                     "while ETL test expects to get exactly 1 transformation script");
             }
+
+            List<string> debugOutput;
+            if (testScript.Configuration.EtlType == EtlType.GenAi)
+            {
+                var testGenAiScript = testScript as TestGenAiScript;
+                var aiGenConfiguration = testGenAiScript?.Configuration;
+                using (var genAiTask = new GenAiTask(testScript.Configuration.Transforms[0], aiGenConfiguration, database, database.ServerStore))
+                using (genAiTask.EnterTestMode(out debugOutput))
+                {
+                    genAiTask.EnsureThreadAllocationStats();
+                    var result = genAiTask.RunTest(testGenAiScript, context);
+                    result.DebugOutput = debugOutput;
+                    return result;
+                }
+            }
+
+            using var tx = testScript.IsDelete
+                ? context.OpenWriteTransaction()
+                : context.OpenReadTransaction(); // we open write tx to test deletion but we won't commit it
+
+            var document = database.DocumentsStorage.Get(context, testScript.DocumentId);
+            if (document == null)
+                throw new InvalidOperationException($"Document {testScript.DocumentId} does not exist");
 
             var docCollection = database.DocumentsStorage.ExtractCollectionName(context, document.Data).Name;
 
@@ -1222,8 +1243,6 @@ namespace Raven.Server.Documents.ETL
 
                 tombstone = database.DocumentsStorage.GetTombstoneByEtag(context, deleteResult.Value.Etag);
             }
-
-            List<string> debugOutput;
 
             switch (testScript.Configuration.EtlType)
             {
@@ -1447,7 +1466,6 @@ namespace Raven.Server.Documents.ETL
                         result.DebugOutput = debugOutput;
                         return result;
                     }
-
                 default:
                         throw new NotSupportedException($"Unknown ETL type in script test: {testScript.Configuration.EtlType}");
                 }

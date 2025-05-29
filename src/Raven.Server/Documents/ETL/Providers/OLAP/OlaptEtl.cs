@@ -140,6 +140,23 @@ namespace Raven.Server.Documents.ETL.Providers.OLAP
             return new OlapDocumentTransformer(Transformation, Database, context, Configuration);
         }
 
+        protected override bool ExtractionLimitReached(DocumentsOperationContext ctx, OlapEtlStatsScope stats, ToOlapItem currentItem, int batchSize)
+        {
+            if (stats.NumberOfExtractedItems[EtlItemType.Document] >= Database.Configuration.Etl.OlapMaxNumberOfExtractedDocuments)
+            {
+                var reason = $"Stopping the batch because it has already processed max number of extracted documents : {stats.NumberOfExtractedItems[EtlItemType.Document]}";
+
+                if (Logger.IsInfoEnabled)
+                    Logger.Info($"[{Name}] {reason}");
+
+                stats.RecordBatchTransformationCompleteReason(reason);
+
+                return true;
+            }
+
+            return false;
+        }
+
         protected override int LoadInternal(IEnumerable<OlapTransformedItems> records, DocumentsOperationContext context, OlapEtlStatsScope scope)
         {
             var count = 0;

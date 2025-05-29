@@ -25,15 +25,12 @@ export function AiConnectionStringsInfoHub() {
             >
                 <div>
                     <ul>
-                        <li>
-                            This view allows you to define and manage connection strings for AI model services that{" "}
-                            <strong>generate embeddings from text</strong>.
-                        </li>
+                        <li>This view allows you to define and manage connection strings for AI model services.</li>
                         <li className="mt-1">
                             Each connection string specifies the details required to connect to a particular provider
                             and can be reused across multiple{" "}
                             <a href={appUrl.forAiTasks(activeDatabaseName)} target="_blank">
-                                embedding generation tasks
+                                AI tasks
                             </a>{" "}
                             in the database.
                         </li>

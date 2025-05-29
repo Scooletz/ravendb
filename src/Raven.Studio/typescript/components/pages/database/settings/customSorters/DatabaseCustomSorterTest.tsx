@@ -1,5 +1,5 @@
 import rqlLanguageService from "common/rqlLanguageService";
-import AceEditor from "components/common/AceEditor";
+import AceEditor from "components/common/ace/AceEditor";
 import ButtonWithSpinner from "components/common/ButtonWithSpinner";
 import { useServices } from "components/hooks/useServices";
 import queryCriteria from "models/database/query/queryCriteria";

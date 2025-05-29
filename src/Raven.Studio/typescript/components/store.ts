@@ -15,6 +15,8 @@ import { connectionStringsSlice } from "./pages/database/settings/connectionStri
 import { connectionStringsUpdateUrlMiddleware } from "./pages/database/settings/connectionStrings/store/connectionStringsMiddleware";
 import { adminLogsMiddleware } from "components/pages/resources/manageServer/adminLogs/store/adminLogsMiddleware";
 import { adminLogsSlice } from "components/pages/resources/manageServer/adminLogs/store/adminLogsSlice";
+import { certificatesSlice } from "components/pages/resources/manageServer/certificates/store/certificatesSlice";
+import { editGenAiTaskSlice } from "./pages/database/tasks/ongoingTasks/editTasks/editGenAiTask/store/editGenAiTaskSlice";
 
 const listenerMiddleware = createListenerMiddleware({
     extra: () => services,
@@ -34,6 +36,8 @@ export function createStoreConfiguration() {
             conflictResolution: conflictResolutionSlice.reducer,
             connectionStrings: connectionStringsSlice.reducer,
             adminLogs: adminLogsSlice.reducer,
+            certificates: certificatesSlice.reducer,
+            editGenAiTask: editGenAiTaskSlice.reducer,
         },
         middleware: (getDefaultMiddleware) =>
             getDefaultMiddleware({

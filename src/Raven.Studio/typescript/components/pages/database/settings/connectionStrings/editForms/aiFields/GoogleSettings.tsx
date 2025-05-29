@@ -1,7 +1,7 @@
 import ButtonWithSpinner from "components/common/ButtonWithSpinner";
 import ConnectionTestResult from "components/common/connectionTests/ConnectionTestResult";
 import { FlexGrow } from "components/common/FlexGrow";
-import { FormSelect, FormInput, FormSelectCreatable, FormLabel } from "components/common/Form";
+import { FormSelect, FormInput, FormLabel, FormSelectAutocomplete } from "components/common/Form";
 import { Icon } from "components/common/Icon";
 import OptionalLabel from "components/common/OptionalLabel";
 import { SelectOption } from "components/common/select/Select";
@@ -82,7 +82,7 @@ export default function GoogleSettings({ isUsedByAnyTask }: { isUsedByAnyTask: b
                         <Icon icon="info" color="info" margin="ms-1" />
                     </PopoverWithHoverWrapper>
                 </FormLabel>
-                <FormSelectCreatable
+                <FormSelectAutocomplete
                     control={control}
                     name="googleSettings.model"
                     isDisabled={isUsedByAnyTask}

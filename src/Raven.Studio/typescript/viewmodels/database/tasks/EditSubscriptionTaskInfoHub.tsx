@@ -70,7 +70,11 @@ export function EditSubscriptionTaskInfoHub() {
                     <Icon icon="newtab" /> Docs - Subscription Task
                 </a>
             </AccordionItemWrapper>
-            <FeatureAvailabilitySummaryWrapper isUnlimited={hasConcurrentDataSubscriptions && hasRevisionsInSubscriptions} data={featureAvailability} />
+            <FeatureAvailabilitySummaryWrapper
+                data={featureAvailability}
+                isUnlimited={hasConcurrentDataSubscriptions && hasRevisionsInSubscriptions}
+                isOpenedByDefault={!hasConcurrentDataSubscriptions && !hasRevisionsInSubscriptions}
+            />
         </AboutViewFloating>
     );
 }
