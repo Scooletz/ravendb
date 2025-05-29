@@ -21,7 +21,7 @@ public class AiConnectionStringsTests : RavenTestBase
     }
 
     [RavenTheory(RavenTestCategory.Ai)]
-    [RavenAiIntegrationData(IntegrationType = RavenAiIntegration.All, CheckCanConnect = false, NightlyBuildRequired = false)]
+    [RavenAiEmbeddingsData(IntegrationType = RavenAiIntegration.All, CheckCanConnect = false, NightlyBuildRequired = false)]
     public void CanPutAiConnectionString_WithValidConfiguration_ShouldWork(Options options, EmbeddingsGenerationConfiguration embeddingsGenerationConfiguration)
     {
         using (var store = GetDocumentStore())
@@ -135,8 +135,8 @@ public class AiConnectionStringsTests : RavenTestBase
     }
 
     [RavenTheory(RavenTestCategory.Ai)]
-    [RavenAiIntegrationData(IntegrationType = RavenAiIntegration.NonInternal, CheckCanConnect = false, NightlyBuildRequired = false)]
-    [RavenAiIntegrationData(IntegrationType = RavenAiIntegration.Onnx, Skip = "Onnx does not require any mandatory fields.")]
+    [RavenAiEmbeddingsData(IntegrationType = RavenAiIntegration.NonInternal, CheckCanConnect = false, NightlyBuildRequired = false)]
+    [RavenAiEmbeddingsData(IntegrationType = RavenAiIntegration.Onnx, Skip = "Onnx does not require any mandatory fields.")]
     public void PutAiConnectionString_WithInvalidConfiguration_ShouldThrow(Options options, EmbeddingsGenerationConfiguration embeddingsGenerationConfiguration)
     {
         switch (embeddingsGenerationConfiguration.AiConnectorType)
@@ -170,12 +170,12 @@ public class AiConnectionStringsTests : RavenTestBase
     private readonly List<string> _testValuesList = ["First test value", "Second test value", "Third test value"];
 
     [RavenTheory(RavenTestCategory.Etl | RavenTestCategory.Ai)]
-    [RavenAiIntegrationData(IntegrationType = RavenAiIntegration.All)]
+    [RavenAiEmbeddingsData(IntegrationType = RavenAiIntegration.All)]
     public void SemanticKernel_WithValidConfiguration_ShouldWork(Options options, EmbeddingsGenerationConfiguration embeddingsGenerationConfiguration)
     {
         using (var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30)))
         {
-            (ITextEmbeddingGenerationService service, _) = AiHelper.CreateServicesForTest(embeddingsGenerationConfiguration);
+            (ITextEmbeddingGenerationService service, _) = AiHelper.CreateEmbeddingServicesForTest(embeddingsGenerationConfiguration);
             var embeddings = service.GenerateEmbeddingsAsync(_testValuesList, cancellationToken: cts.Token).GetAwaiter().GetResult();
 
             Assert.Equal(_testValuesList.Count, embeddings.Count);
@@ -183,15 +183,15 @@ public class AiConnectionStringsTests : RavenTestBase
     }
 
     [RavenTheory(RavenTestCategory.Etl | RavenTestCategory.Ai)]
-    [RavenAiIntegrationData(IntegrationType = RavenAiIntegration.OpenAi | RavenAiIntegration.AzureOpenAI | RavenAiIntegration.Google)]
-    [RavenAiIntegrationData(IntegrationType = RavenAiIntegration.Ollama | RavenAiIntegration.HuggingFace | RavenAiIntegration.MistralAi | RavenAiIntegration.Onnx, Skip = "This provider does not support dimensionality yet.")]
+    [RavenAiEmbeddingsData(IntegrationType = RavenAiIntegration.OpenAi | RavenAiIntegration.AzureOpenAI | RavenAiIntegration.Google)]
+    [RavenAiEmbeddingsData(IntegrationType = RavenAiIntegration.Ollama | RavenAiIntegration.HuggingFace | RavenAiIntegration.MistralAi | RavenAiIntegration.Onnx, Skip = "This provider does not support dimensionality yet.")]
     public void SemanticKernel_ShouldRespect_Dimensionality(Options options, EmbeddingsGenerationConfiguration embeddingsGenerationConfiguration)
     {
         const int dimensions = 5;
 
         using (var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30)))
         {
-            (ITextEmbeddingGenerationService service, _) = AiHelper.CreateServicesForTest(embeddingsGenerationConfiguration);
+            (ITextEmbeddingGenerationService service, _) = AiHelper.CreateEmbeddingServicesForTest(embeddingsGenerationConfiguration);
             var embeddings = service.GenerateEmbeddingsAsync(_testValuesList, cancellationToken: cts.Token).GetAwaiter().GetResult();
 
             for (var i = 0; i < _testValuesList.Count; i++)
@@ -213,7 +213,7 @@ public class AiConnectionStringsTests : RavenTestBase
                     break;
             }
 
-            (service, _) = AiHelper.CreateServicesForTest(embeddingsGenerationConfiguration);
+            (service, _) = AiHelper.CreateEmbeddingServicesForTest(embeddingsGenerationConfiguration);
             embeddings = service.GenerateEmbeddingsAsync(_testValuesList, cancellationToken: cts.Token).GetAwaiter().GetResult();
 
             for (var i = 0; i < _testValuesList.Count; i++)

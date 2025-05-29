@@ -4,7 +4,6 @@ using JetBrains.Annotations;
 using Raven.Client.Documents.Operations.AI;
 using Raven.Client.Documents.Operations.ConnectionStrings;
 using Raven.Client.Documents.Operations.ETL;
-using Raven.Server.Config.Categories;
 using Raven.Server.Documents.Handlers.Processors.Databases;
 using Raven.Server.ServerWide.Context;
 using Sparrow.Json;
@@ -92,17 +91,23 @@ namespace Raven.Server.Documents.Handlers.Processors.OngoingTasks
                     {
                         var embeddingsGenerationConfiguration = Client.Json.Serialization.JsonDeserializationClient.EmbeddingsGenerationConfiguration(etlConfiguration);
                         var connectionStringName = embeddingsGenerationConfiguration.ConnectionStringName ?? string.Empty;
-                        var database = RequestHandler.ServerStore.Cluster.ReadRawDatabaseRecord(context, RequestHandler.DatabaseName);
-
-                        AiConnectionString aiConnectionString = null;
-                        database?.AiConnectionStrings?.TryGetValue(connectionStringName, out aiConnectionString);
-
-                        RequestHandler.ServerStore.LicenseManager.AssertCanAddEmbeddingsGenerationTask(aiConnectionString);
+                        RequestHandler.ServerStore.LicenseManager.AssertCanAddEmbeddingsGenerationTask(GetAiConnectionString(context, connectionStringName));
                         break;
                     }
+                case EtlType.GenAi:
+                    RequestHandler.ServerStore.LicenseManager.AssertCanAddGenAiTask();
+                    break;
 
                 default:
                     throw new NotSupportedException($"Unknown ETL configuration type. Configuration: {etlConfiguration}");
+            }
+
+            AiConnectionString GetAiConnectionString(TransactionOperationContext context, string connectionStringName)
+            {
+                var database = RequestHandler.ServerStore.Cluster.ReadRawDatabaseRecord(context, RequestHandler.DatabaseName);
+                AiConnectionString aiConnectionString = null;
+                database?.AiConnectionStrings?.TryGetValue(connectionStringName, out aiConnectionString);
+                return aiConnectionString;
             }
         }
     }

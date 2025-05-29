@@ -516,6 +516,13 @@ namespace Raven.Server.Smuggler.Documents
                             WriteAiConnectionStrings(databaseRecord.AiConnectionStrings);
                         }
 
+                        if (databaseRecordItemType.Contain(DatabaseRecordItemType.GenAiEtls))
+                        {
+                            _writer.WriteComma();
+                            _writer.WritePropertyName(nameof(databaseRecord.GenAis));
+                            WriteGenAiTasks(databaseRecord.GenAis);
+                        }
+
                         if (databaseRecord.Integrations != null)
                         {
                             _writer.WriteComma();
@@ -928,6 +935,25 @@ namespace Raven.Server.Smuggler.Documents
                 }
 
                 _writer.WriteEndObject();
+            }
+
+            private void WriteGenAiTasks(List<GenAiConfiguration> genAiConfigurations)
+            {
+                if (genAiConfigurations == null)
+                {
+                    _writer.WriteNull();
+                    return;
+                }
+                _writer.WriteStartArray();
+                var first = true;
+                foreach (var etl in genAiConfigurations)
+                {
+                    if (first == false)
+                        _writer.WriteComma();
+                    first = false;
+                    _context.Write(_writer, etl.ToJson());
+                }
+                _writer.WriteEndArray();
             }
 
             private void WriteExternalReplications(List<ExternalReplication> externalReplication)

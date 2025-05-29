@@ -6,7 +6,7 @@ import InputGroup from "react-bootstrap/InputGroup";
 import Form from "react-bootstrap/Form";
 import Button from "react-bootstrap/Button";
 import { RadioToggleWithIcon } from "./toggles/RadioToggle";
-import AceEditor, { AceEditorProps } from "./AceEditor";
+import AceEditor, { AceEditorProps } from "./ace/AceEditor";
 import classNames from "classnames";
 import DurationPicker, { DurationPickerProps } from "./DurationPicker";
 import SelectCreatable from "./select/SelectCreatable";
@@ -129,9 +129,39 @@ export function FormSwitch<TFieldValues extends FieldValues, TName extends Field
 }
 
 export function FormRadio<TFieldValues extends FieldValues, TName extends FieldPath<TFieldValues>>(
-    props: FormToggleProps<TFieldValues, TName>
+    props: FormToggleProps<TFieldValues, TName> & { value: PathValue<TFieldValues, TName> }
 ) {
-    return <FormCheckbox type="radio" {...props} />;
+    const { name, control, rules, defaultValue, shouldUnregister, ...rest } = props;
+
+    const {
+        field: { onChange, onBlur, value },
+        fieldState: { invalid },
+        formState,
+    } = useController({
+        name,
+        control,
+        rules,
+        defaultValue,
+        shouldUnregister,
+    });
+
+    return (
+        <div className="position-relative">
+            <div className="d-flex flex-grow-1">
+                <Radio
+                    selected={value === props.value}
+                    toggleSelection={() => {
+                        onChange(props.value);
+                    }}
+                    isInvalid={invalid}
+                    onBlur={onBlur}
+                    color="primary"
+                    disabled={formState.isSubmitting}
+                    {...rest}
+                />
+            </div>
+        </div>
+    );
 }
 
 export function getFormSelectedOptions<Option>(
@@ -293,6 +323,7 @@ export function FormSelectAutocomplete<
         field: { onChange, value },
     } = useController({
         name: props.name,
+        control: props.control,
     });
 
     const onInputChange = (value: string, action: InputActionMeta) => {
@@ -303,12 +334,11 @@ export function FormSelectAutocomplete<
 
     return (
         <FormSelectCreatable<Option, IsMulti, Group, TFieldValues, TName>
-            inputValue={value}
+            inputValue={value ?? ""}
             onInputChange={onInputChange}
             components={{ Input: InputNotHidden }}
             tabSelectsValue
             controlShouldRenderValue={false}
-            closeMenuOnSelect
             {...props}
         />
     );
@@ -651,10 +681,10 @@ export function FormPathSelector<
     );
 }
 
-export function FormValidationMessage(props: { children: string }) {
-    const { children } = props;
+export function FormValidationMessage(props: { children: string; className?: string }) {
+    const { children, className } = props;
     return (
-        <div className="validation-message text-start w-100 ">
+        <div className={classNames("validation-message text-start w-100", className)}>
             <div className="badge bg-danger rounded-pill">{children}</div>
         </div>
     );

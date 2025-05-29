@@ -3,13 +3,13 @@ using Raven.Client.Documents.Operations.AI;
 
 namespace Tests.Infrastructure.ConnectionString.AI;
 
-public class MistralAiConnectorForTesting : BaseAiConnectorForTesting<MistralAiConnectorForTesting>
+public class EmbeddingsMistralAiConnectorForTesting : AbstractEmbeddingsConnectorForTesting<EmbeddingsMistralAiConnectorForTesting>
 {
     private const string EnvironmentVariable = "RAVEN_AI_INTEGRATION_MISTRAL_API_KEY";
     private const string Endpoint = "https://api.mistral.ai/v1";
     private const string Model = "mistral-embed";
 
-    public MistralAiConnectorForTesting()
+    public EmbeddingsMistralAiConnectorForTesting()
     {
         RequiredEnvironmentVariables = [EnvironmentVariable];
     }

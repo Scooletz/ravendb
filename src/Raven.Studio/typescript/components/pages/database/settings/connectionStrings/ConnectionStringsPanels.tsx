@@ -29,7 +29,7 @@ export default function ConnectionStringsPanels({ connections, connectionsType }
             <HrHeader
                 right={
                     hasDatabaseAdminAccess &&
-                    viewContext !== "ai" && (
+                    viewContext === "connectionStrings" && (
                         <Button
                             variant="info"
                             size="sm"

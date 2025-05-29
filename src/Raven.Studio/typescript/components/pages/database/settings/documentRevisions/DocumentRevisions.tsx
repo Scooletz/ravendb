@@ -427,6 +427,7 @@ export default function DocumentRevisions() {
                                     !maxNumberOfRevisionAgeToKeepInDays
                                 }
                                 data={featureAvailability}
+                                isOpenedByDefault={false}
                             />
                         </AboutViewAnchored>
                     </Col>

@@ -7,7 +7,6 @@ import { licenseSelectors } from "components/common/shell/licenseSlice";
 import { useRavenLink } from "components/hooks/useRavenLink";
 import { useAppSelector } from "components/store";
 import { useLimitedFeatureAvailability } from "components/utils/licenseLimitsUtils";
-import React from "react";
 
 interface IndexesPageAboutViewProps {
     isUnlimited: boolean;
@@ -82,7 +81,11 @@ export default function IndexesPageAboutView({ isUnlimited }: IndexesPageAboutVi
                     <Icon icon="newtab" /> Docs - Indexes List View
                 </a>
             </AccordionItemWrapper>
-            <FeatureAvailabilitySummaryWrapper isUnlimited={isUnlimited} data={featureAvailability} />
+            <FeatureAvailabilitySummaryWrapper
+                isUnlimited={isUnlimited}
+                isOpenedByDefault={false}
+                data={featureAvailability}
+            />
         </AboutViewFloating>
     );
 }

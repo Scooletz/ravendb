@@ -8,6 +8,7 @@ class saveEtlTaskCommand<T extends Raven.Client.Documents.Operations.ETL.RavenEt
                                    Raven.Client.Documents.Operations.ETL.OLAP.OlapEtlConfiguration |
                                    Raven.Client.Documents.Operations.ETL.Queue.QueueEtlConfiguration |
                                    Raven.Client.Documents.Operations.AI.EmbeddingsGenerationConfiguration |
+                                   GenAiConfiguration |
                                    Raven.Client.Documents.Operations.ETL.ElasticSearch.ElasticSearchEtlConfiguration > extends commandBase {
     
     private constructor(private db: database | string, private payload: T, private scriptsToReset?: string[]) {
@@ -69,6 +70,10 @@ class saveEtlTaskCommand<T extends Raven.Client.Documents.Operations.ETL.RavenEt
 
     static forEmbeddingsGeneration(db: database | string, payload: Raven.Client.Documents.Operations.AI.EmbeddingsGenerationConfiguration, scriptsToReset?: string[]) {
         return new saveEtlTaskCommand<Raven.Client.Documents.Operations.AI.EmbeddingsGenerationConfiguration>(db, payload, scriptsToReset);
+    }
+
+    static forGenAi(db: database | string, payload: GenAiConfiguration, scriptsToReset?: string[]) {
+        return new saveEtlTaskCommand<GenAiConfiguration>(db, payload, scriptsToReset);
     }
 
     static forQueueEtl(db: database | string, payload: Raven.Client.Documents.Operations.ETL.Queue.QueueEtlConfiguration, scriptsToReset?: string[]) {

@@ -3,25 +3,44 @@ using Raven.Client.Documents.Operations.AI;
 
 namespace Tests.Infrastructure.ConnectionString.AI;
 
-public class OpenAiConnectorForTesting : BaseAiConnectorForTesting<OpenAiConnectorForTesting>
+public class EmbeddingsOpenAiConnectorForTesting : AbstractEmbeddingsConnectorForTesting<EmbeddingsOpenAiConnectorForTesting>
 {
-    private const string EnvironmentVariable = "RAVEN_AI_INTEGRATION_OPENAI_API_KEY";
-    private const string Endpoint = "https://api.openai.com/v1";
     private const string Model = "text-embedding-3-small";
 
-    public OpenAiConnectorForTesting()
+    public EmbeddingsOpenAiConnectorForTesting()
     {
-        RequiredEnvironmentVariables = [EnvironmentVariable];
+        RequiredEnvironmentVariables = [OpenAiConnectorHelper.EnvironmentVariable];
     }
     public override Lazy<AiConnectorType> AiConnectorType { get; init; } = new(Raven.Client.Documents.Operations.AI.AiConnectorType.OpenAi);
 
-    protected override AiConnectionString CreateAiConnectionStringImpl()
+    protected override AiConnectionString CreateAiConnectionStringImpl() => OpenAiConnectorHelper.CreateAiConnectionString(Model);
+}
+
+public class GenAiOpenAiConnectorForTesting : AbstractGenAiConnectorForTesting<GenAiOpenAiConnectorForTesting>
+{
+    private const string Model = "gpt-4o";
+
+    public GenAiOpenAiConnectorForTesting()
+    {
+        RequiredEnvironmentVariables = [OpenAiConnectorHelper.EnvironmentVariable];
+    }
+    public override Lazy<AiConnectorType> AiConnectorType { get; init; } = new(Raven.Client.Documents.Operations.AI.AiConnectorType.OpenAi);
+
+    protected override AiConnectionString CreateAiConnectionStringImpl() => OpenAiConnectorHelper.CreateAiConnectionString(Model);
+    
+}
+
+internal static class OpenAiConnectorHelper
+{
+    public const string EnvironmentVariable = "RAVEN_AI_INTEGRATION_OPENAI_API_KEY";
+    public const string Endpoint = "https://api.openai.com/v1";
+
+    public static AiConnectionString CreateAiConnectionString(string model)
     {
         var apiKey = Environment.GetEnvironmentVariable(EnvironmentVariable);
-
         return new AiConnectionString
         {
-            OpenAiSettings = new OpenAiSettings(apiKey, Endpoint, Model)
+            OpenAiSettings = new OpenAiSettings(apiKey, Endpoint, model)
         };
     }
 }

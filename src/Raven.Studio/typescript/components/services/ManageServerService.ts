@@ -21,6 +21,17 @@ import getAdminLogsEventListenerConfigurationCommand = require("commands/mainten
 import saveAdminLogsConfigurationCommand = require("commands/maintenance/saveAdminLogsConfigurationCommand");
 import saveAdminLogsEventListenerConfigurationCommand = require("commands/maintenance/saveAdminLogsEventListenerConfigurationCommand");
 import saveTrafficWatchConfigurationCommand = require("commands/maintenance/saveTrafficWatchConfigurationCommand");
+import getCertificatesCommand = require("commands/auth/getCertificatesCommand");
+import getAdminStatsCommand = require("commands/resources/getAdminStatsCommand");
+import getServerCertificateRenewalDateCommand = require("commands/auth/getServerCertificateRenewalDateCommand");
+import getServerCertificateSetupModeCommand = require("commands/auth/getServerCertificateSetupModeCommand");
+import generateTwoFactorSecretCommand = require("commands/auth/generateTwoFactorSecretCommand");
+import forceRenewServerCertificateCommand = require("commands/auth/forceRenewServerCertificateCommand");
+import deleteCertificateCommand = require("commands/auth/deleteCertificateCommand");
+import updateCertificateCommand = require("commands/auth/updateCertificateCommand");
+import uploadCertificateCommand = require("commands/auth/uploadCertificateCommand");
+import replaceClusterCertificateCommand = require("commands/auth/replaceClusterCertificateCommand");
+import getClusterDomainsCommand = require("commands/auth/getClusterDomainsCommand");
 
 export default class ManageServerService {
     async getGlobalClientConfiguration(): Promise<ClientConfiguration> {
@@ -114,5 +125,49 @@ export default class ManageServerService {
         ...args: ConstructorParameters<typeof saveAdminLogsEventListenerConfigurationCommand>
     ) {
         return new saveAdminLogsEventListenerConfigurationCommand(...args).execute();
+    }
+
+    async getCertificates(...args: ConstructorParameters<typeof getCertificatesCommand>) {
+        return new getCertificatesCommand(...args).execute();
+    }
+
+    async getAdminStats(...args: ConstructorParameters<typeof getAdminStatsCommand>) {
+        return new getAdminStatsCommand(...args).execute();
+    }
+
+    async getServerCertificateRenewalDate() {
+        return new getServerCertificateRenewalDateCommand().execute();
+    }
+
+    async getServerCertificateSetupMode() {
+        return new getServerCertificateSetupModeCommand().execute();
+    }
+
+    async generateTwoFactorSecret() {
+        return new generateTwoFactorSecretCommand().execute();
+    }
+
+    async uploadCertificate(...args: ConstructorParameters<typeof uploadCertificateCommand>) {
+        return new uploadCertificateCommand(...args).execute();
+    }
+
+    async forceRenewServerCertificate() {
+        return new forceRenewServerCertificateCommand().execute();
+    }
+
+    async deleteCertificate(...args: ConstructorParameters<typeof deleteCertificateCommand>) {
+        return new deleteCertificateCommand(...args).execute();
+    }
+
+    async updateCertificate(...args: ConstructorParameters<typeof updateCertificateCommand>) {
+        return new updateCertificateCommand(...args).execute();
+    }
+
+    async replaceClusterCertificate(...args: ConstructorParameters<typeof replaceClusterCertificateCommand>) {
+        return new replaceClusterCertificateCommand(...args).execute();
+    }
+
+    async getClusterDomains() {
+        return new getClusterDomainsCommand().execute();
     }
 }

@@ -87,7 +87,7 @@
             transition:
                 background-color 0.05s sizes.$global-easing,
                 color 0.05s !important;
-            color: colors.$white;
+            color: colors.$text-emphasis-var;
         }
 
         &.ai-etl {
@@ -138,10 +138,17 @@
     @each $name, $color in colors.$task-colors {
         .#{$name} {
             background-color: color.scale($color, $alpha: -90%);
-            color: $color;
+            color: colors.$text-emphasis-var;
+
+            i {
+                color: $color;
+            }
 
             &:hover {
                 background-color: color.scale($color, $alpha: -10%);
+                i {
+                    color: colors.$text-emphasis-var;
+                }
             }
         }
     }

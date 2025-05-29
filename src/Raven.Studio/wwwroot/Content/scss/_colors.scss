@@ -49,6 +49,7 @@ $color-5-3: #ed5580;
 $brand-ravendb: #cf1f5d;
 $brand-cloud: #63ffa6 !default;
 $brand-hr: #f78831 !default;
+$brand-ai: #388ee9 !default;
 
 $secondary: $gray-600;
 $secondary-outline: $gray-300; //fix outline button contrast
@@ -103,6 +104,8 @@ $token-deleted: $color-1;
 $token-important: $color-2-2;
 
 $developer: #c7ff6b;
+
+$twofactor: #5537c4;
 
 // Blue Theme
 @if $theme == "blue" {
@@ -439,8 +442,10 @@ $theme-colors: (
     "community": $community,
     "professional": $professional,
     "enterprise": $enterprise,
+    "enterprise-ai": $brand-ai,
     "developer": $developer,
     "cloud": $brand-cloud,
+    "2fa": $twofactor,
 ) !default;
 
 // scss-docs-end theme-colors-map
@@ -555,7 +560,7 @@ $flags: (
     "deleted-revision": $color-1,
 ) !default;
 
-$ai-gradient: linear-gradient(120deg, #4ac8f9 0%, #5058ff 50%, #8b42f5 100%);
+$ai-gradient: linear-gradient(135.89deg, #388ee9 0%, #7b51ff 85.4%);
 
 @keyframes ai-gradient-flow {
     0% {

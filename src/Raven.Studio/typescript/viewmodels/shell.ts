@@ -41,7 +41,6 @@ import requestExecution = require("common/notifications/requestExecution");
 import studioSettings = require("common/settings/studioSettings");
 import simpleStudioSetting = require("common/settings/simpleStudioSetting");
 import clientCertificateModel = require("models/auth/clientCertificateModel");
-import certificateModel = require("models/auth/certificateModel");
 import serverTime = require("common/helpers/database/serverTime");
 import saveGlobalStudioConfigurationCommand = require("commands/resources/saveGlobalStudioConfigurationCommand");
 import saveDatabaseStudioConfigurationCommand = require("commands/resources/saveDatabaseStudioConfigurationCommand");
@@ -62,6 +61,7 @@ import getLatestVersionInfoCommand = require("commands/version/getLatestVersionI
 import StudioSearchWithDatabaseSwitcher = require("components/shell/studioSearchWithDatabaseSelector/StudioSearchWithDatabaseSwitcher");
 import ProtractedRequestMessage = require("components/shell/partials/ProtractedRequestMessage");
 import HelpAndResourcesWidget = require("components/common/helpAndResources/HelpAndResourcesWidget");
+import typeUtils = require("common/typeUtils");
 
 class shell extends viewModelBase {
 
@@ -135,6 +135,8 @@ class shell extends viewModelBase {
 
     protractedRequestMessageView: ReactInKnockout<typeof ProtractedRequestMessage.default>;
     helpAndResourcesWidgetView: ReactInKnockout<typeof HelpAndResourcesWidget.HelpAndResourcesWidget>;
+    logoSrc: KnockoutObservable<string>;
+    logoClass: KnockoutComputed<string>;
     
     constructor() {
         super();
@@ -284,6 +286,20 @@ class shell extends viewModelBase {
         }));
         
         this.helpAndResourcesWidgetView = ko.pureComputed(() => ({ component: HelpAndResourcesWidget.HelpAndResourcesWidget }));
+
+        this.logoSrc = ko.pureComputed(() => {
+            if (license.getStatusValue("Type") === "EnterpriseAi") {
+                return require("../../wwwroot/Content/img/ravendb-ai_logo.svg");
+            }
+            return require("../../wwwroot/Content/img/ravendb_logo.svg");
+        });
+
+        this.logoClass = ko.pureComputed(() => {
+            if (license.getStatusValue("Type") === "EnterpriseAi") {
+                return "main-logo-ai";
+            }
+            return "main-logo";
+        });
     }
     
     // Override canActivate: we can always load this page, regardless of any system db prompt.
@@ -412,7 +428,7 @@ class shell extends viewModelBase {
 
         if (this.clientCertificate() && this.clientCertificate().Name) {
             const tooltipProvider = () => {
-                const dbAccessArray = certificateModel.resolveDatabasesAccess(this.clientCertificate());
+                const dbAccessArray = this.resolveDatabasesAccess(this.clientCertificate());
 
                 const allowedDatabasesText = dbAccessArray.length ?
                     dbAccessArray.map(x => `<div>
@@ -442,7 +458,7 @@ class shell extends viewModelBase {
                             <dt>Thumbprint</dt>
                             <dd><strong>${this.clientCertificate().Thumbprint}</strong></dd>
                             <dt><span>Security Clearance</span></dt>
-                            <dd><strong>${certificateModel.clearanceLabelFor(this.clientCertificate().SecurityClearance)}</strong></dd>
+                            <dd><strong>${this.certificateClearanceLabel(this.clientCertificate().SecurityClearance)}</strong></dd>
                             <dt><span>Access to databases:</span></dt>
                             <dd><span>${allowedDatabasesText}</span></dd>
                             ${twoFactorPart}
@@ -471,6 +487,41 @@ class shell extends viewModelBase {
             console.error(e);
             messagePublisher.reportWarning("Failed to load routed module!", e);
         };
+    }
+
+    private certificateClearanceLabel(clearance: Raven.Client.ServerWide.Operations.Certificates.SecurityClearance) {
+        switch (clearance) {
+            case "ClusterNode":
+                return "Cluster Node";
+            case "ClusterAdmin":
+                return "Cluster Admin";
+            case "Operator":
+                return "Operator";
+            case "ValidUser":
+                return "Valid User";
+            default:
+                return "Unknown";
+        }
+    }
+
+    // copied from certificateModel.ts
+    private  resolveDatabasesAccess(certificateDefinition: Raven.Client.ServerWide.Operations.Certificates.CertificateDefinition): databaseAccessInfo[] {
+        let dbAccessInfo;
+        
+        switch (certificateDefinition.SecurityClearance) {
+            case "ClusterAdmin":
+            case "Operator":
+            case "ClusterNode":
+                dbAccessInfo =  { All : "Admin"};
+                break;
+            default:
+                dbAccessInfo = certificateDefinition.Permissions;
+        }
+        
+        const dbAccessArray = Object.entries(dbAccessInfo ?? []).map(([dbName, accessLevel]) => 
+            ({ accessLevel: `Database${accessLevel}` as databaseAccessLevel,  dbName: dbName }));
+        
+        return typeUtils.sortBy(dbAccessArray, x => x.dbName.toLowerCase());
     }
     
     private getExpirationDurationClass() {

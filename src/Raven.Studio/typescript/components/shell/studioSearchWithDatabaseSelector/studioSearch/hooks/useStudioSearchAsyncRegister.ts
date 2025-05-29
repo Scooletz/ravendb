@@ -105,6 +105,8 @@ export function useStudioSearchAsyncRegister(props: UseStudioSearchAsyncRegister
                     }
                     case "EmbeddingsGeneration":
                         return getUrlFromProvider(appUrl.forEditEmbeddingsGeneration);
+                    case "GenAi":
+                        return getUrlFromProvider(appUrl.forEditGenAi);
                     default:
                         assertUnreachable(taskType);
                 }

@@ -1,7 +1,6 @@
 ﻿using System;
 using System.ClientModel;
 using System.Collections.Generic;
-using System.Net.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.SemanticKernel;
@@ -40,13 +39,15 @@ public static class AiExtensions
         return builder;
     }
 
+
     public static void Configure(this IKernelBuilder kernelBuilder, AiConnectionString connectionString, bool withLogging)
     {
         var connectorType = connectionString.GetActiveProvider();
         ConfigureInternal(kernelBuilder, connectorType, connectionString, withLogging);
     }
     
-    public static void Configure(this IKernelBuilder kernelBuilder, EmbeddingsGenerationConfiguration configuration, bool withLogging)
+    public static void Configure<TConfig>(this IKernelBuilder kernelBuilder, TConfig configuration, bool withLogging)
+        where TConfig : AbstractAiIntegrationConfiguration
     {
         ConfigureInternal(kernelBuilder, configuration.AiConnectorType, configuration.Connection, withLogging);
     }
@@ -103,16 +104,21 @@ public static class AiExtensions
                 var googleSettings = connectionString.GoogleSettings;
 
                 if (googleSettings.AiVersion.HasValue)
+                {
                     kernelBuilder.AddGoogleAIEmbeddingGeneration(
                         googleSettings.Model,
                         googleSettings.ApiKey,
                         googleSettings.AiVersion.Value.ToGoogleApiVersion(),
                         dimensions: googleSettings.Dimensions);
+                }
                 else
+                {
                     kernelBuilder.AddGoogleAIEmbeddingGeneration(
                         googleSettings.Model,
                         googleSettings.ApiKey,
                         dimensions: googleSettings.Dimensions);
+                }
+
                 break;
 
             case AiConnectorType.HuggingFace:

@@ -289,7 +289,8 @@ namespace SlowTests.Issues
                 EtlType.ElasticSearch,
                 EtlType.Queue,
                 EtlType.Snowflake,
-                EtlType.EmbeddingsGeneration
+                EtlType.EmbeddingsGeneration,
+                EtlType.GenAi
             };
 
             var currentEtlTypes = Enum.GetValues(typeof(EtlType)).Cast<EtlType>();
@@ -307,6 +308,7 @@ namespace SlowTests.Issues
         [InlineData(EtlType.Queue)]
         [InlineData(EtlType.Snowflake)]
         [InlineData(EtlType.EmbeddingsGeneration)]
+        //[InlineData(EtlType.GenAi)] not relevant since GenAi doesn't handle deletions
         public async Task TombstoneCleaningAfterEtlLoaderDisabled(EtlType etlType)
         {
             using (var store = GetDocumentStore())

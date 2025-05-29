@@ -540,6 +540,7 @@ namespace Raven.Server.Documents.Patch
 
             using (var writer = new ManualBlittableJsonDocumentBuilder<UnmanagedWriteBuffer>(context))
             {
+                context.CachedProperties.NewDocument();
                 writer.Reset(usageMode);
                 writer.StartWriteObjectDocument();
 

@@ -24,7 +24,6 @@ using Raven.Server.Smuggler.Documents.Iteration;
 using Raven.Server.Utils;
 using Raven.Server.Utils.Enumerators;
 using Sparrow.Json;
-using Sparrow.Logging;
 using Sparrow.Server.Logging;
 using Voron;
 

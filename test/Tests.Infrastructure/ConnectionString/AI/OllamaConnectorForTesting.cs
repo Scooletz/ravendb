@@ -3,12 +3,14 @@ using Raven.Client.Documents.Operations.AI;
 
 namespace Tests.Infrastructure.ConnectionString.AI;
 
-public class OllamaConnectorForTesting : BaseAiConnectorForTesting<OllamaConnectorForTesting>
+public abstract class AbstractOllamaConnectorForTesting<T, TConfig> : BaseAiConnectorForTesting<T, TConfig>
+    where T : AbstractOllamaConnectorForTesting<T, TConfig>, new()
+    where TConfig : AbstractAiIntegrationConfiguration, new()
 {
     private const string EnvironmentVariable = "RAVEN_AI_INTEGRATION_OLLAMA_URI";
-    private const string Model = "phi:latest";
+    public abstract string Model { get; }
 
-    public OllamaConnectorForTesting()
+    public AbstractOllamaConnectorForTesting()
     {
         RequiredEnvironmentVariables = [EnvironmentVariable];
     }
@@ -21,6 +23,47 @@ public class OllamaConnectorForTesting : BaseAiConnectorForTesting<OllamaConnect
         return new AiConnectionString
         {
             OllamaSettings = new OllamaSettings(uri, Model)
+        };
+    }
+}
+
+public class EmbeddingsOllamaConnectorForTesting : AbstractEmbeddingsConnectorForTesting<EmbeddingsOllamaConnectorForTesting>
+{
+    public const string Model = "phi:latest";
+
+    public EmbeddingsOllamaConnectorForTesting()
+    {
+        RequiredEnvironmentVariables = [OllamaConnectorHelper.EnvironmentVariable];
+    }
+    public override Lazy<AiConnectorType> AiConnectorType { get; init; } = new(Raven.Client.Documents.Operations.AI.AiConnectorType.Ollama);
+
+    protected override AiConnectionString CreateAiConnectionStringImpl() => OllamaConnectorHelper.CreateAiConnectionString(Model);
+}
+
+public class GenAiOllamaConnectorForTesting : AbstractGenAiConnectorForTesting<GenAiOllamaConnectorForTesting>
+{
+    public const string Model = "llama3.2:latest";
+
+    public GenAiOllamaConnectorForTesting()
+    {
+        RequiredEnvironmentVariables = [OllamaConnectorHelper.EnvironmentVariable];
+    }
+    public override Lazy<AiConnectorType> AiConnectorType { get; init; } = new(Raven.Client.Documents.Operations.AI.AiConnectorType.Ollama);
+
+    protected override AiConnectionString CreateAiConnectionStringImpl() => OllamaConnectorHelper.CreateAiConnectionString(Model);
+}
+
+internal static class OllamaConnectorHelper
+{
+    public const string EnvironmentVariable = "RAVEN_AI_INTEGRATION_OLLAMA_URI";
+
+    public static AiConnectionString CreateAiConnectionString(string model)
+    {
+        var uri = Environment.GetEnvironmentVariable(EnvironmentVariable);
+
+        return new AiConnectionString
+        {
+            OllamaSettings = new OllamaSettings(uri, model)
         };
     }
 }

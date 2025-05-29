@@ -87,6 +87,8 @@ public abstract class SmugglerProgressBase : IOperationProgress
         
         public bool EmbeddingsGenerationsUpdated { get; set; }
 
+        public bool GenAiTasksUpdated { get; set; }
+
         public bool ExternalReplicationsUpdated { get; set; }
 
         public bool PeriodicBackupsUpdated { get; set; }
@@ -192,6 +194,9 @@ public abstract class SmugglerProgressBase : IOperationProgress
             if (EmbeddingsGenerationsUpdated)
                 json[nameof(EmbeddingsGenerationsUpdated)] = EmbeddingsGenerationsUpdated;
 
+            if (GenAiTasksUpdated)
+                json[nameof(GenAiTasksUpdated)] = GenAiTasksUpdated;
+
             if (RavenEtlsUpdated)
                 json[nameof(RavenEtlsUpdated)] = RavenEtlsUpdated;
 
@@ -290,6 +295,9 @@ public abstract class SmugglerProgressBase : IOperationProgress
 
             if (EmbeddingsGenerationsUpdated)
                 sb.AppendLine("- Embeddings Generation tasks");
+
+            if (GenAiTasksUpdated)
+                sb.AppendLine("- GenAI tasks");
 
             if (SortersUpdated)
                 sb.AppendLine("- Sorters");

@@ -61,6 +61,7 @@ function initRedux() {
                 .map((x) => ({
                     nodeTag: x.tag(),
                     serverUrl: x.serverUrl(),
+                    type: x.type(),
                 })) ?? [];
 
         globalDispatch(clusterActions.nodesLoaded(clusterNodes));
@@ -101,6 +102,9 @@ function initRedux() {
     );
     accessManager.default.allowEncryptedDatabasesOverHttp.subscribe((isAllowEncryptedDatabasesOverHttp) =>
         globalDispatch(accessManagerActions.onIsAllowEncryptedDatabasesOverHttpSet(isAllowEncryptedDatabasesOverHttp))
+    );
+    accessManager.clientCertificateThumbprint.subscribe((clientCertificateThumbprint) =>
+        globalDispatch(accessManagerActions.clientCertificateThumbprintSet(clientCertificateThumbprint))
     );
 }
 

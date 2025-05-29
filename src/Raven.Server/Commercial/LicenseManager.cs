@@ -1105,6 +1105,7 @@ namespace Raven.Server.Commercial
             var queueEtlCount = 0;
             var snowflakeEtlCount = 0;
             var embeddingsGenerationsCount = 0;
+            var genAiCount = 0;
             var snapshotBackupsCount = 0;
             var cloudBackupsCount = 0;
             var encryptedBackupsCount = 0;
@@ -1181,6 +1182,10 @@ namespace Raven.Server.Commercial
                     if (databaseRecord.EmbeddingsGenerations != null &&
                         databaseRecord.EmbeddingsGenerations.Count > 0)
                         embeddingsGenerationsCount++;
+
+                    if (databaseRecord.GenAis != null &&
+                        databaseRecord.GenAis.Count > 0)
+                        genAiCount++;
 
                     var backupTypes = GetBackupTypes(databaseRecord.PeriodicBackups);
                     if (backupTypes.HasSnapshotBackup)
@@ -1276,6 +1281,12 @@ namespace Raven.Server.Commercial
             {
                 var message = GenerateDetails(embeddingsGenerationsCount, "Embeddings Generation");
                 throw GenerateLicenseLimit(LimitType.EmbeddingsGeneration, message);
+            }
+
+            if (genAiCount > 0 && newLicenseStatus.HasGenAi == false)
+            {
+                var message = GenerateDetails(genAiCount, "AI Generation");
+                throw GenerateLicenseLimit(LimitType.GenAi, message);
             }
 
             if (snapshotBackupsCount > 0 && newLicenseStatus.HasSnapshotBackups == false)
@@ -1651,11 +1662,23 @@ namespace Raven.Server.Commercial
             if (LicenseStatus.HasEmbeddingsGeneration)
                 return;
             
-            if (aiConnectionString != null && aiConnectionString.GetActiveProvider() == AiConnectorType.Embedded)
+            if (aiConnectionString == null || aiConnectionString.GetActiveProvider() == AiConnectorType.Embedded)
                 return;
 
             const string message = "Your current license doesn't include the Embeddings Generation feature";
             throw GenerateLicenseLimit(LimitType.EmbeddingsGeneration, message);
+        }
+
+        public void AssertCanAddGenAiTask()
+        {
+            if (IsValid(out var licenseLimit) == false)
+                throw licenseLimit;
+
+            if (LicenseStatus.HasGenAi)
+                return;
+
+            const string message = "Your current license doesn't include the Gen AI feature";
+            throw GenerateLicenseLimit(LimitType.GenAi, message);
         }
 
         public void AssertCanAddConcurrentDataSubscriptions()

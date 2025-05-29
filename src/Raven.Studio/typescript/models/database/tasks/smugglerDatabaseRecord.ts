@@ -43,6 +43,7 @@ class smugglerDatabaseRecord {
     includeIndexHistory = ko.observable<boolean>(false);
     includeAiConnectionStrings = ko.observable<boolean>(this.isAdminAccessOrAbove());
     includeEmbeddingsGeneration = ko.observable<boolean>(this.isAdminAccessOrAbove());
+    includeGenAi = ko.observable<boolean>(this.isAdminAccessOrAbove());
 
     hasIncludes: KnockoutComputed<boolean>;
 
@@ -202,7 +203,10 @@ class smugglerDatabaseRecord {
         if (this.includeEmbeddingsGeneration()) {
             result.push("EmbeddingsGenerations")
         }
-        
+        if (this.includeGenAi()) {
+            result.push("GenAiEtls")
+        }
+
         return result;
     }
 }
