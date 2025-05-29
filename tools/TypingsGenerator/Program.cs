@@ -67,6 +67,7 @@ using Raven.Server.Documents.Commands.Replication;
 using Raven.Server.Documents.ETL;
 using Raven.Server.Documents.ETL.Providers.AI.Embeddings.Stats;
 using Raven.Server.Documents.ETL.Providers.AI.Embeddings.Test;
+using Raven.Server.Documents.ETL.Providers.AI.GenAi.Stats;
 using Raven.Server.Documents.ETL.Providers.AI.GenAi.Test;
 using Raven.Server.Documents.ETL.Providers.ElasticSearch.Test;
 using Raven.Server.Documents.ETL.Providers.OLAP;
@@ -597,6 +598,7 @@ namespace TypingsGenerator
             scripter.AddType(typeof(GenAi));
             scripter.AddType(typeof(TestGenAiScript));
             scripter.AddType(typeof(GenAiTestScriptResult));
+            scripter.AddType(typeof(GenAiPerformanceOperation));
 
             // connection strings
             scripter.AddType(typeof(ConnectionString));

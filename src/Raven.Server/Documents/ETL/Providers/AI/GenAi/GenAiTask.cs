@@ -319,7 +319,7 @@ public sealed class GenAiTask : EtlProcess<GenAiItem, GenAiScriptResult, GenAiCo
         return new GenAiStatsScope(stats);
     }
 
-    protected override string StatsAggregatorTag => "Gen AI";
+    protected override string StatsAggregatorTag => "GenAI";
 
     protected override bool ShouldFilterOutHiLoDocument()
     {

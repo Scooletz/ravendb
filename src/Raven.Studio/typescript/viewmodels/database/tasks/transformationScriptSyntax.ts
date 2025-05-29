@@ -80,7 +80,9 @@ class transformationScriptSyntax extends dialogViewModelBase {
                         sampleText = transformationScriptSyntax.embeddingsGenerationSampleHtml;
                         break;
                 }
-            break;
+                break;
+            case "GenAi":
+                throw new Error("GenAI is in handled in react.");
             default:
                 genUtils.assertUnreachable(type, "Unknown studioEtlType: " + type);
         }
