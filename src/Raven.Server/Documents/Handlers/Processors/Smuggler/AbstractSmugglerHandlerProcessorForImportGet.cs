@@ -42,8 +42,8 @@ internal abstract class AbstractSmugglerHandlerProcessorForImportGet<TRequestHan
 
         operationId ??= GetOperationId();
 
-        if (LoggingSource.Instance.IsInfoEnabled)
-            RequestHandler.LogAuditFor(
+        if (RavenLogManager.Instance.IsAuditEnabled)
+            RequestHandler.LogAuditForDatabase(
                 RequestHandler.DatabaseName, "IMPORT", $"{EnumHelper.GetDescription(OperationType.DatabaseImport)} from '{source}'");
 
         var options = DatabaseSmugglerOptionsServerSide.Create(HttpContext, RequestHandler.GetAuthorizationStatusForSmuggler(RequestHandler.DatabaseName));
