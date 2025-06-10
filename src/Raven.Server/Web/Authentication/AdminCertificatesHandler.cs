@@ -779,7 +779,7 @@ namespace Raven.Server.Web.Authentication
                     var permissions = FormatPermissions(editedCertificate);
 
                     LogAuditForServer("CHANGE",
-                        $"Certificate {editedCertificate?.Name}. Security Clearance: {editedCertificate?.SecurityClearance}. Permissions: {permissions}. TwoFactor: {string.IsNullOrEmpty(twoFactorAuthenticationKey) == false}");
+                        $"Certificate {editedCertificate?.Name}. Security Clearance: {editedCertificate?.SecurityClearance}. Permissions: {permissions}. TwoFactor: {string.IsNullOrEmpty(twoFactorAuthenticationKey) == false}.");
                 }
 
                 var cmd = new PutCertificateCommand(editedCertificate.Thumbprint,
