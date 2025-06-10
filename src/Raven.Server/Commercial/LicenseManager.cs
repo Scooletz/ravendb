@@ -506,6 +506,7 @@ namespace Raven.Server.Commercial
             }
 
             ThrowIfCannotActivateLicense(licenseStatus);
+            await UpdateLicenseForLetsEncryptAsync(license);
 
             try
             {
@@ -522,6 +523,42 @@ namespace Raven.Server.Commercial
                     Logger.Info(message, e);
 
                 throw new InvalidOperationException("Could not save license!", e);
+            }
+        }
+
+        private async Task UpdateLicenseForLetsEncryptAsync(License newLicense)
+        {
+            if (_serverStore.Configuration.Core.SetupMode != SetupMode.LetsEncrypt)
+                return;
+
+            var previousLicense = _serverStore.LoadLicense();
+            if (previousLicense == null)
+            {
+                // no license
+                return;
+            }
+
+            if (previousLicense.Id == newLicense.Id)
+            {
+                // same license id
+                return;
+            }
+
+            var updateInfo = new UpdateLicenseForLetsEncrypt
+            {
+                PreviousLicense = previousLicense,
+                NewLicense = newLicense
+            };
+
+            var response = await ApiHttpClient.PostAsync("/api/v2/license/update-lets-encrypt-license",
+                    new StringContent(JsonConvert.SerializeObject(updateInfo), Encoding.UTF8, "application/json"), _serverStore.ServerShutdown)
+                .ConfigureAwait(false);
+
+            if (response.IsSuccessStatusCode == false)
+            {
+                var responseString = await response.Content.ReadAsStringAsync(_serverStore.ServerShutdown).ConfigureAwait(false);
+                throw GenerateLicenseLimit(LimitType.InvalidLicense, 
+                    $"Failed to activate the license. The license update for Let's Encrypt encountered an issue: {responseString}", addNotification: false);
             }
         }
 

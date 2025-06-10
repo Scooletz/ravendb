@@ -11,7 +11,10 @@ using Raven.Client.Documents.Operations.Backups;
 using Raven.Client.Documents.Smuggler;
 using Raven.Client.Documents.Subscriptions;
 using Raven.Client.Json.Serialization;
+using Raven.Client.ServerWide;
 using Raven.Client.ServerWide.Operations;
+using Raven.Client.ServerWide.Operations.Configuration;
+using Raven.Client.ServerWide.Operations.OngoingTasks;
 using Raven.Client.Util;
 using Raven.Server.Json;
 using Raven.Server.Routing;
@@ -67,6 +70,31 @@ namespace Raven.Server.Documents.PeriodicBackup.Restore
             Progress.Invoke(Result.Progress);
         }
 
+        private static void FilterOutServerWideTasks(DatabaseRecord databaseRecord)
+        {
+            if (databaseRecord.PeriodicBackups.Count > 0)
+            {
+                var filtered = new List<PeriodicBackupConfiguration>();
+                foreach (var backup in databaseRecord.PeriodicBackups)
+                {
+                    if (backup.Name.StartsWith(ServerWideBackupConfiguration.NamePrefix, StringComparison.OrdinalIgnoreCase) == false)
+                        filtered.Add(backup);
+                }
+                databaseRecord.PeriodicBackups = filtered;
+            }
+
+            if (databaseRecord.ExternalReplications.Count > 0)
+            {
+                var filtered = new List<Client.Documents.Operations.Replication.ExternalReplication>();
+                foreach (var replication in databaseRecord.ExternalReplications)
+                {
+                    if (replication.Name.StartsWith(ServerWideExternalReplication.NamePrefix, StringComparison.OrdinalIgnoreCase) == false)
+                        filtered.Add(replication);
+                }
+                databaseRecord.ExternalReplications = filtered;
+            }
+        }
+        
         private static void RemoveSubscriptionFromDatabaseValues(RestoreSettings restoreSettings)
         {
             foreach (var keyValue in restoreSettings.DatabaseValues)
@@ -214,6 +242,7 @@ namespace Raven.Server.Documents.PeriodicBackup.Restore
                                     json.BlittableValidation();
 
                                     restoreSettings = JsonDeserializationServer.RestoreSettings(json);
+                                    FilterOutServerWideTasks(restoreSettings.DatabaseRecord);
                                     RemoveSubscriptionFromDatabaseValues(restoreSettings);
                                     restoreSettings.DatabaseRecord.DatabaseName = RestoreConfiguration.DatabaseName;
                                     DatabaseHelper.Validate(RestoreConfiguration.DatabaseName, restoreSettings.DatabaseRecord, ServerStore.Configuration);
