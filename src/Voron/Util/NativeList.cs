@@ -17,9 +17,11 @@ namespace Voron.Util;
 /// NativeList has to contain other native lists, therefore, the requirement of NativeList of T to be completely unmanaged is important for those uses.
 /// </summary>
 public unsafe struct NativeList<T>
-    where T: unmanaged
+    where T : unmanaged
 {
-    private static readonly int MaxCapacity = int.MaxValue / sizeof(T);
+    // We're using ByteStringContext to allocate the underlying storage, and we've to take into account the overhead of the metadata.
+    internal static readonly int MaxCapacity = (int.MaxValue - sizeof(ByteStringStorage)) / sizeof(T);
+    private static readonly int MaxCapacityInBytes = MaxCapacity * sizeof(T);
     private ByteString _storage;
 
     public T* RawItems => Capacity > 0 ? (T*)_storage.Ptr : null;
@@ -30,7 +32,7 @@ public unsafe struct NativeList<T>
     public int Count;
 
     public readonly Span<T> ToSpan() => Count == 0 ? Span<T>.Empty : new Span<T>(_storage.Ptr, Count);
-    
+
     public bool IsValid => RawItems != null;
 
     public NativeList()
@@ -42,8 +44,8 @@ public unsafe struct NativeList<T>
     {
         get
         {
-            Debug.Assert(index >= 0 && index < Count);
-            return ref Unsafe.AsRef<T>((T*) _storage.Ptr + index);
+            Debug.Assert(index >= 0 && index < Count, "index >= 0 && index < Count");
+            return ref Unsafe.AsRef<T>((T*)_storage.Ptr + index);
         }
     }
 
@@ -75,9 +77,9 @@ public unsafe struct NativeList<T>
     public void InitializeWithValue(ByteStringContext allocator, T value, int count)
     {
         EnsureCapacityFor(allocator, count);
-        if (Capacity == 0) 
+        if (Capacity == 0)
             return;
-        
+
         Count = count;
         ToSpan().Fill(value);
     }
@@ -94,12 +96,13 @@ public unsafe struct NativeList<T>
         Debug.Assert((uint)(range.Length * sizeof(T)) > (uint)range.Length || range.Length == 0);
 
         Unsafe.CopyBlockUnaligned(
-            ref Unsafe.AsRef<byte>(RawItems + Count), 
-            ref MemoryMarshal.GetReference(MemoryMarshal.Cast<T, byte>(range)), 
+            ref Unsafe.AsRef<byte>(RawItems + Count),
+            ref MemoryMarshal.GetReference(MemoryMarshal.Cast<T, byte>(range)),
             (uint)(range.Length * sizeof(T)));
 
         Count += range.Length;
     }
+
     public void AddRangeUnsafe(T* items, int count)
     {
         Debug.Assert(Count + count <= Capacity);
@@ -121,6 +124,7 @@ public unsafe struct NativeList<T>
         return ref RawItems[Count++];
     }
 
+
     public void Shrink(int newSize)
     {
         if (newSize > Count)
@@ -131,27 +135,28 @@ public unsafe struct NativeList<T>
 
     public void Initialize(ByteStringContext ctx, int count = 1)
     {
-        var capacity = count == 1 ? 1 : Math.Max(1, Bits.NextAllocationSize(count));
-        
-        if (capacity > MaxCapacity)
-            ThrowMaxCapacityExceeded(capacity);
-        
-        ctx.Allocate(capacity * sizeof(T), out _storage);
+        if (count > MaxCapacity)
+            ThrowMaxCapacityExceeded(count);
+
+        var newSize = count == 1
+            ? sizeof(T)
+            : Math.Max(sizeof(T), Math.Min(MaxCapacityInBytes, Bits.NextAllocationSize(sizeof(T) * count)));
+
+        if (newSize <= 0)
+            ThrowMaxCapacityExceeded(count);
+
+        ctx.Allocate(newSize, out _storage);
         Capacity = _storage.Length / sizeof(T);
     }
-    
+
     public void Grow(ByteStringContext ctx, int addition)
     {
-        var capacity = Math.Max(1, Bits.NextAllocationSize(Capacity + addition));
+        if (addition > MaxCapacity - Capacity)
+            ThrowMaxCapacityExceeded(addition + (long)Capacity);
 
-        if (capacity > MaxCapacity)
-        {
-            if(Capacity + addition > MaxCapacity)
-                ThrowMaxCapacityExceeded(capacity);
-            capacity = MaxCapacity;
-        }
-        
-        ctx.Allocate(capacity * sizeof(T), out var mem);
+        var newSize = Math.Max(sizeof(T),
+            Math.Min(MaxCapacityInBytes, Bits.NextAllocationSize(sizeof(T) * (addition + Capacity))));
+        ctx.Allocate(newSize, out var mem);
 
         if (_storage.HasValue)
         {
@@ -175,7 +180,7 @@ public unsafe struct NativeList<T>
         }
     }
 
-    public void EnsureCapacityFor(ByteStringContext allocator,int additionalItems)
+    public void EnsureCapacityFor(ByteStringContext allocator, int additionalItems)
     {
         if (HasCapacityFor(additionalItems))
             return;
@@ -196,7 +201,7 @@ public unsafe struct NativeList<T>
         Count = 0;
     }
 
-    public int CopyTo(Span<T> destination, int startFrom) 
+    public int CopyTo(Span<T> destination, int startFrom)
     {
         if (Count == 0)
             return 0;
@@ -220,7 +225,7 @@ public unsafe struct NativeList<T>
 
     public void Dispose(ByteStringContext ctx)
     {
-        if(_storage.HasValue)
+        if (_storage.HasValue)
             ctx.Release(ref _storage);
         Capacity = 0;
     }
@@ -229,10 +234,10 @@ public unsafe struct NativeList<T>
     {
         Count = 0;
     }
-    
-    private static void ThrowMaxCapacityExceeded(int requestedSize)
+
+    private static void ThrowMaxCapacityExceeded(long requestedSize)
     {
-        throw new InvalidOperationException($"{nameof(NativeList<T>)} cannot be larger than {MaxCapacity} items. Requested size: {requestedSize})");
+        throw new InvalidOperationException($"{nameof(NativeList<T>)}<{typeof(T).FullName}> cannot be larger than {MaxCapacity} items. Requested size: {requestedSize}");
     }
 
     public Enumerator GetEnumerator() => new(RawItems, Count);
@@ -290,7 +295,7 @@ public unsafe struct NativeList<T>
     public void Reverse()
     {
         ToSpan().Reverse();
-    }
+}
     
     public void SetCapacity(ByteStringContext allocator, int size)
     {
