@@ -27,6 +27,10 @@ class licenseModel {
             return "Cloud";
         }
 
+        if (licenseType === "EnterpriseAi") {
+            return "RavenDB AI";
+        }
+
         if (licenseStatus.IsIsv) {
             licenseType += " (ISV)";
         }
