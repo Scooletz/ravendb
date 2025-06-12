@@ -91,7 +91,7 @@ class serverWideBackupListModel extends serverWideTaskListModel {
     refreshBackupInfo() {
         if (connectionStatus.showConnectionLost()) {
             // looks like we don't have connection to server, skip index progress update 
-            return $.Deferred<Raven.Client.Documents.Operations.OngoingTasks.OngoingTaskBackup>().fail(undefined);
+            return $.Deferred<Raven.Client.Documents.Operations.OngoingTasks.OngoingTaskBackup>().fail();
         }
 
         return new getAllServerWideTasksCommand(this.taskName(), "Backup")

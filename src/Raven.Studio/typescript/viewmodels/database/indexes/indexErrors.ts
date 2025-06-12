@@ -166,7 +166,7 @@ class indexErrors extends viewModelBase {
         );
 
         this.columnPreview.install("virtual-grid", ".js-index-errors-tooltip", 
-            (indexError: IndexErrorPerDocument, column: textColumn<IndexErrorPerDocument>, e: JQuery.TriggeredEvent, 
+            (indexError: IndexErrorPerDocument, column: textColumn<IndexErrorPerDocument>, e: JQueryEventObject, 
              onValue: (context: any, valueToCopy?: string) => void) => {
             if (column.header === "Action" || column.header === "Show") {
                 // do nothing

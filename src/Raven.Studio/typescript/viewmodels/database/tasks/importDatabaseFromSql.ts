@@ -157,7 +157,7 @@ class importDatabaseFromSql extends viewModelBase {
     compositionComplete() {
         super.compositionComplete();
         
-        this.registerDisposableHandler($(document as unknown as any), "fullscreenchange", () => {
+        this.registerDisposableHandler($(document), "fullscreenchange", () => {
             $("body").toggleClass("fullscreen", $(document).fullScreen());
         });
 
@@ -256,7 +256,7 @@ class importDatabaseFromSql extends viewModelBase {
         
         this.initHints();
         
-        this.registerDisposableHandler($body, "click", (event: JQuery.TriggeredEvent) => {
+        this.registerDisposableHandler($body, "click", (event: JQueryEventObject) => {
             if ($(event.target).closest(".inline-edit").length === 0) {
                 // click outside edit area - close all of them
                 
@@ -608,7 +608,7 @@ class importDatabaseFromSql extends viewModelBase {
         });
 
         // handler for selecting table before linking
-        this.registerDisposableDelegateHandler($body, "click", ".popover-link-ref", (event: JQuery.TriggeredEvent) => {
+        this.registerDisposableDelegateHandler($body, "click", ".popover-link-ref", (event: JQueryEventObject) => {
             const $target = $(event.target);
             const refId = $target.attr('data-popover-ref-id');
 
@@ -693,7 +693,7 @@ class importDatabaseFromSql extends viewModelBase {
         });
         
         // handler for selecting table before linking
-        this.registerDisposableDelegateHandler($body, "click", ".popover-embed-ref", (event: JQuery.TriggeredEvent) => {
+        this.registerDisposableDelegateHandler($body, "click", ".popover-embed-ref", (event: JQueryEventObject) => {
             const $target = $(event.target);
             const refId = $target.attr('data-popover-ref-id');
 

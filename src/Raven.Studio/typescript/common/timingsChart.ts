@@ -206,7 +206,7 @@ class timingsChart {
     syncLegend() {
         const $query = $(".query");
         $query
-            .on("mouseenter", ".timing-legend-item", (event: JQuery.TriggeredEvent) => {
+            .on("mouseenter", ".timing-legend-item", (event: JQueryEventObject) => {
                 const node = ko.dataFor(event.currentTarget) as graphNode;
                 this.mouseover(node);
             })

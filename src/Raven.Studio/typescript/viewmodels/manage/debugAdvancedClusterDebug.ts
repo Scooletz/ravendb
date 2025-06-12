@@ -306,7 +306,7 @@ class clusterDebug extends viewModelBase {
         this.columnPreview.install("virtual-grid", ".js-cluster-log-tooltip",
             (entry: LogEntry,
              column: textColumn<LogEntry>,
-             e: JQuery.TriggeredEvent, onValue: (context: any, valueToCopy?: string) => void) => {
+             e: JQueryEventObject, onValue: (context: any, valueToCopy?: string) => void) => {
                 if (column.header === "Created") {
                     onValue(moment.utc(entry.CreateAt), entry.CreateAt);
                 } else {

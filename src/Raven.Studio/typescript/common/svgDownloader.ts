@@ -141,7 +141,9 @@ class svgDownloader {
     }
 
     private static removeAttributes(el: Element) {
-        const attributes = Array.from(el.attributes).map(x => x.name);
+        const attributes = $.map(el.attributes, function (item) {
+            return item.name;
+        });
         const selection = $(el);
         $.each(attributes, function (i, item) {
             selection.removeAttr(item);

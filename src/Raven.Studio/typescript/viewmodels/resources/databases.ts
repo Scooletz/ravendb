@@ -751,7 +751,7 @@ class databases extends viewModelBase {
         app.showBootstrapDialog(createDbView);
     }
 
-    databasePanelClicked(dbInfo: databaseInfo, event: JQuery.TriggeredEvent) {
+    databasePanelClicked(dbInfo: databaseInfo, event: JQueryEventObject) {
         if (generalUtils.canConsumeDelegatedEvent(event)) {
             this.activateDatabase(dbInfo);
             return false;

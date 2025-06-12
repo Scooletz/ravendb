@@ -81,7 +81,7 @@ class menu {
         this.items(items);
     }
 
-    handleIntermediateItemClick($data: { item: intermediateMenuItem }, $event: JQuery.TriggeredEvent) {
+    handleIntermediateItemClick($data: { item: intermediateMenuItem }, $event: JQueryEventObject) {
         const { item } = $data;
         if (item.isOpen()) {
             item.close();
@@ -98,7 +98,7 @@ class menu {
         this.toggleResetLevelBehavior(item);
     }
 
-    open(item: intermediateMenuItem, $event: JQuery.TriggeredEvent) {
+    open(item: intermediateMenuItem, $event: JQueryEventObject) {
         $event.stopPropagation();
         item.open();
         this.deepestOpenItem(item);
@@ -112,7 +112,7 @@ class menu {
         }
     }
 
-    navigate($data: menuItem, $event: JQuery.TriggeredEvent) {
+    navigate($data: menuItem, $event: JQueryEventObject) {
         const targetLink = $event.target.closest("a");
         if (targetLink && targetLink.classList.contains("disabled")) {
             $event.preventDefault();
@@ -128,7 +128,7 @@ class menu {
         }
     }
 
-    back($data: any, $event: JQuery.TriggeredEvent) {
+    back($data: any, $event: JQueryEventObject) {
         const { item } = $data;
         $event.stopPropagation();
         item.isOpen(false);
@@ -149,7 +149,7 @@ class menu {
         });
     }
 
-    handleLevelClick($data: any, $event: JQuery.TriggeredEvent) {
+    handleLevelClick($data: any, $event: JQueryEventObject) {
         $event.stopPropagation();
 
         const $targetLevel = $($event.currentTarget);
@@ -184,7 +184,7 @@ class menu {
             });
     }
     
-    private handleResize(e: JQuery.TriggeredEvent) {
+    private handleResize(e: JQueryEventObject) {
 
         const $document = $(document);
         

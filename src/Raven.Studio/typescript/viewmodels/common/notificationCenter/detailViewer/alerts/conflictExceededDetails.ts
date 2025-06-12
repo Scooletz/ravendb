@@ -53,7 +53,7 @@ class conflictExceededDetails extends abstractAlertDetails {
         });
 
         this.columnPreview.install(".conflictExceededDetails", ".js-conflict-exceeded-tooltip",
-            (details: ActionDetails, column: textColumn<ActionDetails>, e: JQuery.TriggeredEvent,
+            (details: ActionDetails, column: textColumn<ActionDetails>, e: JQueryEventObject,
                 onValue: (context: any, valueToCopy?: string) => void) => {
                 const value = column.getCellValue(details);
                 if (column.header === "Date") {

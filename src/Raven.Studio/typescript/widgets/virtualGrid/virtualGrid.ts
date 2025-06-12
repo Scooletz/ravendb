@@ -163,7 +163,7 @@ class virtualGrid<T extends object> {
         this.defaultSortMode(mode || "asc");
     }
     
-    private handleSort(e: JQuery.TriggeredEvent) {
+    private handleSort(e: JQueryEventObject) {
         if (e.offsetX <= 8 && !$(e.target).hasClass('sortable-controls')) {
             return;
         }
@@ -216,15 +216,15 @@ class virtualGrid<T extends object> {
         }
     }
     
-    private markEventAsHandled(e: JQuery.TriggeredEvent) {
+    private markEventAsHandled(e: JQueryEventObject) {
         // Stop propagation of the event so the text selection doesn't fire up
         if (e.stopPropagation) e.stopPropagation();
         if (e.preventDefault) e.preventDefault();
-        //TODO: e.cancelBubble = true;
-        //TODO: e.returnValue = false;
+        e.cancelBubble = true;
+        e.returnValue = false;
     }
 
-    private handleResize(e: JQuery.TriggeredEvent) {
+    private handleResize(e: JQueryEventObject) {
         // since resize handles are pseudo html elements, we get invalid target
         // check click location to distinguish between handle and title click
         if (e.offsetX > 8) {
@@ -315,8 +315,8 @@ class virtualGrid<T extends object> {
         }
     }
 
-    private findGridElement(): JQuery<HTMLElement> {
-        const element = $(document.querySelector("#" + this.gridId)) as JQuery<HTMLElement>;
+    private findGridElement(): JQuery {
+        const element = $(document.querySelector("#" + this.gridId));
         if (element.length === 0) {
             throw new Error("Couldn't find grid element with ID " + this.gridId);
         }
@@ -645,7 +645,7 @@ class virtualGrid<T extends object> {
         }
     }
 
-    private gridClicked(e: JQuery.TriggeredEvent) {
+    private gridClicked(e: JQueryEventObject) {
         if (e.target) {
             const $target = this.normalizeTarget($(e.target));
             const actionValue = $target.attr("data-action");
@@ -692,7 +692,7 @@ class virtualGrid<T extends object> {
             .find(r => r.element.find(cellElement as any).length > 0);
     }
 
-    findColumnForCell(cellElement: JQuery<HTMLElement>): virtualColumn {
+    findColumnForCell(cellElement: Element): virtualColumn {
         const $cell = $(cellElement).closest(".cell");
         const $row = $cell.closest(".virtual-row");
         const $cells = $row.find(".cell");
@@ -879,7 +879,7 @@ class virtualGrid<T extends object> {
     }
 
     
-    private handleAction(actionId: string, row: virtualRow, event: JQuery.TriggeredEvent) {
+    private handleAction(actionId: string, row: virtualRow, event: JQueryEventObject) {
         const handler = this.columns().find(x => x.canHandle(actionId)) as actionColumn<T>;
         if (!handler) {
             throw new Error("Unable to find handler for: " + actionId + " at index: " + row.index);

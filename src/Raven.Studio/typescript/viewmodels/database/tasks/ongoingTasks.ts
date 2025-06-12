@@ -147,7 +147,7 @@ class ongoingTasks extends viewModelBase {
     compositionComplete(): void {
         super.compositionComplete();
 
-        this.registerDisposableHandler($(document as unknown as any), "fullscreenchange", () => {
+        this.registerDisposableHandler($(document), "fullscreenchange", () => {
             $("body").toggleClass("fullscreen", $(document).fullScreen());
             this.graph.onResize();
         });

@@ -136,7 +136,7 @@ class serverSettings extends viewModelBase {
         this.columnPreview.install(".summary-list-container", ".js-summary-details-tooltip",
             (details: models.settingsEntry,
              column: textColumn<models.settingsEntry>,
-             e: JQuery.TriggeredEvent,
+             e: JQueryEventObject,
              onValue: (context: any, valueToCopy?: string) => void) => {
             
                 if (column.header === "Configuration Key") {

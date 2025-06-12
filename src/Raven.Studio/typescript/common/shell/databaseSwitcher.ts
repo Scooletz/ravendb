@@ -142,7 +142,7 @@ class databaseSwitcher {
         }
     }
 
-    selectDatabase(db: database, $event?: JQuery.TriggeredEvent) {
+    selectDatabase(db: database, $event?: JQueryEventObject) {
         if ($event && $event.ctrlKey) {
             window.open(appUrl.forDocumentsByDatabaseName(null, db.name));
         } else {

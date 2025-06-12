@@ -441,7 +441,8 @@ class shell extends viewModelBase {
     fetchServerBuildVersion(): JQueryPromise<serverBuildVersionDto> {
         return new getServerBuildVersionCommand()
             .execute()
-            .done((serverBuildResult: serverBuildVersionDto, status: any, response: any) => {
+            .done((serverBuildResult: serverBuildVersionDto, status: string, response: JQueryXHR) => {
+               
                 serverTime.default.calcTimeDifference(response.getResponseHeader("Date"));
                 serverTime.default.setStartUpTime(response.getResponseHeader("Server-Startup-Time"));
                 
