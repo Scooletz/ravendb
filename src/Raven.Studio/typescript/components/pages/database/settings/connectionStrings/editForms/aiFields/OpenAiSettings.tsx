@@ -16,7 +16,7 @@ import { useAsyncCallback } from "react-async-hook";
 import { useFormContext, useWatch } from "react-hook-form";
 import EmbeddingsMaxConcurrentBatches from "./EmbeddingsMaxConcurrentBatchesField";
 import { SelectOption } from "components/common/select/Select";
-import { openAiModelOptions } from "../aiConnectionStringUtils";
+import { useAsyncDebounce } from "components/hooks/useAsyncDebounce";
 
 type FormData = ConnectionFormData<AiConnection>;
 
@@ -42,6 +42,43 @@ export default function OpenAiSettings({ isUsedByAnyTask }: { isUsedByAnyTask: b
         });
     });
 
+    const asyncGetModelOptions = useAsyncDebounce(
+        async () => {
+            const apiKey = formValues.openAiSettings.apiKey?.trim() ?? "";
+            const endpoint = formValues.openAiSettings.endpoint?.trim() ?? "";
+            const projectId = formValues.openAiSettings.projectId?.trim() ?? "";
+            const organizationId = formValues.openAiSettings.organizationId?.trim() ?? "";
+
+            if (!apiKey) {
+                return [];
+            }
+
+            const dto: AiModelsRequestDto = {
+                ConnectorType: "OpenAi",
+                OpenAiSettings: {
+                    ApiKey: apiKey,
+                    Endpoint: endpoint || "https://api.openai.com/v1/",
+                    OrganizationId: organizationId,
+                    ProjectId: projectId,
+                },
+            };
+
+            try {
+                const result = await tasksService.getAiModels(dto);
+                return [...result].sort().map((x) => ({ label: x, value: x }) satisfies SelectOption);
+            } catch {
+                return [];
+            }
+        },
+        [
+            formValues.openAiSettings.apiKey,
+            formValues.openAiSettings.endpoint,
+            formValues.openAiSettings.organizationId,
+            formValues.openAiSettings.projectId,
+        ],
+        300
+    );
+
     return (
         <>
             <div className="mb-2">
@@ -56,7 +93,7 @@ export default function OpenAiSettings({ isUsedByAnyTask }: { isUsedByAnyTask: b
             <div className="mb-2">
                 <FormLabel>
                     Endpoint
-                    <PopoverWithHoverWrapper message="The endpoint for generating text embeddings using OpenAI or any OpenAI-compatible provider.">
+                    <PopoverWithHoverWrapper message="The endpoint for generating responses using OpenAI or any OpenAI-compatible provider.">
                         <Icon icon="info" color="info" id="endpoint" margin="ms-1" />
                     </PopoverWithHoverWrapper>
                 </FormLabel>
@@ -70,7 +107,7 @@ export default function OpenAiSettings({ isUsedByAnyTask }: { isUsedByAnyTask: b
             <div className="mb-2">
                 <FormLabel>
                     Model
-                    <PopoverWithHoverWrapper message="The text embedding model to use with OpenAI or any OpenAI-compatible provider.">
+                    <PopoverWithHoverWrapper message="The model to use with OpenAI or any OpenAI-compatible provider.">
                         <Icon icon="info" color="info" id="model" margin="ms-1" />
                     </PopoverWithHoverWrapper>
                 </FormLabel>
@@ -78,8 +115,9 @@ export default function OpenAiSettings({ isUsedByAnyTask }: { isUsedByAnyTask: b
                     control={control}
                     name="openAiSettings.model"
                     isDisabled={isUsedByAnyTask}
-                    placeholder="Select a model (or enter new one)"
-                    options={openAiModelOptions}
+                    placeholder="Select a model or enter a new one (provide API key to see available models)"
+                    options={asyncGetModelOptions.result ?? []}
+                    isLoading={asyncGetModelOptions.loading}
                 />
             </div>
             <div className="mb-2">

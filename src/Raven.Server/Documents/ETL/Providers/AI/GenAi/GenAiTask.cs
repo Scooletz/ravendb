@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Raven.Client;
 using Raven.Client.Documents.Operations.AI;
 using Raven.Client.Documents.Operations.Counters;
 using Raven.Client.Documents.Operations.ETL;
@@ -295,7 +296,7 @@ public sealed class GenAiTask : EtlProcess<GenAiItem, GenAiScriptResult, GenAiCo
     private void ApplyUpdateScript(DocumentsOperationContext context, List<GenAiResultItem> results)
     {
         PatchRequest req = new(Configuration.UpdateScript, PatchRequestType.GenAi);
-        var cmd = new GenAiBatchPatchCommand(context, results, req, Configuration.Name, Logger, Statistics);
+        var cmd = new GenAiBatchPatchCommand(context, results, req, Configuration.Identifier, Logger, Statistics);
 
         Database.TxMerger.EnqueueSync(cmd);
     }
@@ -315,7 +316,6 @@ public sealed class GenAiTask : EtlProcess<GenAiItem, GenAiScriptResult, GenAiCo
     public TestEtlScriptResult RunTest(TestGenAiScript testGenAiScript, DocumentsOperationContext context)
     {
         List<GenAiResultItem> items;
-        List<Exception> exceptions = null;
         BlittableJsonReaderObject outputDocument = null;
 
         Document document = null;
@@ -366,7 +366,7 @@ public sealed class GenAiTask : EtlProcess<GenAiItem, GenAiScriptResult, GenAiCo
             case TestStage.SendToModel:
                 _chatCompletionClient ??= GetClient();
                 items = testGenAiScript.Input;
-                exceptions = SendToModel(items, context, scope);
+                List<Exception> exceptions = SendToModel(items, context, scope);
                 if (exceptions is not null)
                     throw new AggregateException(exceptions);
 
@@ -381,21 +381,17 @@ public sealed class GenAiTask : EtlProcess<GenAiItem, GenAiScriptResult, GenAiCo
                     PatchDocumentCommand lastPatch = null;
                     var hashes = new List<string>();
 
+                    if (string.IsNullOrEmpty(Configuration.Identifier))
+                        Configuration.Identifier = Configuration.GenerateIdentifier();
+
                     if (testGenAiScript.Document != null)
                     {
                         // the document that was provided as input does not exist (we gave it a dummy id),
                         // so it needs to be written to storage before the patch.
                         // the write-tx is not commited so this won't be persisted.
 
-                        if (document!.Data.HasParent)
-                        {
-                            using (var old = document.Data)
-                            {
-                                document.Data = document.Data.Clone(context);
-                            }
-                        }
-
-                        context.DocumentDatabase.DocumentsStorage.Put(context, document.Id, expectedChangeVector: null, document.Data);
+                        FilterMetadataProperties(context, document);
+                        context.DocumentDatabase.DocumentsStorage.Put(context, document!.Id, expectedChangeVector: null, document.Data);
                     }
 
                     foreach (var item in items)
@@ -434,7 +430,7 @@ public sealed class GenAiTask : EtlProcess<GenAiItem, GenAiScriptResult, GenAiCo
                     }
 
                     if (lastPatch?.PatchResult?.ModifiedDocument != null)
-                        outputDocument = GenAiBatchPatchCommand.UpdateHashesInMetadata(document.Id, lastPatch.PatchResult.ModifiedDocument, Configuration.Name, hashes, context);
+                        outputDocument = GenAiBatchPatchCommand.UpdateHashesInMetadata(document.Id, lastPatch.PatchResult.ModifiedDocument, Configuration.Identifier, hashes, context);
 
                     break;
                 }
@@ -450,6 +446,32 @@ public sealed class GenAiTask : EtlProcess<GenAiItem, GenAiScriptResult, GenAiCo
             OutputDocument = outputDocument,
             TransformationErrors = Statistics.TransformationErrorsInCurrentBatch.Errors.ToList()
         };
+    }
+
+    private static void FilterMetadataProperties(DocumentsOperationContext context, Document document)
+    {
+        if (document!.Data.TryGet(Constants.Documents.Metadata.Key, out BlittableJsonReaderObject metadata))
+        {
+            metadata.Modifications = new DynamicJsonValue(metadata);
+
+            metadata.Modifications.Remove(Constants.Documents.Metadata.Id);
+            metadata.Modifications.Remove(Constants.Documents.Metadata.LastModified);
+            metadata.Modifications.Remove(Constants.Documents.Metadata.IndexScore);
+            metadata.Modifications.Remove(Constants.Documents.Metadata.ChangeVector);
+            metadata.Modifications.Remove(Constants.Documents.Metadata.Flags);
+
+            document.Data.Modifications = new DynamicJsonValue(document.Data)
+            {
+                [Constants.Documents.Metadata.Key] = metadata
+            };
+        }
+        else if (document.Data.HasParent == false)
+            return; // no need to clone
+
+        using (var old = document.Data)
+        {
+            document.Data = document.Data.Clone(context);
+        }
     }
 
     private static List<GenAiResultItem> PrepareItemsBeforeSendingToModel(IEnumerable<GenAiScriptResult> items)
