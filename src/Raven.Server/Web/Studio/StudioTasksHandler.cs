@@ -9,7 +9,7 @@ using Raven.Client.Util;
 using Raven.Server.Config;
 using Raven.Server.Config.Categories;
 using Raven.Server.Config.Settings;
-using Raven.Server.Documents.AI.GenAi;
+using Raven.Server.Documents.AI;
 using Raven.Server.Documents.ETL.Providers.ElasticSearch;
 using Raven.Server.Documents.Indexes;
 using Raven.Server.Documents.Indexes.IndexMerging;
@@ -302,6 +302,7 @@ namespace Raven.Server.Web.Studio
                 string apiKey = null;
                 string organization = null;
                 string project = null;
+                Type type;
                 switch (request.ConnectorType)
                 {
                     case AiConnectorType.OpenAi:
@@ -309,20 +310,23 @@ namespace Raven.Server.Web.Studio
                         apiKey = request.OpenAiSettings.ApiKey;
                         organization = request.OpenAiSettings.OrganizationId;
                         project = request.OpenAiSettings.ProjectId;
+                        type = request.OpenAiSettings.GetType();
                         break;
                     case AiConnectorType.AzureOpenAi:
                         uri = request.AzureOpenAiSettings.Endpoint;
                         apiKey = request.AzureOpenAiSettings.ApiKey;
+                        type = request.AzureOpenAiSettings.GetType();
                         break;
                     case AiConnectorType.Ollama:
                         uri = request.OllamaSettings.Uri;
+                        type = request.OllamaSettings.GetType();
                         break;
                     default:
                         throw new NotSupportedException($"Unsupported connector type: {request.ConnectorType}");
                 }
 
                 using (var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15)))
-                using (var chat = new GenericChatCompletionClientForTesting(uri, model: null, apiKey: apiKey, organizationId: organization, projectId: project, ServerStore.ContextPool))
+                using (var chat = new ChatCompletionClient(ServerStore.ContextPool, uri, apiKey, model: null, organization, project, structuredOutputSchema: null, type))
                 {
                     await chat.ProxyModelsAsync(HttpContext.Response, cts.Token);
                 }
