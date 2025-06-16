@@ -9,8 +9,8 @@ namespace Raven.Client.Documents.Operations.AI;
 
 public class GenAiConfiguration : AbstractAiIntegrationConfiguration
 {
-    public override string GetDestination() => Name;
-    public override string GetDefaultTaskName() => Name;
+    public override string GetDestination() => Identifier;
+    public override string GetDefaultTaskName() => Identifier;
 
     public string Identifier { get; set; }
     public string Collection { get; set; }
@@ -95,6 +95,7 @@ public class GenAiConfiguration : AbstractAiIntegrationConfiguration
     {
         var json = base.ToJson();
 
+        json[nameof(Identifier)] = Identifier;
         json[nameof(AiConnectorType)] = AiConnectorType;
         json[nameof(Identifier)] = Identifier;
         json[nameof(Collection)] = Collection;
@@ -106,5 +107,21 @@ public class GenAiConfiguration : AbstractAiIntegrationConfiguration
         json[nameof(MaxConcurrency)] = MaxConcurrency;
 
         return json;
+    }
+
+    internal override EtlConfigurationCompareDifferences Compare(EtlConfiguration<AiConnectionString> config, Dictionary<string, AiConnectionString> connectionStrings, List<(string TransformationName, EtlConfigurationCompareDifferences Difference)> transformationDiffs = null)
+    {
+        var differences = base.Compare(config, connectionStrings, transformationDiffs);
+        if (config is not GenAiConfiguration other)
+            return differences;
+
+        if (Prompt != other.Prompt ||
+            UpdateScript != other.UpdateScript ||
+            JsonSchema != other.JsonSchema ||
+            SampleObject != other.SampleObject ||
+            MaxConcurrency != other.MaxConcurrency)
+            differences |= EtlConfigurationCompareDifferences.Other;
+
+        return differences;
     }
 }

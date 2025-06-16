@@ -45,7 +45,7 @@ public class AiAgentHandler : DatabaseRequestHandler
     public async Task StartChat()
     {
         using var token = CreateHttpRequestBoundOperationToken();
-        var name = GetStringQueryString("agent", required: true);
+        var name = GetStringQueryString("name", required: true);
 
         AiAgentConfiguration configuration;
         using (ServerStore.Engine.ContextPool.AllocateOperationContext(out ClusterOperationContext ctx))
@@ -95,7 +95,7 @@ public class AiAgentHandler : DatabaseRequestHandler
     public async Task GetAiAgentConfiguration()
     {
         using var token = CreateHttpRequestBoundOperationToken();
-        var name = GetStringQueryString("agent");
+        var name = GetStringQueryString("name");
 
         Dictionary<string, AiAgentConfiguration> agents;
         using (ServerStore.Engine.ContextPool.AllocateOperationContext(out ClusterOperationContext ctx))
@@ -141,7 +141,7 @@ public class AiAgentHandler : DatabaseRequestHandler
         }
     }
 
-    [RavenAction("/databases/*/ai/ai-agent/test", "POST", AuthorizationStatus.ValidUser, EndpointType.Read, DisableOnCpuCreditsExhaustion = true)]
+    [RavenAction("/databases/*/ai/agent/test", "POST", AuthorizationStatus.ValidUser, EndpointType.Read, DisableOnCpuCreditsExhaustion = true)]
     public async Task AiAgentTest()
     {
         using var _ = ContextPool.AllocateOperationContext(out DocumentsOperationContext context);

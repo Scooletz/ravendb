@@ -92,10 +92,10 @@ internal class AiIntegrationHandlerProcessorForTestAiConnection<TRequestHandler,
                 // TODO: remove this ugly workaround
                 catch (Exception e) when (e is not EmbeddingsMismatchException)
                 {
-                    if (aiConnectionString.TryGetParametersForGenAiTesting(out var uri, out var apiKey, out var model))
+                    if (aiConnectionString.TryGetParametersForGenAiTesting(out var uri, out var apiKey, out var model, out var organizationId, out var projectId))
                     {
                         var type = aiConnectionString.GetActiveProviderInstance().GetType();
-                        using (var client = new ChatCompletionClient(ServerStore.ContextPool, uri, apiKey, model, structuredOutputSchema: null, type, conventions: ChatCompletionClient.ConventionsToUse))
+                        using (var client = new ChatCompletionClient(ServerStore.ContextPool, uri, apiKey, model, organizationId, projectId, structuredOutputSchema:null, type))
                         {
                             await client.CompleteAsync("foo", "bar", HttpContext.RequestAborted);
                         }

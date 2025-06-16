@@ -8,7 +8,7 @@ import EditConnectionStrings from "components/pages/database/settings/connection
 import { useAppDispatch, useAppSelector } from "components/store";
 import { sortBy } from "lodash";
 import { useAsync } from "react-async-hook";
-import { editGenAiTaskActions, editGenAiTaskSelectors } from "../../store/editGenAiTaskSlice";
+import { editGenAiTaskActions } from "../../store/editGenAiTaskSlice";
 import EditGenAiTaskNodeField from "./EditGenAiTaskNodeField";
 import InputGroup from "react-bootstrap/InputGroup";
 import { useServices } from "components/hooks/useServices";
@@ -19,13 +19,13 @@ import OptionalLabel from "components/common/OptionalLabel";
 import PopoverWithHoverWrapper from "components/common/PopoverWithHoverWrapper";
 import { Icon } from "components/common/Icon";
 import Button from "react-bootstrap/Button";
+import { editGenAiTaskUtils } from "../../utils/editGenAiTaskUtils";
 
 type OngoingTaskState = Raven.Client.Documents.Operations.OngoingTasks.OngoingTaskState;
 
 export default function EditGenAiTaskBasicFields() {
     const dispatch = useAppDispatch();
 
-    const isNewTask = useAppSelector(editGenAiTaskSelectors.isNewTask);
     const isEncrypted = useAppSelector(databaseSelectors.activeDatabase)?.isEncrypted;
     const databaseName = useAppSelector(databaseSelectors.activeDatabaseName);
 
@@ -161,13 +161,24 @@ export default function EditGenAiTaskBasicFields() {
                     )}
                 </InputGroup>
             </FormGroup>
-            {!isNewTask && (
-                <FormGroup>
-                    <FormSwitch control={control} name="isResetScript">
-                        Regenerate all documents
-                    </FormSwitch>
-                </FormGroup>
-            )}
+            <FormGroup>
+                <FormLabel>
+                    Max concurrency <OptionalLabel />
+                    <PopoverWithHoverWrapper
+                        message={
+                            <>
+                                The maximum number of concurrent requests sent to the model (default:{" "}
+                                {editGenAiTaskUtils.defaultMaxConcurrency}).
+                                <br />
+                                Each request includes: a context object, the prompt, and the JSON schema.
+                            </>
+                        }
+                    >
+                        <Icon icon="info" color="info" margin="ms-1" />
+                    </PopoverWithHoverWrapper>
+                </FormLabel>
+                <FormInput type="number" control={control} name="maxConcurrency" />
+            </FormGroup>
         </>
     );
 }

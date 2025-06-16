@@ -15,6 +15,8 @@ using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Http;
+using Microsoft.CodeAnalysis;
 using Microsoft.IdentityModel.Tokens;
 using Raven.Client.Documents.Conventions;
 using Raven.Client.Documents.Operations.AI;
@@ -23,6 +25,7 @@ using Raven.Client.Http;
 using Raven.Client.Json;
 using Raven.Client.Util;
 using Raven.Server.Documents.AI.AiGen;
+using Raven.Server.Utils;
 using Sparrow.Json;
 using Sparrow.Json.Parsing;
 using Sparrow.Server.Json.Sync;
@@ -34,6 +37,8 @@ namespace Raven.Server.Documents.AI;
 internal class ChatCompletionClient : IChatCompletionClient, IChatCompletionClientForTesting
 {
     private readonly string _model;
+    private readonly string _organizationId;
+    private readonly string _projectId;
     private readonly HttpClientCacheKey _httpClientCacheKey;
     private readonly HttpClient _client;
     private readonly string _structuredOutputSchema;
@@ -56,7 +61,7 @@ internal class ChatCompletionClient : IChatCompletionClient, IChatCompletionClie
 
     public static ChatCompletionClient CreateChatCompletionClient(IMemoryContextPool contextPool, AiConnectionString connection, string schema)
     {
-        if (connection.TryGetParametersForGenAiTesting(out var uri, out var apiKey, out var model) == false)
+        if (connection.TryGetParametersForGenAiTesting(out var uri, out var apiKey, out var model, out var organizationId, out var projectId) == false)
         {
             var connectorType = connection.GetActiveProvider();
             throw new NotSupportedException($"The specified provider (\"{connectorType.ToString()}\") is not supported.");
@@ -64,12 +69,16 @@ internal class ChatCompletionClient : IChatCompletionClient, IChatCompletionClie
 
         var providerType = connection.GetActiveProviderInstance().GetType();
 
-        return new ChatCompletionClient(contextPool, uri, apiKey, model, schema, providerType, ConventionsToUse);
+        return new ChatCompletionClient(contextPool, uri, apiKey, model, organizationId, projectId, schema, providerType);
     }
 
-    public ChatCompletionClient(IMemoryContextPool contextPool, string baseUri, string apiKey, string model, string structuredOutputSchema, Type providerType, DocumentConventions conventions)
+    public ChatCompletionClient(IMemoryContextPool contextPool, string baseUri, string apiKey, string model, string organizationId, string projectId, string structuredOutputSchema, Type providerType, DocumentConventions conventions = null)
     {
         _model = model ?? throw new ArgumentNullException(nameof(model));
+        _organizationId = organizationId;
+        _projectId = projectId;
+
+        conventions ??= ConventionsToUse;
 
         _httpClientCacheKey = new HttpClientCacheKey(certificate: null, conventions.UseHttpDecompression,
             conventions.HasExplicitlySetDecompressionUsage, conventions.HttpPooledConnectionLifetime,
@@ -82,7 +91,7 @@ internal class ChatCompletionClient : IChatCompletionClient, IChatCompletionClie
             DefaultRequestHeaders =
             {
                 Authorization = string.IsNullOrEmpty(apiKey) ? null : new AuthenticationHeaderValue(Constants.RequestFields.AuthorizationApiKeyProperty, apiKey),
-                Accept = { new MediaTypeWithQualityHeaderValue(Constants.RequestFields.MediaTypeApplicationJson) }
+                Accept = { new MediaTypeWithQualityHeaderValue(Constants.RequestFields.MediaTypeApplicationJson) },
             }
         });
 
@@ -173,7 +182,7 @@ internal class ChatCompletionClient : IChatCompletionClient, IChatCompletionClie
         _forTestingPurposes?.SimulateFailure?.Invoke(context);
 
         using var _ = _contextPool.AllocateOperationContext(out JsonOperationContext ctx);
-        using var request = GetRequest(ctx, prompt, context);
+        using var request = CreateCompletionRequest(ctx, prompt, context);
         using var response = await _client.SendAsync(request, token).ConfigureAwait(false);
         using var responseContent = await GetResponseContentAsync(ctx, response, token);
 
@@ -233,15 +242,24 @@ internal class ChatCompletionClient : IChatCompletionClient, IChatCompletionClie
         }, ConventionsToUse);
 
         content.Headers.Add(Constants.RequestFields.HeaderContentType, Constants.RequestFields.MediaTypeApplicationJson);
-        return new HttpRequestMessage
+        var request = new HttpRequestMessage
         {
             Method = HttpMethod.Post, 
             Content = content, 
             RequestUri = new Uri(Constants.RequestFields.DefaultRelativeUri, UriKind.Relative)
         };
+
+        if (string.IsNullOrEmpty(_organizationId) == false)
+            request.Headers.TryAddWithoutValidation(Constants.RequestFields.OpenAiOrganization, _organizationId);
+
+        if (string.IsNullOrEmpty(_projectId) == false)
+            request.Headers.TryAddWithoutValidation(Constants.RequestFields.OpenAiProject, _projectId);
+
+        return request;
     }
 
-    private HttpRequestMessage GetRequest(JsonOperationContext ctx, string prompt, string context)
+
+    private HttpRequestMessage CreateCompletionRequest(JsonOperationContext ctx, string prompt, string context)
     {
         var content = new BlittableJsonContent(async stream =>
         {
@@ -294,12 +312,20 @@ internal class ChatCompletionClient : IChatCompletionClient, IChatCompletionClie
 
         content.Headers.Add(Constants.RequestFields.HeaderContentType, Constants.RequestFields.MediaTypeApplicationJson);
 
-        return new HttpRequestMessage
+        var request = new HttpRequestMessage
         {
             Method = HttpMethod.Post, 
             Content = content, 
             RequestUri = new Uri(Constants.RequestFields.DefaultRelativeUri, UriKind.Relative)
         };
+
+        if (string.IsNullOrEmpty(_organizationId) == false)
+            request.Headers.TryAddWithoutValidation(Constants.RequestFields.OpenAiOrganization, _organizationId);
+
+        if (string.IsNullOrEmpty(_projectId) == false)
+            request.Headers.TryAddWithoutValidation(Constants.RequestFields.OpenAiProject, _projectId);
+
+        return request;
 
         BlittableJsonReaderObject GetStructuredOutputSchemaAsBlittable()
         {
@@ -308,6 +334,29 @@ internal class ChatCompletionClient : IChatCompletionClient, IChatCompletionClie
                 return ctx.Sync.ReadForMemory(stream, "json");
             }
         }
+    }
+
+    public async Task ProxyModelsAsync(HttpResponse response, CancellationToken token)
+    {
+        using var request = new HttpRequestMessage
+        {
+            Method = HttpMethod.Get,
+            RequestUri = new Uri(Constants.RequestFields.ModelsUri, UriKind.Relative)
+        };
+
+        if (string.IsNullOrEmpty(_organizationId) == false)
+            request.Headers.TryAddWithoutValidation(Constants.RequestFields.OpenAiOrganization, _organizationId);
+
+        if (string.IsNullOrEmpty(_projectId) == false)
+            request.Headers.TryAddWithoutValidation(Constants.RequestFields.OpenAiProject, _projectId);
+
+
+        using var r = await _client.SendAsync(request, token);
+
+        HttpResponseHelper.CopyStatusCode(r, response);
+        HttpResponseHelper.CopyHeaders(r, response);
+
+        await HttpResponseHelper.CopyContentAsync(r, response);
     }
 
     public virtual async Task<BlittableJsonReaderObject> GetResponseContentAsync(JsonOperationContext context, HttpResponseMessage response, CancellationToken token)
@@ -657,9 +706,12 @@ internal class ChatCompletionClient : IChatCompletionClient, IChatCompletionClie
 
             // HTTP headers
             public const string HeaderContentType = "Content-Type";
+            public const string OpenAiOrganization = "OpenAI-Organization";
+            public const string OpenAiProject = "OpenAI-Project";
             public const string MediaTypeApplicationJson = "application/json";
 
             public const string DefaultRelativeUri = "/v1/chat/completions";
+            public const string ModelsUri = "/v1/models";
             public const string AuthorizationApiKeyProperty = "Bearer";
         }
     }

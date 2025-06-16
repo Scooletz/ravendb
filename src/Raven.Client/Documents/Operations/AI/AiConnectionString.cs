@@ -204,11 +204,13 @@ public sealed class AiConnectionString : ConnectionString
                (AbstractAiSettings)MistralAiSettings;
     }
 
-    internal bool TryGetParametersForGenAiTesting(out string uri, out string apiKey, out string model)
+    internal bool TryGetParametersForGenAiTesting(out string uri, out string apiKey, out string model, out string organizationId, out string projectId)
     {
         uri = null;
         apiKey = null;
         model = null;
+        organizationId = null;
+        projectId = null;
 
         var provider = GetActiveProvider();
         switch (provider)
@@ -217,6 +219,8 @@ public sealed class AiConnectionString : ConnectionString
                 uri = OpenAiSettings.Endpoint;
                 apiKey = OpenAiSettings.ApiKey;
                 model = OpenAiSettings.Model;
+                organizationId = OpenAiSettings.OrganizationId;
+                projectId = OpenAiSettings.ProjectId;
                 return true;
             case AiConnectorType.Ollama:
                 uri = OllamaSettings.Uri; 

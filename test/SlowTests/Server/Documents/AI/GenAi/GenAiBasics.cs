@@ -1,7 +1,6 @@
-﻿using System;
+﻿﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 using FastTests;
 using Newtonsoft.Json;
@@ -10,6 +9,7 @@ using Raven.Client.Documents.Operations.AI;
 using Raven.Client.Documents.Operations.ConnectionStrings;
 using Raven.Client.Documents.Operations.ETL;
 using Raven.Client.Documents.Operations.OngoingTasks;
+using Raven.Client.Exceptions;
 using Raven.Server.Documents;
 using Raven.Server.Documents.AI;
 using Raven.Server.Documents.ETL;
@@ -572,6 +572,122 @@ for(const comment of this.Comments)
         );
     }
 
+    [RavenTheory(RavenTestCategory.Ai)]
+    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single, CheckCanConnect = false, NightlyBuildRequired = false)]
+    public async Task ShouldUseTaskIdentifierInMetadataHashes(Options options, GenAiConfiguration config)
+    {
+        using var store = GetDocumentStore(options);
+        store.Maintenance.Send(new PutConnectionStringOperation<AiConnectionString>(config.Connection));
+
+        config.Prompt = "Check if the following blog post comment is spam or not";
+        config.Collection = "Posts";
+        config.SampleObject = JsonConvert.SerializeObject(new { Blocked = true, Reason = "Concise reason for why this comment was marked as spam or ham" });
+        config.UpdateScript = @"    
+const idx = this.Comments.findIndex(c => c.Id == $input.Id);  
+if ($output.Blocked)
+{
+    this.Comments.splice(idx, 1); // remove
+}";
+        config.GenAiTransformation = new GenAiTransformation
+        {
+            Script = @"
+for (const comment of this.Comments)
+{
+    ai.genContext({Text: comment.Text, Author: comment.Author, Id: comment.Id});
+}
+"
+        };
+
+        store.Maintenance.Send(new AddGenAiOperation(config));
+
+        var taskInfo = await store.Maintenance.SendAsync(new GetOngoingTaskInfoOperation(config.Name, OngoingTaskType.GenAi));
+        var genAiTaskInfo = taskInfo as Raven.Client.Documents.Operations.OngoingTasks.GenAi;
+        Assert.NotNull(genAiTaskInfo);
+
+        var identifier = genAiTaskInfo.Configuration.Identifier;
+        Assert.False(string.IsNullOrEmpty(identifier));
+
+        var etl = Etl.WaitForEtlToComplete(store);
+
+        const string id = "posts/1";
+        using (var session = store.OpenSession())
+        {
+            var p = new Post(
+                [
+                    new Comment("Surefire investment property in caiman islands, win $$$$ for sure, qucik!", "homepage"),
+                    new Comment("Probably... That piece of code was written (and never looked at) in 2017, IIRC It wasn't a real issue (since it is cached) except for this particular scenario.", "Oren Eini")
+                ],
+                "I, pencil",
+                "A B52 pencil...");
+            session.Store(p, id);
+            session.SaveChanges();
+        }
+
+        Assert.True(etl.Wait(TimeSpan.FromSeconds(30)));
+
+        using (var session = store.OpenAsyncSession())
+        {
+            var doc = await session.LoadAsync<BlittableJsonReaderObject>(id);
+            Assert.True(doc.TryGet(Constants.Documents.Metadata.Key, out BlittableJsonReaderObject metadata));
+            Assert.True(metadata.TryGet(Constants.Documents.Metadata.GenAiHashes, out BlittableJsonReaderObject hashesSection));
+            Assert.True(hashesSection.TryGet(identifier, out BlittableJsonReaderArray hashesArray));
+            Assert.NotNull(hashesArray);
+            Assert.Equal(2, hashesArray.Length);
+        }
+    }
+
+    [RavenTheory(RavenTestCategory.Ai)]
+    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single, CheckCanConnect = false, NightlyBuildRequired = false)]
+    public async Task ShouldThrowOnNonUniqueIdentifier(Options options, GenAiConfiguration config)
+    {
+        using var store = GetDocumentStore(options);
+        store.Maintenance.Send(new PutConnectionStringOperation<AiConnectionString>(config.Connection));
+
+        config.Prompt = "Check if the following blog post comment is spam or not";
+        config.Collection = "Posts";
+        config.SampleObject = JsonConvert.SerializeObject(new { Blocked = true, Reason = "Concise reason for why this comment was marked as spam or ham" });
+        config.UpdateScript = @"    
+const idx = this.Comments.findIndex(c => c.Id == $input.Id);  
+if($output.Blocked)
+{
+    this.Comments.splice(idx, 1); // remove
+}";
+        config.GenAiTransformation = new GenAiTransformation
+        {
+            Script = @"
+for(const comment of this.Comments)
+{
+    ai.genContext({Text: comment.Text, Author: comment.Author, Id: comment.Id});
+}
+"
+        };
+
+        store.Maintenance.Send(new AddGenAiOperation(config));
+
+        var taskInfo = await store.Maintenance.SendAsync(new GetOngoingTaskInfoOperation(config.Name, OngoingTaskType.GenAi));
+        var genAiTaskInfo = taskInfo as Raven.Client.Documents.Operations.OngoingTasks.GenAi;
+        Assert.NotNull(genAiTaskInfo);
+
+        var identifier = genAiTaskInfo.Configuration.Identifier;
+        Assert.False(string.IsNullOrEmpty(identifier));
+
+        var config2 = new GenAiConfiguration
+        {
+            Name = "PostsSpamCheck2",
+            ConnectionStringName = config.ConnectionStringName,
+            Prompt = config.Prompt,
+            Collection = config.Collection,
+            SampleObject = config.SampleObject,
+            UpdateScript = config.UpdateScript,
+            GenAiTransformation = config.GenAiTransformation,
+            Identifier = identifier // using the same identifier
+        };
+
+        var e = Assert.Throws<RavenException>(() => store.Maintenance.Send(new AddGenAiOperation(config2)));
+        Assert.Contains("Can't create GenAI task", e.Message);
+        Assert.Contains($"The identifier '{identifier}' is already used", e.Message);
+    }
+
     private async Task ShouldResendContextOnConfigChange(GenAiConfiguration config, Action<GenAiConfiguration> changeConfig)
     {
         using var store = GetDocumentStore();
@@ -587,6 +703,7 @@ for(const comment of this.Comments)
         config.UpdateScript = "this.TextInPolish = $output.Translation;";
         config.Collection = "Posts";
         config.GenAiTransformation = new GenAiTransformation { Script = "ai.genContext({ Text: this.Body });" };
+        config.Identifier = "posts-translation-check";
 
         store.Maintenance.Send(new AddGenAiOperation(config));
 
@@ -606,7 +723,7 @@ for(const comment of this.Comments)
             var doc = await session.LoadAsync<BlittableJsonReaderObject>(docId);
             Assert.True(doc.TryGet(Constants.Documents.Metadata.Key, out BlittableJsonReaderObject metadata));
             Assert.True(metadata.TryGet(Constants.Documents.Metadata.GenAiHashes, out BlittableJsonReaderObject hashesSection));
-            Assert.True(hashesSection.TryGet(config.Name, out BlittableJsonReaderArray hashesArray));
+            Assert.True(hashesSection.TryGet(config.Identifier, out BlittableJsonReaderArray hashesArray));
             Assert.NotNull(hashesArray);
             originalHash = hashesArray.Last().ToString();
         }
@@ -693,7 +810,7 @@ for(const comment of this.Comments)
             var doc = await session.LoadAsync<BlittableJsonReaderObject>(docId);
             Assert.True(doc.TryGet(Constants.Documents.Metadata.Key, out BlittableJsonReaderObject metadata));
             Assert.True(metadata.TryGet(Constants.Documents.Metadata.GenAiHashes, out BlittableJsonReaderObject hashesSection));
-            Assert.True(hashesSection.TryGet(config.Name, out BlittableJsonReaderArray hashesArray));
+            Assert.True(hashesSection.TryGet(config.Identifier, out BlittableJsonReaderArray hashesArray));
             Assert.NotNull(hashesArray);
 
             var newHash = hashesArray.Last().ToString();
