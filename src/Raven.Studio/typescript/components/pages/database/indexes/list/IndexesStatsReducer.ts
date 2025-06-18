@@ -78,6 +78,16 @@ interface ActionLocationsLoaded {
     type: "LocationsLoaded";
 }
 
+export interface GlobalIndexStatus {
+    location: databaseLocationSpecifier;
+    status: Raven.Client.Documents.Indexes.IndexRunningStatus;
+}
+
+interface ActionGlobalStatusLoaded {
+    statusList: GlobalIndexStatus[];
+    type: "GlobalStatusLoaded";
+}
+
 type IndexesStatsReducerAction =
     | ActionDeleteIndexes
     | ActionStatsLoaded
@@ -90,12 +100,14 @@ type IndexesStatsReducerAction =
     | ActionResetIndex
     | ActionDisableIndexing
     | ActionEnableIndexing
-    | ActionLocationsLoaded;
+    | ActionLocationsLoaded
+    | ActionGlobalStatusLoaded;
 
 interface IndexesStatsState {
     indexes: IndexSharedInfo[];
     locations: databaseLocationSpecifier[];
     resetInProgress: string[];
+    globalStatusList: GlobalIndexStatus[];
 }
 
 function mapToIndexSharedInfo(stats: IndexStats): IndexSharedInfo {
@@ -389,6 +401,10 @@ export const indexesStatsReducer: Reducer<IndexesStatsState, IndexesStatsReducer
                     }
                 }
             });
+        case "GlobalStatusLoaded":
+            return produce(state, (draft) => {
+                draft.globalStatusList = action.statusList;
+            });
         default:
             console.warn("Unhandled action: ", action);
             return state;
@@ -400,5 +416,6 @@ export const indexesStatsReducerInitializer = (locations: databaseLocationSpecif
         indexes: [],
         locations,
         resetInProgress: [],
+        globalStatusList: [],
     };
 };

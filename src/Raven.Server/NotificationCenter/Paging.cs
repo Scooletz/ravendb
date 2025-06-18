@@ -4,6 +4,7 @@ using System.Threading;
 using JetBrains.Annotations;
 using Raven.Client.Documents.Conventions;
 using Raven.Client.Util;
+using Raven.Server.Config.Settings;
 using Raven.Server.Logging;
 using Raven.Server.NotificationCenter.Notifications;
 using Raven.Server.NotificationCenter.Notifications.Details;
@@ -28,11 +29,15 @@ namespace Raven.Server.NotificationCenter
         private Timer _pagingTimer;
         private readonly RavenLogger _logger;
 
+        private readonly long _totalDocumentsSizeInBytesLoggingThreshold = 16 * 1024 * 1024;
+        private readonly long _durationInMsLoggingThreshold;
+
         public Paging([NotNull] AbstractDatabaseNotificationCenter notificationCenter)
         {
             _notificationCenter = notificationCenter ?? throw new ArgumentNullException(nameof(notificationCenter));
 
             _logger = RavenLogManager.Instance.GetLoggerForDatabase<Paging>(notificationCenter.Database);
+            _durationInMsLoggingThreshold = _notificationCenter.Configuration.PerformanceHints.TooLongRequestThreshold.GetValue(TimeUnit.Milliseconds);
         }
 
         public void Add(PagingOperationType operation, string action, string details, long numberOfResults, long pageSize, long duration, long totalDocumentsSizeInBytes)
@@ -49,6 +54,12 @@ namespace Raven.Server.NotificationCenter
             if (ForTestingPurposes?.DisableDequeue == true)
                 return;
 
+            if ((totalDocumentsSizeInBytes > _totalDocumentsSizeInBytesLoggingThreshold || duration > _durationInMsLoggingThreshold) && _logger.IsWarnEnabled)
+            {
+                _logger.Warn($"Excessive amount of results detected - Operation: {action}, Count: {numberOfResults} {operation}, " +
+                                   $"Size: {new Size(totalDocumentsSizeInBytes).HumaneSize}, Duration: {TimeSpan.FromMilliseconds(duration)}");
+            }
+            
             while (_pagingQueue.Count > 50)
                 _pagingQueue.TryDequeue(out _);
 

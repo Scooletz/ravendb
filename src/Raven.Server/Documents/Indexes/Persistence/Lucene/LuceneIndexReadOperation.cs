@@ -16,6 +16,7 @@ using Raven.Client.Documents.Indexes.Spatial;
 using Raven.Client.Documents.Queries.Explanation;
 using Raven.Client.Documents.Queries.MoreLikeThis;
 using Raven.Client.Exceptions;
+using Raven.Server.Documents.Indexes.Debugging;
 using Raven.Server.Documents.Indexes.Persistence.Lucene.Analyzers;
 using Raven.Server.Documents.Indexes.Persistence.Lucene.Collectors;
 using Raven.Server.Documents.Indexes.Persistence.Lucene.Documents;
@@ -39,6 +40,7 @@ using Sparrow.Json;
 using Sparrow.Logging;
 using Spatial4n.Shapes;
 using Voron.Impl;
+using IndexFieldType = Raven.Server.Documents.Indexes.Debugging.IndexFieldType;
 using Query = Lucene.Net.Search.Query;
 
 namespace Raven.Server.Documents.Indexes.Persistence.Lucene
@@ -756,7 +758,7 @@ namespace Raven.Server.Documents.Indexes.Persistence.Lucene
             }
         }
 
-        public override SortedSet<string> Terms(string field, string fromValue, long pageSize, CancellationToken token)
+        public override List<string> Terms(string field, string fromValue, long pageSize, CancellationToken token)
         {
             var results = new SortedSet<string>(StringComparer.Ordinal);
             using (var termDocs = _searcher.IndexReader.HasDeletions ? _searcher.IndexReader.TermDocs(_state) : null)
@@ -769,7 +771,7 @@ namespace Raven.Server.Documents.Indexes.Persistence.Lucene
                         token.ThrowIfCancellationRequested();
 
                         if (termEnum.Next(_state) == false)
-                            return results;
+                            return results.ToList();
                     }
                 }
                 while (termEnum.Term == null ||
@@ -800,7 +802,7 @@ namespace Raven.Server.Documents.Indexes.Persistence.Lucene
                 }
             }
 
-            return results;
+            return results.ToList();
         }
 
         public override IEnumerable<QueryResult> MoreLikeThis(
@@ -972,20 +974,23 @@ namespace Raven.Server.Documents.Indexes.Persistence.Lucene
             }
         }
 
-        public override IEnumerable<string> DynamicEntriesFields(HashSet<string> staticFields)
+        public override HashSet<FieldDebugInfo> GetEntriesFields(ICollection<string> unknownTypeStaticFields)
         {
+            var fields = new HashSet<FieldDebugInfo>();
+
+            foreach (var staticField in unknownTypeStaticFields)
+            {
+                fields.Add(new(staticField, IndexFieldType.Static, IndexedValueType.Term));
+            }
+            
             foreach (var fieldName in _searcher
                 .IndexReader
                 .GetFieldNames(IndexReader.FieldOption.ALL))
             {
-                if (staticFields.Contains(fieldName))
+                if (fields.Select(x => x.Name).Contains(fieldName))
                     continue;
 
-                if (fieldName == Constants.Documents.Indexing.Fields.ReduceKeyHashFieldName
-                    || fieldName == Constants.Documents.Indexing.Fields.ReduceKeyValueFieldName
-                    || fieldName == Constants.Documents.Indexing.Fields.ValueFieldName
-                    || fieldName == Constants.Documents.Indexing.Fields.DocumentIdFieldName
-                    || fieldName == Constants.Documents.Indexing.Fields.SourceDocumentIdFieldName)
+                if (IsDynamicFieldKnownAsStatic(fieldName))
                     continue;
 
                 if (fieldName.EndsWith(LuceneDocumentConverterBase.ConvertToJsonSuffix) ||
@@ -994,8 +999,10 @@ namespace Raven.Server.Documents.Indexes.Persistence.Lucene
                     fieldName.EndsWith(Constants.Documents.Indexing.Fields.TimeFieldSuffix))
                     continue;
 
-                yield return fieldName;
+                fields.Add(new FieldDebugInfo(fieldName, IndexFieldType.Dynamic, IndexedValueType.Term));
             }
+
+            return fields;
         }
 
         public override void Dispose()

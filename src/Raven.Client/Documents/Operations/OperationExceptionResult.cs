@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Net;
+using Raven.Client.Exceptions.Commercial;
 using Sparrow.Json.Parsing;
 
 namespace Raven.Client.Documents.Operations
@@ -14,6 +15,8 @@ namespace Raven.Client.Documents.Operations
 
         public HttpStatusCode StatusCode { get; set; } //http status code for special results like 409		
 
+        internal LimitType? LimitType { get; set; } // used for WaitForCompletionAsync when we check for the operation result
+
         public OperationExceptionResult()
         {
             // .ctor required for deserialization
@@ -26,6 +29,7 @@ namespace Raven.Client.Documents.Operations
             Message = exception.Message;
             Error = ExceptionToString(exception);
             StatusCode = statusCode;
+            LimitType = exception is LicenseLimitException lle ? lle.LimitType : null;
         }
 
         public DynamicJsonValue ToJson()
@@ -35,7 +39,8 @@ namespace Raven.Client.Documents.Operations
                 [nameof(Type)] = Type,
                 [nameof(Message)] = Message,
                 [nameof(Error)] = Error,
-                [nameof(StatusCode)] = (int)StatusCode
+                [nameof(StatusCode)] = (int)StatusCode,
+                [nameof(LimitType)] = LimitType,
             };
         }
 

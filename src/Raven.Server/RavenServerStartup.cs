@@ -387,6 +387,10 @@ namespace Raven.Server
                 djv[nameof(BackupAlreadyRunningException.OperationId)] = backupAlreadyRunningException.OperationId;
                 djv[nameof(BackupAlreadyRunningException.NodeTag)] = backupAlreadyRunningException.NodeTag;
             }
+            if (exception is LicenseLimitException licenseLimitException)
+            {
+                djv[nameof(LicenseLimitException.LimitType)] = licenseLimitException.LimitType;
+            }
         }
 
         private static void MaybeSetExceptionStatusCode(HttpContext httpContext, ServerStore serverStore, Exception exception)

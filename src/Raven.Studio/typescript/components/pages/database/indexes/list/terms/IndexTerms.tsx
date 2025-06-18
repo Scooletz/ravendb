@@ -79,9 +79,14 @@ function IndexTermsAccordions({ field, indexName, loadMore }: IndexTermsAccordio
                     <div className="d-flex align-items-center gap-2">
                         <span className="m-0">{field.name}</span>
                         <HStack className="gap-1">
-                            {field.type === "dynamic" && (
-                                <Badge data-testid="term-dynamic-field" bg="light" className="rounded-pill">
+                            {field.type === "Dynamic" && (
+                                <Badge data-testid="term-dynamic-field" bg="light" pill>
                                     Dynamic field
+                                </Badge>
+                            )}
+                            {field.termType === "Vector" && (
+                                <Badge data-testid="term-vector-field" bg="light" pill>
+                                    Vector field
                                 </Badge>
                             )}
                             <Badge bg="secondary" pill>
@@ -142,7 +147,7 @@ function IndexTermItem({ index, term, indexName, field, fieldTerms }: IndexTermI
 
     const navigateToQuery = () => {
         const query = queryCriteria.empty();
-        const queryText = queryUtil.formatIndexQuery(indexName, field.name, term);
+        const queryText = queryUtil.formatIndexQuery(indexName, field.name, term, field.termType);
 
         query.queryText(queryText);
         query.name(`Index terms for ${indexName} (${field.name}: ${term})`);
