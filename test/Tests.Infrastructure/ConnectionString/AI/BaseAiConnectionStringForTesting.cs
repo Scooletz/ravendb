@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Threading;
+using Microsoft.Extensions.AI;
 using Microsoft.SemanticKernel.Embeddings;
 using Raven.Client.Documents.Conventions;
 using Raven.Client.Documents.Operations.AI;
@@ -16,7 +17,7 @@ using Sparrow.Json.Parsing;
 namespace Tests.Infrastructure.ConnectionString.AI;
 
 public interface IAiConnectorForTesting<TConfig>
-where TConfig : EtlConfiguration<AiConnectionString>
+    where TConfig : EtlConfiguration<AiConnectionString>
 {
     TConfig GetAiConfiguration();
     Lazy<bool> CanConnect { get; }
@@ -146,8 +147,8 @@ public abstract class BaseAiConnectorForTesting<T, TConfig> : IAiConnectorForTes
             logger?.Dispose();
         }
     }
-    protected abstract bool TryConnect(out InMemoryLoggerProvider logger, CancellationToken token);
 
+    protected abstract bool TryConnect(out InMemoryLoggerProvider logger, CancellationToken token);
 }
 
 public abstract class AbstractEmbeddingsConnectorForTesting<T> : BaseAiConnectorForTesting<T, EmbeddingsGenerationConfiguration>
@@ -157,8 +158,8 @@ public abstract class AbstractEmbeddingsConnectorForTesting<T> : BaseAiConnector
     {
         logger = null;
 
-        (ITextEmbeddingGenerationService service, logger) = AiHelper.CreateEmbeddingServicesForTest(_aiIntegrationConfiguration.Value);
-        var embeddings = service.GenerateEmbeddingsAsync(EmbeddingsHelper.ValuesListToVerifyConnection, cancellationToken: token).GetAwaiter().GetResult();
+        (IEmbeddingGenerator<string, Embedding<float>> service, logger) = AiHelper.CreateEmbeddingServicesForTest(_aiIntegrationConfiguration.Value);
+        var embeddings = service.GenerateAsync(EmbeddingsHelper.ValuesListToVerifyConnection, cancellationToken: token).GetAwaiter().GetResult();
 
         var isExpectedResponse = embeddings.Count == EmbeddingsHelper.ValuesListToVerifyConnection.Count;
         if (isExpectedResponse == false)
@@ -181,8 +182,10 @@ public abstract class AbstractGenAiConnectorForTesting<T> : BaseAiConnectorForTe
         {
             IChatCompletionClient client = connectorType switch
             {
-                Raven.Client.Documents.Operations.AI.AiConnectorType.Ollama => new OllamaChatCompletionClient(configuration, contextPool, IChatCompletionClient.DefaultConventions),
-                Raven.Client.Documents.Operations.AI.AiConnectorType.OpenAi => new OpenAiChatCompletionClient(configuration, contextPool, IChatCompletionClient.DefaultConventions),
+                Raven.Client.Documents.Operations.AI.AiConnectorType.Ollama => new OllamaChatCompletionClient(configuration, contextPool,
+                    IChatCompletionClient.DefaultConventions),
+                Raven.Client.Documents.Operations.AI.AiConnectorType.OpenAi => new OpenAiChatCompletionClient(configuration, contextPool,
+                    IChatCompletionClient.DefaultConventions),
                 _ => throw new NotSupportedException($"The specified model (\"{connectorType.ToString()}\") is not supported.")
             };
 
@@ -195,20 +198,33 @@ public abstract class AbstractGenAiConnectorForTesting<T> : BaseAiConnectorForTe
 
     private class OpenAiChatCompletionClient : AbstractChatCompletionClient<JsonOperationContext>
     {
-        public OpenAiChatCompletionClient(GenAiConfiguration configuration, JsonContextPool contextPool, DocumentConventions conventions) : base(baseUri: new Uri(configuration.Connection.OpenAiSettings.Endpoint),
-            model: configuration.Connection.OpenAiSettings.Model, apiKey: configuration.Connection.OpenAiSettings.ApiKey,
-            structuredOutputSchema: configuration.JsonSchema, contextPool, conventions)
+        public OpenAiChatCompletionClient(GenAiConfiguration configuration, JsonContextPool contextPool, DocumentConventions conventions)
+            : base(
+                baseUri: new Uri(configuration.Connection.OpenAiSettings.Endpoint),
+                model: configuration.Connection.OpenAiSettings.Model,
+                apiKey: configuration.Connection.OpenAiSettings.ApiKey,
+                organizationId: configuration.Connection.OpenAiSettings.OrganizationId,
+                projectId: configuration.Connection.OpenAiSettings.ProjectId,
+                structuredOutputSchema: configuration.JsonSchema,
+                contextPool,
+                conventions)
         {
         }
     }
 
     private class OllamaChatCompletionClient : AbstractChatCompletionClient<JsonOperationContext>
     {
-        public OllamaChatCompletionClient(GenAiConfiguration configuration, JsonContextPool contextPool, DocumentConventions conventions) : base(baseUri: new Uri(configuration.Connection.OllamaSettings.Uri),
-            model: configuration.Connection.OllamaSettings.Model, apiKey: null, structuredOutputSchema: configuration.JsonSchema, contextPool, conventions)
+        public OllamaChatCompletionClient(GenAiConfiguration configuration, JsonContextPool contextPool, DocumentConventions conventions)
+            : base(
+                baseUri: new Uri(configuration.Connection.OllamaSettings.Uri),
+                model: configuration.Connection.OllamaSettings.Model,
+                apiKey: null,
+                organizationId: null,
+                projectId: null,
+                structuredOutputSchema: configuration.JsonSchema,
+                contextPool,
+                conventions)
         {
         }
     }
 }
-
-

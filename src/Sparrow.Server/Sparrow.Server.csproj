@@ -50,6 +50,7 @@
     </PackageReference>
     <PackageReference Include="Raven.Pal" />
     <PackageReference Include="System.Diagnostics.PerformanceCounter" />
+    <PackageReference Include="System.Numerics.Tensors" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Sparrow\Sparrow.csproj" />

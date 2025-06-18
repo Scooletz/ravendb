@@ -15,7 +15,8 @@ import { useAppSelector } from "components/store";
 import { databaseSelectors } from "components/common/shell/databaseSliceSelectors";
 import PopoverWithHoverWrapper from "components/common/PopoverWithHoverWrapper";
 import EmbeddingsMaxConcurrentBatches from "./EmbeddingsMaxConcurrentBatchesField";
-import { openAiModelOptions } from "../aiConnectionStringUtils";
+import { useAsyncDebounce } from "components/hooks/useAsyncDebounce";
+import { SelectOption } from "components/common/select/Select";
 
 export default function AzureOpenAiSettings({ isUsedByAnyTask }: { isUsedByAnyTask: boolean }) {
     const { control, trigger } = useFormContext<ConnectionFormData<AiConnection>>();
@@ -39,6 +40,34 @@ export default function AzureOpenAiSettings({ isUsedByAnyTask }: { isUsedByAnyTa
         });
     });
 
+    const asyncGetModelOptions = useAsyncDebounce(
+        async () => {
+            const apiKey = formValues.azureOpenAiSettings.apiKey?.trim() ?? "";
+            const endpoint = formValues.azureOpenAiSettings.endpoint?.trim() ?? "";
+
+            if (!apiKey || !endpoint) {
+                return [];
+            }
+
+            const dto: AiModelsRequestDto = {
+                ConnectorType: "AzureOpenAi",
+                AzureOpenAiSettings: {
+                    ApiKey: apiKey,
+                    Endpoint: endpoint,
+                },
+            };
+
+            try {
+                const result = await tasksService.getAiModels(dto);
+                return [...result].sort().map((x) => ({ label: x, value: x }) satisfies SelectOption);
+            } catch {
+                return [];
+            }
+        },
+        [formValues.azureOpenAiSettings.apiKey, formValues.azureOpenAiSettings.endpoint],
+        300
+    );
+
     return (
         <>
             <div className="mb-2">
@@ -54,7 +83,7 @@ export default function AzureOpenAiSettings({ isUsedByAnyTask }: { isUsedByAnyTa
             <div className="mb-2">
                 <FormLabel>
                     Endpoint
-                    <PopoverWithHoverWrapper message="The Azure OpenAI endpoint for generating embeddings from text.">
+                    <PopoverWithHoverWrapper message="The Azure OpenAI endpoint for generating responses.">
                         <Icon icon="info" color="info" id="endpoint" margin="ms-1" />
                     </PopoverWithHoverWrapper>
                 </FormLabel>
@@ -64,7 +93,7 @@ export default function AzureOpenAiSettings({ isUsedByAnyTask }: { isUsedByAnyTa
             <div className="mb-2">
                 <FormLabel>
                     Model
-                    <PopoverWithHoverWrapper message="The Azure OpenAI text embedding model to use.">
+                    <PopoverWithHoverWrapper message="The Azure OpenAI model to use.">
                         <Icon icon="info" color="info" id="model" margin="ms-1" />
                     </PopoverWithHoverWrapper>
                 </FormLabel>
@@ -72,8 +101,9 @@ export default function AzureOpenAiSettings({ isUsedByAnyTask }: { isUsedByAnyTa
                     control={control}
                     name="azureOpenAiSettings.model"
                     isDisabled={isUsedByAnyTask}
-                    placeholder="Select a model (or enter new one)"
-                    options={openAiModelOptions}
+                    placeholder="Select a model or enter a new one (provide API key and Endpoint to see available models)"
+                    options={asyncGetModelOptions.result ?? []}
+                    isLoading={asyncGetModelOptions.loading}
                 />
             </div>
             <div className="mb-2">

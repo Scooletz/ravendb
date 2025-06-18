@@ -763,9 +763,13 @@ interface confirmationDialogOptions {
     wideDialog?: boolean;
 }
 
+type IndexEntriesFieldType = "Static" | "Dynamic";
+type IndexEntriesValueType = "Term" | "Vector";
+
 interface getIndexEntriesFieldsCommandResult {
-    Static: string[];
-    Dynamic: string[];
+    Name: string;
+    FieldType: IndexEntriesFieldType;
+    ValueType: IndexEntriesValueType
 }
 
 interface scrollColorConfig {
@@ -1087,8 +1091,6 @@ type CertificatesResponseDto = {
     WellKnownIssuers: string[]
 }
 
-type GenAiConfiguration = Omit<Raven.Client.Documents.Operations.AI.GenAiConfiguration, "Identifier">;
-
 type AiConnectionStringsSettings =
     | Raven.Client.Documents.Operations.AI.OpenAiSettings
     | Raven.Client.Documents.Operations.AI.AzureOpenAiSettings
@@ -1097,3 +1099,10 @@ type AiConnectionStringsSettings =
     | Raven.Client.Documents.Operations.AI.GoogleSettings
     | Raven.Client.Documents.Operations.AI.HuggingFaceSettings
     | Raven.Client.Documents.Operations.AI.MistralAiSettings;
+
+interface AiModelsRequestDto {
+    ConnectorType: Extract<Raven.Client.Documents.Operations.AI.AiConnectorType, "Ollama" | "OpenAi" | "AzureOpenAi">;
+    AzureOpenAiSettings?: Pick<Raven.Client.Documents.Operations.AI.AzureOpenAiSettings, "Endpoint", "ApiKey">;
+    OllamaSettings?: Pick<Raven.Client.Documents.Operations.AI.OllamaSettings, "Uri">;
+    OpenAiSettings?: Pick<Raven.Client.Documents.Operations.AI.OpenAiSettings, "Endpoint" | "ApiKey" | "OrganizationId" | "ProjectId">;
+}

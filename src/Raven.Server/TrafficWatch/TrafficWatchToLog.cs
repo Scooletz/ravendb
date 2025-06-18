@@ -124,6 +124,17 @@ internal sealed class TrafficWatchToLog : IDynamicJson
                 .Append(twtc.ClientIP).Append(", ")
                 .Append(twtc.CertificateThumbprint);
         }
+        else if (trafficWatchData is TrafficWatchPostgresChange twpsc)
+        {
+            stringBuilder
+                .Append("POSTGRES, ")
+                .Append(twpsc.Username).Append(", ")
+                .Append(twpsc.Query).Append(", ")
+                .Append(twpsc.DatabaseName).Append(", ")
+                .Append(twpsc.Source).Append(", ")
+                .Append(twpsc.CustomInfo).Append(", ")
+                .Append(twpsc.ClientIP);
+        }
 
         Logger.Info(stringBuilder.ToString());
     }

@@ -25,7 +25,7 @@ namespace FastTests.Server.Documents
         {
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.Memory)]
         public async Task GetLower_WhenStringAscii_ShouldNotModifyTheValueAcceptToLower()
         {
             using (var store = GetDocumentStore())
@@ -47,7 +47,7 @@ namespace FastTests.Server.Documents
             }
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.Memory)]
         public async Task GetSliceFromId_WhenStringAscii_ShouldNotModifyTheValueAcceptToLower()
         {
             using (var store = GetDocumentStore())
@@ -65,7 +65,7 @@ namespace FastTests.Server.Documents
             }
         }
         
-        [Fact]
+        [RavenFact(RavenTestCategory.Memory)]
         public void GetSliceFromId_WhenEmptyLazyString_ShouldNotThrow()
         {
             using var ctx = DocumentsOperationContext.ShortTermSingleUse(null);
@@ -77,7 +77,7 @@ namespace FastTests.Server.Documents
             }
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.Memory)]
         public async Task GetSliceFromId_WhenStringIsUnicode_ShouldNotModifyTheValueAcceptToLower()
         {
             using (var store = GetDocumentStore())
@@ -95,7 +95,7 @@ namespace FastTests.Server.Documents
             }
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.Memory)]
         public async Task GetSliceFromId_WhenDisposing_ShouldFreeMemory()
         {
             using (var store = GetDocumentStore())
@@ -127,7 +127,7 @@ namespace FastTests.Server.Documents
                 ['a' + new string('\r', MaxKeySize / (JsonParserState.EscapePositionItemSize + 1) - 4)]
             };
 
-        [RavenTheory(RavenTestCategory.Core)]
+        [RavenTheory(RavenTestCategory.Memory)]
         [MemberData(nameof(Ids))]
         public async Task DocumentId_WhenWrite_ShouldBeAbleToRead(string id)
         {
@@ -159,7 +159,7 @@ namespace FastTests.Server.Documents
             }
         }
 
-        [RavenTheory(RavenTestCategory.Core)]
+        [RavenTheory(RavenTestCategory.Memory)]
         [MemberData(nameof(Ids))]
         public async Task DocumentId_WhenStore_ShouldBeAbleToLoad(string id)
         {

@@ -1,10 +1,12 @@
 ﻿using System;
 using System.Threading.Tasks;
 using JetBrains.Annotations;
+using Microsoft.Extensions.AI;
 using Microsoft.SemanticKernel.Embeddings;
 using Raven.Client.Documents.Operations.AI;
 using Raven.Server.Documents.AI;
 using Raven.Server.Documents.AI.Embeddings;
+using Raven.Server.Documents.AI.GenAi;
 using Raven.Server.Documents.Handlers.Processors;
 using Raven.Server.Json;
 using Raven.Server.Web.System;
@@ -79,14 +81,31 @@ internal class AiIntegrationHandlerProcessorForTestAiConnection<TRequestHandler,
                         throw new ArgumentOutOfRangeException();
                 }
 
-                var aiEtlConfiguration = new EmbeddingsGenerationConfiguration { Connection = aiConnectionString };
+                try
+                {
+                    var aiEtlConfiguration = new EmbeddingsGenerationConfiguration { Connection = aiConnectionString };
+                    (IEmbeddingGenerator<string, Embedding<float>> service, logger) = AiHelper.CreateEmbeddingServicesForTest(aiEtlConfiguration);
+                    var embeddings = await service.GenerateAsync(EmbeddingsHelper.ValuesListToVerifyConnection, cancellationToken: token.Token);
 
-                (ITextEmbeddingGenerationService service, logger) = AiHelper.CreateEmbeddingServicesForTest(aiEtlConfiguration);
-                var embeddings = await service.GenerateEmbeddingsAsync(EmbeddingsHelper.ValuesListToVerifyConnection, cancellationToken: token.Token);
-
-                if (embeddings.Count != EmbeddingsHelper.ValuesListToVerifyConnection.Count)
-                    throw new Exception(
-                        $"Failed to generate embeddings for test values. Expected '{EmbeddingsHelper.ValuesListToVerifyConnection.Count}' result, but got '{embeddings.Count}'.");
+                    if (embeddings.Count != EmbeddingsHelper.ValuesListToVerifyConnection.Count)
+                        throw new EmbeddingsMismatchException(
+                            $"Failed to generate embeddings for test values. Expected '{EmbeddingsHelper.ValuesListToVerifyConnection.Count}' result, but got '{embeddings.Count}'.");
+                }
+                // TODO: remove this ugly workaround
+                catch (Exception e) when (e is not EmbeddingsMismatchException)
+                {
+                    if (aiConnectionString.TryGetParametersForGenAiTesting(out var uri, out var apiKey, out var model))
+                    {
+                        using (var client = new GenericChatCompletionClientForTesting(uri, model, apiKey, organizationId: null, projectId: null, ServerStore.ContextPool))
+                        {
+                            await client.CompleteAsync("foo", "bar", HttpContext.RequestAborted);
+                        }
+                    }
+                    else
+                    {
+                        throw;
+                    }
+                }
 
                 var result = new DynamicJsonValue { [nameof(NodeConnectionTestResult.Success)] = true };
 
