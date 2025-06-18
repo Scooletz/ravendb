@@ -421,6 +421,8 @@ namespace Raven.Server.ServerWide
                         SetIndexForBackup(context, UpdateValueForDatabaseCommand.GetDatabaseNameFromJson(cmd), index, type);
                         break;
 
+                    case nameof(AddGenAiCommand):
+                    case nameof(UpdateGenAiCommand):
                     case nameof(PutSortersCommand):
                     case nameof(DeleteSorterCommand):
                     case nameof(PutAnalyzersCommand):
@@ -458,7 +460,6 @@ namespace Raven.Server.ServerWide
                     case nameof(AddQueueSinkCommand):
                     case nameof(AddSnowflakeEtlCommand):
                     case nameof(AddEmbeddingsGenerationCommand):
-                    case nameof(AddGenAiCommand):
                     case nameof(UpdateRavenEtlCommand):
                     case nameof(UpdateSqlEtlCommand):
                     case nameof(UpdateOlapEtlCommand):
@@ -467,7 +468,6 @@ namespace Raven.Server.ServerWide
                     case nameof(UpdateQueueSinkCommand):
                     case nameof(UpdateSnowflakeEtlCommand):
                     case nameof(UpdateEmbeddingsGenerationCommand):
-                    case nameof(UpdateGenAiCommand):
                     case nameof(DeleteOngoingTaskCommand):
                     case nameof(PutRavenConnectionStringCommand):
                     case nameof(PutSqlConnectionStringCommand):
@@ -817,12 +817,12 @@ namespace Raven.Server.ServerWide
                     {
                         actions.Add(() =>
                         Changes.OnDatabaseChanges(database, index, nameof(T), DatabasesLandlord.ClusterDatabaseChangeType.ValueChanged, changeState: null));
-                }
+                    }
                 }
 
                 ExecuteManyOnDispose(context, index, type, actions);
 
-                }
+            }
             catch (Exception e)
             {
                 exception = e;

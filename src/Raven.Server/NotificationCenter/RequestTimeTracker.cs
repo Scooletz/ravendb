@@ -5,7 +5,6 @@ using Microsoft.AspNetCore.Http;
 using Raven.Client;
 using Raven.Server.Config;
 using Sparrow.Json;
-using Sparrow.Logging;
 using Sparrow.Server.Logging;
 
 namespace Raven.Server.NotificationCenter
@@ -63,6 +62,9 @@ namespace Raven.Server.NotificationCenter
 
                 _notificationCenter.RequestLatency
                     .AddHint(_sw.ElapsedMilliseconds, _source, queryWithParameters);
+                
+                if (_logger.IsWarnEnabled)
+                    _logger.Warn($"High latency request detected - Source: {_source}, Duration: {_sw.Elapsed}, Query: {queryWithParameters}");
             }
             catch (Exception e)
             {

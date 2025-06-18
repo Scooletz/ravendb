@@ -118,7 +118,6 @@
         "@tanstack/react-table": "^8.19.3",
         "@tanstack/react-virtual": "^3.8.3",
         "@testing-library/dom": "^10.3.1",
-        "@types/eonasdan-bootstrap-datetimepicker": "^4.17.32",
         "@types/react-datepicker": "^6.2.0",
         "ajv": "^8.16.0",
         "antlr4-c3": "^1.1.16",
@@ -172,5 +171,10 @@
         "util": "^0.12.5",
         "webcola": "^3.4.0",
         "yup": "^1.4.0"
+    },
+    "overrides": {
+        "eonasdan-bootstrap-datetimepicker": {
+            "moment-timezone": "^0.6.0"
+        }
     }
 }

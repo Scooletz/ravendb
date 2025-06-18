@@ -34,6 +34,7 @@ import testAmazonSqsServerConnectionCommand from "commands/database/cluster/test
 import testAiConnectionStringCommand from "commands/database/cluster/testAiConnectionStringCommand";
 import saveEtlTaskCommand from "commands/database/tasks/saveEtlTaskCommand";
 import testGenAiCommand from "commands/database/tasks/testGenAiCommand";
+import geAiModelsCommand from "commands/database/tasks/geAiModelsCommand";
 
 export default class TasksService {
     async getOngoingTasks(databaseName: string, location: databaseLocationSpecifier) {
@@ -193,5 +194,9 @@ export default class TasksService {
 
     async testGenAi(...args: ConstructorParameters<typeof testGenAiCommand>) {
         return new testGenAiCommand(...args).execute();
+    }
+
+    async getAiModels(...args: ConstructorParameters<typeof geAiModelsCommand>) {
+        return new geAiModelsCommand(...args).execute();
     }
 }

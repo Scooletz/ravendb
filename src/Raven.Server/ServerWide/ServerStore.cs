@@ -17,6 +17,7 @@ using Lucene.Net.Search;
 using NCrontab.Advanced;
 using NCrontab.Advanced.Extensions;
 using Raven.Client.Documents.Conventions;
+using Raven.Client.Documents.Operations.AI;
 using Raven.Client.Documents.Operations.Backups;
 using Raven.Client.Documents.Operations.Configuration;
 using Raven.Client.Documents.Operations.ConnectionStrings;
@@ -27,6 +28,7 @@ using Raven.Client.Exceptions;
 using Raven.Client.Exceptions.Cluster;
 using Raven.Client.Exceptions.Database;
 using Raven.Client.Exceptions.Server;
+using Raven.Client.Exceptions.Sharding;
 using Raven.Client.Extensions;
 using Raven.Client.Http;
 using Raven.Client.Json.Serialization;
@@ -43,7 +45,6 @@ using Raven.Server.Config;
 using Raven.Server.Config.Settings;
 using Raven.Server.Dashboard;
 using Raven.Server.Documents;
-using Raven.Server.Documents.AI;
 using Raven.Server.Documents.Indexes;
 using Raven.Server.Documents.Indexes.Analysis;
 using Raven.Server.Documents.Indexes.Sorting;
@@ -55,6 +56,7 @@ using Raven.Server.Integrations.PostgreSQL.Commands;
 using Raven.Server.Json;
 using Raven.Server.Logging;
 using Raven.Server.Monitoring;
+using Raven.Server.Monitoring.Snmp.Objects.Database;
 using Raven.Server.NotificationCenter;
 using Raven.Server.NotificationCenter.Notifications;
 using Raven.Server.NotificationCenter.Notifications.Details;
@@ -2135,7 +2137,7 @@ namespace Raven.Server.ServerWide
         }
 
         public async Task<(long, object)> AddEtl(TransactionOperationContext context,
-            string databaseName, BlittableJsonReaderObject etlConfiguration, string raftRequestId)
+            string databaseName, BlittableJsonReaderObject etlConfiguration, string changeVector, string raftRequestId)
         {
             UpdateDatabaseCommand command;
 
@@ -2224,13 +2226,16 @@ namespace Raven.Server.ServerWide
                         break;
                     case EtlType.GenAi:
                     {
-                        var aiIntegration = JsonDeserializationCluster.GenAiConfiguration(etlConfiguration);
-                        aiIntegration.Validate(out var aiIntegrationErr, validateName: false, validateConnection: false);
-                        if (ValidateConnectionString(rawRecord, aiIntegration.ConnectionStringName, aiIntegration.EtlType) == false)
-                            aiIntegrationErr.Add(
-                                $"Could not find connection string named '{aiIntegration.ConnectionStringName}'. Please supply an existing connection string.");
-                        ThrowInvalidConfigurationIfNecessary(etlConfiguration, aiIntegrationErr);
-                        command = new AddGenAiCommand(aiIntegration, databaseName, raftRequestId);
+                        if (rawRecord.IsSharded) 
+                            throw new NotSupportedInShardingException("GenAI is currently not supported in sharding");
+
+                        var genAi = JsonDeserializationCluster.GenAiConfiguration(etlConfiguration);
+                        genAi.Validate(out var genAiErr, validateName: false, validateConnection: false);
+                        if (ValidateConnectionString(rawRecord, genAi.ConnectionStringName, genAi.EtlType) == false)
+                            genAiErr.Add($"Could not find connection string named '{genAi.ConnectionStringName}'. Please supply an existing connection string.");
+                        ThrowInvalidConfigurationIfNecessary(etlConfiguration, genAiErr);
+
+                        command = new AddGenAiCommand(genAi, databaseName, changeVector, raftRequestId);
                     }
                         break;
 
@@ -2375,7 +2380,8 @@ namespace Raven.Server.ServerWide
             }
         }
 
-        public async Task<(long, object)> UpdateEtl(TransactionOperationContext context, string databaseName, long id, BlittableJsonReaderObject etlConfiguration, string raftRequestId)
+        public async Task<(long, object)> UpdateEtl(TransactionOperationContext context, string databaseName, long id, BlittableJsonReaderObject etlConfiguration,
+            string changeVector, string raftRequestId)
         {
             UpdateDatabaseCommand command;
             using (ContextPool.AllocateOperationContext(out TransactionOperationContext ctx))
@@ -2464,7 +2470,7 @@ namespace Raven.Server.ServerWide
 
                         ThrowInvalidConfigurationIfNecessary(etlConfiguration, genAiErr);
 
-                        command = new UpdateGenAiCommand(id, genAi, databaseName, raftRequestId);
+                        command = new UpdateGenAiCommand(id, genAi, databaseName, changeVector, raftRequestId);
                         break;
                     default:
                         throw new NotSupportedException($"Unknown ETL configuration type. Configuration: {etlConfiguration}");
@@ -2692,16 +2698,28 @@ namespace Raven.Server.ServerWide
 
                     case ConnectionStringType.Ai:
 
-                        var aiEtls = rawRecord.EmbeddingsGenerations;
+                        // Don't delete the connection string if used by tasks types: Embeddings, GenAi
 
-                        // Don't delete the connection string if used by tasks types: AI Integration
-                        if (aiEtls != null)
+                        var embeddingsGenerationTasks = rawRecord.EmbeddingsGenerations;
+                        if (embeddingsGenerationTasks != null)
                         {
-                            foreach (var aiEtlTask in aiEtls)
+                            foreach (var embeddingsTask in embeddingsGenerationTasks)
                             {
-                                if (aiEtlTask.ConnectionStringName == connectionStringName)
+                                if (embeddingsTask.ConnectionStringName == connectionStringName)
                                 {
-                                    throw new InvalidOperationException($"Can't delete connection string: {connectionStringName}. It is used by task: {aiEtlTask.Name}");
+                                    throw new InvalidOperationException($"Can't delete connection string: {connectionStringName}. It is used by task: {embeddingsTask.Name}");
+                                }
+                            }
+                        }
+
+                        var genAiTasks = rawRecord.GenAis;
+                        if (genAiTasks != null)
+                        {
+                            foreach (var genAiTask in genAiTasks)
+                            {
+                                if (genAiTask.ConnectionStringName == connectionStringName)
+                                {
+                                    throw new InvalidOperationException($"Can't delete connection string: {connectionStringName}. It is used by task: {genAiTask.Name}");
                                 }
                             }
                         }

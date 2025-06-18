@@ -8,7 +8,7 @@ namespace FastTests.Server;
 
 public class DebugMemoryTests(ITestOutputHelper output) : NoDisposalNeeded(output)
 {
-    [RavenFact(RavenTestCategory.Core)]
+    [RavenFact(RavenTestCategory.Memory)]
     public void Debug_Events()
     {
         Assert.True(Environment.Version.Major == 9 && EventListener.Constants.EventNames.GC.GCStart == "GCStart_V2",

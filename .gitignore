@@ -152,4 +152,7 @@ src/Sparrow.Server/Utils/VxSort/codegen/__pycache__/
 /src/Raven.Pal/runtimes/
 src/Raven.Pal/test-runner
 /.cache
+
 .cursorignore
+
+.agents/

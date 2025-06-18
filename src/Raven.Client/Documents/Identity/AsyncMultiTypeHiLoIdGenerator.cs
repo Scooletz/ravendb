@@ -4,6 +4,7 @@
 // </copyright>
 //-----------------------------------------------------------------------
 
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
@@ -33,6 +34,8 @@ namespace Raven.Client.Documents.Identity
             _identityPartsSeparator = Conventions.IdentityPartsSeparator;
         }
 
+
+        [Obsolete("This method is deprecated and will be removed in RavenDB 8.0, use the overload with collectionName instead")]
         public async Task<string> GenerateDocumentIdAsync(object entity)
         {
             var identityPartsSeparator = Conventions.IdentityPartsSeparator;
@@ -67,6 +70,39 @@ namespace Raven.Client.Documents.Identity
             return await value.GenerateDocumentIdAsync(entity).ConfigureAwait(false);
         }
 
+        public async Task<string> GenerateDocumentIdAsync(string collectionName)
+        {
+            var identityPartsSeparator = Conventions.IdentityPartsSeparator;
+            if (_identityPartsSeparator != identityPartsSeparator)
+                await MaybeRefresh(identityPartsSeparator).ConfigureAwait(false);
+
+            if (string.IsNullOrEmpty(collectionName)) //ignore empty tags
+            {
+                return null;
+            }
+            var tag = Conventions.TransformTypeCollectionNameToDocumentIdPrefix(collectionName);
+            if (_idGeneratorsByTag.TryGetValue(tag, out var value))
+            {
+                return await value.GenerateDocumentIdAsync(collectionName).ConfigureAwait(false);
+            }
+
+            await _generatorLock.WaitAsync().ConfigureAwait(false);
+            try
+            {
+                if (_idGeneratorsByTag.TryGetValue(tag, out value))
+                    return await value.GenerateDocumentIdAsync(collectionName).ConfigureAwait(false);
+
+                value = CreateGeneratorFor(tag);
+                _idGeneratorsByTag.TryAdd(tag, value);
+            }
+            finally
+            {
+                _generatorLock.Release();
+            }
+
+            return await value.GenerateDocumentIdAsync(collectionName).ConfigureAwait(false);
+        }
+
         private async Task MaybeRefresh(char identityPartsSeparator)
         {
             List<AsyncHiLoIdGenerator> idGenerators = null;
@@ -99,10 +135,11 @@ namespace Raven.Client.Documents.Identity
             }
         }
 
+
         public async Task<long> GenerateNextIdForAsync(string collectionName)
         {
             collectionName = Conventions.TransformTypeCollectionNameToDocumentIdPrefix(collectionName);
-            
+
             if (_idGeneratorsByTag.TryGetValue(collectionName, out var value))
             {
                 return (await value.GetNextIdAsync().ConfigureAwait(false)).Id;
