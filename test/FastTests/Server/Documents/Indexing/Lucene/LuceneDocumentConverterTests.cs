@@ -24,6 +24,7 @@ using Xunit;
 using Xunit.Abstractions;
 using Document = Raven.Server.Documents.Document;
 using Index = Raven.Server.Documents.Indexes.Index;
+using Tests.Infrastructure;
 
 namespace FastTests.Server.Documents.Indexing.Lucene
 {
@@ -56,7 +57,7 @@ namespace FastTests.Server.Documents.Indexing.Lucene
             _ctx = JsonOperationContext.ShortTermSingleUse();
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.Indexes)]
         public void Returns_null_value_if_property_is_null()
         {
             _sut = new LuceneDocumentConverter(new FakeIndex(), new IndexField[]
@@ -81,7 +82,7 @@ namespace FastTests.Server.Documents.Indexing.Lucene
             Assert.Equal("users/1", _sut.Document.GetField(Constants.Documents.Indexing.Fields.DocumentIdFieldName).StringValue(null));
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.Indexes)]
         public void Returns_empty_string_value_if_property_has_empty_string()
         {
             _sut = new LuceneDocumentConverter(new FakeIndex(), new IndexField[]
@@ -106,7 +107,7 @@ namespace FastTests.Server.Documents.Indexing.Lucene
             Assert.Equal("users/1", _sut.Document.GetField(Constants.Documents.Indexing.Fields.DocumentIdFieldName).StringValue(null));
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.Indexes)]
         public void Conversion_of_string_value()
         {
             _sut = new LuceneDocumentConverter(new FakeIndex(), new IndexField[]
@@ -131,7 +132,7 @@ namespace FastTests.Server.Documents.Indexing.Lucene
             Assert.Equal("users/1", _sut.Document.GetField(Constants.Documents.Indexing.Fields.DocumentIdFieldName).StringValue(null));
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.Indexes)]
         public void Reuses_cached_document_instance()
         {
             _sut = new LuceneDocumentConverter(new FakeIndex(), new IndexField[]
@@ -165,7 +166,7 @@ namespace FastTests.Server.Documents.Indexing.Lucene
             Assert.Equal("users/2", _sut.Document.GetField(Constants.Documents.Indexing.Fields.DocumentIdFieldName).StringValue(null));
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.Indexes)]
         public void Conversion_of_numeric_fields()
         {
             _sut = new LuceneDocumentConverter(new FakeIndex(), new[]
@@ -209,7 +210,7 @@ namespace FastTests.Server.Documents.Indexing.Lucene
             Assert.Equal("users/1", _sut.Document.GetField(Constants.Documents.Indexing.Fields.DocumentIdFieldName).StringValue(null));
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.Indexes)]
         public void Conversion_of_nested_string_value()
         {
             _sut = new LuceneDocumentConverter(new FakeIndex(), new IndexField[]
@@ -237,7 +238,7 @@ namespace FastTests.Server.Documents.Indexing.Lucene
             Assert.Equal("users/1", _sut.Document.GetField(Constants.Documents.Indexing.Fields.DocumentIdFieldName).StringValue(null));
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.Indexes)]
         public void Conversion_of_string_value_nested_inside_collection()
         {
             _sut = new LuceneDocumentConverter(new FakeIndex(), new IndexField[]
@@ -278,7 +279,7 @@ namespace FastTests.Server.Documents.Indexing.Lucene
             Assert.Equal("users/1", _sut.Document.GetField(Constants.Documents.Indexing.Fields.DocumentIdFieldName).StringValue(null));
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.Indexes)]
         public void Conversion_of_string_value_nested_inside_double_nested_collections()
         {
             _sut = new LuceneDocumentConverter(new FakeIndex(), new IndexField[]
@@ -336,7 +337,7 @@ namespace FastTests.Server.Documents.Indexing.Lucene
             Assert.Equal("companies/1", _sut.Document.GetField(Constants.Documents.Indexing.Fields.DocumentIdFieldName).StringValue(null));
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.Indexes)]
         public void Conversion_of_complex_value()
         {
             _sut = new LuceneDocumentConverter(new FakeIndex(), new IndexField[]
@@ -398,7 +399,7 @@ namespace FastTests.Server.Documents.Indexing.Lucene
             }
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.Indexes)]
         public void Conversion_of_array_value()
         {
             _sut = new LuceneDocumentConverter(new FakeIndex(), new IndexField[]
@@ -428,7 +429,7 @@ namespace FastTests.Server.Documents.Indexing.Lucene
             Assert.Equal("users/1", _sut.Document.GetField(Constants.Documents.Indexing.Fields.DocumentIdFieldName).StringValue(null));
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.Indexes)]
         public void Conversion_of_array_having_complex_values()
         {
             _sut = new LuceneDocumentConverter(new FakeIndex(), new IndexField[]

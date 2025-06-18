@@ -28,6 +28,7 @@ using Voron;
 using Xunit;
 using Xunit.Abstractions;
 using Index = Raven.Server.Documents.Indexes.Index;
+using Tests.Infrastructure;
 
 namespace FastTests.Server.Documents.Indexing
 {
@@ -37,7 +38,7 @@ namespace FastTests.Server.Documents.Indexing
         {
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.Indexes)]
         public async Task CheckAnalyzers()
         {
             using (var store = GetDocumentStore())
@@ -106,7 +107,7 @@ namespace FastTests.Server.Documents.Indexing
             }
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.Indexes)]
         public async Task OverrideAnalyzers()
         {
             using (var store = GetDocumentStore())
