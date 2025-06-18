@@ -12,6 +12,9 @@ import Collapse from "react-bootstrap/Collapse";
 import { ThemeColor } from "components/models/common";
 import EditGenAiTaskInfoHub from "../../EditGenAiTaskInfoHub";
 import EditGenAiTaskCancelButton from "../EditGenAiTaskCancelButton";
+import { FormSwitch, FormGroup } from "components/common/Form";
+import PopoverWithHoverWrapper from "components/common/PopoverWithHoverWrapper";
+import { editGenAiTaskUtils } from "../../utils/editGenAiTaskUtils";
 
 export function EditGenAiTaskStepSummary() {
     const dispatch = useAppDispatch();
@@ -60,14 +63,10 @@ export function EditGenAiTaskStepSummary() {
                     <div>Connection string</div>
                     <div>{formValues.connectionStringName}</div>
                 </div>
-                {isEditTask && (
-                    <div className="hstack justify-content-between">
-                        <div>Regenerate all documents</div>
-                        <div className={getBooleanColorClass(formValues.isResetScript)}>
-                            {formValues.isResetScript ? "Enabled" : "Disabled"}
-                        </div>
-                    </div>
-                )}
+                <div className="hstack justify-content-between">
+                    <div>Max concurrency</div>
+                    <div>{formValues.maxConcurrency || editGenAiTaskUtils.defaultMaxConcurrency}</div>
+                </div>
             </div>
             <div className="hstack justify-content-between mt-4">
                 <div>Context input</div>
@@ -123,6 +122,29 @@ export function EditGenAiTaskStepSummary() {
             <div className="panel-bg-1 p-3 rounded-2 mt-1">
                 <RowWithPreview label="Update script" value={formValues.updateScript} mode="javascript" />
             </div>
+            {isEditTask && (
+                <div className="hstack justify-content-end mt-4">
+                    <FormGroup>
+                        <FormSwitch control={control} name="isResetScript">
+                            Reprocess all documents
+                            <PopoverWithHoverWrapper
+                                message={
+                                    <>
+                                        If enabled, the task will attempt to reprocess all documents from the source
+                                        collection.
+                                        <br />
+                                        <br />
+                                        Note: Documents will not be reprocessed if the hash in their metadata exactly
+                                        matches the hash generated from the current task configuration.
+                                    </>
+                                }
+                            >
+                                <Icon icon="info" color="info" margin="ms-1" />
+                            </PopoverWithHoverWrapper>
+                        </FormSwitch>
+                    </FormGroup>
+                </div>
+            )}
         </>
     );
 }

@@ -62,28 +62,28 @@ export default function EditGenAiTaskModelFields() {
                 <div>
                     <div className="mb-1">
                         JSON schema
-                        <PopoverWithHoverWrapper message="TODO">
+                        <PopoverWithHoverWrapper message={<JsonSchemaTooltipBody />}>
                             <Icon icon="info" color="info" margin="ms-1" />
                         </PopoverWithHoverWrapper>
                     </div>
                     <div className="hstack gap-1">
-                        <div className="flex-grow-1 vstack">
+                        <div className="flex-grow-1 vstack w-50">
                             <SchemaProviderButton
                                 icon="default"
                                 title={
                                     <>
-                                        Use sample object <Badge bg="faded-success">Recommended</Badge>
+                                        Provide sample response object <Badge bg="faded-success">Recommended</Badge>
                                     </>
                                 }
-                                description="Choose if you want to generate schema out of sample object"
+                                description="Use this option if you want RavenDB to automatically generate a JSON schema for you"
                                 handleClick={() => setValue("schemaProvider", "sampleObject")}
                             />
                         </div>
-                        <div className="flex-grow-1 vstack">
+                        <div className="flex-grow-1 vstack w-50">
                             <SchemaProviderButton
                                 icon="edit"
                                 title="Provide JSON schema"
-                                description="Choose if you want to manually provide the schema"
+                                description="Use this option if you want to provide your own JSON schema"
                                 handleClick={() => setValue("schemaProvider", "jsonSchema")}
                             />
                         </div>
@@ -146,24 +146,13 @@ export default function EditGenAiTaskModelFields() {
                     <FormLabel className="hstack justify-content-between">
                         <div>
                             JSON schema
-                            <PopoverWithHoverWrapper
-                                message={
-                                    <>
-                                        Enter a formal JSON schema that defines the structure of the response you want
-                                        to receive from the model.
-                                        <br />
-                                        <br />
-                                        If not provided, RavenDB will generate the schema automatically based on the
-                                        sample response object.
-                                    </>
-                                }
-                            >
+                            <PopoverWithHoverWrapper message={<JsonSchemaTooltipBody />}>
                                 <Icon icon="info" color="info" margin="ms-1" />
                             </PopoverWithHoverWrapper>
                         </div>
                         <Button variant="link" size="xs" onClick={() => setValue("schemaProvider", "sampleObject")}>
                             <Icon icon="default" />
-                            Use sample object
+                            Provide sample response object
                         </Button>
                     </FormLabel>
                     <FormAceEditor
@@ -230,7 +219,7 @@ function PromptSyntaxHelp() {
 
 function SampleObjectSyntaxHelp() {
     const code = `{
-    "Blocked": true,
+    "IsCommentSpam": true,
     "Reason": "Concise reason for why this comment was marked as spam or ham"
 }`;
 
@@ -249,7 +238,7 @@ function JsonSchemaSyntaxHelp() {
   "schema": {
     "type": "object",
     "properties": {
-      "Blocked": {
+      "IsCommentSpam": {
         "type": "boolean"
       },
       "Reason": {
@@ -258,7 +247,7 @@ function JsonSchemaSyntaxHelp() {
       }
     },
     "required": [
-      "Blocked",
+      "IsCommentSpam",
       "Reason"
     ],
     "additionalProperties": false
@@ -270,5 +259,16 @@ function JsonSchemaSyntaxHelp() {
             <div>Sample JSON schema</div>
             <Code code={code} elementToCopy={code} language="json" />
         </div>
+    );
+}
+
+function JsonSchemaTooltipBody() {
+    return (
+        <>
+            Enter a JSON schema that defines the structure of the output you expect from the model.
+            <br />
+            <br />
+            If not provided, RavenDB will generate the schema automatically based on the sample response object.
+        </>
     );
 }

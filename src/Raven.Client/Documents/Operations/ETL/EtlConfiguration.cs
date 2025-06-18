@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using Newtonsoft.Json;
+using Raven.Client.Documents.Operations.AI;
 using Raven.Client.Documents.Operations.ConnectionStrings;
 using Raven.Client.ServerWide;
 using Sparrow.Json;
@@ -32,8 +33,14 @@ namespace Raven.Client.Documents.Operations.ETL
         [JsonIgnore]
         internal T Connection { get; set; }
 
-        public void Initialize(T connectionString)
+        public virtual void Initialize(T connectionString)
         {
+            if (Initialized)
+            {
+                Debug.Assert(ReferenceEquals(connectionString, Connection));
+                return;
+            }
+            
             Connection = connectionString;
             Initialized = true;
         }
@@ -134,7 +141,7 @@ namespace Raven.Client.Documents.Operations.ETL
             return ToJson();
         }
 
-        internal EtlConfigurationCompareDifferences Compare(
+        internal virtual EtlConfigurationCompareDifferences Compare(
             EtlConfiguration<T> config,
             Dictionary<string, T> connectionStrings,
             List<(string TransformationName, EtlConfigurationCompareDifferences Difference)> transformationDiffs = null)
