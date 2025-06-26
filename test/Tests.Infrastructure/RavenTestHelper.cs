@@ -294,8 +294,7 @@ namespace Tests.Infrastructure
         internal static HashSet<(string Method, string Path)> DatabaseEndpointsToIgnore = 
         [
             ("POST", "/databases/*/admin/pull-replication/generate-certificate"),     // heavy
-            ("POST", "/databases/*/studio/sample-data"),                              // heavy
-            ("GET", "/databases/*/debug/attachments/missing")                         // heavy
+            ("POST", "/databases/*/studio/sample-data")                               // heavy
         ];
     }
 }
