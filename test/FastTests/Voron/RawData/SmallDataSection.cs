@@ -1,4 +1,4 @@
-﻿using System;
+﻿﻿using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
@@ -7,18 +7,14 @@ using Raven.Client.Extensions;
 using Raven.Server.Documents;
 using Sparrow;
 using Tests.Infrastructure;
-using Xunit;
 using Voron.Data.RawData;
+using Xunit;
 using Xunit.Abstractions;
 
 namespace FastTests.Voron.RawData
 {
-    public class SmallDataSection : StorageTest
+    public class SmallDataSection(ITestOutputHelper output) : StorageTest(output)
     {
-        public SmallDataSection(ITestOutputHelper output) : base(output)
-        {
-        }
-
         [RavenFact(RavenTestCategory.Voron)]
         public void CanReadAndWriteFromSection()
         {
@@ -47,7 +43,7 @@ namespace FastTests.Voron.RawData
             }
         }
 
-        [Theory]
+        [RavenTheory(RavenTestCategory.Voron)]
         [InlineDataWithRandomSeed]
         public void CanAllocateMultipleValues(int seed)
         {
@@ -90,7 +86,7 @@ namespace FastTests.Voron.RawData
             }
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.Voron)]
         public unsafe void CanAllocateEnoughToFillEntireSection()
         {
             long pageNumber;
@@ -126,7 +122,7 @@ namespace FastTests.Voron.RawData
             }
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.Voron)]
         public void WhatShouldWeDoHere()
         {
             long pageNumber;
@@ -146,7 +142,7 @@ namespace FastTests.Voron.RawData
             }
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.Voron)]
         public void CanReadAndWriteFromSection_SingleTx()
         {
             Env.Options.ManualFlushing = true;
@@ -198,7 +194,7 @@ namespace FastTests.Voron.RawData
             }
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.Voron)]
         public void CanReadAndWriteFromSection_AfterFlush()
         {
             Options.ManualFlushing = true;
@@ -225,7 +221,7 @@ namespace FastTests.Voron.RawData
             }
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.Voron)]
         public void ShouldNotReturnMoreIdsThanTotalNumberOfEntriesInSection()
         {
             long pageNumber;
@@ -260,7 +256,7 @@ namespace FastTests.Voron.RawData
             }
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.Voron)]
         public void ShouldReturnValidIdsOfEntriesInSectionThatAreReadable()
         {
             long pageNumber;

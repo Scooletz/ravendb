@@ -1,18 +1,15 @@
-﻿using System;
+using System;
 using System.IO;
-using Xunit;
+using Tests.Infrastructure;
 using Voron.Global;
+using Xunit;
 using Xunit.Abstractions;
 using Tests.Infrastructure;
 
 namespace FastTests.Voron.Trees
 {
-    public class Updates : StorageTest
+    public class Updates(ITestOutputHelper output) : StorageTest(output)
     {
-        public Updates(ITestOutputHelper output) : base(output)
-        {
-        }
-
         [RavenFact(RavenTestCategory.Voron)]
         public void HandleReadingValuesWhenWeGrowTheFileSize()
         {
@@ -39,7 +36,7 @@ namespace FastTests.Voron.Trees
             }
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.Voron)]
         public void CanUpdateVeryLargeValueAndThenDeleteIt()
         {
             var random = new Random();
@@ -81,7 +78,7 @@ namespace FastTests.Voron.Trees
         }
 
 
-        [Fact]
+        [RavenFact(RavenTestCategory.Voron)]
         public void CanAddAndUpdate()
         {
             using (var tx = Env.WriteTransaction())
@@ -97,7 +94,7 @@ namespace FastTests.Voron.Trees
             }
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.Voron)]
         public void CanAddAndUpdate2()
         {
             using (var tx = Env.WriteTransaction())
@@ -119,7 +116,7 @@ namespace FastTests.Voron.Trees
             }
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.Voron)]
         public void CanAddAndUpdate1()
         {
             using (var tx = Env.WriteTransaction())
@@ -142,7 +139,7 @@ namespace FastTests.Voron.Trees
         }
 
 
-        [Fact]
+        [RavenFact(RavenTestCategory.Voron)]
         public void CanDelete()
         {
             using (var tx = Env.WriteTransaction())
@@ -157,7 +154,7 @@ namespace FastTests.Voron.Trees
             }
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.Voron)]
         public void CanDelete2()
         {
             using (var tx = Env.WriteTransaction())
@@ -174,7 +171,7 @@ namespace FastTests.Voron.Trees
             }
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.Voron)]
         public void CanDelete1()
         {
             using (var tx = Env.WriteTransaction())

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
@@ -11,12 +11,8 @@ using Tests.Infrastructure;
 
 namespace FastTests.Voron.Trees
 {
-    public class FreeSpaceTest : StorageTest
+    public class FreeSpaceTest(ITestOutputHelper output) : StorageTest(output)
     {
-        public FreeSpaceTest(ITestOutputHelper output) : base(output)
-        {
-        }
-
         [RavenFact(RavenTestCategory.Voron)]
         public void WillBeReused()
         {
