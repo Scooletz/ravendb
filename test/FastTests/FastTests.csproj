@@ -55,6 +55,7 @@
     <None Update="Data\output.json.gz">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <None Remove="Corax\agents.md" />
   </ItemGroup>
   <ItemGroup>
     <Compile Remove="Sparrow\BitVectors.cs" />
