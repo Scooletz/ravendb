@@ -42,7 +42,7 @@ export function useEditGenAiTaskTests() {
     };
 
     const handleModelInputTest = async () => {
-        const areTestRelatedFieldsValid = await trigger(["prompt", "schemaProvider", "sampleObject", "jsonSchema"]);
+        const areTestRelatedFieldsValid = await trigger(["prompt", "sampleObject", "jsonSchema"]);
         if (!areTestRelatedFieldsValid) {
             return;
         }
@@ -114,9 +114,10 @@ export function useEditGenAiTaskTests() {
                     ModelOutput: {
                         Output: JSON.parse(formValues.playgroundModelOutputs[idx].value),
                         Usage: {
-                            total_tokens: 0,
-                            prompt_tokens: 0,
-                            completion_tokens: 0,
+                            CachedTokens: 0,
+                            CompletionTokens: 0,
+                            PromptTokens: 0,
+                            TotalTokens: 0,
                         },
                     },
                 };

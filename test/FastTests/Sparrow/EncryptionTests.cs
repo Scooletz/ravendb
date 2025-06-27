@@ -20,12 +20,8 @@ using Xunit.Abstractions;
 
 namespace FastTests.Sparrow
 {
-    public class EncryptionTests : StorageTest
+    public class EncryptionTests(ITestOutputHelper output) : StorageTest(output)
     {
-        public EncryptionTests(ITestOutputHelper output) : base(output)
-        {
-        }
-
         [RavenMultiplatformFact(RavenTestCategory.Voron | RavenTestCategory.Encryption, RavenPlatform.Windows | RavenPlatform.Linux)]
         public unsafe void WriteAndReadPageUsingCryptoPager()
         {
@@ -69,7 +65,7 @@ namespace FastTests.Sparrow
                     }
                 }
 
-        [Theory]
+        [RavenTheory(RavenTestCategory.Encryption | RavenTestCategory.Voron)]
         [InlineDataWithRandomSeed]
         public unsafe void WriteSeekAndReadInTempCryptoStream(int seed)
         {

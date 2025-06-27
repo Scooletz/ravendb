@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Text;
 using Sparrow.Binary;
@@ -10,14 +10,9 @@ using Xunit.Abstractions;
 
 namespace FastTests.Voron.Tables
 {
-    public class Compression : StorageTest
+    public class Compression(ITestOutputHelper output) : StorageTest(output)
     {
-        public Compression(ITestOutputHelper output) : base(output)
-        {
-        }
-
-
-        [Fact]
+        [RavenFact(RavenTestCategory.Voron)]
         public unsafe void Can_get_better_compression_rate_after_training()
         {
             using (var tx = Env.WriteTransaction())
@@ -86,7 +81,7 @@ namespace FastTests.Voron.Tables
             }
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.Voron)]
         public unsafe void Can_define_compressed_table_and_read_write_small()
         {
             using (var tx = Env.WriteTransaction())
@@ -145,7 +140,7 @@ namespace FastTests.Voron.Tables
             }
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.Voron)]
         public void Can_update_compressed_value()
         {
             using (var tx = Env.WriteTransaction())
@@ -204,7 +199,7 @@ namespace FastTests.Voron.Tables
             }
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.Voron)]
         public unsafe void Can_define_compressed_table_and_read_write_large()
         {
             using (var tx = Env.WriteTransaction())
@@ -286,7 +281,7 @@ namespace FastTests.Voron.Tables
             }
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.Voron)]
         public void Can_force_small_value_to_compress_to_large()
         {
             Options.ManualFlushing = true;

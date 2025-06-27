@@ -17,7 +17,7 @@ public interface IChatCompletionClient : IDisposable
 
     public static readonly DocumentConventions DefaultConventions = new() { UseHttpCompression = false };
 
-    Task<(string Result, string Usage)> CompleteAsync(string prompt, string context, CancellationToken token);
+    Task<(string Result, AiUsage Usage)> CompleteAsync(string prompt, string context, CancellationToken token);
     Task<BlittableJsonReaderObject> GetResponseContentAsync(JsonOperationContext context, HttpResponseMessage response, CancellationToken token);
 }
 
@@ -33,6 +33,6 @@ public interface IChatCompletionClientForTesting
 
         internal Action<AsyncBlittableJsonTextWriter> ModifyPayload;
 
-        internal Action<string> SimulateFailure;
+        internal Func<string, Task> SimulateFailureAsync;
     }
 }

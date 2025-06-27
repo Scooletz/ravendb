@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using Raven.Client.Documents.Changes;
 using Tests.Infrastructure;
@@ -6,6 +6,7 @@ using Voron;
 using Voron.Impl;
 using Xunit;
 using Xunit.Abstractions;
+using Tests.Infrastructure;
 
 namespace FastTests.Voron.Bugs
 {
@@ -25,7 +26,7 @@ namespace FastTests.Voron.Bugs
             options.MaxLogFileSize = _64KB;
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.Voron)]
         public void ShouldFreeAllocationsInScratchBuffersSoTheyCanBeCleaned()
         {
             RequireFileBasedPager();

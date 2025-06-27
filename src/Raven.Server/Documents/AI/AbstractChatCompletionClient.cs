@@ -79,9 +79,10 @@ public abstract class AbstractChatCompletionClient<TContext> : IChatCompletionCl
         await HttpResponseHelper.CopyContentAsync(r, response);
     }
 
-    public async Task<(string Result, string Usage)> CompleteAsync(string prompt, string context, CancellationToken token)
+    public async Task<(string Result, AiUsage Usage)> CompleteAsync(string prompt, string context, CancellationToken token)
     {
-        _forTestingPurposes?.SimulateFailure?.Invoke(context);
+        if (_forTestingPurposes?.SimulateFailureAsync != null)
+            await _forTestingPurposes.SimulateFailureAsync(context);
 
         using var _ = _contextPool.AllocateOperationContext(out JsonOperationContext ctx);
         using var request = CreateCompletionRequest(ctx, prompt, context);
@@ -131,7 +132,13 @@ public abstract class AbstractChatCompletionClient<TContext> : IChatCompletionCl
                 RequestId = GetRequestId(response.Headers)
             };
 
-        return (content, usage.ToString());
+        var aiUsage = new AiUsage();
+        using (usage)
+        {
+            aiUsage.UpdateFrom(usage);
+        }
+
+        return (content, aiUsage);
     }
 
     private HttpRequestMessage CreateRequest(HttpMethod httpMethod, string relativeUri)
@@ -161,13 +168,13 @@ public abstract class AbstractChatCompletionClient<TContext> : IChatCompletionCl
         {
             await using (var writer = new AsyncBlittableJsonTextWriter(ctx, stream))
             {
-                writer.WriteStartObject();
-
                 if (_forTestingPurposes?.ModifyPayload != null)
                 {
                     _forTestingPurposes?.ModifyPayload.Invoke(writer);
-                    writer.WriteEndObject();
+                    return;
                 }
+
+                writer.WriteStartObject();
 
                 writer.WritePropertyName(Constants.RequestFields.Model);
                 writer.WriteString(_model);

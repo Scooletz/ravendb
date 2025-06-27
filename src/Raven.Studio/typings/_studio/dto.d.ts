@@ -1091,6 +1091,12 @@ type CertificatesResponseDto = {
     WellKnownIssuers: string[]
 }
 
+interface TrafficWatchPostgresChange extends Raven.Client.Documents.Changes.TrafficWatchChangeBase {
+    Username: string;
+    Source: string;
+    Query: string;
+}
+
 type AiConnectionStringsSettings =
     | Raven.Client.Documents.Operations.AI.OpenAiSettings
     | Raven.Client.Documents.Operations.AI.AzureOpenAiSettings

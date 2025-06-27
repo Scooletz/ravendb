@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using Raven.Server.Documents.AI;
 using Sparrow.Json;
 using Sparrow.Json.Parsing;
 
@@ -24,8 +25,8 @@ public class GenAiResultItem
         {
             [nameof(DebugOutput)] = DebugOutput == null ? null : new DynamicJsonArray(DebugOutput),
             [nameof(DebugActions)] = DebugActions,
-            [nameof(ContextOutput)] = ContextOutput == null ? null : ContextOutput.ToJson(),
-            [nameof(ModelOutput)] = ModelOutput == null ? null : ModelOutput.ToJson()
+            [nameof(ContextOutput)] = ContextOutput?.ToJson(),
+            [nameof(ModelOutput)] = ModelOutput?.ToJson()
         };
     }
 }
@@ -33,15 +34,13 @@ public class GenAiResultItem
 public class ModelOutput
 {
     public BlittableJsonReaderObject Output { get; set; }
-    public BlittableJsonReaderObject Usage { get; set; }
+    public AiUsage Usage { get; set; }
 
     public DynamicJsonValue ToJson() => new()
     {
-        [nameof(Usage)] = Usage, 
+        [nameof(Usage)] = Usage?.ToJson(), 
         [nameof(Output)] = Output
     };
-
-
 }
 
 public class ContextOutput
@@ -56,5 +55,4 @@ public class ContextOutput
         [nameof(IsCached)] = IsCached, 
         [nameof(AiHash)] = AiHash
     };
-
 }

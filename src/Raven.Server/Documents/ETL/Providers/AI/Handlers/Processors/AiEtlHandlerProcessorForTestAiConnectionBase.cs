@@ -12,6 +12,7 @@ using Raven.Server.Json;
 using Raven.Server.Web.System;
 using Sparrow.Json;
 using Sparrow.Json.Parsing;
+
 #pragma warning disable SKEXP0001
 
 namespace Raven.Server.Documents.ETL.Providers.AI.Handlers.Processors;
@@ -30,6 +31,8 @@ internal class AiIntegrationHandlerProcessorForTestAiConnection<TRequestHandler,
         if (aiConnectorType == AiConnectorType.None)
             throw new ArgumentException($"AI connector type cannot be '{AiConnectorType.None}'");
 
+        var modelType = RequestHandler.GetEnumQueryString<AiModelType>("modelType");
+
         InMemoryLoggerProvider logger = null;
         try
         {
@@ -38,7 +41,7 @@ internal class AiIntegrationHandlerProcessorForTestAiConnection<TRequestHandler,
             {
                 var json = await context.ReadForMemoryAsync(RequestHandler.RequestBodyStream(), "etl/test/script");
 
-                var aiConnectionString = new AiConnectionString();
+                var aiConnectionString = new AiConnectionString { ModelType = modelType };
 
                 switch (aiConnectorType)
                 {
@@ -81,8 +84,9 @@ internal class AiIntegrationHandlerProcessorForTestAiConnection<TRequestHandler,
                         throw new ArgumentOutOfRangeException();
                 }
 
-                try
+                switch (aiConnectionString.ModelType)
                 {
+                    case AiModelType.TextEmbeddings:
                     var aiEtlConfiguration = new EmbeddingsGenerationConfiguration { Connection = aiConnectionString };
                     (IEmbeddingGenerator<string, Embedding<float>> service, logger) = AiHelper.CreateEmbeddingServicesForTest(aiEtlConfiguration);
                     var embeddings = await service.GenerateAsync(EmbeddingsHelper.ValuesListToVerifyConnection, cancellationToken: token.Token);
@@ -90,22 +94,22 @@ internal class AiIntegrationHandlerProcessorForTestAiConnection<TRequestHandler,
                     if (embeddings.Count != EmbeddingsHelper.ValuesListToVerifyConnection.Count)
                         throw new EmbeddingsMismatchException(
                             $"Failed to generate embeddings for test values. Expected '{EmbeddingsHelper.ValuesListToVerifyConnection.Count}' result, but got '{embeddings.Count}'.");
-                }
-                // TODO: remove this ugly workaround
-                catch (Exception e) when (e is not EmbeddingsMismatchException)
-                {
-                    if (aiConnectionString.TryGetParametersForGenAiTesting(out var uri, out var apiKey, out var model))
-                    {
+                        break;
+                    case AiModelType.Chat:
+                        if (aiConnectionString.TryGetParametersForGenAiTesting(out var uri, out var apiKey, out var model) == false)
+                            throw new InvalidOperationException(
+                                $"Invalid provider settings for {nameof(AiConnectionString)} with model type '{nameof(AiConnectionString.ModelType.Chat)}'. " +
+                                $"Supported providers for '{nameof(AiConnectionString.ModelType.Chat)}' model type are '{nameof(AiConnectorType.OpenAi)}' and '{nameof(AiConnectorType.Ollama)}'");
+                        
                         using (var client = new GenericChatCompletionClientForTesting(uri, model, apiKey, organizationId: null, projectId: null, ServerStore.ContextPool))
                         {
                             await client.CompleteAsync("foo", "bar", HttpContext.RequestAborted);
                         }
+
+                        break;
+                    default:
+                        throw new ArgumentOutOfRangeException("Invalid model type: " + aiConnectionString.ModelType);
                     }
-                    else
-                    {
-                        throw;
-                    }
-                }
 
                 var result = new DynamicJsonValue { [nameof(NodeConnectionTestResult.Success)] = true };
 
