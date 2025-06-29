@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+﻿﻿using System.Collections.Generic;
 using System.Net.Http;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.JsonPatch;
@@ -20,7 +20,7 @@ public class BatchCommandWithNoReplyFlagTest : RavenTestBase
     {
     }
         
-    [RavenFact(RavenTestCategory.Patching)]
+    [RavenFact(RavenTestCategory.ClientApi | RavenTestCategory.Patching)]
     public async Task BatchWithNoReply_WhenPatch_ShouldNotFail()
     {
         const string user1Id = "users/1";
@@ -51,7 +51,7 @@ public class BatchCommandWithNoReplyFlagTest : RavenTestBase
         }
     }
     
-    [RavenFact(RavenTestCategory.Patching)]
+    [RavenFact(RavenTestCategory.ClientApi | RavenTestCategory.Patching)]
     public async Task BatchWithNoReply_WhenJsonPatch_ShouldNotFail()
     {
         const string user2Id = "users/1";

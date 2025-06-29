@@ -37,6 +37,8 @@ public abstract class AbstractNotificationCenter : NotificationsBase
     }
 
     public bool IsInitialized { get; set; }
+    
+    public RavenConfiguration Configuration => _configuration;
 
     protected abstract PostponedNotificationsSender PostponedNotificationSender { get; }
 

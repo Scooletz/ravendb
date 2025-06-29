@@ -1,10 +1,11 @@
-﻿using System.Collections.Generic;
+﻿﻿using System.Collections.Generic;
 using System.Linq;
 using Amqp.Framing;
 using Raven.Client.ServerWide;
 using Raven.Server.Documents.Handlers.Debugging;
 using Xunit;
 using Xunit.Abstractions;
+using Tests.Infrastructure;
 
 namespace FastTests.Server.Basic
 {
@@ -14,7 +15,7 @@ namespace FastTests.Server.Basic
         {
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.Monitoring)]
         public void EnsureIncludedInDatabaseRecordDebugPackage()
         {
             var sensitiveFieldsThatShouldNotBeExposedForDebug = new HashSet<string>()

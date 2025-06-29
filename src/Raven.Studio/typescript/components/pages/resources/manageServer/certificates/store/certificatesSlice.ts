@@ -25,7 +25,6 @@ interface InitialState {
     sortMode: CertificatesSortMode;
     isGenerateModalOpen: boolean;
     isUploadModalOpen: boolean;
-    certificateToRegenerate: CertificateItem;
     certificateToEdit: CertificateItem;
     certificateToClone: CertificateItem;
     isReplaceServerModalOpen: boolean;
@@ -47,7 +46,6 @@ const initialState: InitialState = {
     sortMode: "Default",
     isGenerateModalOpen: false,
     isUploadModalOpen: false,
-    certificateToRegenerate: null,
     certificateToEdit: null,
     certificateToClone: null,
     isReplaceServerModalOpen: false,
@@ -77,12 +75,6 @@ export const certificatesSlice = createSlice({
         },
         isUploadModalOpenToggled: (state) => {
             state.isUploadModalOpen = !state.isUploadModalOpen;
-        },
-        regenerateModalOpen: (state, action: PayloadAction<CertificateItem>) => {
-            state.certificateToRegenerate = action.payload;
-        },
-        regenerateModalClosed: (state) => {
-            state.certificateToRegenerate = null;
         },
         editModalOpen: (state, action: PayloadAction<CertificateItem>) => {
             state.certificateToEdit = action.payload;
@@ -154,10 +146,14 @@ const fetchData = createAsyncThunk<
     }
 >(certificatesSlice.name + "/fetchData", async (_, { getState }) => {
     const nodeTags = getState().cluster.nodes.ids;
+    const securityClearance = getState().accessManager.securityClearance;
+    const isClusterAdminOrClusterNode = securityClearance === "ClusterAdmin" || securityClearance === "ClusterNode";
 
     const certificatesDto = await services.manageServerService.getCertificates(true);
 
-    const serverCertificateSetupMode = await services.manageServerService.getServerCertificateSetupMode();
+    const serverCertificateSetupMode = isClusterAdminOrClusterNode
+        ? await services.manageServerService.getServerCertificateSetupMode()
+        : null;
 
     const serverCertificateRenewalDate =
         serverCertificateSetupMode === "LetsEncrypt"

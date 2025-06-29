@@ -20,6 +20,7 @@ public class EmbeddingsGoogleConnectorForTesting : AbstractEmbeddingsConnectorFo
         var apiKey = Environment.GetEnvironmentVariable(EnvironmentVariable);
         return new AiConnectionString
         {
+            ModelType = AiModelType.TextEmbeddings,
             GoogleSettings = new GoogleSettings(Model, apiKey)
         };
     }

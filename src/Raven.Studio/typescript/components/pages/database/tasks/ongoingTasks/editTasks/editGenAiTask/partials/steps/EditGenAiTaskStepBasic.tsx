@@ -63,13 +63,23 @@ export function EditGenAiTaskStepBasicFooter() {
             editGenAiTaskActions.testConnectionString({
                 databaseName,
                 connectorType: getConnectorType(connectionString),
+                modelType: connectionString.ModelType,
                 settings: mapAiConnectionStringToSettingsDto(connectionString),
             })
         );
     };
 
     const handleNext = async () => {
-        const isValid = await trigger(["name", "state", "responsibleNode", "connectionStringName"]);
+        const isValid = await trigger([
+            "name",
+            "state",
+            "responsibleNode",
+            "connectionStringName",
+            "maxConcurrency",
+            "isStartingPoint",
+            "startingPointType",
+            "startingPointChangeVector",
+        ]);
 
         if (isValid) {
             dispatch(editGenAiTaskActions.currentStepSet("context"));

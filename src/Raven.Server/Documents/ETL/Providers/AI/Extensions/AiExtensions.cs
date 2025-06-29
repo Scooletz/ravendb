@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.SemanticKernel;
-using Microsoft.SemanticKernel.Embeddings;
 using OllamaSharp;
 using OpenAI;
 using Raven.Client.Documents.Operations.AI;
@@ -35,7 +34,7 @@ public static class AiExtensions
 
     public static IKernelBuilder AddCustomBertOnnxTextEmbeddingGeneration(this IKernelBuilder builder, string serviceId = null)
     {
-        builder.Services.AddKeyedSingleton<ITextEmbeddingGenerationService>(serviceId, GenerateEmbeddings.Embedder.Value);
+        builder.Services.AddKeyedSingleton(serviceId, GenerateEmbeddings.Embedder.Value);
         return builder;
     }
 
@@ -73,13 +72,13 @@ public static class AiExtensions
                 };
                 var openAIClient = new OpenAIClient(apiKey, openAiOptions);
 
-                kernelBuilder.AddOpenAITextEmbeddingGeneration(openAiSettings.Model, openAIClient, dimensions: openAiSettings.Dimensions);
+                kernelBuilder.AddOpenAIEmbeddingGenerator(openAiSettings.Model, openAIClient, dimensions: openAiSettings.Dimensions);
                 break;
 
             case AiConnectorType.AzureOpenAi:
                 var azureOpenAiSettings = connectionString.AzureOpenAiSettings;
 
-                kernelBuilder.AddAzureOpenAITextEmbeddingGeneration(
+                kernelBuilder.AddAzureOpenAIEmbeddingGenerator(
                     azureOpenAiSettings.DeploymentName,
                     azureOpenAiSettings.Endpoint,
                     azureOpenAiSettings.ApiKey,
@@ -93,7 +92,7 @@ public static class AiExtensions
 
                 var ollamaApiClient = new OllamaApiClient(ollamaApiConfig);
 
-                kernelBuilder.AddOllamaTextEmbeddingGeneration(ollamaApiClient);
+                kernelBuilder.AddOllamaEmbeddingGenerator(ollamaApiClient);
                 break;
 
             case AiConnectorType.Embedded:
@@ -125,7 +124,7 @@ public static class AiExtensions
                 var huggingFaceSettings = connectionString.HuggingFaceSettings;
                 var huggingFaceUri = string.IsNullOrWhiteSpace(huggingFaceSettings.Endpoint) ? null : new Uri(huggingFaceSettings.Endpoint);
 
-                  kernelBuilder.AddHuggingFaceTextEmbeddingGeneration(
+                  kernelBuilder.AddHuggingFaceEmbeddingGenerator(
                     huggingFaceSettings.Model,
                     huggingFaceUri,
                     huggingFaceSettings.ApiKey);
@@ -135,7 +134,7 @@ public static class AiExtensions
                 var mistralSettings = connectionString.MistralAiSettings;
                 var mistralUri = new Uri(mistralSettings.Endpoint);
 
-                kernelBuilder.AddMistralTextEmbeddingGeneration(
+                kernelBuilder.AddMistralEmbeddingGenerator(
                     mistralSettings.Model,
                     mistralSettings.ApiKey,
                     mistralUri);

@@ -31,6 +31,7 @@ public class GenAiConfiguration : AbstractAiIntegrationConfiguration
 
     public int MaxConcurrency { get; set; } = DefaultMaxConcurrency;
 
+
     private List<Transformation> _transforms;
 
     private const int DefaultMaxConcurrency = 4;
@@ -74,7 +75,11 @@ public class GenAiConfiguration : AbstractAiIntegrationConfiguration
             errors.Add($"{nameof(ConnectionStringName)} cannot be empty");
 
         if (validateConnection && TestMode == false)
+        {
             Connection.Validate(errors);
+            if (Connection.ModelType != AiModelType.Chat)
+                errors.Add($"{nameof(Connection.ModelType)} of GenAI configuration must be {nameof(AiModelType.Chat)}");
+        }
 
         if (string.IsNullOrEmpty(Collection))
             errors.Add($"{nameof(Collection)} must be provided");

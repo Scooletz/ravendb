@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Threading;
+using Raven.Server.Documents.Indexes.Debugging;
 using Raven.Server.Documents.Indexes.Static.Spatial;
 using Raven.Server.Documents.Queries;
 using Raven.Server.Documents.Queries.Explanation;
@@ -53,7 +54,7 @@ namespace Raven.Server.Documents.Indexes.Persistence
             Reference<long> skippedResults, Reference<long> scannedDocuments, IQueryResultRetriever retriever, DocumentsOperationContext documentsContext, Func<string, SpatialField> getSpatialField,
             CancellationToken token);
 
-        public abstract SortedSet<string> Terms(string field, string fromValue, long pageSize, CancellationToken token);
+        public abstract List<string> Terms(string field, string fromValue, long pageSize, CancellationToken token);
 
         public abstract IEnumerable<QueryResult> MoreLikeThis(
             IndexQueryServerSide query,
@@ -64,7 +65,17 @@ namespace Raven.Server.Documents.Indexes.Persistence
         public abstract IEnumerable<BlittableJsonReaderObject> IndexEntries(IndexQueryServerSide query, Reference<long> totalResults, DocumentsOperationContext documentsContext,
             Func<string, SpatialField> getSpatialField, bool ignoreLimit, CancellationToken token);
 
-        public abstract IEnumerable<string> DynamicEntriesFields(HashSet<string> staticFields);
+        public abstract HashSet<FieldDebugInfo> GetEntriesFields(ICollection<string> unknownTypeStaticFields);
+
+        protected static bool IsDynamicFieldKnownAsStatic(string fieldName)
+        {
+            return fieldName
+                is Client.Constants.Documents.Indexing.Fields.ReduceKeyHashFieldName 
+                or Client.Constants.Documents.Indexing.Fields.ReduceKeyValueFieldName
+                or Client.Constants.Documents.Indexing.Fields.ValueFieldName
+                or Client.Constants.Documents.Indexing.Fields.DocumentIdFieldName
+                or Client.Constants.Documents.Indexing.Fields.SourceDocumentIdFieldName;
+        }
 
         public override void Dispose()
         {
