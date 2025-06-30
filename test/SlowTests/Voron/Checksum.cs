@@ -1,4 +1,4 @@
-﻿// -----------------------------------------------------------------------
+// -----------------------------------------------------------------------
 //  <copyright file="StorageCompactionTests.cs" company="Hibernating Rhinos LTD">
 //      Copyright (c) Hibernating Rhinos LTD. All rights reserved.
 //  </copyright>
@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using System.IO;
 using FastTests.Utils;
 using FastTests.Voron;
+using Tests.Infrastructure;
 using Sparrow.Server.Platform;
 using Voron;
 using Xunit;
@@ -24,7 +25,7 @@ namespace SlowTests.Voron
         {
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.Voron)]
         public unsafe void ValidatePageChecksumShouldDetectDataCorruption()
         {
             // Create some random data

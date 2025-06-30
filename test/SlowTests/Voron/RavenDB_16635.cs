@@ -1,8 +1,9 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Threading;
 using FastTests.Voron;
 using Sparrow.LowMemory;
+using Tests.Infrastructure;
 using Voron;
 using Voron.Impl;
 using Voron.Impl.Paging;
@@ -24,7 +25,7 @@ namespace SlowTests.Voron
             options.MaxScratchBufferSize = 64 * 1024 * 4;
         }
 
-        [Theory]
+        [RavenTheory(RavenTestCategory.Voron)]
         [InlineData(false)]
         [InlineData(true)]
         public void MustNotThrowObjectDisposedOnScratchPagerWhenCreatingNewTransaction(bool startWriteTransaction)
@@ -92,7 +93,7 @@ namespace SlowTests.Voron
             Assert.Null(startTransactionException);
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.Voron)]
         public void MustNotThrowObjectDisposedOnScratchPagerWhenCreatingNewReadTransactionRightAfterDisposingRecycledScratches()
         {
             RequireFileBasedPager();
@@ -182,7 +183,7 @@ namespace SlowTests.Voron
             Assert.Null(startTransactionException);
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.Voron)]
         public unsafe void CannotUsePagerStateOfDisposedPager() // this test is just to verify that we properly throw on such invalid usage
         {
             RequireFileBasedPager();
@@ -204,7 +205,7 @@ namespace SlowTests.Voron
         }
 
 
-        [Fact]
+        [RavenFact(RavenTestCategory.Voron)]
         public void MustNotThrowObjectDisposedOnScratchPagerWhenCreatingNewReadTransaction()
         {
             RequireFileBasedPager();

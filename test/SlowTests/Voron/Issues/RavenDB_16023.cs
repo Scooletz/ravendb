@@ -1,4 +1,4 @@
-﻿using System.Linq;
+using System.Linq;
 using FastTests.Voron;
 using Sparrow;
 using Sparrow.Platform;
