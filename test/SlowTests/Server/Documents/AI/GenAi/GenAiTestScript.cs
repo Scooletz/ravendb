@@ -1525,6 +1525,210 @@ for (const comment of this.Comments)
         }
     }
 
+    [RavenTheory(RavenTestCategory.Etl | RavenTestCategory.Ai)]
+    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single, CheckCanConnect = false, NightlyBuildRequired = false)]
+    public async Task ShouldStripMetadataPropertiesFromInputDocument(Options options, GenAiConfiguration config)
+    {
+        using (var store = GetDocumentStore(options))
+        {
+            var database = await GetDocumentDatabaseInstanceFor(store);
+
+            using (database.DocumentsStorage.ContextPool.AllocateOperationContext(out DocumentsOperationContext context))
+            {
+                config.Collection = "Posts";
+                config.Prompt = "Check if the following blog post comment is spam or not";
+                config.SampleObject = JsonConvert.SerializeObject(new { Blocked = true, Reason = "Concise reason for why this comment was marked as spam or harmful" });
+                config.GenAiTransformation = new GenAiTransformation
+                {
+                    Script = @"
+for (const comment of this.Comments)
+{
+    ai.genContext({Text: comment.Text, Author: comment.Author, Id: comment.Id});
+}
+"
+                };
+                config.UpdateScript =
+@"const idx = this.Comments.findIndex(c => c.Id == $input.Id);  
+if (idx < 0)
+    return;
+this.Comments[idx].IsSpam = $output.Blocked;
+";
+
+                var testGenAiScript = new TestGenAiScript
+                {
+                    Configuration = config,
+                    TestStage = TestStage.CreateContextObjects
+                };
+
+                // create a sample document to test on
+                var djv = new DynamicJsonValue
+                {
+                    [nameof(GenAiBasics.Post.Title)] = "Understanding Indexing in RavenDB",
+                    [nameof(GenAiBasics.Post.Body)] = "Indexes in RavenDB are a powerful way to optimize query performance. " +
+                                                      "This blog post walks through auto-indexes, static indexes, and best practices when designing queries that scale.",
+
+                    [nameof(GenAiBasics.Post.Comments)] = new DynamicJsonArray
+                    {
+                        new DynamicJsonValue
+                        {
+                            [nameof(GenAiBasics.Comment.Author)] = "sarah_j",
+                            [nameof(GenAiBasics.Comment.Text)] = "This article really helped me understand how indexes work in RavenDB. Great write-up!",
+                            [nameof(GenAiBasics.Comment.Id)] = "1"
+
+                        },
+                        new DynamicJsonValue
+                        {
+                            [nameof(GenAiBasics.Comment.Author)] = "shady_marketer",
+                            [nameof(GenAiBasics.Comment.Text)] = "Learn how to make $5000/month from home! Visit click4cash.biz.example now!!!!",
+                            [nameof(GenAiBasics.Comment.Id)] = "2"
+                        }
+                    },
+
+                    // add metadata properties to the document
+                    [Constants.Documents.Metadata.Key] = new DynamicJsonValue
+                    {
+                        [Constants.Documents.Metadata.Id] = "posts/1-A",
+                        [Constants.Documents.Metadata.Collection] = "Posts",
+                        [Constants.Documents.Metadata.LastModified] = DateTime.UtcNow,
+                        [Constants.Documents.Metadata.Flags] = new DynamicJsonArray { "HasCounters", "HasTimeSeries" },
+                        [Constants.Documents.Metadata.IndexScore] = 123
+                    }
+                };
+
+                testGenAiScript.Document = context.ReadObject(djv, "test-document");
+
+                // first stage - test context objects creation
+                var firstRun = GenAiTask.TestScript(testGenAiScript, database, database.ServerStore, context) as GenAiTestScriptResult;
+                Assert.NotNull(firstRun);
+                Assert.Equal(2, firstRun.Results.Count);
+
+                // test model call
+                testGenAiScript.Input = firstRun.Results;
+                testGenAiScript.TestStage = TestStage.SendToModel;
+
+                var secondRun = GenAiTask.TestScript(testGenAiScript, database, database.ServerStore, context) as GenAiTestScriptResult;
+                Assert.NotNull(secondRun);
+                Assert.Equal(2, secondRun.Results.Count);
+
+                foreach (var item in secondRun.Results)
+                {
+                    Assert.NotNull(item.ModelOutput?.Output);
+
+                    Assert.True(item.ModelOutput.Output.TryGet("Blocked", out bool _));
+                    Assert.True(item.ModelOutput.Output.TryGet("Reason", out string r));
+                    Assert.NotNull(r);
+                }
+
+                // final stage - test update script
+                // should not throw on unfiltered metadata properties
+
+                testGenAiScript.Input = secondRun.Results;
+                testGenAiScript.TestStage = TestStage.ApplyUpdateScript;
+                var finalRun = GenAiTask.TestScript(testGenAiScript, database, database.ServerStore, context) as GenAiTestScriptResult;
+
+                Assert.NotNull(finalRun);
+                Assert.Equal(2, finalRun.Results.Count);
+
+                Assert.NotNull(finalRun.OutputDocument);
+                Assert.True(finalRun.OutputDocument.TryGet(nameof(GenAiBasics.Post.Comments), out BlittableJsonReaderArray comments));
+                Assert.Equal(2, comments.Length);
+
+                foreach (var o in comments)
+                {
+                    var comment = o as BlittableJsonReaderObject;
+                    Assert.NotNull(comment);
+
+                    Assert.True(comment.TryGet("IsSpam", out bool _));
+                }
+
+                Assert.True(finalRun.OutputDocument.TryGet(Constants.Documents.Metadata.Key, out BlittableJsonReaderObject metadata));
+                Assert.False(metadata.TryGet(Constants.Documents.Metadata.Id, out object _));
+                Assert.False(metadata.TryGet(Constants.Documents.Metadata.LastModified, out object _));
+                Assert.False(metadata.TryGet(Constants.Documents.Metadata.IndexScore, out object _));
+                Assert.False(metadata.TryGet(Constants.Documents.Metadata.Flags, out object _));
+
+                Assert.True(metadata.TryGet(Constants.Documents.Metadata.GenAiHashes, out BlittableJsonReaderObject _));
+            }
+        }
+    }
+
+    [RavenTheory(RavenTestCategory.Etl | RavenTestCategory.Ai)]
+    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single, CheckCanConnect = false, NightlyBuildRequired = false)]
+    public async Task ShouldReturnModelUsageStats(Options options, GenAiConfiguration config)
+    {
+        using (var store = GetDocumentStore(options))
+        {
+            const string id = "posts/1";
+
+            using (var session = store.OpenAsyncSession())
+            {
+                var p = new GenAiBasics.Post(
+                    [
+                        new GenAiBasics.Comment("This article really helped me understand how indexes work in RavenDB. Great write-up!", "sarah_j"),
+                        new GenAiBasics.Comment("Learn how to make $5000/month from home! Visit click4cash.biz.example now!!!", "shady_marketer"),
+                        new GenAiBasics.Comment("I tried this approach with IO_Uring in the past, but I run into problems with security around the IO systems and the CISO didn't let us deploy that to production. It is more mature at this point?", "dave")
+                    ],
+                    "Understanding Indexing in RavenDB",
+                    "Indexes in RavenDB are a powerful way to optimize query performance. This blog post walks through auto-indexes, static indexes, and best practices when designing queries that scale."
+                );
+                await session.StoreAsync(p, id);
+                await session.SaveChangesAsync();
+            }
+
+            var database = await GetDocumentDatabaseInstanceFor(store);
+
+            using (database.DocumentsStorage.ContextPool.AllocateOperationContext(out DocumentsOperationContext context))
+            {
+                config.Collection = "Posts";
+                config.Prompt = "Check if the following blog post comment is spam or not";
+                config.SampleObject = JsonConvert.SerializeObject(new { Blocked = true, Reason = "Concise reason for why this comment was marked as spam or harmful" });
+                config.UpdateScript = @"    
+const idx = this.Comments.findIndex(c => c.Id == $input.Id);  
+if($output.Blocked)
+{
+    this.Comments.splice(idx, 1); // remove
+}
+";
+                config.GenAiTransformation = new GenAiTransformation
+                {
+                    Script = @"for (const comment of this.Comments)
+{
+    ai.genContext({Text: comment.Text, Author: comment.Author, Id: comment.Id});
+}"
+
+                };
+
+                var testGenAiScript = new TestGenAiScript
+                {
+                    DocumentId = id,
+                    Configuration = config,
+                    TestStage = TestStage.CreateContextObjects
+                };
+
+                var result = GenAiTask.TestScript(testGenAiScript, database, database.ServerStore, context) as GenAiTestScriptResult;
+                Assert.NotNull(result);
+                Assert.Equal(3, result.Results.Count);
+
+                testGenAiScript.Input = result.Results;
+                testGenAiScript.TestStage = TestStage.SendToModel;
+                result = GenAiTask.TestScript(testGenAiScript, database, database.ServerStore, context) as GenAiTestScriptResult;
+
+                Assert.NotNull(result);
+                Assert.Equal(3, result.Results.Count);
+
+                foreach (var item in result.Results)
+                {
+                    var usage = item.ModelOutput.Usage;
+                    Assert.NotNull(usage);
+
+                    Assert.True(usage.TotalTokens > 0);
+                    Assert.True(usage.PromptTokens > 0);
+                    Assert.True(usage.CompletionTokens > 0);
+                }
+            }
+        }
+    }
+
     private class GenAiTestCmd : RavenCommand<BlittableJsonReaderObject>
     {
         private readonly DocumentConventions _conventions;

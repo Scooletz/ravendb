@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Linq;
 using System.Net;
+using System.Threading;
 using System.Threading.Tasks;
 using FastTests;
 using Newtonsoft.Json;
@@ -12,6 +13,7 @@ using Raven.Server.Documents.ETL;
 using Raven.Server.Documents.ETL.Providers.AI.GenAi;
 using Raven.Server.NotificationCenter.Notifications.Details;
 using Sparrow.Json;
+using Sparrow.Server;
 using Tests.Infrastructure;
 using Xunit;
 using Xunit.Abstractions;
@@ -123,7 +125,7 @@ if($output.Blocked)
                 return error != null;
             }, true, timeout: 60_000);
 
-            Assert.True(value);
+            Assert.True(value, await Etl.GetEtlDebugInfo(store.Database, TimeSpan.FromSeconds(60)));
             Assert.NotNull(error);
             Assert.True(error.Error.Contains("Failed to apply update script"));
             Assert.True(error.Error.Contains("JavaScriptException: Property 'findIndexf' of object is not a function"));
@@ -236,10 +238,12 @@ this.Comments[idx].IsBlocked = $output.Blocked;";
             Assert.NotNull(etlProcess);
 
             var chatCompletionClient = (IChatCompletionClientForTesting)etlProcess.GetChatCompletionClient();
-            chatCompletionClient.ForTestingPurposesOnly().SimulateFailure = (ctx) =>
+            chatCompletionClient.ForTestingPurposesOnly().SimulateFailureAsync = (ctx) =>
             {
                 if (ctx.Contains("win $$$$"))
                     throw new RefusedToAnswerException("fake refusal") { RequestId = "fake request id" };
+
+                return Task.CompletedTask;
             };
 
             const string docId = "posts/1";
@@ -314,10 +318,12 @@ this.Comments[idx].IsBlocked = $output.Blocked;";
 
         int triggerOn = 2;
         var chatCompletionClient = (IChatCompletionClientForTesting)etlProcess.GetChatCompletionClient();
-        chatCompletionClient.ForTestingPurposesOnly().SimulateFailure = (ctx) =>
+        chatCompletionClient.ForTestingPurposesOnly().SimulateFailureAsync = (ctx) =>
         {
-            if (--triggerOn <= 0)
+            if (Interlocked.Decrement(ref triggerOn) <= 0)
                 throw new RateLimitException("rate limit") { RetryAfter = TimeSpan.FromMinutes(10), RequestId = "test" };
+
+            return Task.CompletedTask;
         };
 
         const string docId = "posts/1";
@@ -398,7 +404,6 @@ this.Comments[idx].IsBlocked = $output.Blocked;";
         }
     }
 
-    
     [RavenTheory(RavenTestCategory.Etl | RavenTestCategory.Ai)]
     [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single, CheckCanConnect = false, NightlyBuildRequired = false)]
     public async Task GenAi_LoadError_AuthFailure_ShouldOnlyTrackSuccess(Options options, GenAiConfiguration config)
@@ -429,10 +434,20 @@ this.Comments[idx].IsSpam = $output.Blocked;";
         Assert.NotNull(etlProcess);
 
         var chatCompletionClient = (IChatCompletionClientForTesting)etlProcess.GetChatCompletionClient();
-        chatCompletionClient.ForTestingPurposesOnly().SimulateFailure = (ctx) =>
+        var enteredOnce = 0;
+        var blockEtlMre = new AsyncManualResetEvent();
+
+        chatCompletionClient.ForTestingPurposesOnly().SimulateFailureAsync = ctx =>
         {
             if (ctx.Contains("alex"))
-                throw new UnsuccessfulRequestException("Unauthorized", HttpStatusCode.Unauthorized) { RequestId = "fake-request-id" };
+            {
+                if (Interlocked.CompareExchange(ref enteredOnce, 1, 0) == 0)
+                    throw new UnsuccessfulRequestException("Unauthorized", HttpStatusCode.Unauthorized) { RequestId = "fake-request-id" };
+
+                return blockEtlMre.WaitAsync(TimeSpan.FromSeconds(60));
+            }
+
+            return Task.CompletedTask;
         };
 
         const string docId = "posts/1";
@@ -483,6 +498,8 @@ this.Comments[idx].IsSpam = $output.Blocked;";
             Assert.True(comment2.TryGet("IsSpam", out bool _));
         }
 
+        blockEtlMre.Set();
+
         // assert that next ETL batch starts from 0 etag
         var state = EtlProcess.GetProcessState(db, config.Name, config.Transforms[0].Name);
         var lastProcessedEtag = state.GetLastProcessedEtag(db.DbBase64Id, Server.ServerStore.NodeTag);
@@ -490,7 +507,6 @@ this.Comments[idx].IsSpam = $output.Blocked;";
 
         // assert that the comment with model failure is processed in the next ETL batch
         var etlDone = Etl.WaitForEtlToComplete(store);
-        chatCompletionClient.ForTestingPurposesOnly().SimulateFailure = null;
 
         Assert.True(etlDone.Wait(TimeSpan.FromSeconds(60)));
 

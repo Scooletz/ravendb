@@ -13,8 +13,10 @@ const getDefaultValues = (dto: Raven.Client.Documents.Operations.OngoingTasks.Ge
             isAllowEtlOnNonEncryptedChannel: false,
             collectionName: "",
             maxConcurrency: null,
+            isStartingPoint: false,
+            startingPointType: "Beginning of Time",
+            startingPointChangeVector: "",
             prompt: "",
-            schemaProvider: null,
             jsonSchema: "",
             sampleObject: "",
             updateScript: "",
@@ -40,8 +42,10 @@ const getDefaultValues = (dto: Raven.Client.Documents.Operations.OngoingTasks.Ge
         isAllowEtlOnNonEncryptedChannel: dto.Configuration.AllowEtlOnNonEncryptedChannel,
         collectionName: dto.Configuration.Collection,
         maxConcurrency: dto.Configuration.MaxConcurrency,
+        isStartingPoint: false,
+        startingPointType: "Beginning of Time",
+        startingPointChangeVector: "",
         prompt: dto.Configuration.Prompt ?? "",
-        schemaProvider: dto.Configuration.JsonSchema ? "jsonSchema" : "sampleObject",
         jsonSchema: dto.Configuration.JsonSchema ?? "",
         sampleObject: dto.Configuration.SampleObject ?? "",
         updateScript: dto.Configuration.UpdateScript ?? "",
@@ -74,8 +78,8 @@ const mapToDto = (
         Transforms: null,
         Collection: data.collectionName,
         Prompt: data.prompt,
-        JsonSchema: data.schemaProvider === "jsonSchema" ? data.jsonSchema : null,
-        SampleObject: data.schemaProvider === "sampleObject" ? data.sampleObject : null,
+        JsonSchema: data.jsonSchema,
+        SampleObject: data.sampleObject,
         UpdateScript: data.updateScript,
         GenAiTransformation: {
             Script: data.script,
@@ -83,8 +87,28 @@ const mapToDto = (
     };
 };
 
+const getSerializedChangeVector = (data: EditGenAiTaskFormData, taskId: number): string => {
+    let changeVector = taskId ? "DoNotChange" : "BeginningOfTime";
+
+    if (data.isStartingPoint) {
+        switch (data.startingPointType) {
+            case "Beginning of Time":
+                changeVector = "BeginningOfTime";
+                break;
+            case "Latest Document":
+                changeVector = "LastDocument";
+                break;
+            case "Change Vector":
+                changeVector = data.startingPointChangeVector?.trim().replace(/\r?\n/g, " ") ?? "";
+                break;
+        }
+    }
+    return changeVector;
+};
+
 export const editGenAiTaskUtils = {
     getDefaultValues,
     mapToDto,
+    getSerializedChangeVector,
     defaultMaxConcurrency: 4,
 };

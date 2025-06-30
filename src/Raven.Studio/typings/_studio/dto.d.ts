@@ -763,9 +763,13 @@ interface confirmationDialogOptions {
     wideDialog?: boolean;
 }
 
+type IndexEntriesFieldType = "Static" | "Dynamic";
+type IndexEntriesValueType = "Term" | "Vector";
+
 interface getIndexEntriesFieldsCommandResult {
-    Static: string[];
-    Dynamic: string[];
+    Name: string;
+    FieldType: IndexEntriesFieldType;
+    ValueType: IndexEntriesValueType
 }
 
 interface scrollColorConfig {
@@ -1087,7 +1091,11 @@ type CertificatesResponseDto = {
     WellKnownIssuers: string[]
 }
 
-type GenAiConfiguration = Omit<Raven.Client.Documents.Operations.AI.GenAiConfiguration, "Identifier">;
+interface TrafficWatchPostgresChange extends Raven.Client.Documents.Changes.TrafficWatchChangeBase {
+    Username: string;
+    Source: string;
+    Query: string;
+}
 
 type AiConnectionStringsSettings =
     | Raven.Client.Documents.Operations.AI.OpenAiSettings

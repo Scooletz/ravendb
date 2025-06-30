@@ -344,6 +344,25 @@ namespace Raven.Server.Web.Studio
             public AzureOpenAiSettings AzureOpenAiSettings { get; set; }
         }
 
+        [RavenAction("/studio-tasks/convert-to-json-schema", "POST", AuthorizationStatus.ValidUser, EndpointType.Read)]
+        public async Task GetJsonSchemaFromSampleObject()
+        {
+            using (ServerStore.ContextPool.AllocateOperationContext(out JsonOperationContext context))
+            {
+                var sampleObj = await context.ReadForMemoryAsync(RequestBodyStream(), "convert-to-json-schema");
+
+                await using (var writer = new AsyncBlittableJsonTextWriter(context, ResponseBodyStream()))
+                {
+                    var schema = ChatCompletionClient.GetSchemaFor(sampleObj.ToString());
+
+                    writer.WriteStartObject();
+                    writer.WritePropertyName("Result");
+                    writer.WriteString(schema);
+                    writer.WriteEndObject();
+                }
+            }
+        }
+
         public sealed class StudioBootstrapConfiguration
         {
             public int CertificateExpiringThresholdInDays { get; set; }

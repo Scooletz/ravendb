@@ -18,7 +18,7 @@ public class RavenDB_24298(ITestOutputHelper output) : RavenTestBase(output)
 {
     [RavenTheory(RavenTestCategory.Ai)]
     [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single, CheckCanConnect = false, NightlyBuildRequired = false)]
-    private async Task ConfigurationUpdateShouldTakeAffect(Options options, GenAiConfiguration config)
+    public async Task ConfigurationUpdateShouldTakeAffect(Options options, GenAiConfiguration config)
     {
         using var store = GetDocumentStore();
         const string docId = "posts/1";
@@ -65,7 +65,7 @@ public class RavenDB_24298(ITestOutputHelper output) : RavenTestBase(output)
             session.SaveChanges();
         }
 
-        Assert.True(await WaitForValueAsync(async () =>
+        var value = await WaitForValueAsync(async () =>
         {
             using (var session = store.OpenAsyncSession())
             {
@@ -73,7 +73,10 @@ public class RavenDB_24298(ITestOutputHelper output) : RavenTestBase(output)
                 doc.TryGet("Translated", out string translation);
                 return translation != null;
             }
-        }, expectedVal: true, timeout: 30_000));
+        }, expectedVal: true, timeout: 60_000);
+
+
+        Assert.True(value, await Etl.GetEtlDebugInfo(store.Database, TimeSpan.FromSeconds(60)));
 
 
     }

@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Raven.Client;
 using Raven.Client.Documents.Operations.AI;
+using Raven.Client.Documents.Operations.AI.Agents;
 using Raven.Client.Documents.Operations.Counters;
 using Raven.Client.Documents.Operations.ETL;
 using Raven.Client.Extensions;
@@ -166,7 +167,7 @@ public sealed class GenAiTask : EtlProcess<GenAiItem, GenAiScriptResult, GenAiCo
         {
             context.CloseTransaction();
 
-            List<Task<(string Result, string Usage)>> tasks = [];
+            List<Task<(string Result, AiUsage Usage)>> tasks = [];
             Task[] executingTasks = new Task[Math.Max(1, _maxConcurrency)];
             Array.Fill(executingTasks, Task.CompletedTask);
             List<GenAiResultItem> itemsSentToModel = [];
@@ -186,7 +187,7 @@ public sealed class GenAiTask : EtlProcess<GenAiItem, GenAiScriptResult, GenAiCo
                 statsScope.TotalSentToModel++;
 
                 string json = item.ContextOutput.Context.ToString();
-                Task<(string Result, string Usage)> task;
+                Task<(string Result, AiUsage Usage)> task;
                 try
                 {
                     task = _chatCompletionClient.CompleteAsync(Configuration.Prompt, json, CancellationToken);
@@ -195,7 +196,7 @@ public sealed class GenAiTask : EtlProcess<GenAiItem, GenAiScriptResult, GenAiCo
                 {
                     // if we failed to _start_, we want to handle it in the same manner
                     // and deal with the error in ProcessModelResults
-                    task = Task.FromException<(string Result, string Usage)>(e);
+                    task = Task.FromException<(string Result, AiUsage Usage)>(e);
                 }
 
                 itemsSentToModel.Add(item);
@@ -217,7 +218,7 @@ public sealed class GenAiTask : EtlProcess<GenAiItem, GenAiScriptResult, GenAiCo
         }
     }
 
-    private List<Exception> ProcessModelResults(List<GenAiResultItem> items, DocumentsOperationContext context, List<Task<(string Result, string Usage)>> tasks, GenAiStatsScope statsScope)
+    private List<Exception> ProcessModelResults(List<GenAiResultItem> items, DocumentsOperationContext context, List<Task<(string Result, AiUsage Usage)>> tasks, GenAiStatsScope statsScope)
     {
         List<Exception> exceptions = null;
 
@@ -236,31 +237,26 @@ public sealed class GenAiTask : EtlProcess<GenAiItem, GenAiScriptResult, GenAiCo
                 continue; // so we won't try to save it 
             }
 
-            (string result, string usage) = task.Result;
+            (string result, AiUsage usage) = task.Result;
 
             item.ModelOutput = new ModelOutput
             {
                 Output = context.Sync.ReadForMemory(result, item.DocId)
             };
 
-            var usageBlittable = context.Sync.ReadForMemory(usage, item.DocId);
-            usageBlittable.TryGet("total_tokens", out int tokensUsed);
-            usageBlittable.TryGet("prompt_tokens", out int promptTokens);
-            usageBlittable.TryGet("completion_tokens", out int completionTokens);
-
-            statsScope.TotalTokensUsed += tokensUsed;
-            statsScope.PromptTokensUsed += promptTokens;
-            statsScope.CompletionTokensUsed += completionTokens;
+            statsScope.TotalTokensUsed += usage.TotalTokens;
+            statsScope.PromptTokensUsed += usage.PromptTokens;
+            statsScope.CompletionTokensUsed += usage.CompletionTokens;
 
             if (Configuration.TestMode)
             {
-                item.ModelOutput.Usage = usageBlittable;
+                item.ModelOutput.Usage = usage;
             }
         }
 
         return exceptions;
 
-        Exception HandleItemError(Task<(string Result, string Usage)> task, GenAiResultItem item)
+        Exception HandleItemError(Task<(string Result, AiUsage Usage)> task, GenAiResultItem item)
         {
             var singleEx = task.Exception.ExtractSingleInnerException();
 

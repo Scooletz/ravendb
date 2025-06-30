@@ -84,7 +84,11 @@ public sealed class EmbeddingsGenerationConfiguration : AbstractAiIntegrationCon
             errors.Add($"{nameof(ConnectionStringName)} cannot be empty");
 
         if (validateConnection && TestMode == false)
+        {
             Connection.Validate(errors);
+            if (Connection.ModelType != AiModelType.TextEmbeddings)
+                errors.Add($"{nameof(Connection.ModelType)} of Embeddings Generation configuration must be {nameof(AiModelType.TextEmbeddings)}");
+        }
 
         if (string.IsNullOrEmpty(Collection))
             errors.Add($"{nameof(Collection)} must be provided");
