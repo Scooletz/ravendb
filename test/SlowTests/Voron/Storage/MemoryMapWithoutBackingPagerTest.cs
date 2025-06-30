@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -7,6 +7,7 @@ using Nito.Disposables;
 using Sparrow.Server.Platform;
 using Sparrow.Server.Platform.Posix;
 using Sparrow.Server.Platform.Win32;
+using Tests.Infrastructure;
 using Voron;
 using Voron.Global;
 using Voron.Impl.Paging;
@@ -38,7 +39,7 @@ namespace SlowTests.Voron.Storage
                 yield return new KeyValuePair<string, string>("Key " + i, "Data:" + dummyData);
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.Voron)]
         public void Should_be_able_to_read_and_write_small_values()
         {
             CreatTestSchema();
@@ -55,7 +56,7 @@ namespace SlowTests.Voron.Storage
             }
         }
 
-        [Theory]
+        [RavenTheory(RavenTestCategory.Voron)]
         [InlineData(2)]
         [InlineData(5)]
         [InlineData(15)]
@@ -76,7 +77,7 @@ namespace SlowTests.Voron.Storage
             }
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.Voron)]
         public void Should_be_able_to_allocate_new_pages_multiple_times()
         {
             var numberOfPages = PagerInitialSize / Constants.Storage.PageSize;
@@ -116,7 +117,7 @@ namespace SlowTests.Voron.Storage
             Win32MemoryProtectMethods.VirtualFree(adjacentBlockAddress, UIntPtr.Zero, Win32MemoryProtectMethods.FreeType.MEM_RELEASE);
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.Voron)]
         public void Should_be_able_to_allocate_new_pages_with_remapping()
         {
             var pagerSize = PagerInitialSize;

@@ -1,6 +1,7 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using FastTests.Voron;
+using Tests.Infrastructure;
 using Voron.Impl;
 using Voron.Impl.Paging;
 using Xunit;
@@ -14,7 +15,7 @@ namespace SlowTests.Voron.Issues
         {
         }
         
-        [Fact]
+        [RavenFact(RavenTestCategory.Voron)]
         public unsafe void AcquirePagePointerMustNotUseDisposedPagerState()
         {
             RequireFileBasedPager();
@@ -38,7 +39,7 @@ namespace SlowTests.Voron.Issues
             }
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.Voron)]
         public void MustReleaseAllReferencesToPagerState()
         {
             var (tempPager, state) = Env.Options.CreateTemporaryBufferPager($"temp-{Guid.NewGuid()}", 16 * 1024, encrypted: false);

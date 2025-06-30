@@ -24,7 +24,7 @@ namespace SlowTests.Issues
         {
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.Indexes)]
         public async Task CanStoreTimeInformationInIndexStorageAndRecoverThatAfterReloadingDatabase()
         {
             var path = NewDataPath();
@@ -88,7 +88,7 @@ namespace SlowTests.Issues
             }
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.Indexes)]
         public async Task CanOpenIndexesWithOlderVersion()
         {
             var serverPath = NewDataPath();
@@ -171,8 +171,6 @@ namespace SlowTests.Issues
                 Assert.Equal(IndexDefinitionBaseServerSide.IndexVersion.CurrentVersion, indexInstance2.Definition.Version);
             }
         }
-
-        
         
         [RavenFact(RavenTestCategory.Voron)]
         public async Task IndexesJournalsUseHardLinksToShareJournals()
@@ -219,7 +217,8 @@ namespace SlowTests.Issues
             }
 
         }
-        [Fact]
+
+        [RavenFact(RavenTestCategory.Indexes | RavenTestCategory.Querying)]
         public void WhenUsingExactOnDateTimeOffsetWeShouldBeAbleToQueryByThisValue()
         {
             using (var store = GetDocumentStore())

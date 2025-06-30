@@ -156,3 +156,5 @@ src/Raven.Pal/test-runner
 .cursorignore
 
 .agents/
+
+.claude/
