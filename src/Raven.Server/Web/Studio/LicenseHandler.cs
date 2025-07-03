@@ -250,6 +250,7 @@ namespace Raven.Server.Web.Studio
             public string Country { get; set; }
             public string JobTitle { get; set; }
             public string Company { get; set; }
+            public string Phone { get; set; }
             public string HowDoYouPlanToUseRavenDb { get; set; }
             public FreeLicenseType Type { get; set; }
             public bool MarketingConsent { get; set; }
