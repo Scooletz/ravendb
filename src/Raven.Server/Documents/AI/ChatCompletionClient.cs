@@ -22,9 +22,9 @@ using Raven.Client.Documents.Operations.AI;
 using Raven.Client.Documents.Operations.AI.Agents;
 using Raven.Client.Http;
 using Raven.Client.Json;
-using Raven.Client.Util;
 using Raven.Server.Documents.AI.AiGen;
 using Raven.Server.Utils;
+using Sparrow;
 using Sparrow.Json;
 using Sparrow.Json.Parsing;
 using Sparrow.Server.Json.Sync;
@@ -281,18 +281,24 @@ internal class ChatCompletionClient : IChatCompletionClient, IChatCompletionClie
     public virtual async Task<BlittableJsonReaderObject> GetResponseContentAsync(JsonOperationContext context, HttpResponseMessage response, CancellationToken token)
     {
         await using (var responseStream = await response.Content.ReadAsStreamAsync(token).ConfigureAwait(false))
+        await using (var ms = RecyclableMemoryStreamFactory.GetRecyclableStream())
         {
-            var contentLength = response.Content.Headers.ContentLength;
-            if (contentLength.HasValue && contentLength == 0)
-                return null;
-
-            // we intentionally don't dispose the reader here, we'll be using it
-            // in the command, any associated memory will be released on context reset
-            await using (var stream = new StreamWithTimeout(responseStream))
+            await responseStream.CopyToAsync(ms, token);
+            ms.Position = 0;
+            try
             {
-                return await context.ReadForMemoryAsync(stream, "response/object").ConfigureAwait(false);
+                return await context.ReadForMemoryAsync(ms, "response/object").ConfigureAwait(false);
             }
+            catch (Exception e)
+            {
+                ms.Position = 0;
+                string content = Encoding.UTF8.GetString(ms.GetMemory().Span);
+                throw new UnexpectedResponseException($"Got unrecognized response from the server: {content}. {response.StatusCode}", e)
+                {
+                    RequestId = GetRequestId(response.Headers)
+                };
         }
+    }
     }
 
     [DoesNotReturn]

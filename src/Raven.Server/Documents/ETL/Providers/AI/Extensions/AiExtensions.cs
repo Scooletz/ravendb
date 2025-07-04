@@ -104,7 +104,7 @@ public static class AiExtensions
 
                 if (googleSettings.AiVersion.HasValue)
                 {
-                    kernelBuilder.AddGoogleAIEmbeddingGeneration(
+                    kernelBuilder.AddGoogleAIEmbeddingGenerator(
                         googleSettings.Model,
                         googleSettings.ApiKey,
                         googleSettings.AiVersion.Value.ToGoogleApiVersion(),
@@ -112,7 +112,7 @@ public static class AiExtensions
                 }
                 else
                 {
-                    kernelBuilder.AddGoogleAIEmbeddingGeneration(
+                    kernelBuilder.AddGoogleAIEmbeddingGenerator(
                         googleSettings.Model,
                         googleSettings.ApiKey,
                         dimensions: googleSettings.Dimensions);
