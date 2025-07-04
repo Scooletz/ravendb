@@ -678,6 +678,7 @@ namespace Voron.Impl
 #if VALIDATE
             VerifyNoDuplicateScratchPages();
 #endif
+                PagingStatistics.MarkWrite(numberOfPages);
                 var pageFromScratchBuffer = _env.ScratchBufferPool.Allocate(this, numberOfPages, pageNumber, previousVersion ?? default);
 
 
