@@ -1,4 +1,4 @@
-import React, { ComponentProps, ReactNode, useRef, useState } from "react";
+import React, { ComponentProps, ReactNode, useCallback, useRef, useState } from "react";
 import genUtils from "common/generalUtils";
 import { Checkbox, CheckboxProps, Radio, Switch } from "components/common/Checkbox";
 import { Control, ControllerProps, FieldPath, FieldValues, PathValue, useController } from "react-hook-form";
@@ -24,6 +24,8 @@ import { FormGroupProps as ReactBootstrapFormGroupsProps } from "react-bootstrap
 import useBoolean from "components/hooks/useBoolean";
 import { FilterOptionOption } from "react-select/dist/declarations/src/filters";
 import { MultiRadioToggle } from "./toggles/MultiRadioToggle";
+import "./VerificationCodeInput.scss";
+import { get } from "lodash";
 
 type FormElementProps<TFieldValues extends FieldValues, TName extends FieldPath<TFieldValues>> = Omit<
     ControllerProps<TFieldValues, TName>,
@@ -758,10 +760,14 @@ export function FormPathSelector<
     );
 }
 
-export function FormValidationMessage(props: { children: string }) {
-    const { children } = props;
+interface FormValidationMessageProps {
+    children: string;
+    className?: string;
+}
+
+export function FormValidationMessage({ children, className }: FormValidationMessageProps) {
     return (
-        <div className="validation-message text-start w-100 ">
+        <div className={classNames("validation-message text-start w-100", className)}>
             <div className="badge bg-danger rounded-pill">{children}</div>
         </div>
     );
@@ -786,3 +792,94 @@ export const FormLabel = Form.Label;
 export function OptionalLabel() {
     return <small className="text-muted fw-light">(optional)</small>;
 }
+
+interface VerificationCodeInputProps {
+    name: string;
+    control: Control;
+    onLastDigitInsertSubmit?: (code: string) => void;
+}
+
+export const VerificationCodeInput = ({ name, control, onLastDigitInsertSubmit }: VerificationCodeInputProps) => {
+    const {
+        field: { onChange, ref },
+        formState: { errors },
+    } = useController({
+        name,
+        control,
+    });
+
+    const [code, setCode] = useState<string[]>(Array(6).fill(""));
+    const inputRefs = useRef<HTMLInputElement[]>(Array(6).fill(null));
+
+        const firstInputRef = useCallback((input: HTMLInputElement | null) => {
+        inputRefs.current[0] = input;
+        if (ref) {
+            ref(input);
+        }
+    }, [ref]);
+
+    
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
+        const { value } = e.target;
+
+        if (!/^\d$/.test(value) && value !== "") return;
+
+        const newCode = [...code];
+        newCode[index] = value;
+        setCode(newCode);
+
+        onChange(newCode.join(""));
+
+        if (value && index < 5) {
+            inputRefs.current[index + 1]?.focus();
+        }
+
+        // Submit when the last digit is entered and onLastDigitInsertSubmit is provided
+        if (value && index === 5 && onLastDigitInsertSubmit) {
+            onLastDigitInsertSubmit(newCode.join(""));
+        }
+    };
+
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, index: number) => {
+        if (e.key === "Backspace" && !code[index] && index > 0) {
+            inputRefs.current[index - 1]?.focus();
+        }
+    };
+
+    const handleFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+        e.target.select();
+    };
+
+    return (
+        <div>
+            <div className="verification-code-inputs">
+                {code.map((digit, index) => (
+                    <Form.Control
+                        key={index}
+                        type="text"
+                        maxLength={1}
+                        value={digit}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleChange(e, index)}
+                        onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => handleKeyDown(e, index)}
+                        onFocus={handleFocus}
+                        ref={
+                            index === 0
+                                ? firstInputRef
+                                : (input: HTMLInputElement | null) => {
+                                      inputRefs.current[index] = input;
+                                  }
+                        }
+                        autoComplete="off"
+                        className="text-center"
+                        isInvalid={!!get(errors, name)}
+                    />
+                ))}
+            </div>
+            {get(errors, name) && (
+                <FormValidationMessage className="mt-1">
+                    {(get(errors, name)?.message as string)}
+                </FormValidationMessage>
+            )}
+        </div>
+    );
+};

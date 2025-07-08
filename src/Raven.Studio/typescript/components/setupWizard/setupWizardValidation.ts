@@ -65,6 +65,8 @@ const licenseKeyStepSchema = yup.object({
     industry: licenseRequiredField(yup.string().oneOf(setupWizardConstants.allIndustries)),
     company: licenseRequiredField(yup.string()),
     howYouPlanToUseRavenDB: licenseRequiredField(yup.string().oneOf(setupWizardConstants.allHowYouPlanToUseRavenDB)),
+    
+    verificationCode: yup.string(),
 });
 
 const securityStepSchema = yup.object({

@@ -1126,14 +1126,14 @@ export const ipAddressFormSchema = yup.object().shape({
             }
         )
         .test("valid-ip-in-unsecure-mode", "In unsecure mode you cannot use hostnames", function (value) {
-            const { securityOption } = this.options.context as {
+            const context = this.options.context as {
                 nodeAddressStep: SetupWizardFormData["nodeAddressStep"];
                 securityOption: SetupWizardSecurityOption;
                 currentIndex: number;
             };
 
             const isHostname = genUtils.isHostname(value);
-            const isUnsecureMode = securityOption === "none";
+            const isUnsecureMode = context.securityOption === "none";
 
             return !isHostname || !isUnsecureMode;
         })

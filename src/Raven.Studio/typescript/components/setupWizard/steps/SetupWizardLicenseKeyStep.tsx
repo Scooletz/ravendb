@@ -10,6 +10,7 @@ import {
     FormMultiRadioToggle,
     FormSelect,
     OptionalLabel,
+    VerificationCodeInput,
 } from "components/common/Form";
 import { HStack } from "components/common/HStack";
 import { setupWizardConstants } from "../utils/setupWizardConstants";
@@ -21,6 +22,10 @@ import Badge from "react-bootstrap/Badge";
 import messagePublisher from "common/messagePublisher";
 import Modal from "components/common/Modal";
 import useBoolean from "components/hooks/useBoolean";
+import { useAsyncCallback, UseAsyncReturn } from "react-async-hook";
+import { useEffect } from "react";
+import { get } from "lodash";
+import { FieldPath } from "react-hook-form/dist/types/path";
 
 export function SetupWizardLicenseKeyStep() {
     const { control } = useFormContext<SetupWizardFormData>();
@@ -163,7 +168,7 @@ function GenerateDeveloper() {
                 <LicenseTypeRadio />
             </HStack>
             <p>
-                Recommended for teams who want to test & develop RavenDB in its’ full potential.
+                Recommended for teams who want to test & develop RavenDB in it&apos;s full potential.
                 <br />
                 <br />
                 <Icon icon="cancel" color="success" /> Not applicable for commercial use
@@ -253,7 +258,7 @@ function GenerateLicenseFields() {
             </FormGroup>
             <FormGroup>
                 <FormCheckbox control={control} name="licenseKeyStep.isAcceptEmails" color="secondary">
-                    I would like to receive learning materials and occasional marketing emails (optional)
+                    I would like to receive learning materials and occasional marketing emails <OptionalLabel />
                 </FormCheckbox>
             </FormGroup>
         </Row>
@@ -262,7 +267,7 @@ function GenerateLicenseFields() {
 
 function SeeAllPlansButton() {
     return (
-        <Button href="https://ravendb.net/buy" variant="link" className=" p-0">
+      <Button href="https://ravendb.net/buy" target="_blank" variant="link" className="p-0">
             See all plans in detail <Icon icon="newtab" />
         </Button>
     );
@@ -359,16 +364,159 @@ function SkipLicenseVerificationConfirmModal(props: { close: () => void }) {
     );
 }
 
+interface SetupWizardLicenseKeyVerifyCodeModalProps {
+    close: () => void;
+    sendLicenseVerificationCode: UseAsyncReturn<void, []>;
+}
+
+export function SetupWizardLicenseKeyVerifyCodeModal({
+    close,
+    sendLicenseVerificationCode,
+}: SetupWizardLicenseKeyVerifyCodeModalProps) {
+    const licenseKeyStepData: SetupWizardFormData["licenseKeyStep"] = useWatch<SetupWizardFormData>({
+        name: "licenseKeyStep",
+    });
+
+    const { licenseService } = useServices();
+    const {
+        control,
+        setValue,
+        setError,
+        clearErrors,
+        setFocus,
+        formState: { errors },
+    } = useFormContext<SetupWizardFormData>();
+    
+    useEffect(() => {
+        // clear errors on remounting component
+        setFocus("licenseKeyStep.verificationCode");
+        if (get(errors, "licenseKeyStep.verificationCode")) {
+            clearErrors("licenseKeyStep.verificationCode");
+        }
+    }, []);
+
+    const onSubmitVerifiedCode = useAsyncCallback(
+        async (inputCode: string) => {
+            const license = await licenseService.verifyLicense({
+                Email: licenseKeyStepData.email,
+                VerificationCode: inputCode,
+            });
+
+            if (license.LicenseDownloadStatus !== "Success") {
+                throw new Error(license.LicenseDownloadStatus);
+            }
+            return license;
+        },
+        {
+            onSuccess: async (license) => {
+                setValue("licenseKeyStep.key", JSON.stringify(license.License));
+                close();
+                setValue("licenseKeyStep.licenseTypeToGenerate", null);
+            },
+            onError: async (error) => {
+                setError("licenseKeyStep.verificationCode", {
+                    message: convertVerificationCodeErrorMessage(error.message as FreeLicenseDownloadStatus),
+                });
+            },
+        }
+    );
+
+    return (
+        <Modal show onHide={close} contentClassName="modal-border bulge-primary" size="lg">
+            <Modal.Header closeButton onCloseClick={close} className="pb-0">
+                <h3 className="d-flex justify-content-center align-items-center w-100">
+                    <Icon icon="about" color="primary" />
+                    Enter verification code
+                </h3>
+            </Modal.Header>
+            <Modal.Body className="d-flex align-items-center flex-column justify-items-center">
+                <p className="text-center">
+                    Before generating license we need to confirm provided email. Please check you email inbox. We have
+                    sent verification code to <b>{licenseKeyStepData?.email || "test@gmail.com"}</b>
+                </p>
+                <form>
+                    <VerificationCodeInput
+                        onLastDigitInsertSubmit={onSubmitVerifiedCode.execute}
+                        name="licenseKeyStep.verificationCode"
+                        control={control}
+                    />
+                </form>
+                <p className="text-center mt-3">
+                    Did not get a code?{" "}
+                    <Button
+                        variant="link"
+                        onClick={sendLicenseVerificationCode.loading ? () => {} : sendLicenseVerificationCode.execute}
+                        disabled={sendLicenseVerificationCode.loading}
+                    >
+                        Click to resend
+                    </Button>{" "}
+                    or update your email address.
+                </p>
+            </Modal.Body>
+            <Modal.Footer>
+                <Button variant="link" onClick={close} className="link-muted">
+                    Cancel
+                </Button>
+                <ButtonWithSpinner
+                    isSpinning={onSubmitVerifiedCode.loading}
+                    variant="primary"
+                    disabled={licenseKeyStepData.verificationCode?.length !== 6}
+                    className="rounded-pill"
+                    onClick={() => onSubmitVerifiedCode.execute(licenseKeyStepData.verificationCode)}
+                >
+                    Verify email
+                    <Icon icon="arrow-right" margin="ms-1" />
+                </ButtonWithSpinner>
+            </Modal.Footer>
+        </Modal>
+    );
+}
+
+function convertVerificationCodeErrorMessage(error: FreeLicenseDownloadStatus) {
+    switch (error) {
+        case "CodeAlreadyUsed":
+            return "Code already used";
+        case "CodeExpired":
+            return "Code expired";
+        case "InvalidCredentials":
+            return "Invalid credentials";
+        default:
+            return error;
+    }
+}
+
 export function SetupWizardLicenseKeyStepFooter() {
     const { control, setValue, trigger } = useFormContext<SetupWizardFormData>();
     const { setupWizardService } = useServices();
 
     const { value: isLicenseSkipModalOpen, toggle: toggleIsLicenseSkipModalOpen } = useBoolean(false);
+    const { value: isLicenseActivationCodeModalOpen, toggle: toggleIsLicenseActivationCodeModalOpen } =
+        useBoolean(false);
 
-    const {
-        licenseKeyStep: { key, licenseTypeToGenerate },
-    } = useWatch({ control });
+    const { licenseKeyStep } = useWatch({ control });
 
+    const { key, licenseTypeToGenerate } = licenseKeyStep;
+
+    const toDto = (licenseStepData: SetupWizardFormData["licenseKeyStep"]): SendFreeLicenseVerificationRequest => {
+        if (!licenseStepData) {
+            return;
+        }
+        //todo: howYouPlanToUseRavenDB should be normal text instead of camelCase
+        return {
+            Type: licenseStepData.licenseTypeToGenerate === "developer" ? "Developer" : "Community",
+            LicenseType: licenseStepData.licenseTypeToGenerate === "developer" ? "Developer" : "Community",
+            FirstName: licenseStepData.firstName,
+            LastName: licenseStepData.lastName,
+            Email: licenseStepData.email,
+            Company: licenseStepData.company,
+            Country: licenseStepData.country,
+            JobTitle: licenseStepData.jobTitle,
+            Industry: licenseStepData.industry,
+            HowDoYouPlanToUseRavenDb: licenseStepData.howYouPlanToUseRavenDB,
+            AcceptTheTermsAndConditions: !!licenseStepData.isAcceptTerms,
+            MarketingConsent: !!licenseStepData.isAcceptEmails,
+        };
+    };
     const asyncRegistrationInfo = useAsyncDebounce(
         async () => {
             setValue("licenseKeyStep.licenseInfo", null);
@@ -394,6 +542,12 @@ export function SetupWizardLicenseKeyStepFooter() {
         300
     );
 
+    const { licenseService } = useServices();
+
+    const asyncSendLicenseVerificationCode = useAsyncCallback(() =>
+        licenseService.sendVerificationCode(toDto(licenseKeyStep))
+    );
+
     const handleAlreadyHaveLicense = () => {
         setValue("licenseKeyStep.licenseTypeToGenerate", null);
     };
@@ -403,13 +557,23 @@ export function SetupWizardLicenseKeyStepFooter() {
     };
 
     const handleGenerateLicense = async () => {
-        const isValid = await trigger(["licenseKeyStep"]);
+        const fields: FieldPath<SetupWizardFormData>[] = [
+            "licenseKeyStep.firstName",
+            "licenseKeyStep.lastName",
+            "licenseKeyStep.email",
+            "licenseKeyStep.company",
+            "licenseKeyStep.country",
+            "licenseKeyStep.jobTitle",
+            "licenseKeyStep.industry",
+            "licenseKeyStep.howYouPlanToUseRavenDB",
+            "licenseKeyStep.isAcceptTerms",
+        ];
+        const isValid = await trigger(fields);
 
         if (isValid) {
-            // TODO generate license from server
-            messagePublisher.reportSuccess(`${licenseTypeToGenerate} license successfully generated`);
-            setValue("licenseKeyStep.key", "some-generated-key");
-            setValue("licenseKeyStep.licenseTypeToGenerate", null);
+            await asyncSendLicenseVerificationCode.execute();
+            messagePublisher.reportSuccess("Verification code sent to your email");
+            toggleIsLicenseActivationCodeModalOpen();
         }
     };
 
@@ -448,6 +612,12 @@ export function SetupWizardLicenseKeyStepFooter() {
                 </ButtonWithSpinner>
             )}
             {isLicenseSkipModalOpen && <SkipLicenseVerificationConfirmModal close={toggleIsLicenseSkipModalOpen} />}
+            {isLicenseActivationCodeModalOpen && (
+                <SetupWizardLicenseKeyVerifyCodeModal
+                    sendLicenseVerificationCode={asyncSendLicenseVerificationCode}
+                    close={toggleIsLicenseActivationCodeModalOpen}
+                />
+            )}
         </div>
     );
 }

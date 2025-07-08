@@ -93,7 +93,7 @@ interface SetupWizardStoryArgs {
 
 export const Eula: StoryObj = {
     render: () => {
-        const { setupWizardService, resourcesService } = mockServices;
+        const { setupWizardService, resourcesService, licenseService } = mockServices;
 
         setupWizardService.withEula();
         setupWizardService.withNodesInfoFromPackage();
@@ -106,6 +106,7 @@ export const Eula: StoryObj = {
         setupWizardService.withClaimDomain();
         setupWizardService.withLetsEncryptAgreement();
         resourcesService.withFolderPathOptions_ServerLocal();
+        licenseService.withVerifyLicense();
 
         return (
             <div style={{ height: 1000 }}>
@@ -136,6 +137,13 @@ export const LicenseKey: StoryObj<SetupWizardStoryArgs> = {
         await navigateToStep(canvas, "License key", args);
     },
 };
+
+export const GenerateLicenseKey: StoryObj<SetupWizardStoryArgs> = {
+    ...Eula,
+    play: async ({canvas, args}) => {
+        await navigateToStep(canvas, "Generate license", args);
+    }
+}
 
 export const Security: StoryObj<SetupWizardStoryArgs> = {
     ...Eula,
@@ -190,7 +198,7 @@ export const Finish: StoryObj<SetupWizardStoryArgs> = {
 };
 
 
-async function navigateToStep(canvas: Canvas, targetStep: SetupWizardStepId, args?: SetupWizardStoryArgs): Promise<void> {
+async function navigateToStep(canvas: Canvas, targetStep: SetupWizardStepId | "Generate license", args?: SetupWizardStoryArgs): Promise<void> {
     await waitForElementToBeRemoved(canvas.getByTestId("loader"));
 
     // If target is EULA, we're already there
@@ -232,6 +240,11 @@ async function navigateToStep(canvas: Canvas, targetStep: SetupWizardStepId, arg
     }
 
     if (targetStep === "License key") {
+        return;
+    }
+    
+    if (targetStep === "Generate license") {
+        await userEvent.click(canvas.getByRole("button", { name: /Get a new license/ }));
         return;
     }
 
