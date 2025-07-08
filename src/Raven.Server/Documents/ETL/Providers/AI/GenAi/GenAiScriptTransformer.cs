@@ -27,10 +27,12 @@ internal sealed class GenAiScriptTransformer : EtlTransformer<GenAiItem, GenAiSc
     private byte[] _configurationPartialHash;
     private readonly PatchRequest _mainScript;
     private List<GenAiScriptResult> _currentRun;
-    
-    public GenAiScriptTransformer(DocumentDatabase database, DocumentsOperationContext context, Transformation transformation, PatchRequest behaviorFunctions, GenAiConfiguration configuration) : base(database, context, null, behaviorFunctions)
+    private readonly GenAiStatsScope _stats;
+
+    public GenAiScriptTransformer(DocumentDatabase database, DocumentsOperationContext context, Transformation transformation, PatchRequest behaviorFunctions, GenAiConfiguration configuration, GenAiStatsScope stats) : base(database, context, null, behaviorFunctions)
     {
         _configuration = configuration;
+        _stats = stats.For(EtlOperations.Transform, start: false);
         _mainScript = new PatchRequest(transformation.Script, PatchRequestType.GenAi);
     }
 
@@ -81,12 +83,15 @@ internal sealed class GenAiScriptTransformer : EtlTransformer<GenAiItem, GenAiSc
 
     public override void Transform(GenAiItem item, GenAiStatsScope stats, EtlProcessState state)
     {
-        Current = item;
-        _currentRun ??= [];
+        using (_stats.Start())
+        {
+            Current = item;
+            _currentRun ??= [];
 
-        Debug.Assert(item.IsDelete is false);
-        
-        DocumentScript.Run(Context, Context, "execute", [Current.Document]);
+            Debug.Assert(item.IsDelete is false);
+
+            DocumentScript.Run(Context, Context, "execute", [Current.Document]);
+        }
     }
     
     private JsValue AddContext(JsValue self, JsValue[] args)
@@ -99,8 +104,13 @@ internal sealed class GenAiScriptTransformer : EtlTransformer<GenAiItem, GenAiSc
             throw new ArgumentException("Expected 'ctx' to be an object, but was: " + args[0].Type + ", " + args[0]);
 
         var context = JsBlittableBridge.Translate(Context, DocumentScript.ScriptEngine, args[0].AsObject());
+        _stats.NumberOfContextObjects++;
+
         string hash = CalculateHash(context);
         var isCached = ShouldSendContext(hash, _configuration.Identifier, Current.Document) == false;
+
+        if (isCached)
+            _stats.TotalCachedContexts++;
 
         using (context)
         {

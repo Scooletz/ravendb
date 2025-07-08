@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using EmbeddedTests;
 using FastTests;
 using Raven.Server.Documents;
 using Raven.Server.Documents.Sharding.Handlers;
@@ -85,13 +86,14 @@ namespace SlowTests.Tests
         public void AllTestsShouldUseRavenFactOrRavenTheoryAttributes()
         {
             var types = from assembly in GetAssemblies(typeof(TestsInheritanceTests).Assembly)
+                        where FilterAssembly(assembly)
                         from test in GetAssemblyTypes(assembly)
                         from method in test.GetMethods()
                         where Filter(method)
                         select method;
 
             var array = types.ToArray();
-            const int numberToTolerate = 17;
+            const int numberToTolerate = 0;
             if (array.Length == numberToTolerate)
                 return;
 
@@ -124,6 +126,11 @@ namespace SlowTests.Tests
                 }
 
                 return false;
+            }
+
+            static bool FilterAssembly(Assembly assembly)
+            {
+                return assembly != typeof(EmbeddedTestBase).Assembly;
             }
 
             static bool ValidNamespace(string @namespace)
