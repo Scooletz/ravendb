@@ -302,6 +302,7 @@ namespace Raven.Server.Web.Studio
                 string apiKey = null;
                 string organization = null;
                 string project = null;
+                bool? think = null;
                 switch (request.ConnectorType)
                 {
                     case AiConnectorType.OpenAi:
@@ -316,13 +317,14 @@ namespace Raven.Server.Web.Studio
                         break;
                     case AiConnectorType.Ollama:
                         uri = request.OllamaSettings.Uri;
+                        think = request.OllamaSettings.Think;
                         break;
                     default:
                         throw new NotSupportedException($"Unsupported connector type: {request.ConnectorType}");
                 }
 
                 using (var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15)))
-                using (var chat = new ChatCompletionClient(ServerStore.ContextPool, uri, apiKey, model: null, organization, project, structuredOutputSchema: null))
+                using (var chat = new ChatCompletionClient(ServerStore.ContextPool, uri, apiKey, model: null, organization, project, structuredOutputSchema: null, think))
                 {
                     await chat.ProxyModelsAsync(HttpContext.Response, cts.Token);
                 }
