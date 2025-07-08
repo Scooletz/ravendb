@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
-    <RuntimeFrameworkVersion>8.0.16</RuntimeFrameworkVersion>
+    <RuntimeFrameworkVersion>8.0.17</RuntimeFrameworkVersion>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <AssemblyName>Sparrow.Server</AssemblyName>
     <PackageId>Sparrow.Server</PackageId>
@@ -49,6 +49,7 @@
       <PrivateAssets>All</PrivateAssets>
     </PackageReference>
     <PackageReference Include="System.Diagnostics.PerformanceCounter" />
+    <PackageReference Include="System.Numerics.Tensors" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Sparrow\Sparrow.csproj" />

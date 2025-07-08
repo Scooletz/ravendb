@@ -39,7 +39,7 @@ namespace FastTests.Client
   
          */
         
-        [RavenTheory(RavenTestCategory.Querying)]
+        [RavenTheory(RavenTestCategory.ClientApi | RavenTestCategory.Querying)]
         [RavenData(SearchEngineMode = RavenSearchEngineMode.All, DatabaseMode = RavenDatabaseMode.All)]
         public void RawQuery_with_transformation_function_should_work(Options options)
         {
@@ -122,7 +122,7 @@ namespace FastTests.Client
             }
         }
         
-        [RavenTheory(RavenTestCategory.Querying)]
+        [RavenTheory(RavenTestCategory.ClientApi | RavenTestCategory.Querying)]
         [RavenData(SearchEngineMode = RavenSearchEngineMode.All, DatabaseMode = RavenDatabaseMode.All)]
         public void LinqQuery_with_transformation_function_should_work(Options options)
         {
@@ -199,7 +199,7 @@ namespace FastTests.Client
         }
 
         
-        [RavenTheory(RavenTestCategory.Querying)]
+        [RavenTheory(RavenTestCategory.ClientApi | RavenTestCategory.Querying)]
         [RavenData(SearchEngineMode = RavenSearchEngineMode.All, DatabaseMode = RavenDatabaseMode.All)]
         public void Query_Simple(Options options)
         {
@@ -220,7 +220,7 @@ namespace FastTests.Client
             }
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.ClientApi | RavenTestCategory.Querying)]
         public void Query_Dictionary_Simple()
         {
             using (var store = GetDocumentStore())
@@ -240,7 +240,7 @@ namespace FastTests.Client
             }
         }
 
-        [RavenTheory(RavenTestCategory.Querying)]
+        [RavenTheory(RavenTestCategory.ClientApi | RavenTestCategory.Querying)]
         [RavenData(SearchEngineMode = RavenSearchEngineMode.All, DatabaseMode = RavenDatabaseMode.All)]
         public void StringComparisonStringOrdinalWorks(Options options)
         {
@@ -309,7 +309,7 @@ namespace FastTests.Client
             }
         }
         
-        [RavenTheory(RavenTestCategory.Querying)]
+        [RavenTheory(RavenTestCategory.ClientApi | RavenTestCategory.Querying)]
         [RavenData(SearchEngineMode = RavenSearchEngineMode.All, DatabaseMode = RavenDatabaseMode.All)]
         public void StringComparisonStringCompareOrdinalWorks(Options options)
         {
@@ -334,7 +334,7 @@ namespace FastTests.Client
             }
         }
         
-        [Fact]
+        [RavenFact(RavenTestCategory.ClientApi | RavenTestCategory.Querying)]
         public void Query_Dictionary_With_Where_Clause()
         {
             using (var store = GetDocumentStore())
@@ -365,7 +365,7 @@ namespace FastTests.Client
             }
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.ClientApi | RavenTestCategory.Querying)]
         public void Query_Dictionary_With_Where_Equality_Clause()
         {
             using (var store = GetDocumentStore())
@@ -385,7 +385,7 @@ namespace FastTests.Client
             }
         }
 
-        [RavenTheory(RavenTestCategory.Querying)]
+        [RavenTheory(RavenTestCategory.ClientApi | RavenTestCategory.Querying)]
         [RavenData(SearchEngineMode = RavenSearchEngineMode.All, DatabaseMode = RavenDatabaseMode.All)]
         public async Task QueryWithWhere_WhenUsingStringEquals_ShouldWork(Options options)
         {
@@ -539,7 +539,7 @@ namespace FastTests.Client
             public string[] StrList { get; set; }
         }
         
-        [RavenTheory(RavenTestCategory.Querying)]
+        [RavenTheory(RavenTestCategory.ClientApi | RavenTestCategory.Querying)]
         [RavenData(SearchEngineMode = RavenSearchEngineMode.All, DatabaseMode = RavenDatabaseMode.All)]
         public async Task QueryWithWhere_WhenUsingStringEqualsWhitParameterExpression_ShouldWork(Options options)
         {
@@ -724,7 +724,7 @@ namespace FastTests.Client
             Assert.Equal(queryResult.Count, 1);
         }
 
-        [RavenTheory(RavenTestCategory.Querying)]
+        [RavenTheory(RavenTestCategory.ClientApi | RavenTestCategory.Querying)]
         [RavenData(SearchEngineMode = RavenSearchEngineMode.All)]
         public async Task QueryWithWhere_WhenUsingNotSupportedExpressions_ShouldThrowNotSupported(Options options)
         {
@@ -757,7 +757,7 @@ namespace FastTests.Client
             });
         }
 
-        [RavenTheory(RavenTestCategory.Querying)]
+        [RavenTheory(RavenTestCategory.ClientApi | RavenTestCategory.Querying)]
         [RavenData(SearchEngineMode = RavenSearchEngineMode.All, DatabaseMode = RavenDatabaseMode.All)]
         public void Query_With_Customize(Options options)
         {
@@ -793,7 +793,7 @@ namespace FastTests.Client
             }
         }
 
-        [RavenTheory(RavenTestCategory.Querying)]
+        [RavenTheory(RavenTestCategory.ClientApi | RavenTestCategory.Querying)]
         [RavenData(SearchEngineMode = RavenSearchEngineMode.All)]
         public void Query_Long_Request(Options options)
         {
@@ -815,7 +815,7 @@ namespace FastTests.Client
             }
         }
         
-        [RavenTheory(RavenTestCategory.Querying)]
+        [RavenTheory(RavenTestCategory.ClientApi | RavenTestCategory.Querying)]
         [RavenData(SearchEngineMode = RavenSearchEngineMode.All)]
         public void Query_OverMaxSizeOfTerm(Options options)
         {
@@ -838,7 +838,7 @@ namespace FastTests.Client
         }
 
 
-        [RavenTheory(RavenTestCategory.Querying)]
+        [RavenTheory(RavenTestCategory.ClientApi | RavenTestCategory.Querying)]
         [RavenData(SearchEngineMode = RavenSearchEngineMode.All, DatabaseMode = RavenDatabaseMode.All)]
         public void Query_By_Index(Options options)
         {
@@ -920,3 +920,8 @@ namespace FastTests.Client
         }
     }
 }
+
+
+
+
+

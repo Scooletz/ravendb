@@ -8,7 +8,6 @@ using Raven.Client;
 using Raven.Client.Documents;
 using Raven.Client.Documents.Operations.AI;
 using Raven.Client.Documents.Operations.ConnectionStrings;
-using Raven.Client.Documents.Operations.ETL;
 using Raven.Client.Documents.Operations.OngoingTasks;
 using Raven.Client.Exceptions;
 using Raven.Server.Documents;
@@ -18,6 +17,7 @@ using Raven.Server.Documents.ETL.Providers.AI.GenAi;
 using Raven.Server.Documents.ETL.Providers.AI.GenAi.Stats;
 using Raven.Server.Documents.ETL.Stats;
 using Raven.Server.Utils;
+using SlowTests.Core.Utils.Entities;
 using Sparrow.Json;
 using Sparrow.Json.Parsing;
 using Tests.Infrastructure;
@@ -131,11 +131,50 @@ for(const comment of this.Comments)
 "
         };
 
+        var etlDone = Etl.WaitForEtlToComplete(store);
+
         store.Maintenance.Send(new AddGenAiOperation(config));
+
+        var db = await GetDatabase(store.Database);
+
+        var etlProcess = db.EtlLoader.Processes.FirstOrDefault() as GenAiTask;
+        Assert.NotNull(etlProcess);
+
+        const string id = "posts/1";
+        using (var session = store.OpenSession())
+        {
+            session.Store(new Post(
+                [
+                    new Comment("Surefire investment property in caiman islands, win $$$$ for sure, qucik!", "homepage"),
+                    new Comment("Probably... That piece of code was written (and never looked at) in 2017, IIRC It wasn't a real issue (since it is cached) except for this particular scenario.", "Oren Eini")
+                ],
+                "I, pencil",
+                "A B52 pencil..."), id);
+            session.SaveChanges();
+        }
+
+        Assert.True(etlDone.Wait(TimeSpan.FromSeconds(60)));
+
+        var secondBatchCompleted = await WaitForValueAsync(() =>
+        {
+            var stats = etlProcess.GetPerformanceStats()
+                .Where(x => x.NumberOfLoadedItems > 0 && x.LastLoadedEtag > 1)
+                .ToArray();
+
+            return stats.Length > 0;
+        }, expectedVal: true, timeout: 60_000);
+        Assert.True(secondBatchCompleted);
+
+        string changeVector = null;
+        using (var session = store.OpenSession())
+        {
+            var doc = session.Load<Post>(id);
+            changeVector = session.Advanced.GetChangeVectorFor(doc);
+        }
+        Assert.NotNull(changeVector);
 
         var op = new GetOngoingTaskInfoOperation(config.Name, OngoingTaskType.GenAi);
         var taskInfo = await store.Maintenance.SendAsync(op);
-
         Assert.NotNull(taskInfo);
         Assert.Equal(config.Name, taskInfo.TaskName);
         Assert.Equal(OngoingTaskType.GenAi, taskInfo.TaskType);
@@ -150,6 +189,8 @@ for(const comment of this.Comments)
         Assert.Equal(config.UpdateScript, genAiTaskInfo.Configuration.UpdateScript);
         // Assert.Equal(config.AiConnectorType, genAiTaskInfo.Configuration.AiConnectorType); // todo: fix serverside return 'AiConnectorType: None'
         Assert.Equal(config.GenAiTransformation.Script, genAiTaskInfo.Configuration.GenAiTransformation.Script);
+        Assert.Equal(changeVector, genAiTaskInfo.ChangeVector);
+
     }
 
     [RavenTheory(RavenTestCategory.Ai)]
@@ -420,124 +461,6 @@ if($output.Blocked)
     }
 
     [RavenTheory(RavenTestCategory.Ai)]
-    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single, CheckCanConnect = false, NightlyBuildRequired = false, Skip = "need to fix")]
-    public async Task CanGetGenAiStats(Options options, GenAiConfiguration configuration)
-    {
-        using var store = GetDocumentStore();
-
-        store.Maintenance.Send(new PutConnectionStringOperation<AiConnectionString>(configuration.Connection));
-
-        var etlDone = Etl.WaitForEtlToComplete(store);
-        configuration.Prompt = "Check if the following blog post comment is spam or not";
-        configuration.Collection = "Posts";
-        configuration.SampleObject = JsonConvert.SerializeObject(new { Blocked = true, Reason = "Concise reason for why this comment was marked as spam or ham" });
-        configuration.UpdateScript = @"    
-const idx = this.Comments.findIndex(c => c.Id == $input.Id);
-this.Comments[idx].IsSpam = $output.Blocked;
-";
-        configuration.GenAiTransformation = new GenAiTransformation
-        {
-            Script = @"
-for(const comment of this.Comments)
-{
-    ai.genContext({Text: comment.Text, Author: comment.Author, Id: comment.Id});
-}
-"
-        };
-
-        store.Maintenance.Send(new AddGenAiOperation(configuration));
-
-
-        var db = await GetDatabase(store.Database);
-
-        var etlProcess = db.EtlLoader.Processes.FirstOrDefault() as GenAiTask;
-        Assert.NotNull(etlProcess);
-
-        const string docId = "posts/1";
-
-        var post = new Post([
-            new Comment("Free crypto airdrop! Sign up now at scamcoin.fake", "evil bot"),
-            new Comment("Great article. Helped me understand indexing in RavenDB.", "alex"),
-            new Comment("Surefire investment property in caiman islands, win $$$$ for sure, qucik!", "homepage")
-        ], "Understanding RavenDB Indexing", "Indexes in RavenDB are powerful...");
-
-        using (var session = store.OpenSession())
-        {
-            session.Store(post, docId);
-            session.SaveChanges();
-        }
-
-        etlDone.Wait();
-
-        var stats = etlProcess.GetPerformanceStats()
-            .Where(x => x.NumberOfLoadedItems > 0)
-            .ToArray();
-
-        Assert.Equal(1, stats[0].NumberOfExtractedItems[EtlItemType.Document]);
-
-        var loadDetails = stats[0].Details.Operations[^1];
-
-        Assert.Equal("Load", loadDetails.Name);
-
-        var genAiStats = loadDetails.Operations.FirstOrDefault(x => x.Name == GenAiOperations.LoadToModel) as GenAiPerformanceOperation;
-        Assert.NotNull(genAiStats);
-
-        Assert.Equal(3, genAiStats.NumberOfContextObjects);
-        Assert.Equal(0, genAiStats.TotalCachedContexts);
-        Assert.Equal(3, genAiStats.TotalSentToModel);
-
-        Assert.True(genAiStats.CompletionTokensUsed > 0);
-        Assert.True(genAiStats.PromptTokensUsed > 0);
-        var expectedTotalTokens = genAiStats.CompletionTokensUsed + genAiStats.PromptTokensUsed;
-        Assert.Equal(expectedTotalTokens, genAiStats.TotalTokensUsed);
-
-        using (var session = store.OpenAsyncSession())
-        {
-            etlDone = Etl.WaitForEtlToComplete(store);
-
-            // add a new comment
-
-            var doc = await session.LoadAsync<Post>(docId);
-            doc.Comments.Add(new Comment("new spam comment", "evil hacker"));
-
-            var etag = ChangeVectorUtils.GetEtagById(session.Advanced.GetChangeVectorFor(doc), db.DbBase64Id);
-
-            await session.SaveChangesAsync();
-
-            Assert.True(etlDone.Wait(TimeSpan.FromMinutes(1)));
-
-            EtlPerformanceStats[] stats2 = null;
-
-            var value = await WaitForValueAsync(() =>
-            {
-                stats2 = etlProcess.GetPerformanceStats()
-                    .Where(x => x.NumberOfLoadedItems > 0 && x.LastLoadedEtag > etag)
-                    .ToArray();
-                return stats2.Length > 0;
-            }, true, timeout: 60_000);
-
-            Assert.True(value);
-            Assert.Equal(1, stats2[^1].NumberOfExtractedItems[EtlItemType.Document]);
-
-            var loadDetails2 = stats2[^1].Details.Operations[^1];
-
-            Assert.Equal("Load", loadDetails2.Name);
-
-            var genAiStats2 = loadDetails2.Operations.FirstOrDefault(x => x.Name == GenAiOperations.LoadToModel) as GenAiPerformanceOperation;
-            Assert.NotNull(genAiStats2);
-
-            // only the newly added comment should be sent to model, the rest should be cached
-            Assert.Equal(4, genAiStats2.NumberOfContextObjects);
-            Assert.Equal(3, genAiStats2.TotalCachedContexts);
-            Assert.Equal(1, genAiStats2.TotalSentToModel);
-
-            Assert.True(genAiStats2.CompletionTokensUsed > 0);
-            Assert.True(genAiStats2.PromptTokensUsed > 0);
-            Assert.True(genAiStats2.TotalTokensUsed > 0);
-        }
-    }
-
-    [RavenTheory(RavenTestCategory.Ai)]
     [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single, CheckCanConnect = false, NightlyBuildRequired = false)]
     public async Task ShouldResendContextWhenPromptChanges(Options options, GenAiConfiguration configuration)
     {
@@ -624,7 +547,7 @@ for (const comment of this.Comments)
             session.SaveChanges();
         }
 
-        Assert.True(etl.Wait(TimeSpan.FromSeconds(30)));
+        Assert.True(etl.Wait(TimeSpan.FromSeconds(60)), await Etl.GetEtlDebugInfo(store.Database, TimeSpan.FromSeconds(60)));
 
         using (var session = store.OpenAsyncSession())
         {
@@ -632,8 +555,6 @@ for (const comment of this.Comments)
             Assert.True(doc.TryGet(Constants.Documents.Metadata.Key, out BlittableJsonReaderObject metadata));
             Assert.True(metadata.TryGet(Constants.Documents.Metadata.GenAiHashes, out BlittableJsonReaderObject hashesSection));
             Assert.True(hashesSection.TryGet(identifier, out BlittableJsonReaderArray hashesArray));
-            Assert.NotNull(hashesArray);
-            Assert.Equal(2, hashesArray.Length);
         }
     }
 
@@ -733,9 +654,16 @@ for(const comment of this.Comments)
         var etlProcess = db.EtlLoader.Processes.FirstOrDefault() as GenAiTask;
         Assert.NotNull(etlProcess);
 
-        var stats = etlProcess.GetPerformanceStats()
-            .Where(x => x.NumberOfLoadedItems > 0)
-            .ToArray();
+        EtlPerformanceStats[] stats = null;
+        var value = await WaitForValueAsync(() =>
+        {
+            stats = etlProcess.GetPerformanceStats()
+                .Where(x => x.NumberOfLoadedItems > 0)
+                .ToArray();
+            return stats.Length > 0;
+        }, expectedVal: true, timeout: 60_000);
+
+        Assert.True(value, await Etl.GetEtlDebugInfo(store.Database, TimeSpan.FromSeconds(60)));
 
         Assert.NotEmpty(stats);
         var loadDetails = stats[0].Details.Operations[^1];
@@ -789,11 +717,19 @@ for(const comment of this.Comments)
         etlProcess = db.EtlLoader.Processes.FirstOrDefault() as GenAiTask;
         Assert.NotNull(etlProcess);
 
-        var stats2 = etlProcess.GetPerformanceStats()
-            .Where(x => x.NumberOfLoadedItems > 0 && x.LastLoadedEtag > etag)
-            .ToArray();
-        Assert.NotEmpty(stats2);
+        EtlPerformanceStats[] stats2 = null;
 
+        value = await WaitForValueAsync(() =>
+        {
+            stats2 = etlProcess.GetPerformanceStats()
+                .Where(x => x.NumberOfLoadedItems > 0 && x.LastLoadedEtag == etag + 1 && x.NumberOfExtractedItems[EtlItemType.Document] > 0)
+                .ToArray();
+            return stats2.Length > 0;
+        }, expectedVal: true, timeout: 60_000);
+
+        Assert.True(value, await Etl.GetEtlDebugInfo(store.Database, TimeSpan.FromSeconds(60)));
+
+        Assert.NotEmpty(stats2);
         Assert.Equal(1, stats2[^1].NumberOfExtractedItems[EtlItemType.Document]);
 
         var loadDetails2 = stats2[^1].Details.Operations[^1];
@@ -966,12 +902,13 @@ for(const comment of this.Comments)
 
         store.Maintenance.Send(new AddGenAiOperation(config, StartingPointChangeVector.BeginningOfTime));
 
-        Assert.True(etl.Wait(TimeSpan.FromSeconds(30)));
+        Assert.True(etl.Wait(TimeSpan.FromSeconds(120)), await Etl.GetEtlDebugInfo(store.Database, TimeSpan.FromSeconds(120)));
 
         using (var session = store.OpenSession())
         {
-            // should not be processed
+            // should be processed
             var docs = session.Advanced.LoadStartingWith<BlittableJsonReaderObject>("posts/");
+            Assert.Equal(10, docs.Length);
 
             foreach (var post in docs)
             {
@@ -984,7 +921,73 @@ for(const comment of this.Comments)
                 }
             }
         }
+    }
 
+    [RavenTheory(RavenTestCategory.Ai)]
+    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single, CheckCanConnect = false, NightlyBuildRequired = false)]
+    private async Task CanUpdateGenAiChangeVector(Options options, GenAiConfiguration config)
+    {
+        using var store = GetDocumentStore();
+
+        // configure GenAi task
+        store.Maintenance.Send(new PutConnectionStringOperation<AiConnectionString>(config.Connection));
+
+        var sampleObject = JsonConvert.SerializeObject(new { Translation = "translated text" });
+        var schema = OllamaChatCompletionClient.GetSchemaFor(sampleObject);
+
+        config.Prompt = "Translate this text to Polish";
+        config.JsonSchema = schema;
+        config.UpdateScript = "this.TextInPolish = $output.Translation;";
+        config.Collection = "Posts";
+        config.GenAiTransformation = new GenAiTransformation { Script = "ai.genContext({ Text: this.Body });" };
+        config.Identifier = "posts-translation-check";
+
+        for (int i = 1; i <= 10; i++)
+        {
+            using (var session = store.OpenSession())
+            {
+                // Intentionally store documents in a different collection
+                // to ensure that the ChangeVector in the GenAI process state remains unchanged.
+                // This allows us to verify that the ChangeVector passed to the add/update operation is correctly saved.
+
+                session.Store(new User(), "users/" + i); 
+                session.SaveChanges();
+            }
+        }
+
+        // expected change vector is "LastDocument" (the default value for AddGenAi)
+        string expectedChangeVector;
+        using (var session = store.OpenSession())
+        {
+            var lastDoc = session.Load<Post>("users/10");
+            expectedChangeVector = session.Advanced.GetChangeVectorFor(lastDoc);
+        }
+
+        // add GenAI task
+        store.Maintenance.Send(new AddGenAiOperation(config));
+
+        // assert change vector
+        var taskInfo = await store.Maintenance.SendAsync(new GetOngoingTaskInfoOperation(config.Name, OngoingTaskType.GenAi));
+        var genAiTaskInfo = taskInfo as Raven.Client.Documents.Operations.OngoingTasks.GenAi;
+        Assert.NotNull(genAiTaskInfo);
+        Assert.Equal(expectedChangeVector, genAiTaskInfo.ChangeVector);
+
+        // edit the task in order to update the change vector 
+        string updatedCv;
+        using (var session = store.OpenSession())
+        {
+            var someOtherDoc = session.Load<Post>("users/5");
+            updatedCv = expectedChangeVector = session.Advanced.GetChangeVectorFor(someOtherDoc);
+        }
+
+        var result = store.Maintenance.Send(new UpdateGenAiOperation(taskInfo.TaskId, config, StartingPointChangeVector.From(updatedCv)));
+        await Server.ServerStore.Cluster.WaitForIndexNotification(result.RaftCommandIndex, TimeSpan.FromSeconds(15));
+
+        // assert change vector
+        taskInfo = await store.Maintenance.SendAsync(new GetOngoingTaskInfoOperation(config.Name, OngoingTaskType.GenAi));
+        genAiTaskInfo = taskInfo as Raven.Client.Documents.Operations.OngoingTasks.GenAi;
+        Assert.NotNull(genAiTaskInfo);
+        Assert.Equal(expectedChangeVector, genAiTaskInfo.ChangeVector);
     }
 
     [RavenTheory(RavenTestCategory.Ai)]

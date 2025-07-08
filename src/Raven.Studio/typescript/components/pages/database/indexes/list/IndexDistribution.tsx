@@ -18,6 +18,8 @@ import IconName from "typings/server/icons";
 import IndexDistributionStatusChecker from "./IndexDistributionStatusChecker";
 import moment = require("moment");
 import genUtils = require("common/generalUtils");
+import PopoverWithHoverWrapper from "components/common/PopoverWithHoverWrapper";
+import { useRavenLink } from "components/hooks/useRavenLink";
 
 interface IndexDistributionProps {
     index: IndexSharedInfo;
@@ -252,6 +254,9 @@ function getIcon(statusChecker: IndexDistributionStatusChecker): IconName {
     if (statusChecker.somePending()) {
         return iconForState("Pending");
     }
+    if (statusChecker.everyIdle()) {
+        return "check";
+    }
     if (statusChecker.someStale()) {
         return null;
     }
@@ -298,6 +303,9 @@ function getStateText(statusChecker: IndexDistributionStatusChecker): string {
     if (statusChecker.someStale()) {
         return "Running";
     }
+    if (statusChecker.everyIdle()) {
+        return "Idle";
+    }
     return "Up to date";
 }
 
@@ -316,8 +324,10 @@ export function JoinedIndexProgress(props: JoinedIndexProgressProps) {
             icon={getIcon(statusChecker)}
             progress={stateText === "Running" ? overallProgress : null}
             onClick={onClick}
+            descClassName="d-flex align-items-center"
         >
             {stateText}
+            {statusChecker.everyIdle() && <IdleIndexInfoIcon />}
         </ProgressCircle>
     );
 }
@@ -349,6 +359,15 @@ export function IndexProgress(props: IndexProgressProps) {
         return (
             <ProgressCircle state="failed" icon="cancel">
                 Error
+            </ProgressCircle>
+        );
+    }
+
+    if (nodeInfo.details.state === "Idle") {
+        return (
+            <ProgressCircle state="success" icon="check" descClassName="d-flex align-items-center">
+                Idle
+                <IdleIndexInfoIcon />
             </ProgressCircle>
         );
     }
@@ -389,6 +408,34 @@ export function IndexProgress(props: IndexProgressProps) {
         <ProgressCircle state="success" icon={icon}>
             up to date
         </ProgressCircle>
+    );
+}
+
+function IdleIndexInfoIcon() {
+    const docsLink = useRavenLink({ hash: "2VWBSO" });
+
+    return (
+        <PopoverWithHoverWrapper
+            message={
+                <>
+                    An auto-index becomes Idle when the time difference between its last-query-time and the most recent
+                    time the database was queried (using any other index) exceeds a configurable threshold (default 30
+                    min).
+                    <br />
+                    <br />
+                    While idle, it is not considered disabled and continues indexing relevant data. If it remains idle,
+                    it will be deleted after a configurable duration (default: 72 hrs).
+                    <br />
+                    <br />
+                    <a href={docsLink} target="_blank">
+                        Docs - Index states
+                    </a>
+                </>
+            }
+            wrapperClassName="d-flex"
+        >
+            <Icon icon="info" color="info" margin="ms-1" className="fs-4" />
+        </PopoverWithHoverWrapper>
     );
 }
 

@@ -5,6 +5,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics;
 using Sparrow;
+using Sparrow.Server.Tensors;
 
 namespace Voron.Data.Graphs;
 
@@ -18,58 +19,35 @@ public partial class Hnsw
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    internal static float CosineSimilaritySingles(ReadOnlySpan<byte> a, ReadOnlySpan<byte> b)
+    internal static float CosineDistanceSingles(ReadOnlySpan<byte> a, ReadOnlySpan<byte> b)
     {
         var aSingles = MemoryMarshal.Cast<byte, float>(a);
         var bSingles = MemoryMarshal.Cast<byte, float>(b);
-        return 1f - TensorPrimitives.CosineSimilarity(aSingles, bSingles);
+        return Functions.CosineDistance(aSingles, bSingles);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    internal static float CosineSimilarityI8(ReadOnlySpan<byte> a, ReadOnlySpan<byte> b)
+    internal static float CosineDistanceI8(ReadOnlySpan<byte> a, ReadOnlySpan<byte> b)
     {
         Debug.Assert(a.Length == b.Length, "a.Length == b.Length");
         var vectorLength = a.Length - sizeof(float);
 
-        ref var aRef = ref MemoryMarshal.GetReference(MemoryMarshal.Cast<byte, sbyte>(a[..vectorLength]));
-        ref var bRef = ref MemoryMarshal.GetReference(MemoryMarshal.Cast<byte, sbyte>(b[..vectorLength]));
+        var aRef = MemoryMarshal.Cast<byte, sbyte>(a[..vectorLength]);
+        var bRef = MemoryMarshal.Cast<byte, sbyte>(b[..vectorLength]);
 
-        var magA = Unsafe.ReadUnaligned<float>(ref MemoryMarshal.GetReference(a[vectorLength..]));
-        var magB = Unsafe.ReadUnaligned<float>(ref MemoryMarshal.GetReference(b[vectorLength..]));
+        var aMag = Unsafe.ReadUnaligned<float>(ref MemoryMarshal.GetReference(a[vectorLength..]));
+        var bMag = Unsafe.ReadUnaligned<float>(ref MemoryMarshal.GetReference(b[vectorLength..]));
 
-        var alpha1 = magA / 127f;
-        var alpha2 = magB / 127f;
-
-        float dotProduct = alpha1 * alpha2 * vectorLength;
-
-        float sq1 = 0;
-        float sq2 = 0;
-
-        for (int i = 0; i < vectorLength; i++)
-        {
-            var aValue = Unsafe.Add(ref aRef, i);
-            var bValue = Unsafe.Add(ref bRef, i);
-            dotProduct += alpha1 * aValue;
-            dotProduct += alpha2 * bValue;
-            dotProduct += aValue * bValue;
-
-            sq1 += aValue * aValue;
-            sq2 += bValue * bValue;
-        }
-
-        sq1 = MathF.Sqrt(sq1);
-        sq2 = MathF.Sqrt(sq2);
-
-        return 1f - Math.Clamp(dotProduct / (sq1 * sq2), -1f, 1f);
+        return Functions.CosineDistance(aRef, aMag, bRef, bMag);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static float HammingDistance(ReadOnlySpan<byte> a, ReadOnlySpan<byte> b)
     {
-        return TensorPrimitives.HammingBitDistance<byte>(a, b);
+        return Functions.HammingBitDistance(a, b);
     }
     
-    internal static void DistanceToScoreHammingSimilarity(Span<float> scores, int vectorSizeInBytes)
+    internal static void DistanceToScoreHamming(Span<float> scores, int vectorSizeInBytes)
     {
         var pos = 0;
         ref float bufferRef = ref MemoryMarshal.GetReference(scores);
@@ -124,7 +102,7 @@ public partial class Hnsw
             Unsafe.Add(ref bufferRef, pos) = 1f - (Unsafe.Add(ref bufferRef, pos) / (8f * vectorSizeInBytes));
     }
 
-    internal static void DistanceToScoreCosineSimilarity(Span<float> scores)
+    internal static void DistanceToScoreCosine(Span<float> scores)
     {
         var pos = 0;
         ref float bufferRef = ref MemoryMarshal.GetReference(scores);

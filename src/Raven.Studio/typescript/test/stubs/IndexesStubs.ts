@@ -43,6 +43,14 @@ export class IndexesStubs {
         return IndexesStubs.getSampleProgress().find((x) => x.Name === "Orders/ByCompany");
     }
 
+    static getIdleIndex(): [IndexStats, IndexProgress] {
+        const stats = IndexesStubs.getGenericStats();
+        stats.Name = "IdleIndex";
+        stats.State = "Idle";
+
+        return [stats, null];
+    }
+
     static getUpToDateIndex(): [IndexStats, IndexProgress] {
         const stats = IndexesStubs.getGenericStats();
         stats.Name = "UpToDateIndex";
@@ -336,11 +344,24 @@ export class IndexesStubs {
         ];
     }
 
-    static getIndexTermFields(): getIndexEntriesFieldsCommandResult {
-        return {
-            Static: ["Date", "Country", "Volume"],
-            Dynamic: ["Test"],
-        };
+    static getIndexTermFields(): getIndexEntriesFieldsCommandResult[] {
+        return [
+            {
+                Name: "vector.search(embedding.text(Name))",
+                FieldType: "Static",
+                ValueType: "Vector",
+            },
+            {
+                Name: "id()",
+                FieldType: "Static",
+                ValueType: "Term",
+            },
+            {
+                Name: "Name__PQ",
+                FieldType: "Dynamic",
+                ValueType: "Term",
+            },
+        ];
     }
 
     static getIndexTerms(): Raven.Client.Documents.Queries.TermsQueryResult {

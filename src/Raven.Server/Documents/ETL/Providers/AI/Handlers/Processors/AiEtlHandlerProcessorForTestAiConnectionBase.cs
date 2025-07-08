@@ -88,8 +88,8 @@ internal class AiIntegrationHandlerProcessorForTestAiConnection<TRequestHandler,
                 {
                     case AiModelType.TextEmbeddings:
                         var aiEtlConfiguration = new EmbeddingsGenerationConfiguration { Connection = aiConnectionString };
-                        (ITextEmbeddingGenerationService service, logger) = AiHelper.CreateEmbeddingServicesForTest(aiEtlConfiguration);
-                        var embeddings = await service.GenerateEmbeddingsAsync(EmbeddingsHelper.ValuesListToVerifyConnection, cancellationToken: token.Token);
+                        (IEmbeddingGenerator<string, Embedding<float>> service, logger) = AiHelper.CreateEmbeddingServicesForTest(aiEtlConfiguration);
+                        var embeddings = await service.GenerateAsync(EmbeddingsHelper.ValuesListToVerifyConnection, cancellationToken: token.Token);
 
                         if (embeddings.Count != EmbeddingsHelper.ValuesListToVerifyConnection.Count)
                             throw new EmbeddingsMismatchException(
@@ -109,7 +109,7 @@ internal class AiIntegrationHandlerProcessorForTestAiConnection<TRequestHandler,
                         break;
                     default:
                         throw new ArgumentOutOfRangeException("Invalid model type: " + aiConnectionString.ModelType);
-                }
+                    }
 
                 var result = new DynamicJsonValue { [nameof(NodeConnectionTestResult.Success)] = true };
 

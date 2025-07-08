@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using Microsoft.Extensions.AI;
 using Microsoft.SemanticKernel.Embeddings;
 using Raven.Client.Documents.Operations.AI;
 using Raven.Client.Documents.Operations.Counters;
@@ -77,7 +78,7 @@ public sealed class EmbeddingsGenerationTask : EtlProcess<EmbeddingsGenerationIt
     }
 
     protected override EtlTransformer<EmbeddingsGenerationItem, EmbeddingGenerationScriptResult, EmbeddingsGenerationStatsScope, EmbeddingsGenerationPerformanceOperation>
-        GetTransformer(DocumentsOperationContext context)
+        GetTransformer(DocumentsOperationContext context, EmbeddingsGenerationStatsScope stats)
     {
         return new EmbeddingsGenerationScriptTransformer(Database, context, Transformation, null, Configuration);
     }
@@ -181,7 +182,7 @@ public sealed class EmbeddingsGenerationTask : EtlProcess<EmbeddingsGenerationIt
 
     public EmbeddingsGenerationTestScriptResult RunTest(IEnumerable<EmbeddingGenerationScriptResult> records, DocumentsOperationContext context)
     {
-        (ITextEmbeddingGenerationService embeddingService, _) = AiHelper.CreateEmbeddingServicesForTest(
+        (IEmbeddingGenerator<string, Embedding<float>> embeddingService, _) = AiHelper.CreateEmbeddingServicesForTest(
             new EmbeddingsGenerationConfiguration { Connection = new AiConnectionString { EmbeddedSettings = new EmbeddedSettings() } });
 
         var result = new EmbeddingsGenerationTestScriptResult();
@@ -205,10 +206,10 @@ public sealed class EmbeddingsGenerationTask : EtlProcess<EmbeddingsGenerationIt
                 }
             }
         }
-        var results = embeddingService.GenerateEmbeddingsAsync(chunks, cancellationToken: CancellationToken).GetAwaiter().GetResult();
+        var results = embeddingService.GenerateAsync(chunks, cancellationToken: CancellationToken).GetAwaiter().GetResult();
         for (int i = 0; i < results.Count; i++)
         {
-            allItems[i].Embeddings = MemoryMarshalEx.Cast<float, byte>(results[i]);
+            allItems[i].Embeddings = MemoryMarshalEx.Cast<float, byte>(results[i].Vector);
         }
 
         result.TransformationErrors = Statistics.TransformationErrorsInCurrentBatch.Errors.ToList();

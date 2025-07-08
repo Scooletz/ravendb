@@ -12,6 +12,7 @@ using Raven.Server.Config.Categories;
 using Raven.Server.Documents;
 using Raven.Server.Documents.Includes;
 using Raven.Server.Documents.Indexes;
+using Raven.Server.Documents.Indexes.Debugging;
 using Raven.Server.Documents.Indexes.Persistence;
 using Raven.Server.Documents.Indexes.Persistence.Lucene;
 using Raven.Server.Documents.Indexes.Persistence.Lucene.Analyzers;
@@ -27,6 +28,7 @@ using Voron;
 using Xunit;
 using Xunit.Abstractions;
 using Index = Raven.Server.Documents.Indexes.Index;
+using Tests.Infrastructure;
 
 namespace FastTests.Server.Documents.Indexing
 {
@@ -36,7 +38,7 @@ namespace FastTests.Server.Documents.Indexing
         {
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.Indexes)]
         public async Task CheckAnalyzers()
         {
             using (var store = GetDocumentStore())
@@ -105,7 +107,7 @@ namespace FastTests.Server.Documents.Indexing
             }
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.Indexes)]
         public async Task OverrideAnalyzers()
         {
             using (var store = GetDocumentStore())
@@ -235,7 +237,7 @@ namespace FastTests.Server.Documents.Indexing
             throw new NotImplementedException();
         }
 
-        public override (ICollection<string> Static, ICollection<string> Dynamic) GetEntriesFields()
+        public override HashSet<FieldDebugInfo> GetEntriesFields()
         {
             throw new NotImplementedException();
         }
