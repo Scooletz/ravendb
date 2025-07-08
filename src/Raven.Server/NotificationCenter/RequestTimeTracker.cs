@@ -62,16 +62,17 @@ namespace Raven.Server.NotificationCenter
 
                 _notificationCenter.RequestLatency
                     .AddHint(_sw.ElapsedMilliseconds, _source, queryWithParameters);
+                
+                if (_logger.IsOperationsEnabled)
+                    _logger.Operations($"High latency request detected - Source: {_source}, Duration: {_sw.Elapsed}, Query: {queryWithParameters}");
             }
             catch (Exception e)
             {
                 //precaution - should never arrive here
-                if (_logger.IsInfoEnabled)
-                    _logger.Info(
-                        $"Failed to write request time in response headers. This is not supposed to happen and is probably a bug. The request path was: {_context.Request.Path}",
+                if (_logger.IsOperationsEnabled)
+                    _logger.Operations(
+                        $"Failed to write request time in response headers. This is not supposed to happen and is probably a bug. The request path was: {_context.Request.Path}, query: {Query}",
                         e);
-
-                throw;
             }
         }
     }

@@ -19,6 +19,7 @@ using Raven.Server.ServerWide.Context;
 using Raven.Server.Utils;
 using Sparrow.Json.Parsing;
 using Sparrow.Utils;
+using Tests.Infrastructure;
 using Xunit;
 using Xunit.Abstractions;
 using Index = Raven.Server.Documents.Indexes.Index;
@@ -39,7 +40,7 @@ namespace SlowTests.Server.Documents.Indexing.Static
             new[] { new TestData(){NumberOfUsers = 100,Locations = new[] { "Israel", "Poland", "USA" }, SearchEngineType = SearchEngineType.Corax }}
         };
         
-        [Theory] 
+        [RavenTheory(RavenTestCategory.Indexes)] 
         [MemberData(nameof(Data))]
         public async Task Auto_index_should_produce_multiple_outputs(TestData data)
         {
@@ -84,7 +85,7 @@ namespace SlowTests.Server.Documents.Indexing.Static
             }
         }
 
-        [Theory] 
+        [RavenTheory(RavenTestCategory.Indexes)] 
         [MemberData(nameof(Data))]
         public async Task Static_index_should_produce_multiple_outputs(TestData data)
         {
@@ -161,7 +162,7 @@ namespace SlowTests.Server.Documents.Indexing.Static
 
                     using (var indexWriteOperation = writeOperation.Value)
                     {
-                        indexWriteOperation.Commit(stats);
+                        indexWriteOperation.Commit(stats, CancellationToken.None);
                     }
 
                     index.IndexPersistence.RecreateSearcher(tx.InnerTransaction);
@@ -226,7 +227,7 @@ namespace SlowTests.Server.Documents.Indexing.Static
 
                         using (var indexWriteOperation = writeOperation.Value)
                         {
-                            indexWriteOperation.Commit(stats);
+                            indexWriteOperation.Commit(stats, CancellationToken.None);
                         }
 
                         index.IndexPersistence.RecreateSearcher(tx.InnerTransaction);
@@ -289,7 +290,7 @@ namespace SlowTests.Server.Documents.Indexing.Static
 
                         using (var indexWriteOperation = writeOperation.Value)
                         {
-                            indexWriteOperation.Commit(stats);
+                            indexWriteOperation.Commit(stats, CancellationToken.None);
                         }
 
                         index.IndexPersistence.RecreateSearcher(tx.InnerTransaction);

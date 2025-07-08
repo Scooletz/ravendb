@@ -148,3 +148,7 @@ src/Sparrow.Server/Utils/VxSort/codegen/__pycache__/
 /.cache
 
 .cursorignore
+
+.agents/
+
+.claude/
