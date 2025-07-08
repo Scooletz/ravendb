@@ -38,6 +38,7 @@ internal class ChatCompletionClient : IChatCompletionClient, IChatCompletionClie
     private readonly string _model;
     private readonly string _organizationId;
     private readonly string _projectId;
+    private readonly bool? _think;
     private readonly HttpClientCacheKey _httpClientCacheKey;
     private readonly HttpClient _client;
     private readonly string _structuredOutputSchema;
@@ -60,20 +61,21 @@ internal class ChatCompletionClient : IChatCompletionClient, IChatCompletionClie
 
     public static ChatCompletionClient CreateChatCompletionClient(IMemoryContextPool contextPool, AiConnectionString connection, string schema)
     {
-        if (connection.TryGetParametersForGenAiTesting(out var uri, out var apiKey, out var model, out var organizationId, out var projectId) == false)
+        if (connection.TryGetParametersForGenAiTesting(out var uri, out var apiKey, out var model, out var organizationId, out var projectId, out var think) == false)
         {
             var connectorType = connection.GetActiveProvider();
             throw new NotSupportedException($"The specified provider (\"{connectorType.ToString()}\") is not supported.");
         }
 
-        return new ChatCompletionClient(contextPool, uri, apiKey, model, organizationId, projectId, schema);
+        return new ChatCompletionClient(contextPool, uri, apiKey, model, organizationId, projectId, schema, think, ConventionsToUse);
     }
 
-    public ChatCompletionClient(IMemoryContextPool contextPool, string baseUri, string apiKey, string model, string organizationId, string projectId, string structuredOutputSchema, DocumentConventions conventions = null)
+    internal ChatCompletionClient(IMemoryContextPool contextPool, string baseUri, string apiKey, string model, string organizationId, string projectId, string structuredOutputSchema, bool? think = null, DocumentConventions conventions = null)
     {
         _model = model ?? throw new ArgumentNullException(nameof(model));
         _organizationId = organizationId;
         _projectId = projectId;
+        _think = think;
 
         conventions ??= ConventionsToUse;
 
@@ -200,32 +202,7 @@ internal class ChatCompletionClient : IChatCompletionClient, IChatCompletionClie
                     return;
                 }
 
-                writer.WriteStartObject();
-
-                writer.WritePropertyName(Constants.RequestFields.Model);
-                writer.WriteString(_model);
-                writer.WriteComma();
-
-                writer.WriteArray(Constants.RequestFields.Messages, messages);
-                writer.WriteComma();
-
-                // Optional
-                if (tools?.Count > 0)
-                {
-                    writer.WriteArray(Constants.RequestFields.Tools, tools);
-                    writer.WriteComma();
-                }
-
-                writer.WritePropertyName(Constants.RequestFields.ResponseFormat);
-                writer.WriteStartObject();
-                writer.WritePropertyName(Constants.RequestFields.Type);
-                writer.WriteString(Constants.RequestFields.JsonSchema);
-                writer.WriteComma();
-                writer.WritePropertyName(Constants.RequestFields.JsonSchema);
-                writer.WriteObject(GetStructuredOutputSchemaAsBlittable());
-                writer.WriteEndObject();
-
-                writer.WriteEndObject();
+                WriteCompletionRequestPayload(ctx, messages, tools, writer);
             }
         }, ConventionsToUse);
 
@@ -245,6 +222,45 @@ internal class ChatCompletionClient : IChatCompletionClient, IChatCompletionClie
             request.Headers.TryAddWithoutValidation(Constants.RequestFields.OpenAiProject, _projectId);
 
         return request;
+    }
+
+    private void WriteCompletionRequestPayload(JsonOperationContext ctx, List<BlittableJsonReaderObject> messages, List<BlittableJsonReaderObject> tools, AsyncBlittableJsonTextWriter writer)
+    {
+        writer.WriteStartObject();
+
+        writer.WritePropertyName(Constants.RequestFields.Model);
+        writer.WriteString(_model);
+        writer.WriteComma();
+
+        writer.WriteArray(Constants.RequestFields.Messages, messages);
+        writer.WriteComma();
+
+        // Optional
+        if (tools?.Count > 0)
+        {
+            writer.WriteArray(Constants.RequestFields.Tools, tools);
+            writer.WriteComma();
+        }
+
+        writer.WritePropertyName(Constants.RequestFields.ResponseFormat);
+        writer.WriteStartObject();
+        writer.WritePropertyName(Constants.RequestFields.Type);
+        writer.WriteString(Constants.RequestFields.JsonSchema);
+        writer.WriteComma();
+        writer.WritePropertyName(Constants.RequestFields.JsonSchema);
+        writer.WriteObject(GetStructuredOutputSchemaAsBlittable());
+        writer.WriteEndObject();
+
+        // Add Ollama-specific "think" parameter if specified
+        if (_think.HasValue)
+        {
+            writer.WriteComma();
+            writer.WritePropertyName("think");
+            writer.WriteBool(_think.Value);
+        }
+
+        writer.WriteEndObject();
+        return;
 
         BlittableJsonReaderObject GetStructuredOutputSchemaAsBlittable()
         {

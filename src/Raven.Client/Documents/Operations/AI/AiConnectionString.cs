@@ -213,13 +213,14 @@ public sealed class AiConnectionString : ConnectionString
                (AbstractAiSettings)MistralAiSettings;
     }
 
-    internal bool TryGetParametersForGenAiTesting(out string uri, out string apiKey, out string model, out string organizationId, out string projectId)
+    internal bool TryGetParametersForGenAiTesting(out string uri, out string apiKey, out string model, out string organizationId, out string projectId, out bool? think)
     {
         uri = null;
         apiKey = null;
         model = null;
         organizationId = null;
         projectId = null;
+        think = null;
 
         switch (ModelType)
         {
@@ -244,6 +245,7 @@ public sealed class AiConnectionString : ConnectionString
             case AiConnectorType.Ollama:
                 uri = OllamaSettings.Uri; 
                 model = OllamaSettings.Model;
+                think = OllamaSettings.Think;
                 return true;
         }
 

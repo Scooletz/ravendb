@@ -86,13 +86,13 @@ internal class AiIntegrationHandlerProcessorForTestAiConnection<TRequestHandler,
                 switch (aiConnectionString.ModelType)
                 {
                     case AiModelType.TextEmbeddings:
-                    var aiEtlConfiguration = new EmbeddingsGenerationConfiguration { Connection = aiConnectionString };
-                    (IEmbeddingGenerator<string, Embedding<float>> service, logger) = AiHelper.CreateEmbeddingServicesForTest(aiEtlConfiguration);
-                    var embeddings = await service.GenerateAsync(EmbeddingsHelper.ValuesListToVerifyConnection, cancellationToken: token.Token);
+                        var aiEtlConfiguration = new EmbeddingsGenerationConfiguration { Connection = aiConnectionString };
+                        (IEmbeddingGenerator<string, Embedding<float>> service, logger) = AiHelper.CreateEmbeddingServicesForTest(aiEtlConfiguration);
+                        var embeddings = await service.GenerateAsync(EmbeddingsHelper.ValuesListToVerifyConnection, cancellationToken: token.Token);
 
-                    if (embeddings.Count != EmbeddingsHelper.ValuesListToVerifyConnection.Count)
-                        throw new EmbeddingsMismatchException(
-                            $"Failed to generate embeddings for test values. Expected '{EmbeddingsHelper.ValuesListToVerifyConnection.Count}' result, but got '{embeddings.Count}'.");
+                        if (embeddings.Count != EmbeddingsHelper.ValuesListToVerifyConnection.Count)
+                            throw new EmbeddingsMismatchException(
+                                $"Failed to generate embeddings for test values. Expected '{EmbeddingsHelper.ValuesListToVerifyConnection.Count}' result, but got '{embeddings.Count}'.");
                         break;
                     case AiModelType.Chat:
                         using (var client = ChatCompletionClient.CreateChatCompletionClient( ServerStore.ContextPool, aiConnectionString, schema: null))
