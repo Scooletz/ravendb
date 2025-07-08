@@ -39,13 +39,19 @@ class clientConfigurationModel {
             if (dto.LoadBalanceBehavior === "UseSessionContext") {
                 this.isDefined.push("useSessionContextForLoadBehavior");
                 this.useSessionContextForLoadBehavior("UseSessionContext");
-                
+
                 if (dto.LoadBalancerContextSeed || dto.LoadBalancerContextSeed === 0) {
                     this.isDefined.push("loadBalanceContextSeed");
                     this.loadBalanceContextSeed(dto.LoadBalancerContextSeed);
                     this.setLoadBalanceSeed(true);
                 }
-            } else if (dto.ReadBalanceBehavior != null) {
+            }
+            else if (dto.LoadBalanceBehavior === "None") {
+                this.isDefined.push("useSessionContextForLoadBehavior");
+                this.useSessionContextForLoadBehavior("None");
+            }
+
+            if (dto.ReadBalanceBehavior != null) {
                 this.isDefined.push("readBalanceBehavior");
                 this.readBalanceBehavior(dto.ReadBalanceBehavior);
             }
@@ -172,7 +178,7 @@ class clientConfigurationModel {
     toDto(): Raven.Client.Documents.Operations.Configuration.ClientConfiguration {
         return {
             IdentityPartsSeparator: _.includes(this.isDefined(), "identityPartsSeparator") ? this.identityPartsSeparator() : null,
-            LoadBalanceBehavior: _.includes(this.isDefined(), "useSessionContextForLoadBehavior") ? "UseSessionContext" : "None",
+            LoadBalanceBehavior: _.includes(this.isDefined(), "useSessionContextForLoadBehavior") ? this.useSessionContextForLoadBehavior() : null,
             LoadBalancerContextSeed: _.includes(this.isDefined(), "useSessionContextForLoadBehavior") && _.includes(this.isDefined(), "loadBalanceContextSeed") ? this.loadBalanceContextSeed() : null,
             ReadBalanceBehavior: _.includes(this.isDefined(), "readBalanceBehavior") ? this.readBalanceBehavior() : null,
             MaxNumberOfRequestsPerSession: _.includes(this.isDefined(), "maxNumberOfRequestsPerSession") ? this.maxNumberOfRequestsPerSession() : null,

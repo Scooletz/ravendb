@@ -47,26 +47,21 @@ namespace Raven.Server.Documents.Handlers
 
         public async Task HandleQuery(HttpMethod httpMethod)
         {
+            using (var queryContext = QueryOperationContext.Allocate(Database))
             using (var tracker = new RequestTimeTracker(HttpContext, Logger, Database, "Query"))
             {
                 try
                 {
                     using (var token = CreateHttpRequestBoundTimeLimitedOperationTokenForQuery())
-                    using (var queryContext = QueryOperationContext.Allocate(Database))
                     {
                         var debug = GetStringQueryString("debug", required: false);
                         if (string.IsNullOrWhiteSpace(debug) == false)
                         {
                             await Debug(queryContext, debug, token, tracker, httpMethod);
-                            
-                            tracker.Dispose();
-                            
                             return;
                         }
 
                         await Query(queryContext, token, tracker, httpMethod);
-                        
-                        tracker.Dispose();
                     }
                 }
                 catch (Exception e)
