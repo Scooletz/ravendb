@@ -17,11 +17,14 @@ $prefix: "bs-";
     --well-bg: #{$base-well-bg};
     --pre-bg: #{$pre-bg};
     --ace-gutter-bg: #{$ace-gutter-bg};
+    --input-bg: #{$input-bg};
+    --tooltip-bg: #{$tooltip-bg};
 
     --row-bg: #{$row-bg};
     --row-even-bg: #{$row-even-bg};
 
     --hover-filter: #{$hover-filter};
+    --transition-base: #{$transition-base};
     --shadow-color: #{to-rgb($shadow-color)};
 
     --link-color: #{$link-color};

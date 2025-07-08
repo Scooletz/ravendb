@@ -5,6 +5,7 @@ using System.IO;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics;
+using System.Threading;
 using Sparrow;
 using Sparrow.Binary;
 using Sparrow.Compression;
@@ -304,8 +305,8 @@ public unsafe partial class Hnsw
             Options = Unsafe.Read<Options>(options);
             SimilarityCalc = Options.SimilarityMethod switch
             {
-                SimilarityMethod.CosineSimilaritySingles => &CosineSimilaritySingles,
-                SimilarityMethod.CosineSimilarityI8 => &CosineSimilarityI8,
+                SimilarityMethod.CosineSimilaritySingles => &CosineDistanceSingles,
+                SimilarityMethod.CosineSimilarityI8 => &CosineDistanceI8,
                 SimilarityMethod.HammingDistance => &HammingDistance,
                 _ => throw new ArgumentOutOfRangeException(nameof(Options.SimilarityMethod), Options.SimilarityMethod, null)
             };
@@ -347,10 +348,10 @@ public unsafe partial class Hnsw
             {
                 case SimilarityMethod.CosineSimilaritySingles:
                 case SimilarityMethod.CosineSimilarityI8:
-                    DistanceToScoreCosineSimilarity(distances);
+                    DistanceToScoreCosine(distances);
                     break;
                 case SimilarityMethod.HammingDistance:
-                    DistanceToScoreHammingSimilarity(distances, Options.VectorSizeBytes);
+                    DistanceToScoreHamming(distances, Options.VectorSizeBytes);
                     break;
                 default:
                     throw new InvalidDataException($"Unknown similarity method {Options.SimilarityMethod}");
@@ -1003,7 +1004,7 @@ public unsafe partial class Hnsw
             return hashBuffer;
         }
 
-        public void Commit()
+        public void Commit(CancellationToken token)
         {
             PortableExceptions.ThrowIfOnDebug<InvalidOperationException>(_searchState.Llt.Committed);
             
@@ -1024,7 +1025,7 @@ public unsafe partial class Hnsw
             nodes = Span<Node>.Empty;
             _ = nodes;
 
-            InsertVectorsToGraph(ref byteBuffer);
+            InsertVectorsToGraph(ref byteBuffer, token);
 
             nodes = _searchState.Nodes;
             for (int i = 0; i < nodes.Length; i++)
@@ -1282,7 +1283,29 @@ public unsafe partial class Hnsw
             SearchState.NearestEdgesFlags.StartingPointAsEdge | SearchState.NearestEdgesFlags.FilterNodesWithEmptyPostingLists);
         return new NearestSearch(searchState, nearestNodesByLevel, vector, minimumSimilarity);
     }
+    
+    public class IndexedVectorsRetriever(LowLevelTransaction llt, string name) : IIndexedTermsRetriever
+    {
+        private readonly SearchState _searchState = new(llt, name);
+        private long _lastReadNodeId = 1;
 
+        public bool GetNextTerm(out ReadOnlySpan<byte> term)
+        {
+            if (_lastReadNodeId > _searchState.Options.CountOfVectors)
+            {
+                term = [];
+                return false;
+            }
+
+            _searchState.ReadNode(_lastReadNodeId, out var reader);
+            term = reader.ReadVector(in _searchState).ToReadOnlySpan();
+            _lastReadNodeId++;
+            return true;
+        }
+
+        public ConvertTo Type => ConvertTo.Base64;
+    }
+    
     public struct NearestSearch : IDisposable
     {
         public NearestSearch(SearchState searchState, ContextBoundNativeList<int> indexes, ReadOnlySpan<byte> vector, float minimumSimilarity)

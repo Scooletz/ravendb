@@ -1,4 +1,4 @@
-﻿// -----------------------------------------------------------------------
+﻿﻿// -----------------------------------------------------------------------
 //  <copyright file="NoNonDisposableTests.cs" company="Hibernating Rhinos LTD">
 //      Copyright (c) Hibernating Rhinos LTD. All rights reserved.
 //  </copyright>
@@ -8,6 +8,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using EmbeddedTests;
 using FastTests;
 using Raven.Server.Documents;
 using Raven.Server.Documents.Sharding.Handlers;
@@ -28,7 +29,7 @@ namespace SlowTests.Tests
         private readonly HashSet<Assembly> _assemblies = new HashSet<Assembly>();
 
         // In linux we might encounter Microsoft's VisualStudio assembly types, so we skip this test in linux, and rely on the windows tests result as good for linux too
-        [RavenMultiplatformFact(RavenTestCategory.Conventions, RavenPlatform.Windows | RavenPlatform.OsX)]
+        [RavenMultiplatformFact(RavenTestCategory.Codebase, RavenPlatform.Windows | RavenPlatform.OsX)]
         public void NonDisposableTestShouldNotExist()
         {
             var types = from assembly in GetAssemblies(typeof(TestsInheritanceTests).Assembly)
@@ -45,7 +46,7 @@ namespace SlowTests.Tests
             throw new Exception(userMessage);
         }
 
-        [RavenMultiplatformFact(RavenTestCategory.Conventions, RavenPlatform.Windows | RavenPlatform.OsX)]
+        [RavenMultiplatformFact(RavenTestCategory.Codebase, RavenPlatform.Windows | RavenPlatform.OsX)]
         public void TestsShouldInheritFromRightBaseClasses()
         {
             var types = from assembly in GetAssemblies(typeof(TestsInheritanceTests).Assembly)
@@ -62,7 +63,7 @@ namespace SlowTests.Tests
             throw new Exception(userMessage);
         }
 
-        [RavenMultiplatformFact(RavenTestCategory.Conventions, RavenPlatform.Windows | RavenPlatform.OsX)]
+        [RavenMultiplatformFact(RavenTestCategory.Codebase, RavenPlatform.Windows | RavenPlatform.OsX)]
         public void HandlersShouldNotInheritStraightFromRequestHandler()
         {
             var types = from assembly in GetAssemblies(typeof(TestsInheritanceTests).Assembly)
@@ -80,17 +81,18 @@ namespace SlowTests.Tests
             throw new Exception(userMessage);
         }
 
-        [RavenFact(RavenTestCategory.Conventions)]
+        [RavenFact(RavenTestCategory.Codebase)]
         public void AllTestsShouldUseRavenFactOrRavenTheoryAttributes()
         {
             var types = from assembly in GetAssemblies(typeof(TestsInheritanceTests).Assembly)
+                        where FilterAssembly(assembly)
                         from test in GetAssemblyTypes(assembly)
                         from method in test.GetMethods()
                         where Filter(method)
                         select method;
 
             var array = types.ToArray();
-            const int numberToTolerate = 4515;
+            const int numberToTolerate = 0;
             if (array.Length == numberToTolerate)
                 return;
 
@@ -123,6 +125,11 @@ namespace SlowTests.Tests
                 }
 
                 return false;
+            }
+            
+            static bool FilterAssembly(Assembly assembly)
+            {
+                return assembly != typeof(EmbeddedTestBase).Assembly;
             }
 
             static bool ValidNamespace(string @namespace)

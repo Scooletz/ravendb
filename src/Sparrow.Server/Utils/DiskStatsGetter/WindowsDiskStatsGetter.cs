@@ -102,7 +102,7 @@ internal class WindowsDiskStatsGetter : DiskStatsGetter<WindowsDiskStatsRawResul
     private class CountersPerDisk : IDisposable
     {
         private readonly PerformanceCounterCategory _category = new PerformanceCounterCategory(DiskCategory);
-        private readonly ConcurrentDictionary<string, DiskCounters> _countersPerDisk = new ConcurrentDictionary<string, DiskCounters>();
+        private readonly ConcurrentDictionary<string, Lazy<DiskCounters>> _countersPerDisk = new ConcurrentDictionary<string, Lazy<DiskCounters>>();
 
         public DiskCounters Get(string path)
         {
@@ -118,27 +118,39 @@ internal class WindowsDiskStatsGetter : DiskStatsGetter<WindowsDiskStatsRawResul
                     if (Logger.IsDebugEnabled)
                         Logger.Debug($"{nameof(DiskCounters)} was created for \"{drive}\" (requested for path \"{path}\").");
 
-                    counter = _countersPerDisk[path] = new DiskCounters(name);
-                    break;
+                    counter = _countersPerDisk.GetOrAdd(path, new Lazy<DiskCounters>(() =>
+                    {
+                        try
+                        {
+                            return new DiskCounters(name);
+                        }
+                        catch (UnauthorizedAccessException)
+                        {
+                            if (Logger.IsWarnEnabled)
+                                Logger.Warn($"Couldn't create disk counters instance in {DiskCategory} for \"{drive}\" (requested for path \"{path}\").");
+
+                            _countersPerDisk[path] = null;
+                            return null;
+                        }
+                    }));
+
+                    return counter?.Value;
                 }
 
-                if (counter == null)
-                {
-                    if (Logger.IsWarnEnabled)
-                        Logger.Warn($"Couldn't find instance in {DiskCategory} for \"{drive}\" (requested for path \"{path}\").");
+                if (Logger.IsWarnEnabled)
+                    Logger.Warn($"Couldn't find instance in {DiskCategory} for \"{drive}\" (requested for path \"{path}\").");
 
-                    _countersPerDisk[path] = null;
-                }
+                _countersPerDisk[path] = null;
             }
 
-            return counter;
+            return counter?.Value;
         }
 
         public void Dispose()
         {
             foreach (var (_, value) in _countersPerDisk)
             {
-                value.Dispose();
+                value?.Value.Dispose();
             }
         }
     }
