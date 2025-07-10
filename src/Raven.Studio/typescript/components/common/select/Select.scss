@@ -11,6 +11,10 @@
     border-radius: bs5variables.$input-border-radius;
     flex: 1 1 auto;
 
+    &.is-invalid {
+        border-color: bs5variables.$form-invalid-border-color
+    }
+
     .react-select__control {
         border: none;
         background-color: bs5variables.$well-bg-var;

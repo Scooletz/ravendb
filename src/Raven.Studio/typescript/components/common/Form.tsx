@@ -202,8 +202,8 @@ export function FormSelect<
     Group extends GroupBase<Option> = GroupBase<Option>,
     TFieldValues extends FieldValues = FieldValues,
     TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>,
->(props: FormElementProps<TFieldValues, TName> & ComponentProps<typeof Select<Option, IsMulti, Group>>) {
-    const { name, control, defaultValue, rules, shouldUnregister, className, ...rest } = props;
+>(props: FormElementProps<TFieldValues, TName> & ComponentProps<typeof Select<Option, IsMulti, Group>> & { selectClassName?: string}) {
+    const { name, control, defaultValue, rules, shouldUnregister, className, selectClassName, ...rest } = props;
 
     const {
         field: { onChange, value: formValues },
@@ -233,6 +233,7 @@ export function FormSelect<
                             );
                         }}
                         isDisabled={formState.isSubmitting}
+                        className={classNames(selectClassName, invalid ? "is-invalid" : "")}
                         {...rest}
                     />
                 </div>
@@ -802,7 +803,7 @@ interface VerificationCodeInputProps {
 export const VerificationCodeInput = ({ name, control, onLastDigitInsertSubmit }: VerificationCodeInputProps) => {
     const {
         field: { onChange, ref },
-        formState: { errors },
+        fieldState: { error },
     } = useController({
         name,
         control,
@@ -871,15 +872,11 @@ export const VerificationCodeInput = ({ name, control, onLastDigitInsertSubmit }
                         }
                         autoComplete="off"
                         className="text-center"
-                        isInvalid={!!get(errors, name)}
+                        isInvalid={!!error}
                     />
                 ))}
             </div>
-            {get(errors, name) && (
-                <FormValidationMessage className="mt-1">
-                    {(get(errors, name)?.message as string)}
-                </FormValidationMessage>
-            )}
+            {error && <FormValidationMessage className="mt-1">{error.message}</FormValidationMessage>}
         </div>
     );
 };
