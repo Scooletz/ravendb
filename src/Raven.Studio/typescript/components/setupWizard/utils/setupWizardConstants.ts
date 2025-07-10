@@ -292,28 +292,27 @@ const allIndustries = [
 ];
 
 const allHowYouPlanToUseRavenDB = [
-    "ImproveNoSqlSkills",
-    "DbForNewProject",
-    "SeeIfRightFitForOrganization",
-    "SeeWhatItCanDo",
+    "I want to develop my NoSQL skills",
+    "I am looking for a database for a new project",
+    "I want to see if it's a right fit for my organization",
+    "I just want to see what it can do",
 ];
-
 const howYouPlanToUseRavenDBOptions: SelectOption[] = [
     {
         label: "I want to develop my NoSQL skills",
-        value: "ImproveNoSqlSkills",
+        value: "I want to develop my NoSQL skills",
     },
     {
         label: "I am looking for a database for a new project",
-        value: "DbForNewProject",
+        value: "I am looking for a database for a new project",
     },
     {
         label: "I want to see if it's a right fit for my organization",
-        value: "SeeIfRightFitForOrganization",
+        value: "I want to see if it's a right fit for my organization",
     },
     {
         label: "I just want to see what it can do",
-        value: "SeeWhatItCanDo",
+        value: "I just want to see what it can do",
     },
 ];
 
