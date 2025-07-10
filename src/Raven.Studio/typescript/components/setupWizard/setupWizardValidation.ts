@@ -54,7 +54,7 @@ const licenseKeyStepSchema = yup.object({
         maxClusterSize: yup.number(),
     }),
     licenseTypeToGenerate: yup.string<LicenseTypeToGenerate>().nullable(),
-    isAcceptTerms: yup.boolean(),
+    isAcceptTerms: yup.boolean().oneOf([true], "The terms and conditions must be accepted.").required(),
     isAcceptEmails: yup.boolean(),
     firstName: licenseRequiredField(yup.string()),
     lastName: licenseRequiredField(yup.string()),

@@ -162,6 +162,8 @@ const defaultValues: SetupWizardFormData = {
         nodeTag: "",
     },
     licenseKeyStep: {
+        isAcceptTerms: false,
+        isAcceptEmails: false,
         key: "",
         licenseInfo: null,
         licenseTypeToGenerate: null,
