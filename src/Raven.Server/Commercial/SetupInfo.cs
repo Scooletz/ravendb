@@ -401,10 +401,10 @@ namespace Raven.Server.Commercial
 
     public class SetupActionInfo
     {
-        private State State { get; set; }
-        private ErrorType? ErrorType { get; set; }
-        private string ErrorMessage { get; set; }
-        private string[] ErrorReasons { get; set; }
+        public State State { get; set; }
+        public ErrorType? ErrorType { get; set; }
+        public string ErrorMessage { get; set; }
+        public string[] ErrorReasons { get; set; }
 
         public void SetState(State state)
         {
