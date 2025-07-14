@@ -840,9 +840,16 @@ namespace Raven.Server.ServerWide
 
             _server.Statistics.Load(ContextPool, Logger);
 
-            _timer = new Timer(IdleOperations, null, _frequencyToCheckForIdleDatabases, TimeSpan.FromDays(7));
+            _timer = new Timer(IdleOperationsCallback, null, _frequencyToCheckForIdleDatabases, TimeSpan.FromDays(7));
+
             _operationsStorage.Initialize(_env, ContextPool);
             DatabaseInfoCache.Initialize(_env, ContextPool);
+            return;
+
+            void IdleOperationsCallback(object state)
+            {
+                IdleOperations();
+            }
         }
 
         public void Initialize()
@@ -2748,7 +2755,7 @@ namespace Raven.Server.ServerWide
             }
         }
 
-        public void IdleOperations(object state)
+        public void IdleOperations(Dictionary<StringSegment, DatabasesDebugHandler.IdleDatabaseStatistics> stats = null)
         {
             try
             {
@@ -2777,7 +2784,14 @@ namespace Raven.Server.ServerWide
 
                     foreach (var databaseKvp in DatabasesLandlord.LastRecentlyUsed.ForceEnumerateInThreadSafeManner())
                     {
-                        if (CanUnloadDatabase(databaseKvp.Key, databaseKvp.Value, statistics: null, out DocumentDatabase database) == false)
+                        DatabasesDebugHandler.IdleDatabaseStatistics statistics = null;
+                        if (stats != null)
+                        {
+                            if (stats.TryGetValue(databaseKvp.Key, out statistics) == false)
+                                stats[databaseKvp.Key] = statistics = new DatabasesDebugHandler.IdleDatabaseStatistics();
+                        }
+                        
+                        if (CanUnloadDatabase(databaseKvp.Key, databaseKvp.Value, statistics: statistics, out DocumentDatabase database) == false)
                             continue;
 
                         var dbIdEtagDictionary = new Dictionary<string, long>();
