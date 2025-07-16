@@ -113,10 +113,15 @@ const nodeAddressStepSchema = yup.object({
 const additionalSettingsStepSchema = yup.object({
     serverEnvironment: yup.string().oneOf(setupWizardConstants.allServerEnvironments),
     adminCertificateExpirationTime: yup.number(),
+    
+    // advanced settings
     dataDirectory: yup.string().nullable(),
     setupCertificatePath: yup.string().nullable(),
     postgresqlIntegration: yup.boolean(),
-
+    logsPath: yup.string().nullable(),
+    staticIndexingEngineType: yup.string().oneOf(setupWizardConstants.indexingEngineTypes).nullable(),
+    autoIndexingEngineType: yup.string().oneOf(setupWizardConstants.indexingEngineTypes).nullable(),
+    
     // states
     isAdvancedSettingsVisible: yup.boolean(),
 });

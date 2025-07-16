@@ -21,26 +21,17 @@ import RichAlert from "components/common/RichAlert";
 import { NumberedList, NumberedListItem } from "components/common/NumberedList";
 import Modal from "components/common/Modal";
 import { useBrowser } from "components/hooks/useBrowser";
+import Spinner from "react-bootstrap/Spinner";
+import { useRavenLink } from "hooks/useRavenLink";
 
 type OperationStatus = Raven.Client.Documents.Operations.OperationStatus;
 
 export function SetupWizardFinishStep() {
     const { control } = useFormContext<SetupWizardFormData>();
 
-    const { value: isShowLogs, toggle: toggleIsShowLogs } = useBoolean(true); // TODO set to false
+    const { value: isShowLogs, toggle: toggleIsShowLogs } = useBoolean(false);
 
-    const {
-        nodeAddressStep,
-        securityStep,
-        setupMethodStep,
-        additionalSettingsStep,
-        domainStep,
-        licenseKeyStep,
-        selfSignedCertificateStep,
-        usePackageStep,
-    } = useWatch({ control });
-
-    // TODO get rid off jQuery
+    const { setupMethodStep, usePackageStep } = useWatch({ control });
 
     const websocket = useMemo(() => new serverNotificationCenterClient(), []);
 
@@ -49,19 +40,23 @@ export function SetupWizardFinishStep() {
     const [readme, setReadme] = useState<string>();
     const [status, setStatus] = useState<OperationStatus>("Completed");
     const [logs, setLogs] = useState<{ message: string; color?: TextColor }[]>([]);
-
+    const [configurationProcess, setConfigurationProcess] =
+        useState<Raven.Server.Commercial.SetupProgressAndResult>(null);
     const handleWebSocketOperation = (operation: Raven.Server.NotificationCenter.Notifications.OperationChanged) => {
         if (operation.TaskType === "Setup") {
-            let dto: Raven.Server.Commercial.SetupProgressAndResult = null;
+            let dto: Raven.Server.Commercial.SetupProgressAndResult = operation.State.Progress;
 
             switch (operation.State.Status) {
                 case "Completed":
                     dto = operation.State.Result as Raven.Server.Commercial.SetupProgressAndResult;
+                    setConfigurationProcess(operation.State.Result);
                     setReadme(dto.Readme);
                     setStatus("Completed");
                     break;
                 case "InProgress":
                     dto = operation.State.Progress as Raven.Server.Commercial.SetupProgressAndResult;
+                    setConfigurationProcess(operation.State.Progress);
+                    setStatus("InProgress");
                     break;
                 case "Faulted": {
                     const failure = operation.State
@@ -83,131 +78,24 @@ export function SetupWizardFinishStep() {
         }
     };
 
-    // TODO move functions to utils
-
-    const { getLocalNode, getHttpPort, getTcpPort, getServerUrl } = useSetupWizardFinishUtils();
-
-    const getNodeInfo = (
-        node: SetupWizardFormData["nodeAddressStep"]["nodes"][number]
-    ): Raven.Server.Commercial.NodeInfo => {
-        return {
-            Addresses: node.ipAddress.map((x) => x.ipAddress),
-            Port: getHttpPort(node.httpPort),
-            TcpPort: getTcpPort(node.tcpPort),
-            PublicServerUrl: getServerUrl(node.dnsName, node.httpPort),
-            PublicTcpServerUrl: null,
-            ExternalIpAddress: node.hasExternalConfig ? node.externalIpAddress : null,
-            ExternalPort: node.hasExternalConfig ? node.externalHttpPort : null,
-            ExternalTcpPort: node.hasExternalConfig ? node.externalTcpPort : null,
-        };
-    };
-
-    const getNodeSetupInfos = (): Record<string, Raven.Server.Commercial.NodeInfo> => {
-        const nodesInfo: Record<string, Raven.Server.Commercial.NodeInfo> = {};
-        nodeAddressStep.nodes.forEach((node) => {
-            nodesInfo[node.nodeTag] = getNodeInfo(node);
-        });
-
-        return nodesInfo;
-    };
-
-    const getUnsecuredDto = (): Raven.Server.Commercial.UnsecuredSetupInfo => {
-        const localNode = getLocalNode();
-        const isPassive = localNode.isPassive;
-
-        // TODO pass advanced settings (DataDir, cert path ??) (waiting for server)
-
-        return {
-            EnableExperimentalFeatures: additionalSettingsStep.postgresqlIntegration,
-            LocalNodeTag: isPassive ? null : localNode.nodeTag,
-            Environment: isPassive ? null : additionalSettingsStep.serverEnvironment,
-            ZipOnly: setupMethodStep.method === "createPackage",
-            NodeSetupInfos: getNodeSetupInfos(),
-        };
-    };
-
-    const getSecuredDto = (): Raven.Server.Commercial.SetupInfo => {
-        // TODO pass advanced settings (DataDir, cert path ??) (waiting for server)
-
-        const { adminCertificateExpirationTime } = additionalSettingsStep;
-
-        const ClientCertNotAfter = adminCertificateExpirationTime
-            ? moment.utc().add(additionalSettingsStep.adminCertificateExpirationTime, "months").format()
-            : null;
-
-        return {
-            EnableExperimentalFeatures: additionalSettingsStep.postgresqlIntegration,
-            Environment: additionalSettingsStep.serverEnvironment,
-            License: JSON.parse(licenseKeyStep.key),
-            Email: domainStep.email,
-            Domain: domainStep.domain,
-            RootDomain: domainStep.rootDomain,
-            LocalNodeTag: getLocalNode().nodeTag,
-            RegisterClientCert: true, // it should be always true. we should detect if same cert is installed and if no then install
-            Certificate: selfSignedCertificateStep.certificate,
-            Password: selfSignedCertificateStep.password,
-            ClientCertNotAfter,
-            ZipOnly: setupMethodStep.method === "createPackage",
-            NodeSetupInfos: getNodeSetupInfos(),
-        };
-    };
-
-    const getRegularDto = () => {
-        if (!securityStep.securityOption) {
-            return null;
-        }
-
-        switch (securityStep.securityOption) {
-            case "none":
-                return getUnsecuredDto();
-            case "letsEncrypt":
-            case "ownCertificate":
-                return getSecuredDto();
-            default:
-                assertUnreachable(securityStep.securityOption);
-        }
-    };
-
-    const getSubmitUrlBase = () => {
-        if (!securityStep.securityOption) {
-            return null;
-        }
-
-        switch (securityStep.securityOption) {
-            case "none":
-                return endpoints.global.setup.setupUnsecuredPackage;
-            case "letsEncrypt":
-                return endpoints.global.setup.setupLetsencrypt;
-            case "ownCertificate":
-                return endpoints.global.setup.setupSecured;
-            default:
-                assertUnreachable(securityStep.securityOption);
-        }
-    };
+    const { getRegularDto, getContinueWithPackageDto, getSubmitUrlBase, downloadConfigurationLog } =
+        useSetupWizardFinishUtils();
 
     const regularFinish = async () => {
-        const $form = $("#setupForm");
-        const $downloadOptions = $("[name=Options]", $form);
-
         const operationId = await databasesService.getNextOperationId(null);
         const operationPart = "?operationId=" + operationId;
         const urlBase = getSubmitUrlBase();
 
         const dto = getRegularDto();
 
-        $form.attr("action", urlBase + operationPart);
-        $downloadOptions.val(JSON.stringify(dto));
-        $form.submit();
+        const form = document.getElementById("setupForm") as HTMLFormElement;
+        const optionsInput = form.querySelector("[name=Options]") as HTMLInputElement;
+
+        form.action = urlBase + operationPart;
+        optionsInput.value = JSON.stringify(dto);
+        form.submit();
 
         websocket.watchOperation(operationId, handleWebSocketOperation);
-    };
-
-    const getContinueWithPackageDto = (): Raven.Server.Commercial.ContinueSetupInfo => {
-        return {
-            NodeTag: usePackageStep.nodeTag,
-            Zip: usePackageStep.fileZip,
-            RegisterClientCert: usePackageStep.isZipSecure, // we should detect if the same cert is installed and if no then install it
-        };
     };
 
     const continueWithPackageFinish = async () => {
@@ -239,35 +127,41 @@ export function SetupWizardFinishStep() {
     return (
         <div className="finish-step">
             <TopInfo status={status} />
-            <div className="hstack justify-content-between">
-                <FormGroup className="mt-4">
-                    <Switch selected={isShowLogs} toggleSelection={toggleIsShowLogs} color="primary">
+            <div className="hstack mt-4 mb-2 justify-content-between">
+                <FormGroup marginClass="mb-0">
+                    <Switch className="mb-0" selected={isShowLogs} toggleSelection={toggleIsShowLogs} color="primary">
                         Show configuration log
                     </Switch>
                 </FormGroup>
                 <Button
                     variant="link"
-                    onClick={() => {
-                        console.log("TODO: download configuration log");
-                    }}
+                    onClick={() =>
+                        downloadConfigurationLog(
+                            configurationProcess.Messages,
+                            `configurationLog_${moment.utc().format("YYYY-MM-DD-HH-mm-ss")}`
+                        )
+                    }
                     size="xs"
                 >
                     <Icon icon="download" />
                     Download configuration log
                 </Button>
             </div>
-            {isShowLogs && (
-                <pre>
-                    {logs.map((message, idx) => (
-                        <div key={idx} className={message.color ? `text-${message.color}` : ""}>
-                            {message.message}
-                        </div>
-                    ))}
+            <div className="summary-tab-container mb-4">
+                <pre className="p-4 mb-0">
+                    <Configuration configurationProcess={configurationProcess} />
                 </pre>
-            )}
-
-            {status !== "Completed" && (
-                <div className="mt-2 p-2 panel-bg-1 rounded border border-secondary">TODO preety summary</div>
+            </div>
+            {isShowLogs && (
+                <div className="mb-4">
+                    <pre>
+                        {logs.map((message, idx) => (
+                            <div key={idx} className={message.color ? `text-${message.color}` : ""}>
+                                {message.message}
+                            </div>
+                        ))}
+                    </pre>
+                </div>
             )}
             {status === "Completed" && <CompletedSummary />}
 
@@ -279,6 +173,92 @@ export function SetupWizardFinishStep() {
         </div>
     );
 }
+
+interface ConfigurationProps {
+    configurationProcess: Raven.Server.Commercial.SetupProgressAndResult;
+}
+
+const Configuration = ({ configurationProcess }: ConfigurationProps) => {
+    return (
+        <div>
+            <ConfigurationItem
+                stepTitle="Let's Encrypt"
+                configurationState={configurationProcess?.SetupActionSteps?.AcquiringLetsEncryptCertificateStatus}
+            />
+
+            <ConfigurationItem
+                stepTitle="DNS Records"
+                configurationState={configurationProcess?.SetupActionSteps?.DnsRecordsStatus}
+            />
+
+            <ConfigurationItem
+                stepTitle="Acquiring certificate"
+                configurationState={configurationProcess?.SetupActionSteps?.ClientCertificateStatus}
+            />
+
+            <ConfigurationItem
+                stepTitle="Validation"
+                configurationState={configurationProcess?.SetupActionSteps?.ValidationStatus}
+            />
+
+            <ConfigurationItem
+                stepTitle="Configuration Settings"
+                configurationState={configurationProcess?.SetupActionSteps?.ConfigurationSettingsStatus}
+            />
+
+            <ConfigurationItem
+                stepTitle="Client Certificate"
+                configurationState={configurationProcess?.SetupActionSteps?.ClientCertificateStatus}
+            />
+
+            <ConfigurationItem
+                stepTitle="Creating settings.json"
+                configurationState={configurationProcess?.SetupActionSteps?.CreatingSettingsJsonStatus}
+            />
+        </div>
+    );
+};
+
+interface ConfigurationItemProps {
+    stepTitle: string;
+    configurationState: Raven.Server.Commercial.SetupActionInfo;
+}
+
+const ConfigurationItem = ({ configurationState, stepTitle }: ConfigurationItemProps) => {
+    const getConfigurationItemStatus = () => {
+        if (!configurationState?.State) {
+            return <Spinner className="spinner-gradient" size="sm" />;
+        }
+
+        switch (configurationState?.State) {
+            case "Pending":
+            case "InProgress":
+                return <Spinner className="spinner-gradient" size="sm" />;
+            case "Completed":
+                return <Icon color="success" icon="checkmark" />;
+            default:
+                return <Icon color="danger" icon="close" />;
+        }
+    };
+
+    if (configurationState?.State === "Skipped") {
+        return null;
+    }
+
+    return (
+        <div className="d-flex flex-column my-2 align-items-center">
+            <div className="w-100 d-flex align-items-center justify-content-between">
+                <span>{stepTitle}</span>
+                {getConfigurationItemStatus()}
+            </div>
+            {configurationState?.State === "Error" && (
+                <RichAlert variant="danger" title={configurationState?.ErrorType ?? "XDD"} className="my-2">
+                    {configurationState?.ErrorMessage}
+                </RichAlert>
+            )}
+        </div>
+    );
+};
 
 function TopInfo({ status }: { status: OperationStatus }) {
     return (
@@ -316,7 +296,10 @@ function TopInfo({ status }: { status: OperationStatus }) {
 function CompletedSummary() {
     const { control } = useFormContext<SetupWizardFormData>();
 
-    const { nodeAddressStep, usePackageStep: {nodeTag} } = useWatch({ control });
+    const {
+        nodeAddressStep,
+        usePackageStep: { nodeTag },
+    } = useWatch({ control });
 
     const { getStudioUrl } = useSetupWizardFinishUtils();
 
@@ -423,11 +406,112 @@ function CompletedSummary() {
 function useSetupWizardFinishUtils() {
     const { control } = useFormContext<SetupWizardFormData>();
 
-    const { nodeAddressStep, securityStep, setupMethodStep, domainStep, selfSignedCertificateStep, usePackageStep } =
-        useWatch({ control });
+    const {
+        nodeAddressStep,
+        securityStep,
+        setupMethodStep,
+        licenseKeyStep,
+        domainStep,
+        selfSignedCertificateStep,
+        usePackageStep,
+        additionalSettingsStep,
+    } = useWatch({ control });
 
     const getLocalNode = () => {
         return nodeAddressStep.nodes[0];
+    };
+
+    const getNodeInfo = (
+        node: SetupWizardFormData["nodeAddressStep"]["nodes"][number]
+    ): Raven.Server.Commercial.NodeInfo => {
+        return {
+            Addresses: node.ipAddress.map((x) => x.ipAddress),
+            Port: getHttpPort(node.httpPort),
+            TcpPort: getTcpPort(node.tcpPort),
+            PublicServerUrl: getServerUrl(node.dnsName, node.httpPort),
+            PublicTcpServerUrl: null,
+            ExternalIpAddress: node.hasExternalConfig ? node.externalIpAddress : null,
+            ExternalPort: node.hasExternalConfig ? node.externalHttpPort : null,
+            ExternalTcpPort: node.hasExternalConfig ? node.externalTcpPort : null,
+        };
+    };
+
+    const getNodeSetupInfos = (): Record<string, Raven.Server.Commercial.NodeInfo> => {
+        const nodesInfo: Record<string, Raven.Server.Commercial.NodeInfo> = {};
+        nodeAddressStep.nodes.forEach((node) => {
+            nodesInfo[node.nodeTag] = getNodeInfo(node);
+        });
+
+        return nodesInfo;
+    };
+
+    const getUnsecuredDto = (): Raven.Server.Commercial.UnsecuredSetupInfo => {
+        const localNode = getLocalNode();
+        const isPassive = localNode.isPassive;
+
+        return {
+            AutoIndexingEngineType: additionalSettingsStep.autoIndexingEngineType,
+            DataDirectory: additionalSettingsStep.dataDirectory,
+            LogsPath: additionalSettingsStep.logsPath,
+            StaticIndexingEngineType: additionalSettingsStep.staticIndexingEngineType,
+            EnableExperimentalFeatures: additionalSettingsStep.postgresqlIntegration,
+            LocalNodeTag: isPassive ? null : localNode.nodeTag,
+            Environment: isPassive ? null : additionalSettingsStep.serverEnvironment,
+            ZipOnly: setupMethodStep.method === "createPackage",
+            NodeSetupInfos: getNodeSetupInfos(),
+        };
+    };
+
+    const getSecuredDto = (): Raven.Server.Commercial.SetupInfo => {
+        const { adminCertificateExpirationTime } = additionalSettingsStep;
+
+        const ClientCertNotAfter = adminCertificateExpirationTime
+            ? moment.utc().add(additionalSettingsStep.adminCertificateExpirationTime, "months").format()
+            : null;
+
+        return {
+            AutoIndexingEngineType: additionalSettingsStep.autoIndexingEngineType,
+            DataDirectory: additionalSettingsStep.dataDirectory,
+            LogsPath: additionalSettingsStep.logsPath,
+            StaticIndexingEngineType: additionalSettingsStep.staticIndexingEngineType,
+            EnableExperimentalFeatures: additionalSettingsStep.postgresqlIntegration,
+            Environment: additionalSettingsStep.serverEnvironment,
+            License: JSON.parse(licenseKeyStep.key),
+            Email: domainStep.email,
+            Domain: domainStep.domain,
+            RootDomain: domainStep.rootDomain,
+            LocalNodeTag: getLocalNode().nodeTag,
+            RegisterClientCert: true, // it should be always true. we should detect if same cert is installed and if no then install
+            Certificate: selfSignedCertificateStep.certificate,
+            Password: selfSignedCertificateStep.password,
+            ClientCertNotAfter,
+            ZipOnly: setupMethodStep.method === "createPackage",
+            NodeSetupInfos: getNodeSetupInfos(),
+        };
+    };
+
+    const getRegularDto = () => {
+        if (!securityStep.securityOption) {
+            return null;
+        }
+
+        switch (securityStep.securityOption) {
+            case "none":
+                return getUnsecuredDto();
+            case "letsEncrypt":
+            case "ownCertificate":
+                return getSecuredDto();
+            default:
+                assertUnreachable(securityStep.securityOption);
+        }
+    };
+
+    const getContinueWithPackageDto = (): Raven.Server.Commercial.ContinueSetupInfo => {
+        return {
+            NodeTag: usePackageStep.nodeTag,
+            Zip: usePackageStep.fileZip,
+            RegisterClientCert: usePackageStep.isZipSecure, // we should detect if the same cert is installed and if no then install it
+        };
     };
 
     const getHttpPort = (port: number) => {
@@ -521,12 +605,45 @@ function useSetupWizardFinishUtils() {
         return null;
     };
 
+    const getSubmitUrlBase = () => {
+        if (!securityStep.securityOption) {
+            return null;
+        }
+
+        switch (securityStep.securityOption) {
+            case "none":
+                return endpoints.global.setup.setupUnsecuredPackage;
+            case "letsEncrypt":
+                return endpoints.global.setup.setupLetsencrypt;
+            case "ownCertificate":
+                return endpoints.global.setup.setupSecured;
+            default:
+                assertUnreachable(securityStep.securityOption);
+        }
+    };
+
+    const downloadConfigurationLog = (data: string[], fileName: string) => {
+        const content = data.join("\n");
+
+        const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${fileName}.txt`;
+        a.click();
+
+        URL.revokeObjectURL(url);
+    };
+
     return {
         getStudioUrl,
-        getLocalNode,
         getHttpPort,
         getTcpPort,
         getServerUrl,
+        getRegularDto,
+        getContinueWithPackageDto,
+        getSubmitUrlBase,
+        downloadConfigurationLog,
     };
 }
 
@@ -534,9 +651,9 @@ function CertInstallationConfirm(props: { onCancel: () => void; onConfirm: () =>
     const { onCancel, onConfirm } = props;
 
     const browser = useBrowser();
-
-    // TODO Update text for browsers tabs
-    // TODO Add link to documentation
+    const docsLink = useRavenLink({
+        hash: "VD4R8E",
+    });
 
     return (
         <Modal show onHide={onCancel} contentClassName="modal-border bulge-primary" size="lg">
@@ -579,22 +696,31 @@ function CertInstallationConfirm(props: { onCancel: () => void; onConfirm: () =>
                                 <Tab.Content className="p-2 text-break">
                                     <Tab.Pane eventKey="Chrome">
                                         Chrome (or any{" "}
-                                        <a href="https://en.wikipedia.org/wiki/Chromium_(web_browser)#Browsers_based_on_Chromium">
+                                        <a
+                                            href="https://en.wikipedia.org/wiki/Chromium_(web_browser)#Browsers_based_on_Chromium"
+                                            target="_blank"
+                                        >
                                             Chromium-based browser
                                         </a>
                                         ) will let you select this certificate automatically. You may need to restart
                                         all instances of Chrome to make sure nothing is cached.
                                     </Tab.Pane>
                                     <Tab.Pane eventKey="Firefox">
-                                        Firefox will let you select this certificate automatically. You may need to
-                                        restart all instances of Firefox to make sure nothing is cached.
+                                        Firefox uses its own internal certificate store. After importing the certificate
+                                        through Firefox settings, it will be available for use automatically. You may
+                                        need to restart Firefox to ensure the new certificate is recognized properly.
                                     </Tab.Pane>
                                     <Tab.Pane eventKey="Safari">
-                                        Safari will let you select this certificate automatically. You may need to
-                                        restart all instances of Safari to make sure nothing is cached.
+                                        Safari uses the macOS Keychain to manage certificates. Once the certificate is
+                                        imported and trusted in Keychain Access, Safari will select it automatically
+                                        when needed. Restarting Safari or the system may help if it doesn’t appear right
+                                        away.
                                     </Tab.Pane>
                                     <Tab.Pane eventKey="Other">
-                                        Other browsers will require you to select the certificate manually.
+                                        Browsers that are not Chromium-based and don’t use the system certificate store
+                                        typically require manual certificate import through their own settings or
+                                        preferences. Behavior may vary, and restarting the browser is often recommended
+                                        to ensure the certificate is applied.
                                     </Tab.Pane>
                                 </Tab.Content>
                             </Tab.Container>
@@ -615,7 +741,7 @@ function CertInstallationConfirm(props: { onCancel: () => void; onConfirm: () =>
                 </NumberedList>
             </Modal.Body>
             <Modal.Footer className="hstack justify-content-between">
-                <a href="TODO" className="btn btn-info rounded-pill">
+                <a href={docsLink} target="_blank" className="btn btn-info rounded-pill">
                     See documentation <Icon icon="newtab" margin="ms-1" />
                 </a>
                 <div className="hstack gap-2">

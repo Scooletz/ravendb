@@ -1,3 +1,4 @@
+import "./SetupWizardLicenseKeyStep.scss";
 import { useFormContext, useWatch } from "react-hook-form";
 import { LicenseTypeToGenerate, SetupWizardFormData } from "../setupWizardValidation";
 import { Icon } from "components/common/Icon";
@@ -501,7 +502,7 @@ export function SetupWizardLicenseKeyStepFooter() {
         if (!licenseStepData) {
             return;
         }
-        //todo: howYouPlanToUseRavenDB should be normal text instead of camelCase
+
         return {
             Type: licenseStepData.licenseTypeToGenerate === "developer" ? "Developer" : "Community",
             LicenseType: licenseStepData.licenseTypeToGenerate === "developer" ? "Developer" : "Community",
@@ -608,7 +609,7 @@ export function SetupWizardLicenseKeyStepFooter() {
                     onClick={handleContinue}
                     isSpinning={asyncRegistrationInfo.loading}
                 >
-                    Continue <Icon icon="arrow-right" margin="m-0" />
+                    Continue <Icon icon="arrow-right" margin="ms-1" />
                 </ButtonWithSpinner>
             )}
             {isLicenseSkipModalOpen && <SkipLicenseVerificationConfirmModal close={toggleIsLicenseSkipModalOpen} />}

@@ -147,6 +147,7 @@ class serverSetup {
         });
         
         return {
+            AutoIndexingEngineType: null, DataDirectory: null, LogsPath: null, StaticIndexingEngineType: null,
             EnableExperimentalFeatures: this.useExperimentalFeatures(),
             LocalNodeTag: !this.startNodeAsPassive() ? this.localNodeTag() : null,
             Environment: !this.startNodeAsPassive() ? this.environment() : null,
@@ -162,6 +163,7 @@ class serverSetup {
         });
 
         return {
+            AutoIndexingEngineType: null, DataDirectory: null, LogsPath: null, StaticIndexingEngineType: null,
             EnableExperimentalFeatures: this.useExperimentalFeatures(),
             Environment: this.environment(),
             License: this.license().toDto(),

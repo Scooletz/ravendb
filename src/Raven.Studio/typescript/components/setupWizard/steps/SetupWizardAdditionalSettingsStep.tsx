@@ -240,6 +240,75 @@ function AdvancedSettingsContent({ control, isVisible }: AdvancedSettingsContent
                     getPathDependencies={(path: string) => [path]}
                 />
             </FormGroup>
+            <FormGroup>
+                <FormLabel className="hstack justify-content-between">
+                    <div>Logs path</div>
+                    <ConditionalPopover
+                        conditions={{
+                            isActive: isVisible,
+                            message: <PopoverMessage description="Defines the path to the logs." />,
+                        }}
+                    >
+                        <div className="text-info">
+                            <Icon icon="info" size="xs" /> What is this?
+                        </div>
+                    </ConditionalPopover>
+                </FormLabel>
+                <FormPathSelector
+                    disabled={!isVisible}
+                    name="additionalSettingsStep.logsPath"
+                    control={control}
+                    placeholder="/logs"
+                    getPathsProvider={(path: string) => getLocalFolderPathsProvider(path)}
+                    getPathDependencies={(path: string) => [path]}
+                />
+            </FormGroup>
+            <FormGroup>
+                <FormLabel className="hstack justify-content-between">
+                    <div>Auto indexing engine type</div>
+                    <ConditionalPopover
+                        conditions={{
+                            isActive: isVisible,
+                            message: (
+                                <PopoverMessage description="Defines the indexing engine used for auto indexes in RavenDB." />
+                            ),
+                        }}
+                    >
+                        <div className="text-info">
+                            <Icon icon="info" size="xs" /> What is this?
+                        </div>
+                    </ConditionalPopover>
+                </FormLabel>
+                <FormSelect
+                    className={classNames({ "z-n1": !isVisible })}
+                    name="additionalSettingsStep.autoIndexingEngineType"
+                    control={control}
+                    options={setupWizardConstants.indexingEngineTypeOptions}
+                />
+            </FormGroup>
+            <FormGroup>
+                <FormLabel className="hstack justify-content-between">
+                    <div>Static indexing engine type</div>
+                    <ConditionalPopover
+                        conditions={{
+                            isActive: isVisible,
+                            message: (
+                                <PopoverMessage description="Defines the indexing engine used for static indexes in RavenDB." />
+                            ),
+                        }}
+                    >
+                        <div className="text-info">
+                            <Icon icon="info" size="xs" /> What is this?
+                        </div>
+                    </ConditionalPopover>
+                </FormLabel>
+                <FormSelect
+                    className={classNames({ "z-n1": !isVisible })}
+                    name="additionalSettingsStep.staticIndexingEngineType"
+                    control={control}
+                    options={setupWizardConstants.indexingEngineTypeOptions}
+                />
+            </FormGroup>
         </div>
     );
 }

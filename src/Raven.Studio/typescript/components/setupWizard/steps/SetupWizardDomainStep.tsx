@@ -40,14 +40,15 @@ export function SetupWizardDomainStep() {
         const newOption = createNewOption(domain);
         clearErrors("domainStep.domain");
         try {
+            setDomainsOptions((prev) => [...prev, newOption]);
             const domainAvailability = await asyncCheckDomainAvailability.execute(domain);
 
             if (domainAvailability.Available) {
                 clearErrors("domainStep.domain");
-                setDomainsOptions((prev) => [...prev, newOption]);
                 setValue("domainStep.domain", domain);
                 return domain;
             } else {
+                setDomainsOptions((prev) => prev.filter((option) => option.value !== newOption.value));
                 setError("domainStep.domain", {
                     type: "value",
                     message: "Domain is already in use",
@@ -55,7 +56,13 @@ export function SetupWizardDomainStep() {
                 return domain;
             }
         } catch (e) {
+            setDomainsOptions((prev) => prev.filter((option) => option.value !== newOption.value));
+            setError("domainStep.domain", {
+                type: "value",
+                message: "Error checking domain availability",
+            });
             console.error("Error", e);
+            return domain;
         }
     };
 
@@ -97,6 +104,7 @@ export function SetupWizardDomainStep() {
                     isLoading={asyncCheckDomainAvailability.loading}
                     onCreateOption={handleDomainAvailability}
                     control={control}
+                    isDisabled={asyncCheckDomainAvailability.loading}
                     name="domainStep.domain"
                     options={domainsOptions}
                     addon={
@@ -211,7 +219,7 @@ export function SetupWizardDomainStepFooter() {
                 className="rounded-pill"
                 onClick={handleContinue}
             >
-                Continue <Icon icon="arrow-right" margin="m-0" />
+                Continue <Icon icon="arrow-right" margin="ms-1" />
             </ButtonWithSpinner>
         </div>
     );

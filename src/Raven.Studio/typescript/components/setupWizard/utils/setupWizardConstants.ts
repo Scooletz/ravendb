@@ -325,6 +325,13 @@ const allServerEnvironmentOptions: SelectOption[] = allServerEnvironments.map((e
         value: env,
     }));
 
+const indexingEngineTypes = ["Lucene", "RavenDB"] as const;
+
+const indexingEngineTypeOptions: SelectOption[] = indexingEngineTypes.map((type) => ({
+        label: type,
+        value: type,
+    }));
+
 export const setupWizardConstants = {
     allCountries,
     allJobTitles,
@@ -333,5 +340,7 @@ export const setupWizardConstants = {
     howYouPlanToUseRavenDBOptions,
     nodeTags,
     allServerEnvironments,
-    allServerEnvironmentOptions
+    allServerEnvironmentOptions,
+    indexingEngineTypes,
+    indexingEngineTypeOptions
 };

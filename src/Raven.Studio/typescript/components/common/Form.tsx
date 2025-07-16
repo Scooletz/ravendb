@@ -25,7 +25,6 @@ import useBoolean from "components/hooks/useBoolean";
 import { FilterOptionOption } from "react-select/dist/declarations/src/filters";
 import { MultiRadioToggle } from "./toggles/MultiRadioToggle";
 import "./VerificationCodeInput.scss";
-import { get } from "lodash";
 
 type FormElementProps<TFieldValues extends FieldValues, TName extends FieldPath<TFieldValues>> = Omit<
     ControllerProps<TFieldValues, TName>,
@@ -202,7 +201,10 @@ export function FormSelect<
     Group extends GroupBase<Option> = GroupBase<Option>,
     TFieldValues extends FieldValues = FieldValues,
     TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>,
->(props: FormElementProps<TFieldValues, TName> & ComponentProps<typeof Select<Option, IsMulti, Group>> & { selectClassName?: string}) {
+>(
+    props: FormElementProps<TFieldValues, TName> &
+        ComponentProps<typeof Select<Option, IsMulti, Group>> & { selectClassName?: string }
+) {
     const { name, control, defaultValue, rules, shouldUnregister, className, selectClassName, ...rest } = props;
 
     const {
@@ -812,18 +814,22 @@ export const VerificationCodeInput = ({ name, control, onLastDigitInsertSubmit }
     const [code, setCode] = useState<string[]>(Array(6).fill(""));
     const inputRefs = useRef<HTMLInputElement[]>(Array(6).fill(null));
 
-        const firstInputRef = useCallback((input: HTMLInputElement | null) => {
-        inputRefs.current[0] = input;
-        if (ref) {
-            ref(input);
-        }
-    }, [ref]);
+    const firstInputRef = useCallback(
+        (input: HTMLInputElement | null) => {
+            inputRefs.current[0] = input;
+            if (ref) {
+                ref(input);
+            }
+        },
+        [ref]
+    );
 
-    
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
         const { value } = e.target;
 
-        if (!/^\d$/.test(value) && value !== "") return;
+        if (!/^\d$/.test(value) && value !== "") {
+            return;
+        }
 
         const newCode = [...code];
         newCode[index] = value;
