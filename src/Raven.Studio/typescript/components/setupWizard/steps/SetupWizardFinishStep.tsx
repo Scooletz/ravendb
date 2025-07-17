@@ -134,10 +134,11 @@ export function SetupWizardFinishStep() {
                     </Switch>
                 </FormGroup>
                 <Button
+                    disabled={!configurationProcess?.Messages?.length}
                     variant="link"
                     onClick={() =>
                         downloadConfigurationLog(
-                            configurationProcess.Messages,
+                            configurationProcess?.Messages ?? [],
                             `configurationLog_${moment.utc().format("YYYY-MM-DD-HH-mm-ss")}`
                         )
                     }
@@ -450,10 +451,10 @@ function useSetupWizardFinishUtils() {
         const isPassive = localNode.isPassive;
 
         return {
-            AutoIndexingEngineType: additionalSettingsStep.autoIndexingEngineType,
-            DataDirectory: additionalSettingsStep.dataDirectory,
-            LogsPath: additionalSettingsStep.logsPath,
-            StaticIndexingEngineType: additionalSettingsStep.staticIndexingEngineType,
+            AutoIndexingEngineType: additionalSettingsStep.isAdvancedSettingsVisible ? additionalSettingsStep.autoIndexingEngineType : null,
+            DataDirectory: additionalSettingsStep.isAdvancedSettingsVisible ? additionalSettingsStep.dataDirectory : null,
+            LogsPath: additionalSettingsStep.isAdvancedSettingsVisible ? additionalSettingsStep.logsPath : null,
+            StaticIndexingEngineType: additionalSettingsStep.isAdvancedSettingsVisible ? additionalSettingsStep.staticIndexingEngineType : null,
             EnableExperimentalFeatures: additionalSettingsStep.postgresqlIntegration,
             LocalNodeTag: isPassive ? null : localNode.nodeTag,
             Environment: isPassive ? null : additionalSettingsStep.serverEnvironment,
@@ -470,10 +471,10 @@ function useSetupWizardFinishUtils() {
             : null;
 
         return {
-            AutoIndexingEngineType: additionalSettingsStep.autoIndexingEngineType,
-            DataDirectory: additionalSettingsStep.dataDirectory,
-            LogsPath: additionalSettingsStep.logsPath,
-            StaticIndexingEngineType: additionalSettingsStep.staticIndexingEngineType,
+            AutoIndexingEngineType: additionalSettingsStep.isAdvancedSettingsVisible ? additionalSettingsStep.autoIndexingEngineType : null,
+            DataDirectory: additionalSettingsStep.isAdvancedSettingsVisible ? additionalSettingsStep.dataDirectory : null,
+            LogsPath: additionalSettingsStep.isAdvancedSettingsVisible ? additionalSettingsStep.logsPath : null,
+            StaticIndexingEngineType: additionalSettingsStep.isAdvancedSettingsVisible ? additionalSettingsStep.staticIndexingEngineType : null,
             EnableExperimentalFeatures: additionalSettingsStep.postgresqlIntegration,
             Environment: additionalSettingsStep.serverEnvironment,
             License: JSON.parse(licenseKeyStep.key),
@@ -623,6 +624,10 @@ function useSetupWizardFinishUtils() {
     };
 
     const downloadConfigurationLog = (data: string[], fileName: string) => {
+        if (!data || data.length === 0) {
+            return;
+        }
+        
         const content = data.join("\n");
 
         const blob = new Blob([content], { type: "text/plain;charset=utf-8" });

@@ -39,6 +39,7 @@ import { SelectOption } from "components/common/select/Select";
 import { isEmpty } from "common/typeUtils";
 import Row from "react-bootstrap/Row";
 import Col from "react-bootstrap/esm/Col";
+import { useRavenLink } from "hooks/useRavenLink";
 
 export function SetupWizardNodeAddressStep() {
     const { control } = useFormContext<SetupWizardFormData>();
@@ -345,11 +346,12 @@ function NodeDetailsPanelHeader({ control, index, onRemove, editNodeForm }: Node
 interface PopoverMessageProps {
     description: string | React.ReactNode;
     alert?: React.ReactNode;
-    href?: string;
+    ravenLinkHash?: string;
 }
 
-export function PopoverMessage({ description, href = "https://ravendb.net/docs/article-page/7.0/csharp/start/installation/manual", alert }: PopoverMessageProps) {
-    // TODO: add link to documentation based on app version (useRavenLink) - waiting for access
+export function PopoverMessage({ description, ravenLinkHash = "37GM2Z", alert }: PopoverMessageProps) {
+    // TODO: We need an updated version of the documentation - that way, we will be able to insert links that point directly to the relevant sections
+    const docsLink = useRavenLink({ hash: ravenLinkHash })
 
     return (
         <>
@@ -360,7 +362,7 @@ export function PopoverMessage({ description, href = "https://ravendb.net/docs/a
                 <Icon icon="link" />
                 Read more in our{" "}
                 <a
-                    href={href}
+                    href={docsLink}
                     target="_blank"
                     className="text-primary fw-bold"
                 >
