@@ -386,7 +386,8 @@ namespace Raven.Server.Commercial
         InProgress, 
         Completed, 
         Error, 
-        Skipped
+        NotApplicable,
+        SkippedDueToError
     }
 
     public enum ErrorType
@@ -396,7 +397,18 @@ namespace Raven.Server.Commercial
         ValidationError,
         ConfigurationSettingsError,
         ClientCertificateError,
-        SettingsJsonError,
+        SettingsJsonError
+    }
+
+    public enum ConfigurationStepType
+    {
+        LetsEncrypt,
+        DnsRecords,
+        AcquiringLetsEncryptCertificate,
+        Validation,
+        ConfigurationSettings,
+        ClientCertificate,
+        CreatingSettingsJson
     }
 
     public class SetupActionInfo
@@ -439,36 +451,33 @@ namespace Raven.Server.Commercial
 
     public class SetupActionSteps
     {
-        public SetupActionInfo LetsEncryptStatus { get; set; }
-        public SetupActionInfo DnsRecordsStatus { get; set; }
-        public SetupActionInfo AcquiringLetsEncryptCertificateStatus { get; set; }
-        public SetupActionInfo ValidationStatus { get; set; }
-        public SetupActionInfo ConfigurationSettingsStatus { get; set; }
-        public SetupActionInfo ClientCertificateStatus { get; set; }
-        public SetupActionInfo CreatingSettingsJsonStatus { get; set; }
+        public Dictionary<ConfigurationStepType, SetupActionInfo> StepsByConfigurationStepType { get; }
 
         public SetupActionSteps(SetupMode mode, bool zipOnly)
         {
-            LetsEncryptStatus = new SetupActionInfo();
-            DnsRecordsStatus = new SetupActionInfo();
-            AcquiringLetsEncryptCertificateStatus = new SetupActionInfo();
-            ValidationStatus = new SetupActionInfo();
-            ConfigurationSettingsStatus = new SetupActionInfo();
-            ClientCertificateStatus = new SetupActionInfo();
-            CreatingSettingsJsonStatus = new SetupActionInfo();
+            StepsByConfigurationStepType = new Dictionary<ConfigurationStepType, SetupActionInfo>
+            {
+                [ConfigurationStepType.LetsEncrypt] = new SetupActionInfo(),
+                [ConfigurationStepType.DnsRecords] = new SetupActionInfo(),
+                [ConfigurationStepType.AcquiringLetsEncryptCertificate] = new SetupActionInfo(),
+                [ConfigurationStepType.Validation] = new SetupActionInfo(),
+                [ConfigurationStepType.ConfigurationSettings] = new SetupActionInfo(),
+                [ConfigurationStepType.ClientCertificate] = new SetupActionInfo(),
+                [ConfigurationStepType.CreatingSettingsJson] = new SetupActionInfo()
+            };
             
             switch (mode)
             {
                 case SetupMode.Unsecured:
-                    LetsEncryptStatus.SetState(State.Skipped);
-                    DnsRecordsStatus.SetState(State.Skipped);
-                    AcquiringLetsEncryptCertificateStatus.SetState(State.Skipped);
-                    ClientCertificateStatus.SetState(State.Skipped);
+                    StepsByConfigurationStepType[ConfigurationStepType.LetsEncrypt].SetState(State.NotApplicable);
+                    StepsByConfigurationStepType[ConfigurationStepType.DnsRecords].SetState(State.NotApplicable);
+                    StepsByConfigurationStepType[ConfigurationStepType.AcquiringLetsEncryptCertificate].SetState(State.NotApplicable);
+                    StepsByConfigurationStepType[ConfigurationStepType.ClientCertificate].SetState(State.NotApplicable);
                     break;
                 case SetupMode.Secured:
-                    LetsEncryptStatus.SetState(State.Skipped);
-                    DnsRecordsStatus.SetState(State.Skipped);
-                    AcquiringLetsEncryptCertificateStatus.SetState(State.Skipped);
+                    StepsByConfigurationStepType[ConfigurationStepType.LetsEncrypt].SetState(State.NotApplicable);
+                    StepsByConfigurationStepType[ConfigurationStepType.DnsRecords].SetState(State.NotApplicable);
+                    StepsByConfigurationStepType[ConfigurationStepType.AcquiringLetsEncryptCertificate].SetState(State.NotApplicable);
                     break;
                 case SetupMode.LetsEncrypt:
                     break;
@@ -477,21 +486,26 @@ namespace Raven.Server.Commercial
             }
             
             if (zipOnly)
-                CreatingSettingsJsonStatus.SetState(State.Skipped);
+                StepsByConfigurationStepType[ConfigurationStepType.CreatingSettingsJson].SetState(State.NotApplicable);
+        }
+
+        public void SetError(ConfigurationStepType stepType, ErrorType errorType, string errorMessage)
+        {
+            StepsByConfigurationStepType[stepType].SetError(errorType, errorMessage);
+
+            foreach (var step in StepsByConfigurationStepType.Values.Where(step => step.State == State.Pending))
+            {
+                step.SetState(State.SkippedDueToError);
+            }
         }
 
         public DynamicJsonValue ToJson()
         {
-            var json = new DynamicJsonValue(GetType())
+            var json = new DynamicJsonValue(GetType());
+            foreach (var kvp in StepsByConfigurationStepType)
             {
-                [nameof(LetsEncryptStatus)] = LetsEncryptStatus.ToJson(),
-                [nameof(DnsRecordsStatus)] = DnsRecordsStatus.ToJson(),
-                [nameof(AcquiringLetsEncryptCertificateStatus)] = AcquiringLetsEncryptCertificateStatus.ToJson(),
-                [nameof(ValidationStatus)] = ValidationStatus.ToJson(),
-                [nameof(ConfigurationSettingsStatus)] = ConfigurationSettingsStatus.ToJson(),
-                [nameof(ClientCertificateStatus)] = ClientCertificateStatus.ToJson(),
-                [nameof(CreatingSettingsJsonStatus)] = CreatingSettingsJsonStatus.ToJson()
-            };
+                json[kvp.Key.ToString()] = kvp.Value.ToJson();
+            }
             
             return json;
         }

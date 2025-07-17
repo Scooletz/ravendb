@@ -85,7 +85,7 @@ public static class SetupWizardUtils
             }
 
             parameters.Progress?.AddInfo("Generating the client certificate.");
-            parameters.Progress?.SetupActionSteps.ClientCertificateStatus.SetState(State.InProgress);
+            parameters.Progress?.SetupActionSteps.StepsByConfigurationStepType[ConfigurationStepType.ClientCertificate].SetState(State.InProgress);
             
             parameters.OnProgress?.Invoke(parameters.Progress);
 
@@ -114,14 +114,14 @@ public static class SetupWizardUtils
             }
             catch (Exception e)
             {
-                parameters.Progress?.SetupActionSteps.ClientCertificateStatus.SetError(ErrorType.ClientCertificateError, e.Message);
+                parameters.Progress?.SetupActionSteps.SetError(ConfigurationStepType.ClientCertificate, ErrorType.ClientCertificateError, e.Message);
                 throw new InvalidOperationException($"Failed to generate a client certificate for '{domain}'.", e);
             }
 
             if (parameters.SetupInfo.RegisterClientCert)
                 parameters.RegisterClientCertInOs?.Invoke(parameters.OnProgress, parameters.Progress, clientCert);
-
-            parameters.Progress?.SetupActionSteps.ClientCertificateStatus.SetState(State.Completed);
+            
+            parameters.Progress?.SetupActionSteps.StepsByConfigurationStepType[ConfigurationStepType.ClientCertificate].SetState(State.Completed);
             
             return new CompleteClusterConfigurationResult
             {
