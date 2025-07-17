@@ -28,6 +28,7 @@ import { useEffect } from "react";
 import { get } from "lodash";
 import { FieldPath } from "react-hook-form/dist/types/path";
 import { LazyLoad } from "components/common/LazyLoad";
+import PopoverWithHoverWrapper from "components/common/PopoverWithHoverWrapper";
 
 export function SetupWizardLicenseKeyStep() {
     const { control } = useFormContext<SetupWizardFormData>();
@@ -120,9 +121,16 @@ function LicenseKeyBadge() {
 
     if (isInvalidKey) {
         return (
-            <Badge bg="danger" pill className="position-absolute bottom-0 end-0 mb-3 me-3" style={{ zIndex: 5 }}>
-                Invalid
-            </Badge>
+            <PopoverWithHoverWrapper
+                targetClassname="position-absolute bottom-0 end-0 mb-3 me-3"
+                targetStyle={{ zIndex: 5 }}
+                message="The provided license key format is invalid. Please check the key and try again."
+            >
+                <Badge bg="danger" pill>
+                    Invalid
+                    <Icon icon="warning" margin="ms-2" />
+                </Badge>
+            </PopoverWithHoverWrapper>
         );
     }
 
@@ -516,7 +524,7 @@ export function SetupWizardLicenseKeyStepFooter() {
 
     const { licenseKeyStep } = useWatch({ control });
 
-    const { key, licenseTypeToGenerate } = licenseKeyStep;
+    const { key, licenseTypeToGenerate, isInvalidKey } = licenseKeyStep;
 
     const toDto = (licenseStepData: SetupWizardFormData["licenseKeyStep"]): SendFreeLicenseVerificationRequest => {
         if (!licenseStepData) {
@@ -574,7 +582,6 @@ export function SetupWizardLicenseKeyStepFooter() {
             } catch (err) {
             setValue("licenseKeyStep.isInvalidKey", true);
                 setValue("licenseKeyStep.isLoadingKey", false);
-                messagePublisher.reportError("There was an error while registering license key", err);
                 setValue("licenseKeyStep.licenseInfo", null);
             }
         },
@@ -643,6 +650,7 @@ export function SetupWizardLicenseKeyStepFooter() {
                 </Button>
             ) : (
                 <ButtonWithSpinner
+                    disabled={isInvalidKey}
                     variant="primary"
                     className="rounded-pill"
                     onClick={handleContinue}
