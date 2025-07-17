@@ -36,25 +36,6 @@ namespace Raven.Server.Commercial
         {
             _serverStore = serverStore;
         }
-
-        internal bool TryGetLicense(out License license)
-        {
-            try
-            {
-                license = TryGetLicenseFromString(throwOnFailure: false);
-                if (license is not null)
-                    return true;
-                
-                license = TryGetLicenseFromPath(throwOnFailure: false);
-                return license is not null;
-            }
-            catch (Exception e)
-            {
-                if (Logger.IsInfoEnabled)
-                    Logger.Info("Failed to get the license", e);
-                throw;
-            }
-        }
         
         public void UpdateLocalLicense(License newLicense, RSAParameters rsaParameters)
         {
