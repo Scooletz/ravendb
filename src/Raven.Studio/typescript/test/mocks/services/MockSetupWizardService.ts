@@ -21,20 +21,19 @@ export default class MockSetupWizardService extends AutoMockService<SetupWizardS
 
     withRegistrationInfo() {
         return this.mocks.registrationInfo.mockImplementation(async (license) => {
-            // TODO all all types?
 
-            if (license.Id === "Community") {
+            if (license.Id === "53f54157-3862-47b6-9dbd-94d323687a90") {
                 return SetupWizardStubs.registrationInfoCommunity();
             }
 
-            if (license.Id === "Essential") {
+            if (license.Id === "53f54157-3862-47b6-9dbd-94d323687a91") {
                 return {
                     ...SetupWizardStubs.registrationInfoCommunity(),
                     LicenseType: "Essential",
                 };
             }
 
-            if (license.Id === "Enterprise") {
+            if (license.Id === "53f54157-3862-47b6-9dbd-94d323687a92") {
                 return {
                     ...SetupWizardStubs.registrationInfoCommunity(),
                     LicenseType: "Enterprise",
@@ -42,15 +41,15 @@ export default class MockSetupWizardService extends AutoMockService<SetupWizardS
                 };
             }
 
-            if (license.Id === "Developer") {
+            if (license.Id === "53f54157-3862-47b6-9dbd-94d323687a93") {
                 return {
                     ...SetupWizardStubs.registrationInfoCommunity(),
                     LicenseType: "Developer",
-                    MaxClusterSize: 3,
+                    MaxClusterSize: 5,
                 };
             }
 
-            if (license.Id === "Professional") {
+            if (license.Id === "53f54157-3862-47b6-9dbd-94d323687a94") {
                 return {
                     ...SetupWizardStubs.registrationInfoCommunity(),
                     LicenseType: "Professional",

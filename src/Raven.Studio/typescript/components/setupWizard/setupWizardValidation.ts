@@ -65,8 +65,18 @@ const licenseKeyStepSchema = yup.object({
     industry: licenseRequiredField(yup.string().oneOf(setupWizardConstants.allIndustries)),
     company: licenseRequiredField(yup.string()),
     howYouPlanToUseRavenDB: licenseRequiredField(yup.string().oneOf(setupWizardConstants.allHowYouPlanToUseRavenDB)),
-    
+
     verificationCode: yup.string(),
+    
+    //states
+    isLoadingKey: yup.boolean(),
+    isInvalidKey: yup.boolean(),
+});
+
+export const licenseKeySchema = yup.object().shape({
+    Id: yup.string().uuid().required(),
+    Name: yup.string().required(),
+    Keys: yup.array().of(yup.string().required()).required(),
 });
 
 const securityStepSchema = yup.object({

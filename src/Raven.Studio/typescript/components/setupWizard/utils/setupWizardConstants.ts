@@ -297,40 +297,35 @@ const allHowYouPlanToUseRavenDB = [
     "I want to see if it's a right fit for my organization",
     "I just want to see what it can do",
 ];
-const howYouPlanToUseRavenDBOptions: SelectOption[] = [
-    {
-        label: "I want to develop my NoSQL skills",
-        value: "I want to develop my NoSQL skills",
-    },
-    {
-        label: "I am looking for a database for a new project",
-        value: "I am looking for a database for a new project",
-    },
-    {
-        label: "I want to see if it's a right fit for my organization",
-        value: "I want to see if it's a right fit for my organization",
-    },
-    {
-        label: "I just want to see what it can do",
-        value: "I just want to see what it can do",
-    },
-];
+
+const howYouPlanToUseRavenDBOptions: SelectOption[] = allHowYouPlanToUseRavenDB.map((option) => ({
+    label: option,
+    value: option,
+}));
 
 const nodeTags = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'];
 
 const allServerEnvironments = ["Production", "Testing", "Development", "None"] as const;
 
 const allServerEnvironmentOptions: SelectOption[] = allServerEnvironments.map((env) => ({
-        label: env,
-        value: env,
-    }));
+    label: env,
+    value: env,
+}));
 
 const indexingEngineTypes = ["Lucene", "Corax"] as const;
 
 const indexingEngineTypeOptions: SelectOption[] = indexingEngineTypes.map((type) => ({
-        label: type,
-        value: type,
-    }));
+    label: type,
+    value: type,
+}));
+
+const SETUP_WIZARD_MOCK_LICENSE_KEYS_IDS = {
+    COMMUNITY: "53f54157-3862-47b6-9dbd-94d323687a90",
+    ESSENTIAL: "53f54157-3862-47b6-9dbd-94d323687a91",
+    ENTERPRISE: "53f54157-3862-47b6-9dbd-94d323687a92",
+    DEVELOPER: "53f54157-3862-47b6-9dbd-94d323687a93",
+    PROFESSIONAL: "53f54157-3862-47b6-9dbd-94d323687a94",
+}
 
 export const setupWizardConstants = {
     allCountries,
@@ -342,5 +337,6 @@ export const setupWizardConstants = {
     allServerEnvironments,
     allServerEnvironmentOptions,
     indexingEngineTypes,
-    indexingEngineTypeOptions
+    indexingEngineTypeOptions,
+    SETUP_WIZARD_MOCK_LICENSE_KEYS_IDS
 };

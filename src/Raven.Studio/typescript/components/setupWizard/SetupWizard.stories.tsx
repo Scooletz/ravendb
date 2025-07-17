@@ -11,6 +11,7 @@ import {
     SetupWizardSetupMethod,
     SetupWizardStepId,
 } from "components/setupWizard/setupWizardValidation";
+import { setupWizardConstants } from "components/setupWizard/utils/setupWizardConstants";
 
 const getSecurityOptionLabel = (option: SetupWizardSecurityOption): string => {
     switch (option) {
@@ -41,17 +42,15 @@ export default {
         licenseType: {
             control: {
                 type: "select",
+                labels: Object.entries(setupWizardConstants.SETUP_WIZARD_MOCK_LICENSE_KEYS_IDS).reduce(
+                    (acc, [key, value]) => ({
+                        ...acc,
+                        [value]: key,
+                    }),
+                    {}
+                ) satisfies Partial<Record<Raven.Server.Commercial.LicenseType, string>>,
             },
-            options: [
-                "Community",
-                "Developer",
-                "Enterprise",
-                "Essential",
-                "Invalid",
-                "None",
-                "Professional",
-                "Reserved",
-            ] satisfies Raven.Server.Commercial.LicenseType[],
+            options: Object.values(setupWizardConstants.SETUP_WIZARD_MOCK_LICENSE_KEYS_IDS)
         },
         securityOption: {
             control: {
@@ -80,7 +79,7 @@ export default {
     },
     args: {
         securityOption: "letsEncrypt",
-        licenseType: "Community",
+        licenseType: setupWizardConstants.SETUP_WIZARD_MOCK_LICENSE_KEYS_IDS.COMMUNITY as Raven.Server.Commercial.LicenseType,
         setupMethod: "newCluster"
     },
 } satisfies Meta<SetupWizardStoryArgs>;

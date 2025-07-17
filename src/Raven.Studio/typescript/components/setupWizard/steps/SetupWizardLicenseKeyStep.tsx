@@ -1,6 +1,6 @@
 import "./SetupWizardLicenseKeyStep.scss";
 import { useFormContext, useWatch } from "react-hook-form";
-import { LicenseTypeToGenerate, SetupWizardFormData } from "../setupWizardValidation";
+import { licenseKeySchema, LicenseTypeToGenerate, SetupWizardFormData } from "../setupWizardValidation";
 import { Icon } from "components/common/Icon";
 import Button from "react-bootstrap/Button";
 import {
@@ -27,6 +27,7 @@ import { useAsyncCallback, UseAsyncReturn } from "react-async-hook";
 import { useEffect } from "react";
 import { get } from "lodash";
 import { FieldPath } from "react-hook-form/dist/types/path";
+import { LazyLoad } from "components/common/LazyLoad";
 
 export function SetupWizardLicenseKeyStep() {
     const { control } = useFormContext<SetupWizardFormData>();
@@ -104,8 +105,26 @@ function LicenseKeyBadge() {
     const { control } = useFormContext<SetupWizardFormData>();
 
     const {
-        licenseKeyStep: { licenseInfo },
+        licenseKeyStep: { licenseInfo, isLoadingKey, isInvalidKey },
     } = useWatch({ control });
+
+    if (isLoadingKey) {
+        return (
+            <LazyLoad active={isLoadingKey}>
+                <Badge bg="secondary" pill className="position-absolute bottom-0 end-0 mb-3 me-3" style={{ zIndex: 5 }}>
+                    Loading...
+                </Badge>
+            </LazyLoad>
+        );
+    }
+
+    if (isInvalidKey) {
+        return (
+            <Badge bg="danger" pill className="position-absolute bottom-0 end-0 mb-3 me-3" style={{ zIndex: 5 }}>
+                Invalid
+            </Badge>
+        );
+    }
 
     if (licenseInfo == null || licenseInfo.licenseType == null) {
         return null;
@@ -117,7 +136,7 @@ function LicenseKeyBadge() {
             case "Essential":
                 return "info";
             case "Developer":
-                return "success";
+                return "developer";
             case "Professional":
                 return "professional";
             case "Enterprise":
@@ -449,6 +468,7 @@ export function SetupWizardLicenseKeyVerifyCodeModal({
                         onClick={sendLicenseVerificationCode.loading ? () => {} : sendLicenseVerificationCode.execute}
                         disabled={sendLicenseVerificationCode.loading}
                     >
+                        {/*TODO: Consider - maybe we should lock resend button for e.g. 15s and show counter? - we dont want to spam to this api. */}
                         Click to resend
                     </Button>{" "}
                     or update your email address.
@@ -520,24 +540,43 @@ export function SetupWizardLicenseKeyStepFooter() {
     };
     const asyncRegistrationInfo = useAsyncDebounce(
         async () => {
+            setValue("licenseKeyStep.isLoadingKey", true);
+            setValue("licenseKeyStep.isInvalidKey", false);
             setValue("licenseKeyStep.licenseInfo", null);
 
             if (key == null) {
+                setValue("licenseKeyStep.isLoadingKey", false);
                 return;
             }
 
-            // TODO validate yup schema to make sure it's valid license key
-            const info = await setupWizardService.registrationInfo(JSON.parse(key));
+            if (!key) {
+                setValue("licenseKeyStep.isLoadingKey", false);
+                return;
+            }
 
-            setValue("licenseKeyStep.licenseInfo", {
-                licenseType: info.LicenseType,
-                userDomainsWithIps: {
-                    email: info.UserDomainsWithIps.Emails,
-                    rootDomains: info.UserDomainsWithIps.RootDomains,
-                    domains: info.UserDomainsWithIps.Domains,
-                },
-                maxClusterSize: info.MaxClusterSize,
-            });
+            try {
+                const parsedKey = JSON.parse(key);
+                // TODO: okay there is error. what should we do? - lock button or smth?
+                await licenseKeySchema.validate(parsedKey);
+
+                const info = await setupWizardService.registrationInfo(parsedKey);
+
+                setValue("licenseKeyStep.licenseInfo", {
+                    licenseType: info.LicenseType,
+                    userDomainsWithIps: {
+                        email: info.UserDomainsWithIps.Emails,
+                        rootDomains: info.UserDomainsWithIps.RootDomains,
+                        domains: info.UserDomainsWithIps.Domains,
+                    },
+                    maxClusterSize: info.MaxClusterSize,
+                });
+                setValue("licenseKeyStep.isLoadingKey", false);
+            } catch (err) {
+            setValue("licenseKeyStep.isInvalidKey", true);
+                setValue("licenseKeyStep.isLoadingKey", false);
+                messagePublisher.reportError("There was an error while registering license key", err);
+                setValue("licenseKeyStep.licenseInfo", null);
+            }
         },
         [key],
         300
