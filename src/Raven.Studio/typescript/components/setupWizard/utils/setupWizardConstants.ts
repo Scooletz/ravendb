@@ -325,7 +325,7 @@ const allServerEnvironmentOptions: SelectOption[] = allServerEnvironments.map((e
         value: env,
     }));
 
-const indexingEngineTypes = ["Lucene", "RavenDB"] as const;
+const indexingEngineTypes = ["Lucene", "Corax"] as const;
 
 const indexingEngineTypeOptions: SelectOption[] = indexingEngineTypes.map((type) => ({
         label: type,
