@@ -183,32 +183,32 @@ const Configuration = ({ configurationProcess }: ConfigurationProps) => {
     return (
         <div>
             <ConfigurationItem
-                stepTitle="Let's Encrypt"
+                stepTitle="Validation"
+                configurationState={configurationProcess?.SetupActionSteps?.ValidationStatus}
+            />
+            
+            <ConfigurationItem
+                stepTitle="Let's encrypt"
                 configurationState={configurationProcess?.SetupActionSteps?.AcquiringLetsEncryptCertificateStatus}
             />
 
             <ConfigurationItem
-                stepTitle="DNS Records"
+                stepTitle="DNS records"
                 configurationState={configurationProcess?.SetupActionSteps?.DnsRecordsStatus}
             />
 
             <ConfigurationItem
-                stepTitle="Acquiring certificate"
+                stepTitle="Acquiring let's encrypt certificate"
                 configurationState={configurationProcess?.SetupActionSteps?.ClientCertificateStatus}
             />
 
             <ConfigurationItem
-                stepTitle="Validation"
-                configurationState={configurationProcess?.SetupActionSteps?.ValidationStatus}
-            />
-
-            <ConfigurationItem
-                stepTitle="Configuration Settings"
+                stepTitle="Configuration settings"
                 configurationState={configurationProcess?.SetupActionSteps?.ConfigurationSettingsStatus}
             />
 
             <ConfigurationItem
-                stepTitle="Client Certificate"
+                stepTitle="Client certificate"
                 configurationState={configurationProcess?.SetupActionSteps?.ClientCertificateStatus}
             />
 
