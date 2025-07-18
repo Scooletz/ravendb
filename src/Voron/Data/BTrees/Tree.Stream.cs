@@ -52,15 +52,7 @@ namespace Voron.Data.BTrees
         }
 
         private const int MaxNumberOfPagerPerChunk = 4 * Constants.Size.Megabyte / Constants.Storage.PageSize;
-
-        [ThreadStatic]
-        private static byte[] _localBuffer;
-
-        static Tree()
-        {
-            ThreadLocalCleanup.ReleaseThreadLocalState += () => _localBuffer = null;
-        }
-
+        
         private struct StreamToPageWriter
         {
             private int _chunkNumber;
@@ -89,18 +81,18 @@ namespace Voron.Data.BTrees
 
             public void Write(Stream stream)
             {
-                _localBuffer = ArrayPool<byte>.Shared.Rent(512 * Constants.Size.Kilobyte);
-                try
+                const int bufferSize = 512 * Constants.Size.Kilobyte;
+                using (_parent._tx.Allocator.Allocate(bufferSize, out Span<byte> localBuffer))
                 {
                     AllocateNextPage();
 
                     ((StreamPageHeader*)_currentPage.Pointer)->StreamPageFlags |= StreamPageFlags.First;
 
-                    fixed (byte* pBuffer = _localBuffer)
+                    fixed (byte* pBuffer = localBuffer)
                     {
                         while (true)
                         {
-                            var read = stream.Read(_localBuffer, 0, _localBuffer.Length);
+                            var read = stream.Read(localBuffer);
                             if (read == 0)
                                 break;
 
@@ -138,10 +130,6 @@ namespace Voron.Data.BTrees
 
                         _parent._tx.LowLevelTransaction.ShrinkOverflowPage(_currentPage.PageNumber, chunkSize + infoSize, _parent);
                     }
-                }
-                finally
-                {
-                    ArrayPool<byte>.Shared.Return(_localBuffer);
                 }
             }
 
