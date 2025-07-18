@@ -321,13 +321,6 @@ namespace Raven.Server.ServerWide
 
         public bool ValidateFixedPort = true;
 
-        public Dictionary<string, ClusterNodeStatusReport> ClusterStats()
-        {
-            if (_engine.LeaderTag != NodeTag)
-                throw new NotLeadingException($"Stats can be requested only from the raft leader {_engine.LeaderTag}");
-            return ClusterMaintenanceSupervisor?.GetStats();
-        }
-
         internal LicenseType GetLicenseType()
         {
             return LicenseManager.LicenseStatus.Type;
@@ -564,6 +557,7 @@ namespace Raven.Server.ServerWide
                 if (url != null)
                     return true;
             }
+
             url = null;
             return false;
         }
@@ -853,9 +847,16 @@ namespace Raven.Server.ServerWide
 
             _server.Statistics.Load(ContextPool, Logger);
 
-            _timer = new Timer(IdleOperations, null, _frequencyToCheckForIdleDatabases, TimeSpan.FromDays(7));
+            _timer = new Timer(IdleOperationsCallback, null, _frequencyToCheckForIdleDatabases, TimeSpan.FromDays(7));
+
             _operationsStorage.Initialize(_env, ContextPool);
             DatabaseInfoCache.Initialize(_env, ContextPool);
+            return;
+
+            void IdleOperationsCallback(object state)
+            {
+                IdleOperations();
+            }
         }
 
         public void Initialize()
@@ -1057,6 +1058,7 @@ namespace Raven.Server.ServerWide
             {
                 Engine.Log.Debug(msg);
             }
+
             Engine.InMemoryDebug.StateChangeTracking.LimitedSizeEnqueue(msg, 10);
 
             NotifyAboutClusterTopologyAndConnectivityChanges();
@@ -1074,6 +1076,7 @@ namespace Raven.Server.ServerWide
         }
 
         private readonly DeferrableTimeout.Promise _current = new DeferrableTimeout.Promise(TimeSpan.FromSeconds(15));
+
         private async Task RefreshOutgoingTasksAsync()
         {
             var r = _current.ScheduleOrDefer(out var task);
@@ -1089,6 +1092,7 @@ namespace Raven.Server.ServerWide
                     {
                         _current.Reset();
                     }
+
                     break;
                 case DeferrableTimeout.Promise.Result.Deferred:
                     return;
@@ -1104,6 +1108,7 @@ namespace Raven.Server.ServerWide
             {
                 tasks.Add(db.Key.Value, db.Value);
             }
+
             while (tasks.Count != 0)
             {
                 var completedTask = await Task.WhenAny(tasks.Values).ConfigureAwait(false);
@@ -1130,7 +1135,6 @@ namespace Raven.Server.ServerWide
                     }
                 }
             }
-
         }
 
         public Dictionary<string, NodeStatus> GetNodesStatuses()
@@ -1158,6 +1162,7 @@ namespace Raven.Server.ServerWide
                             [leaderTag] = new NodeStatus { Connected = true }
                         };
                     }
+
                     break;
             }
 
@@ -1808,6 +1813,7 @@ namespace Raven.Server.ServerWide
                 // in this case, we ignore the existence of the key and overwrite it
                 existingKey = null;
             }
+
             if (existingKey != null)
             {
                 fixed (byte* pKey = key)
@@ -2039,6 +2045,7 @@ namespace Raven.Server.ServerWide
                 throw new InvalidOperationException(
                     $"Expiration delete frequency for database '{databaseName}' must be greater than 0.");
             }
+
             var editExpiration = new EditExpirationCommand(expiration, databaseName, raftRequestId);
             return SendToLeaderAsync(editExpiration);
         }
@@ -2051,6 +2058,7 @@ namespace Raven.Server.ServerWide
                 throw new InvalidOperationException(
                     $"Archive frequency for database '{databaseName}' must be greater than 0.");
             }
+
             var editDataArchival = new EditDataArchivalCommand(dataArchivalConfiguration, databaseName, raftRequestId);
             return SendToLeaderAsync(editDataArchival);
         }
@@ -2086,6 +2094,7 @@ namespace Raven.Server.ServerWide
                 throw new InvalidOperationException(
                     $"Refresh frequency for database '{databaseName}' must be greater than 0.");
             }
+
             var editExpiration = new EditRefreshCommand(refresh, databaseName, raftRequestId);
             return SendToLeaderAsync(editExpiration);
         }
@@ -2201,7 +2210,7 @@ namespace Raven.Server.ServerWide
 
                         command = new AddQueueEtlCommand(queueEtl, databaseName, raftRequestId);
                         break;
-                    
+
                     case EtlType.Snowflake:
                         var snowflakeEtl = JsonDeserializationCluster.SnowflakeEtlConfiguration(etlConfiguration);
                         snowflakeEtl.Validate(out var snowflakeEtlErr, validateName: false, validateConnection: false);
@@ -2216,7 +2225,14 @@ namespace Raven.Server.ServerWide
                     case EtlType.EmbeddingsGeneration:
                     {
                         var aiIntegration = JsonDeserializationCluster.EmbeddingsGenerationConfiguration(etlConfiguration);
-                        aiIntegration.Validate(out var aiIntegrationErr, validateName: false, validateConnection: false);
+                        if (rawRecord.AiConnectionStrings?.TryGetValue(aiIntegration.ConnectionStringName, out var cs) != true)
+                        {
+                            throw new InvalidOperationException(
+                                $"Could not find connection string named '{aiIntegration.ConnectionStringName}' for ETL type '{EtlType.EmbeddingsGeneration}'. Please supply an existing connection string.");
+                        }
+
+                        aiIntegration.Initialize(cs);
+                        aiIntegration.Validate(out var aiIntegrationErr, validateName: false, validateConnection: true);
                         if (ValidateConnectionString(rawRecord, aiIntegration.ConnectionStringName, aiIntegration.EtlType) == false)
                             aiIntegrationErr.Add(
                                 $"Could not find connection string named '{aiIntegration.ConnectionStringName}'. Please supply an existing connection string.");
@@ -2230,7 +2246,14 @@ namespace Raven.Server.ServerWide
                             throw new NotSupportedInShardingException("GenAI is currently not supported in sharding");
 
                         var genAi = JsonDeserializationCluster.GenAiConfiguration(etlConfiguration);
-                        genAi.Validate(out var genAiErr, validateName: false, validateConnection: false);
+                        if (rawRecord.AiConnectionStrings?.TryGetValue(genAi.ConnectionStringName, out var cs) != true)
+                        {
+                            throw new InvalidOperationException(
+                                $"Could not find connection string named '{genAi.ConnectionStringName}' for ETL type '{EtlType.GenAi}'. Please supply an existing connection string.");
+                        }
+
+                        genAi.Initialize(cs);
+                        genAi.Validate(out var genAiErr, validateName: false, validateConnection: true);
                         if (ValidateConnectionString(rawRecord, genAi.ConnectionStringName, genAi.EtlType) == false)
                             genAiErr.Add($"Could not find connection string named '{genAi.ConnectionStringName}'. Please supply an existing connection string.");
                         ThrowInvalidConfigurationIfNecessary(etlConfiguration, genAiErr);
@@ -2676,7 +2699,7 @@ namespace Raven.Server.ServerWide
 
                         command = new RemoveQueueConnectionStringCommand(connectionStringName, databaseName, raftRequestId);
                         break;
-                    
+
                     case ConnectionStringType.Snowflake:
 
                         var snowflakeEtls = rawRecord.SnowflakeEtls;
@@ -2847,7 +2870,7 @@ namespace Raven.Server.ServerWide
             }
         }
 
-        public void IdleOperations(object state)
+        public void IdleOperations(Dictionary<StringSegment, DatabasesDebugHandler.IdleDatabaseStatistics> stats = null)
         {
             try
             {
@@ -2878,7 +2901,14 @@ namespace Raven.Server.ServerWide
                     {
                         try
                         {
-                            if (CanUnloadDatabase(databaseKvp.Key, databaseKvp.Value, statistics: null, out DocumentDatabase database) == false)
+                            DatabasesDebugHandler.IdleDatabaseStatistics statistics = null;
+                            if (stats != null)
+                            {
+                                if (stats.TryGetValue(databaseKvp.Key, out statistics) == false)
+                                    stats[databaseKvp.Key] = statistics = new DatabasesDebugHandler.IdleDatabaseStatistics();
+                            }
+
+                            if (CanUnloadDatabase(databaseKvp.Key, databaseKvp.Value, statistics: statistics, out DocumentDatabase database) == false)
                                 continue;
 
                             var dbIdEtagDictionary = new Dictionary<string, long>();
@@ -3517,6 +3547,7 @@ namespace Raven.Server.ServerWide
 
             return requestExecutor;
         }
+
         public Task WaitForTopology(Leader.TopologyModification state, CancellationToken token)
         {
             return _engine.WaitForTopology(state, token: token);
@@ -3616,6 +3647,7 @@ namespace Raven.Server.ServerWide
             {
                 res[i] = urls[i].UriValue;
             }
+
             return res;
         }
 
@@ -3660,11 +3692,13 @@ namespace Raven.Server.ServerWide
                     connectionInfo = ReplicationUtils.GetDatabaseTcpInfoAsync(GetNodeHttpServerUrl(), url, database, "Test-Connection", Server.Certificate.Certificate,
                         cts.Token);
                 }
+
                 Task timeoutTask = await Task.WhenAny(timeout, connectionInfo);
                 if (timeoutTask == timeout)
                 {
                     throw new TimeoutException($"Waited for {Configuration.Cluster.OperationTimeout.AsTimeSpan} to receive TCP information from '{url}' and got no response");
                 }
+
                 await connectionInfo;
             }
             catch (Exception e)
