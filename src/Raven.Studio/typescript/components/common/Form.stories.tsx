@@ -14,7 +14,7 @@ import {
     FormSelect,
     FormSelectAutocomplete,
     FormSelectCreatable,
-    FormSwitch,
+    FormSwitch, FormVerificationCodeInput,
 } from "./Form";
 import { useEffect } from "react";
 import { withBootstrap5, withStorybookContexts } from "test/storybookTestUtils";
@@ -210,6 +210,10 @@ export function Form({ isDefaultValid }: { isDefaultValid: boolean }) {
                     getPathDependencies={(path: string) => [path]}
                 />
             </FormGroup>
+            <FormGroup>
+                <FormLabel>Verification Code Input</FormLabel>
+                <FormVerificationCodeInput control={control} name="inputVerificationCode" onLastDigitInsertSubmit={() => console.log("last digit inserted")}  />
+            </FormGroup>
         </div>
     );
 }
@@ -232,6 +236,7 @@ const schema = yup.object().shape({
     inputDurationPicker: yup.number().required(),
     inputAceEditor: yup.string().required(),
     inputPath: yup.string().required(),
+    inputVerificationCode: yup.string().required(),
 });
 
 const formResolver = yupResolver(schema);

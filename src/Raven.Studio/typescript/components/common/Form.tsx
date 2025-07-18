@@ -802,7 +802,7 @@ interface VerificationCodeInputProps {
     onLastDigitInsertSubmit?: (code: string) => void;
 }
 
-export const VerificationCodeInput = ({ name, control, onLastDigitInsertSubmit }: VerificationCodeInputProps) => {
+export const FormVerificationCodeInput = ({ name, control, onLastDigitInsertSubmit }: VerificationCodeInputProps) => {
     const {
         field: { onChange, ref },
         fieldState: { error },
@@ -857,6 +857,27 @@ export const VerificationCodeInput = ({ name, control, onLastDigitInsertSubmit }
         e.target.select();
     };
 
+    const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+        e.preventDefault();
+        const pastedData = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
+        const newCode = [...code];
+
+        for (let i = 0; i < pastedData.length; i++) {
+            newCode[i] = pastedData[i];
+        }
+
+        setCode(newCode);
+        onChange(newCode.join(""));
+
+        if (pastedData.length === 6 && onLastDigitInsertSubmit) {
+            onLastDigitInsertSubmit(newCode.join(""));
+        }
+
+        if (pastedData.length < 6) {
+            inputRefs.current[pastedData.length]?.focus();
+        }
+    };
+
     return (
         <div>
             <div className="verification-code-inputs">
@@ -869,6 +890,7 @@ export const VerificationCodeInput = ({ name, control, onLastDigitInsertSubmit }
                         onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleChange(e, index)}
                         onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => handleKeyDown(e, index)}
                         onFocus={handleFocus}
+                        onPaste={handlePaste}
                         ref={
                             index === 0
                                 ? firstInputRef

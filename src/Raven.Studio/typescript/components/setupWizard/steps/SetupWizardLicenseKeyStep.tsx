@@ -11,7 +11,7 @@ import {
     FormMultiRadioToggle,
     FormSelect,
     OptionalLabel,
-    VerificationCodeInput,
+    FormVerificationCodeInput,
 } from "components/common/Form";
 import { HStack } from "components/common/HStack";
 import { setupWizardConstants } from "../utils/setupWizardConstants";
@@ -471,7 +471,7 @@ export function SetupWizardLicenseKeyVerifyCodeModal({
                     sent verification code to <b>{licenseKeyStepData?.email || "test@gmail.com"}</b>
                 </p>
                 <form>
-                    <VerificationCodeInput
+                    <FormVerificationCodeInput
                         onLastDigitInsertSubmit={onSubmitVerifiedCode.execute}
                         name="licenseKeyStep.verificationCode"
                         control={control}

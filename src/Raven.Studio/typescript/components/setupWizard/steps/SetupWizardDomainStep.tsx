@@ -11,6 +11,7 @@ import PopoverWithHoverWrapper from "components/common/PopoverWithHoverWrapper";
 import InputGroupText from "react-bootstrap/InputGroupText";
 import ButtonWithSpinner from "components/common/ButtonWithSpinner";
 import Button from "react-bootstrap/Button";
+import messagePublisher from "common/messagePublisher";
 
 export function SetupWizardDomainStep() {
     const { control, setValue, setError, clearErrors } = useFormContext<SetupWizardFormData>();
@@ -107,6 +108,7 @@ export function SetupWizardDomainStep() {
                     isDisabled={asyncCheckDomainAvailability.loading}
                     name="domainStep.domain"
                     options={domainsOptions}
+                    placeholder="Enter your domain name..."
                     addon={
                         <FormSelect
                             control={control}
@@ -178,18 +180,19 @@ export function SetupWizardDomainStepFooter() {
         const domain = domainStep.domain;
         const key = JSON.parse(licenseKeyStep.key);
 
-        // @ts-expect-error when validation will be fixed, ts error will disappear TODO: remove.
-        if (!licenseKeyStep.licenseInfo.userDomainsWithIps.domains[domain]) {
-            await setupWizardService.claimDomain(domain, key);
+        if (domain) {
+            // @ts-expect-error when validation will be fixed, ts error will disappear TODO: remove.
+            if (!licenseKeyStep.licenseInfo.userDomainsWithIps.domains[domain]) {
+                await setupWizardService.claimDomain(domain, key);
+            }
+            setValue("currentStep", "Node address");
+        } else {
+            messagePublisher.reportError("Domain is required");
         }
-
-        setValue("currentStep", "Node address");
     });
 
     const handleContinue = async () => {
         await asyncClaimDomain.execute();
-
-        setValue("currentStep", "Node address");
     };
 
     const handleBack = () => {

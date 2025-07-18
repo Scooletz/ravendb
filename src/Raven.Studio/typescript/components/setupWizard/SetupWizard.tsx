@@ -173,7 +173,7 @@ const defaultValues: SetupWizardFormData = {
         phone: "",
     },
     domainStep: {
-        domain: "setupwizard.development.run",
+        domain: "",
         email: "todo@todo.com",
     },
     securityStep: {
