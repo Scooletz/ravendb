@@ -184,37 +184,37 @@ const Configuration = ({ configurationProcess }: ConfigurationProps) => {
         <div>
             <ConfigurationItem
                 stepTitle="Validation"
-                configurationState={configurationProcess?.SetupActionSteps?.ValidationStatus}
+                configurationState={configurationProcess?.SetupActionSteps?.Validation}
             />
             
             <ConfigurationItem
                 stepTitle="Let's encrypt"
-                configurationState={configurationProcess?.SetupActionSteps?.AcquiringLetsEncryptCertificateStatus}
+                configurationState={configurationProcess?.SetupActionSteps?.LetsEncrypt}
             />
 
             <ConfigurationItem
                 stepTitle="DNS records"
-                configurationState={configurationProcess?.SetupActionSteps?.DnsRecordsStatus}
+                configurationState={configurationProcess?.SetupActionSteps?.DnsRecords}
             />
 
             <ConfigurationItem
                 stepTitle="Acquiring let's encrypt certificate"
-                configurationState={configurationProcess?.SetupActionSteps?.ClientCertificateStatus}
+                configurationState={configurationProcess?.SetupActionSteps?.ClientCertificate}
             />
 
             <ConfigurationItem
                 stepTitle="Configuration settings"
-                configurationState={configurationProcess?.SetupActionSteps?.ConfigurationSettingsStatus}
+                configurationState={configurationProcess?.SetupActionSteps?.ConfigurationSettings}
             />
 
             <ConfigurationItem
                 stepTitle="Client certificate"
-                configurationState={configurationProcess?.SetupActionSteps?.ClientCertificateStatus}
+                configurationState={configurationProcess?.SetupActionSteps?.ClientCertificate}
             />
 
             <ConfigurationItem
                 stepTitle="Creating settings.json"
-                configurationState={configurationProcess?.SetupActionSteps?.CreatingSettingsJsonStatus}
+                configurationState={configurationProcess?.SetupActionSteps?.CreatingSettingsJson}
             />
         </div>
     );
@@ -227,8 +227,8 @@ interface ConfigurationItemProps {
 
 const ConfigurationItem = ({ configurationState, stepTitle }: ConfigurationItemProps) => {
     const getConfigurationItemStatus = () => {
-        if (!configurationState?.State) {
-            return <Spinner className="spinner-gradient" size="sm" />;
+        if (!configurationState?.State || configurationState?.State === "NotApplicable") {
+            return null;
         }
 
         switch (configurationState?.State) {
@@ -237,14 +237,12 @@ const ConfigurationItem = ({ configurationState, stepTitle }: ConfigurationItemP
                 return <Spinner className="spinner-gradient" size="sm" />;
             case "Completed":
                 return <Icon color="success" icon="checkmark" />;
+            case "SkippedDueToError":
+                return <Icon color="muted" icon="skip" />;
             default:
                 return <Icon color="danger" icon="close" />;
         }
     };
-
-    if (configurationState?.State === "Skipped") {
-        return null;
-    }
 
     return (
         <div className="d-flex flex-column my-2 align-items-center">

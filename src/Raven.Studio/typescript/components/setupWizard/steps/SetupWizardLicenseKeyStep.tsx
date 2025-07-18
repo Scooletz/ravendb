@@ -24,7 +24,7 @@ import messagePublisher from "common/messagePublisher";
 import Modal from "components/common/Modal";
 import useBoolean from "components/hooks/useBoolean";
 import { useAsyncCallback, UseAsyncReturn } from "react-async-hook";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { get } from "lodash";
 import { FieldPath } from "react-hook-form/dist/types/path";
 import { LazyLoad } from "components/common/LazyLoad";
@@ -414,6 +414,7 @@ export function SetupWizardLicenseKeyVerifyCodeModal({
         setFocus,
         formState: { errors },
     } = useFormContext<SetupWizardFormData>();
+    const { countdown, isCountdownActive, startCountdown } = useResendCountdown();
     
     useEffect(() => {
         // clear errors on remounting component
@@ -449,6 +450,13 @@ export function SetupWizardLicenseKeyVerifyCodeModal({
         }
     );
 
+    
+    const handleResendClick = async () => {
+        await sendLicenseVerificationCode.execute().then(() => {
+            startCountdown();
+        });
+    };
+    
     return (
         <Modal show onHide={close} contentClassName="modal-border bulge-primary" size="lg">
             <Modal.Header closeButton onCloseClick={close} className="pb-0">
@@ -473,11 +481,14 @@ export function SetupWizardLicenseKeyVerifyCodeModal({
                     Did not get a code?{" "}
                     <Button
                         variant="link"
-                        onClick={sendLicenseVerificationCode.loading ? () => {} : sendLicenseVerificationCode.execute}
-                        disabled={sendLicenseVerificationCode.loading}
+                        onClick={handleResendClick}
+                        disabled={sendLicenseVerificationCode.loading || isCountdownActive}
                     >
-                        {/*TODO: Consider - maybe we should lock resend button for e.g. 15s and show counter? - we dont want to spam to this api. */}
-                        Click to resend
+                        {isCountdownActive
+                            ? `Resend in ${countdown}s`
+                            : sendLicenseVerificationCode.loading
+                              ? "Sending..."
+                              : "Click to resend"}
                     </Button>{" "}
                     or update your email address.
                 </p>
@@ -499,6 +510,30 @@ export function SetupWizardLicenseKeyVerifyCodeModal({
             </Modal.Footer>
         </Modal>
     );
+}
+
+function useResendCountdown(initialDelay: number = 30) {
+    const [countdown, setCountdown] = useState(0);
+    const [isActive, setIsActive] = useState(false);
+
+    useEffect(() => {
+        let interval: NodeJS.Timeout;
+        if (isActive && countdown > 0) {
+            interval = setInterval(() => {
+                setCountdown(prev => prev - 1);
+            }, 1000);
+        } else if (countdown === 0) {
+            setIsActive(false);
+        }
+        return () => clearInterval(interval);
+    }, [isActive, countdown]);
+
+    const startCountdown = () => {
+        setCountdown(initialDelay);
+        setIsActive(true);
+    };
+
+    return { countdown, isCountdownActive: isActive, startCountdown };
 }
 
 function convertVerificationCodeErrorMessage(error: FreeLicenseDownloadStatus) {
