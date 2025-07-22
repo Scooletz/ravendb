@@ -186,7 +186,7 @@ const Configuration = ({ configurationProcess }: ConfigurationProps) => {
                 stepTitle="Validation"
                 configurationState={configurationProcess?.SetupActionSteps?.Validation}
             />
-            
+
             <ConfigurationItem
                 stepTitle="Let's encrypt"
                 configurationState={configurationProcess?.SetupActionSteps?.LetsEncrypt}
@@ -226,11 +226,11 @@ interface ConfigurationItemProps {
 }
 
 const ConfigurationItem = ({ configurationState, stepTitle }: ConfigurationItemProps) => {
-    const getConfigurationItemStatus = () => {
-        if (!configurationState?.State || configurationState?.State === "NotApplicable") {
-            return null;
-        }
+    if (!configurationState?.State || configurationState?.State === "NotApplicable") {
+        return null;
+    }
 
+    const getConfigurationItemStatus = () => {
         switch (configurationState?.State) {
             case "Pending":
             case "InProgress":
@@ -449,10 +449,16 @@ function useSetupWizardFinishUtils() {
         const isPassive = localNode.isPassive;
 
         return {
-            AutoIndexingEngineType: additionalSettingsStep.isAdvancedSettingsVisible ? additionalSettingsStep.autoIndexingEngineType : null,
-            DataDirectory: additionalSettingsStep.isAdvancedSettingsVisible ? additionalSettingsStep.dataDirectory : null,
+            AutoIndexingEngineType: additionalSettingsStep.isAdvancedSettingsVisible
+                ? additionalSettingsStep.autoIndexingEngineType
+                : null,
+            DataDirectory: additionalSettingsStep.isAdvancedSettingsVisible
+                ? additionalSettingsStep.dataDirectory
+                : null,
             LogsPath: additionalSettingsStep.isAdvancedSettingsVisible ? additionalSettingsStep.logsPath : null,
-            StaticIndexingEngineType: additionalSettingsStep.isAdvancedSettingsVisible ? additionalSettingsStep.staticIndexingEngineType : null,
+            StaticIndexingEngineType: additionalSettingsStep.isAdvancedSettingsVisible
+                ? additionalSettingsStep.staticIndexingEngineType
+                : null,
             EnableExperimentalFeatures: additionalSettingsStep.postgresqlIntegration,
             LocalNodeTag: isPassive ? null : localNode.nodeTag,
             Environment: isPassive ? null : additionalSettingsStep.serverEnvironment,
@@ -469,10 +475,16 @@ function useSetupWizardFinishUtils() {
             : null;
 
         return {
-            AutoIndexingEngineType: additionalSettingsStep.isAdvancedSettingsVisible ? additionalSettingsStep.autoIndexingEngineType : null,
-            DataDirectory: additionalSettingsStep.isAdvancedSettingsVisible ? additionalSettingsStep.dataDirectory : null,
+            AutoIndexingEngineType: additionalSettingsStep.isAdvancedSettingsVisible
+                ? additionalSettingsStep.autoIndexingEngineType
+                : null,
+            DataDirectory: additionalSettingsStep.isAdvancedSettingsVisible
+                ? additionalSettingsStep.dataDirectory
+                : null,
             LogsPath: additionalSettingsStep.isAdvancedSettingsVisible ? additionalSettingsStep.logsPath : null,
-            StaticIndexingEngineType: additionalSettingsStep.isAdvancedSettingsVisible ? additionalSettingsStep.staticIndexingEngineType : null,
+            StaticIndexingEngineType: additionalSettingsStep.isAdvancedSettingsVisible
+                ? additionalSettingsStep.staticIndexingEngineType
+                : null,
             EnableExperimentalFeatures: additionalSettingsStep.postgresqlIntegration,
             Environment: additionalSettingsStep.serverEnvironment,
             License: JSON.parse(licenseKeyStep.key),
@@ -625,7 +637,7 @@ function useSetupWizardFinishUtils() {
         if (!data || data.length === 0) {
             return;
         }
-        
+
         const content = data.join("\n");
 
         const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
