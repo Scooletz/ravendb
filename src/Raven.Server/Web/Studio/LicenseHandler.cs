@@ -252,11 +252,10 @@ namespace Raven.Server.Web.Studio
             public string Company { get; set; }
             public string Phone { get; set; }
             public string HowDoYouPlanToUseRavenDb { get; set; }
-            public FreeLicenseType Type { get; set; }
+            public FreeLicenseType LicenseType { get; set; }
             public bool MarketingConsent { get; set; }
             public bool AcceptTheTermsAndConditions { get; set; }
             public string Industry { get; set; }
-            public LicenseType LicenseType { get; set; }
         }
         
         [RavenAction("/license/free/download", "POST", AuthorizationStatus.ValidUser, EndpointType.Read)]
