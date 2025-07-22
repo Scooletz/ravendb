@@ -451,7 +451,7 @@ namespace Raven.Server.Commercial
 
     public class SetupActionSteps
     {
-        public Dictionary<ConfigurationStepType, SetupActionInfo> StepsByConfigurationStepType { get; }
+        public IDictionary<ConfigurationStepType, SetupActionInfo> StepsByConfigurationStepType { get; }
 
         public SetupActionSteps(SetupMode mode, bool zipOnly)
         {
