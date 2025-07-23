@@ -481,6 +481,7 @@ export function SetupWizardLicenseKeyVerifyCodeModal({
                     Did not get a code?{" "}
                     <Button
                         variant="link"
+                        className="m-0 p-0"
                         onClick={handleResendClick}
                         disabled={sendLicenseVerificationCode.loading || isCountdownActive}
                     >

@@ -82,11 +82,11 @@ export function SetupWizardNodeAddressStep() {
                         ipAddress: "127.0.0.1",
                     },
                 ],
-                isEditing: true, // first node should be added with default values and in editing mode
+                isEditing: true, // the first node should be added with default values and in editing mode
                 isNewlyAdded: false,
                 isPassive: false,
                 nodeUrl: hasDomainStep && securityOption !== "none" ? fullDomain : undefined,
-                httpPort: 443,
+                httpPort: 8080,
                 tcpPort: 38888,
                 hasExternalConfig: false,
             });
