@@ -102,7 +102,6 @@ namespace Raven.Server.Monitoring.Snmp
             [Description("IO wait in %")]
             public const string MachineIoWait = "1.5.4";
 
-
             [SnmpDataType(SnmpType.Integer32)]
             [Description("Number of open file descriptors for Server (Linux only)")]
             public const string ProcessOpenFileDescriptors = "1.5.5";
