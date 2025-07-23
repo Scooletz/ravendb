@@ -319,7 +319,7 @@ public sealed partial class ClusterStateMachine
             if (CanAssertLicenseLimits(context, minBuildVersion: MinBuildVersion60000) == false)
                 return;
 
-            throw new LicenseLimitException(LimitType.Indexes, $"The maximum number of auto indexes per cluster cannot exceed the limit of: {maxAutoIndexesPerDatabase}");
+            throw new LicenseLimitException(LimitType.Indexes, $"The maximum number of auto indexes per cluster cannot exceed the limit of: {maxAutoIndexesPerCluster}");
         }
     }
 
@@ -1026,6 +1026,19 @@ public sealed partial class ClusterStateMachine
         throw new LicenseLimitException(LimitType.AdditionalAssembliesFromNuGet, "Your license doesn't support Additional Assemblies From NuGet feature.");
     }
 
+    internal void AssertAllLicenseLimitsOnRestore(ServerStore serverStore, DatabaseRecord databaseRecord)
+    {
+        //Enforce license limitations on the restored database record.
+        using (serverStore.Engine.ContextPool.AllocateOperationContext(out ClusterOperationContext context))
+        using (context.OpenReadTransaction())
+        {
+            var items = context.Transaction.InnerTransaction.OpenTable(ClusterStateMachine.ItemsSchema, ClusterStateMachine.Items);
+            foreach (var command in _licenseLimitsCommandsForCreateDatabase)
+            {
+                serverStore.Engine.StateMachine.AssertLicenseLimits(command, serverStore, databaseRecord, items, context);
+            }
+        }
+    }
     private enum DatabaseRecordElementType
     {
         StaticIndex,
