@@ -501,13 +501,17 @@ namespace Raven.Server.Commercial
 
         public DynamicJsonValue ToJson()
         {
-            var json = new DynamicJsonValue(GetType());
+            var configurationStepsDjv = new DynamicJsonValue();
+
             foreach (var kvp in StepsByConfigurationStepType)
             {
-                json[kvp.Key.ToString()] = kvp.Value.ToJson();
+                configurationStepsDjv[kvp.Key.ToString()] = kvp.Value.ToJson();
             }
             
-            return json;
+            return new DynamicJsonValue()
+            {
+                [nameof(StepsByConfigurationStepType)] = configurationStepsDjv
+            };
         }
     }
 

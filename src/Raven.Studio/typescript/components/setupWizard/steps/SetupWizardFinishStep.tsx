@@ -184,37 +184,37 @@ const Configuration = ({ configurationProcess }: ConfigurationProps) => {
         <div>
             <ConfigurationItem
                 stepTitle="Validation"
-                configurationState={configurationProcess?.SetupActionSteps?.Validation}
+                configurationState={configurationProcess?.SetupActionSteps?.StepsByConfigurationStepType.Validation}
             />
 
             <ConfigurationItem
                 stepTitle="Let's encrypt"
-                configurationState={configurationProcess?.SetupActionSteps?.LetsEncrypt}
+                configurationState={configurationProcess?.SetupActionSteps?.StepsByConfigurationStepType.LetsEncrypt}
             />
 
             <ConfigurationItem
                 stepTitle="DNS records"
-                configurationState={configurationProcess?.SetupActionSteps?.DnsRecords}
+                configurationState={configurationProcess?.SetupActionSteps?.StepsByConfigurationStepType.DnsRecords}
             />
 
             <ConfigurationItem
                 stepTitle="Acquiring let's encrypt certificate"
-                configurationState={configurationProcess?.SetupActionSteps?.ClientCertificate}
+                configurationState={configurationProcess?.SetupActionSteps?.StepsByConfigurationStepType.ClientCertificate}
             />
 
             <ConfigurationItem
                 stepTitle="Configuration settings"
-                configurationState={configurationProcess?.SetupActionSteps?.ConfigurationSettings}
+                configurationState={configurationProcess?.SetupActionSteps?.StepsByConfigurationStepType.ConfigurationSettings}
             />
 
             <ConfigurationItem
                 stepTitle="Client certificate"
-                configurationState={configurationProcess?.SetupActionSteps?.ClientCertificate}
+                configurationState={configurationProcess?.SetupActionSteps?.StepsByConfigurationStepType.ClientCertificate}
             />
 
             <ConfigurationItem
                 stepTitle="Creating settings.json"
-                configurationState={configurationProcess?.SetupActionSteps?.CreatingSettingsJson}
+                configurationState={configurationProcess?.SetupActionSteps?.StepsByConfigurationStepType.CreatingSettingsJson}
             />
         </div>
     );
