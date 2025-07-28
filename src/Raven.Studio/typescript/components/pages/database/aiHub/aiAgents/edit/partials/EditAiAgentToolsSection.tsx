@@ -275,6 +275,7 @@ function QueryField({ index, remove, save, edit, cancelEdit }: QueryFieldProps) 
                 jsonSchemaLabel="Parameters JSON schema"
                 jsonSchema={queryItem.parametersSchema}
                 jsonSchemaSyntaxHelp={<div>TODO</div>}
+                schemaType="ToolParameters"
             />
         </div>
     );
@@ -370,6 +371,7 @@ function ActionField({ index, remove, save, edit, cancelEdit }: ActionFieldProps
                 jsonSchemaLabel="Parameters JSON schema"
                 jsonSchema={actionItem.parametersSchema}
                 jsonSchemaSyntaxHelp={<div>TODO</div>}
+                schemaType="ToolParameters"
             />
         </div>
     );
