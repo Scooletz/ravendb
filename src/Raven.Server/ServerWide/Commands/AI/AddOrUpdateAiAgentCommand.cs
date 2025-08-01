@@ -71,7 +71,7 @@ namespace Raven.Server.ServerWide.Commands.AI
             if (string.IsNullOrWhiteSpace(Configuration.Identifier))
                 throw new RachisApplyException("Ai Agent configuration identifier identifier must be set, but it is not");
 
-            if (EmbeddingsGenerationConfiguration.ValidateIdentifier(Configuration.Identifier, out var errors) == false)
+            if (AiTaskIdentifierHelper.ValidateIdentifier(Configuration.Identifier, out var errors) == false)
                 throw new RachisApplyException($"Invalid identifier format. Validation errors:{Environment.NewLine} - {string.Join($"{Environment.NewLine} - ", errors)}");
 
             var isUpdate = databaseRecord.AiAgents.Any(x => x.Identifier == Configuration.Identifier);

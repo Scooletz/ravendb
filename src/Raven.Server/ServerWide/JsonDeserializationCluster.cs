@@ -40,6 +40,7 @@ using Sparrow.Json;
 using Raven.Client.Documents.Operations.AI;
 using Raven.Client.Documents.Operations.AI.Agents;
 using Raven.Server.ServerWide.Commands.AI;
+using AddEmbeddingsGenerationCommand = Raven.Server.ServerWide.Commands.AI.AddEmbeddingsGenerationCommand;
 
 namespace Raven.Server.ServerWide
 {
