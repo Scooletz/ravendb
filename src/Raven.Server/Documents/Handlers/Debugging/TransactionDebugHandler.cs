@@ -85,6 +85,7 @@ namespace Raven.Server.Documents.Handlers.Debugging
                 [nameof(TxInfoResult.NumberOfModifiedPages)] = lowLevelTransaction.NumberOfModifiedPages,
                 [nameof(TxInfoResult.Committed)] = lowLevelTransaction.Committed,
                 [nameof(TxInfoResult.DecompressedBufferSize)] = new Size(lowLevelTransaction.DecompressedBufferBytes, SizeUnit.Bytes).ToString(),
+                [nameof(TxInfoResult.IsDisposed)] = lowLevelTransaction.IsDisposed,
             };
         }
     }
@@ -103,5 +104,6 @@ namespace Raven.Server.Documents.Handlers.Debugging
         public long NumberOfModifiedPages;
         public bool Committed;
         public string DecompressedBufferSize;
+        public bool IsDisposed;
     }
 }
