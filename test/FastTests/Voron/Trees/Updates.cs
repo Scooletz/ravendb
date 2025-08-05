@@ -4,7 +4,6 @@ using Tests.Infrastructure;
 using Voron.Global;
 using Xunit;
 using Xunit.Abstractions;
-using Tests.Infrastructure;
 
 namespace FastTests.Voron.Trees
 {

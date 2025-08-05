@@ -3,7 +3,6 @@ using Voron;
 using Voron.Data.BTrees;
 using Xunit;
 using Xunit.Abstractions;
-using Tests.Infrastructure;
 
 namespace FastTests.Voron
 {
