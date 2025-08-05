@@ -615,7 +615,10 @@ namespace Raven.Server.Documents.PeriodicBackup.Restore
                     databaseRecord.SnowflakeConnectionStrings = smugglerDatabaseRecord.SnowflakeConnectionStrings;
                     databaseRecord.AiConnectionStrings = smugglerDatabaseRecord.AiConnectionStrings;
                     databaseRecord.EmbeddingsGenerations = smugglerDatabaseRecord.EmbeddingsGenerations;
+
+                    ServerStore.Engine.StateMachine.AssertAllLicenseLimitsOnRestore(ServerStore, databaseRecord);
                 };
+
             }
 
             smuggler.OnDatabaseRecordAction += smugglerDatabaseRecord =>
