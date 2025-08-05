@@ -316,14 +316,7 @@ namespace Raven.Server.ServerWide
         private PoolOfThreads.LongRunningWork _updateTopologyChangeNotification;
 
         public bool ValidateFixedPort = true;
-
-        public Dictionary<string, ClusterNodeStatusReport> ClusterStats()
-        {
-            if (_engine.LeaderTag != NodeTag)
-                throw new NotLeadingException($"Stats can be requested only from the raft leader {_engine.LeaderTag}");
-            return ClusterMaintenanceSupervisor?.GetStats();
-        }
-
+        
         internal LicenseType GetLicenseType()
         {
             return LicenseManager.LicenseStatus.Type;
@@ -847,9 +840,16 @@ namespace Raven.Server.ServerWide
 
             _server.Statistics.Load(ContextPool, Logger);
 
-            _timer = new Timer(IdleOperations, null, _frequencyToCheckForIdleDatabases, TimeSpan.FromDays(7));
+            _timer = new Timer(IdleOperationsCallback, null, _frequencyToCheckForIdleDatabases, TimeSpan.FromDays(7));
+
             _operationsStorage.Initialize(_env, ContextPool);
             DatabaseInfoCache.Initialize(_env, ContextPool);
+            return;
+
+            void IdleOperationsCallback(object state)
+            {
+                IdleOperations();
+            }
         }
 
         public void Initialize()
@@ -1150,13 +1150,13 @@ namespace Raven.Server.ServerWide
             }
             while (tasks.Count != 0)
             {
-                var completedTask = await Task.WhenAny(tasks.Values).ConfigureAwait(false);
+                var completedTask = await Task.WhenAny(tasks.Values);
                 var name = tasks.Single(t => t.Value == completedTask).Key;
                 tasks.Remove(name);
                 try
                 {
-                    var database = await completedTask.ConfigureAwait(false);
-                    await database.RefreshFeaturesAsync().ConfigureAwait(false);
+                    var database = await completedTask;
+                    await database.RefreshFeaturesAsync();
                 }
                 catch (OperationCanceledException)
                 {
@@ -2755,7 +2755,7 @@ namespace Raven.Server.ServerWide
             }
         }
 
-        public void IdleOperations(object state)
+        public void IdleOperations(Dictionary<StringSegment, DatabasesDebugHandler.IdleDatabaseStatistics> stats = null)
         {
             try
             {
@@ -2784,7 +2784,14 @@ namespace Raven.Server.ServerWide
 
                     foreach (var databaseKvp in DatabasesLandlord.LastRecentlyUsed.ForceEnumerateInThreadSafeManner())
                     {
-                        if (CanUnloadDatabase(databaseKvp.Key, databaseKvp.Value, statistics: null, out DocumentDatabase database) == false)
+                        DatabasesDebugHandler.IdleDatabaseStatistics statistics = null;
+                        if (stats != null)
+                        {
+                            if (stats.TryGetValue(databaseKvp.Key, out statistics) == false)
+                                stats[databaseKvp.Key] = statistics = new DatabasesDebugHandler.IdleDatabaseStatistics();
+                        }
+                        
+                        if (CanUnloadDatabase(databaseKvp.Key, databaseKvp.Value, statistics: statistics, out DocumentDatabase database) == false)
                             continue;
 
                         var dbIdEtagDictionary = new Dictionary<string, long>();

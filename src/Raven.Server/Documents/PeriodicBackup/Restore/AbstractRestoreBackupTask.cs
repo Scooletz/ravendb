@@ -581,7 +581,10 @@ namespace Raven.Server.Documents.PeriodicBackup.Restore
                     databaseRecord.DataArchival = smugglerDatabaseRecord.DataArchival;
                     databaseRecord.QueueSinks = smugglerDatabaseRecord.QueueSinks;
                     databaseRecord.SupportedFeatures = smugglerDatabaseRecord.SupportedFeatures;
+
+                    ServerStore.Engine.StateMachine.AssertAllLicenseLimitsOnRestore(ServerStore, databaseRecord);
                 };
+
             }
 
             smuggler.OnDatabaseRecordAction += smugglerDatabaseRecord =>
