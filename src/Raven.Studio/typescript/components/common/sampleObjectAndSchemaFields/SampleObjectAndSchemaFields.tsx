@@ -13,6 +13,8 @@ import Tabs from "react-bootstrap/Tabs";
 import Tab from "react-bootstrap/Tab";
 import useUniqueId from "components/hooks/useUniqueId";
 import classNames from "classnames";
+import genUtils from "common/generalUtils";
+import messagePublisher from "common/messagePublisher";
 
 interface SampleObjectAndSchemaFieldsProps<TFieldValues extends FieldValues, TName extends FieldPath<TFieldValues>> {
     control: Control<TFieldValues>;
@@ -64,15 +66,20 @@ export default function SampleObjectAndSchemaFields<
     const [lastSampleObjectForGenerate, setLastSampleObjectForGenerate] = useState<string>(sampleObjectValue);
 
     const asyncGenerateSchema = useAsyncCallback(async () => {
-        const result = await tasksService.getJsonSchemaFromSampleObject(JSON.parse(sampleObject), schemaType);
-        setValue(jsonSchemaName, result.Result as TFieldValues[TName], { shouldValidate: true });
-        setLastSampleObjectForGenerate(sampleObject);
+        try {
+            const result = await tasksService.getJsonSchemaFromSampleObject(JSON.parse(sampleObject), schemaType);
+            setValue(jsonSchemaName, result.Result as TFieldValues[TName], { shouldValidate: true });
+            setLastSampleObjectForGenerate(sampleObject);
+        } catch (e) {
+            console.error(e);
+            messagePublisher.reportError("Failed to generate schema, please check the sample object");
+        }
     });
 
     const canRegenerateSchema = !!sampleObject && !!jsonSchema && lastSampleObjectForGenerate !== sampleObject;
 
     useEffect(() => {
-        if (formState.dirtyFields[sampleObjectName]) {
+        if (genUtils.getNestedField(formState.dirtyFields, sampleObjectName)) {
             setValue(canRegenerateSchemaName, canRegenerateSchema as TFieldValues[TName], {
                 shouldValidate: true,
             });
@@ -84,8 +91,8 @@ export default function SampleObjectAndSchemaFields<
 
     const defaultActiveTab = jsonSchema ? "json-schema" : "sample-object";
 
-    const hasSampleObjectError = formState.errors[sampleObjectName];
-    const hasJsonSchemaError = formState.errors[jsonSchemaName];
+    const hasSampleObjectError = genUtils.getNestedField(formState.errors, sampleObjectName);
+    const hasJsonSchemaError = genUtils.getNestedField(formState.errors, jsonSchemaName);
 
     return (
         <div className="sample-object-and-schema-tabs">
