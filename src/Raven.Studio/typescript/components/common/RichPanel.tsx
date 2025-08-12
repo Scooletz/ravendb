@@ -92,18 +92,29 @@ export function RichPanelActions(props: { children: ReactNode | ReactNode[] }) {
     );
 }
 
+type RichPanelNameSize = "sm" | "md";
+
 interface RichPanelNameProps {
     children: ReactNode | ReactNode[];
     className?: string;
     title?: string;
+    size?: RichPanelNameSize;
 }
 
 export function RichPanelName(props: RichPanelNameProps) {
-    const { children, className, ...rest } = props;
+    const { children, className, size = "md", ...rest } = props;
     return (
-        <h3 className={classNames("rich-panel-name", className)} {...rest}>
-            {children}
-        </h3>
+        <>
+            {size === "sm" ? (
+                <h4 className={classNames("rich-panel-name", className)} {...rest}>
+                    {children}
+                </h4>
+            ) : (
+                <h3 className={classNames("rich-panel-name", className)} {...rest}>
+                    {children}
+                </h3>
+            )}
+        </>
     );
 }
 
@@ -135,7 +146,9 @@ function RichPanelDetailItemInternal(props: RichPanelDetailItemProps, ref: Forwa
     return (
         <div className={classNames(panelClass, className)} ref={ref} {...rest}>
             {label && <div className="small-label">{label}</div>}
-            <div className={classNames("detail-item-content", contentClassName)} style={contentStyle}>{children}</div>
+            <div className={classNames("detail-item-content", contentClassName)} style={contentStyle}>
+                {children}
+            </div>
         </div>
     );
 }

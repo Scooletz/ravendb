@@ -19,6 +19,7 @@ export type ThemeColor =
     | "progress"
     | "professional"
     | "enterprise"
+    | "community"
     | "developer";
 
 export interface loadableData<T> {

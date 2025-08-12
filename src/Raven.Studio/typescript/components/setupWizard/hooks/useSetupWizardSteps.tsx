@@ -52,7 +52,7 @@ export function useSetupWizardSteps({
         },
         {
             title: "Setup method",
-            description: "Chose your setup method",
+            description: "Choose your setup method",
             component: <SetupWizardSetupMethodStep />,
             footer: <SetupWizardSetupMethodStepFooter />,
             isCurrent: currentStep === "Setup method",

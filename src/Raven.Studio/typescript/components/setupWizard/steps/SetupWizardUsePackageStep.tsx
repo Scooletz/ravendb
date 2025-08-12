@@ -123,20 +123,23 @@ export function SetupWizardUsePackageStep() {
 
     return (
         <div>
-            <h2>Use setup package</h2>
-            <p>Here you can use an existing package to set up selected nodes in your cluster.</p>
+            <h2 className="mb-1">Use setup package</h2>
+            <p className="mb-4 text-muted">
+                Here you can use an existing package to set up selected nodes in your cluster.
+            </p>
             <FormGroup>
                 <FileDropzone onChange={handleFileChange} validExtensions={["zip"]} maxFiles={1} />
             </FormGroup>
             {fileZip && asyncExtractNodeInfos.status === "success" && (
                 <FormGroup>
-                    <FormLabel className="hstack justify-content-between">
+                    <FormLabel className="hstack">
                         <div>Node tag</div>
-                        <PopoverWithHoverWrapper message={<PopoverMessage description="Select which node of the predefined cluster would you like to set up now." />}>
-                        <div className="text-info">
-                            <Icon icon="info" />
-                            What is this?
-                        </div>
+                        <PopoverWithHoverWrapper
+                            message={
+                                <PopoverMessage description="Select which node of the predefined cluster would you like to set up now." />
+                            }
+                        >
+                            <Icon icon="info-new" />
                         </PopoverWithHoverWrapper>
                     </FormLabel>
                     <FormSelect

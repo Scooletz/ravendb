@@ -243,7 +243,7 @@ async function navigateToStep(canvas: Canvas, targetStep: SetupWizardStepId | "G
     }
     
     if (targetStep === "Generate license") {
-        await userEvent.click(canvas.getByRole("button", { name: /Get a new license/ }));
+        await userEvent.click(canvas.getByRole("button", { name: /Get your free license/ }));
         return;
     }
 

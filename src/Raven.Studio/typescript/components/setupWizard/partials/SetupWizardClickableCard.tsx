@@ -16,14 +16,24 @@ interface SetupWizardClickableCardProps {
     isDisabled?: boolean;
 }
 
-export default function SetupWizardClickableCard({ className, description, popoverMessage, addon, icon, onClick, title, isDisabled, isSelected }: SetupWizardClickableCardProps) {
+export default function SetupWizardClickableCard({
+    className,
+    description,
+    popoverMessage,
+    addon,
+    icon,
+    onClick,
+    title,
+    isDisabled,
+    isSelected,
+}: SetupWizardClickableCardProps) {
     return (
         <div
             className={classNames(
-                "border rounded p-4 cursor-pointer",
+                "wizard-card border rounded p-4",
                 className,
                 {
-                    "bg-faded-primary border-primary": isSelected,
+                    "bg-faded-primary border-primary active": isSelected,
                 },
                 {
                     "border-secondary": !isSelected,
@@ -39,17 +49,17 @@ export default function SetupWizardClickableCard({ className, description, popov
                     <Icon icon={icon} addon={addon} margin="m-0" style={{ fontSize: 24 }} />
                 </div>
                 <div className="flex-grow">
-                    <h4 className="mb-0">{title}</h4>
-                    <span>{description}</span>
+                    <h4 className="mb-0 text-emphasis">{title}</h4>
+                    <span className="text-muted">{description}</span>
                 </div>
-                    {popoverMessage && (
-                      <PopoverWithHoverWrapper message={popoverMessage}>
-                <div>
-                    <Icon icon="info" />
-                    When to use?
-                </div>
-                      </PopoverWithHoverWrapper>
-                    )}
+                {popoverMessage && (
+                    <PopoverWithHoverWrapper message={popoverMessage}>
+                        <div className="md-label mb-0">
+                            <Icon icon="info" />
+                            When to use?
+                        </div>
+                    </PopoverWithHoverWrapper>
+                )}
             </div>
         </div>
     );

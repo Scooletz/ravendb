@@ -27,8 +27,10 @@ export function SetupWizardAdditionalSettingsStep() {
             {getLicenseType(licenseInfo).isHigherThan("None") && (
                 <>
                     <div className="mb-4">
-                        <h2>Additional settings</h2>
-                        <p>At this optional step you may control some of optional settings regarding your setup.</p>
+                        <h2 className="mb-1">Additional settings</h2>
+                        <p className="mb-4 text-muted">
+                            At this optional step you may control some of optional settings regarding your setup.
+                        </p>
                     </div>
                     <div>
                         <ServerEnvironmentSection control={control} licenseInfo={licenseInfo} />
@@ -38,13 +40,11 @@ export function SetupWizardAdditionalSettingsStep() {
                 </>
             )}
             <ExperimentalFeaturesSection control={control} licenseInfo={licenseInfo} />
-            <div className="d-flex gap-3 flex-column">
-                <div className="d-flex gap-2 align-items-center">
-                    <h2 className="mb-0">Advanced</h2>
-                    <FormSwitch size="lg" name="additionalSettingsStep.isAdvancedSettingsVisible" control={control} />
-                </div>
-                <p>Settings you may want to consider as an experienced user</p>
+            <div className="d-flex gap-2 align-items-center">
+                <h2 className="mb-1">Configure advanced options</h2>
+                <FormSwitch size="lg" name="additionalSettingsStep.isAdvancedSettingsVisible" control={control} />
             </div>
+            <p className="text-muted">Settings you may want to consider as an experienced user</p>
             <AdvancedSettingsContent control={control} isVisible={additionalSettingsStep.isAdvancedSettingsVisible} />
         </div>
     );
@@ -76,6 +76,8 @@ function AdditionalSettingsFormSideEffects() {
     }, [watch, setValue]); // eslint-disable-line react-hooks/exhaustive-deps
 }
 
+const serverEnvironmentImg = require("Content/img/setupWizard/studioEnvironment.png");
+
 function ServerEnvironmentSection({
     control,
     licenseInfo,
@@ -85,16 +87,25 @@ function ServerEnvironmentSection({
 }) {
     return getLicenseType(licenseInfo).isHigherThan("Community") ? (
         <FormGroup>
-            <FormLabel className="hstack justify-content-between">
+            <FormLabel className="d-flex">
                 <div>Server environment</div>
                 <PopoverWithHoverWrapper
                     message={
-                        <PopoverMessage description="Server environment allows you to add a visual identifier to the UI, making it easier to distinguish between multiple environments when working simultaneously." />
+                        <PopoverMessage
+                            description={
+                                <>
+                                    <img src={serverEnvironmentImg} className="mb-2 w-100" />
+                                    <span>
+                                        Server environment allows you to add a visual identifier to the UI, making it
+                                        easier to distinguish between multiple environments when working simultaneously.
+                                    </span>
+                                </>
+                            }
+                        />
                     }
+                    placement="right"
                 >
-                    <div className="text-info">
-                        <Icon icon="info" size="xs" /> What is this?
-                    </div>
+                    <Icon icon="info-new" />
                 </PopoverWithHoverWrapper>
             </FormLabel>
             <FormSelect
@@ -109,16 +120,15 @@ function ServerEnvironmentSection({
 function CertificateExpirationSection({ control }: { control: Control<SetupWizardFormData> }) {
     return (
         <FormGroup>
-            <FormLabel className="hstack justify-content-between">
+            <FormLabel className="d-flex">
                 Admin client certificate expiration time
                 <PopoverWithHoverWrapper
                     message={
                         <PopoverMessage description="This allows you to define how long the admin client certificate should be valid. By default, this value is set to 60 months." />
                     }
+                    placement="right"
                 >
-                    <div className="text-info">
-                        <Icon icon="info" size="xs" /> What is this?
-                    </div>
+                    <Icon icon="info-new" />
                 </PopoverWithHoverWrapper>
             </FormLabel>
             <FormInput
@@ -140,8 +150,10 @@ interface ExperimentalFeaturesSectionProps {
 function ExperimentalFeaturesSection({ control, licenseInfo }: ExperimentalFeaturesSectionProps) {
     return getLicenseType(licenseInfo).isHigherThan("Community") ? (
         <div>
-            <p className="mb-0">Experimental features</p>
-            <p>Some features, like ones recently released, are considered experimental and are disabled by default.</p>
+            <h4 className="mb-0">Experimental features</h4>
+            <p className="text-muted">
+                Some features, like ones recently released, are considered experimental and are disabled by default.
+            </p>
             <PostgreSqlIntegrationToggle control={control} />
         </div>
     ) : null;
@@ -149,23 +161,24 @@ function ExperimentalFeaturesSection({ control, licenseInfo }: ExperimentalFeatu
 
 function PostgreSqlIntegrationToggle({ control }: { control: Control<SetupWizardFormData> }) {
     return (
-        <div className="postgresql-integration">
-            <FormSwitch name="additionalSettingsStep.postgresqlIntegration" control={control} />
+        <div className="postgresql-integration bg-faded-experimental">
+            <FormSwitch name="additionalSettingsStep.postgresqlIntegration" color="experimental" control={control} />
             <div className="d-flex w-100 align-items-center justify-content-between">
-                <div className="flex-grow-1">
-                    <div className="postgresql-integration__title">
+                <div className="flex-grow-1 lh-1">
+                    <strong className="postgresql-integration__title">
                         PostgreSQL integration
                         <PopoverWithHoverWrapper
                             message={
                                 <PopoverMessage description="Enabling this feature allows you to use RavenDB as a PostgreSQL server. You will also need a license that contains PostgreSQL Protocol." />
                             }
+                            placement="right"
                         >
-                            <Icon icon="info" margin="ms-1" />
+                            <Icon icon="info-new" />
                         </PopoverWithHoverWrapper>
-                    </div>
-                    <div className="postgresql-integration__description">
+                    </strong>
+                    <small className="postgresql-integration__description">
                         RavenDB supports the PostgreSQL protocol, enabling tools like Power BI to access its database.
-                    </div>
+                    </small>
                 </div>
                 <Icon className="postgresql-integration__icon" size="lg" icon="integrations" />
             </div>
@@ -180,32 +193,31 @@ interface AdvancedSettingsContentProps {
 
 function AdvancedSettingsContent({ control, isVisible }: AdvancedSettingsContentProps) {
     const { resourcesService } = useServices();
-    
+
     const getLocalFolderPathsProvider = (path: string) => {
         return async () => {
             const dto = await resourcesService.getFolderPathOptions_ServerLocal(path, true);
             return dto?.List || [];
         };
     };
-    
+
     return (
         <div
             className={classNames({
-                "opacity-25 fade": !isVisible,
+                "item-disabled": !isVisible,
             })}
         >
             <FormGroup>
-                <FormLabel className="hstack justify-content-between">
+                <FormLabel className="hstack">
                     <div>Data directory</div>
                     <ConditionalPopover
                         conditions={{
                             isActive: isVisible,
                             message: <PopoverMessage description="Defines the path to the RavenDB data directory." />,
                         }}
+                        popoverPlacement="right"
                     >
-                        <div className="text-info">
-                            <Icon icon="info" size="xs" /> What is this?
-                        </div>
+                        <Icon icon="info-new" />
                     </ConditionalPopover>
                 </FormLabel>
                 <FormPathSelector
@@ -218,17 +230,16 @@ function AdvancedSettingsContent({ control, isVisible }: AdvancedSettingsContent
                 />
             </FormGroup>
             <FormGroup>
-                <FormLabel className="hstack justify-content-between">
+                <FormLabel className="hstack">
                     <div>Setup certificate path</div>
                     <ConditionalPopover
                         conditions={{
                             isActive: isVisible,
                             message: <PopoverMessage description="Defines the path to the certificate location." />,
                         }}
+                        popoverPlacement="right"
                     >
-                        <div className="text-info">
-                            <Icon icon="info" size="xs" /> What is this?
-                        </div>
+                        <Icon icon="info-new" />
                     </ConditionalPopover>
                 </FormLabel>
                 <FormPathSelector
@@ -241,17 +252,16 @@ function AdvancedSettingsContent({ control, isVisible }: AdvancedSettingsContent
                 />
             </FormGroup>
             <FormGroup>
-                <FormLabel className="hstack justify-content-between">
+                <FormLabel className="hstack">
                     <div>Logs path</div>
                     <ConditionalPopover
                         conditions={{
                             isActive: isVisible,
                             message: <PopoverMessage description="Defines the path to the logs." />,
                         }}
+                        popoverPlacement="right"
                     >
-                        <div className="text-info">
-                            <Icon icon="info" size="xs" /> What is this?
-                        </div>
+                        <Icon icon="info-new" />
                     </ConditionalPopover>
                 </FormLabel>
                 <FormPathSelector
@@ -264,7 +274,7 @@ function AdvancedSettingsContent({ control, isVisible }: AdvancedSettingsContent
                 />
             </FormGroup>
             <FormGroup>
-                <FormLabel className="hstack justify-content-between">
+                <FormLabel className="hstack">
                     <div>Auto indexing engine type</div>
                     <ConditionalPopover
                         conditions={{
@@ -273,10 +283,9 @@ function AdvancedSettingsContent({ control, isVisible }: AdvancedSettingsContent
                                 <PopoverMessage description="Defines the indexing engine used for auto indexes in RavenDB." />
                             ),
                         }}
+                        popoverPlacement="right"
                     >
-                        <div className="text-info">
-                            <Icon icon="info" size="xs" /> What is this?
-                        </div>
+                        <Icon icon="info-new" />
                     </ConditionalPopover>
                 </FormLabel>
                 <FormSelect
@@ -287,7 +296,7 @@ function AdvancedSettingsContent({ control, isVisible }: AdvancedSettingsContent
                 />
             </FormGroup>
             <FormGroup>
-                <FormLabel className="hstack justify-content-between">
+                <FormLabel className="hstack">
                     <div>Static indexing engine type</div>
                     <ConditionalPopover
                         conditions={{
@@ -296,10 +305,9 @@ function AdvancedSettingsContent({ control, isVisible }: AdvancedSettingsContent
                                 <PopoverMessage description="Defines the indexing engine used for static indexes in RavenDB." />
                             ),
                         }}
+                        popoverPlacement="right"
                     >
-                        <div className="text-info">
-                            <Icon icon="info" size="xs" /> What is this?
-                        </div>
+                        <Icon icon="info-new" />
                     </ConditionalPopover>
                 </FormLabel>
                 <FormSelect

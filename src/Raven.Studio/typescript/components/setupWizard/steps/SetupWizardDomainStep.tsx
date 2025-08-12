@@ -74,31 +74,30 @@ export function SetupWizardDomainStep() {
 
     return (
         <div>
-            <h2>Domain</h2>
-            <p>
+            <h2 className="mb-1">Domain</h2>
+            <p className="mb-4 text-muted">
                 Enter your own domain to be linked with our default hosting zone, where your database will be hosted and
                 protected with a security certificate.
             </p>
-            <FormGroup>
-                <FormLabel className="hstack justify-content-between">
+            <FormGroup marginClass="mb-2">
+                <FormLabel className="hstack">
                     <div>Domain</div>
                     <PopoverWithHoverWrapper
                         message={
                             <>
-                                <p>
+                                <p className="mb-0">
                                     The inserted domain is the domain name of your RavenDB instance. Let’s Encrypt will
                                     use this domain to create an SSL certificate for secure connections. Make sure the
                                     domain is accessible for certificate generation.
                                 </p>
-                                <RichAlert icon="info" variant="info">
+                                <RichAlert icon="info" variant="info" className="mt-2">
                                     Domain name can only contain A-Z, a-z, 0-9, ‘-’ characters.
                                 </RichAlert>
                             </>
                         }
+                        placement="right"
                     >
-                        <div className="text-info">
-                            <Icon icon="info" /> What is this?
-                        </div>
+                        <Icon icon="info-new" />
                     </PopoverWithHoverWrapper>
                 </FormLabel>
                 <FormSelectCreatable
@@ -126,12 +125,13 @@ export function SetupWizardDomainStep() {
                 </RichAlert>
             )}
             <FormGroup className="mt-3">
-                <FormLabel className="hstack justify-content-between">
+                <FormLabel className="hstack">
                     <div>Email</div>
-                    <PopoverWithHoverWrapper message="This email address is assigned to the license you’re currently using.">
-                        <div className="text-info">
-                            <Icon icon="info" /> What is this?
-                        </div>
+                    <PopoverWithHoverWrapper
+                        message="This email address is assigned to the license you’re currently using."
+                        placement="right"
+                    >
+                        <Icon icon="info-new" />
                     </PopoverWithHoverWrapper>
                 </FormLabel>
                 {/* height is set to 38px to match the height of the input field*/}
@@ -218,7 +218,8 @@ export function SetupWizardDomainStepFooter() {
                 className="rounded-pill"
                 onClick={handleContinue}
             >
-                Continue <Icon icon="arrow-right" margin="ms-1" />
+                Continue&nbsp;
+                <Icon icon="arrow-right" margin="m-0" />
             </ButtonWithSpinner>
         </div>
     );

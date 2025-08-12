@@ -21,14 +21,14 @@ export function SetupWizardStepItem(props: SetupWizardStepItemProps) {
             return "check";
         }
         if (isCurrent) {
-            return "arrow-right";
+            return "arrow-thin-right";
         }
 
         return null;
     })();
 
     return (
-        <li className={classNames("setup-wizard-step-item", className)} {...rest}>
+        <li className={classNames("setup-wizard-step-item lh-1", className)} {...rest}>
             <span
                 className={classNames(
                     "dot",
@@ -38,9 +38,7 @@ export function SetupWizardStepItem(props: SetupWizardStepItemProps) {
                 )}
             >
                 {stepIndicator && (
-                  <span className="d-flex align-items-center justify-content-center">
-                    {stepIndicator}
-                  </span>
+                    <span className="d-flex align-items-center justify-content-center">{stepIndicator}</span>
                 )}
                 {!stepIndicator && dotIcon && <Icon icon={dotIcon} margin="m-0" />}
             </span>

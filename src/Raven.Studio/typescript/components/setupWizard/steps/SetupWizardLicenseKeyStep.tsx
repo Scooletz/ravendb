@@ -51,9 +51,9 @@ function NoLicenseToGenerate() {
 
     return (
         <div>
-            <h2>Enter license key</h2>
-            <p>You can either use your existing key or generate a free license.</p>
-            <FormGroup className="mt-4">
+            <h2 className="mb-1">Enter license key</h2>
+            <p className="mb-4 text-muted">You can either use your existing key or generate a free license.</p>
+            <FormGroup>
                 <FormLabel>Your key</FormLabel>
                 <div className="position-relative">
                     <FormInput
@@ -61,7 +61,7 @@ function NoLicenseToGenerate() {
                         as="textarea"
                         control={control}
                         name="licenseKeyStep.key"
-                        className="rounded-2"
+                        className="rounded-2 font-monospace"
                         placeholder={keyPlaceholder}
                         rows={16}
                         data-testid="license-key-input"
@@ -69,16 +69,38 @@ function NoLicenseToGenerate() {
                     <LicenseKeyBadge />
                 </div>
             </FormGroup>
-            <div className="mt-2 rounded-2 p-2 panel-bg-1 border border-secondary">
-                <h4>Need a new free license? Get it here.</h4>
-                <p>Click here to apply for a FREE Community or Developer license for RavenDB.</p>
-                <Button
-                    variant="outline-success"
-                    className="rounded-1"
-                    onClick={() => setValue("licenseKeyStep.licenseTypeToGenerate", "developer")}
-                >
-                    Get a new license <Icon icon="arrow-right" />
-                </Button>
+            <div className="free-license rounded-2 p-3 panel-bg-1 border border-secondary">
+                <div className="free-license-content">
+                    <h4 className="mb-0">Start with a free license today</h4>
+                    <p className="text-muted">
+                        Fill out a quick form to apply for a free Community or Developer license.
+                    </p>
+                    <Button
+                        variant="outline-success"
+                        className="rounded-1"
+                        onClick={() => setValue("licenseKeyStep.licenseTypeToGenerate", "developer")}
+                    >
+                        Get your free license <Icon icon="arrow-thin-right" margin="m-0" />
+                    </Button>
+                </div>
+                <svg width="219" height="129" viewBox="0 0 219 129" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <g clipPath="url(#clip0_3218_7886)">
+                        <path
+                            d="M147.148 31.7465L181.336 82.5625L159.907 192.113L39.3529 168.531L69.0964 16.4785L147.148 31.7465ZM55.8859 157.666L148.197 175.723L148.293 175.233L148.486 175.271L165.265 89.4968L127.229 82.0565L134.727 43.7244L80.2586 33.0696L55.8859 157.666ZM110.638 144.312L109.086 152.245L71.4382 144.881L72.9901 136.947L110.638 144.312ZM144.83 127.244L143.278 135.177L75.914 122L77.4659 114.066L144.83 127.244ZM149.364 104.066L147.812 111.999L80.4479 98.8221L81.9998 90.8885L149.364 104.066ZM143.82 70.8953L158.57 73.7805L157.896 72.779L147.379 57.146L146.705 56.1445L143.82 70.8953Z"
+                            stroke="var(--border-color-light)"
+                        />
+                    </g>
+                    <defs>
+                        <clipPath id="clip0_3218_7886">
+                            <rect
+                                width="193.783"
+                                height="193.783"
+                                fill="white"
+                                transform="translate(37.8359 -9.27441) rotate(11.068)"
+                            />
+                        </clipPath>
+                    </defs>
+                </svg>
             </div>
         </div>
     );
@@ -164,21 +186,21 @@ function LicenseKeyBadge() {
 function GenerateCommunity() {
     return (
         <div>
-            <HStack className="justify-content-between flex-wrap mb-2">
-                <h2>
-                    Generate new <span className="text-info">Community</span> license
+            <HStack className="justify-content-between flex-wrap align-items-start mb-1">
+                <h2 className="m-0">
+                    Generate new <span className="text-community">Community</span> license
                 </h2>
                 <LicenseTypeRadio />
             </HStack>
-            <p>
+            <p className="text-muted">
                 Good for teams who are just starting out and simply want the essentials.
                 <br />
                 <br />
-                <Icon icon="check" color="info" /> Eligible for commercial use
+                <Icon icon="check" color="community" /> Eligible for commercial use
                 <br />
-                <Icon icon="check" color="info" /> Access to all basic features
+                <Icon icon="check" color="community" /> Access to all basic features
                 <br />
-                <Icon icon="check" color="info" /> Max of 3 nodes in cluster, 3 CPU cores, and 6 GB RAM
+                <Icon icon="check" color="community" /> Max of 3 nodes in cluster, 3 CPU cores, and 6 GB RAM
             </p>
             <SeeAllPlansButton />
             <GenerateLicenseFields />
@@ -189,21 +211,21 @@ function GenerateCommunity() {
 function GenerateDeveloper() {
     return (
         <div>
-            <HStack className="justify-content-between flex-wrap mb-2">
-                <h2>
-                    Generate new <span className="text-success">Developer</span> license
+            <HStack className="justify-content-between flex-wrap align-items-start mb-1">
+                <h2 className="m-0">
+                    Generate new <span className="text-developer">Developer</span> license
                 </h2>
                 <LicenseTypeRadio />
             </HStack>
-            <p>
+            <p className="text-muted">
                 Recommended for teams who want to test & develop RavenDB in it&apos;s full potential.
                 <br />
                 <br />
-                <Icon icon="cancel" color="success" /> Not applicable for commercial use
+                <Icon icon="cancel" color="developer" /> Not applicable for commercial use
                 <br />
-                <Icon icon="check" color="success" /> Enterprise-level set of features
+                <Icon icon="check" color="developer" /> Enterprise-level set of features
                 <br />
-                <Icon icon="check" color="success" /> Max of 5 nodes in cluster, 9 CPU cores, and 36 GB RAM
+                <Icon icon="check" color="developer" /> Max of 5 nodes in cluster, 9 CPU cores, and 36 GB RAM
             </p>
             <SeeAllPlansButton />
             <GenerateLicenseFields />
@@ -279,13 +301,13 @@ function GenerateLicenseFields() {
                     placeholder="Choose the most suitable option"
                 />
             </FormGroup>
-            <FormGroup className="mt-2">
-                <FormCheckbox control={control} name="licenseKeyStep.isAcceptTerms" color="secondary">
+            <FormGroup marginClass="mb-0 mt-2">
+                <FormCheckbox control={control} name="licenseKeyStep.isAcceptTerms">
                     I accept the terms and conditions
                 </FormCheckbox>
             </FormGroup>
             <FormGroup>
-                <FormCheckbox control={control} name="licenseKeyStep.isAcceptEmails" color="secondary">
+                <FormCheckbox control={control} name="licenseKeyStep.isAcceptEmails">
                     I would like to receive learning materials and occasional marketing emails <OptionalLabel />
                 </FormCheckbox>
             </FormGroup>
@@ -295,7 +317,7 @@ function GenerateLicenseFields() {
 
 function SeeAllPlansButton() {
     return (
-      <Button href="https://ravendb.net/buy" target="_blank" variant="link" className="p-0">
+        <Button href="https://ravendb.net/buy" target="_blank" variant="link" className="p-0">
             See all plans in detail <Icon icon="newtab" />
         </Button>
     );
@@ -313,13 +335,13 @@ function LicenseTypeRadio() {
                     {
                         label: "Community",
                         value: "community",
-                        badgeColor: "info",
+                        badgeColor: "secondary",
                         icon: <Icon icon="community" />,
                     },
                     {
                         label: "Developer",
                         value: "developer",
-                        badgeColor: "success",
+                        badgeColor: "secondary",
                         icon: <Icon icon="console" />,
                     },
                 ]}
@@ -345,47 +367,52 @@ function SkipLicenseVerificationConfirmModal(props: { close: () => void }) {
     return (
         <Modal show onHide={close} contentClassName="modal-border bulge-warning" size="lg">
             <Modal.Header closeButton onCloseClick={close} className="pb-0">
-                <h3>
+                <h3 className="mb-0">
                     <Icon icon="license" color="warning" />
                     You&#39;re about to skip license verification
                 </h3>
             </Modal.Header>
 
-            <Modal.Body>
-                While you&apos;ll be able to use RavenDB, there will be some limitations:
-                <br />
-                <br />
-                <Icon icon="check" color="success" /> AGPLv3 restrictions applied
+            <Modal.Body className="pt-0">
+                <p className="my-3">While you&apos;ll be able to use RavenDB, there will be some limitations:</p>
+                <Icon icon="check" color="success" />{" "}
+                <a href="https://www.gnu.org/licenses/agpl-3.0.en.html" target="_blank">
+                    AGPLv3 restrictions
+                </a>{" "}
+                applied
                 <br />
                 <Icon icon="check" color="success" /> Limited set of features
                 <br />
                 <Icon icon="check" color="success" /> Max of 1 node in cluster, 3 CPU cores, and 6 GB RAM memory usage
-                <br />
-                Either confirm your choice and skip the verification, or generate a new{" "}
-                <Button
-                    variant="link"
-                    className="text-info p-0 text-decoration-underline"
-                    onClick={() => handleLicenseTypeChange("community")}
-                >
-                    Community
-                </Button>{" "}
-                or{" "}
-                <Button
-                    variant="link"
-                    className="text-success p-0 text-decoration-underline"
-                    onClick={() => handleLicenseTypeChange("developer")}
-                >
-                    Developer
-                </Button>{" "}
-                license.
+                <p className="mt-3 mb-0">
+                    Either confirm your choice and skip the verification, or generate a new{" "}
+                    <Button
+                        variant="link"
+                        className="text-info p-0 text-decoration-underline"
+                        onClick={() => handleLicenseTypeChange("community")}
+                        title="Generate Community license"
+                    >
+                        Community
+                    </Button>{" "}
+                    or{" "}
+                    <Button
+                        variant="link"
+                        className="text-developer p-0 text-decoration-underline"
+                        onClick={() => handleLicenseTypeChange("developer")}
+                        title="Generate Developer license"
+                    >
+                        Developer
+                    </Button>{" "}
+                    license.
+                </p>
             </Modal.Body>
             <Modal.Footer>
                 <Button variant="link" onClick={close} className="link-muted">
                     Cancel
                 </Button>
-                <Button variant="warning" onClick={handleConfirm} className="rounded-pill">
-                    Skip verification
-                    <Icon icon="arrow-right" margin="ms-1" />
+                <Button variant="warning" onClick={handleConfirm} className="rounded-pill d-flex align-items-center">
+                    Skip verification &nbsp;
+                    <Icon icon="arrow-right" margin="m-0" />
                 </Button>
             </Modal.Footer>
         </Modal>
@@ -415,7 +442,7 @@ export function SetupWizardLicenseKeyVerifyCodeModal({
         formState: { errors },
     } = useFormContext<SetupWizardFormData>();
     const { countdown, isCountdownActive, startCountdown } = useResendCountdown();
-    
+
     useEffect(() => {
         // clear errors on remounting component
         setFocus("licenseKeyStep.verificationCode");
@@ -450,25 +477,25 @@ export function SetupWizardLicenseKeyVerifyCodeModal({
         }
     );
 
-    
     const handleResendClick = async () => {
         await sendLicenseVerificationCode.execute().then(() => {
             startCountdown();
         });
     };
-    
+
     return (
         <Modal show onHide={close} contentClassName="modal-border bulge-primary" size="lg">
             <Modal.Header closeButton onCloseClick={close} className="pb-0">
                 <h3 className="d-flex justify-content-center align-items-center w-100">
-                    <Icon icon="about" color="primary" />
+                    <Icon icon="paperplane" color="primary" />
                     Enter verification code
                 </h3>
             </Modal.Header>
             <Modal.Body className="d-flex align-items-center flex-column justify-items-center">
-                <p className="text-center">
-                    Before generating license we need to confirm provided email. Please check you email inbox. We have
-                    sent verification code to <b>{licenseKeyStepData?.email || "test@gmail.com"}</b>
+                <p className="text-center mb-1">Before generating license we need to confirm provided email.</p>
+                <p>
+                    Please check you email inbox. We have sent verification code to{" "}
+                    <b>{licenseKeyStepData?.email || "test@gmail.com"}</b>
                 </p>
                 <form>
                     <FormVerificationCodeInput
@@ -505,8 +532,8 @@ export function SetupWizardLicenseKeyVerifyCodeModal({
                     className="rounded-pill"
                     onClick={() => onSubmitVerifiedCode.execute(licenseKeyStepData.verificationCode)}
                 >
-                    Verify email
-                    <Icon icon="arrow-right" margin="ms-1" />
+                    Verify email &nbsp;
+                    <Icon icon="arrow-right" margin="m-0" />
                 </ButtonWithSpinner>
             </Modal.Footer>
         </Modal>
@@ -521,7 +548,7 @@ function useResendCountdown(initialDelay: number = 30) {
         let interval: NodeJS.Timeout;
         if (isActive && countdown > 0) {
             interval = setInterval(() => {
-                setCountdown(prev => prev - 1);
+                setCountdown((prev) => prev - 1);
             }, 1000);
         } else if (countdown === 0) {
             setIsActive(false);
@@ -616,7 +643,7 @@ export function SetupWizardLicenseKeyStepFooter() {
                 });
                 setValue("licenseKeyStep.isLoadingKey", false);
             } catch (err) {
-            setValue("licenseKeyStep.isInvalidKey", true);
+                setValue("licenseKeyStep.isInvalidKey", true);
                 setValue("licenseKeyStep.isLoadingKey", false);
                 setValue("licenseKeyStep.licenseInfo", null);
             }
@@ -692,7 +719,8 @@ export function SetupWizardLicenseKeyStepFooter() {
                     onClick={handleContinue}
                     isSpinning={asyncRegistrationInfo.loading}
                 >
-                    Continue <Icon icon="arrow-right" margin="ms-1" />
+                    Continue&nbsp;
+                    <Icon icon="arrow-right" margin="m-0" />
                 </ButtonWithSpinner>
             )}
             {isLicenseSkipModalOpen && <SkipLicenseVerificationConfirmModal close={toggleIsLicenseSkipModalOpen} />}

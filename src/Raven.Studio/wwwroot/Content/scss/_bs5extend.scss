@@ -627,8 +627,10 @@ $filtering-input-bg: $toggle-bg !default;
 }
 
 .hover-filter {
-    filter: $hover-filter-var;
-    transition: $global-easing-in-out;
+    &:hover {
+        filter: $hover-filter-var;
+        transition: $global-easing-in-out;
+    }
 }
 
 .list-group-item {
@@ -672,4 +674,17 @@ $filtering-input-bg: $toggle-bg !default;
 
 .border-dashed {
     border-style: dashed;
+}
+
+.icon-info-new {
+    font-size: 100%;
+    opacity: 0.6;
+    transition: $transition-base;
+    margin-left: $gutter-xxxs;
+    margin-right: 0 !important;
+
+    &:hover {
+        opacity: 1;
+        transition: none;
+    }
 }

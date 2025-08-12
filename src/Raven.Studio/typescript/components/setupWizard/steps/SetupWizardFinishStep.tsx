@@ -127,7 +127,7 @@ export function SetupWizardFinishStep() {
     return (
         <div className="finish-step">
             <TopInfo status={status} />
-            <div className="hstack mt-4 mb-2 justify-content-between">
+            <div className="hstack mt-4 mb-1 justify-content-between">
                 <FormGroup marginClass="mb-0">
                     <Switch className="mb-0" selected={isShowLogs} toggleSelection={toggleIsShowLogs} color="primary">
                         Show configuration log
@@ -148,11 +148,13 @@ export function SetupWizardFinishStep() {
                     Download configuration log
                 </Button>
             </div>
-            <div className="summary-tab-container mb-4">
-                <pre className="p-4 mb-0">
-                    <Configuration configurationProcess={configurationProcess} />
-                </pre>
-            </div>
+            {configurationProcess && (
+                <div className="summary-tab-container mb-4">
+                    <pre className="p-4 mb-0">
+                        <Configuration configurationProcess={configurationProcess} />
+                    </pre>
+                </div>
+            )}
             {isShowLogs && (
                 <div className="mb-4">
                     <pre>
@@ -199,22 +201,30 @@ const Configuration = ({ configurationProcess }: ConfigurationProps) => {
 
             <ConfigurationItem
                 stepTitle="Acquiring let's encrypt certificate"
-                configurationState={configurationProcess?.SetupActionSteps?.StepsByConfigurationStepType.ClientCertificate}
+                configurationState={
+                    configurationProcess?.SetupActionSteps?.StepsByConfigurationStepType.ClientCertificate
+                }
             />
 
             <ConfigurationItem
                 stepTitle="Configuration settings"
-                configurationState={configurationProcess?.SetupActionSteps?.StepsByConfigurationStepType.ConfigurationSettings}
+                configurationState={
+                    configurationProcess?.SetupActionSteps?.StepsByConfigurationStepType.ConfigurationSettings
+                }
             />
 
             <ConfigurationItem
                 stepTitle="Client certificate"
-                configurationState={configurationProcess?.SetupActionSteps?.StepsByConfigurationStepType.ClientCertificate}
+                configurationState={
+                    configurationProcess?.SetupActionSteps?.StepsByConfigurationStepType.ClientCertificate
+                }
             />
 
             <ConfigurationItem
                 stepTitle="Creating settings.json"
-                configurationState={configurationProcess?.SetupActionSteps?.StepsByConfigurationStepType.CreatingSettingsJson}
+                configurationState={
+                    configurationProcess?.SetupActionSteps?.StepsByConfigurationStepType.CreatingSettingsJson
+                }
             />
         </div>
     );
@@ -236,16 +246,16 @@ const ConfigurationItem = ({ configurationState, stepTitle }: ConfigurationItemP
             case "InProgress":
                 return <Spinner className="spinner-gradient" size="sm" />;
             case "Completed":
-                return <Icon color="success" icon="checkmark" />;
+                return <Icon color="success" icon="checkmark" margin="m-0" />;
             case "SkippedDueToError":
-                return <Icon color="muted" icon="skip" />;
+                return <Icon color="muted" icon="skip" margin="m-0" />;
             default:
-                return <Icon color="danger" icon="close" />;
+                return <Icon color="danger" icon="close" margin="m-0" />;
         }
     };
 
     return (
-        <div className="d-flex flex-column my-2 align-items-center">
+        <div className="d-flex flex-column mb-1 align-items-center">
             <div className="w-100 d-flex align-items-center justify-content-between">
                 <span>{stepTitle}</span>
                 {getConfigurationItemStatus()}
@@ -264,14 +274,14 @@ function TopInfo({ status }: { status: OperationStatus }) {
         <>
             {status === "InProgress" && (
                 <>
-                    <h3>Configuration in process</h3>
-                    <p>Please, wait a moment. Your RavenDB will be ready in no time.</p>
+                    <h2 className="mb-1">Configuration in process</h2>
+                    <p className="mb-4 text-muted">Please, wait a moment. Your RavenDB will be ready in no time.</p>
                 </>
             )}
             {status === "Faulted" && (
                 <>
-                    <h3>Setup failed</h3>
-                    <p>
+                    <h2 className="mb-1">Setup failed</h2>
+                    <p className="mb-4 text-muted">
                         It seems like something went wrong. Read the error message to find out what might&apos;ve been
                         an issue.
                     </p>
@@ -279,13 +289,15 @@ function TopInfo({ status }: { status: OperationStatus }) {
             )}
             {status === "Canceled" && (
                 <>
-                    <h3>Setup canceled</h3>
+                    <h2 className="mb-1">Setup canceled</h2>
                 </>
             )}
             {status === "Completed" && (
                 <>
-                    <h3>All set!</h3>
-                    <p>You&apos;re almost ready to go. Follow the instructions to successfully complete the process.</p>
+                    <h2 className="mb-1">All set!</h2>
+                    <p className="mb-4 text-muted">
+                        You&apos;re almost ready to go. Follow the instructions to successfully complete the process.
+                    </p>
                 </>
             )}
         </>
@@ -332,7 +344,12 @@ function CompletedSummary() {
                                 className="border-secondary border-end vstack gap-2 text-center justify-content-center"
                             >
                                 <Icon icon="server" color="primary" size="lg" />
-                                <span>The new server will be available at: {studioUrl}</span>
+                                <span>
+                                    The new server will be available at:{" "}
+                                    <a href={studioUrl} target="_blank" className="pe-none">
+                                        {studioUrl}
+                                    </a>
+                                </span>
                             </Col>
                             <Col
                                 md={4}
@@ -676,7 +693,7 @@ function CertInstallationConfirm(props: { onCancel: () => void; onConfirm: () =>
                 <Icon icon="certificate" color="primary" addon="check" className="fs-2" />
                 <span className="lead">Confirm certificate installation</span>
             </Modal.Header>
-            <Modal.Body>
+            <Modal.Body className="pt-0">
                 <NumberedList>
                     <NumberedListItem stepKey={1}>
                         <h4>Recognize certificate in your browser</h4>
@@ -742,12 +759,12 @@ function CertInstallationConfirm(props: { onCancel: () => void; onConfirm: () =>
                         </div>
                     </NumberedListItem>
                     <NumberedListItem stepKey={2}>
-                        <h4>Restart server</h4>
-                        <p>
+                        <h4 className="mb-2">Restart server</h4>
+                        <p className="mb-1">
                             Once you proceed with restart, pick your newly installed certificate from the list of
                             available certificates.
-                            <br />
-                            <br />
+                        </p>
+                        <p className="mb-0">
                             If Chrome doesn’t let you choose a certificate and instead you get a RavenDB authentication
                             error, please try again in the Incognito mode (or close all instances of Chrome). It can
                             happen because the browser caches the client certificates.
@@ -757,7 +774,7 @@ function CertInstallationConfirm(props: { onCancel: () => void; onConfirm: () =>
             </Modal.Body>
             <Modal.Footer className="hstack justify-content-between">
                 <a href={docsLink} target="_blank" className="btn btn-info rounded-pill">
-                    See documentation <Icon icon="newtab" margin="ms-1" />
+                    See documentation <Icon icon="newtab" margin="m-0" />
                 </a>
                 <div className="hstack gap-2">
                     <Button variant="link" onClick={onCancel} className="link-muted">
@@ -809,7 +826,7 @@ export function SetupWizardFinishStepFooter() {
     return (
         <div className="d-flex justify-content-end">
             <Button variant="primary" onClick={handleReset} className="mt-2 rounded-pill">
-                Reset server <Icon icon="reset" margin="m-0" />
+                Restart server <Icon icon="reset" margin="m-0" />
             </Button>
             {isCertInstallationConfirmed && (
                 <CertInstallationConfirm

@@ -25,10 +25,10 @@ export function SetupWizardSummaryStep() {
     return (
         <div>
             <div className="mb-5">
-                <h2>Summary</h2>
-                <p>Check if everything’s correct before proceeding.</p>
+                <h2 className="mb-1">Summary</h2>
+                <p className="mb-4 text-muted">Check if everything’s correct before proceeding.</p>
             </div>
-            <div className="vstack gap-3">
+            <div className="vstack gap-1">
                 <h5 className="mb-0">Security & license</h5>
                 <Card>
                     <Card.Body>
@@ -190,16 +190,16 @@ function NodeDistributionItem({
                 <PopoverWithHoverWrapper
                     message={
                         <div>
-                            Your node listens on port <b>{httpPort}</b> internally
+                            Your node listens on port <strong>{httpPort}</strong> internally
                             {externalHttpPort && (
                                 <>
-                                    , while external traffic connects via port <b>{externalHttpPort}</b>.
+                                    , while external traffic connects via port <strong>{externalHttpPort}</strong>.
                                 </>
                             )}
                         </div>
                     }
                 >
-                    {httpPort} {externalHttpPort && <span>→ {externalHttpPort}</span>}
+                    {httpPort} {externalHttpPort && <span>&nbsp;→ {externalHttpPort}</span>}
                 </PopoverWithHoverWrapper>
             </div>
             <div>
@@ -215,7 +215,7 @@ function NodeDistributionItem({
                         </div>
                     }
                 >
-                    {tcpPort} {externalTcpPort && <span>→ {externalTcpPort}</span>}
+                    {tcpPort} {externalTcpPort && <span>&nbsp;→ {externalTcpPort}</span>}
                 </PopoverWithHoverWrapper>
             </div>
             <div>
@@ -223,13 +223,18 @@ function NodeDistributionItem({
                     message={
                         <div>
                             Your node is accessible internally via multiple IPs:
-                            <ul>
+                            <ul className="mb-0">
                                 {ipAddress.map((ip) => (
-                                    <li key={ip.ipAddress}>{ip.ipAddress}</li>
+                                    <li key={ip.ipAddress}>
+                                        <strong>{ip.ipAddress}</strong>
+                                    </li>
                                 ))}
                             </ul>
                             {externalIpAddress && (
-                                <>while external traffic reaches it via the public IP: {externalIpAddress}</>
+                                <>
+                                    while external traffic reaches it via the public IP:{" "}
+                                    <strong>{externalIpAddress}</strong>
+                                </>
                             )}
                         </div>
                     }

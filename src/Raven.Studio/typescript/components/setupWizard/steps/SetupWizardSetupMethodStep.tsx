@@ -16,15 +16,15 @@ export function SetupWizardSetupMethodStep() {
     const {
         setupMethodStep: { method: selectedMethod },
     } = useWatch({ control });
-    
+
     useEffect(() => {
         setValue("setupMethodStep.method", selectedMethod ?? "newCluster");
     }, []);
-    
+
     return (
         <div>
-            <h2>Choose your setup method</h2>
-            <p>
+            <h2 className="mb-1">Choose your setup method</h2>
+            <p className="mb-4 text-muted">
                 This wizard will assist you with setting up your RavenDB server. You can set up a new cluster, create an
                 external configuration package, or continue with an existing setup package.
             </p>
@@ -37,11 +37,11 @@ export function SetupWizardSetupMethodStep() {
                     isSelected={selectedMethod === "newCluster"}
                     onClick={() => setValue("setupMethodStep.method", "newCluster")}
                     popoverMessage={
-                        <ol>
+                        <ul className="mb-0 ps-3">
                             <li>Deploying RavenDB for the first time</li>
                             <li>Setting up a new single-node or multi-node cluster</li>
                             <li>Creating a fresh cluster with a new configuration</li>
-                        </ol>
+                        </ul>
                     }
                 />
                 <SetupWizardClickableCard
@@ -52,14 +52,14 @@ export function SetupWizardSetupMethodStep() {
                     isSelected={selectedMethod === "createPackage"}
                     onClick={() => setValue("setupMethodStep.method", "createPackage")}
                     popoverMessage={
-                        <ol>
+                        <ul className="mb-0 ps-3">
                             <li>
                                 You want to create a Package for an external environment i.e. cloud instance,
                                 containers, or similar
                             </li>
                             <li>Creating pre-configured package without setting up a server</li>
                             <li>Useful with offline or remote setup</li>
-                        </ol>
+                        </ul>
                     }
                 />
             </div>
@@ -74,13 +74,13 @@ export function SetupWizardSetupMethodStep() {
                     onClick={() => setValue("setupMethodStep.method", "usePackage")}
                     popoverMessage={
                         <>
-                            <ol>
+                            <ul className="ps-3">
                                 <li>Setting up another node in an existing cluster</li>
                                 <li>Setting up a new cluster from external package</li>
-                            </ol>
-                            <p>
-                                You want to make changes to existing setup package settings To obtain a setup package
-                                you need to setup a new multi-node cluster or create package for external setup.
+                            </ul>
+                            <p className="mb-0">
+                                To obtain a setup package you need to setup a new multi-node cluster or create package
+                                for external setup.
                             </p>
                         </>
                     }
@@ -115,20 +115,29 @@ export function SetupWizardSetupMethodStepFooter() {
         <div className="d-flex justify-content-between">
             <PopoverWithHoverWrapper
                 message={
-              <PopoverMessage description={<NumberedList>
-                        <SetupWizardStepItem stepIndicator={1}>
-                            <span>Open the settings.json file located in your RavenDB installation directory</span>
-                        </SetupWizardStepItem>
-                      <SetupWizardStepItem stepIndicator={2}>
-                            <span>Change the setup mode to None, e.g. &#34;Setup.Mode: &#34;None&#34;</span>
-                        </SetupWizardStepItem>
-                    </NumberedList>} />
+                    <PopoverMessage
+                        description={
+                            <NumberedList>
+                                <SetupWizardStepItem stepIndicator={1}>
+                                    <span>
+                                        Open the <em>settings.json</em> file located in your RavenDB installation
+                                        directory
+                                    </span>
+                                </SetupWizardStepItem>
+                                <SetupWizardStepItem stepIndicator={2}>
+                                    <span>
+                                        Change the setup mode to None, e.g. <code>&#34;Setup.Mode: &#34;None&#34;</code>
+                                    </span>
+                                </SetupWizardStepItem>
+                            </NumberedList>
+                        }
+                    />
                 }
             >
-                <small className="text-info">
+                <span className="md-label mb-0">
                     <Icon icon="info" />
-                    How can I setup manually?
-                </small>
+                    How to set up manually?
+                </span>
             </PopoverWithHoverWrapper>
             <ConditionalPopover
                 conditions={{

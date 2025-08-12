@@ -20,7 +20,7 @@ export function SetupWizardSecurityStep() {
         securityStep: { securityOption },
         licenseKeyStep: { key, licenseInfo },
     } = useWatch({ control });
-    
+
     useEffect(() => {
         if (isSecureDisabled) {
             setValue("securityStep.securityOption", "none");
@@ -32,10 +32,10 @@ export function SetupWizardSecurityStep() {
 
     return (
         <div>
-            <h2>Security</h2>
-            <p>Select the security option that best addresses your needs</p>
+            <h2 className="mb-1">Security</h2>
+            <p className="mb-4 text-muted">Select the security option that best addresses your needs</p>
             <div className="mt-4">
-                <h5 className="mb-1">
+                <h5 className="mb-1 d-flex align-items-center">
                     <Icon icon="lock" color="success" />
                     Secure
                     {isSecureRecommended && (
@@ -49,7 +49,7 @@ export function SetupWizardSecurityStep() {
                                 </div>
                             }
                         >
-                            <Badge pill bg="success" className="ms-1">
+                            <Badge pill bg="faded-success" className="ms-1">
                                 Recommended
                             </Badge>
                         </PopoverWithHoverWrapper>
@@ -78,16 +78,16 @@ export function SetupWizardSecurityStep() {
                         onClick={() => setValue("securityStep.securityOption", "letsEncrypt")}
                         isDisabled={isSecureDisabled}
                         popoverMessage={
-                            <ol>
+                            <ul className="mb-0 ps-3">
                                 <li>
                                     Default setting for most users. RavenDB will automatically generate and manage
                                     SSL/TLS certificates for encrypting communications between nodes and clients.
                                 </li>
                                 <li>
-                                    Ideal when you don&#39;t have a specific custom certificate or prefer RavenDB to handle
-                                    encryption automatically.
+                                    Ideal when you don&#39;t have a specific custom certificate or prefer RavenDB to
+                                    handle encryption automatically.
                                 </li>
-                            </ol>
+                            </ul>
                         }
                     />
                 </ConditionalPopover>
@@ -114,7 +114,7 @@ export function SetupWizardSecurityStep() {
                         onClick={() => setValue("securityStep.securityOption", "ownCertificate")}
                         isDisabled={isSecureDisabled}
                         popoverMessage={
-                            <ol>
+                            <ul className="mb-0 ps-3">
                                 <li>
                                     You need to use a custom SSL/TLS certificate, often for integration with a specific
                                     internal certificate authority or to comply with corporate security policies.
@@ -127,7 +127,7 @@ export function SetupWizardSecurityStep() {
                                     Ideal for <b>production environments</b> where you want more control over
                                     certificate management and trust settings.
                                 </li>
-                            </ol>
+                            </ul>
                         }
                     />
                 </ConditionalPopover>
@@ -144,7 +144,7 @@ export function SetupWizardSecurityStep() {
                     isSelected={securityOption === "none"}
                     onClick={() => setValue("securityStep.securityOption", "none")}
                     popoverMessage={
-                        <ol>
+                        <ul className="mb-0 ps-3">
                             <li>
                                 Only in <b>trusted, isolated environments</b> (e.g., internal testing, local
                                 development, or a network that is isolated from the public internet).
@@ -154,10 +154,10 @@ export function SetupWizardSecurityStep() {
                                 unencrypted, leaving it vulnerable to eavesdropping or man-in-the-middle attacks.
                             </li>
                             <li>
-                                If you are aware that all nodes are within a secure, private network and you don&#39;t need
-                                encryption for performance or resource constraints.
+                                If you are aware that all nodes are within a secure, private network and you don&#39;t
+                                need encryption for performance or resource constraints.
                             </li>
-                        </ol>
+                        </ul>
                     }
                 />
             </div>
@@ -212,14 +212,18 @@ export function SetupWizardSecurityStepFooter() {
                         control={control}
                         name="securityStep.isLetsEncryptAgreementAccepted"
                     >
-                        I accept{" "}
-                        {asyncGetLetsEncryptAgreement.loading && <Spinner />}
+                        I accept {asyncGetLetsEncryptAgreement.loading && <Spinner />}
                         <a target="_blank" href={asyncGetLetsEncryptAgreement.result as string}>
                             Let&apos;s Encrypt Subscriber Agreement
                         </a>
                     </FormCheckbox>
                 )}
-                <Button disabled={!isLetsEncryptAgreementAccepted && securityOption === "letsEncrypt"} variant="primary" className="rounded-pill" onClick={handleContinue}>
+                <Button
+                    disabled={!isLetsEncryptAgreementAccepted && securityOption === "letsEncrypt"}
+                    variant="primary"
+                    className="rounded-pill"
+                    onClick={handleContinue}
+                >
                     Continue <Icon icon="arrow-right" margin="m-0" />
                 </Button>
             </div>

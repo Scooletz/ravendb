@@ -100,8 +100,10 @@ export function SetupWizardSelfSignedCertificateStep() {
 
     return (
         <div>
-            <h2>Use self-signed certificate</h2>
-            <p>For the highest security and control, you can use your own certificate once obtained.</p>
+            <h2 className="mb-1">Use self-signed certificate</h2>
+            <p className="mb-4 text-muted">
+                For the highest security and control, you can use your own certificate once obtained.
+            </p>
             <FormGroup>
                 <FileDropzone onChange={handleFileChange} validExtensions={["pfx"]} maxFiles={1} />
             </FormGroup>
@@ -112,13 +114,17 @@ export function SetupWizardSelfSignedCertificateStep() {
                         <PopoverWithHoverWrapper
                             message={
                                 <>
-                                    Enter the passphrase used to encrypt your private key. This is required to unlock
-                                    and use your certificate.
-                                    <hr className="my-1" />
-                                    <Icon icon="link" /> Read more in our{" "}
-                                    <a href="#TODO" target="_blank">
-                                        documentation <Icon icon="newtab" />
-                                    </a>
+                                    <p className="mb-0">
+                                        Enter the passphrase used to encrypt your private key. This is required to
+                                        unlock and use your certificate.
+                                    </p>
+                                    <hr className="my-2" />
+                                    <span className="md-label">
+                                        <Icon icon="link" /> Read more in our{" "}
+                                        <a href="#TODO" target="_blank">
+                                            documentation <Icon icon="newtab" />
+                                        </a>
+                                    </span>
                                 </>
                             }
                         >
@@ -137,27 +143,29 @@ export function SetupWizardSelfSignedCertificateStep() {
             )}
             {cns.length > 0 && (
                 <FormGroup>
-                    <FormLabel className="hstack justify-content-between">
+                    <FormLabel className="hstack">
                         CN Names
                         <PopoverWithHoverWrapper
                             message={
                                 <>
-                                    The Common Name (CN) is automatically extracted from your certificate. It represents
-                                    the domain or hostname the certificate is issued for.
-                                    <hr className="my-1" />
-                                    <Icon icon="link" /> Read more in our{" "}
-                                    <a href="#TODO" target="_blank">
-                                        documentation <Icon icon="newtab" />
-                                    </a>
+                                    <p className="mb-0">
+                                        The Common Name (CN) is automatically extracted from your certificate. It
+                                        represents the domain or hostname the certificate is issued for.
+                                    </p>
+                                    <hr className="my-2" />
+                                    <span className="md-label">
+                                        <Icon icon="link" /> Read more in our{" "}
+                                        <a href="#TODO" target="_blank">
+                                            documentation <Icon icon="newtab" />
+                                        </a>
+                                    </span>
                                 </>
                             }
                         >
-                            <div className="text-info">
-                                <Icon icon="info" size="xs" /> What is this?
-                            </div>
+                            <Icon icon="info-new" />
                         </PopoverWithHoverWrapper>
                     </FormLabel>
-                    <div className="vstack gap-2">
+                    <div className="vstack gap-1">
                         {cns.map((cn) => (
                             <div className="panel-bg-2">
                                 <Form.Control key={cn} type="text" value={cn} disabled readOnly />
@@ -196,21 +204,21 @@ export function SetupWizardSelfSignedCertificateStepFooter() {
     const handleBack = () => {
         setValue("currentStep", "Security");
     };
-    
+
     return (
         <div className="hstack justify-content-between">
             <Button variant="secondary" className="rounded-pill" onClick={handleBack}>
                 <Icon icon="arrow-left" /> Back
             </Button>
-            <ButtonWithSpinner 
-                variant="primary" 
-                className="rounded-pill" 
+            <ButtonWithSpinner
+                variant="primary"
+                className="rounded-pill"
                 onClick={handleContinue}
                 isSpinning={asyncGetCNs.loading}
             >
-                Continue <Icon icon="arrow-right" margin="m-0" />
+                Continue&nbsp;
+                <Icon icon="arrow-right" margin="m-0" />
             </ButtonWithSpinner>
         </div>
     );
 }
-

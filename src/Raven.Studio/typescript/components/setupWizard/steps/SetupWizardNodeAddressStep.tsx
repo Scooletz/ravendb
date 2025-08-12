@@ -30,7 +30,6 @@ import useConfirm from "components/common/ConfirmDialog";
 import InputGroup from "react-bootstrap/InputGroup";
 import { ConditionalPopover } from "components/common/ConditionalPopover";
 import PopoverWithHoverWrapper from "components/common/PopoverWithHoverWrapper";
-import { HrHeader } from "components/common/HrHeader";
 import classNames from "classnames";
 import genUtils from "common/generalUtils";
 import { useAsync } from "react-async-hook";
@@ -96,13 +95,14 @@ export function SetupWizardNodeAddressStep() {
     return (
         <div>
             <div className="mb-4">
-                <h2>Node addresses</h2>
-                <p>
-                    Enter your server settings - IP addresses and ports to ensure clear communication and smooth work of
-                    your database. If you are building a cluster this is the place to add nodes and configure them.
+                <h2 className="mb-1">Node addresses</h2>
+                <p className="mb-4 text-muted">
+                    Enter your server settings to ensure clear communication and smooth work of your database.
+                    <br />
+                    If you are building a cluster this is the place to add nodes and configure them.
                 </p>
             </div>
-            <div className="vstack gap-3">
+            <div className="vstack">
                 {fields.map((field, index) => (
                     <NodeDetailsPanel key={field.id} control={control} index={index} onRemove={() => remove(index)} />
                 ))}
@@ -209,11 +209,11 @@ function NodeDetailsPanelHeader({ control, index, onRemove, editNodeForm }: Node
         control,
         name: `nodeAddressStep.nodes.${index}`,
     });
-    
+
     const nodeAddressNodes = useWatch({
         control,
         name: "nodeAddressStep.nodes",
-    })
+    });
 
     const domainData = useWatch({
         control,
@@ -282,7 +282,7 @@ function NodeDetailsPanelHeader({ control, index, onRemove, editNodeForm }: Node
     return (
         <RichPanelHeader>
             <RichPanelInfo>
-                <RichPanelName>
+                <RichPanelName size="sm">
                     {nodeData.isNewlyAdded ? (
                         <>Creating new node</>
                     ) : nodeData.isEditing ? (
@@ -331,7 +331,7 @@ function NodeDetailsPanelHeader({ control, index, onRemove, editNodeForm }: Node
                         >
                             <Icon icon="edit" margin="m-0" />
                         </Button>
-                        {(nodeAddressNodes.filter(node => !node.isNewlyAdded).length > 1) && (
+                        {nodeAddressNodes.filter((node) => !node.isNewlyAdded).length > 1 && (
                             <Button variant="danger" onClick={handleDeleteNode}>
                                 <Icon icon="trash" margin="m-0" />
                             </Button>
@@ -351,21 +351,17 @@ interface PopoverMessageProps {
 
 export function PopoverMessage({ description, ravenLinkHash = "37GM2Z", alert }: PopoverMessageProps) {
     // TODO: We need an updated version of the documentation - that way, we will be able to insert links that point directly to the relevant sections
-    const docsLink = useRavenLink({ hash: ravenLinkHash })
+    const docsLink = useRavenLink({ hash: ravenLinkHash });
 
     return (
         <>
-            <p>{description}</p>
+            <p className="mb-0">{description}</p>
             {alert}
-            <HrHeader />
-            <span>
+            <hr className="my-2" />
+            <span className="md-label">
                 <Icon icon="link" />
                 Read more in our{" "}
-                <a
-                    href={docsLink}
-                    target="_blank"
-                    className="text-primary fw-bold"
-                >
+                <a href={docsLink} target="_blank" className="text-primary fw-bold">
                     documentation <Icon icon="newtab" />
                 </a>
             </span>
@@ -383,15 +379,15 @@ function NodeDetailsPanelView({ index, control }: { index: number; control: Cont
     return (
         <RichPanelDetails>
             <RichPanelDetailItem>
-                <div className="d-flex flex-column gap-1 w-100">
-                    <span className="d-flex gap-1">
-                        <b>Node URL</b>
+                <div className="d-flex flex-column w-100">
+                    <span className="hstack">
+                        <span className="md-label mb-0">Node URL</span>
                         <PopoverWithHoverWrapper
                             message={
                                 <PopoverMessage description="Defines the address under which specific node will be available." />
                             }
                         >
-                            <Icon icon="info" color="info" margin="m-0" />
+                            <Icon icon="info-new" />
                         </PopoverWithHoverWrapper>
                     </span>
                     <div className="text-truncate" title={nodeData.nodeUrl || localIpPortAddress}>
@@ -402,15 +398,15 @@ function NodeDetailsPanelView({ index, control }: { index: number; control: Cont
 
             {nodeData.dnsName && (
                 <RichPanelDetailItem>
-                    <div className="d-flex flex-column gap-1 w-100">
-                        <span className="d-flex gap-1">
-                            <b>DNS Name</b>
+                    <div className="d-flex flex-column w-100">
+                        <span className="hstack">
+                            <span className="md-label mb-0">DNS Name</span>
                             <PopoverWithHoverWrapper
                                 message={
                                     <PopoverMessage description="Defines the address under which specific node will be available." />
                                 }
                             >
-                                <Icon icon="info" color="info" margin="m-0" />
+                                <Icon icon="info-new" />
                             </PopoverWithHoverWrapper>
                         </span>
                         <div className="text-truncate" title={nodeData.dnsName}>
@@ -421,9 +417,9 @@ function NodeDetailsPanelView({ index, control }: { index: number; control: Cont
             )}
 
             <RichPanelDetailItem>
-                <div className="d-flex flex-column gap-1">
-                    <span className="d-flex gap-1">
-                        <b>HTTPS port</b>
+                <div className="d-flex flex-column">
+                    <span className="hstack">
+                        <span className="md-label mb-0">HTTPS port</span>
                         <PopoverWithHoverWrapper
                             message={
                                 <PopoverMessage
@@ -432,16 +428,16 @@ function NodeDetailsPanelView({ index, control }: { index: number; control: Cont
                                 />
                             }
                         >
-                            <Icon icon="info" color="info" margin="m-0" />
+                            <Icon icon="info-new" />
                         </PopoverWithHoverWrapper>
                     </span>
                     <div>{nodeData.httpPort}</div>
                 </div>
             </RichPanelDetailItem>
             <RichPanelDetailItem>
-                <div className="d-flex flex-column gap-1">
-                    <span className="d-flex gap-1">
-                        <b>TCP port</b>
+                <div className="d-flex flex-column">
+                    <span className="hstack">
+                        <span className="md-label mb-0">TCP port</span>
                         <PopoverWithHoverWrapper
                             message={
                                 <PopoverMessage
@@ -450,22 +446,22 @@ function NodeDetailsPanelView({ index, control }: { index: number; control: Cont
                                 />
                             }
                         >
-                            <Icon icon="info" color="info" margin="m-0" />
+                            <Icon icon="info-new" />
                         </PopoverWithHoverWrapper>
                     </span>
                     <div>{nodeData.tcpPort}</div>
                 </div>
             </RichPanelDetailItem>
             <RichPanelDetailItem>
-                <div className="d-flex flex-column gap-1">
-                    <span className="d-flex gap-1">
-                        <b>IP address/Hostname</b>
+                <div className="d-flex flex-column">
+                    <span className="hstack">
+                        <span className="md-label mb-0">IP address/Hostname</span>
                         <PopoverWithHoverWrapper
                             message={
                                 <PopoverMessage description="Defines the private network endpoint where the server is accessible." />
                             }
                         >
-                            <Icon size="xs" icon="info" color="info" margin="m-0" />
+                            <Icon icon="info-new" />
                         </PopoverWithHoverWrapper>
                     </span>
                     {nodeData.hasExternalConfig && nodeData.externalIpAddress ? (
@@ -525,35 +521,37 @@ function NodeDetailsPanelEdit({
                 {isPassiveVisible && (
                     <FormGroup>
                         <FormSwitch name="isPassive" control={control}>
-                            Start node as Passive, not part of a cluster
-                            <PopoverWithHoverWrapper
-                                message={
-                                    <PopoverMessage description="When enabled, the node remains passive and does not join any cluster. This is useful when the node is meant for monitoring, initialization, or handling setup tasks without actively participating in cluster operations. It can also be used to isolate the node for testing or debugging purposes." />
-                                }
-                            >
-                                <Icon icon="info" margin="ms-1" color="info" />
-                            </PopoverWithHoverWrapper>
+                            <span className="hstack">
+                                Start node as Passive, not part of a cluster
+                                <PopoverWithHoverWrapper
+                                    message={
+                                        <PopoverMessage description="When enabled, the node remains passive and does not join any cluster. This is useful when the node is meant for monitoring, initialization, or handling setup tasks without actively participating in cluster operations. It can also be used to isolate the node for testing or debugging purposes." />
+                                    }
+                                >
+                                    <Icon icon="info-new" />
+                                </PopoverWithHoverWrapper>
+                            </span>
                         </FormSwitch>
                     </FormGroup>
                 )}
                 <Row>
                     <Col md={colWidth}>
                         <FormGroup>
-                            <FormLabel className="fw-bold">
+                            <FormLabel className="d-flex">
                                 Node tag
                                 <PopoverWithHoverWrapper
                                     message={
                                         <PopoverMessage
                                             description="Defines a unique identifier for each node in the cluster."
                                             alert={
-                                                <RichAlert variant="info" icon="info">
+                                                <RichAlert variant="info" icon="info" className="mt-1">
                                                     Node tag can contain maximum of 4 uppercase letters (A-Z).
                                                 </RichAlert>
                                             }
                                         />
                                     }
                                 >
-                                    <Icon icon="info" margin="ms-1" color="info" />
+                                    <Icon icon="info-new" />
                                 </PopoverWithHoverWrapper>
                             </FormLabel>
                             <FormInput
@@ -568,7 +566,7 @@ function NodeDetailsPanelEdit({
                     {isDNSVisible && (
                         <Col md={colWidth}>
                             <FormGroup>
-                                <FormLabel className="fw-bold">
+                                <FormLabel className="d-flex">
                                     DNS Name
                                     <PopoverWithHoverWrapper
                                         message={
@@ -583,7 +581,7 @@ function NodeDetailsPanelEdit({
                                             />
                                         }
                                     >
-                                        <Icon icon="info" margin="ms-1" color="info" />
+                                        <Icon icon="info-new" />
                                     </PopoverWithHoverWrapper>
                                 </FormLabel>
                                 <FormSelect
@@ -597,7 +595,7 @@ function NodeDetailsPanelEdit({
                     )}
                     <Col md={colWidth}>
                         <FormGroup>
-                            <FormLabel className="fw-bold">
+                            <FormLabel className="d-flex">
                                 HTTPS port
                                 <PopoverWithHoverWrapper
                                     message={
@@ -607,7 +605,7 @@ function NodeDetailsPanelEdit({
                                         />
                                     }
                                 >
-                                    <Icon icon="info" margin="ms-1" color="info" />
+                                    <Icon icon="info-new" />
                                 </PopoverWithHoverWrapper>
                             </FormLabel>
                             <FormInput type="number" name="httpPort" placeholder="Default: 443" control={control} />
@@ -615,7 +613,7 @@ function NodeDetailsPanelEdit({
                     </Col>
                     <Col md={colWidth}>
                         <FormGroup>
-                            <FormLabel className="fw-bold">
+                            <FormLabel className="d-flex">
                                 TCP Port
                                 <PopoverWithHoverWrapper
                                     message={
@@ -625,7 +623,7 @@ function NodeDetailsPanelEdit({
                                         />
                                     }
                                 >
-                                    <Icon icon="info" margin="ms-1" color="info" />
+                                    <Icon icon="info-new" />
                                 </PopoverWithHoverWrapper>
                             </FormLabel>
                             <FormInput type="number" name="tcpPort" placeholder="Default: 38888" control={control} />
@@ -640,17 +638,19 @@ function NodeDetailsPanelEdit({
                         </RichAlert>
                     )}
                     {securityOption === "letsEncrypt" && nodeData.ipAddress.length > 0 && (
-                        <RichAlert variant="info" icon="info" className="my-3">
+                        <RichAlert variant="info" icon="info">
                             RavenDB will update the DNS record for{" "}
-                            <a>{`${nodeData.nodeTag.toLowerCase()}.${domainStep.domain.toLowerCase()}.${domainStep.rootDomain}`}</a>{" "}
+                            <span className="text-decoration-underline">{`${nodeData.nodeTag.toLowerCase()}.${domainStep.domain.toLowerCase()}.${domainStep.rootDomain}`}</span>{" "}
                             to IP{" "}
                             {nodeData.ipAddress.length > 1 && !nodeData.externalIpAddress ? "addresses" : "address"}:{" "}
                             {nodeData.externalIpAddress && nodeData.hasExternalConfig ? (
-                                <a>{nodeData.externalIpAddress}</a>
+                                <span className="text-decoration-underline">{nodeData.externalIpAddress}</span>
                             ) : nodeData.ipAddress.length > 0 ? (
-                                <a>{nodeData.ipAddress.map((x) => x.ipAddress).join(", ")}</a>
+                                <span className="text-decoration-underline">
+                                    {nodeData.ipAddress.map((x) => x.ipAddress).join(", ")}
+                                </span>
                             ) : (
-                                <a>&lt;insert IP addresses&gt;</a>
+                                <span className="text-decoration-underline">&lt;insert IP addresses&gt;</span>
                             )}
                         </RichAlert>
                     )}
@@ -669,8 +669,9 @@ function NodeDetailsPanelEdit({
                         color="primary"
                         disabled={isExternalRequired}
                         control={control}
+                        className="mt-3 mb-2"
                     >
-                        <span className="d-flex gap-1">
+                        <span className="d-flex">
                             Customize external IP and ports
                             <PopoverWithHoverWrapper
                                 message={
@@ -680,7 +681,7 @@ function NodeDetailsPanelEdit({
                                     />
                                 }
                             >
-                                <Icon icon="info" margin="m-0" color="info" />
+                                <Icon icon="info-new" />
                             </PopoverWithHoverWrapper>
                         </span>
                     </FormSwitch>
@@ -710,10 +711,10 @@ function EditFormExternalAddressInputs({
 }) {
     return (
         <>
-            <RichPanelDetailItem className="flex-grow">
+            <div className="flex-grow">
                 <FormGroup className="vstack w-100">
-                    <FormLabel className="fw-bold">
-                        <span className="d-flex gap-1">
+                    <FormLabel>
+                        <span className="d-flex">
                             External IP address
                             <PopoverWithHoverWrapper
                                 message={
@@ -723,7 +724,7 @@ function EditFormExternalAddressInputs({
                                     />
                                 }
                             >
-                                <Icon icon="info" margin="ms-1" color="info" />
+                                <Icon icon="info-new" />
                             </PopoverWithHoverWrapper>
                         </span>
                     </FormLabel>
@@ -734,13 +735,13 @@ function EditFormExternalAddressInputs({
                         control={control}
                     />
                 </FormGroup>
-            </RichPanelDetailItem>
+            </div>
             {canCustomizeExternalIpsAndPorts && (
-                <RichPanelDetailItem className="flex-grow">
+                <div className="flex-grow">
                     <FormGroup className="vstack w-100">
-                        <FormLabel className="fw-bold">
-                            <span className="d-flex gap-1">
-                                External HTTPS port <OptionalLabel />
+                        <FormLabel>
+                            <span className="d-flex align-items-baseline">
+                                <span>External HTTPS port&nbsp;</span> <OptionalLabel />
                                 <PopoverWithHoverWrapper
                                     message={
                                         <PopoverMessage
@@ -749,7 +750,7 @@ function EditFormExternalAddressInputs({
                                         />
                                     }
                                 >
-                                    <Icon icon="info" margin="ms-1" color="info" />
+                                    <Icon icon="info-new" />
                                 </PopoverWithHoverWrapper>
                             </span>
                         </FormLabel>
@@ -760,14 +761,15 @@ function EditFormExternalAddressInputs({
                             control={control}
                         />
                     </FormGroup>
-                </RichPanelDetailItem>
+                </div>
             )}
             {(canCustomizeExternalIpsAndPorts || canCustomizeExternalTcpPorts) && (
-                <RichPanelDetailItem className="flex-grow">
+                <div className="flex-grow">
                     <FormGroup className="vstack w-100">
-                        <FormLabel className="fw-bold">
-                            <span className="d-flex gap-1">
-                                External TCP Port <OptionalLabel />
+                        <FormLabel>
+                            <span className="d-flex align-items-baseline">
+                                <span>External TCP Port&nbsp;</span>
+                                <OptionalLabel />
                                 <PopoverWithHoverWrapper
                                     message={
                                         <PopoverMessage
@@ -776,7 +778,7 @@ function EditFormExternalAddressInputs({
                                         />
                                     }
                                 >
-                                    <Icon icon="info" margin="ms-1" color="info" />
+                                    <Icon icon="info-new" />
                                 </PopoverWithHoverWrapper>
                             </span>
                         </FormLabel>
@@ -787,7 +789,7 @@ function EditFormExternalAddressInputs({
                             control={control}
                         />
                     </FormGroup>
-                </RichPanelDetailItem>
+                </div>
             )}
         </>
     );
@@ -809,19 +811,37 @@ function AddAnotherNode({ onAddNode }: AddAnotherNodeProps) {
     return (
         <div
             className={classNames(
-                "w-100 d-flex rounded justify-content-center mb-2 align-items-center border-dashed border-2",
+                "mt-3 w-100 d-flex rounded justify-content-center mb-2 align-items-center border-dashed border-2",
                 isMaxClusterNodes ? "border-secondary" : "border-node"
             )}
         >
-            <Button
-                disabled={isMaxClusterNodes}
-                variant={isMaxClusterNodes ? "outline-secondary" : "outline-node"}
-                className="rounded-pill my-4"
-                onClick={onAddNode}
+            <ConditionalPopover
+                conditions={{
+                    isActive: isMaxClusterNodes,
+                    message: (
+                        <>
+                            <p className="mb-0">Your license doesn&apos;t allow more nodes in the cluster.</p>
+                            <hr className="my-2" />
+                            <span className="md-label">
+                                <Icon icon="link" /> See{" "}
+                                <a href="https://ravendb.net/buy" target="_blank">
+                                    licenses comparison <Icon icon="newtab" />
+                                </a>
+                            </span>
+                        </>
+                    ),
+                }}
             >
-                <Icon icon="node-add" />
-                Add another node
-            </Button>
+                <Button
+                    disabled={isMaxClusterNodes}
+                    variant={isMaxClusterNodes ? "outline-secondary" : "outline-node"}
+                    className="rounded-pill my-4"
+                    onClick={onAddNode}
+                >
+                    <Icon icon="node-add" />
+                    Add another node
+                </Button>
+            </ConditionalPopover>
         </div>
     );
 }
@@ -929,21 +949,27 @@ function IpAddressList({
 
     return (
         <FormGroup className="w-100">
-            <FormLabel className="fw-bold w-100">
+            <FormLabel className="w-100">
                 <div className="hstack justify-content-between">
-                    <span className="d-flex gap-1">
+                    <span className="d-flex">
                         IP address/Hostname
                         <PopoverWithHoverWrapper
                             message={
                                 <PopoverMessage description="Defines the private network endpoint where the server is accessible." />
                             }
                         >
-                            <Icon icon="info" margin="m-0" color="info" />
+                            <Icon icon="info-new" />
                         </PopoverWithHoverWrapper>
                     </span>
                     {securityOption !== "none" && (
-                        <Button variant="link" className="text-primary text-right fw-bold" onClick={addIpAddress}>
-                            <Icon icon="plus" margin="me-1" color="primary" />
+                        <Button
+                            variant="link"
+                            size="xs"
+                            onClick={addIpAddress}
+                            title="Add more IP Addresses or hostnames"
+                            className="px-0"
+                        >
+                            <Icon icon="plus" />
                             Add another IP Address
                         </Button>
                     )}
@@ -1255,4 +1281,3 @@ export const nodeEditFormSchema = yup.object({
 });
 
 export type NodeEditFormData = yup.InferType<typeof nodeEditFormSchema>;
-
