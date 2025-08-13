@@ -209,7 +209,7 @@ namespace Raven.Server.ServerWide
 
             ServerLimitsMonitor = new ServerLimitsMonitor(this, NotificationCenter, _notificationsStorage);
 
-            DatabaseInfoCache = new DatabaseInfoCache();
+            DatabaseInfoCache = new DatabaseInfoCache(this);
 
             Secrets = new SecretProtection(configuration.Security);
 
@@ -3906,6 +3906,8 @@ namespace Raven.Server.ServerWide
             internal Action RestoreDatabaseAfterSavingDatabaseRecord;
             internal Action AfterCommitInClusterTransaction;
             internal Action<string, List<ClusterTransactionCommand.SingleClusterDatabaseCommand>> BeforeExecuteClusterTransactionBatch;
+            internal Action<ClusterObserver.CompareExchangeTombstonesCleanupState> AfterCompareExchangeTombstonesResult;
+            internal bool IgnoreClusterTransactionIndexInCompareExchangeCleaner;
         }
 
 #if DEBUG
