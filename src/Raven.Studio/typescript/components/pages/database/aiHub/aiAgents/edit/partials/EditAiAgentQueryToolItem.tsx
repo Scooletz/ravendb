@@ -64,16 +64,21 @@ export default function EditAiAgentQueryToolItem({ index, remove, save, edit }: 
 
     const linkToQuery = () => {
         const query = queryCriteria.empty();
-        const queryText = queryItem.query;
+        let queryText = "";
 
         const regexToFind$: RegExp = /\$\w+/g;
-        const matches = queryText.match(regexToFind$) || [];
-        const parameters: Record<string, null> = Object.fromEntries(matches.map((match) => [match, null]));
+        const matches = queryItem.query.match(regexToFind$) || [];
+
+        if (matches.length > 0) {
+            queryText += matches.map((x) => `${x} = null`).join("\n");
+            queryText += "\n\n";
+        }
+
+        queryText += queryItem.query;
 
         query.queryText(queryText);
-        query.queryParameters(parameters);
-        query.name(queryText);
         query.recentQuery(true);
+        query.skipRunOnInit(true);
         const queryDto = query.toStorageDto();
         savedQueriesStorage.saveAndNavigate(dbName, queryDto, {
             newWindow: true,
@@ -204,12 +209,16 @@ const QueryFieldQuerySyntaxHelp = () => {
     "similarityLevel": "Provide the similarity level to apply in the search."
 }`;
 
+    const exampleCode3 = `{}`;
+
     return (
         <div>
             <div>Example 1:</div>
             <Code code={exampleCode1} elementToCopy={exampleCode1} language="json" />
             <div className="mt-2">Example 2:</div>
             <Code code={exampleCode2} elementToCopy={exampleCode2} language="json" />
+            <div className="mt-2">Example 3 (no parameters will be used):</div>
+            <Code code={exampleCode3} elementToCopy={exampleCode3} language="json" />
         </div>
     );
 };
