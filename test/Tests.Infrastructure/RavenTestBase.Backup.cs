@@ -829,7 +829,7 @@ namespace FastTests
                     var searchTimeForLastIncremental = nextFullBackupDateTime.AddTicks(-1);
                     Log($"Searching for last incremental backup before: {searchTimeForLastIncremental:O}");
 
-                    var windowStart = incrementalSchedule.GetPreviousOccurrence(searchTimeForLastIncremental)
+                    var windowStart = incrementalSchedule?.GetPreviousOccurrence(searchTimeForLastIncremental)
                                       ?? nextFullBackupDateTime.AddMinutes(-1); // Fallback if no incremental schedule
                     Log($"Calculated safe window start: {windowStart:O}");
 
