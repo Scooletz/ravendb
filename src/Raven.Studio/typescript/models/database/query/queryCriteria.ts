@@ -1,7 +1,6 @@
 /// <reference path="../../../../typings/tsd.d.ts"/>
 import genUtils = require("common/generalUtils");
 import queryUtil = require("common/queryUtil");
-import typeUtils = require("common/typeUtils");
 import moment = require("moment");
 
 class queryCriteria {
@@ -12,11 +11,11 @@ class queryCriteria {
     ignoreIndexQueryLimit = ko.observable<boolean>(false);
     
     queryText = ko.observable<string>("");
-    queryParameters = ko.observable<Record<string, string>>({});
     metadataOnly = ko.observable<boolean>(false);
     recentQuery = ko.observable<boolean>(false);
     graphOutput = ko.observable<boolean>(false);
     diagnostics = ko.observable<boolean>(false);
+    skipRunOnInit = ko.observable<boolean>(false);
     
     validationGroup: KnockoutValidationGroup;
 
@@ -57,12 +56,6 @@ class queryCriteria {
             }
         });
 
-        this.queryParameters.subscribe(queryParameters => {
-            if (queryParameters && !typeUtils.isEmpty(queryParameters)) {
-                this.queryText(this.formatQueryParameters(queryParameters) + "\r\n\r\n" + this.queryText());
-            }
-        })
-
         this.queryText.subscribe(queryText => {
             if (queryUtil.isDynamicQuery(queryText)) {
                 this.showFields(false);
@@ -90,6 +83,7 @@ class queryCriteria {
             name: name,
             queryText: queryText,
             recentQuery: this.recentQuery(),
+            skipRunOnInit: this.skipRunOnInit(),
             modificationDate: moment().format("YYYY-MM-DD HH:mm"),
             hash: genUtils.hashCode(name + (queryText || "")) 
         };
