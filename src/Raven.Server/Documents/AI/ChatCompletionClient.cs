@@ -97,7 +97,7 @@ internal class ChatCompletionClient : IChatCompletionClient, IChatCompletionClie
     public async Task<AiResponse> CompleteAsync(JsonOperationContext context, HttpRequestMessage request, AiUsage usage, CancellationToken token)
     {
         AddDefaultHeaders(request);
-        using var response = await _client.SendAsync(request, token).ConfigureAwait(false);
+        using var response = await SendRequestAsync(request, token);
         var responseContent = await GetResponseContentAsync(context, response, token);
 
         if (response.IsSuccessStatusCode == false)
@@ -158,6 +158,8 @@ internal class ChatCompletionClient : IChatCompletionClient, IChatCompletionClie
         var result = context.Sync.ReadForMemory(content, "ai/output");
         return new AiResponse(AiResponseType.Result) { Result = result, Message = msg};
     }
+
+    protected virtual Task<HttpResponseMessage> SendRequestAsync(HttpRequestMessage request, CancellationToken token) => _client.SendAsync(request, token);
 
     public async Task<(string Result, AiUsage Usage)> CompleteAsync(string systemPrompt, string userPrompt, string schema, List<GenAiAttachment> contextOutputAttachments, CancellationToken token)
     {
@@ -382,8 +384,8 @@ internal class ChatCompletionClient : IChatCompletionClient, IChatCompletionClie
                 {
                     RequestId = GetRequestId(response.Headers)
                 };
+            }
         }
-    }
     }
 
     [DoesNotReturn]
