@@ -530,6 +530,7 @@ namespace Raven.Server.Web.System
                         ServerStore,
                         context,
                         operationCancelToken.Token),
+                    persistProgressOnFaultedStatus: true,
                     token: operationCancelToken);
 
                 // unsecured ->  toggle off(no zip only) -> single node  =>> don't create zip
@@ -571,6 +572,7 @@ namespace Raven.Server.Web.System
                     "Setting up RavenDB in secured mode.",
                     detailedDescription: null,
                     progress => SetupManager.SetupSecuredTask(progress, setupInfo, ServerStore, operationCancelToken.Token),
+                    persistProgressOnFaultedStatus: true,
                     token: operationCancelToken);
 
                 var zip = ((SetupProgressAndResult)operationResult).SettingsZipFile;
@@ -635,6 +637,7 @@ namespace Raven.Server.Web.System
                     "Setting up RavenDB with a Let's Encrypt certificate",
                     detailedDescription: null,
                     progress => SetupManager.SetupLetsEncryptTask(progress, setupInfo, ServerStore, operationCancelToken.Token),
+                    persistProgressOnFaultedStatus: true,
                     token: operationCancelToken);
 
                 var zip = ((SetupProgressAndResult)operationResult).SettingsZipFile;
@@ -756,6 +759,7 @@ namespace Raven.Server.Web.System
                     "Continue Unsecured Cluster Setup.",
                     detailedDescription: null,
                     progress => SetupManager.ContinueUnsecuredClusterSetupTask(progress, continueSetupInfo, ServerStore, operationCancelToken.Token),
+                    persistProgressOnFaultedStatus: true,
                     token: operationCancelToken);
             }
 
@@ -785,6 +789,7 @@ namespace Raven.Server.Web.System
                     "Continue Cluster Setup.",
                     detailedDescription: null,
                     progress => SetupManager.ContinueClusterSetupTask(progress, continueSetupInfo, ServerStore, operationCancelToken.Token),
+                    persistProgressOnFaultedStatus: true,
                     token: operationCancelToken);
             }
 

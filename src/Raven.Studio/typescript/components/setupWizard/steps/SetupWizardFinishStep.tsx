@@ -59,6 +59,7 @@ export function SetupWizardFinishStep() {
                     setStatus("InProgress");
                     break;
                 case "Faulted": {
+                    setConfigurationProcess(operation.State.Progress);
                     const failure = operation.State
                         .Result as Raven.Client.Documents.Operations.OperationExceptionResult;
                     setLogs((prev) => [...prev, { message: failure.Message, color: "danger" }]);
