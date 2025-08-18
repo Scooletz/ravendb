@@ -23,6 +23,7 @@ import Modal from "components/common/Modal";
 import { useBrowser } from "components/hooks/useBrowser";
 import Spinner from "react-bootstrap/Spinner";
 import { useRavenLink } from "hooks/useRavenLink";
+import classNames from "classnames";
 
 type OperationStatus = Raven.Client.Documents.Operations.OperationStatus;
 
@@ -135,7 +136,7 @@ export function SetupWizardFinishStep() {
                     </Switch>
                 </FormGroup>
                 <Button
-                    disabled={!configurationProcess?.Messages?.length}
+                    disabled={!configurationProcess?.Messages?.length && status !== "InProgress"}
                     variant="link"
                     onClick={() =>
                         downloadConfigurationLog(
@@ -244,6 +245,7 @@ const ConfigurationItem = ({ configurationState, stepTitle }: ConfigurationItemP
     const getConfigurationItemStatus = () => {
         switch (configurationState?.State) {
             case "Pending":
+                return null;
             case "InProgress":
                 return <Spinner className="spinner-gradient" size="sm" />;
             case "Completed":
@@ -258,7 +260,7 @@ const ConfigurationItem = ({ configurationState, stepTitle }: ConfigurationItemP
     return (
         <div className="d-flex flex-column mb-1 align-items-center">
             <div className="w-100 d-flex align-items-center justify-content-between">
-                <span>{stepTitle}</span>
+                <span className={classNames({"opacity-25": configurationState?.State === "Pending"})}>{stepTitle}</span>
                 {getConfigurationItemStatus()}
             </div>
             {configurationState?.State === "Error" && (
