@@ -29,6 +29,8 @@ import { get } from "lodash";
 import { FieldPath } from "react-hook-form/dist/types/path";
 import { LazyLoad } from "components/common/LazyLoad";
 import PopoverWithHoverWrapper from "components/common/PopoverWithHoverWrapper";
+import { useEventsCollector } from "components/hooks/useEventsCollector";
+import { setupWizardGA4Prefixes } from "components/setupWizard/utils/setupWizardConstants";
 
 export function SetupWizardLicenseKeyStep() {
     const { control } = useFormContext<SetupWizardFormData>();
@@ -47,6 +49,7 @@ export function SetupWizardLicenseKeyStep() {
 }
 
 function NoLicenseToGenerate() {
+    const { reportEvent } = useEventsCollector();
     const { control, setValue } = useFormContext<SetupWizardFormData>();
 
     return (
@@ -78,7 +81,10 @@ function NoLicenseToGenerate() {
                     <Button
                         variant="outline-success"
                         className="rounded-1"
-                        onClick={() => setValue("licenseKeyStep.licenseTypeToGenerate", "developer")}
+                        onClick={() => {
+                            setValue("licenseKeyStep.licenseTypeToGenerate", "developer");
+                            reportEvent(setupWizardGA4Prefixes.licenseKeyStep, "start-generate", "developer");
+                        }}
                     >
                         Get your free license <Icon icon="arrow-thin-right" margin="m-0" />
                     </Button>
@@ -352,14 +358,17 @@ function LicenseTypeRadio() {
 }
 
 function SkipLicenseVerificationConfirmModal(props: { close: () => void }) {
+    const { reportEvent } = useEventsCollector();
     const { close } = props;
     const { setValue } = useFormContext<SetupWizardFormData>();
 
     const handleConfirm = () => {
+        reportEvent(setupWizardGA4Prefixes.licenseKeyStep, "skip-verification", "confirmed");
         setValue("currentStep", "Security");
     };
 
     const handleLicenseTypeChange = (licenseType: LicenseTypeToGenerate) => {
+        reportEvent(setupWizardGA4Prefixes.licenseKeyStep, "choose-generate", licenseType);
         setValue("licenseKeyStep.licenseTypeToGenerate", licenseType);
         close();
     };
@@ -407,7 +416,14 @@ function SkipLicenseVerificationConfirmModal(props: { close: () => void }) {
                 </p>
             </Modal.Body>
             <Modal.Footer>
-                <Button variant="link" onClick={close} className="link-muted">
+                <Button
+                    variant="link"
+                    onClick={() => {
+                        reportEvent(setupWizardGA4Prefixes.licenseKeyStep, "skip-verification", "cancel");
+                        close();
+                    }}
+                    className="link-muted"
+                >
                     Cancel
                 </Button>
                 <Button variant="warning" onClick={handleConfirm} className="rounded-pill d-flex align-items-center">
@@ -428,6 +444,7 @@ export function SetupWizardLicenseKeyVerifyCodeModal({
     close,
     sendLicenseVerificationCode,
 }: SetupWizardLicenseKeyVerifyCodeModalProps) {
+    const { reportEvent } = useEventsCollector();
     const licenseKeyStepData: SetupWizardFormData["licenseKeyStep"] = useWatch<SetupWizardFormData>({
         name: "licenseKeyStep",
     });
@@ -449,6 +466,7 @@ export function SetupWizardLicenseKeyVerifyCodeModal({
         if (get(errors, "licenseKeyStep.verificationCode")) {
             clearErrors("licenseKeyStep.verificationCode");
         }
+        reportEvent(setupWizardGA4Prefixes.licenseKeyStep, "open-verify-modal");
     }, []);
 
     const onSubmitVerifiedCode = useAsyncCallback(
@@ -465,11 +483,13 @@ export function SetupWizardLicenseKeyVerifyCodeModal({
         },
         {
             onSuccess: async (license) => {
+                reportEvent(setupWizardGA4Prefixes.licenseKeyStep, "verify-code", "success");
                 setValue("licenseKeyStep.key", JSON.stringify(license.License));
                 close();
                 setValue("licenseKeyStep.licenseTypeToGenerate", null);
             },
             onError: async (error) => {
+                reportEvent(setupWizardGA4Prefixes.licenseKeyStep, "verify-code", error.message as string);
                 setError("licenseKeyStep.verificationCode", {
                     message: convertVerificationCodeErrorMessage(error.message as FreeLicenseDownloadStatus),
                 });
@@ -478,14 +498,30 @@ export function SetupWizardLicenseKeyVerifyCodeModal({
     );
 
     const handleResendClick = async () => {
+        reportEvent(setupWizardGA4Prefixes.licenseKeyStep, "resend-code");
         await sendLicenseVerificationCode.execute().then(() => {
             startCountdown();
         });
     };
 
     return (
-        <Modal show onHide={close} contentClassName="modal-border bulge-primary" size="lg">
-            <Modal.Header closeButton onCloseClick={close} className="pb-0">
+        <Modal
+            show
+            onHide={() => {
+                reportEvent(setupWizardGA4Prefixes.licenseKeyStep, "close-verify-modal");
+                close();
+            }}
+            contentClassName="modal-border bulge-primary"
+            size="lg"
+        >
+            <Modal.Header
+                closeButton
+                onCloseClick={() => {
+                    reportEvent(setupWizardGA4Prefixes.licenseKeyStep, "close-verify-modal");
+                    close();
+                }}
+                className="pb-0"
+            >
                 <h3 className="d-flex justify-content-center align-items-center w-100">
                     <Icon icon="paperplane" color="primary" />
                     Enter verification code
@@ -522,7 +558,14 @@ export function SetupWizardLicenseKeyVerifyCodeModal({
                 </p>
             </Modal.Body>
             <Modal.Footer>
-                <Button variant="link" onClick={close} className="link-muted">
+                <Button
+                    variant="link"
+                    onClick={() => {
+                        reportEvent(setupWizardGA4Prefixes.licenseKeyStep, "close-verify-modal");
+                        close();
+                    }}
+                    className="link-muted"
+                >
                     Cancel
                 </Button>
                 <ButtonWithSpinner
@@ -578,6 +621,7 @@ function convertVerificationCodeErrorMessage(error: FreeLicenseDownloadStatus) {
 }
 
 export function SetupWizardLicenseKeyStepFooter() {
+    const { reportEvent } = useEventsCollector();
     const { control, setValue, trigger } = useFormContext<SetupWizardFormData>();
     const { setupWizardService } = useServices();
 
@@ -632,6 +676,7 @@ export function SetupWizardLicenseKeyStepFooter() {
 
                 const info = await setupWizardService.registrationInfo(parsedKey);
 
+                reportEvent(setupWizardGA4Prefixes.licenseKeyStep, "key-parse", "valid");
                 setValue("licenseKeyStep.licenseInfo", {
                     licenseType: info.LicenseType,
                     userDomainsWithIps: {
@@ -643,6 +688,7 @@ export function SetupWizardLicenseKeyStepFooter() {
                 });
                 setValue("licenseKeyStep.isLoadingKey", false);
             } catch (err) {
+                reportEvent(setupWizardGA4Prefixes.licenseKeyStep, "key-parse", "invalid");
                 setValue("licenseKeyStep.isInvalidKey", true);
                 setValue("licenseKeyStep.isLoadingKey", false);
                 setValue("licenseKeyStep.licenseInfo", null);
@@ -659,10 +705,12 @@ export function SetupWizardLicenseKeyStepFooter() {
     );
 
     const handleAlreadyHaveLicense = () => {
+        reportEvent(setupWizardGA4Prefixes.licenseKeyStep, "already-have-license");
         setValue("licenseKeyStep.licenseTypeToGenerate", null);
     };
 
     const handleBack = () => {
+        reportEvent(setupWizardGA4Prefixes.licenseKeyStep, "back");
         setValue("currentStep", "Setup method");
     };
 
@@ -681,16 +729,25 @@ export function SetupWizardLicenseKeyStepFooter() {
         const isValid = await trigger(fields);
 
         if (isValid) {
+            reportEvent(
+                setupWizardGA4Prefixes.licenseKeyStep,
+                "send-verification-code",
+                licenseTypeToGenerate ?? "unknown"
+            );
             await asyncSendLicenseVerificationCode.execute();
             messagePublisher.reportSuccess("Verification code sent to your email");
             toggleIsLicenseActivationCodeModalOpen();
+        } else {
+            reportEvent(setupWizardGA4Prefixes.licenseKeyStep, "send-verification-code", "validation-failed");
         }
     };
 
     const handleContinue = async () => {
         if (key) {
+            reportEvent(setupWizardGA4Prefixes.licenseKeyStep, "continue", "with-key");
             setValue("currentStep", "Security");
         } else {
+            reportEvent(setupWizardGA4Prefixes.licenseKeyStep, "open-skip-modal");
             toggleIsLicenseSkipModalOpen();
         }
     };

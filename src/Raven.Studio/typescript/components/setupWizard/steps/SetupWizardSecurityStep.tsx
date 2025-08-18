@@ -12,9 +12,12 @@ import Spinner from "react-bootstrap/Spinner";
 import PopoverWithHoverWrapper from "components/common/PopoverWithHoverWrapper";
 import { ConditionalPopover } from "components/common/ConditionalPopover";
 import { useEffect } from "react";
+import { useEventsCollector } from "components/hooks/useEventsCollector";
+import { setupWizardGA4Prefixes } from "components/setupWizard/utils/setupWizardConstants";
 
 export function SetupWizardSecurityStep() {
     const { control, setValue } = useFormContext<SetupWizardFormData>();
+    const { reportEvent } = useEventsCollector();
 
     const {
         securityStep: { securityOption },
@@ -75,7 +78,10 @@ export function SetupWizardSecurityStep() {
                         title="Generate Let's Encrypt certificate"
                         description="Secure and hassle-free communication with automatic certificate management"
                         isSelected={securityOption === "letsEncrypt"}
-                        onClick={() => setValue("securityStep.securityOption", "letsEncrypt")}
+                        onClick={() => {
+                                                    setValue("securityStep.securityOption", "letsEncrypt");
+                                                    reportEvent(setupWizardGA4Prefixes.securityStep, "select-option", "letsEncrypt");
+                                                }}
                         isDisabled={isSecureDisabled}
                         popoverMessage={
                             <ul className="mb-0 ps-3">
@@ -111,7 +117,10 @@ export function SetupWizardSecurityStep() {
                         title="Provide your own certificate"
                         description="Ideal for secure corporate setups with manual certificate management"
                         isSelected={securityOption === "ownCertificate"}
-                        onClick={() => setValue("securityStep.securityOption", "ownCertificate")}
+                        onClick={() => {
+                                                    setValue("securityStep.securityOption", "ownCertificate");
+                                                    reportEvent(setupWizardGA4Prefixes.securityStep, "select-option", "ownCertificate");
+                                                }}
                         isDisabled={isSecureDisabled}
                         popoverMessage={
                             <ul className="mb-0 ps-3">
@@ -142,7 +151,10 @@ export function SetupWizardSecurityStep() {
                     title="Don't use certificate"
                     description="Best for quick local development with no security requirements"
                     isSelected={securityOption === "none"}
-                    onClick={() => setValue("securityStep.securityOption", "none")}
+                    onClick={() => {
+                                            setValue("securityStep.securityOption", "none");
+                                            reportEvent(setupWizardGA4Prefixes.securityStep, "select-option", "none");
+                                        }}
                     popoverMessage={
                         <ul className="mb-0 ps-3">
                             <li>
@@ -168,6 +180,7 @@ export function SetupWizardSecurityStep() {
 export function SetupWizardSecurityStepFooter() {
     const { control, setValue } = useFormContext<SetupWizardFormData>();
     const { setupWizardService } = useServices();
+    const { reportEvent } = useEventsCollector();
 
     const {
         securityStep: { securityOption, isLetsEncryptAgreementAccepted },
@@ -180,10 +193,12 @@ export function SetupWizardSecurityStepFooter() {
     );
 
     const handleBack = () => {
+        reportEvent(setupWizardGA4Prefixes.securityStep, "back");
         setValue("currentStep", "License key");
     };
 
     const handleContinue = () => {
+        reportEvent(setupWizardGA4Prefixes.securityStep, "continue", securityOption);
         switch (securityOption) {
             case "letsEncrypt":
                 setValue("currentStep", "Domain");

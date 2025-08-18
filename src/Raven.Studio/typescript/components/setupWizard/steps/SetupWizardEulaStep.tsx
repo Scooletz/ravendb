@@ -1,4 +1,3 @@
-import Code from "components/common/Code";
 import { Icon } from "components/common/Icon";
 import { useServices } from "components/hooks/useServices";
 import { useAsync } from "react-async-hook";
@@ -12,10 +11,13 @@ import { useDispatch } from "react-redux";
 import { setupWizardActions, setupWizardSelectors } from "../store/setupWizardSlice";
 import { useAppSelector } from "components/store";
 import { useCallback } from "react";
+import { useEventsCollector } from "components/hooks/useEventsCollector";
+import { setupWizardGA4Prefixes } from "components/setupWizard/utils/setupWizardConstants";
 
 export function SetupWizardEulaStep() {
     const dispatch = useDispatch();
     const { setupWizardService } = useServices();
+    const { reportEvent } = useEventsCollector();
 
     const asyncGetEula = useAsync(setupWizardService.getEula, []);
 
@@ -23,9 +25,10 @@ export function SetupWizardEulaStep() {
         (node: React.UIEvent<HTMLDivElement, UIEvent>) => {
             if (genUtils.isScrolledToBottom(node.target as HTMLElement)) {
                 dispatch(setupWizardActions.isEulaScrolledToBottomSet(true));
+                reportEvent(setupWizardGA4Prefixes.eulaStep, "scroll", "reached-bottom");
             }
         },
-        [dispatch]
+        [dispatch, reportEvent]
     );
 
     return (
@@ -46,10 +49,12 @@ export function SetupWizardEulaStep() {
 
 export function SetupWizardEulaStepFooter() {
     const { setValue } = useFormContext<SetupWizardFormData>();
+    const { reportEvent } = useEventsCollector();
 
     const isScrolledToBottom = useAppSelector(setupWizardSelectors.isEulaScrolledToBottom);
 
     const handleContinue = () => {
+        reportEvent(setupWizardGA4Prefixes.eulaStep, "continue", "accepted");
         setValue("currentStep", "Setup method");
     };
 

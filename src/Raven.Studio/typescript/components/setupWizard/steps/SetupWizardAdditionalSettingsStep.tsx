@@ -12,6 +12,8 @@ import PopoverWithHoverWrapper from "components/common/PopoverWithHoverWrapper";
 import { PopoverMessage } from "components/setupWizard/steps/SetupWizardNodeAddressStep";
 import { ConditionalPopover } from "components/common/ConditionalPopover";
 import { useServices } from "hooks/useServices";
+import { useEventsCollector } from "components/hooks/useEventsCollector";
+import { setupWizardGA4Prefixes } from "components/setupWizard/utils/setupWizardConstants";
 
 export function SetupWizardAdditionalSettingsStep() {
     const { control } = useFormContext<SetupWizardFormData>();
@@ -51,6 +53,7 @@ export function SetupWizardAdditionalSettingsStep() {
 }
 
 function AdditionalSettingsFormSideEffects() {
+    const { reportEvent } = useEventsCollector();
     const { setValue, watch, control } = useFormContext<SetupWizardFormData>();
 
     const { licenseKeyStep } = useWatch({ control });
@@ -69,6 +72,63 @@ function AdditionalSettingsFormSideEffects() {
             ) {
                 setValue("additionalSettingsStep.dataDirectory", null);
                 setValue("additionalSettingsStep.setupCertificatePath", null);
+            }
+
+            switch (name) {
+                case "additionalSettingsStep.isAdvancedSettingsVisible": {
+                    const state = values.additionalSettingsStep.isAdvancedSettingsVisible ? "enabled" : "disabled";
+                    reportEvent(setupWizardGA4Prefixes.additionalSettingsStep, "toggle-advanced", state);
+                    break;
+                }
+                case "additionalSettingsStep.serverEnvironment": {
+                    const env = values.additionalSettingsStep.serverEnvironment as string | undefined;
+                    if (env) {
+                        reportEvent(setupWizardGA4Prefixes.additionalSettingsStep, "set-environment", env);
+                    }
+                    break;
+                }
+                case "additionalSettingsStep.adminCertificateExpirationTime": {
+                    const months = values.additionalSettingsStep.adminCertificateExpirationTime;
+                    if (months != null) {
+                        reportEvent(
+                            setupWizardGA4Prefixes.additionalSettingsStep,
+                            "set-admin-cert-expiration",
+                            String(months)
+                        );
+                    }
+                    break;
+                }
+                case "additionalSettingsStep.postgresqlIntegration": {
+                    const enabled = values.additionalSettingsStep.postgresqlIntegration ? "enabled" : "disabled";
+                    reportEvent(setupWizardGA4Prefixes.additionalSettingsStep, "toggle-postgresql", enabled);
+                    break;
+                }
+                case "additionalSettingsStep.dataDirectory": {
+                    reportEvent(setupWizardGA4Prefixes.additionalSettingsStep, "set-data-dir");
+                    break;
+                }
+                case "additionalSettingsStep.setupCertificatePath": {
+                    reportEvent(setupWizardGA4Prefixes.additionalSettingsStep, "set-setup-cert-path");
+                    break;
+                }
+                case "additionalSettingsStep.logsPath": {
+                    reportEvent(setupWizardGA4Prefixes.additionalSettingsStep, "set-logs-path");
+                    break;
+                }
+                case "additionalSettingsStep.autoIndexingEngineType": {
+                    const type = values.additionalSettingsStep.autoIndexingEngineType as string | undefined;
+                    if (type) {
+                        reportEvent(setupWizardGA4Prefixes.additionalSettingsStep, "set-auto-indexing-engine", type);
+                    }
+                    break;
+                }
+                case "additionalSettingsStep.staticIndexingEngineType": {
+                    const type = values.additionalSettingsStep.staticIndexingEngineType as string | undefined;
+                    if (type) {
+                        reportEvent(setupWizardGA4Prefixes.additionalSettingsStep, "set-static-indexing-engine", type);
+                    }
+                    break;
+                }
             }
         });
 
@@ -323,12 +383,15 @@ function AdvancedSettingsContent({ control, isVisible }: AdvancedSettingsContent
 
 export function SetupWizardAdditionalSettingsStepFooter() {
     const { setValue } = useFormContext<SetupWizardFormData>();
+    const { reportEvent } = useEventsCollector();
 
     const handleContinue = () => {
+        reportEvent(setupWizardGA4Prefixes.additionalSettingsStep, "continue");
         setValue("currentStep", "Summary");
     };
 
     const handleBack = () => {
+        reportEvent(setupWizardGA4Prefixes.additionalSettingsStep, "back");
         setValue("currentStep", "Node address");
     };
 

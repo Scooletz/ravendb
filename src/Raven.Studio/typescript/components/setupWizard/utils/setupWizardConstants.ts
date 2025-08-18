@@ -327,6 +327,20 @@ const SETUP_WIZARD_MOCK_LICENSE_KEYS_IDS = {
     PROFESSIONAL: "53f54157-3862-47b6-9dbd-94d323687a94",
 }
 
+export const setupWizardGA4Prefixes: Record<string, string> = {
+    eulaStep: "setupWizard-eulaStep",
+    setupMethod: "setupWizard-setupMethod",
+    usePackageStep: "setupWizard-usePackageStep",
+    licenseKeyStep: "setupWizard-licenseKeyStep",
+    domainStep: "setupWizard-domainStep",
+    securityStep: "setupWizard-securityStep",
+    selfSignedCertificateStep: "setupWizard-selfSignedCertificateStep",
+    nodeAddressStep: "setupWizard-nodeAddressStep",
+    additionalSettingsStep: "setupWizard-additionalSettingsStep",
+    finalStep: "setupWizard-finalStep",
+    navigation: "setupWizard-navigation",
+}
+
 export const setupWizardConstants = {
     allCountries,
     allJobTitles,

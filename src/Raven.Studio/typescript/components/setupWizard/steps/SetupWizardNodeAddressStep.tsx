@@ -39,9 +39,12 @@ import { isEmpty } from "common/typeUtils";
 import Row from "react-bootstrap/Row";
 import Col from "react-bootstrap/esm/Col";
 import { useRavenLink } from "hooks/useRavenLink";
+import { useEventsCollector } from "components/hooks/useEventsCollector";
+import { setupWizardGA4Prefixes } from "components/setupWizard/utils/setupWizardConstants";
 
 export function SetupWizardNodeAddressStep() {
     const { control } = useFormContext<SetupWizardFormData>();
+    const { reportEvent } = useEventsCollector();
 
     const { fields, append, remove } = useFieldArray({
         control,
@@ -59,6 +62,8 @@ export function SetupWizardNodeAddressStep() {
         const existingTags = fields.map((field) => field.nodeTag);
         const nodeTags = generateAlphabeticTags(2); // validation allows us to contain 4 letters, but generated tags are around +- 500k length, so we limit it to 2. (700 tags)
         const availableNodeTag = nodeTags.find((tag) => !existingTags.includes(tag)) || "A";
+
+        reportEvent(setupWizardGA4Prefixes.nodeAddressStep, "add-node", availableNodeTag);
 
         append({
             nodeTag: availableNodeTag,
@@ -205,6 +210,7 @@ interface NodeDetailsPanelHeaderProps {
 
 function NodeDetailsPanelHeader({ control, index, onRemove, editNodeForm }: NodeDetailsPanelHeaderProps) {
     const { setValue } = useFormContext<SetupWizardFormData>();
+    const { reportEvent } = useEventsCollector();
     const nodeData = useWatch({
         control,
         name: `nodeAddressStep.nodes.${index}`,
@@ -230,6 +236,11 @@ function NodeDetailsPanelHeader({ control, index, onRemove, editNodeForm }: Node
     const nodeName = `Node ${nodeData.nodeTag ?? "?"}`;
 
     const handleDiscardEdit = () => {
+        reportEvent(
+            setupWizardGA4Prefixes.nodeAddressStep,
+            "discard-edit",
+            nodeData.isNewlyAdded ? "new" : (nodeData.nodeTag ?? "?")
+        );
         if (nodeData.isNewlyAdded) {
             onRemove();
         } else {
@@ -252,6 +263,7 @@ function NodeDetailsPanelHeader({ control, index, onRemove, editNodeForm }: Node
             isEditing: false,
             isNewlyAdded: false,
         });
+        reportEvent(setupWizardGA4Prefixes.nodeAddressStep, "save-node", formData.nodeTag ?? "");
     });
 
     const confirm = useConfirm();
@@ -275,6 +287,7 @@ function NodeDetailsPanelHeader({ control, index, onRemove, editNodeForm }: Node
         });
 
         if (isConfirmed) {
+            reportEvent(setupWizardGA4Prefixes.nodeAddressStep, "remove-node", nodeData.nodeTag ?? "?");
             onRemove();
         }
     };
@@ -327,7 +340,14 @@ function NodeDetailsPanelHeader({ control, index, onRemove, editNodeForm }: Node
                     <>
                         <Button
                             variant="secondary"
-                            onClick={() => setValue(`nodeAddressStep.nodes.${index}.isEditing`, true)}
+                            onClick={() => {
+                                reportEvent(
+                                    setupWizardGA4Prefixes.nodeAddressStep,
+                                    "edit-node",
+                                    nodeData.nodeTag ?? "?"
+                                );
+                                setValue(`nodeAddressStep.nodes.${index}.isEditing`, true);
+                            }}
                         >
                             <Icon icon="edit" margin="m-0" />
                         </Button>
@@ -925,6 +945,7 @@ function IpAddressList({
     parentControl: Control<SetupWizardFormData>;
 }) {
     const { setupWizardService } = useServices();
+    const { reportEvent } = useEventsCollector();
     const { append, remove, fields } = useFieldArray<NodeEditFormData>({
         control,
         name: "ipAddress",
@@ -936,6 +957,7 @@ function IpAddressList({
 
     const addIpAddress = () => {
         append({ ipAddress: "" });
+        reportEvent(setupWizardGA4Prefixes.nodeAddressStep, "add-ip");
     };
 
     const asyncGetSetupLocalNodeIps = useAsync(async () => setupWizardService.getSetupLocalNodeIps(), []);
@@ -986,7 +1008,14 @@ function IpAddressList({
                             options={ipAddressesOptions}
                         />
                         {ipIndex > 0 && (
-                            <Button variant="outline-danger" size="sm" onClick={() => remove(ipIndex)}>
+                            <Button
+                                variant="outline-danger"
+                                size="sm"
+                                onClick={() => {
+                                    reportEvent(setupWizardGA4Prefixes.nodeAddressStep, "remove-ip");
+                                    remove(ipIndex);
+                                }}
+                            >
                                 <Icon icon="trash" margin="m-0" />
                             </Button>
                         )}
@@ -999,6 +1028,7 @@ function IpAddressList({
 
 export function SetupWizardNodeAddressStepFooter() {
     const { setValue, getValues } = useFormContext<SetupWizardFormData>();
+    const { reportEvent } = useEventsCollector();
 
     const nodeData = getValues("nodeAddressStep.nodes");
 
@@ -1105,14 +1135,17 @@ export function SetupWizardNodeAddressStepFooter() {
             });
 
             if (isConfirmed) {
+                reportEvent(setupWizardGA4Prefixes.nodeAddressStep, "continue", nodeCount.toString());
                 setValue("currentStep", "Additional settings");
             }
         } else {
+            reportEvent(setupWizardGA4Prefixes.nodeAddressStep, "continue", nodeCount.toString());
             setValue("currentStep", "Additional settings");
         }
     };
 
     const handleBack = () => {
+        reportEvent(setupWizardGA4Prefixes.nodeAddressStep, "back");
         const setupWizardFormData = getValues();
         switch (setupWizardFormData.securityStep.securityOption) {
             case "letsEncrypt":

@@ -24,11 +24,14 @@ import { useBrowser } from "components/hooks/useBrowser";
 import Spinner from "react-bootstrap/Spinner";
 import { useRavenLink } from "hooks/useRavenLink";
 import classNames from "classnames";
+import { useEventsCollector } from "components/hooks/useEventsCollector";
+import { setupWizardGA4Prefixes } from "components/setupWizard/utils/setupWizardConstants";
 
 type OperationStatus = Raven.Client.Documents.Operations.OperationStatus;
 
 export function SetupWizardFinishStep() {
     const { control } = useFormContext<SetupWizardFormData>();
+    const { reportEvent } = useEventsCollector();
 
     const { value: isShowLogs, toggle: toggleIsShowLogs } = useBoolean(false);
 
@@ -53,11 +56,13 @@ export function SetupWizardFinishStep() {
                     setConfigurationProcess(operation.State.Result);
                     setReadme(dto.Readme);
                     setStatus("Completed");
+                    reportEvent(setupWizardGA4Prefixes.finalStep, "status", "Completed");
                     break;
                 case "InProgress":
                     dto = operation.State.Progress as Raven.Server.Commercial.SetupProgressAndResult;
                     setConfigurationProcess(operation.State.Progress);
                     setStatus("InProgress");
+                    reportEvent(setupWizardGA4Prefixes.finalStep, "status", "InProgress");
                     break;
                 case "Faulted": {
                     setConfigurationProcess(operation.State.Progress);
@@ -66,6 +71,7 @@ export function SetupWizardFinishStep() {
                     setLogs((prev) => [...prev, { message: failure.Message, color: "danger" }]);
                     setLogs((prev) => [...prev, { message: failure.Error, color: "danger" }]);
                     setStatus("Faulted");
+                    reportEvent(setupWizardGA4Prefixes.finalStep, "status", "Faulted");
                     break;
                 }
             }
@@ -116,6 +122,11 @@ export function SetupWizardFinishStep() {
 
     useEffect(() => {
         const finish = async () => {
+            reportEvent(
+                setupWizardGA4Prefixes.finalStep,
+                "start-setup",
+                setupMethodStep.method === "usePackage" ? "usePackage" : "regular"
+            );
             if (setupMethodStep.method === "usePackage") {
                 await continueWithPackageFinish();
             } else {
@@ -131,19 +142,32 @@ export function SetupWizardFinishStep() {
             <TopInfo status={status} />
             <div className="hstack mt-4 mb-1 justify-content-between">
                 <FormGroup marginClass="mb-0">
-                    <Switch className="mb-0" selected={isShowLogs} toggleSelection={toggleIsShowLogs} color="primary">
+                    <Switch
+                        className="mb-0"
+                        selected={isShowLogs}
+                        toggleSelection={() => {
+                            reportEvent(
+                                setupWizardGA4Prefixes.finalStep,
+                                "toggle-logs",
+                                isShowLogs ? "hidden" : "shown"
+                            );
+                            toggleIsShowLogs();
+                        }}
+                        color="primary"
+                    >
                         Show configuration log
                     </Switch>
                 </FormGroup>
                 <Button
                     disabled={!configurationProcess?.Messages?.length && status !== "InProgress"}
                     variant="link"
-                    onClick={() =>
+                    onClick={() => {
+                        reportEvent(setupWizardGA4Prefixes.finalStep, "download-log");
                         downloadConfigurationLog(
                             configurationProcess?.Messages ?? [],
                             `configurationLog_${moment.utc().format("YYYY-MM-DD-HH-mm-ss")}`
-                        )
-                    }
+                        );
+                    }}
                     size="xs"
                 >
                     <Icon icon="download" />
@@ -260,7 +284,9 @@ const ConfigurationItem = ({ configurationState, stepTitle }: ConfigurationItemP
     return (
         <div className="d-flex flex-column mb-1 align-items-center">
             <div className="w-100 d-flex align-items-center justify-content-between">
-                <span className={classNames({"opacity-25": configurationState?.State === "Pending"})}>{stepTitle}</span>
+                <span className={classNames({ "opacity-25": configurationState?.State === "Pending" })}>
+                    {stepTitle}
+                </span>
                 {getConfigurationItemStatus()}
             </div>
             {configurationState?.State === "Error" && (
@@ -384,8 +410,8 @@ function CompletedSummary() {
                             <Col md={6} className="vstack gap-2 text-center justify-content-center">
                                 <Icon icon="cluster" color="node" size="lg" />
                                 <span>
-                                    The current <span className="text-node fw-bold">Node {nodeTag}</span> has already been
-                                    configured and requires no further action on your part.
+                                    The current <span className="text-node fw-bold">Node {nodeTag}</span> has already
+                                    been configured and requires no further action on your part.
                                 </span>
                             </Col>
                         </Row>
@@ -684,6 +710,7 @@ function useSetupWizardFinishUtils() {
 
 function CertInstallationConfirm(props: { onCancel: () => void; onConfirm: () => void }) {
     const { onCancel, onConfirm } = props;
+    const { reportEvent } = useEventsCollector();
 
     const browser = useBrowser();
     const docsLink = useRavenLink({
@@ -776,14 +803,33 @@ function CertInstallationConfirm(props: { onCancel: () => void; onConfirm: () =>
                 </NumberedList>
             </Modal.Body>
             <Modal.Footer className="hstack justify-content-between">
-                <a href={docsLink} target="_blank" className="btn btn-info rounded-pill">
+                <a
+                    href={docsLink}
+                    target="_blank"
+                    className="btn btn-info rounded-pill"
+                    onClick={() => reportEvent(setupWizardGA4Prefixes.finalStep, "open-docs", "cert-install")}
+                >
                     See documentation <Icon icon="newtab" margin="m-0" />
                 </a>
                 <div className="hstack gap-2">
-                    <Button variant="link" onClick={onCancel} className="link-muted">
+                    <Button
+                        variant="link"
+                        onClick={() => {
+                            reportEvent(setupWizardGA4Prefixes.finalStep, "confirm-cert", "cancel");
+                            onCancel();
+                        }}
+                        className="link-muted"
+                    >
                         Cancel
                     </Button>
-                    <Button variant="primary" onClick={onConfirm} className="rounded-pill">
+                    <Button
+                        variant="primary"
+                        onClick={() => {
+                            reportEvent(setupWizardGA4Prefixes.finalStep, "confirm-cert", "confirm");
+                            onConfirm();
+                        }}
+                        className="rounded-pill"
+                    >
                         <Icon icon="reset" />
                         Restart server
                     </Button>
@@ -795,6 +841,7 @@ function CertInstallationConfirm(props: { onCancel: () => void; onConfirm: () =>
 
 export function SetupWizardFinishStepFooter() {
     const { setupWizardService } = useServices();
+    const { reportEvent } = useEventsCollector();
     const { control } = useFormContext<SetupWizardFormData>();
     const { securityStep, setupMethodStep, usePackageStep } = useWatch({ control });
     const { value: isCertInstallationConfirmed, toggle: toggleIsCertInstallationConfirmed } = useBoolean(false);
@@ -802,10 +849,12 @@ export function SetupWizardFinishStepFooter() {
     const { getStudioUrl } = useSetupWizardFinishUtils();
 
     const redirectToStudio = () => {
+        reportEvent(setupWizardGA4Prefixes.finalStep, "redirect-to-studio");
         window.location.href = getStudioUrl();
     };
 
     const resetServer = async () => {
+        reportEvent(setupWizardGA4Prefixes.finalStep, "restart-execute");
         await setupWizardService.finishSetup();
 
         const waitBeforeRedirectInMs = 2000;
@@ -815,13 +864,16 @@ export function SetupWizardFinishStepFooter() {
     };
 
     const handleReset = () => {
+        reportEvent(setupWizardGA4Prefixes.finalStep, "restart-click");
         const isSecure =
             securityStep.securityOption !== "none" ||
             (setupMethodStep.method === "usePackage" && usePackageStep.isZipSecure);
 
         if (isSecure) {
+            reportEvent(setupWizardGA4Prefixes.finalStep, "open-cert-modal");
             toggleIsCertInstallationConfirmed();
         } else {
+            reportEvent(setupWizardGA4Prefixes.finalStep, "restart-without-cert-modal");
             resetServer();
         }
     };
@@ -835,6 +887,7 @@ export function SetupWizardFinishStepFooter() {
                 <CertInstallationConfirm
                     onCancel={toggleIsCertInstallationConfirmed}
                     onConfirm={() => {
+                        reportEvent(setupWizardGA4Prefixes.finalStep, "confirm-cert", "confirm");
                         resetServer();
                         toggleIsCertInstallationConfirmed();
                     }}

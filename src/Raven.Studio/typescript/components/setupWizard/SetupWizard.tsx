@@ -9,6 +9,8 @@ import classNames from "classnames";
 import { SetupWizardStepItem } from "./partials/SetupWizardStepItem";
 import { useSetupWizardSteps } from "./hooks/useSetupWizardSteps";
 import useConfirm from "components/common/ConfirmDialog";
+import { useEventsCollector } from "components/hooks/useEventsCollector";
+import { setupWizardGA4Prefixes } from "components/setupWizard/utils/setupWizardConstants";
 
 const ravenLogo = require("Content/img/ravendb_logo.svg");
 const ravenSidebarImg = require("Content/img/setupWizard/setup-wizard-sidebar-background.png");
@@ -30,6 +32,8 @@ export default function SetupWizard() {
     });
 
     const confirm = useConfirm();
+
+    const { reportEvent } = useEventsCollector();
 
     const currentStepIdx = steps.findIndex((x) => x.isCurrent);
 
@@ -97,6 +101,13 @@ export default function SetupWizard() {
                     setValue(stepKey, defaultValues[stepKey]);
                 }
             });
+        }
+
+        if (targetStepIdx < currentStepIdx) {
+            const fromTitle = steps[currentStepIdx]?.title;
+            const toTitle = stepTitle;
+            const label = fromTitle && toTitle ? `${fromTitle} -> ${toTitle}` : toTitle;
+            reportEvent(setupWizardGA4Prefixes.navigation, "back", label);
         }
 
         setValue("currentStep", stepTitle);

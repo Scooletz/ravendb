@@ -10,12 +10,15 @@ import { SetupWizardStepItem } from "components/setupWizard/partials/SetupWizard
 import { NumberedList } from "components/common/NumberedList";
 import { PopoverMessage } from "components/setupWizard/steps/SetupWizardNodeAddressStep";
 import { useEffect } from "react";
+import { useEventsCollector } from "components/hooks/useEventsCollector";
+import { setupWizardGA4Prefixes } from "components/setupWizard/utils/setupWizardConstants";
 
 export function SetupWizardSetupMethodStep() {
     const { control, setValue } = useFormContext<SetupWizardFormData>();
     const {
         setupMethodStep: { method: selectedMethod },
     } = useWatch({ control });
+    const { reportEvent } = useEventsCollector();
 
     useEffect(() => {
         setValue("setupMethodStep.method", selectedMethod ?? "newCluster");
@@ -35,7 +38,10 @@ export function SetupWizardSetupMethodStep() {
                     title="Set up new cluster"
                     description="Create a completely new cluster with fresh configurations"
                     isSelected={selectedMethod === "newCluster"}
-                    onClick={() => setValue("setupMethodStep.method", "newCluster")}
+                    onClick={() => {
+                        setValue("setupMethodStep.method", "newCluster");
+                        reportEvent(setupWizardGA4Prefixes.setupMethod, "select-method", "newCluster");
+                    }}
                     popoverMessage={
                         <ul className="mb-0 ps-3">
                             <li>Deploying RavenDB for the first time</li>
@@ -50,7 +56,10 @@ export function SetupWizardSetupMethodStep() {
                     title="Create package for external setup"
                     description="Generate an external setup package during configuration for customized deployment"
                     isSelected={selectedMethod === "createPackage"}
-                    onClick={() => setValue("setupMethodStep.method", "createPackage")}
+                    onClick={() => {
+                        setValue("setupMethodStep.method", "createPackage");
+                        reportEvent(setupWizardGA4Prefixes.setupMethod, "select-method", "createPackage");
+                    }}
                     popoverMessage={
                         <ul className="mb-0 ps-3">
                             <li>
@@ -71,7 +80,10 @@ export function SetupWizardSetupMethodStep() {
                     title="Use setup package"
                     description="Deploy the cluster using a predefined setup package with default or minimal configurations"
                     isSelected={selectedMethod === "usePackage"}
-                    onClick={() => setValue("setupMethodStep.method", "usePackage")}
+                    onClick={() => {
+                        setValue("setupMethodStep.method", "usePackage");
+                        reportEvent(setupWizardGA4Prefixes.setupMethod, "select-method", "usePackage");
+                    }}
                     popoverMessage={
                         <>
                             <ul className="ps-3">
@@ -97,7 +109,13 @@ export function SetupWizardSetupMethodStepFooter() {
         setupMethodStep: { method: selectedMethod },
     } = useWatch({ control });
 
+    const { reportEvent } = useEventsCollector();
+
     const handleContinue = async () => {
+        // Report continue with selected method
+        if (selectedMethod) {
+            reportEvent(setupWizardGA4Prefixes.setupMethod, "continue", selectedMethod);
+        }
         switch (selectedMethod) {
             case "newCluster":
             case "createPackage":
