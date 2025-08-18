@@ -73,7 +73,7 @@ export function SetupWizardFinishStep() {
             if (dto) {
                 switch (operation.TaskType) {
                     case "Setup":
-                        setLogs(dto.Messages.map((x) => ({ message: x })));
+                        setLogs(dto.Messages.map((message) => ({ message })));
                         break;
                 }
             }
@@ -384,7 +384,7 @@ function CompletedSummary() {
                             <Col md={6} className="vstack gap-2 text-center justify-content-center">
                                 <Icon icon="cluster" color="node" size="lg" />
                                 <span>
-                                    The current <span className="text-node fw-bold">Node A</span> has already been
+                                    The current <span className="text-node fw-bold">Node {nodeTag}</span> has already been
                                     configured and requires no further action on your part.
                                 </span>
                             </Col>

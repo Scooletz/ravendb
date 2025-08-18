@@ -11,6 +11,7 @@ import { useSetupWizardSteps } from "./hooks/useSetupWizardSteps";
 import useConfirm from "components/common/ConfirmDialog";
 
 const ravenLogo = require("Content/img/ravendb_logo.svg");
+const ravenSidebarImg = require("Content/img/setupWizard/setup-wizard-sidebar-background.png");
 
 export default function SetupWizard() {
     const form = useForm<SetupWizardFormData>({
@@ -116,42 +117,53 @@ export default function SetupWizard() {
                     <div className="setup-wizard-footer">
                         <div className="w-75">{steps[currentStepIdx].footer}</div>
                     </div>
-                    <div className="setup-wizard-sidebar">
-                        <div className="flex-grow">
-                            <NumberedList>
-                                {steps.map((step, idx) => (
-                                    <SetupWizardStepItem
-                                        key={step.title}
-                                        isCurrent={step.isCurrent}
-                                        isChecked={idx < currentStepIdx}
-                                        isInactive={idx > currentStepIdx}
-                                        className={classNames("cursor-pointer", {
-                                            "d-none": !step.isVisible,
-                                            "cursor-not-allowed": idx > currentStepIdx,
-                                        })}
-                                        onClick={() => handleStepNavigation(step.title)}
-                                    >
-                                        <div className="vstack gap-1">
-                                            <h5 className="mb-0">{step.title}</h5>
-                                            <small className="text-muted">{step.description}</small>
-                                        </div>
-                                    </SetupWizardStepItem>
-                                ))}
-                            </NumberedList>
-                        </div>
+                    <div className={classNames("setup-wizard-sidebar", { "p-0": formValues.currentStep === "Eula" })}>
+                        {formValues.currentStep === "Eula" ? (
+                            <img
+                                className="h-100 object-fit-cover"
+                                src={ravenSidebarImg}
+                                alt={formValues.currentStep}
+                            />
+                        ) : (
+                            <>
+                                <div className="flex-grow">
+                                    <NumberedList>
+                                        {steps.map((step, idx) => (
+                                            <SetupWizardStepItem
+                                                key={step.title}
+                                                isCurrent={step.isCurrent}
+                                                isChecked={idx < currentStepIdx}
+                                                isInactive={idx > currentStepIdx}
+                                                className={classNames("cursor-pointer", {
+                                                    "d-none": !step.isVisible,
+                                                    "cursor-not-allowed": idx > currentStepIdx,
+                                                })}
+                                                onClick={() => handleStepNavigation(step.title)}
+                                            >
+                                                <div className="vstack gap-1">
+                                                    <h5 className="mb-0">{step.title}</h5>
+                                                    <small className="text-muted">{step.description}</small>
+                                                </div>
+                                            </SetupWizardStepItem>
+                                        ))}
+                                    </NumberedList>
+                                </div>
 
-                        <div className="d-flex flex-column gap-3">
-                            <Icon icon="lifebuoy" className="fs-3" margin="m-0" />
-                            <div className="vstack gap-1">
-                                <h4 className="mb-0">Having trouble?</h4>
-                                <p className="text-muted mb-0">
-                                    Our documentation will guide you through the configuration process step by step
-                                </p>
-                            </div>
-                            <Button variant="outline-secondary w-fit-content">
-                                See documentation <Icon icon="newtab" margin="m-0" />
-                            </Button>
-                        </div>
+                                <div className="d-flex flex-column gap-3">
+                                    <Icon icon="lifebuoy" className="fs-3" margin="m-0" />
+                                    <div className="vstack gap-1">
+                                        <h4 className="mb-0">Having trouble?</h4>
+                                        <p className="text-muted mb-0">
+                                            Our documentation will guide you through the configuration process step by
+                                            step
+                                        </p>
+                                    </div>
+                                    <Button variant="outline-secondary w-fit-content">
+                                        See documentation <Icon icon="newtab" margin="m-0" />
+                                    </Button>
+                                </div>
+                            </>
+                        )}
                     </div>
                 </div>
             </form>
