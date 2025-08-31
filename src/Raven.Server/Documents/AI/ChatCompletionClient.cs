@@ -93,6 +93,11 @@ internal class ChatCompletionClient : IChatCompletionClient, IChatCompletionClie
 
         conventions ??= ConventionsToUse;
 
+        if (baseUri.EndsWith("/") == false)
+        {
+            baseUri += "/";
+        }
+
         _httpClientCacheKey = HttpClientCacheKey.Create(conventions.UseHttpDecompression,
             conventions.HasExplicitlySetDecompressionUsage, conventions.HttpPooledConnectionLifetime,
             conventions.HttpPooledConnectionIdleTimeout, conventions.GlobalHttpClientTimeout,
@@ -1006,7 +1011,7 @@ internal class ChatCompletionClient : IChatCompletionClient, IChatCompletionClie
             public const string MediaTypeApplicationJson = "application/json";
 
             public const string DefaultRelativeUri = "v1/chat/completions";
-            public const string ModelsUri = "/v1/models";
+            public const string ModelsUri = "v1/models";
             public const string AuthorizationApiKeyProperty = "Bearer";
             
             public const string Stream = "stream";
