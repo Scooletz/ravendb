@@ -25,7 +25,6 @@ import { databaseSelectors } from "components/common/shell/databaseSliceSelector
 import { useAppSelector } from "components/store";
 import { accessManagerSelectors } from "components/common/shell/accessManagerSliceSelectors";
 import { ExternalReplicationTaskDistribution } from "components/pages/database/tasks/ongoingTasks/partials/ExternalReplicationTaskDistribution";
-import { Icon } from "components/common/Icon";
 
 type ReplicationSinkPanelProps = BaseOngoingTaskPanelProps<OngoingTaskReplicationSinkInfo>;
 
@@ -87,10 +86,6 @@ export function ReplicationSinkPanel(props: ReplicationSinkPanelProps) {
                     <OngoingTaskName task={data} canEdit={canEdit} editUrl={editUrl} />
                 </RichPanelInfo>
                 <RichPanelActions>
-                    <span>
-                        <Icon icon="pull-replication-agent" />
-                        Replication Sink
-                    </span>
                     <OngoingTaskResponsibleNode task={data} />
                     <OngoingTaskStatus
                         task={data}
@@ -105,7 +100,6 @@ export function ReplicationSinkPanel(props: ReplicationSinkPanelProps) {
                         onTaskOperation={onTaskOperation}
                         toggleDetails={toggleDetails}
                         isDeleting={isDeleting(data.shared.taskId)}
-                        isDetailsOpen={detailsVisible}
                     />
                 </RichPanelActions>
             </RichPanelHeader>

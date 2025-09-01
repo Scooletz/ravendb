@@ -46,7 +46,6 @@ interface computedAppUrls {
     sampleDataUrl: KnockoutComputed<string>;
     backupsUrl: KnockoutComputed<string>;
     ongoingTasksUrl: KnockoutComputed<string>;
-    addNewOngoingTaskUrl: KnockoutComputed<string>;
     editExternalReplicationTaskUrl: KnockoutComputed<string>;
     editReplicationHubTaskUrl: KnockoutComputed<string>;
     editReplicationSinkTaskUrl: KnockoutComputed<string>;

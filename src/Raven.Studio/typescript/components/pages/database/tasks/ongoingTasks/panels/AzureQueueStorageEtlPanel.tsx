@@ -26,7 +26,6 @@ import Form from "react-bootstrap/Form";
 import { useAppSelector } from "components/store";
 import { databaseSelectors } from "components/common/shell/databaseSliceSelectors";
 import { accessManagerSelectors } from "components/common/shell/accessManagerSliceSelectors";
-import { Icon } from "components/common/Icon";
 
 type AzureQueueStorageEtlPanelProps = BaseOngoingTaskPanelProps<OngoingTaskAzureQueueStorageEtlInfo>;
 
@@ -85,10 +84,6 @@ export function AzureQueueStorageEtlPanel(props: AzureQueueStorageEtlPanelProps 
                     <OngoingTaskName task={data} canEdit={canEdit} editUrl={editUrl} />
                 </RichPanelInfo>
                 <RichPanelActions>
-                    <span>
-                        <Icon icon="azure-queue-storage-etl" />
-                        Azure Queue Storage ETL
-                    </span>
                     <OngoingTaskResponsibleNode task={data} />
                     <OngoingTaskStatus
                         task={data}
@@ -103,7 +98,6 @@ export function AzureQueueStorageEtlPanel(props: AzureQueueStorageEtlPanelProps 
                         onTaskOperation={onTaskOperation}
                         toggleDetails={toggleDetails}
                         isDeleting={isDeleting(data.shared.taskId)}
-                        isDetailsOpen={detailsVisible}
                     />
                 </RichPanelActions>
             </RichPanelHeader>
