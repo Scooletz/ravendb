@@ -27,7 +27,6 @@ import Form from "react-bootstrap/Form";
 import { databaseSelectors } from "components/common/shell/databaseSliceSelectors";
 import { useAppSelector } from "components/store";
 import { accessManagerSelectors } from "components/common/shell/accessManagerSliceSelectors";
-import { Icon } from "components/common/Icon";
 
 type ElasticSearchEtlPanelProps = BaseOngoingTaskPanelProps<OngoingTaskElasticSearchEtlInfo>;
 
@@ -93,10 +92,6 @@ export function ElasticSearchEtlPanel(props: ElasticSearchEtlPanelProps & ICanSh
                     <OngoingTaskName task={data} canEdit={canEdit} editUrl={editUrl} />
                 </RichPanelInfo>
                 <RichPanelActions>
-                    <span>
-                        <Icon icon="elastic-search-etl" />
-                        Elasticsearch ETL
-                    </span>
                     <OngoingTaskResponsibleNode task={data} />
                     <OngoingTaskStatus
                         task={data}
@@ -111,7 +106,6 @@ export function ElasticSearchEtlPanel(props: ElasticSearchEtlPanelProps & ICanSh
                         onTaskOperation={onTaskOperation}
                         toggleDetails={toggleDetails}
                         isDeleting={isDeleting(data.shared.taskId)}
-                        isDetailsOpen={detailsVisible}
                     />
                 </RichPanelActions>
             </RichPanelHeader>

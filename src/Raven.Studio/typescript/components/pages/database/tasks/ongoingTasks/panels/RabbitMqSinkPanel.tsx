@@ -23,7 +23,6 @@ import Form from "react-bootstrap/Form";
 import { databaseSelectors } from "components/common/shell/databaseSliceSelectors";
 import { useAppSelector } from "components/store";
 import { accessManagerSelectors } from "components/common/shell/accessManagerSliceSelectors";
-import { Icon } from "components/common/Icon";
 
 type RabbitMqSinkPanelProps = BaseOngoingTaskPanelProps<OngoingTaskRabbitMqSinkInfo>;
 
@@ -76,10 +75,6 @@ export function RabbitMqSinkPanel(props: RabbitMqSinkPanelProps) {
                     <OngoingTaskName task={data} canEdit={canEdit} editUrl={editUrl} />
                 </RichPanelInfo>
                 <RichPanelActions>
-                    <span>
-                        <Icon icon="rabbitmq-sink" />
-                        RabbitMQ Sink
-                    </span>
                     <OngoingTaskResponsibleNode task={data} />
                     <OngoingTaskStatus
                         task={data}
@@ -94,7 +89,6 @@ export function RabbitMqSinkPanel(props: RabbitMqSinkPanelProps) {
                         onTaskOperation={onTaskOperation}
                         toggleDetails={toggleDetails}
                         isDeleting={isDeleting(data.shared.taskId)}
-                        isDetailsOpen={detailsVisible}
                     />
                 </RichPanelActions>
             </RichPanelHeader>

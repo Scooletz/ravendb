@@ -6,7 +6,7 @@ import React from "react";
 
 import { selectors } from "./selectors";
 
-const containerTestId = "etls";
+const containerTestId = "olap-etls";
 
 describe("OLAP", function () {
     it("can render disabled and not completed", async () => {

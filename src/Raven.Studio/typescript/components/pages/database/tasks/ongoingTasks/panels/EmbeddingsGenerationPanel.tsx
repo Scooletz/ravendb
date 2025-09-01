@@ -100,10 +100,6 @@ export function EmbeddingsGenerationPanel(props: EmbeddingsGenerationPanelProps 
                     <OngoingTaskName task={data} canEdit={canEdit} editUrl={editUrl} />
                 </RichPanelInfo>
                 <RichPanelActions>
-                    <span>
-                        <Icon icon="ai-etl" className="text-reset" />
-                        Embeddings Generation
-                    </span>
                     <OngoingTaskResponsibleNode task={data} />
                     <OngoingTaskStatus
                         task={data}
@@ -118,7 +114,6 @@ export function EmbeddingsGenerationPanel(props: EmbeddingsGenerationPanelProps 
                         onTaskOperation={onTaskOperation}
                         toggleDetails={toggleDetails}
                         isDeleting={isDeleting(data.shared.taskId)}
-                        isDetailsOpen={detailsVisible}
                     />
                 </RichPanelActions>
             </RichPanelHeader>

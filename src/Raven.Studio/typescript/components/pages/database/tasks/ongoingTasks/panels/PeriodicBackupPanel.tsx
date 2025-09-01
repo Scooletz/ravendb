@@ -273,10 +273,6 @@ export function PeriodicBackupPanel(props: PeriodicBackupPanelProps) {
                     <OngoingTaskName task={data} canEdit={canEdit} editUrl={editUrl} />
                 </RichPanelInfo>
                 <RichPanelActions>
-                    <span>
-                        <Icon icon="periodic-backup" />
-                        Periodic Backup
-                    </span>
                     <OngoingTaskResponsibleNode task={data} />
                     <BackupEncryption encrypted={data.shared.encrypted} />
                     <ConditionalPopover
@@ -301,7 +297,6 @@ export function PeriodicBackupPanel(props: PeriodicBackupPanelProps) {
                         onTaskOperation={onTaskOperation}
                         toggleDetails={toggleDetails}
                         isDeleting={isDeleting(data.shared.taskId)}
-                        isDetailsOpen={detailsVisible}
                     />
                 </RichPanelActions>
             </RichPanelHeader>

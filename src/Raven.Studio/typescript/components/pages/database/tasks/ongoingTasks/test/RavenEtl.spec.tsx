@@ -5,7 +5,7 @@ import { within } from "@testing-library/dom";
 import React from "react";
 import { selectors } from "./selectors";
 
-const containerTestId = "etls";
+const containerTestId = "raven-etls";
 
 describe("RavenETL", function () {
     it("can render disabled and not completed", async () => {
