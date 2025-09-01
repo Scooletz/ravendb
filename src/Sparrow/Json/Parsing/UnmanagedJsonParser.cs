@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Buffers.Text;
 using System.IO;
 using System.Runtime.CompilerServices;
@@ -87,6 +87,11 @@ namespace Sparrow.Json.Parsing
         }
 
         private static readonly ParseNumberAction[] ParseNumberTable;
+
+        public OnStringReadDelegate OnStringRead
+        {
+            set => _onStringRead = value;
+        }
 
         private static readonly ParseWhitespaceAction[] ParseWhitespaceTable;
 
@@ -765,6 +770,8 @@ namespace Sparrow.Json.Parsing
         private int _unicodeValue;
         private int _unicodeIndex;
 
+        private OnStringReadDelegate _onStringRead;
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private bool ParseString(ref uint currentPos)
         {
@@ -784,7 +791,10 @@ namespace Sparrow.Json.Parsing
                         // this can happen when buffer runs out and we started unicode parsing
 
                         if (ParseUnicodeValue(ref currentPos) == false)
+                        {
+                            _onStringRead?.Invoke(_unmanagedWriteBuffer, true);
                             return false;
+                        }
 
                         continue;
                     }
@@ -802,7 +812,10 @@ namespace Sparrow.Json.Parsing
                         _unmanagedWriteBuffer.Write(currentBuffer + _currentStrStart, (int)currentPos - _currentStrStart - 1 /* don't include the escape or the last quote */);
 
                         if (b == _currentQuote)
+                        {
+                            _onStringRead?.Invoke(_unmanagedWriteBuffer, false);
                             return true;
+                        }
 
                         // Then it is '\\'
                         _escapeMode = true;
@@ -833,12 +846,18 @@ namespace Sparrow.Json.Parsing
                         else if (b == (byte)'\r')
                         {
                             if (currentPos >= bufferSize)
+                            {
+                                _onStringRead?.Invoke(_unmanagedWriteBuffer, true);
                                 return false;
+                            }
 
                             _line++;
                             _charPos = 1;
                             if (currentPos >= bufferSize)
+                            {
+                                _onStringRead?.Invoke(_unmanagedWriteBuffer, true);
                                 return false;
+                            }
 
                             if (currentBuffer[currentPos] == (byte)'\n')
                                 currentPos++; // consume the \,\r,\n
@@ -846,7 +865,10 @@ namespace Sparrow.Json.Parsing
                         else if (b == (byte)'u')
                         {
                             if (ParseUnicodeValue(ref currentPos) == false)
+                            {
+                                _onStringRead?.Invoke(_unmanagedWriteBuffer, true);
                                 return false;
+                            }
                         }
                         else
                         {
@@ -859,7 +881,10 @@ namespace Sparrow.Json.Parsing
                 _unmanagedWriteBuffer.Write(currentBuffer + _currentStrStart, (int)currentPos - _currentStrStart);
 
                 if (currentPos >= bufferSize)
+                {
+                    _onStringRead?.Invoke(_unmanagedWriteBuffer, true);
                     return false;
+                }
             }
         }
 
