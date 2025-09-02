@@ -1,15 +1,15 @@
-﻿using System;
+﻿using Raven.Client.Extensions;
+using Sparrow.Json.Sync;
+using System;
 using System.Collections.Generic;
 using System.Linq.Expressions;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Raven.Client.Documents.Linq;
 using Raven.Client.Documents.Operations.AI.Agents;
 using Raven.Client.Exceptions;
 using Raven.Client.Util;
 using Sparrow.Json;
-using Sparrow.Json.Sync;
 
 namespace Raven.Client.Documents.AI;
 
@@ -156,12 +156,9 @@ internal class AiConversation : IAiConversationOperations
 
     public AiAnswer<TAnswer> Run<TAnswer>() => AsyncHelpers.RunSync(() => RunAsync<TAnswer>());
 
-#if FEATURE_AI_AGENT_STREAMING_SUPPORT
     public Task<AiAnswer<TAnswer>> StreamAsync<TAnswer>(Expression<Func<TAnswer, string>> streamPropertyPath, Func<string, Task> streamedChunksCallback, CancellationToken token = default)
     {
-        var pathProvider = new LinqPathProvider(_aiOperations._store.Conventions);
-        var pathResult = pathProvider.GetPath(streamPropertyPath.Body);
-        return StreamAsync<TAnswer>(pathResult.Path, streamedChunksCallback, token);
+        return StreamAsync<TAnswer>(streamPropertyPath.ToPropertyPath(_aiOperations._store.Conventions), streamedChunksCallback, token);
     }
 
     public async Task<AiAnswer<TAnswer>> StreamAsync<TAnswer>(string streamPropertyPath, Func<string, Task> streamedChunksCallback, CancellationToken token = default)
@@ -173,7 +170,6 @@ internal class AiConversation : IAiConversationOperations
                 return r;
         }
     }
-#endif
 
     public async Task<AiAnswer<TAnswer>> RunAsync<TAnswer>(CancellationToken token = default)
     {
