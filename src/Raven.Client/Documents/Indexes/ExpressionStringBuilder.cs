@@ -2127,6 +2127,9 @@ namespace Raven.Client.Documents.Indexes
 
             bool IsCollection(Type type)
             {
+                if (type == typeof(string))
+                    return false;
+                
                 if (type.IsArray)
                     return true;
 
