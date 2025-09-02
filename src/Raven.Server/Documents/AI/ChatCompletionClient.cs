@@ -36,12 +36,18 @@ namespace Raven.Server.Documents.AI;
 
 internal class ChatCompletionClient : IChatCompletionClient, IChatCompletionClientForTesting
 {
+    internal sealed class ChatCompletionClientOptions
+    {
+        public bool? Think { get; init; }
+        public double? Temperature { get; init; }
+    }
+    
     public static readonly string EmptySchema = GetSchemaFromSampleObject("{}");
 
     private readonly string _model;
     private readonly string _organizationId;
     private readonly string _projectId;
-    private readonly bool? _think;
+    private readonly ChatCompletionClientOptions _options;
     private readonly HttpClientCacheKey _httpClientCacheKey;
     private readonly HttpClient _client;
     private readonly IMemoryContextPool _contextPool;
@@ -64,21 +70,27 @@ internal class ChatCompletionClient : IChatCompletionClient, IChatCompletionClie
 
     public static ChatCompletionClient CreateChatCompletionClient(IMemoryContextPool contextPool, AiConnectionString connection)
     {
-        if (connection.TryGetParametersForGenAiTesting(out var uri, out var apiKey, out var model, out var organizationId, out var projectId, out var think) == false)
+        if (connection.TryGetParameters(out var uri, out var apiKey, out var model, out var organizationId, out var projectId, out var think, out var temperature) == false)
         {
             var connectorType = connection.GetActiveProvider();
             throw new NotSupportedException($"The specified provider (\"{connectorType.ToString()}\") is not supported.");
         }
 
-        return new ChatCompletionClient(contextPool, uri, apiKey, model, organizationId, projectId, think, ConventionsToUse);
+        var options = new ChatCompletionClientOptions
+        {
+            Think = think,
+            Temperature = temperature
+        };
+
+        return new ChatCompletionClient(contextPool, uri, apiKey, model, organizationId, projectId, options, ConventionsToUse);
     }
 
-    internal ChatCompletionClient(IMemoryContextPool contextPool, string baseUri, string apiKey, string model, string organizationId, string projectId, bool? think = null, DocumentConventions conventions = null)
+    internal ChatCompletionClient(IMemoryContextPool contextPool, string baseUri, string apiKey, string model, string organizationId, string projectId, ChatCompletionClientOptions options = null, DocumentConventions conventions = null)
     {
         _model = model;
         _organizationId = organizationId;
         _projectId = projectId;
-        _think = think;
+        _options = options;
 
         conventions ??= ConventionsToUse;
 
@@ -592,11 +604,19 @@ internal class ChatCompletionClient : IChatCompletionClient, IChatCompletionClie
         }
 
         // Add Ollama-specific "think" parameter if specified
-        if (_think.HasValue)
+        if (_options?.Think.HasValue == true)
         {
             writer.WriteComma();
             writer.WritePropertyName(Constants.RequestFields.Think);
-            writer.WriteBool(_think.Value);
+            writer.WriteBool(_options.Think.Value);
+        }
+
+        // Add Ollama-specific "temperature" parameter if specified
+        if (_options?.Temperature.HasValue == true)
+        {
+            writer.WriteComma();
+            writer.WritePropertyName(Constants.RequestFields.Temperature);
+            writer.WriteDouble(_options.Temperature.Value);
         }
 
         writer.WriteEndObject();
@@ -996,6 +1016,9 @@ internal class ChatCompletionClient : IChatCompletionClient, IChatCompletionClie
             public const string Required = "required";
             public const string Items = "items";
             public const string Description = "description";
+            public const string Id = "id";
+            public const string Function = "function";
+            public const string Arguments = "arguments";
 
             // Values
             public const string TypeObject = "object";
@@ -1020,6 +1043,7 @@ internal class ChatCompletionClient : IChatCompletionClient, IChatCompletionClie
             public const string Type = "type";
             public const string JsonSchema = "json_schema";
             public const string Think = "think";
+            public const string Temperature = "temperature";
             public const string ToolChoice = "tool_choice";
             public const string MaxCompletionToken = "max_completion_tokens";
 

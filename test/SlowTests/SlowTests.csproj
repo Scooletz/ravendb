@@ -64,6 +64,7 @@
     <None Remove="Data\RavenDB_24645\heart.png" />
     <None Remove="Data\RavenDB_24645\heart.webp" />
     <None Remove="Data\RavenDB_24645\heart.jpeg" />
+    <None Remove="Data\RavenDB_24797\24797_counters_test.ravendb-snapshot" />
     <None Remove="Smuggler\Data\DocumentWithRevisions.ravendbdump" />
     <None Remove="Smuggler\Data\RevisionsWithoutADocument.ravendbdump" />
   </ItemGroup>
@@ -179,6 +180,7 @@
     <EmbeddedResource Include="Data\RavenDB_24645\heart.jpeg" />
     <EmbeddedResource Include="Data\RavenDB_24645\heart.png" />
     <EmbeddedResource Include="Data\RavenDB_24645\heart.webp" />
+    <EmbeddedResource Include="Data\RavenDB_24797\24797_counters_test.ravendb-snapshot" />
     <EmbeddedResource Include="Data\RavenDB_8355\MySorter.cs" />
     <EmbeddedResource Include="Data\RavenDB_8355\MySorterWithDiagnostics.cs" />
     <EmbeddedResource Include="Data\RavenDB_9912\1.ravendbdump" />
