@@ -22,6 +22,7 @@ using Raven.Client.Documents.Conventions;
 using Raven.Client.Documents.Operations.AI;
 using Raven.Client.Http;
 using Raven.Client.Json;
+using Raven.Server.Documents.ETL.Providers.AI;
 using Raven.Server.Documents.Handlers.AI.Agents;
 using Raven.Server.Json;
 using Raven.Server.Utils;
@@ -418,17 +419,6 @@ internal class ChatCompletionClient : IChatCompletionClient, IChatCompletionClie
 
         public BlittableJsonReaderObject GetContent(JsonOperationContext context)
         {
-            if (string.IsNullOrEmpty(_content))
-            {
-                _choice0.TryGet(Constants.ResponseFields.FinishReason, out string finishReason);
-                _choice0.TryGet(Constants.ResponseFields.Refusal, out string refusal);
-                //TODO: full output if we get here?
-                throw new RefusedToAnswerException("The request was refused by the model")
-                {
-                    Refusal = refusal, FinishReason = finishReason, RequestId = GetRequestId(response.Headers)
-                };
-            }
-
             return context.Sync.ReadForMemory(_content, "ai/output");
         }
     }
@@ -437,7 +427,7 @@ internal class ChatCompletionClient : IChatCompletionClient, IChatCompletionClie
 
     protected virtual Task<HttpResponseMessage> SendStreamingRequestAsync(HttpRequestMessage request, CancellationToken token) => _client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, token);
 
-    public async Task<(string Result, AiUsage Usage)> CompleteAsync(string systemPrompt, string userPrompt, string schema, CancellationToken token)
+    public async Task<(string Result, AiUsage Usage)> CompleteAsync(string systemPrompt, string userPrompt, string schema, List<AiAttachment> attachments, CancellationToken token)
     {
         if (_forTestingPurposes?.SimulateFailureAsync != null)
             await _forTestingPurposes.SimulateFailureAsync(userPrompt);
@@ -452,7 +442,11 @@ internal class ChatCompletionClient : IChatCompletionClient, IChatCompletionClie
         var msg2 = new DynamicJsonValue
         {
             [Constants.RequestFields.Role] = Constants.RequestFields.RoleUserValue,
-            [Constants.RequestFields.Content] = userPrompt
+            [Constants.RequestFields.Content] = attachments switch
+            {
+                null => userPrompt,
+                _ => CreateContentWithAttachments(userPrompt, attachments)
+            }
         };
 
         var messages = new List<BlittableJsonReaderObject>() { ctx.ReadObject(msg1, "system/msg"), ctx.ReadObject(msg2, "user/msg") };
@@ -462,6 +456,65 @@ internal class ChatCompletionClient : IChatCompletionClient, IChatCompletionClie
 
         return (results.Result.ToString(), usage);
     }
+
+
+    private DynamicJsonArray CreateContentWithAttachments(string context, List<AiAttachment> attachments)
+    {
+        var content = new DynamicJsonArray
+        {
+            new DynamicJsonValue
+            {
+                [Constants.AttachmentsRequestFields.Type] = Constants.AttachmentsRequestFields.TypeText,
+                [Constants.AttachmentsRequestFields.TypeText] = context
+            }
+        };
+
+        foreach (var attachment in attachments)
+        {
+            if (attachment.Source == AiAttachmentSource.NotFound)
+            {
+                content.Add(new DynamicJsonValue
+                {
+                    [Constants.AttachmentsRequestFields.Type] = Constants.AttachmentsRequestFields.TypeText,
+                    [Constants.AttachmentsRequestFields.TypeText] = $"File '{attachment.Name}' (of type '{attachment.Type}') could not be loaded: attachment not found"
+                });
+                continue;
+            }
+
+            content.Add(attachment.Type switch
+            {
+                Constants.AttachmentsRequestFields.MediaTypeTextPlain => new DynamicJsonValue
+                {
+                    [Constants.AttachmentsRequestFields.Type] = Constants.AttachmentsRequestFields.TypeText,
+                    [Constants.AttachmentsRequestFields.TypeText] = attachment.Data
+                },
+                Constants.AttachmentsRequestFields.MediaTypeApplicationPdf => new DynamicJsonValue
+                {
+                    [Constants.AttachmentsRequestFields.Type] = Constants.AttachmentsRequestFields.File,
+                    [Constants.AttachmentsRequestFields.File] = new DynamicJsonValue
+                    {
+                        [Constants.AttachmentsRequestFields.FileName] = attachment.Name,
+                        [Constants.AttachmentsRequestFields.FileData] = "data:application/pdf;base64," + attachment.Data
+                    }
+                },
+                Constants.AttachmentsRequestFields.MediaTypeImageJpeg or
+                    Constants.AttachmentsRequestFields.MediaTypeImagePng or
+                    Constants.AttachmentsRequestFields.MediaTypeImageGif or
+                    Constants.AttachmentsRequestFields.MediaTypeImageWebp => new DynamicJsonValue
+                    {
+                        [Constants.AttachmentsRequestFields.Type] = Constants.AttachmentsRequestFields.ImageUrl,
+                        [Constants.AttachmentsRequestFields.ImageUrl] = new DynamicJsonValue
+                        {
+                            [Constants.AttachmentsRequestFields.Url] = "data:" + attachment.Type + ";base64," + attachment.Data
+                        }
+                    },
+                _ => throw new InvalidOperationException($"Attachment '{attachment.Name}' has unknown type: {attachment.Type}")
+            });
+        }
+
+        return content;
+    }
+
 
     public HttpRequestMessage CreateCompletionRequest(JsonOperationContext ctx, List<BlittableJsonReaderObject> messages, string schema) => CreateCompletionRequest(ctx, messages, tools: null, useTools: false, streaming: false, schema);
 
@@ -937,7 +990,7 @@ internal class ChatCompletionClient : IChatCompletionClient, IChatCompletionClie
             public const string ErrorTypeInsufficientQuota = "insufficient_quota";
             public const string ErrorTypeTokens = "tokens";
             public const string ErrorTypeRequests = "requests";
-            
+
             public const string Index = "index";
             public const string Id = "id";
             public const string Type = "type";
@@ -1013,10 +1066,29 @@ internal class ChatCompletionClient : IChatCompletionClient, IChatCompletionClie
             public const string DefaultRelativeUri = "v1/chat/completions";
             public const string ModelsUri = "v1/models";
             public const string AuthorizationApiKeyProperty = "Bearer";
-            
+
             public const string Stream = "stream";
             public const string StreamOptions = "stream_options";
             public const string IncludeUsage = "include_usage";
+        }
+
+        public static class AttachmentsRequestFields
+        {
+            public const string Type = "type";
+            public const string File = "file";
+            public const string FileName = "filename";
+            public const string FileData = "file_data";
+            public const string ImageUrl = "image_url";
+            public const string Url = "url";
+
+            public const string TypeText = "text";
+
+            public const string MediaTypeTextPlain = "text/plain";
+            public const string MediaTypeApplicationPdf = "application/pdf";
+            public const string MediaTypeImageJpeg = "image/jpeg";
+            public const string MediaTypeImagePng = "image/png";
+            public const string MediaTypeImageGif = "image/gif";
+            public const string MediaTypeImageWebp = "image/webp";
         }
     }
 }
