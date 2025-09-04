@@ -60,6 +60,10 @@ namespace Raven.Server.NotificationCenter.Handlers
 
                 var expectedCert = CertificateLoaderUtil.CreateCertificate(Convert.FromBase64String(tcpConnection.Certificate));
 
+                _remoteWebSocket.Options.ClientCertificates.Add(certificate);
+
+                _remoteWebSocket.Options.RemoteCertificateValidationCallback += (sender, actualCert, chain, errors) =>
+                    expectedCert.Equals(actualCert);
                 handler.ServerCertificateCustomValidationCallback = (_, actualCert, _, _) => expectedCert.Equals(actualCert);
             }
 
