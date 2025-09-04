@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using Raven.Client.Documents.Session;
 using Sparrow.Json;
 
@@ -18,14 +17,6 @@ namespace Raven.Client.Json.Serialization
         object FromBlittable(Type type, BlittableJsonReaderObject json, string id = null);
 
         T FromBlittable<T>(BlittableJsonReaderObject json, string id = null);
-
-    }
-
-    public interface ISubscriptionsBlittableJsonConverter : IBlittableJsonConverterBase
-    {
-        T FromBlittable<T>(BlittableJsonReaderObject json, string id = null);
-
-        internal Dictionary<object, Dictionary<object, object>> MissingProperties { get; set; }
     }
 
     public interface ISessionBlittableJsonConverter : IBlittableJsonConverterBase
@@ -43,8 +34,6 @@ namespace Raven.Client.Json.Serialization
         void RemoveFromMissing<T>(T entity);
 
         void Clear();
-
-        internal Dictionary<object, Dictionary<object, object>> MissingProperties { get; set; }
     }
 
     public interface IBlittableJsonConverterBase

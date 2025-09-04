@@ -1,21 +1,28 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using Newtonsoft.Json.Serialization;
 using Raven.Client.Documents.Session;
+using Raven.Client.Util;
 using Sparrow.Json;
 
 namespace Raven.Client.Json.Serialization.NewtonsoftJson.Internal
 {
-    internal class SessionBlittableJsonConverter : BlittableJsonConverterWithMissingProperties, ISessionBlittableJsonConverter
+    internal class SessionBlittableJsonConverter : BlittableJsonConverterBase, ISessionBlittableJsonConverter
     {
         private readonly InMemoryDocumentSessionOperations _session;
+
+        private readonly Dictionary<object, Dictionary<object, object>> _missingDictionary = new Dictionary<object, Dictionary<object, object>>(ObjectReferenceEqualityComparer<object>.Default);
 
         public SessionBlittableJsonConverter(InMemoryDocumentSessionOperations session)
             : base(session.Conventions.Serialization)
         {
             _session = session ?? throw new ArgumentNullException(nameof(session));
+        }
+
+        public void Clear()
+        {
+            _missingDictionary.Clear();
         }
 
         public object FromBlittable(Type type, ref BlittableJsonReaderObject json, string id, bool trackEntity)
@@ -124,6 +131,11 @@ namespace Raven.Client.Json.Serialization.NewtonsoftJson.Internal
             _session.GenerateEntityIdOnTheClient.TrySetIdentity(entity, id);
         }
 
+        public void RemoveFromMissing<T>(T entity)
+        {
+            _missingDictionary.Remove(entity);
+        }
+
         public BlittableJsonReaderObject ToBlittable(object entity, DocumentInfo documentInfo)
         {
             //maybe we don't need to do anything..
@@ -145,22 +157,24 @@ namespace Raven.Client.Json.Serialization.NewtonsoftJson.Internal
             }
         }
 
-        public void Clear()
+        private IEnumerable<KeyValuePair<object, object>> FillMissingProperties(object o)
         {
-            MissingProperties?.Clear();
+            _missingDictionary.TryGetValue(o, out var props);
+            return props;
         }
 
-        protected IEnumerable<KeyValuePair<object, object>> FillMissingProperties(object o)
+        private void RegisterMissingProperties(object o, string id, object value)
         {
-            if (MissingProperties != null && MissingProperties.TryGetValue(o, out var props))
-                return props;
+            if (_session.Conventions.PreserveDocumentPropertiesNotFoundOnModel == false ||
+                id == Constants.Documents.Metadata.Key)
+                return;
 
-            return Enumerable.Empty<KeyValuePair<object, object>>();
-        }
+            if (_missingDictionary.TryGetValue(o, out var dictionary) == false)
+            {
+                _missingDictionary[o] = dictionary = new Dictionary<object, object>();
+            }
 
-        public void RemoveFromMissing<T>(T entity)
-        {
-            MissingProperties?.Remove(entity);
+            dictionary[id] = value;
         }
     }
 }
