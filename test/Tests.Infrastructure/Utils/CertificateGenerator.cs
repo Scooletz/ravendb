@@ -12,6 +12,7 @@ using Org.BouncyCastle.Security;
 using Org.BouncyCastle.X509;
 using Raven.Server.Utils;
 using Raven.Client;
+using Raven.Client.Util;
 using X509Certificate = Org.BouncyCastle.X509.X509Certificate;
 
 namespace Tests.Infrastructure.Utils;
@@ -59,7 +60,7 @@ public static class CertificateGenerator
             }
 
             subjectAlternativeNames = new GeneralNames(names.ToArray());
-    }
+        }
 
         return GenerateCertificate(subjectName, yearsValid, clientKeyPair, keyUsage, extendedKeyUsage, subjectAlternativeNames, signerCertificate, signerKeyPair);
     }
@@ -91,7 +92,7 @@ public static class CertificateGenerator
 
         return GenerateCertificate(subjectName, yearsValid, clientKeyPair, keyUsage, extendedKeyUsage, subjectAlternativeNames, signerCertificate, signerKeyPair);
     }
-    
+
     public static X509Certificate2 GenerateSignedClientOnlyCertificate(X509Certificate2 signerCertificate, AsymmetricCipherKeyPair signerKeyPair, string subjectName,
         int yearsValid, AsymmetricCipherKeyPair clientKeyPair, string[] sans = null)
     {
@@ -193,5 +194,5 @@ public static class CertificateGenerator
         store.Save(stream, Array.Empty<char>(), random);
 
         return CertificateLoaderUtil.CreateCertificate(stream.ToArray(), null, CertificateLoaderUtil.FlagsForExport);
-}
+    }
 }

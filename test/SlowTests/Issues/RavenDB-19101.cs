@@ -51,7 +51,7 @@ public class RavenDB_19101: RavenTestBase
     [RavenTheory(RavenTestCategory.Indexes | RavenTestCategory.Certificates)]
     [InlineData(false)]
     [InlineData(true)]
-    public void CheckIfCertificateNameIsReturned()
+    public void CheckIfCertificateNameIsReturned(bool with2Eku)
     {
         var certificates = Certificates.SetupServerAuthentication(with2Eku: with2Eku);
         var dbName = GetDatabaseName();

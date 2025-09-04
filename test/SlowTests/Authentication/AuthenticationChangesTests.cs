@@ -19,8 +19,8 @@ namespace SlowTests.Authentication
         }
 
         [RavenTheory(RavenTestCategory.ChangesApi | RavenTestCategory.Certificates)]
-        [RavenData(DatabaseMode = RavenDatabaseMode.All, true)]
-        [RavenData(DatabaseMode = RavenDatabaseMode.All, false)]
+        [RavenData(true, DatabaseMode = RavenDatabaseMode.All)]
+        [RavenData(false, DatabaseMode = RavenDatabaseMode.All)]
         public async Task ChangesWithAuthentication(Options options, bool with2Eku)
         {
             var certificates = Certificates.SetupServerAuthentication(with2Eku: with2Eku);

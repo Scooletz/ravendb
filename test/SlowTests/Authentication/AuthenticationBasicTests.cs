@@ -78,8 +78,8 @@ namespace SlowTests.Authentication
         }
 
         [RavenTheory(RavenTestCategory.Certificates)]
-        [RavenData(DatabaseMode = RavenDatabaseMode.All, true)]
-        [RavenData(DatabaseMode = RavenDatabaseMode.All, false)]
+        [RavenData(true, DatabaseMode = RavenDatabaseMode.All)]
+        [RavenData(false, DatabaseMode = RavenDatabaseMode.All)]
         public void CanGetDocWithValidPermission(Options options, bool with2Eku)
         {
             var certificates = SetupServerAuthentication(Certificates, with2Eku: with2Eku);
@@ -107,8 +107,8 @@ namespace SlowTests.Authentication
         }
 
         [RavenTheory(RavenTestCategory.Certificates)]
-        [RavenData(DatabaseMode = RavenDatabaseMode.Single, true)]
-        [RavenData(DatabaseMode = RavenDatabaseMode.Single, false)]
+        [RavenData(true, DatabaseMode = RavenDatabaseMode.Single)]
+        [RavenData(false, DatabaseMode = RavenDatabaseMode.Single)]
         public void CanGetAttachmentWithValidPermission(Options options, bool with2Eku)
         {
             var certificates = SetupServerAuthentication(Certificates, with2Eku: with2Eku);
@@ -174,8 +174,8 @@ namespace SlowTests.Authentication
         }
 
         [RavenTheory(RavenTestCategory.Certificates)]
-        [RavenData(DatabaseMode = RavenDatabaseMode.All, true)]
-        [RavenData(DatabaseMode = RavenDatabaseMode.All, false)]
+        [RavenData(true, DatabaseMode = RavenDatabaseMode.All)]
+        [RavenData(false, DatabaseMode = RavenDatabaseMode.All)]
         public void CanReachOperatorEndpointWithOperatorPermission(Options options, bool with2Eku)
         {
             var certificates = SetupServerAuthentication(Certificates, with2Eku: with2Eku);
@@ -195,8 +195,8 @@ namespace SlowTests.Authentication
         }
 
         [RavenTheory(RavenTestCategory.Certificates)]
-        [RavenData(DatabaseMode = RavenDatabaseMode.All, true)]
-        [RavenData(DatabaseMode = RavenDatabaseMode.All, false)]
+        [RavenData(true, DatabaseMode = RavenDatabaseMode.All)]
+        [RavenData(false, DatabaseMode = RavenDatabaseMode.All)]
         public void CannotReachOperatorEndpointWithoutOperatorPermission(Options options, bool with2Eku)
         {
             var certificates = SetupServerAuthentication(Certificates, with2Eku: with2Eku);
@@ -222,8 +222,8 @@ namespace SlowTests.Authentication
         }
 
         [RavenTheory(RavenTestCategory.Certificates)]
-        [RavenData(DatabaseMode = RavenDatabaseMode.All, true)]
-        [RavenData(DatabaseMode = RavenDatabaseMode.All, false)]
+        [RavenData(true, DatabaseMode = RavenDatabaseMode.All)]
+        [RavenData(false, DatabaseMode = RavenDatabaseMode.All)]
         public void CanReachDatabaseAdminEndpointWithDatabaseAdminPermission(Options options, bool with2Eku)
         {
             var certificates = SetupServerAuthentication(Certificates, with2Eku: with2Eku);
@@ -256,8 +256,8 @@ namespace SlowTests.Authentication
         }
 
         [RavenTheory(RavenTestCategory.Certificates)]
-        [RavenData(DatabaseMode = RavenDatabaseMode.All, true)]
-        [RavenData(DatabaseMode = RavenDatabaseMode.All, false)]
+        [RavenData(true, DatabaseMode = RavenDatabaseMode.All)]
+        [RavenData(false, DatabaseMode = RavenDatabaseMode.All)]
         public void CannotReachDatabaseAdminEndpointWithoutDatabaseAdminPermission(Options options, bool with2Eku)
         {
             var certificates = SetupServerAuthentication(Certificates, with2Eku: with2Eku);
@@ -345,8 +345,8 @@ namespace SlowTests.Authentication
         }
 
         [RavenTheory(RavenTestCategory.Certificates)]
-        [RavenData(DatabaseMode = RavenDatabaseMode.All, true)]
-        [RavenData(DatabaseMode = RavenDatabaseMode.All, false)]
+        [RavenData(true, DatabaseMode = RavenDatabaseMode.All)]
+        [RavenData(false, DatabaseMode = RavenDatabaseMode.All)]
         public void CannotGetDocWithInvalidPermission(Options options, bool with2Eku)
         {
             var certificates = SetupServerAuthentication(Certificates, with2Eku: with2Eku);
@@ -402,8 +402,8 @@ namespace SlowTests.Authentication
         }
 
         [RavenTheory(RavenTestCategory.Certificates)]
-        [RavenData(DatabaseMode = RavenDatabaseMode.All, true)]
-        [RavenData(DatabaseMode = RavenDatabaseMode.All, false)]
+        [RavenData(true, DatabaseMode = RavenDatabaseMode.All)]
+        [RavenData(false, DatabaseMode = RavenDatabaseMode.All)]
         public void CannotGetDocWithExpiredCertificate(Options options, bool with2Eku)
         {
             var certificates = SetupServerAuthentication(Certificates, with2Eku: with2Eku);
@@ -618,8 +618,8 @@ namespace SlowTests.Authentication
         }
 
         [RavenTheory(RavenTestCategory.Certificates)]
-        [RavenData(DatabaseMode = RavenDatabaseMode.All, true)]
-        [RavenData(DatabaseMode = RavenDatabaseMode.All, false)]
+        [RavenData(true, DatabaseMode = RavenDatabaseMode.All)]
+        [RavenData(false, DatabaseMode = RavenDatabaseMode.All)]
         public void CanGetDocWith_Read_Permission(Options options, bool with2Eku)
         {
             var certificates = SetupServerAuthentication(Certificates, with2Eku: with2Eku);
@@ -666,8 +666,8 @@ namespace SlowTests.Authentication
         }
 
         [RavenTheory(RavenTestCategory.Certificates)]
-        [RavenData(DatabaseMode = RavenDatabaseMode.All, true)]
-        [RavenData(DatabaseMode = RavenDatabaseMode.All, false)]
+        [RavenData(true, DatabaseMode = RavenDatabaseMode.All)]
+        [RavenData(false, DatabaseMode = RavenDatabaseMode.All)]
         public void CannotPutDocWith_Read_Permission_MultiGet(Options options, bool with2Eku)
         {
             var certificates = SetupServerAuthentication(Certificates, with2Eku: with2Eku);
@@ -712,8 +712,8 @@ namespace SlowTests.Authentication
         }
 
         [RavenTheory(RavenTestCategory.Certificates)]
-        [RavenData(DatabaseMode = RavenDatabaseMode.All, true)]
-        [RavenData(DatabaseMode = RavenDatabaseMode.All, false)]
+        [RavenData(true, DatabaseMode = RavenDatabaseMode.All)]
+        [RavenData(false, DatabaseMode = RavenDatabaseMode.All)]
         public void CannotPutDocWith_Read_Permission(Options options, bool with2Eku)
         {
             var certificates = SetupServerAuthentication(Certificates, with2Eku: with2Eku);

@@ -10,6 +10,7 @@ using System.Threading;
 using Raven.Client.Documents.Conventions;
 using Raven.Client.Properties;
 using Raven.Client.ServerWide.Operations.Certificates;
+using Raven.Client.Util;
 using Raven.Server;
 using Raven.Server.Config;
 using Raven.Server.ServerWide;
@@ -104,7 +105,6 @@ public partial class RavenTestBase
                         SelfSignedCertificates2Eku = selfSignedCertificates = Generate(caller);
                     else
                         SelfSignedCertificates1Eku = selfSignedCertificates = Generate(caller);
-
                 }
 
                 return ReturnCertificatesHolder(selfSignedCertificates);
@@ -154,6 +154,7 @@ public partial class RavenTestBase
                 {
                     certBytes = File.ReadAllBytes(serverCertificatePath);
                 }
+
                 X509Certificate2 serverCertificate;
                 try
                 {
@@ -189,7 +190,7 @@ public partial class RavenTestBase
                         try
                         {
                             File.WriteAllBytes(serverCertificateForCommunicationPath, serverClientCertBytes);
-            }
+                        }
                         catch (Exception e)
                         {
                             throw new InvalidOperationException("Failed to write the test certificate to a temp file." +
@@ -203,6 +204,7 @@ public partial class RavenTestBase
                 {
                     serverCertificateForCommunicationPath = serverCertificatePath;
                 }
+
                 var clientCertificate1Path = GenerateClientCertificate(1, serverCertificate, pk, ekuSuffix);
                 var clientCertificate2Path = GenerateClientCertificate(2, serverCertificate, pk, ekuSuffix);
                 var clientCertificate3Path = GenerateClientCertificate(3, serverCertificate, pk, ekuSuffix);
@@ -221,7 +223,7 @@ public partial class RavenTestBase
                         name,
                         serverCertificate,
                         pk.Key,
-                        out var certBytes, 
+                        out var certBytes,
                         DateTime.UtcNow.Date.AddYears(5));
 
                     try
