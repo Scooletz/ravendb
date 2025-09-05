@@ -1,10 +1,4 @@
-// -----------------------------------------------------------------------
-//  <copyright file="SubscriptionWorker.cs" company="Hibernating Rhinos LTD">
-//      Copyright (c) Hibernating Rhinos LTD. All rights reserved.
-//  </copyright>
-// -----------------------------------------------------------------------
-
-using System.Security.Cryptography.X509Certificates;
+﻿using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using Raven.Client.Extensions;
 using Raven.Client.Http;
@@ -13,6 +7,10 @@ using Sparrow.Logging;
 
 namespace Raven.Client.Documents.Subscriptions
 {
+    /// <summary>
+    /// Client-side worker that connects to a subscription and processes incoming document batches.
+    /// Use DocumentStore.Subscriptions.GetSubscriptionWorker to create instances.
+    /// </summary>
     public sealed class SubscriptionWorker<T> : AbstractSubscriptionWorker<SubscriptionBatch<T>, T> where T : class
     {
         private readonly DocumentStore _store;

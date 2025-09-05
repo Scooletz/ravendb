@@ -764,8 +764,8 @@ namespace SlowTests.Server.Replication
 
             }))
             {
-                sinkServer.ServerStore.DatabasesLandlord.ForTestingPurposesOnly().ShouldFetchIdleStateImmediately = true;
-                hubServer.ServerStore.DatabasesLandlord.ForTestingPurposesOnly().ShouldFetchIdleStateImmediately = true;
+                sinkServer.ServerStore.DatabasesLandlord.ForTestingPurposesOnly().SkipIncreasingLastWorkTimeBasedOnDatabaseSize = true;
+                hubServer.ServerStore.DatabasesLandlord.ForTestingPurposesOnly().SkipIncreasingLastWorkTimeBasedOnDatabaseSize = true;
 
                 await hub.Maintenance.ForDatabase(hub.Database).SendAsync(new PutPullReplicationAsHubOperation(name));
                 using (var s2 = hub.OpenSession())
@@ -858,16 +858,16 @@ namespace SlowTests.Server.Replication
                 Server = server,
                 ModifyDatabaseName = s => $"Sink_{s}",
                 RunInMemory = false,
-                ClientCertificate = certificates.ServerCertificate.Value,
-                AdminCertificate = certificates.ServerCertificate.Value
+                ClientCertificate = certificates.ServerCertificateForCommunication.Value,
+                AdminCertificate = certificates.ServerCertificateForCommunication.Value
             }))
             using (var hub = GetDocumentStore(new Options
             {
                 Server = server,
                 ModifyDatabaseName = s => $"Hub_{s}",
                 RunInMemory = false,
-                ClientCertificate = certificates.ServerCertificate.Value,
-                AdminCertificate = certificates.ServerCertificate.Value
+                ClientCertificate = certificates.ServerCertificateForCommunication.Value,
+                AdminCertificate = certificates.ServerCertificateForCommunication.Value
             }))
             {
                 await hub.Maintenance.ForDatabase(hub.Database).SendAsync(new PutPullReplicationAsHubOperation(new PullReplicationDefinition(name)
@@ -915,7 +915,7 @@ namespace SlowTests.Server.Replication
 
                 Assert.True(WaitForDocument(hub, "foo/bar/228", timeout * 5), hub.Identifier);
 
-                server.ServerStore.DatabasesLandlord.ForTestingPurposesOnly().ShouldFetchIdleStateImmediately = true;
+                server.ServerStore.DatabasesLandlord.ForTestingPurposesOnly().SkipIncreasingLastWorkTimeBasedOnDatabaseSize = true;
 
                 var dic = new Dictionary<IdleDatabaseStatistics, int>();
                 Assert.True(WaitForValue( () =>
