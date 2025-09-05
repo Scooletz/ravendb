@@ -1,10 +1,4 @@
-﻿// -----------------------------------------------------------------------
-//  <copyright file="RequestRouter.cs" company="Hibernating Rhinos LTD">
-//      Copyright (c) Hibernating Rhinos LTD. All rights reserved.
-//  </copyright>
-// -----------------------------------------------------------------------
-
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
@@ -130,7 +124,7 @@ namespace Raven.Server.Routing
                             if (conLifetime != null)
                             {
                                 var msg = $"Connection {context.Connection.RemoteIpAddress}:{context.Connection.RemotePort} closed. Was used with: " +
-                                 $"with certificate '{feature.Certificate?.Subject} ({feature.Certificate?.Thumbprint})', status: {feature.StatusForAudit}, " +
+                                 $"certificate '{feature.Certificate?.Subject} ({feature.Certificate?.Thumbprint})', status: {feature.StatusForAudit}, " +
                                  $"databases: [{string.Join(", ", feature.AuthorizedDatabases.Keys)}]";
 
                                 CancellationTokenRegistration cancellationTokenRegistration = default;
@@ -510,9 +504,7 @@ namespace Raven.Server.Routing
             }
             else
             {
-                var name = certificate.FriendlyName;
-                if (string.IsNullOrWhiteSpace(name))
-                    name = certificate.Subject;
+                var name = certificate.GetDisplayName();
                 if (string.IsNullOrWhiteSpace(name))
                     name = certificate.ToString(false);
 
