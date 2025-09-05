@@ -574,7 +574,7 @@ namespace Raven.Server
                 if (Logger.IsOperationsEnabled)
                     Logger.Operations(msg);
             }
-            else if (remainingDays <= 20)
+            else if (remainingDays <= Configuration.Core.AcmeDaysToRenewBeforeExpiration)
             {
                 string msg = $"The server certificate will expire on {Certificate.ServerCertificate.NotAfter.ToShortDateString()}. There are only {(int)remainingDays} days left for renewal.";
 
@@ -1412,7 +1412,7 @@ namespace Raven.Server
                 return (true, DateTime.UtcNow.Date);
 
             var remainingDays = (currentCertificate.ServerCertificate.NotAfter - Time.GetUtcNow().ToLocalTime()).TotalDays;
-            if (remainingDays <= 20)
+            if (remainingDays <= ServerStore.Configuration.Core.AcmeDaysToRenewBeforeExpiration)
             {
                 return (true, DateTime.UtcNow.Date);
             }
