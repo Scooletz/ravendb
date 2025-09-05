@@ -1,7 +1,4 @@
-﻿using Raven.Client;
-using Raven.Server.ServerWide.Context;
-using Sparrow.Json;
-using Voron;
+﻿using Raven.Server.ServerWide.Context;
 using Voron.Data.Tables;
 
 namespace Raven.Server.Documents
@@ -19,7 +16,7 @@ namespace Raven.Server.Documents
                 _storage = storage;
             }
             // Used to delete corrupted document from the JS admin console
-            public bool DeleteDocumentByEtag(long etag)
+            public void DeleteDocumentByEtag(long etag)
             {
                 using (_storage.ContextPool.AllocateOperationContext(out DocumentsOperationContext context))
                 using (var tx = context.OpenWriteTransaction())
@@ -27,18 +24,12 @@ namespace Raven.Server.Documents
                     var table = new Table(DocsSchema, context.Transaction.InnerTransaction);
                     var index = DocsSchema.FixedSizeIndexes[AllDocsEtagsSlice];
 
-                    if (table.FindByIndex(index, etag, out var reader) == false) 
-                        return false;
-                    
-                    var doc = _storage.TableValueToDocument(context, ref reader, DocumentFields.LowerId | DocumentFields.Id);
-                    bool isDelete;
-                    using (Slice.From(context.Allocator, doc.LowerId.AsReadOnlySpan(), out var lowerId))
+                    if (table.FindByIndex(index, etag, out var reader))
                     {
-                        var result = _storage.Delete(context, lowerId, doc.Id, null);
-                        isDelete = result.HasValue;
+                        var doc = _storage.TableValueToDocument(context, ref reader, DocumentFields.Id);
+                        _storage.Delete(context, doc.Id, DocumentFlags.None);
+                        tx.Commit();
                     }
-                    tx.Commit();
-                    return isDelete;
                 }
             }
         }
