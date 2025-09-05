@@ -1,10 +1,4 @@
-// -----------------------------------------------------------------------
-//  <copyright file="SubscriptionCriteria.cs" company="Hibernating Rhinos LTD">
-//      Copyright (c) Hibernating Rhinos LTD. All rights reserved.
-//  </copyright>
-// -----------------------------------------------------------------------
-
-using System;
+﻿using System;
 using Raven.Client.Documents.DataArchival;
 using Raven.Client.ServerWide;
 using Raven.Client.ServerWide.Operations;
@@ -12,6 +6,9 @@ using Sparrow.Json.Parsing;
 
 namespace Raven.Client.Documents.Subscriptions
 {
+    /// <summary>
+    /// Represents the configuration and current state of a subscription task.
+    /// </summary>
     public class SubscriptionState : IDatabaseTask, IDatabaseTaskStatus
     {
         public string Query { get; set; }

@@ -46,10 +46,11 @@ namespace Tests.Infrastructure
         {
             get
             {
+                if (string.IsNullOrEmpty(base.Skip) == false)
+                    return base.Skip;
+
                 if (ShouldSkip(out var skipMessage))
-                {
                     return skipMessage;
-                }
 
                 return base.Skip;
             }

@@ -1,9 +1,4 @@
-// -----------------------------------------------------------------------
-//  <copyright file="SubscriptionOpeningStrategy.cs" company="Hibernating Rhinos LTD">
-//      Copyright (c) Hibernating Rhinos LTD. All rights reserved.
-//  </copyright>
-// -----------------------------------------------------------------------
-namespace Raven.Client.Documents.Subscriptions
+﻿namespace Raven.Client.Documents.Subscriptions
 {
     /// <summary>
     /// Options for opening a subscription
@@ -28,6 +23,9 @@ namespace Raven.Client.Documents.Subscriptions
         /// </summary>
         WaitForFree,
 
+        /// <summary>
+        /// Allows multiple consumers to process the same subscription concurrently (when server supports it).
+        /// </summary>
         Concurrent
     }
 }
