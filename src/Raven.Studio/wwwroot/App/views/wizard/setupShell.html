@@ -5,6 +5,10 @@
             </div>
         </div>
 
+        <div data-bind="if: displayUsageStatsInfo()">
+          <div data-bind="compose: usageStatsView" class="bs3"></div>
+        </div>
+
     
     <!-- TODO kalczur -->
     <!-- <a class="btn btn-primary select-theme-btn" data-bind="click: $root.constructor.chooseTheme">
