@@ -58,7 +58,7 @@ export interface InputItem<T extends string | number = string> {
     verticalSeparatorLine?: boolean;
     popover?: ReactNode;
     popoverPlacement?: Placement;
-    badgeColor?: TextColor;
+    badgeColor?: ThemeColor;
     icon?: ReactNode;
 }
 

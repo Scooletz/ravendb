@@ -551,7 +551,7 @@ namespace Raven.Server.Commercial
             };
 
             var response = await ApiHttpClient.PostAsync("/api/v2/license/update-lets-encrypt-license",
-                    new StringContent(JsonConvert.SerializeObject(updateInfo), Encoding.UTF8, "application/json"), _serverStore.ServerShutdown)
+                    new StringContent(JsonConvert.SerializeObject(updateInfo), Encoding.UTF8, "application/json"), token: _serverStore.ServerShutdown)
                 .ConfigureAwait(false);
 
             if (response.IsSuccessStatusCode == false)

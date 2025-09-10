@@ -11,6 +11,7 @@ export function getLicenseType(licenseInfo: SetupWizardFormData["licenseKeyStep"
         Essential: 1,
         Professional: 3,
         Enterprise: 4,
+        EnterpriseAi: 4,
         Developer: 4, // Enterprise-level set of features
     };
 

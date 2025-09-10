@@ -6,7 +6,7 @@ import useBoolean from "components/hooks/useBoolean";
 import { useEffect, useMemo, useState } from "react";
 import { useServices } from "components/hooks/useServices";
 import serverNotificationCenterClient from "common/serverNotificationCenterClient";
-import { TextColor } from "components/models/common";
+import { ThemeColor } from "components/models/common";
 import endpoints from "endpoints";
 import Button from "react-bootstrap/Button";
 import { Icon } from "components/common/Icon";
@@ -43,7 +43,7 @@ export function SetupWizardFinishStep() {
 
     const [readme, setReadme] = useState<string>();
     const [status, setStatus] = useState<OperationStatus>("Completed");
-    const [logs, setLogs] = useState<{ message: string; color?: TextColor }[]>([]);
+    const [logs, setLogs] = useState<{ message: string; color?: ThemeColor }[]>([]);
     const [configurationProcess, setConfigurationProcess] =
         useState<Raven.Server.Commercial.SetupProgressAndResult>(null);
     const handleWebSocketOperation = (operation: Raven.Server.NotificationCenter.Notifications.OperationChanged) => {

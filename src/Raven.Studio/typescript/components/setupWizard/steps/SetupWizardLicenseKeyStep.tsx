@@ -150,7 +150,7 @@ function LicenseKeyBadge() {
     if (isInvalidKey) {
         return (
             <PopoverWithHoverWrapper
-                targetClassname="position-absolute bottom-0 end-0 mb-3 me-3"
+                wrapperClassName="position-absolute bottom-0 end-0 mb-3 me-3"
                 targetStyle={{ zIndex: 5 }}
                 message="The provided license key format is invalid. Please check the key and try again."
             >

@@ -59,7 +59,7 @@ export function SetupWizardSecurityStep() {
                     )}
                 </h5>
                 <ConditionalPopover
-                    targetClassname="w-100"
+                    className="w-100"
                     conditions={{
                         isActive: isSecureDisabled,
                         message: (
@@ -98,7 +98,7 @@ export function SetupWizardSecurityStep() {
                     />
                 </ConditionalPopover>
                 <ConditionalPopover
-                    targetClassname="w-100"
+                    className="w-100"
                     conditions={{
                         isActive: isSecureDisabled,
                         message: (
