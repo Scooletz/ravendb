@@ -26,23 +26,22 @@ import { useRavenLink } from "hooks/useRavenLink";
 import classNames from "classnames";
 import { useEventsCollector } from "components/hooks/useEventsCollector";
 import { setupWizardGA4Prefixes } from "components/setupWizard/utils/setupWizardConstants";
+import ButtonWithSpinner from "components/common/ButtonWithSpinner";
 
 type OperationStatus = Raven.Client.Documents.Operations.OperationStatus;
 
 export function SetupWizardFinishStep() {
-    const { control } = useFormContext<SetupWizardFormData>();
+    const { control, setValue } = useFormContext<SetupWizardFormData>();
     const { reportEvent } = useEventsCollector();
 
     const { value: isShowLogs, toggle: toggleIsShowLogs } = useBoolean(false);
 
-    const { setupMethodStep, usePackageStep } = useWatch({ control });
+    const { setupMethodStep, usePackageStep, finishStep } = useWatch({ control });
 
     const websocket = useMemo(() => new serverNotificationCenterClient(), []);
 
     const { databasesService, setupWizardService } = useServices();
 
-    const [readme, setReadme] = useState<string>();
-    const [status, setStatus] = useState<OperationStatus>("Completed");
     const [logs, setLogs] = useState<{ message: string; color?: ThemeColor }[]>([]);
     const [configurationProcess, setConfigurationProcess] =
         useState<Raven.Server.Commercial.SetupProgressAndResult>(null);
@@ -54,14 +53,13 @@ export function SetupWizardFinishStep() {
                 case "Completed":
                     dto = operation.State.Result as Raven.Server.Commercial.SetupProgressAndResult;
                     setConfigurationProcess(operation.State.Result);
-                    setReadme(dto.Readme);
-                    setStatus("Completed");
+                    setValue("finishStep.finishingStatus", "Completed")
                     reportEvent(setupWizardGA4Prefixes.finalStep, "status", "Completed");
                     break;
                 case "InProgress":
                     dto = operation.State.Progress as Raven.Server.Commercial.SetupProgressAndResult;
                     setConfigurationProcess(operation.State.Progress);
-                    setStatus("InProgress");
+                    setValue("finishStep.finishingStatus", "InProgress")
                     reportEvent(setupWizardGA4Prefixes.finalStep, "status", "InProgress");
                     break;
                 case "Faulted": {
@@ -70,9 +68,15 @@ export function SetupWizardFinishStep() {
                         .Result as Raven.Client.Documents.Operations.OperationExceptionResult;
                     setLogs((prev) => [...prev, { message: failure.Message, color: "danger" }]);
                     setLogs((prev) => [...prev, { message: failure.Error, color: "danger" }]);
-                    setStatus("Faulted");
+                    setValue("finishStep.finishingStatus", "Faulted")
                     reportEvent(setupWizardGA4Prefixes.finalStep, "status", "Faulted");
                     break;
+                }
+                case "Canceled": {
+                    dto = operation.State.Result as Raven.Server.Commercial.SetupProgressAndResult;
+                    setConfigurationProcess(operation.State.Result);
+                    setValue("finishStep.finishingStatus", "Canceled")
+                    reportEvent(setupWizardGA4Prefixes.finalStep, "status", "Canceled");
                 }
             }
 
@@ -139,7 +143,7 @@ export function SetupWizardFinishStep() {
 
     return (
         <div className="finish-step">
-            <TopInfo status={status} />
+            <TopInfo status={finishStep.finishingStatus} />
             <div className="hstack mt-4 mb-1 justify-content-between">
                 <FormGroup marginClass="mb-0">
                     <Switch
@@ -159,7 +163,7 @@ export function SetupWizardFinishStep() {
                     </Switch>
                 </FormGroup>
                 <Button
-                    disabled={!configurationProcess?.Messages?.length && status !== "InProgress"}
+                    disabled={!configurationProcess?.Messages?.length && finishStep.finishingStatus !== "InProgress"}
                     variant="link"
                     onClick={() => {
                         reportEvent(setupWizardGA4Prefixes.finalStep, "download-log");
@@ -192,7 +196,7 @@ export function SetupWizardFinishStep() {
                     </pre>
                 </div>
             )}
-            {status === "Completed" && <CompletedSummary />}
+            {finishStep.finishingStatus === "Completed" && <CompletedSummary />}
 
             <div className="d-none">
                 <form method="post" target="hidden-form" id="setupForm">
@@ -299,38 +303,47 @@ const ConfigurationItem = ({ configurationState, stepTitle }: ConfigurationItemP
 };
 
 function TopInfo({ status }: { status: OperationStatus }) {
-    return (
-        <>
-            {status === "InProgress" && (
-                <>
-                    <h2 className="mb-1">Configuration in process</h2>
-                    <p className="mb-4 text-muted">Please, wait a moment. Your RavenDB will be ready in no time.</p>
-                </>
-            )}
-            {status === "Faulted" && (
-                <>
-                    <h2 className="mb-1">Setup failed</h2>
-                    <p className="mb-4 text-muted">
-                        It seems like something went wrong. Read the error message to find out what might&apos;ve been
-                        an issue.
-                    </p>
-                </>
-            )}
-            {status === "Canceled" && (
-                <>
-                    <h2 className="mb-1">Setup canceled</h2>
-                </>
-            )}
-            {status === "Completed" && (
-                <>
-                    <h2 className="mb-1">All set!</h2>
-                    <p className="mb-4 text-muted">
-                        You&apos;re almost ready to go. Follow the instructions to successfully complete the process.
-                    </p>
-                </>
-            )}
-        </>
-    );
+    if (status === "InProgress") {
+        return (
+            <>
+                <h2 className="mb-1">Configuration in process</h2>
+                <p className="mb-4 text-muted">Please, wait a moment. Your RavenDB will be ready in no time.</p>
+            </>
+        );
+    }
+
+    if (status === "Faulted") {
+        return (
+            <>
+                <h2 className="mb-1">Setup failed</h2>
+                <p className="mb-4 text-muted">
+                    It seems like something went wrong. Read the error message to find out what might&apos;ve been an
+                    issue.
+                </p>
+            </>
+        );
+    }
+
+    if (status === "Canceled") {
+        return (
+            <>
+                <h2 className="mb-1">Setup canceled</h2>
+            </>
+        );
+    }
+
+    if (status === "Completed") {
+        return (
+            <>
+                <h2 className="mb-1">All set!</h2>
+                <p className="mb-4 text-muted">
+                    You&apos;re almost ready to go. Follow the instructions to successfully complete the process.
+                </p>
+            </>
+        );
+    }
+
+    return null;
 }
 
 function CompletedSummary() {
@@ -349,7 +362,7 @@ function CompletedSummary() {
     const studioUrl = getStudioUrl();
 
     return (
-        <div className="summary-tab-container">
+        <div className="summary-tab-container mb-6">
             <Tab.Container id="summary-tabs" defaultActiveKey="whatsNew">
                 <Nav className="mb-2">
                     <Nav.Item className="flex-grow">
@@ -843,7 +856,7 @@ export function SetupWizardFinishStepFooter() {
     const { setupWizardService } = useServices();
     const { reportEvent } = useEventsCollector();
     const { control } = useFormContext<SetupWizardFormData>();
-    const { securityStep, setupMethodStep, usePackageStep } = useWatch({ control });
+    const { securityStep, setupMethodStep, usePackageStep, finishStep } = useWatch({ control });
     const { value: isCertInstallationConfirmed, toggle: toggleIsCertInstallationConfirmed } = useBoolean(false);
 
     const { getStudioUrl } = useSetupWizardFinishUtils();
@@ -878,11 +891,16 @@ export function SetupWizardFinishStepFooter() {
         }
     };
 
+    const finishStepIsDisabled =
+        finishStep.finishingStatus === "InProgress" ||
+        finishStep.finishingStatus === "Faulted" ||
+        finishStep.finishingStatus === "Canceled";
+    
     return (
         <div className="d-flex justify-content-end">
-            <Button variant="primary" onClick={handleReset} className="mt-2 rounded-pill">
+            <ButtonWithSpinner isSpinning={finishStep.finishingStatus === "InProgress"} disabled={finishStepIsDisabled} variant="primary" onClick={handleReset} className="mt-2 rounded-pill">
                 Restart server <Icon icon="reset" margin="m-0" />
-            </Button>
+            </ButtonWithSpinner>
             {isCertInstallationConfirmed && (
                 <CertInstallationConfirm
                     onCancel={toggleIsCertInstallationConfirmed}

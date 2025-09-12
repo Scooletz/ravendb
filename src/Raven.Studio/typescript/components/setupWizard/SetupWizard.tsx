@@ -226,4 +226,7 @@ const defaultValues: SetupWizardFormData = {
         postgresqlIntegration: false,
         serverEnvironment: "Production",
     },
+    finishStep: {
+        finishingStatus: "InProgress"
+    }
 };

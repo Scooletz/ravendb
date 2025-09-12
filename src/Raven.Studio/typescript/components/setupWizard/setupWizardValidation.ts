@@ -136,6 +136,11 @@ const additionalSettingsStepSchema = yup.object({
     isAdvancedSettingsVisible: yup.boolean(),
 });
 
+const finishStepSchema = yup.object({
+    // states
+    finishingStatus: yup.string<Raven.Client.Documents.Operations.OperationStatus>(),
+})
+
 export type SetupWizardStepId =
     | "Eula"
     | "Setup method"
@@ -159,6 +164,7 @@ export const setupWizardSchema = yup.object({
     domainStep: domainStepSchema,
     nodeAddressStep: nodeAddressStepSchema,
     additionalSettingsStep: additionalSettingsStepSchema,
+    finishStep: finishStepSchema,
 });
 
 export type SetupWizardFormData = yup.InferType<typeof setupWizardSchema>;
