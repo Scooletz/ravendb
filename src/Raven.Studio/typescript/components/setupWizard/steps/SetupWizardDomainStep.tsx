@@ -114,7 +114,9 @@ export function SetupWizardDomainStep() {
                     placeholder="Enter your domain name..."
                     onBlur={async () => {
                         const d = (domainStep.domain ?? "").trim();
-                        if (!d) return;
+                        if (!d) {
+                            return;
+                        }
                         const exists = domainsOptions.some((o) => o.value === d);
                         if (!exists) {
                             await handleDomainAvailability(d);
