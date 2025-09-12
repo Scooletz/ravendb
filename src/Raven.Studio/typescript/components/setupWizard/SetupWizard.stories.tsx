@@ -198,7 +198,7 @@ export const Finish: StoryObj<SetupWizardStoryArgs> = {
 
 
 async function navigateToStep(canvas: Canvas, targetStep: SetupWizardStepId | "Generate license", args?: SetupWizardStoryArgs): Promise<void> {
-    await waitForElementToBeRemoved(canvas.getByTestId("loader"));
+    // await waitForElementToBeRemoved(canvas.getByTestId("loader"));
 
     // If target is EULA, we're already there
     if (targetStep === "Eula") {
