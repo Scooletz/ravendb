@@ -256,7 +256,11 @@ interface FormatIpAddressesProps {
 
 function FormatIpAddresses({ addresses, externalIpAddress }: FormatIpAddressesProps) {
     if (addresses.length <= 1) {
-        return <>{addresses[0] || ""}</>;
+        if (externalIpAddress) {
+            return <>{addresses[0]} → {externalIpAddress}</>
+        }
+        
+        return <>{addresses[0]}</>;
     }
 
     const firstAddress = addresses[0];

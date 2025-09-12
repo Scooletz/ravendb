@@ -444,7 +444,7 @@ function NodeDetailsPanelView({ index, control }: { index: number; control: Cont
                             message={
                                 <PopoverMessage
                                     description="Defines the private communication endpoint for clients and browsers. By default,
-                                        this value is set to 443."
+                                        this value is set to 8080."
                                 />
                             }
                         >
@@ -628,7 +628,7 @@ function NodeDetailsPanelEdit({
                                     <Icon icon="info-new" />
                                 </PopoverWithHoverWrapper>
                             </FormLabel>
-                            <FormInput type="number" name="httpPort" placeholder="Default: 443" control={control} />
+                            <FormInput type="number" name="httpPort" placeholder="Default: 8080" control={control} />
                         </FormGroup>
                     </Col>
                     <Col md={colWidth}>
@@ -707,13 +707,13 @@ function NodeDetailsPanelEdit({
                     </FormSwitch>
                 )}
                 <Collapse in={nodeData.hasExternalConfig}>
-                    <div className="hstack gap-1">
+                    <Row>
                         <EditFormExternalAddressInputs
                             control={control}
                             canCustomizeExternalIpsAndPorts={canCustomizeExternalIpsAndPorts}
                             canCustomizeExternalTcpPorts={canCustomizeExternalTcpPorts}
                         />
-                    </div>
+                    </Row>
                 </Collapse>
             </Form>
         </RichPanelDetails>
@@ -731,7 +731,7 @@ function EditFormExternalAddressInputs({
 }) {
     return (
         <>
-            <div className="flex-grow">
+            <Col>
                 <FormGroup className="vstack w-100">
                     <FormLabel>
                         <span className="d-flex">
@@ -755,9 +755,9 @@ function EditFormExternalAddressInputs({
                         control={control}
                     />
                 </FormGroup>
-            </div>
+            </Col>
             {canCustomizeExternalIpsAndPorts && (
-                <div className="flex-grow">
+                <Col>
                     <FormGroup className="vstack w-100">
                         <FormLabel>
                             <span className="d-flex align-items-baseline">
@@ -781,10 +781,10 @@ function EditFormExternalAddressInputs({
                             control={control}
                         />
                     </FormGroup>
-                </div>
+                </Col>
             )}
             {(canCustomizeExternalIpsAndPorts || canCustomizeExternalTcpPorts) && (
-                <div className="flex-grow">
+                <Col>
                     <FormGroup className="vstack w-100">
                         <FormLabel>
                             <span className="d-flex align-items-baseline">
@@ -809,7 +809,7 @@ function EditFormExternalAddressInputs({
                             control={control}
                         />
                     </FormGroup>
-                </div>
+                </Col>
             )}
         </>
     );
@@ -893,43 +893,41 @@ function useHostnameDetectionSideEffects({ editNodeForm, parentControl }: UseHos
     }, [nodeData.ipAddress]);
 
     useEffect(() => {
-        const { unsubscribe } = watch((values) => {
-            const ipsContainHostname = values.ipAddress.some((ip) => genUtils.isHostname(ip.ipAddress));
-            // && securityOption === "ownCertificate";
-
-            const hasBindAllIp = values.ipAddress.some((ip) => genUtils.isBindAllIpAddress(ip?.ipAddress));
-
-            const requirePublicIpWhenBindAllUsed = securityOption === "letsEncrypt" && hasBindAllIp;
-
-            // when node is passive, we need to clear the nodeTag value to show placeholder
-            if (values.isPassive) {
-                setValue("nodeTag", "");
+        const { unsubscribe } = watch((values, { name }) => {
+            // Only run this logic when relevant fields change, not when hasExternalConfig changes
+            if (name === "hasExternalConfig") {
+                return;
             }
 
-            // case: when user enter 0.0.0.0 ip address, and then remove it and uncheck the checkbox (external config). We need to clear the errors for external config.
-            // if (!values.hasExternalConfig) {
-            //     clearErrors(["externalIpAddress", "externalHttpPort", "externalTcpPort"]);
-            // }
+            const ipsContainHostname = values.ipAddress.some((ip) => genUtils.isHostname(ip.ipAddress));
+            const hasBindAllIp = values.ipAddress.some((ip) => genUtils.isBindAllIpAddress(ip?.ipAddress));
+
+            // when node is passive, we need to clear the nodeTag value to show placeholder
+            if (values.isPassive && values.nodeTag) {
+                setValue("nodeTag", "", {
+                    shouldValidate: false,
+                });
+            }
 
             // Automatically enable external configuration in these scenarios:
             // 1. When using Let's Encrypt with hostnames instead of IP addresses
             // 2. When using Let's Encrypt with bind-all address (0.0.0.0)
-            // 3. When bind-all IP is used with Let's Encrypt (requires public IP specification)
-
             const isLetsEncryptWithHostname = ipsContainHostname && securityOption === "letsEncrypt";
             const isLetsEncryptWithBindAll = hasBindAllIp && securityOption === "letsEncrypt";
             const needsExternalConfig =
                 (isLetsEncryptWithHostname || isLetsEncryptWithBindAll) && !values.hasExternalConfig;
 
-            if (needsExternalConfig || requirePublicIpWhenBindAllUsed) {
+            if (needsExternalConfig) {
                 setValue("hasExternalConfig", true, {
                     shouldValidate: true,
+                    shouldDirty: false,
+                    shouldTouch: false,
                 });
             }
         });
 
         return () => unsubscribe();
-    }, [watch]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [watch, setValue, securityOption]); // eslint-disable-line react-hooks/exhaustive-deps
 
     return {
         isHostname,
@@ -1252,51 +1250,44 @@ export const nodeEditFormSchema = yup.object({
         .required("TCP port is required"),
     ipAddress: yup.array().of(ipAddressFormSchema).min(1, "At least one IP address is required"),
     hasExternalConfig: yup.boolean().default(false),
-    externalIpAddress: yup.string().when(["hasExternalConfig", "ipAddress", "$securityOption"], {
-        is: function (
-            hasExtConfig: boolean,
-            ipAddresses: NodeEditFormData["ipAddress"],
-            securityOption: SetupWizardSecurityOption
-        ) {
-            if (securityOption === "none") {
-                return false;
-            }
-
-            if (!hasExtConfig) {
-                return false;
-            }
-
-            if (!ipAddresses?.length) {
-                return false;
-            }
-
-            return ipAddresses.some((ip) => {
-                const address = ip?.ipAddress;
-                if (!address) {
+    externalIpAddress: yup
+        .string()
+        .nullable()
+        .when(["hasExternalConfig", "ipAddress", "$securityOption"], {
+            is: function (
+                hasExtConfig: boolean,
+                ipAddresses: NodeEditFormData["ipAddress"],
+                securityOption: SetupWizardSecurityOption
+            ) {
+                if (securityOption === "none") {
                     return false;
                 }
-                if (address === "0.0.0.0") {
-                    return true;
-                }
 
-                return !genUtils.regexIPv4.test(address);
-            });
-        },
-        then: (schema) =>
-            schema
-                .required("External IP address is required when an address contains Hostname or 0.0.0.0")
-                .test(
-                    "not-url",
-                    "Expected valid IP Address/Hostname, not URL",
-                    (value) => !value?.startsWith("http://") && !value?.startsWith("https://")
-                )
-                .test(
-                    "valid-ip-without-port",
-                    "Please enter a valid IP address without port",
-                    (value) => !value || (!/:\d+$/.test(value) && genUtils.regexIPv4.test(value))
+                const hasZeroAddress = ipAddresses?.some((ip) => ip?.ipAddress === "0.0.0.0");
+
+                return hasExtConfig || hasZeroAddress;
+            },
+            then: (schema) =>
+                schema
+                    .required("External IP address is required")
+                    .test(
+                        "not-url",
+                        "Expected valid IP address, not URL",
+                        (value) => !value?.startsWith("http://") && !value?.startsWith("https://")
+                    )
+                    .test(
+                        "valid-ipv4",
+                        "Please enter a valid IPv4 address (hostname not allowed, no port)",
+                        (value) => !!value && genUtils.regexIPv4.test(value)
+                    ),
+            otherwise: (schema) =>
+                schema.test(
+                    "valid-ipv4-optional",
+                    "Please enter a valid IPv4 address (hostname not allowed, no port)",
+                    (value) => !value || genUtils.regexIPv4.test(value) // optional, but must be valid if filled
                 ),
-        otherwise: (schema) => schema.nullable(),
-    }),
+        }),
+
     externalHttpPort: yup
         .number()
         .nullable()
