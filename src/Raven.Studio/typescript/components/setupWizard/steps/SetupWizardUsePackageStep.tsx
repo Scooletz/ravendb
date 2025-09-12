@@ -12,6 +12,8 @@ import { useEffect, useMemo } from "react";
 import RichAlert from "components/common/RichAlert";
 import PopoverWithHoverWrapper from "components/common/PopoverWithHoverWrapper";
 import { PopoverMessage } from "components/setupWizard/steps/SetupWizardNodeAddressStep";
+import { setupWizardGA4Prefixes } from "components/setupWizard/utils/setupWizardConstants";
+import { useEventsCollector } from "hooks/useEventsCollector";
 
 export function SetupWizardUsePackageStep() {
     const { control, setValue, watch } = useFormContext<SetupWizardFormData>();
@@ -157,6 +159,7 @@ export function SetupWizardUsePackageStep() {
 
 export function SetupWizardUsePackageStepFooter() {
     const { setValue, control } = useFormContext<SetupWizardFormData>();
+    const { reportEvent } = useEventsCollector();
 
     const {
         usePackageStep: { isZipValid },
@@ -166,8 +169,16 @@ export function SetupWizardUsePackageStepFooter() {
         setValue("currentStep", "Finish");
     };
 
+    const handleBack = () => {
+        reportEvent(setupWizardGA4Prefixes.usePackageStep, "back");
+        setValue("currentStep", "Setup method");
+    };
+
     return (
-        <div className="hstack justify-content-end">
+        <div className="d-flex justify-content-between">
+            <Button variant="secondary" className="rounded-pill" onClick={handleBack}>
+                <Icon icon="arrow-left" /> Back
+            </Button>
             <Button variant="primary" className="rounded-pill" onClick={handleContinue} disabled={!isZipValid}>
                 Continue <Icon icon="arrow-right" margin="m-0" />
             </Button>
