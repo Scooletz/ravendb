@@ -1,7 +1,7 @@
 import { useFormContext, useWatch } from "react-hook-form";
 import { SetupWizardFormData } from "../setupWizardValidation";
 import { Icon } from "components/common/Icon";
-import { FormGroup, FormLabel, FormSelect, FormSelectCreatable } from "components/common/Form";
+import { FormGroup, FormLabel, FormSelect, FormSelectAutocomplete } from "components/common/Form";
 import { SelectOption } from "components/common/select/Select";
 import React, { useEffect, useState } from "react";
 import { useAsyncCallback } from "react-async-hook";
@@ -15,7 +15,6 @@ import messagePublisher from "common/messagePublisher";
 
 export function SetupWizardDomainStep() {
     const { control, setValue, setError, clearErrors } = useFormContext<SetupWizardFormData>();
-
     const { domainStep, licenseKeyStep } = useWatch({ control });
     const { setupWizardService } = useServices();
     const { licenseInfo } = licenseKeyStep;
@@ -37,14 +36,19 @@ export function SetupWizardDomainStep() {
         return setupWizardService.checkDomainAvailability(domain, key);
     });
 
-    const handleDomainAvailability = async (domain: string) => {
+    const handleDomainAvailability = async (rawDomain: string) => {
+        const domain = (rawDomain ?? "").trim();
         const newOption = createNewOption(domain);
         clearErrors("domainStep.domain");
         try {
-            setDomainsOptions((prev) => [...prev, newOption]);
             const domainAvailability = await asyncCheckDomainAvailability.execute(domain);
 
             if (domainAvailability.Available) {
+                // Only add to options when confirmed available
+                setDomainsOptions((prev) => {
+                    const exists = prev.some((o) => o.value === newOption.value);
+                    return exists ? prev : [...prev, newOption];
+                });
                 clearErrors("domainStep.domain");
                 setValue("domainStep.domain", domain);
                 return domain;
@@ -100,17 +104,26 @@ export function SetupWizardDomainStep() {
                         <Icon icon="info-new" />
                     </PopoverWithHoverWrapper>
                 </FormLabel>
-                <FormSelectCreatable
+                <FormSelectAutocomplete
                     isLoading={asyncCheckDomainAvailability.loading}
                     onCreateOption={handleDomainAvailability}
                     control={control}
-                    isDisabled={asyncCheckDomainAvailability.loading}
+                    controlShouldRenderValue
                     name="domainStep.domain"
                     options={domainsOptions}
                     placeholder="Enter your domain name..."
+                    onBlur={async () => {
+                        const d = (domainStep.domain ?? "").trim();
+                        if (!d) return;
+                        const exists = domainsOptions.some((o) => o.value === d);
+                        if (!exists) {
+                            await handleDomainAvailability(d);
+                        }
+                    }}
                     addon={
                         <FormSelect
                             control={control}
+                            isDisabled={rootDomainOptions.length <= 1}
                             name="domainStep.rootDomain"
                             options={rootDomainOptions}
                             isSearchable={false}
@@ -142,7 +155,7 @@ export function SetupWizardDomainStep() {
 }
 
 const useDomainFormSideEffects = () => {
-    const { setValue, control } = useFormContext<SetupWizardFormData>();
+    const { setValue, control, watch, clearErrors } = useFormContext<SetupWizardFormData>();
     const {
         licenseKeyStep: { licenseInfo },
     } = useWatch({ control });
@@ -159,7 +172,19 @@ const useDomainFormSideEffects = () => {
         if (Object.keys(licenseInfo?.userDomainsWithIps?.domains ?? []).length === 1) {
             setValue("domainStep.domain", Object.keys(licenseInfo.userDomainsWithIps.domains)[0]);
         }
-    }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    }, []);
+
+    // Set up subscription for form changes
+    useEffect(() => {
+        const subscription = watch((values, { name }) => {
+            if (name === "domainStep.domain") {
+                // Clear validation error as soon as user types, but do not modify the value.
+                clearErrors("domainStep.domain");
+            }
+        });
+
+        return () => subscription.unsubscribe();
+    }, [watch, clearErrors]);
 };
 
 const createNewOption = (label: string) => ({

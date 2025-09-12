@@ -222,7 +222,7 @@ const defaultValues: SetupWizardFormData = {
         isAdvancedSettingsVisible: false,
         dataDirectory: "",
         setupCertificatePath: "",
-        adminCertificateExpirationTime: 120,
+        adminCertificateExpirationTime: 60,
         postgresqlIntegration: false,
         serverEnvironment: "Production",
     },

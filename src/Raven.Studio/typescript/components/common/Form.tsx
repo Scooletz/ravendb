@@ -337,6 +337,7 @@ export function FormSelectAutocomplete<
         ComponentProps<typeof SelectCreatable<Option, IsMulti, Group>> & {
             customOptions?: OptionsOrGroups<Option, Group>;
             optionCreator?: (value: string) => any;
+            addon?: ReactNode | string;
         }
 ) {
     const {
@@ -366,9 +367,14 @@ export function FormSelectAutocomplete<
     };
 
     const handleInputChange = (value: string, action: InputActionMeta) => {
-        if (action?.action !== "input-blur" && action?.action !== "menu-close") {
+        if (action?.action === "input-change") {
             onChange(value);
             setIsInitialOpen(false);
+            return;
+        }
+        if (action?.action === "set-value") {
+            // Prevent clearing the input when an option is selected/created.
+            return;
         }
     };
 
