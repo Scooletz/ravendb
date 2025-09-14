@@ -1318,7 +1318,7 @@ namespace Raven.Server.Documents.Revisions
                 yield break;
 
             var table = new Table(RevisionsSchema, context.Transaction.InnerTransaction);
-            using (DocumentIdWorker.GetSliceFromId(context, prefix, out var lowerPrefix))
+            using (DocumentIdWorker.GetLoweredIdSliceFromId(context, prefix, out var lowerPrefix))
             {
                 string startId = prefix;
                 var hasMoreIds = true;
@@ -1327,7 +1327,7 @@ namespace Raven.Server.Documents.Revisions
                 while (hasMoreIds && pageSize > 0)
                 {
                     hasMoreIds = false;
-                    using (DocumentIdWorker.GetSliceFromId(context, startId, out var idSlice))
+                    using (DocumentIdWorker.GetLoweredIdSliceFromId(context, startId, out var idSlice))
                     using (GetKeyWithEtag(context, idSlice, long.MaxValue, out var compoundPrefix))
                     {
                         var startSlice = first ? idSlice : compoundPrefix;

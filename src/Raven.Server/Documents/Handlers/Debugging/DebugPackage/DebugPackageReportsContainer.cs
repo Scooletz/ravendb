@@ -2,13 +2,15 @@
 using System.Collections.Generic;
 using System.Timers;
 using Raven.Client.Util;
+using Raven.Server.Logging;
 using Sparrow.Logging;
+using Sparrow.Server.Logging;
 
 namespace Raven.Server.Documents.Handlers.Debugging.DebugPackage;
 
 public static class DebugPackageReportsContainer
 {
-    private static readonly Logger Logger = LoggingSource.Instance.GetLogger(nameof(DebugPackageReportsContainer), "DebugPackageAnalyzer");
+    private static readonly RavenLogger Logger = RavenLogManager.Instance.GetLoggerForServer<DebugPackageReport>();
 
     private static readonly TimeSpan TimerInterval = TimeSpan.FromMinutes(10);
     private static readonly TimeSpan InactivityThresholdMs = TimeSpan.FromMinutes(30);
@@ -84,8 +86,8 @@ public static class DebugPackageReportsContainer
         }
         catch (Exception exception)
         {
-            if (Logger.IsOperationsEnabled)
-                Logger.Operations("Failed to cleanup Debug Package analysis reports", exception);
+            if (Logger.IsErrorEnabled)
+                Logger.Error("Failed to cleanup Debug Package analysis reports", exception);
         }
     }
 

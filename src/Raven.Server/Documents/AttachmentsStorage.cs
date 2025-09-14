@@ -699,8 +699,8 @@ namespace Raven.Server.Documents
 
         public bool AttachmentExists(DocumentsOperationContext context, string documentId, string name)
         {
-            using (DocumentIdWorker.GetSliceFromId(context, documentId, out Slice lowerId))
-            using (DocumentIdWorker.GetSliceFromId(context, name, out Slice lowerName))
+            using (DocumentIdWorker.GetLoweredIdSliceFromId(context, documentId, out Slice lowerId))
+            using (DocumentIdWorker.GetLoweredIdSliceFromId(context, name, out Slice lowerName))
             using (AttachmentKey.GetPartialKey(context, lowerId.Content.Ptr, lowerId.Size, lowerName.Content.Ptr, lowerName.Size, AttachmentType.Document,
                        null, out var keySlice))
             {
