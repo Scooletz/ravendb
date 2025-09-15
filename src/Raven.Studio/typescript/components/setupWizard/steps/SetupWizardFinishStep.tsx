@@ -363,11 +363,11 @@ function CompletedSummary() {
 
     return (
         <div className="summary-tab-container mb-6">
-            <Tab.Container id="summary-tabs" defaultActiveKey="whatsNew">
+            <Tab.Container id="summary-tabs" defaultActiveKey="connectToServer">
                 <Nav className="mb-2">
                     <Nav.Item className="flex-grow">
-                        <Nav.Link eventKey="whatsNew" className="whats-new-tab">
-                            What&apos;s next?
+                        <Nav.Link eventKey="connectToServer" className="connect-to-server-tab">
+                            Connect to the server
                         </Nav.Link>
                     </Nav.Item>
                     {isSettingCluster && (
@@ -379,7 +379,7 @@ function CompletedSummary() {
                     )}
                 </Nav>
                 <Tab.Content className="p-4 text-break">
-                    <Tab.Pane eventKey="whatsNew">
+                    <Tab.Pane eventKey="connectToServer">
                         <Row>
                             <Col
                                 md={4}
