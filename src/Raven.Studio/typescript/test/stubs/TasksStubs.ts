@@ -22,6 +22,7 @@ import ReplicationTaskProgress = Raven.Server.Documents.Replication.Stats.Replic
 import InternalReplicationTaskProgress = Raven.Server.Documents.Replication.Stats.InternalReplicationTaskProgress;
 import ReplicationProcessProgress = Raven.Server.Documents.Replication.Stats.ReplicationProcessProgress;
 import OngoingTaskSnowflakeEtl = Raven.Client.Documents.Operations.OngoingTasks.OngoingTaskSnowflakeEtl;
+import EmbeddingsGeneration = Raven.Client.Documents.Operations.OngoingTasks.EmbeddingsGeneration;
 
 export class TasksStubs {
     static getTasksList(): OngoingTasksResult {
@@ -31,6 +32,7 @@ export class TasksStubs {
 
         return {
             OngoingTasks: [
+                TasksStubs.getEmbeddingsGeneration(),
                 TasksStubs.getRavenEtl(),
                 TasksStubs.getSql(),
                 TasksStubs.getSnowflake(),
@@ -272,6 +274,10 @@ export class TasksStubs {
                 MinimumBackupAgeToKeep: "1.00:00:00",
             },
             PinToMentorNode: false,
+            FullBackupFrequency: "0 2 * * 0",
+            IncrementalBackupFrequency: "0 2 * * *",
+            BackupUploadMode: "Default",
+            HasCloudBackup: false,
         };
     }
 
@@ -296,6 +302,60 @@ export class TasksStubs {
             LastSentEtag: 1,
             LastDatabaseEtag: 1,
             SourceDatabaseChangeVector: "A:1-1DY5O5W9RUCDrntDONmNmw",
+        };
+    }
+
+    static getEmbeddingsGeneration(): EmbeddingsGeneration {
+        return {
+            TaskId: 439,
+            TaskType: "EmbeddingsGeneration",
+            ResponsibleNode: TasksStubs.getResponsibleNode(),
+            TaskState: "Enabled",
+            TaskConnectionStatus: "Active",
+            TaskName: "EmbeddingsGenerationTask",
+            MentorNode: null,
+            PinToMentorNode: false,
+            Error: null,
+            ConnectionStringName: "emb",
+            Configuration: {
+                Disabled: false,
+                EtlType: "EmbeddingsGeneration",
+                Name: "EmbeddingsGenerationTask",
+                TaskId: 439,
+                ConnectionStringName: "emb",
+                MentorNode: null,
+                PinToMentorNode: false,
+                AllowEtlOnNonEncryptedChannel: false,
+                Transforms: [
+                    {
+                        Name: "embeddings-from-paths",
+                        Script: null,
+                        Collections: ["Products"],
+                        ApplyToAllDocuments: false,
+                        DocumentIdPostfix: null,
+                        Disabled: false,
+                    },
+                ],
+                Identifier: "embeddingsgenerationtask",
+                Collection: "Products",
+                EmbeddingsPathConfigurations: [
+                    {
+                        Path: "Name",
+                        ChunkingOptions: {
+                            ChunkingMethod: "PlainTextSplit",
+                            MaxTokensPerChunk: 2048,
+                        },
+                    },
+                ],
+                EmbeddingsTransformation: null,
+                Quantization: "Single",
+                EmbeddingsCacheExpiration: "90.00:00:00",
+                ChunkingOptionsForQuerying: {
+                    ChunkingMethod: "PlainTextSplit",
+                    MaxTokensPerChunk: 2048,
+                },
+                EmbeddingsCacheForQueryingExpiration: "14.00:00:00",
+            },
         };
     }
 

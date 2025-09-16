@@ -51,6 +51,8 @@ namespace Raven.Server.Dashboard
         
         public long EmbeddingsGenerationCount { get; set; }
         
+        public long Total { get; set; }
+
         public DynamicJsonValue ToJson()
         {
             return new DynamicJsonValue

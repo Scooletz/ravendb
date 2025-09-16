@@ -15,6 +15,7 @@ using Raven.Server.Documents.Includes;
 using Raven.Server.Documents.Queries.Revisions;
 using Raven.Server.Documents.Replication;
 using Raven.Server.Json;
+using Raven.Server.ServerWide;
 using Raven.Server.ServerWide.Context;
 using Raven.Server.Utils;
 using Sparrow.Json;
@@ -23,13 +24,16 @@ namespace Raven.Server.Documents.Handlers.Processors.Documents;
 
 internal sealed class DocumentHandlerProcessorForGet : AbstractDocumentHandlerProcessorForGet<DocumentHandler, DocumentsOperationContext, Document>
 {
+    private readonly OperationCancelToken _cts;
+
     public DocumentHandlerProcessorForGet(HttpMethod method, [NotNull] DocumentHandler requestHandler) : base(method, requestHandler)
     {
+        _cts = RequestHandler.CreateHttpRequestBoundOperationToken();
     }
 
     protected override bool SupportsShowingRequestInTrafficWatch => true;
 
-    protected override CancellationToken CancellationToken => RequestHandler.Database.DatabaseShutdown;
+    protected override CancellationToken CancellationToken => _cts.Token;
 
     protected override ValueTask<DocumentsByIdResult<Document>> GetDocumentsByIdImplAsync(
         DocumentsOperationContext context,
@@ -73,7 +77,7 @@ internal sealed class DocumentHandlerProcessorForGet : AbstractDocumentHandlerPr
         }
 
         long lastModifiedIndex = RequestHandler.Database.ClusterWideTransactionIndexWaiter.LastIndex;
-        context.OpenReadTransaction();
+        var readTx = context.OpenReadTransaction();
 
         foreach (var id in ids)
         {
@@ -138,7 +142,7 @@ internal sealed class DocumentHandlerProcessorForGet : AbstractDocumentHandlerPr
         {
             Debug.Assert(includeCompareExchangeValues != null, "includeCompareExchangeValues != null");
 
-            if (includeCompareExchangeValues.Results is { Count: > 0 })
+            if (includeCompareExchangeValues?.Results is { Count: > 0 })
             {
                 foreach (var (k, v) in includeCompareExchangeValues.Results)
                 {
@@ -156,32 +160,32 @@ internal sealed class DocumentHandlerProcessorForGet : AbstractDocumentHandlerPr
             RevisionIncludes = includeRevisions,
             CounterIncludes = includeCounters,
             TimeSeriesIncludes = includeTimeSeries,
-            CompareExchangeIncludes = includeCompareExchangeValues?.Results
+            CompareExchangeIncludes = includeCompareExchangeValues?.Results,
+            ReadTransaction = readTx
         });
     }
 
-    protected override async ValueTask<(long NumberOfResults, long TotalDocumentsSizeInBytes)> WriteDocumentsAsync(AsyncBlittableJsonTextWriter writer,
+    protected override ValueTask<(long NumberOfResults, long TotalDocumentsSizeInBytes)> WriteDocumentsAsync(AsyncBlittableJsonTextWriter writer,
         DocumentsOperationContext context, IEnumerable<Document> documentsToWrite, bool metadataOnly, CancellationToken token)
     {
-        return await writer.WriteDocumentsAsync(context, documentsToWrite, metadataOnly, token);
+        return writer.WriteDocumentsAsync(context, documentsToWrite, metadataOnly, token);
     }
 
-    protected override async ValueTask<(long NumberOfResults, long TotalDocumentsSizeInBytes)> WriteDocumentsAsync(AsyncBlittableJsonTextWriter writer,
+    protected override ValueTask<(long NumberOfResults, long TotalDocumentsSizeInBytes)> WriteDocumentsAsync(AsyncBlittableJsonTextWriter writer,
         DocumentsOperationContext context, IAsyncEnumerable<Document> documentsToWrite, bool metadataOnly, CancellationToken token)
     {
-        return await writer.WriteDocumentsAsync(context, documentsToWrite, metadataOnly, token);
+        return writer.WriteDocumentsAsync(context, documentsToWrite, metadataOnly, token);
     }
 
-    protected override async ValueTask WriteIncludesAsync(AsyncBlittableJsonTextWriter writer, DocumentsOperationContext context, string propertyName, List<Document> includes, CancellationToken token)
+    protected override ValueTask<(long Count, long SizeInBytes)> WriteIncludesAsync(AsyncBlittableJsonTextWriter writer, DocumentsOperationContext context, string propertyName, List<Document> includes, CancellationToken token)
     {
         writer.WritePropertyName(propertyName);
-
-        await writer.WriteIncludesAsync(context, includes, token);
+        return writer.WriteIncludesAsync(context, includes, token);
     }
 
     protected override ValueTask<DocumentsResult> GetDocumentsImplAsync(DocumentsOperationContext context, long? etag, StartsWithParams startsWith, string changeVector)
     {
-        context.OpenReadTransaction();
+        var readTx = context.OpenReadTransaction();
 
         var databaseChangeVector = DocumentsStorage.GetDatabaseChangeVector(context);
 
@@ -214,7 +218,15 @@ internal sealed class DocumentHandlerProcessorForGet : AbstractDocumentHandlerPr
         return new ValueTask<DocumentsResult>(new DocumentsResult
         {
             Documents = documents,
-            Etag = databaseChangeVector
+            Etag = databaseChangeVector,
+            ReadTransaction = readTx
         });
+    }
+
+    public override void Dispose()
+    {
+        base.Dispose();
+
+        _cts?.Dispose();
     }
 }

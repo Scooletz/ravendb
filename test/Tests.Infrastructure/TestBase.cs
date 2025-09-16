@@ -177,6 +177,7 @@ namespace FastTests
             }
 
             RequestExecutor.RemoteCertificateValidationCallback += (sender, cert, chain, errors) => true;
+            RequestExecutor.ExtractServerCertificateFromExtension = CertificateUtils.ExtractServerCertificateFromExtension;
 
             var configuration = RavenConfiguration.CreateForTesting("Tests", ResourceType.Server);
             configuration.Initialize();
@@ -227,9 +228,9 @@ namespace FastTests
             return tmp;
         }
 
-        public async Task<DocumentDatabase> GetDatabase(string databaseName)
+        public async Task<DocumentDatabase> GetDatabase(string databaseName, RavenServer server = null)
         {
-            return await GetDatabase(Server, databaseName);
+            return await GetDatabase(server ?? Server, databaseName);
         }
 
         protected static async Task<DocumentDatabase> GetDatabase(RavenServer ravenServer, string databaseName)
