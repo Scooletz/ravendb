@@ -93,7 +93,7 @@ namespace Raven.Server.Rachis
             StateMachine.EnsureNodeRemovalOnDeletion(context, term, nodeTag);
         }
 
-        public override X509Certificate2 ClusterCertificate => _serverStore.Server.Certificate?.Certificate;
+        public override X509Certificate2 ClusterCertificate => _serverStore.Server.Certificate?.ClientCertificate;
         public override ServerStore ServerStore => _serverStore;
 
         public override bool ShouldSnapshot(Slice slice, RootObjectType type)
@@ -381,15 +381,17 @@ namespace Raven.Server.Rachis
             return read.Reader.ReadLittleEndianInt64();
         }
 
-        public string ReadNodeTag(ClusterOperationContext context)
-        {
-            var state = context.Transaction.InnerTransaction.CreateTree(GlobalStateSlice);
+        public string ReadNodeTag(ClusterOperationContext context) => RachisConsensus.ReadNodeTag(context);
 
-            var readResult = state.Read(TagSlice);
+        public static string ReadNodeTag(TransactionOperationContext context)
+        {
+            var state = context.Transaction.InnerTransaction.ReadTree(GlobalStateSlice);
+
+            var readResult = state?.Read(TagSlice);
             return readResult == null ? InitialTag : readResult.Reader.ToStringValue();
         }
 
-        public static string ReadNodeTag(TransactionOperationContext context)
+        public static string ReadNodeTag<T>(TransactionOperationContext<T> context) where T : RavenTransaction
         {
             var state = context.Transaction.InnerTransaction.ReadTree(GlobalStateSlice);
 

@@ -4,6 +4,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 using Raven.Client;
 using Raven.Client.Documents.Operations;
 using Raven.Client.Documents.Operations.Backups;
@@ -90,7 +91,18 @@ namespace Raven.Server.Documents.PeriodicBackup
             };
         }
 
-        public BackupResult RunPeriodicBackup(Action<IOperationProgress> onProgress, ref PeriodicBackupStatus runningBackupStatus)
+        public BackupResult RunBackupDatabaseOnce(Action<IOperationProgress> onProgress, BackupType backupType, out PeriodicBackupStatus runningBackupStatus)
+        {
+            runningBackupStatus = new PeriodicBackupStatus { TaskId = 0, BackupType = backupType };
+            return Run(onProgress, periodicBackup: null, task: null, ref runningBackupStatus);
+        }
+
+        public BackupResult RunPeriodicBackup(Action<IOperationProgress> onProgress, PeriodicBackup periodicBackup, Task task, ref PeriodicBackupStatus runningBackupStatus)
+        {
+            return Run(onProgress, periodicBackup, task, ref runningBackupStatus);
+        }
+
+        private BackupResult Run(Action<IOperationProgress> onProgress, PeriodicBackup periodicBackup, Task task, ref PeriodicBackupStatus runningBackupStatus)
         {
             _onProgress = onProgress;
             AddInfo($"Started task: '{_taskName}'");
@@ -100,20 +112,21 @@ namespace Raven.Server.Documents.PeriodicBackup
 
             try
             {
-                if (_forTestingPurposes != null && _forTestingPurposes.SimulateFailedBackup)
-                    throw new Exception(nameof(_forTestingPurposes.SimulateFailedBackup));
-                if (_forTestingPurposes != null && _forTestingPurposes.OnBackupTaskRunHoldBackupExecution != null)
-                    _forTestingPurposes.OnBackupTaskRunHoldBackupExecution?.Task.Wait();
-                if (Database.ForTestingPurposes != null && Database.ForTestingPurposes.ActionToCallOnGetTempPath != null)
-                    Database.ForTestingPurposes.ActionToCallOnGetTempPath?.Invoke(_tempBackupPath);
-
-                if (runningBackupStatus.LocalBackup == null)
-                    runningBackupStatus.LocalBackup = new LocalBackup();
-
-                if (runningBackupStatus.LastRaftIndex == null)
-                    runningBackupStatus.LastRaftIndex = new LastRaftIndex();
-
                 runningBackupStatus.IsFull = _isFullBackup;
+
+                // The PeriodicBackupRunner.OnGoingBackup method checks that RunningTask is not null and then returns RunningBackup,
+                // which contains the backup process's start time and whether it's a full backup or not.
+                // Therefore, it's crucial to assign RunningTask only after those fields in runningBackupStatus have been populated.
+                if (periodicBackup != null && task != null)
+                    periodicBackup.RunningTask = new PeriodicBackup.RunningBackupTask { Id = _operationId, Task = task };
+
+                _forTestingPurposes?.OnBackupTaskRunHoldBackupExecution?.Task.Wait();
+                if (_forTestingPurposes?.SimulateFailedBackup == true)
+                    throw new Exception(nameof(_forTestingPurposes.SimulateFailedBackup));
+                Database.ForTestingPurposes?.ActionToCallOnGetTempPath?.Invoke(_tempBackupPath);
+
+                runningBackupStatus.LocalBackup ??= new LocalBackup();
+                runningBackupStatus.LastRaftIndex ??= new LastRaftIndex();
 
                 if (_logger.IsInfoEnabled)
                 {
@@ -123,15 +136,12 @@ namespace Raven.Server.Documents.PeriodicBackup
 
                 if (_isFullBackup == false)
                 {
-                    // if we come from old version the _previousBackupStatus won't have LastRaftIndex
+                    // if we come from the old version, the _previousBackupStatus won't have LastRaftIndex
                     _previousBackupStatus.LastRaftIndex ??= new LastRaftIndex();
 
                     // no-op if nothing has changed
                     var (currentLastEtag, currentChangeVector) = Database.ReadLastEtagAndChangeVector();
                     var currentLastRaftIndex = GetDatabaseEtagForBackup();
-
-                    // if we come from old version the _previousBackupStatus won't have LastRaftIndex
-                    _previousBackupStatus.LastRaftIndex ??= new LastRaftIndex();
 
                     if (currentLastEtag == _previousBackupStatus.LastEtag
                         && currentChangeVector == _previousBackupStatus.LastDatabaseChangeVector
@@ -198,9 +208,14 @@ namespace Raven.Server.Documents.PeriodicBackup
                 runningBackupStatus.FolderName = folderName;
 
                 if (_isFullBackup)
+                {
                     runningBackupStatus.LastFullBackup = _startTimeUtc;
+                    runningBackupStatus.LastRaftIndex.LastFullBackupEtag = internalBackupResult.LastRaftIndex;
+                }
                 else
+                {
                     runningBackupStatus.LastIncrementalBackup = _startTimeUtc;
+                }
 
                 totalSw.Stop();
 

@@ -1,10 +1,4 @@
-﻿// -----------------------------------------------------------------------
-//  <copyright file="AdminDatabasesHandler.cs" company="Hibernating Rhinos LTD">
-//      Copyright (c) Hibernating Rhinos LTD. All rights reserved.
-//  </copyright>
-// -----------------------------------------------------------------------
-
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -21,6 +15,7 @@ using Raven.Client.Documents.Operations;
 using Raven.Client.Documents.Operations.Backups;
 using Raven.Client.Documents.Smuggler;
 using Raven.Client.Exceptions;
+using Raven.Client.Exceptions.Corax;
 using Raven.Client.Exceptions.Database;
 using Raven.Client.Exceptions.Sharding;
 using Raven.Client.Extensions;
@@ -1197,7 +1192,18 @@ namespace Raven.Server.Web.System
                                             }
 
                                             // we want to send progress of entire operation (indexes and documents), but we should update stats only for index compaction
-                                            index.Compact(progress => onProgress(overallResult.Progress), indexCompactionResult, compactSettings.SkipOptimizeIndexes, indexCts.Token);
+                                            try
+                                            {
+                                                index.Compact(progress => onProgress(overallResult.Progress), indexCompactionResult, compactSettings.SkipOptimizeIndexes,
+                                                    indexCts.Token);
+                                            }
+                                            catch (NotSupportedInCoraxException)
+                                            {
+                                                indexCompactionResult.Skipped = true;
+                                                indexCompactionResult.AddInfo(
+                                                    $"Skipping data compaction of '{indexName}' index because data compaction of Corax indexes isn't supported.");
+                                            }
+                                            
                                             indexCompactionResult.Processed = true;
                                         }
                                     }
@@ -1319,7 +1325,7 @@ namespace Raven.Server.Web.System
                 nodesUrls = ServerStore.GetClusterTopology(context).AllNodes.Values.ToArray();
             }
 
-            using (var requestExecutor = RequestExecutor.CreateForServer(nodesUrls, database, Server.Certificate.Certificate, DocumentConventions.Default))
+            using (var requestExecutor = RequestExecutor.CreateForServer(nodesUrls, database, Server.Certificate.ClientCertificate, DocumentConventions.Default))
             using (requestExecutor.ContextPool.AllocateOperationContext(out var context))
             {
                 var cmd = new ValidateUnusedIdsCommand(

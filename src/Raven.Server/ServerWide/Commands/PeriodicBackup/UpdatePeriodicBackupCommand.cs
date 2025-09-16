@@ -74,6 +74,9 @@ namespace Raven.Server.ServerWide.Commands.PeriodicBackup
             {
                 items.DeleteByKey(keyNameLowered);
             }
+            
+            // also delete the local backup status
+            BackupStatusStorage.Delete(ctx, DatabaseName, Configuration.TaskId);
         }
 
         public override void FillJson(DynamicJsonValue json)

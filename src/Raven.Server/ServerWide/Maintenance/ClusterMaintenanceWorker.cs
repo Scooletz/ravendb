@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using Raven.Client;
+using Raven.Client.ServerWide;
 using Raven.Client.ServerWide.Tcp;
 using Raven.Client.Util;
 using Raven.Server.Documents;
@@ -12,13 +13,14 @@ using Raven.Server.Documents.TcpHandlers;
 using Raven.Server.ServerWide.Context;
 using Raven.Server.ServerWide.Maintenance.Sharding;
 using Raven.Server.Utils;
+using Sparrow;
 using Sparrow.Json;
 using Sparrow.Json.Parsing;
 using Sparrow.Json.Sync;
 using Sparrow.Logging;
-using Index = Raven.Server.Documents.Indexes.Index;
 using Sparrow.LowMemory;
 using Sparrow.Server.Utils;
+using Index = Raven.Server.Documents.Indexes.Index;
 
 namespace Raven.Server.ServerWide.Maintenance
 {
@@ -36,7 +38,6 @@ namespace Raven.Server.ServerWide.Maintenance
         public readonly TimeSpan WorkerSamplePeriod;
         private PoolOfThreads.LongRunningWork _collectingTask;
         public readonly TcpConnectionHeaderMessage.SupportedFeatures SupportedFeatures;
-        private readonly float _temporaryDirtyMemoryAllowedPercentage;
         private readonly long _term;
         private readonly string _leader;
 
@@ -48,7 +49,6 @@ namespace Raven.Server.ServerWide.Maintenance
             _server = serverStore;
             _logger = LoggingSource.Instance.GetLogger<ClusterMaintenanceWorker>(serverStore.NodeTag);
             _name = $"Heartbeats worker connection to leader {leader} in term {term}";
-            _temporaryDirtyMemoryAllowedPercentage = _server.Server.ServerStore.Configuration.Memory.TemporaryDirtyMemoryAllowedPercentage;
             _leader = leader;
             _term = term;
 
@@ -178,7 +178,7 @@ namespace Raven.Server.ServerWide.Maintenance
                 {
                     if (rawRecord == null)
                     {
-                        continue; // Database does not exists in this server
+                        continue; // Database does not exist on this server
                     }
 
                     var sharding = rawRecord.Sharding;
@@ -187,21 +187,18 @@ namespace Raven.Server.ServerWide.Maintenance
                     //create mock database report for the sharded db for the cluster observer topology update
                     if (rawRecord.IsSharded && sharding.Orchestrator.Topology.RelevantFor(_server.NodeTag))
                     {
-                        var report = new DatabaseStatusReport()
+                        var shardedReport = new DatabaseStatusReport
                         {
                             Status = DatabaseStatus.Loaded,
                             Name = databaseName,
                             NodeName = _server.NodeTag,
                             UpTime = _server.Server.Statistics.UpTime
                         };
-                        result[databaseName] = report;
+                        result[databaseName] = shardedReport;
                     }
 
-                    foreach (var tuple in rawRecord.Topologies)
+                    foreach ((string dbName, DatabaseTopology topology) in rawRecord.Topologies)
                     {
-                        var dbName = tuple.Name;
-                        var topology = tuple.Topology;
-
                         var report = new DatabaseStatusReport { Name = dbName, NodeName = _server.NodeTag };
 
                         if (topology == null)
@@ -249,12 +246,6 @@ namespace Raven.Server.ServerWide.Maintenance
                         }
 
                         var dbInstance = dbTask.Result;
-                        var currentHash = dbInstance.GetEnvironmentsHash();
-                        report.EnvironmentsHash = currentHash;
-
-                        var documentsStorage = dbInstance.DocumentsStorage;
-                        var indexStorage = dbInstance.IndexStore;
-
                         if (dbInstance.DatabaseShutdown.IsCancellationRequested)
                         {
                             report.Status = DatabaseStatus.Shutdown;
@@ -263,51 +254,64 @@ namespace Raven.Server.ServerWide.Maintenance
                         }
 
                         report.Status = DatabaseStatus.Loaded;
+                        var now = dbInstance.Time.GetUtcNow();
                         try
                         {
-                            var now = dbInstance.Time.GetUtcNow();
                             FillReplicationInfo(dbInstance, report);
                             FillClusterInfo(ctx, report, dbInstance);
 
-                            if (rawRecord.IsSharded)
+                            if (rawRecord.IsSharded && currentMigration != null)
                             {
-                                if (currentMigration != null)
+                                if (report.ReportPerBucket.TryGetValue(currentMigration.Bucket, out var bucketReport) == false)
                                 {
-                                    if (report.ReportPerBucket.TryGetValue(currentMigration.Bucket, out var bucketReport) == false)
-                                    {
-                                        bucketReport = new BucketReport();
-                                    }
-
-                                    var shardedInstance = dbInstance as ShardedDocumentDatabase;
-                                    using (shardedInstance.ShardedDocumentsStorage.ContextPool.AllocateOperationContext(out DocumentsOperationContext context))
-                                    using (context.OpenReadTransaction())
-                                    {
-                                        bucketReport.LastChangeVector = shardedInstance.ShardedDocumentsStorage.GetMergedChangeVectorInBucket(context, currentMigration.Bucket);
-
-                                        var stats = ShardedDocumentsStorage.GetBucketStatisticsFor(context, currentMigration.Bucket);
-                                        if (stats != null)
-                                        {
-                                            bucketReport.NumberOfDocuments = stats.NumberOfDocuments;
-                                            bucketReport.Size = stats.Size;
-                                            bucketReport.LastAccess = stats.LastModified;
-                                        }
-                                    }
-
-                                    report.ReportPerBucket[currentMigration.Bucket] = bucketReport;
+                                    bucketReport = new BucketReport();
                                 }
+
+                                var shardedInstance = dbInstance as ShardedDocumentDatabase;
+                                using (shardedInstance.ShardedDocumentsStorage.ContextPool.AllocateOperationContext(out DocumentsOperationContext context))
+                                using (context.OpenReadTransaction())
+                                {
+                                    bucketReport.LastChangeVector = shardedInstance.ShardedDocumentsStorage.GetMergedChangeVectorInBucket(context, currentMigration.Bucket);
+
+                                    var stats = ShardedDocumentsStorage.GetBucketStatisticsFor(context, currentMigration.Bucket);
+                                    if (stats != null)
+                                    {
+                                        bucketReport.NumberOfDocuments = stats.NumberOfDocuments;
+                                        bucketReport.Size = stats.Size;
+                                        bucketReport.LastAccess = stats.LastModified;
+                                    }
+                                }
+
+                                report.ReportPerBucket[currentMigration.Bucket] = bucketReport;
                             }
 
+                            var periodicBackupStatuses = _server.DatabaseInfoCache.BackupStatusStorage.GetDatabasePeriodicBackupStatuses(ctx, dbName, rawRecord.PeriodicBackupsTaskIds);
+
+                            // Calculate the hash based on all relevant components (db state plus backup statuses).
+                            report.EnvironmentsHash = Hashing.Combine(dbInstance.GetEnvironmentsHash(), DatabaseStatusReport.GetPeriodicBackupStatusesHash(periodicBackupStatuses));
+
                             prevReport.TryGetValue(dbName, out var prevDatabaseReport);
+
+                            // Check if anything has changed.
                             if (SupportedFeatures.Heartbeats.SendChangesOnly &&
-                                prevDatabaseReport != null && prevDatabaseReport.EnvironmentsHash == currentHash)
+                                prevDatabaseReport != null && prevDatabaseReport.EnvironmentsHash == report.EnvironmentsHash
+                                && now - prevDatabaseReport.LastFullReport < _server.Configuration.Cluster.FullReportInterval.AsTimeSpan)
                             {
+                                // Nothing changed. Send a lightweight NoChange report.
                                 report.Status = DatabaseStatus.NoChange;
+                                report.LastFullReport = prevDatabaseReport.LastFullReport;
                                 result[dbName] = report;
                                 continue;
                             }
 
+                            // Something has changed. Build and send a full report.
+                            report.BackupStatuses = periodicBackupStatuses;
+
                             using (var context = QueryOperationContext.Allocate(dbInstance, needsServerContext: true))
                             {
+                                var documentsStorage = dbInstance.DocumentsStorage;
+                                var indexStorage = dbInstance.IndexStore;
+
                                 FillDocumentsInfo(prevDatabaseReport, dbInstance, report, context.Documents, documentsStorage);
 
                                 if (indexStorage != null)
@@ -332,10 +336,11 @@ namespace Raven.Server.ServerWide.Maintenance
                         }
                         catch (Exception e)
                         {
-                            report.EnvironmentsHash = 0; // on error we should do the complete report collaction path
+                            report.EnvironmentsHash = 0; // on error, we should do the complete report collection path
                             report.Error = e.ToString();
                         }
 
+                        report.LastFullReport = now;
                         result[dbName] = report;
                     }
                 }
@@ -354,7 +359,7 @@ namespace Raven.Server.ServerWide.Maintenance
         private static void FillIndexInfo(Index index, QueryOperationContext context, DateTime now, DatabaseStatusReport report)
         {
             var stats = index.GetIndexingState(context);
-            var lastQueried = GetLastQueryInfo(index, now);
+            var lastQueried = GetLastQueryInfo(index);
 
             //We might have old version of this index with the same name
             report.LastIndexStats[index.Name] = new DatabaseStatusReport.ObservedIndexStatus
@@ -370,13 +375,9 @@ namespace Raven.Server.ServerWide.Maintenance
             };
         }
 
-        private static TimeSpan? GetLastQueryInfo(Index index, DateTime now)
+        private static TimeSpan GetLastQueryInfo(Index index)
         {
-            TimeSpan? lastQueried = null;
-            var lastQueryingTime = index.GetLastQueryingTime();
-            if (lastQueryingTime.HasValue)
-                lastQueried = now - lastQueryingTime;
-            return lastQueried;
+            return index.GetElapsedTimeFromLastQuery();
         }
 
         private static void FillDocumentsInfo(DatabaseStatusReport prevDatabaseReport, DocumentDatabase dbInstance, DatabaseStatusReport report,
@@ -441,4 +442,3 @@ namespace Raven.Server.ServerWide.Maintenance
         }
     }
 }
-

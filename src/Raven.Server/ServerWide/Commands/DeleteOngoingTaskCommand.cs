@@ -4,6 +4,7 @@ using Raven.Client.Documents.Operations.Backups;
 using Raven.Client.Documents.Operations.OngoingTasks;
 using Raven.Client.ServerWide;
 using Raven.Client.ServerWide.Operations.OngoingTasks;
+using Raven.Server.Documents.PeriodicBackup;
 using Raven.Server.ServerWide.Commands.PeriodicBackup;
 using Raven.Server.ServerWide.Context;
 using Raven.Server.Utils;
@@ -46,6 +47,9 @@ namespace Raven.Server.ServerWide.Commands
 
                     var backupStatusKey = PeriodicBackupStatus.GenerateItemName(DatabaseName, _backupTaskIdToDelete.Value);
                     Delete(backupStatusKey);
+
+                    // delete locally
+                    BackupStatusStorage.Delete(ctx, DatabaseName, TaskId);
 
                     void Delete(string key)
                     {

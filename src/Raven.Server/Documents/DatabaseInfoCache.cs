@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Runtime.CompilerServices;
+using Raven.Server.Documents.PeriodicBackup;
+using Raven.Server.ServerWide;
 using Raven.Server.ServerWide.Context;
 using Sparrow.Json;
 using Sparrow.Json.Parsing;
@@ -20,13 +22,17 @@ namespace Raven.Server.Documents
 
         private readonly TableSchema _databaseInfoSchema = new TableSchema();
 
-        public DatabaseInfoCache()
+        public BackupStatusStorage BackupStatusStorage { get; }
+
+        public DatabaseInfoCache(ServerStore serverStore)
         {
             _databaseInfoSchema.DefineKey(new TableSchema.IndexDef
             {
                 StartIndex = 0,
                 Count = 1
             });
+
+            BackupStatusStorage = new BackupStatusStorage(serverStore);
         }
 
         public void Initialize(StorageEnvironment environment, TransactionContextPool contextPool)
@@ -41,6 +47,8 @@ namespace Raven.Server.Documents
 
                 tx.Commit();
             }
+
+            BackupStatusStorage.Initialize(_environment, _contextPool);
         }
 
         public unsafe void InsertDatabaseInfo(DynamicJsonValue databaseInfo, string databaseName)
@@ -139,7 +147,5 @@ namespace Raven.Server.Documents
 #pragma warning restore 169
             }
         }
-
-
     }
 }

@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
-    <RuntimeFrameworkVersion>8.0.18</RuntimeFrameworkVersion>
+    <RuntimeFrameworkVersion>8.0.20</RuntimeFrameworkVersion>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <AssemblyName>SlowTests</AssemblyName>
     <PackageId>SlowTests</PackageId>
@@ -55,6 +55,7 @@
     <None Remove="Data\RavenDB_23100\2024-11-19-10-43-34-8245899.ravendb-snapshot" />
     <None Remove="Data\RavenDB_24002\TimeseriesWithConflictedRevisions_new.ravendbdump" />
     <None Remove="Data\RavenDB_24415\Can_push_via_filtered_replication_2.0-5.zip" />
+    <None Remove="Data\RavenDB_24797\24797_counters_test.ravendb-snapshot" />
     <None Remove="Smuggler\Data\DocumentWithRevisions.ravendbdump" />
     <None Remove="Smuggler\Data\RevisionsWithoutADocument.ravendbdump" />
   </ItemGroup>
@@ -120,6 +121,12 @@
     <EmbeddedResource Include="Data\RavenDB-23409.rec" />
     <None Remove="Data\RavenDB_24281\RavenDB-24281.ravendb-snapshot" />
     <EmbeddedResource Include="Data\RavenDB_24281\RavenDB_24281.ravendb-snapshot" />
+    <None Remove="Data\RavenDB_24649\RavenDB_24649.ravendb-snapshot" />
+    <EmbeddedResource Include="Data\RavenDB_24649\RavenDB_24649.ravendb-snapshot" />
+    <None Remove="Data\RavenDB_14548\debug-package - Node [A].zip" />
+    <EmbeddedResource Include="Data\RavenDB_14548\debug-package - Node [A].zip" />
+    <None Remove="Data\RavenDB_14548\debug-package - Cluster Wide.zip" />
+    <EmbeddedResource Include="Data\RavenDB_14548\debug-package - Cluster Wide.zip" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Data\non-leaf-page-seq-id-large-values-2.txt" />
@@ -161,6 +168,7 @@
     <EmbeddedResource Include="Data\RavenDB_23100\2024-11-19-10-43-34-8245899.ravendb-snapshot" />
     <EmbeddedResource Include="Data\RavenDB_24002\TimeseriesWithConflictedRevisions_new.ravendbdump" />
     <EmbeddedResource Include="Data\RavenDB_24415\Can_push_via_filtered_replication_2.0-5.zip" />
+    <EmbeddedResource Include="Data\RavenDB_24797\24797_counters_test.ravendb-snapshot" />
     <EmbeddedResource Include="Data\RavenDB_8355\MySorter.cs" />
     <EmbeddedResource Include="Data\RavenDB_8355\MySorterWithDiagnostics.cs" />
     <EmbeddedResource Include="Data\RavenDB_9912\1.ravendbdump" />
