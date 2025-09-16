@@ -352,6 +352,7 @@ function CompletedSummary() {
     const {
         nodeAddressStep,
         usePackageStep: { nodeTag },
+        setupMethodStep: { method },
     } = useWatch({ control });
 
     const { getStudioUrl } = useSetupWizardFinishUtils();
@@ -360,6 +361,69 @@ function CompletedSummary() {
     const localNodeTag = nodeAddressStep.nodes?.[0]?.nodeTag ?? nodeTag;
 
     const studioUrl = getStudioUrl();
+
+    if (method === "createPackage") {
+        return (
+            <div className="summary-tab-container mb-6">
+                <Nav className="mb-2">
+                    <Nav.Item className="flex-grow">
+                        <Nav.Link eventKey="cluster" className="cluster-tab">
+                            Setting up a cluster
+                        </Nav.Link>
+                    </Nav.Item>
+                </Nav>
+                <div className="p-4">
+                    <Row>
+                        <Col
+                            md={6}
+                            className="vstack gap-3 text-center border-end px-4 border-secondary justify-content-center"
+                        >
+                            <div>
+                                <Icon icon="folder" addon="attachment" color="primary" size="lg" />
+                            </div>
+                            <span>
+                                Your cluster settings configuration and the certificate are contained in the downloaded
+                                zip file.
+                            </span>
+                        </Col>
+                        <Col md={6} className="vstack gap-3 text-center justify-content-center px-4">
+                            <Icon icon="cluster" color="node" size="lg" />
+                            <span>
+                                You are setting up a cluster. The cluster topology and node addresses have already been
+                                configured.
+                            </span>
+                        </Col>
+                    </Row>
+                    <hr />
+                    <h5>How to setup the other nodes?</h5>
+                    <NumberedList>
+                        <NumberedListItem stepKey={1}>
+                            The next step is to download a new RavenDB server for each of the other nodes.
+                        </NumberedListItem>
+                        <NumberedListItem stepKey={2}>
+                            When you enter the Setup Wizard on a new node, please choose &apos;
+                            <b>Use Setup Package</b>&apos;.
+                            <br />
+                            Do not try to start a new setup process again in this new node, it is not supported.
+                        </NumberedListItem>
+                        <NumberedListItem stepKey={3}>
+                            You will be asked to upload the zip file which was just downloaded.
+                        </NumberedListItem>
+                        <NumberedListItem stepKey={4}>
+                            The new server node will join the already existing cluster.
+                        </NumberedListItem>
+                    </NumberedList>
+                    <RichAlert variant="info" className="mt-3">
+                        When the Setup Wizard is done and the new node was restarted, the cluster will automatically
+                        detect it.
+                        <br />
+                        There is no need to manually add it again from the studio. Simply access the &apos;Cluster&apos;
+                        view and observe the topology being updated.
+                    </RichAlert>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="summary-tab-container mb-6">
@@ -898,7 +962,13 @@ export function SetupWizardFinishStepFooter() {
     
     return (
         <div className="d-flex justify-content-end">
-            <ButtonWithSpinner isSpinning={finishStep.finishingStatus === "InProgress"} disabled={finishStepIsDisabled} variant="primary" onClick={handleReset} className="mt-2 rounded-pill">
+            <ButtonWithSpinner
+                isSpinning={finishStep.finishingStatus === "InProgress"}
+                disabled={finishStepIsDisabled}
+                variant="primary"
+                onClick={handleReset}
+                className="mt-2 rounded-pill"
+            >
                 Restart server <Icon icon="reset" margin="m-0" />
             </ButtonWithSpinner>
             {isCertInstallationConfirmed && (
