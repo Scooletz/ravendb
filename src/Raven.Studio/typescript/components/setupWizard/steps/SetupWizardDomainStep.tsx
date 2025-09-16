@@ -123,13 +123,16 @@ export function SetupWizardDomainStep() {
                         }
                     }}
                     addon={
-                        <FormSelect
+                        rootDomainOptions.length === 1 ? (
+                            <span>{rootDomainOptions[0].label}</span>
+                            ) : (
+                                <FormSelect
                             control={control}
-                            isDisabled={rootDomainOptions.length <= 1}
                             name="domainStep.rootDomain"
                             options={rootDomainOptions}
                             isSearchable={false}
                         />
+                        )
                     }
                 />
             </FormGroup>

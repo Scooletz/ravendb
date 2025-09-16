@@ -70,28 +70,40 @@ export default function SetupWizard() {
                 .map((s) => s.title);
 
             if (stepsToClear.length > 0) {
-                const isConfirmed = await confirm({
-                    title: `Go back to step (${stepTitle})`,
-                    message: (
-                        <div>
-                            <p>Going back to a previous step will clear data for the following steps:</p>
-                            <ul>
-                                {stepsToClear.map((step) => (
-                                    <li key={step}>
-                                        <strong>{step}</strong>
-                                    </li>
-                                ))}
-                            </ul>
-                            <p>Are you sure you want to continue?</p>
-                        </div>
-                    ),
-                    actionColor: "warning",
-                    icon: "warning",
-                    confirmText: "Confirm",
+                const dirtyStepsToClear = stepsToClear.filter((stepTitle) => {
+                    const stepKey = getStepKey(stepTitle);
+                    if (stepKey === "currentStep") {
+                        return false;
+                    }
+
+                    const fieldState = form.getFieldState(stepKey);
+                    return fieldState.isDirty;
                 });
 
-                if (!isConfirmed) {
-                    return;
+                if (dirtyStepsToClear.length > 0) {
+                    const isConfirmed = await confirm({
+                        title: `Go back to step (${stepTitle})`,
+                        message: (
+                            <div>
+                                <p>Going back to a previous step will clear data for the following steps:</p>
+                                <ul>
+                                    {dirtyStepsToClear.map((step) => (
+                                        <li key={step}>
+                                            <strong>{step}</strong>
+                                        </li>
+                                    ))}
+                                </ul>
+                                <p>Are you sure you want to continue?</p>
+                            </div>
+                        ),
+                        actionColor: "warning",
+                        icon: "warning",
+                        confirmText: "Confirm",
+                    });
+
+                    if (!isConfirmed) {
+                        return;
+                    }
                 }
             }
 
@@ -227,6 +239,6 @@ const defaultValues: SetupWizardFormData = {
         serverEnvironment: "Production",
     },
     finishStep: {
-        finishingStatus: "InProgress"
-    }
+        finishingStatus: "InProgress",
+    },
 };

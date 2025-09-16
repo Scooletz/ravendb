@@ -79,9 +79,11 @@ export function SetupWizardSecurityStep() {
                         description="Secure and hassle-free communication with automatic certificate management"
                         isSelected={securityOption === "letsEncrypt"}
                         onClick={() => {
-                                                    setValue("securityStep.securityOption", "letsEncrypt");
-                                                    reportEvent(setupWizardGA4Prefixes.securityStep, "select-option", "letsEncrypt");
-                                                }}
+                            setValue("securityStep.securityOption", "letsEncrypt", {
+                                shouldDirty: true,
+                            });
+                            reportEvent(setupWizardGA4Prefixes.securityStep, "select-option", "letsEncrypt");
+                        }}
                         isDisabled={isSecureDisabled}
                         popoverMessage={
                             <ul className="mb-0 ps-3">
@@ -118,9 +120,11 @@ export function SetupWizardSecurityStep() {
                         description="Ideal for secure corporate setups with manual certificate management"
                         isSelected={securityOption === "ownCertificate"}
                         onClick={() => {
-                                                    setValue("securityStep.securityOption", "ownCertificate");
-                                                    reportEvent(setupWizardGA4Prefixes.securityStep, "select-option", "ownCertificate");
-                                                }}
+                            setValue("securityStep.securityOption", "ownCertificate", {
+                                shouldDirty: true,
+                            });
+                            reportEvent(setupWizardGA4Prefixes.securityStep, "select-option", "ownCertificate");
+                        }}
                         isDisabled={isSecureDisabled}
                         popoverMessage={
                             <ul className="mb-0 ps-3">
@@ -152,9 +156,11 @@ export function SetupWizardSecurityStep() {
                     description="Best for quick local development with no security requirements"
                     isSelected={securityOption === "none"}
                     onClick={() => {
-                                            setValue("securityStep.securityOption", "none");
-                                            reportEvent(setupWizardGA4Prefixes.securityStep, "select-option", "none");
-                                        }}
+                        setValue("securityStep.securityOption", "none", {
+                            shouldDirty: true,
+                        });
+                        reportEvent(setupWizardGA4Prefixes.securityStep, "select-option", "none");
+                    }}
                     popoverMessage={
                         <ul className="mb-0 ps-3">
                             <li>

@@ -48,14 +48,47 @@ export function SetupWizardLicenseKeyStep() {
     );
 }
 
+// Developer key for testing purposes - speed up the process. TODO: To remove!
+const developerKey = `{
+    "Id": "d66e8c49-cc2f-4f29-9aa4-f47da0527285",
+    "Name": "RavenDB",
+    "Keys": [
+        "0eC9Y0+VZXe1AC+QVpH1L9UO4",
+        "N6Wy4xpmrksnMN9wklvAcl5lQ",
+        "6aUlmVYRADvaprXbvf1LCZMcQ",
+        "EqHXfSX1seMbFxi1FMwgZwQmY",
+        "tBmE8aL3mTA5wDCSOaP7WrdpS",
+        "18gJwpAesWobjUx0UiAekdREo",
+        "UD0qVUX+fDJyOqWXZlIlZABYE",
+        "DNy4wBSYoSQMqKywtLi8wJzEy",
+        "MzQVFjc4OTo7PD0+nwIfIJ8CI",
+        "CCfAiEgnwIjIJ8CJCCfAiUgnw",
+        "ImIJ8CJyCfAiggnwIpIJ8CKiC",
+        "fAisgnwIsIJ8CLSCfAi4gnwIv",
+        "IJ8CMCCfAzZAAZ8CQiCfAkMgn",
+        "wJEIEMkRAliLVyfBEFgKlw="
+    ]
+}`;
+
 function NoLicenseToGenerate() {
     const { reportEvent } = useEventsCollector();
     const { control, setValue } = useFormContext<SetupWizardFormData>();
+
+    const pasteDeveloperKey = () => {
+        setValue("licenseKeyStep.key", developerKey);
+    };
 
     return (
         <div>
             <h2 className="mb-1">Enter license key</h2>
             <p className="mb-4 text-muted">You can either use your existing key or generate a free license.</p>
+
+            {/*Button for development purposes only. - speed up the process. - TODO: REMOVE! */}
+            {process.env.NODE_ENV === "development" && (
+                <Button variant="outline-node" onClick={pasteDeveloperKey}>
+                    Paste Developer Key
+                </Button>
+            )}
             <FormGroup>
                 <FormLabel>Your key</FormLabel>
                 <div className="position-relative">
@@ -484,7 +517,9 @@ export function SetupWizardLicenseKeyVerifyCodeModal({
         {
             onSuccess: async (license) => {
                 reportEvent(setupWizardGA4Prefixes.licenseKeyStep, "verify-code", "success");
-                setValue("licenseKeyStep.key", JSON.stringify(license.License));
+                setValue("licenseKeyStep.key", JSON.stringify(license.License), {
+                    shouldDirty: true,
+                });
                 close();
                 setValue("licenseKeyStep.licenseTypeToGenerate", null);
             },
@@ -677,15 +712,21 @@ export function SetupWizardLicenseKeyStepFooter() {
                 const info = await setupWizardService.registrationInfo(parsedKey);
 
                 reportEvent(setupWizardGA4Prefixes.licenseKeyStep, "key-parse", "valid");
-                setValue("licenseKeyStep.licenseInfo", {
-                    licenseType: info.LicenseType,
-                    userDomainsWithIps: {
-                        email: info.UserDomainsWithIps.Emails,
-                        rootDomains: info.UserDomainsWithIps.RootDomains,
-                        domains: info.UserDomainsWithIps.Domains,
+                setValue(
+                    "licenseKeyStep.licenseInfo",
+                    {
+                        licenseType: info.LicenseType,
+                        userDomainsWithIps: {
+                            email: info.UserDomainsWithIps.Emails,
+                            rootDomains: info.UserDomainsWithIps.RootDomains,
+                            domains: info.UserDomainsWithIps.Domains,
+                        },
+                        maxClusterSize: info.MaxClusterSize,
                     },
-                    maxClusterSize: info.MaxClusterSize,
-                });
+                    {
+                        shouldDirty: true,
+                    }
+                );
                 setValue("licenseKeyStep.isLoadingKey", false);
             } catch (err) {
                 reportEvent(setupWizardGA4Prefixes.licenseKeyStep, "key-parse", "invalid");

@@ -4,7 +4,7 @@ import { Meta, StoryObj } from "@storybook/react";
 import { withStorybookContexts } from "test/storybookTestUtils";
 import SetupWizard from "./SetupWizard";
 import { mockServices } from "test/mocks/services/MockServices";
-import { userEvent, waitFor, expect, waitForElementToBeRemoved } from "@storybook/test";
+import { userEvent, waitFor, expect } from "@storybook/test";
 import { Canvas } from "storybook/internal/types";
 import {
     SetupWizardSecurityOption,

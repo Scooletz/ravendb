@@ -107,7 +107,9 @@ export function SetupWizardUsePackageStep() {
             setValue("usePackageStep.fileName", fileName.split(/(\\|\/)/g).pop());
 
             // dataUrl has following format: data:;base64,PD94bW... trim on first comma
-            setValue("usePackageStep.fileZip", textResult.substring(textResult.indexOf(",") + 1));
+            setValue("usePackageStep.fileZip", textResult.substring(textResult.indexOf(",") + 1), {
+                shouldDirty: true,
+            });
         };
 
         reader.onerror = function () {

@@ -60,9 +60,13 @@ function AdditionalSettingsFormSideEffects() {
 
     useEffect(() => {
         if (getLicenseType(licenseKeyStep.licenseInfo).isDeveloper()) {
-            setValue("additionalSettingsStep.serverEnvironment", "Development");
+            setValue("additionalSettingsStep.serverEnvironment", "Development", {
+                shouldDirty: true,
+            });
         } else if (getLicenseType(licenseKeyStep.licenseInfo).isProfessionalOrHigher()) {
-            setValue("additionalSettingsStep.serverEnvironment", "Production");
+            setValue("additionalSettingsStep.serverEnvironment", "Production", {
+                shouldDirty: true,
+            });
         }
 
         const { unsubscribe } = watch((values, { name }) => {
