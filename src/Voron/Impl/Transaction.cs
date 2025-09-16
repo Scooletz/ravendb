@@ -24,6 +24,19 @@ namespace Voron.Impl
         private Dictionary<Tuple<Tree, Slice>, Tree> _multiValueTrees;
         private Dictionary<long, ByteString> _cachedDecompressedBuffersByStorageId;
 
+        private StreamBufferAllocator.Buffer _streamBuffer;
+
+        public StreamBufferAllocator.Buffer StreamBuffer
+        {
+            get
+            {
+                if (_streamBuffer != null)
+                    return _streamBuffer;
+
+                return _streamBuffer = StreamBufferAllocator.Instance.Rent();
+            }
+        }
+
         internal Dictionary<long, ByteString> CachedDecompressedBuffersByStorageId =>
             _cachedDecompressedBuffersByStorageId ??= new Dictionary<long, ByteString>();
 
@@ -498,7 +511,13 @@ namespace Voron.Impl
 
             return tree;
         }
-        
+
+        public void DisposeStreamBuffer()
+        {
+            _streamBuffer?.Dispose();
+            _streamBuffer = null;
+        }
+
         public void Dispose()
         {
             if (_trees != null)
@@ -534,8 +553,9 @@ namespace Voron.Impl
                 }
             }
 
-            _lowLevelTransaction?.Dispose();
+            DisposeStreamBuffer();
 
+            _lowLevelTransaction?.Dispose();
             _lowLevelTransaction = null;
         }
 

@@ -5,6 +5,8 @@ using Raven.Client.Documents.Session;
 using Raven.Client.Exceptions.Documents.Subscriptions;
 using Raven.Client.Http;
 using Raven.Client.Json;
+using Raven.Client.Json.Serialization;
+using Raven.Client.Json.Serialization.NewtonsoftJson.Internal;
 using Sparrow.Json;
 using Sparrow.Logging;
 
@@ -61,6 +63,8 @@ namespace Raven.Client.Documents.Subscriptions
         private List<(BlittableJsonReaderObject Includes, Dictionary<string, string[]> IncludedCounterNames)> _counterIncludes;
         private List<BlittableJsonReaderObject> _timeSeriesIncludes;
         private bool _sessionOpened = false;
+
+        private ISubscriptionsBlittableJsonConverter _converter;
 
         public IDocumentSession OpenSession()
         {
@@ -169,6 +173,11 @@ namespace Raven.Client.Documents.Subscriptions
                     s.RegisterTimeSeries(item);
             }
 
+            if (_requestExecutor.Conventions.PreserveDocumentPropertiesNotFoundOnModel)
+            {
+                s.JsonConverter.MissingProperties = _converter.MissingProperties;
+            }
+
             foreach (var item in Items)
             {
                 if (item.Projection || item.Revision)
@@ -204,6 +213,7 @@ namespace Raven.Client.Documents.Subscriptions
             _includes = batch.Includes;
             _counterIncludes = batch.CounterIncludes;
             _timeSeriesIncludes = batch.TimeSeriesIncludes;
+            _converter = _requestExecutor.Conventions.Serialization.CreateConverter(this);
 
             Items.Capacity = Math.Max(Items.Capacity, batch.Messages.Count);
             Items.Clear();
@@ -244,7 +254,7 @@ namespace Raven.Client.Documents.Subscriptions
                     {
                         try
                         {
-                            instance = _requestExecutor.Conventions.Serialization.DefaultConverter.FromBlittable<T>(curDoc, id);
+                            instance = _converter.FromBlittable<T>(curDoc, id);
                         }
                         catch (InvalidOperationException e)
                         {
