@@ -7,6 +7,10 @@ using Sparrow.Logging;
 
 namespace Raven.Client.Documents.Subscriptions
 {
+    /// <summary>
+    /// Represents a batch of documents received from a subscription.
+    /// Provides helpers to open a session bound to the batch and preloaded includes.
+    /// </summary>
     public sealed class SubscriptionBatch<T> : SubscriptionBatchBase<T>
     {
         private readonly IDocumentStore _store;
@@ -24,10 +28,14 @@ namespace Raven.Client.Documents.Subscriptions
         internal override ValueTask InitializeAsync(BatchFromServer batch)
         {
             _sessionOpened = false;
-
+            _converter = _requestExecutor.Conventions.Serialization.CreateConverter(this);
             return base.InitializeAsync(batch);
         }
 
+        /// <summary>
+        /// Opens a synchronous document session bound to this batch and its includes.
+        /// Session can be opened only once per batch.
+        /// </summary>
         public IDocumentSession OpenSession()
         {
             return OpenSessionInternal(new SessionOptions
@@ -37,6 +45,11 @@ namespace Raven.Client.Documents.Subscriptions
             });
         }
 
+        /// <summary>
+        /// Opens a synchronous document session with the specified options.
+        /// Session can be opened only once per batch.
+        /// </summary>
+        /// <param name="options">Session options; Database and RequestExecutor will be set automatically.</param>
         public IDocumentSession OpenSession(SessionOptions options)
         {
             ValidateSessionOptions(options);
@@ -61,6 +74,10 @@ namespace Raven.Client.Documents.Subscriptions
             return s;
         }
 
+        /// <summary>
+        /// Opens an async document session bound to this batch and its includes.
+        /// Session can be opened only once per batch.
+        /// </summary>
         public IAsyncDocumentSession OpenAsyncSession()
         {
             return OpenAsyncSessionInternal(new SessionOptions
@@ -70,6 +87,11 @@ namespace Raven.Client.Documents.Subscriptions
             });
         }
 
+        /// <summary>
+        /// Opens an async document session with the specified options.
+        /// Session can be opened only once per batch.
+        /// </summary>
+        /// <param name="options">Session options; Database and RequestExecutor will be set automatically.</param>
         public IAsyncDocumentSession OpenAsyncSession(SessionOptions options)
         {
             ValidateSessionOptions(options);
@@ -133,6 +155,11 @@ namespace Raven.Client.Documents.Subscriptions
             {
                 foreach (var item in _timeSeriesIncludes)
                     s.RegisterTimeSeries(item);
+            }
+
+            if (_requestExecutor.Conventions.PreserveDocumentPropertiesNotFoundOnModel)
+            {
+                s.JsonConverter.MissingProperties = _converter.MissingProperties;
             }
 
             foreach (var item in Items)

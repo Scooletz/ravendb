@@ -16,6 +16,7 @@ using Raven.Client.Documents.Subscriptions;
 using Raven.Client.Extensions;
 using Raven.Client.Http;
 using Raven.Client.ServerWide.Operations;
+using Sparrow.Json;
 using Sparrow.Json.Parsing;
 
 namespace Raven.Client.Documents.Operations.OngoingTasks
@@ -471,7 +472,10 @@ namespace Raven.Client.Documents.Operations.OngoingTasks
         public RetentionPolicy RetentionPolicy { get; set; }
         public bool IsEncrypted { get; set; }
         public string LastExecutingNodeTag { get; set; }
-
+        public string FullBackupFrequency { get; set; }
+        public string IncrementalBackupFrequency { get; set; }
+        public BackupUploadMode BackupUploadMode { get; set; }
+        public bool HasCloudBackup { get; set; }
         public OngoingTaskBackup()
         {
             TaskType = OngoingTaskType.Backup;
@@ -489,7 +493,19 @@ namespace Raven.Client.Documents.Operations.OngoingTasks
             json[nameof(RetentionPolicy)] = RetentionPolicy?.ToJson();
             json[nameof(IsEncrypted)] = IsEncrypted;
             json[nameof(LastExecutingNodeTag)] = LastExecutingNodeTag;
+            json[nameof(FullBackupFrequency)] = FullBackupFrequency;
+            json[nameof(IncrementalBackupFrequency)] = IncrementalBackupFrequency;
+            json[nameof(BackupUploadMode)] = BackupUploadMode;
+            json[nameof(HasCloudBackup)] = HasCloudBackup;
             return json;
+        }
+
+        public override string ToString()
+        {
+            using (var ctx = JsonOperationContext.ShortTermSingleUse())
+            {
+                return ctx.ReadObject(ToJson(), "ongoing-task-backup").ToString();
+            }
         }
     }
 

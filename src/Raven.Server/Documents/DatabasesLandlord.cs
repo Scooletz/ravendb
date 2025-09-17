@@ -14,7 +14,6 @@ using Raven.Client.ServerWide;
 using Raven.Client.Util;
 using Raven.Server.Config;
 using Raven.Server.Documents.Sharding;
-using Raven.Server.Documents.PeriodicBackup;
 using Raven.Server.Logging;
 using Raven.Server.NotificationCenter.Notifications;
 using Raven.Server.NotificationCenter.Notifications.Details;
@@ -55,8 +54,6 @@ namespace Raven.Server.Documents
         private readonly ServerStore _serverStore;
 
         // used in ServerWideBackupStress
-        internal bool SkipShouldContinueDisposeCheck = false;
-        internal Action<(DocumentDatabase Database, string caller)> AfterDatabaseCreation;
         internal SemaphoreSlim _databaseSemaphore;
         internal TimeSpan _concurrentDatabaseLoadTimeout;
         internal int _dueTimeOnRetry = 60_000;
@@ -101,12 +98,13 @@ namespace Raven.Server.Documents
             internal Action BeforeActualDelete = null;
             internal Action<DocumentDatabase> OnBeforeDocumentDatabaseInitialization;
             internal ManualResetEventSlim RescheduleDatabaseWakeupMre = null;
-            internal bool ShouldFetchIdleStateImmediately = false;
+            internal bool SkipIncreasingLastWorkTimeBasedOnDatabaseSize = false;
             internal Action<Exception, string> OnFailedRescheduleNextScheduledActivity;
             internal bool PreventNodePromotion = false;
             internal Func<ServerStore, Task> BeforeHandleClusterTransactionOnDatabaseChanged;
             internal Action DelayNotifyFeaturesAboutStateChange;
             internal ManualResetEventSlim AfterDatabaseRemovedFromIdle = null;
+            internal bool SkipShouldContinueDisposeCheck = false;
         }
 
         private async Task HandleClusterDatabaseChanged(string databaseName, long index, string type, ClusterDatabaseChangeType changeType, object changeState)
@@ -482,9 +480,8 @@ namespace Raven.Server.Documents
                 }
 
                 DeleteDatabaseNotifications(dbName, throwOnError: true);
-
-                // delete the cache info
                 DeleteDatabaseCachedInfo(dbName, throwOnError: true);
+                DeleteLocalBackupStatuses(dbName, throwOnError: true);
             }
             finally
             {
@@ -1135,6 +1132,23 @@ namespace Raven.Server.Documents
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void DeleteLocalBackupStatuses(string databaseName, bool throwOnError)
+        {
+            try
+            {
+                _serverStore.DatabaseInfoCache.BackupStatusStorage.Delete(databaseName);
+            }
+            catch (Exception e)
+            {
+                if (throwOnError)
+                    throw;
+
+                if (_logger.IsDebugEnabled)
+                    _logger.Debug($"Failed to delete local backup statuses for '{databaseName}' database.", e);
+            }
+        }
+
         public RavenConfiguration CreateDatabaseConfiguration(StringSegment databaseName, bool ignoreDisabledDatabase = false, bool ignoreBeenDeleted = false, bool ignoreNotRelevant = false)
         {
             if (databaseName.Trim().Length == 0)
@@ -1216,7 +1230,7 @@ namespace Raven.Server.Documents
 
         public DateTime LastWork(DocumentDatabase resource)
         {
-            if (ForTestingPurposes is { ShouldFetchIdleStateImmediately: true })
+            if (ForTestingPurposes?.SkipIncreasingLastWorkTimeBasedOnDatabaseSize == true )
                 return resource.LastAccessTime;
 
             // This allows us to increase the time large databases will be held in memory
@@ -1396,11 +1410,8 @@ namespace Raven.Server.Documents
                     switch (nextIdleDatabaseActivity.Type)
                     {
                         case IdleDatabaseActivityType.UpdateBackupStatusOnly:
-                            PeriodicBackupStatus backupStatus;
 
-                            using (_serverStore.Engine.ContextPool.AllocateOperationContext(out ClusterOperationContext context))
-                            using (context.OpenReadTransaction())
-                                backupStatus = BackupUtils.GetBackupStatusFromCluster(_serverStore, context, databaseName, nextIdleDatabaseActivity.TaskId);
+                            PeriodicBackupStatus backupStatus = _serverStore.DatabaseInfoCache.BackupStatusStorage.GetBackupStatus(databaseName, nextIdleDatabaseActivity.TaskId);
 
                             backupStatus.LastIncrementalBackup = backupStatus.LastIncrementalBackupInternal = nextIdleDatabaseActivity.DateTime;
                             backupStatus.LocalBackup.LastIncrementalBackup = nextIdleDatabaseActivity.DateTime;
@@ -1408,9 +1419,10 @@ namespace Raven.Server.Documents
 
                             var backupResult = new BackupResult();
                             backupResult.AddMessage($"Skipping incremental backup because no changes were made from last full backup on {backupStatus.LastFullBackup}.");
-
+                            
                             BackupUtils.SaveBackupStatus(backupStatus, databaseName, _serverStore, _logger, backupResult);
 
+                            // choose the next backup that will arrive the earliest
                             nextIdleDatabaseActivity = BackupUtils.GetEarliestIdleDatabaseActivity(new BackupUtils.EarliestIdleDatabaseActivityParameters
                             {
                                 DatabaseName = databaseName,
@@ -1512,10 +1524,11 @@ namespace Raven.Server.Documents
             if (idleDatabaseActivity.DateTime.HasValue == false)
                 return true;
 
-            if (SkipShouldContinueDisposeCheck)
+            if (ForTestingPurposes?.SkipShouldContinueDisposeCheck == true)
                 return true;
 
-            // if we have a small value, simply don't dispose the database.
+            // Unloading and then loading a database can use a lot of resources.
+            // Therefore, we don't want to unload the database unless we're sure it will be loaded again soon.
             return idleDatabaseActivity.DueTime > TimeSpan.FromMinutes(5).TotalMilliseconds;
         }
 

@@ -23,6 +23,7 @@ import queryCriteria from "models/database/query/queryCriteria";
 import savedQueriesStorage from "common/storage/savedQueriesStorage";
 import { useAppSelector } from "components/store";
 import { databaseSelectors } from "components/common/shell/databaseSliceSelectors";
+import AiTokensUsagePopoverBody from "components/common/AiTokensUsagePopoverBody";
 
 type ToolQuery = Raven.Client.Documents.Operations.AI.Agents.AiAgentToolQuery;
 type ToolAction = Raven.Client.Documents.Operations.AI.Agents.AiAgentToolAction;
@@ -45,7 +46,7 @@ export default function AiAgentMessages({
     parametersFromUser,
 }: AiAgentMessagesProps) {
     return (
-        <div className="w-100 vstack gap-2 ai-agent-messages pb-1">
+        <div className="w-100 vstack gap-2 ai-agent-messages pb-4">
             {messages.map((message) => (
                 <AiAgentMessage
                     key={message.id}
@@ -144,8 +145,8 @@ function ToolMessage({ message, type }: ToolMessageProps) {
     });
 
     return (
-        <div className="bg-faded-primary p-2 rounded-3 border border-primary text-reset w-100">
-            {type === "query" && <div>Query tool result</div>}
+        <div className="bg-faded-primary p-2 border-radius-xs border border-primary w-100">
+            {type === "query" && <div className="text-emphasis">Query tool result</div>}
             {type === "action" && toolName && (
                 <div className="hstack justify-content-between mb-1">
                     <div>
@@ -179,15 +180,15 @@ interface SystemMessageProps {
 function SystemMessage({ message }: SystemMessageProps) {
     return (
         <div className="text-muted">
-            <div className="text-center">{message.date}</div>
-            <div className="mt-2 p-2 border-start border-secondary">
-                <div>
+            <div className="text-center md-label">{message.date}</div>
+            <div className="mt-2 p-2 border-start border-secondary d-flex vstack">
+                <small>
                     <Icon icon="system" size="xs" />
                     System prompt
-                </div>
-                <div className="mt-2 overflow-auto" style={{ maxHeight: "200px", whiteSpace: "pre-wrap" }}>
+                </small>
+                <small className="mt-2 overflow-auto" style={{ maxHeight: "200px", whiteSpace: "pre-wrap" }}>
                     {message.content}
-                </div>
+                </small>
             </div>
         </div>
     );
@@ -207,11 +208,11 @@ function UserMessage({ message, toolQueries, toolActions }: UserMessageProps) {
     }
 
     return (
-        <div>
-            <div className="text-muted text-center">{message.date}</div>
+        <div className="pt-3">
+            <div className="md-label text-center">{message.date}</div>
             <div className="hstack justify-content-end user-message">
                 <div
-                    className="text-end bg-faded-primary p-2 rounded-3 border border-primary text-reset"
+                    className="text-emphasis text-end bg-faded-primary p-2 border-radius-xs border border-primary"
                     style={{ maxWidth: "75%" }}
                 >
                     <div className="overflow-auto" style={{ maxHeight: "200px", whiteSpace: "pre-wrap" }}>
@@ -291,43 +292,30 @@ function AgentMessage({
 
     return (
         <div>
-            <div className="hstack justify-content-between mb-2">
-                <div className="hstack gap-2">
-                    <div className="agent-icon-wrapper">
-                        <Icon icon="sparkles" margin="m-0" />
-                    </div>
-                    <strong>AI Agent</strong>
-                    <div className="text-muted">{agentMessage.date}</div>
+            <div className="hstack justify-content-between mb-1">
+                <div className="hstack gap-1">
+                    <strong>
+                        <Icon icon="sparkles" />
+                        AI Agent
+                    </strong>
+                    <small className="text-muted">{agentMessage.date}</small>
                 </div>
                 {agentMessage.usage && (
-                    <div className="hstack text-muted">
+                    <small className="text-muted">
                         <PopoverWithHoverWrapper
                             message={
-                                <div>
-                                    <div className="hstack justify-content-between gap-3">
-                                        <span>Prompt tokens</span>
-                                        <span>{genUtils.formatAiTokens(agentMessage.usage.PromptTokens)}</span>
-                                    </div>
-                                    <div className="hstack justify-content-between gap-3">
-                                        <span>Completion tokens</span>
-                                        <span>{genUtils.formatAiTokens(agentMessage.usage.CompletionTokens)}</span>
-                                    </div>
-                                    <div className="hstack justify-content-between gap-3">
-                                        <span>Cached tokens</span>
-                                        <span>{genUtils.formatAiTokens(agentMessage.usage.CachedTokens)}</span>
-                                    </div>
-                                    <hr className="my-1" />
-                                    <div className="hstack justify-content-between gap-3">
-                                        <span>Total tokens used</span>
-                                        <span>{genUtils.formatAiTokens(agentMessage.usage.TotalTokens)}</span>
-                                    </div>
-                                </div>
+                                <AiTokensUsagePopoverBody
+                                    prompt={agentMessage.usage.PromptTokens}
+                                    completion={agentMessage.usage.CompletionTokens}
+                                    cached={agentMessage.usage.CachedTokens}
+                                    total={agentMessage.usage.TotalTokens}
+                                />
                             }
                         >
                             <Icon icon="info" />
                         </PopoverWithHoverWrapper>
                         Tokens used: {genUtils.formatAiTokens(agentMessage.usage.TotalTokens)}
-                    </div>
+                    </small>
                 )}
             </div>
             {agentMessage.state === "success" && (
@@ -369,7 +357,7 @@ function AgentMessage({
             )}
             {isRequireParameters && (
                 <div className="hstack justify-content-end mt-2">
-                    <div className="text-end bg-faded-primary p-2 rounded-3 border border-primary text-reset w-100">
+                    <div className="text-end bg-faded-primary p-2 border-radius-xs border border-primary text-reset w-100">
                         {parametersFieldsArray.fields.map((field, idx) => (
                             <ParameterField key={field.id} idx={idx} name={field.name} control={control} />
                         ))}
@@ -435,7 +423,7 @@ function ToolCall({ toolCall, toolQueries, toolActions, parametersFromUser }: To
             <Accordion.Item eventKey={id} className="panel-bg-1">
                 <Accordion.Header>
                     <div className="hstack gap-2">
-                        <div className="p-1 rounded-2 bg-faded-primary border border-primary">
+                        <div className="p-1 rounded-1 bg-faded-primary border border-primary">
                             <Icon icon={icon} color="primary" margin="m-0" />
                         </div>
                         <div className="text-truncate">
@@ -474,7 +462,7 @@ function ToolCallBody({ tool, toolCall, parametersFromUser }: ToolCallBodyProps)
             {tool && (
                 <Accordion className="tool-call-details border border-secondary rounded-2 panel-bg-2">
                     <Accordion.Item eventKey={id} className="panel-bg-2">
-                        <Accordion.Header className="p-2">
+                        <Accordion.Header className="p-1">
                             <Icon icon="settings" />
                             See details
                         </Accordion.Header>

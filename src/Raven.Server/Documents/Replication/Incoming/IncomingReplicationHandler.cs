@@ -453,10 +453,10 @@ namespace Raven.Server.Documents.Replication.Incoming
 
                             case CounterReplicationItem counter:
                                 var changed = database.DocumentsStorage.CountersStorage.PutCounters(context, counter.Id, counter.Collection, incomingChangeVector,
-                                    counter.Values);
-                                if (changed && _replicationInfo.SupportedFeatures.Replication.CaseInsensitiveCounters == false)
+                                    counter.Values, out var updateMetadata);
+                                if ((changed && _replicationInfo.SupportedFeatures.Replication.CaseInsensitiveCounters == false) || // 4.2 counters  
+                                    updateMetadata)
                                 {
-                                    // 4.2 counters
                                     docCountersToRecreate ??= new HashSet<LazyStringValue>(LazyStringValueComparer.Instance);
                                     docCountersToRecreate.Add(counter.Id);
                                 }
@@ -615,7 +615,7 @@ namespace Raven.Server.Documents.Replication.Incoming
                                         }
                                         else
                                         {
-                                            using (DocumentIdWorker.GetSliceFromId(context, doc.Id, out Slice keySlice))
+                                            using (DocumentIdWorker.GetLoweredIdSliceFromId(context, doc.Id, out Slice keySlice))
                                             {
                                                 database.DocumentsStorage.Delete(
                                                     context, keySlice, doc.Id, null,

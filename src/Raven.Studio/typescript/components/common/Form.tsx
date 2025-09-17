@@ -21,6 +21,8 @@ import { FormRangeProps } from "react-bootstrap/FormRange";
 import { InputType } from "../../../typings/_studio/react-bootstrap";
 import useUniqueId from "hooks/useUniqueId";
 import { FormGroupProps as ReactBootstrapFormGroupsProps } from "react-bootstrap/FormGroup";
+import useBoolean from "components/hooks/useBoolean";
+import { FilterOptionOption } from "react-select/dist/declarations/src/filters";
 
 type FormElementProps<TFieldValues extends FieldValues, TName extends FieldPath<TFieldValues>> = Omit<
     ControllerProps<TFieldValues, TName>,
@@ -208,7 +210,7 @@ export function FormSelect<
 
     const valueAccessor = rest.getOptionValue ?? ((option: any) => option.value);
 
-    const selectedOptions = getFormSelectedOptions<Option>(formValues, rest.options, valueAccessor);
+    const selectedOptions = getFormSelectedOptions<Option>(formValues, rest.options, valueAccessor) ?? null;
 
     return (
         <>
@@ -326,19 +328,49 @@ export function FormSelectAutocomplete<
         control: props.control,
     });
 
-    const onInputChange = (value: string, action: InputActionMeta) => {
+    const { value: isInitialOpen, setValue: setIsInitialOpen } = useBoolean(false);
+
+    const valueAccessor = props.getOptionValue ?? ((option: any) => option.value);
+    const labelAccessor = props.getOptionLabel ?? ((option: any) => option.label);
+
+    const handleFilterOption = (option: FilterOptionOption<Option>, inputValue: string) => {
+        if (isInitialOpen) {
+            return true;
+        }
+
+        return (
+            compareInputValue(valueAccessor(option), inputValue) || compareInputValue(labelAccessor(option), inputValue)
+        );
+    };
+
+    const compareInputValue = (value: unknown, inputValue: string): boolean => {
+        return String(value).trim().toLowerCase().includes(String(inputValue).trim().toLowerCase());
+    };
+
+    const handleInputChange = (value: string, action: InputActionMeta) => {
         if (action?.action !== "input-blur" && action?.action !== "menu-close") {
             onChange(value);
+            setIsInitialOpen(false);
         }
     };
 
+    const handleFocus = (e: React.FocusEvent<HTMLInputElement, Element>) => {
+        e.target.selectionStart = String(value).length;
+        setIsInitialOpen(true);
+    };
+
+    const inputValue = props.isDisabled ? "" : (value ?? "");
+
     return (
         <FormSelectCreatable<Option, IsMulti, Group, TFieldValues, TName>
-            inputValue={value ?? ""}
-            onInputChange={onInputChange}
+            inputValue={inputValue}
+            onInputChange={handleInputChange}
             components={{ Input: InputNotHidden }}
             tabSelectsValue
-            controlShouldRenderValue={false}
+            controlShouldRenderValue={!!props.isDisabled}
+            filterOption={handleFilterOption}
+            onFocus={handleFocus}
+            blurInputOnSelect
             {...props}
         />
     );

@@ -10,6 +10,7 @@ using Raven.Server.Config;
 using Raven.Server.Config.Categories;
 using Raven.Server.Config.Settings;
 using Raven.Server.Documents.AI;
+using Raven.Server.Documents.AI.Settings;
 using Raven.Server.Documents.ETL.Providers.ElasticSearch;
 using Raven.Server.Documents.Indexes;
 using Raven.Server.Documents.Indexes.IndexMerging;
@@ -17,6 +18,7 @@ using Raven.Server.Json;
 using Raven.Server.Routing;
 using Raven.Server.ServerWide;
 using Raven.Server.ServerWide.Context;
+using Raven.Server.Utils;
 using Raven.Server.Web.Studio.Processors;
 using Sparrow.Json;
 using Sparrow.Json.Parsing;
@@ -269,7 +271,47 @@ namespace Raven.Server.Web.Studio
                 return;
             }
 
-            var nextOccurrence = crontabSchedule.GetNextOccurrence(SystemTime.UtcNow.ToLocalTime());
+            const string taskIdQueryParameter = "taskId";
+            var taskId = GetLongQueryString(taskIdQueryParameter, required: false);
+
+            const string databaseNameQueryParameter = "database";
+            var databaseName = GetStringQueryString(databaseNameQueryParameter, required: false);
+
+            const string isFullBackupQueryParameter = "isFull";
+            var isFull = GetBoolValueQueryString(isFullBackupQueryParameter, required: false);
+
+            DateTime baseValue;
+
+            if (taskId == null && databaseName == null && isFull == null)
+            {
+                // if no taskId, databaseName or backupKind is provided, we use the current time as the base value
+                baseValue = SystemTime.UtcNow.ToLocalTime();
+            }
+            else
+            {
+                if (string.IsNullOrWhiteSpace(databaseName))
+                    throw new ArgumentException($"The database name must be provided via the '{databaseNameQueryParameter}' query parameter when either '{taskIdQueryParameter}' or '{isFullBackupQueryParameter}' is specified.");
+
+                if (taskId == null)
+                    throw new ArgumentException($"The task ID must be provided via the '{taskIdQueryParameter}' query parameter when either '{databaseNameQueryParameter}' or '{isFullBackupQueryParameter}' is specified.");
+
+                if (isFull == null)
+                    throw new ArgumentException($"The backup kind must be provided via the '{isFullBackupQueryParameter}' query parameter when either '{taskIdQueryParameter}' or '{databaseNameQueryParameter}' is specified.");
+
+                using (ServerStore.Engine.ContextPool.AllocateOperationContext(out ClusterOperationContext context))
+                using (context.OpenReadTransaction())
+                {
+                    var backupStatus = BackupUtils.GetBackupStatusFromCluster(context, databaseName, taskId.Value);
+                    if (backupStatus == null)
+                        throw new InvalidOperationException($"No backup status found for task ID '{taskId}' in database '{databaseName}'.");
+
+                    baseValue = isFull.Value
+                        ? (backupStatus.LastFullBackup ?? SystemTime.UtcNow).ToLocalTime()
+                        : (backupStatus.LastIncrementalBackup ?? SystemTime.UtcNow).ToLocalTime();
+                }
+            }
+
+            var nextOccurrence = crontabSchedule.GetNextOccurrence(baseValue);
 
             using (ServerStore.ContextPool.AllocateOperationContext(out TransactionOperationContext context))
             await using (var writer = new AsyncBlittableJsonTextWriter(context, ResponseBodyStream()))
@@ -298,33 +340,24 @@ namespace Raven.Server.Web.Studio
 
                 var request = JsonDeserializationServer.AiModelsRequest(json);
 
-                string uri;
-                string apiKey = null;
-                string organization = null;
-                string project = null;
-                bool? think = null;
+                AbstractChatCompletionClientSettings settings = null;
                 switch (request.ConnectorType)
                 {
                     case AiConnectorType.OpenAi:
-                        uri = request.OpenAiSettings.Endpoint;
-                        apiKey = request.OpenAiSettings.ApiKey;
-                        organization = request.OpenAiSettings.OrganizationId;
-                        project = request.OpenAiSettings.ProjectId;
+                        settings = new OpenAiChatCompletionClientSettings(request.OpenAiSettings);
                         break;
                     case AiConnectorType.AzureOpenAi:
-                        uri = request.AzureOpenAiSettings.Endpoint;
-                        apiKey = request.AzureOpenAiSettings.ApiKey;
+                        settings = new AzureOpenAiChatCompletionClientSettings(request.AzureOpenAiSettings);
                         break;
                     case AiConnectorType.Ollama:
-                        uri = request.OllamaSettings.Uri;
-                        think = request.OllamaSettings.Think;
+                        settings = new OllamaChatCompletionClientSettings(request.OllamaSettings);
                         break;
                     default:
                         throw new NotSupportedException($"Unsupported connector type: {request.ConnectorType}");
                 }
 
                 using (var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15)))
-                using (var chat = new ChatCompletionClient(ServerStore.ContextPool, uri, apiKey, model: null, organization, project, think))
+                using (var chat = new ChatCompletionClient(ServerStore.ContextPool, settings))
                 {
                     await chat.ProxyModelsAsync(HttpContext.Response, cts.Token);
                 }

@@ -1,5 +1,8 @@
-﻿using System;
+﻿using Raven.Client.Extensions;
+using Sparrow.Json.Sync;
+using System;
 using System.Collections.Generic;
+using System.Linq.Expressions;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -7,7 +10,6 @@ using Raven.Client.Documents.Operations.AI.Agents;
 using Raven.Client.Exceptions;
 using Raven.Client.Util;
 using Sparrow.Json;
-using Sparrow.Json.Sync;
 
 namespace Raven.Client.Documents.AI;
 
@@ -24,7 +26,7 @@ internal class AiConversation : IAiConversationOperations
     private string _changeVector;
     public string ChangeVector => _changeVector;
 
-    private delegate Task<object> HandleActionDelegate(JsonOperationContext context, string arguments, CancellationToken token);
+    private delegate Task HandleActionDelegate(JsonOperationContext context, AiAgentActionRequest actionRequest, CancellationToken token);
 
     private readonly Dictionary<string, HandleActionDelegate> _invocations = new();
 
@@ -84,7 +86,7 @@ internal class AiConversation : IAiConversationOperations
 
         _actionResponses.Add(new AiAgentActionResponse
         {
-            ToolId = toolId, 
+            ToolId = toolId,
             Content = actionResponse
         });
     }
@@ -96,16 +98,51 @@ internal class AiConversation : IAiConversationOperations
         _userPrompt = userPrompt;
     }
 
-    public void Handle<TArgs>(string actionName, Func<TArgs, Task<object>> action, AiHandleErrorStrategy errorStrategy)
+    public void Handle<TArgs>(string actionName, Func<TArgs, Task<object>> action, AiHandleErrorStrategy aiHandleError) where TArgs : class
+    {
+        Handle<TArgs>(actionName, (_, token) => action(token), aiHandleError);
+    }
+
+    public void Handle<TArgs>(string actionName, Func<TArgs, object> action, AiHandleErrorStrategy aiHandleError) where TArgs : class
+    {
+        Handle<TArgs>(actionName, (_, token) => action(token), aiHandleError);
+    }
+
+    public void Handle<TArgs>(string actionName, Func<AiAgentActionRequest, TArgs, Task<object>> action, AiHandleErrorStrategy aiHandleError)
         where TArgs : class
     {
-        var t = new AiActionContext<TArgs>(_aiOperations, action, errorStrategy);
+        Receive<TArgs>(actionName, (request, args) =>
+        {
+            return action(request, args).ContinueWith(t =>
+            {
+                AddActionResponse(request.ToolId, t.Result);
+            }, TaskContinuationOptions.OnlyOnRanToCompletion);
+        }, aiHandleError);
+    }
+
+    public void Handle<TArgs>(string actionName, Func<AiAgentActionRequest, TArgs, object> action, AiHandleErrorStrategy aiHandleError) where TArgs : class
+    {
+        Receive<TArgs>(actionName, (request, args) =>
+        {
+            var result = action(request, args);
+            AddActionResponse(request.ToolId, result);
+            return Task.CompletedTask;
+        }, aiHandleError);
+    }
+
+    public void Receive<TArgs>(string actionName, Func<AiAgentActionRequest, TArgs, Task> action, AiHandleErrorStrategy aiHandleError = AiHandleErrorStrategy.SendErrorsToModel) where TArgs : class
+    {
+        var t = new AiActionContext<TArgs>(this, action, aiHandleError);
         AddAction(actionName, t.ExecuteAsync);
     }
 
-    public void Handle<TArgs>(string actionName, Func<TArgs, object> action, AiHandleErrorStrategy errorStrategy) where TArgs : class
+    public void Receive<TArgs>(string actionName, Action<AiAgentActionRequest, TArgs> action, AiHandleErrorStrategy aiHandleError = AiHandleErrorStrategy.SendErrorsToModel) where TArgs : class
     {
-        var t = new AiActionContext<TArgs>(_aiOperations, action, errorStrategy);
+        var t = new AiActionContext<TArgs>(this, (request, args) =>
+        {
+            action(request, args);
+            return Task.CompletedTask;
+        }, aiHandleError);
         AddAction(actionName, t.ExecuteAsync);
     }
 
@@ -119,38 +156,69 @@ internal class AiConversation : IAiConversationOperations
 
     public AiAnswer<TAnswer> Run<TAnswer>() => AsyncHelpers.RunSync(() => RunAsync<TAnswer>());
 
+    public Task<AiAnswer<TAnswer>> StreamAsync<TAnswer>(Expression<Func<TAnswer, string>> streamPropertyPath, Func<string, Task> streamedChunksCallback, CancellationToken token = default)
+    {
+        return StreamAsync<TAnswer>(streamPropertyPath.ToPropertyPath(_aiOperations._store.Conventions), streamedChunksCallback, token);
+    }
+
+    public async Task<AiAnswer<TAnswer>> StreamAsync<TAnswer>(string streamPropertyPath, Func<string, Task> streamedChunksCallback, CancellationToken token = default)
+    {
+        while (true)
+        {
+            var r = await RunAsyncInternal<TAnswer>(streamPropertyPath, streamedChunksCallback, token).ConfigureAwait(false);
+            if (await HandleServerReplyAsync(r, token).ConfigureAwait(false))
+                return r;
+        }
+    }
+
     public async Task<AiAnswer<TAnswer>> RunAsync<TAnswer>(CancellationToken token = default)
     {
         while (true)
         {
-            var r = await RunAsyncInternal<TAnswer>(token).ConfigureAwait(false);
-            if (r.Status == AiConversationResult.Done)
+            var r = await RunAsyncInternal<TAnswer>(streamPropertyPath: null, streamedChunksCallback: null, token).ConfigureAwait(false);
+            if (await HandleServerReplyAsync(r, token).ConfigureAwait(false))
                 return r;
-
-            if (_actionRequests.Count == 0)
-                throw new InvalidOperationException($"There are no action requests to process, but Status was {r.Status}, should not be possible.");
-
-            using (_aiOperations.AllocateOperationContext(out JsonOperationContext ctx))
-            {
-                foreach (var action in _actionRequests)
-                {
-                    if (_invocations.TryGetValue(action.Name, out var invocation))
-                    {
-                        // error handling here is expected to be done by the invocation based on the error strategy the user choose
-                        var response = await invocation.Invoke(ctx, action.Arguments, token).ConfigureAwait(false);
-                        AddActionResponse(action.ToolId, response);
-                    }
-                }
-            }
-
-            // We have nothing to tell the server, but still have action requests pending
-            // we need to send those action requests to the caller that can handle them
-            if (_actionResponses.Count == 0)
-                return r; // note - this has ActionsRequired status
         }
     }
 
-    private async Task<AiAnswer<TAnswer>> RunAsyncInternal<TAnswer>(CancellationToken token = default)
+    private async Task<bool> HandleServerReplyAsync<TAnswer>(AiAnswer<TAnswer> r, CancellationToken token)
+    {
+        if (r.Status == AiConversationResult.Done)
+            return true;
+
+        if (_actionRequests.Count == 0)
+            throw new InvalidOperationException($"There are no action requests to process, but Status was {r.Status}, should not be possible.");
+
+        using (_aiOperations.AllocateOperationContext(out JsonOperationContext ctx))
+        {
+            foreach (var action in _actionRequests)
+            {
+                if (_invocations.TryGetValue(action.Name, out var invocation))
+                {
+                    // error handling here is expected to be done by the invocation based on the error strategy the user choose
+                    await invocation.Invoke(ctx, action, token).ConfigureAwait(false);
+                }
+                else if (OnUnhandledAction is { } onUnhandledAction)
+                {
+                    await onUnhandledAction(new UnhandledActionEventArgs(this, action, token)).ConfigureAwait(false);
+                }
+                else
+                {
+                    throw new InvalidOperationException(
+                        $"There is no action defined for action '{action.Name}' on agent '{_agentId}' ({_conversationId}), but it was invoked by the model with: {action.Arguments}. " +
+                        $"Did you forget to call {nameof(Receive)} or {nameof(Handle)}? You can also handle unexpected action invocations using the {nameof(OnUnhandledAction)} event.");
+                }
+            }
+        }
+
+        // We have nothing to tell the server, but still have action requests pending
+        // we need to send those action requests to the caller that can handle them
+        return _actionResponses.Count == 0;
+    }
+
+    public event Func<UnhandledActionEventArgs, Task> OnUnhandledAction;
+
+    private async Task<AiAnswer<TAnswer>> RunAsyncInternal<TAnswer>(string streamPropertyPath, Func<string, Task> streamedChunksCallback, CancellationToken token = default)
     {
         if (
             // if this is null, it is the first time we call RunAsync, so we are going to the server to get the pending actions
@@ -164,7 +232,7 @@ internal class AiConversation : IAiConversationOperations
             };
         }
 
-        var op = new RunConversationOperation<TAnswer>(_agentId, _conversationId, _userPrompt, _actionResponses, _options, _changeVector);
+        var op = new RunConversationOperation<TAnswer>(_agentId, _conversationId, _userPrompt, _actionResponses, _options, _changeVector, streamPropertyPath, streamedChunksCallback);
 
         try
         {
@@ -175,7 +243,7 @@ internal class AiConversation : IAiConversationOperations
 
             return new AiAnswer<TAnswer>
             {
-                Answer = r.Response, 
+                Answer = r.Response,
                 Status = _actionRequests.Count > 0 ? AiConversationResult.ActionRequired : AiConversationResult.Done
             };
         }
@@ -195,50 +263,44 @@ internal class AiConversation : IAiConversationOperations
     private class AiActionContext<TActionParametersSchema>
         where TActionParametersSchema : class
     {
-        private readonly Func<TActionParametersSchema, Task<object>> _asyncAction;
+        private readonly AiConversation _conversation;
+        private readonly Func<AiAgentActionRequest, TActionParametersSchema, Task> _asyncAction;
         private readonly AiHandleErrorStrategy _errorStrategy;
-        private readonly AiOperations _aiOperations;
 
-        public AiActionContext(AiOperations aiOperations, Func<TActionParametersSchema, Task<object>> asyncAction, AiHandleErrorStrategy errorStrategy)
+        public AiActionContext(AiConversation conversation, Func<AiAgentActionRequest, TActionParametersSchema, Task> asyncAction, AiHandleErrorStrategy errorStrategy)
         {
+            _conversation = conversation;
             _asyncAction = asyncAction;
             _errorStrategy = errorStrategy;
-            _aiOperations = aiOperations;
         }
 
-        public AiActionContext(AiOperations aiOperations, Func<TActionParametersSchema, object> asyncAction, AiHandleErrorStrategy errorStrategy)
-        {
-            _asyncAction = args => Task.FromResult(asyncAction(args));
-            _aiOperations = aiOperations;
-            _errorStrategy = errorStrategy;
-        }
-
-        public async Task<object> ExecuteAsync(JsonOperationContext context, string arguments, CancellationToken token = default)
+        public async Task ExecuteAsync(JsonOperationContext context, AiAgentActionRequest actionRequest, CancellationToken token = default)
         {
             if (typeof(TActionParametersSchema) == typeof(string))
             {
-                var args = arguments as TActionParametersSchema;
-                return await Invoke(args).ConfigureAwait(false);
+                var args = actionRequest.Arguments as TActionParametersSchema;
+                await Invoke(actionRequest, args).ConfigureAwait(false);
+                return;
             }
 
-            using (var json = context.Sync.ReadForMemory(arguments, "tool/arguments"))
+            using (var json = context.Sync.ReadForMemory(actionRequest.Arguments, "tool/arguments"))
             {
-                var converter = _aiOperations._store.Conventions.Serialization.DefaultConverter;
+                var converter = _conversation._aiOperations._store.Conventions.Serialization.DefaultConverter;
                 var args = converter.FromBlittable<TActionParametersSchema>(json);
 
-                return await Invoke(args).ConfigureAwait(false);
+                await Invoke(actionRequest, args).ConfigureAwait(false);
             }
         }
 
-        private async Task<object> Invoke(TActionParametersSchema args)
+        private async Task Invoke(AiAgentActionRequest actionRequest, TActionParametersSchema args)
         {
             try
             {
-                return await _asyncAction.Invoke(args).ConfigureAwait(false);
+                await _asyncAction.Invoke(actionRequest, args).ConfigureAwait(false);
             }
             catch (Exception e) when (_errorStrategy is AiHandleErrorStrategy.SendErrorsToModel)
             {
-                return CreateErrorMessageForLlm(e);
+                _conversation.AddActionResponse(actionRequest.ToolId, CreateErrorMessageForLlm(e));
             }
         }
 

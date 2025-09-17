@@ -1,9 +1,9 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <Description>Raven.Server is the database server for RavenDB</Description>
-    <Authors>Hibernating Rhinos</Authors>
+    <Authors>RavenDB</Authors>
     <TargetFramework>net8.0</TargetFramework>
-    <RuntimeFrameworkVersion>8.0.18</RuntimeFrameworkVersion>
+    <RuntimeFrameworkVersion>8.0.20</RuntimeFrameworkVersion>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <AssemblyName>Raven.Server</AssemblyName>
     <OutputType>Exe</OutputType>
@@ -207,6 +207,7 @@
     <PackageReference Include="System.Formats.Asn1" />
     <PackageReference Include="System.Linq.Async" />
     <PackageReference Include="System.Net.Http" />
+    <PackageReference Include="System.Net.ServerSentEvents" />
     <PackageReference Include="System.Private.Uri" />
     <PackageReference Include="System.Reflection.Metadata" />
     <PackageReference Include="System.Runtime.Caching" />

@@ -22,6 +22,8 @@ import ReplicationTaskProgress = Raven.Server.Documents.Replication.Stats.Replic
 import InternalReplicationTaskProgress = Raven.Server.Documents.Replication.Stats.InternalReplicationTaskProgress;
 import ReplicationProcessProgress = Raven.Server.Documents.Replication.Stats.ReplicationProcessProgress;
 import OngoingTaskSnowflakeEtl = Raven.Client.Documents.Operations.OngoingTasks.OngoingTaskSnowflakeEtl;
+import EmbeddingsGeneration = Raven.Client.Documents.Operations.OngoingTasks.EmbeddingsGeneration;
+import GenAi = Raven.Client.Documents.Operations.OngoingTasks.GenAi;
 
 export class TasksStubs {
     static getTasksList(): OngoingTasksResult {
@@ -31,6 +33,8 @@ export class TasksStubs {
 
         return {
             OngoingTasks: [
+                TasksStubs.getGenAi(),
+                TasksStubs.getEmbeddingsGeneration(),
                 TasksStubs.getRavenEtl(),
                 TasksStubs.getSql(),
                 TasksStubs.getSnowflake(),
@@ -272,6 +276,10 @@ export class TasksStubs {
                 MinimumBackupAgeToKeep: "1.00:00:00",
             },
             PinToMentorNode: false,
+            FullBackupFrequency: "0 2 * * 0",
+            IncrementalBackupFrequency: "0 2 * * *",
+            BackupUploadMode: "Default",
+            HasCloudBackup: false,
         };
     }
 
@@ -296,6 +304,110 @@ export class TasksStubs {
             LastSentEtag: 1,
             LastDatabaseEtag: 1,
             SourceDatabaseChangeVector: "A:1-1DY5O5W9RUCDrntDONmNmw",
+        };
+    }
+
+    static getGenAi(): GenAi {
+        return {
+            TaskId: 523,
+            TaskType: "GenAi",
+            ResponsibleNode: TasksStubs.getResponsibleNode(),
+            TaskState: "Enabled",
+            TaskConnectionStatus: "Active",
+            TaskName: "GenAITask",
+            MentorNode: null,
+            PinToMentorNode: false,
+            Error: null,
+            ConnectionStringName: "for-gen",
+            Configuration: {
+                Name: "GenAITask",
+                TaskId: 523,
+                Disabled: false,
+                EtlType: "GenAi",
+                ConnectionStringName: "for-gen",
+                MentorNode: null,
+                PinToMentorNode: false,
+                AllowEtlOnNonEncryptedChannel: false,
+                Transforms: [
+                    {
+                        Name: "GenAi-transform-script",
+                        Script: "for(const comment of this.Comments)\r\n{\r\n    ai.genContext({\r\n        Text: `Blog post topic: ${this.Topic}. Comment: ${comment.Text}`, \r\n        AuthorName: comment.Author,\r\n        CommentId: comment.Id\r\n    });\r\n}",
+                        Collections: ["Posts"],
+                        ApplyToAllDocuments: false,
+                        DocumentIdPostfix: null,
+                        Disabled: false,
+                    },
+                ],
+                Identifier: "genaitask",
+                Collection: "Posts",
+                Prompt: "Check if the following blog post comment is spam or not. A spam comment typically includes irrelevant or promotional content, excessive links, misleading information, or is written with the intent to manipulate search rankings or advertise products/services. Consider the language, intent, and relevance of the comment to the blog post topic. ",
+                SampleObject:
+                    '{\r\n    "IsCommentSpam": true,\r\n    "Reason": "Concise reason for why this comment was marked as spam or ham"\r\n}',
+                JsonSchema: "",
+                UpdateScript:
+                    'const idx = this.Comments.findIndex(comment => comment.Id == $input.CommentId);\r\nif ($output.IsCommentSpam) {\r\n    this.Comments.splice(idx, 1);\r\n    const newDocument = { "comment": $input.Text, "@metadata": { "@collection": "spamComments"} };\r\n    put(id(this) +"/spam/", newDocument);\r\n}',
+                GenAiTransformation: {
+                    Script: "for(const comment of this.Comments)\r\n{\r\n    ai.genContext({\r\n        Text: `Blog post topic: ${this.Topic}. Comment: ${comment.Text}`, \r\n        AuthorName: comment.Author,\r\n        CommentId: comment.Id\r\n    });\r\n}",
+                },
+                MaxConcurrency: 4,
+            },
+            ChangeVector: null,
+        };
+    }
+
+    static getEmbeddingsGeneration(): EmbeddingsGeneration {
+        return {
+            TaskId: 439,
+            TaskType: "EmbeddingsGeneration",
+            ResponsibleNode: TasksStubs.getResponsibleNode(),
+            TaskState: "Enabled",
+            TaskConnectionStatus: "Active",
+            TaskName: "EmbeddingsGenerationTask",
+            MentorNode: null,
+            PinToMentorNode: false,
+            Error: null,
+            ConnectionStringName: "emb",
+            Configuration: {
+                Disabled: false,
+                EtlType: "EmbeddingsGeneration",
+                Name: "EmbeddingsGenerationTask",
+                TaskId: 439,
+                ConnectionStringName: "emb",
+                MentorNode: null,
+                PinToMentorNode: false,
+                AllowEtlOnNonEncryptedChannel: false,
+                Transforms: [
+                    {
+                        Name: "embeddings-from-paths",
+                        Script: null,
+                        Collections: ["Products"],
+                        ApplyToAllDocuments: false,
+                        DocumentIdPostfix: null,
+                        Disabled: false,
+                    },
+                ],
+                Identifier: "embeddingsgenerationtask",
+                Collection: "Products",
+                EmbeddingsPathConfigurations: [
+                    {
+                        Path: "Name",
+                        ChunkingOptions: {
+                            OverlapTokens: 0,
+                            ChunkingMethod: "PlainTextSplit",
+                            MaxTokensPerChunk: 2048,
+                        },
+                    },
+                ],
+                EmbeddingsTransformation: null,
+                Quantization: "Single",
+                EmbeddingsCacheExpiration: "90.00:00:00",
+                ChunkingOptionsForQuerying: {
+                    OverlapTokens: 0,
+                    ChunkingMethod: "PlainTextSplit",
+                    MaxTokensPerChunk: 2048,
+                },
+                EmbeddingsCacheForQueryingExpiration: "14.00:00:00",
+            },
         };
     }
 
@@ -712,8 +824,23 @@ namespace Orders
                         },
                         IsCached: true,
                         AiHash: "MWoEsxOgGzl1OZarcxjlIki5ELBagYJjX/uIPHEFcxA=",
+                        Attachments: [
+                            {
+                                Name: "heart.png",
+                                Type: "image/png",
+                                Source: "FromAttachment",
+                                Data: "[Hash:'FLNK25A3VOpVPIiusBEZMwUU5mWqSZR7T2OqYF4nBfA=']",
+                            },
+                            {
+                                Name: "transactions.csv",
+                                Type: "text/plain",
+                                Source: "FromAttachment",
+                                Data: "Date,Description,Category,Amount\r\n2025-01-01,Grocery Store,food,45.32\r\n2025-01-02,Utility Bill,Ut...",
+                            },
+                        ],
                     },
                     ModelOutput: null,
+                    DocumentId: null,
                 },
                 {
                     ContextOutput: {
@@ -724,8 +851,23 @@ namespace Orders
                         },
                         IsCached: true,
                         AiHash: "tDRYDLQP/Q7sNmY6ZCRCcMUwwGdD1Lp05/Evybr7C0s=",
+                        Attachments: [
+                            {
+                                Name: "heart.png",
+                                Type: "image/png",
+                                Source: "FromAttachment",
+                                Data: "[Hash:'FLNK25A3VOpVPIiusBEZMwUU5mWqSZR7T2OqYF4nBfA=']",
+                            },
+                            {
+                                Name: "transactions.csv",
+                                Type: "text/plain",
+                                Source: "FromAttachment",
+                                Data: "Date,Description,Category,Amount\r\n2025-01-01,Grocery Store,food,45.32\r\n2025-01-02,Utility Bill,Ut...",
+                            },
+                        ],
                     },
                     ModelOutput: null,
+                    DocumentId: null,
                 },
             ],
         };
@@ -765,6 +907,7 @@ namespace Orders
                         },
                         IsCached: true,
                         AiHash: "MWoEsxOgGzl1OZarcxjlIki5ELBagYJjX/uIPHEFcxA=",
+                        Attachments: [],
                     },
                     ModelOutput: {
                         Usage: {
@@ -778,6 +921,7 @@ namespace Orders
                             Reason: "Spam detected",
                         },
                     },
+                    DocumentId: null,
                 },
                 {
                     ContextOutput: {
@@ -788,6 +932,7 @@ namespace Orders
                         },
                         IsCached: true,
                         AiHash: "tDRYDLQP/Q7sNmY6ZCRCcMUwwGdD1Lp05/Evybr7C0s=",
+                        Attachments: [],
                     },
                     ModelOutput: {
                         Usage: {
@@ -801,6 +946,7 @@ namespace Orders
                             Reason: "No spam found",
                         },
                     },
+                    DocumentId: null,
                 },
             ],
         };
@@ -849,6 +995,7 @@ namespace Orders
                         },
                         IsCached: true,
                         AiHash: "MWoEsxOgGzl1OZarcxjlIki5ELBagYJjX/uIPHEFcxA=",
+                        Attachments: [],
                     },
                     ModelOutput: {
                         Usage: {
@@ -862,6 +1009,7 @@ namespace Orders
                             Reason: "Spam detected",
                         },
                     },
+                    DocumentId: null,
                 },
                 {
                     ContextOutput: {
@@ -872,6 +1020,7 @@ namespace Orders
                         },
                         IsCached: true,
                         AiHash: "tDRYDLQP/Q7sNmY6ZCRCcMUwwGdD1Lp05/Evybr7C0s=",
+                        Attachments: [],
                     },
                     ModelOutput: {
                         Usage: {
@@ -885,6 +1034,7 @@ namespace Orders
                             Reason: "No spam found",
                         },
                     },
+                    DocumentId: null,
                 },
             ],
         };

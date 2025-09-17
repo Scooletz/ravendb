@@ -16,6 +16,7 @@ import PopoverWithHoverWrapper from "components/common/PopoverWithHoverWrapper";
 import EmbeddingsMaxConcurrentBatches from "./EmbeddingsMaxConcurrentBatchesField";
 import { SelectOption } from "components/common/select/Select";
 import { useAsyncDebounce } from "components/hooks/useAsyncDebounce";
+import TemperatureField from "./TemperatureField";
 
 type FormData = ConnectionFormData<AiConnection>;
 
@@ -36,6 +37,7 @@ export default function OllamaSettings({ isUsedByAnyTask }: { isUsedByAnyTask: b
             Model: formValues.ollamaSettings.model,
             Uri: formValues.ollamaSettings.uri,
             Think: formValues.ollamaSettings.think,
+            Temperature: formValues.ollamaSettings.isSetTemperature ? formValues.ollamaSettings.temperature : null,
         });
     });
 
@@ -104,6 +106,7 @@ export default function OllamaSettings({ isUsedByAnyTask }: { isUsedByAnyTask: b
                     <FormSelect control={control} name="ollamaSettings.think" options={thinkOptions} />
                 </div>
             )}
+            <TemperatureField baseName="ollamaSettings" />
             {formValues.modelType === "TextEmbeddings" && <EmbeddingsMaxConcurrentBatches baseName="ollamaSettings" />}
             <div className="d-flex mb-2">
                 <FlexGrow />

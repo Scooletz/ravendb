@@ -7,13 +7,18 @@ using Raven.Client.Http;
 using Raven.Client.Json;
 using Sparrow.Json;
 using Sparrow.Logging;
+using Raven.Client.Json.Serialization;
 
 namespace Raven.Client.Documents.Subscriptions;
 
+/// <summary>
+/// Base type for subscription batches, providing access to batch items, includes and helpers.
+/// </summary>
 public abstract class SubscriptionBatchBase<T>
 {
     /// <summary>
-    /// Represents a single item in a subscription batch results. This class should be used only inside the subscription's Run delegate, using it outside this scope might cause unexpected behavior.
+    /// A single item in the batch, including the deserialized entity and its raw JSON and metadata.
+    /// Use only within the subscription Run delegate.
     /// </summary>
     public struct Item
     {
@@ -29,6 +34,10 @@ public abstract class SubscriptionBatchBase<T>
             throw new InvalidOperationException($"Failed to process document {Id} with Change Vector {ChangeVector} because:{Environment.NewLine}{ExceptionMessage}");
         }
 
+        /// <summary>
+        /// The deserialized entity. Accessing this property will throw if the item processing on the server failed.
+        /// </summary>
+        /// <exception cref="InvalidOperationException">Thrown when the server reported an exception for this item.</exception>
         public T Result
         {
             get
@@ -41,13 +50,28 @@ public abstract class SubscriptionBatchBase<T>
             internal set => _result = value;
         }
 
+        /// <summary>
+        /// Raw document JSON as received from the server.
+        /// </summary>
         public BlittableJsonReaderObject RawResult { get; internal set; }
+        /// <summary>
+        /// Raw metadata JSON of the document.
+        /// </summary>
         public BlittableJsonReaderObject RawMetadata { get; internal set; }
 
+        /// <summary>
+        /// A convenient metadata dictionary abstraction over the raw metadata.
+        /// </summary>
         public IMetadataDictionary Metadata { get; internal set; }
     }
 
+    /// <summary>
+    /// The change vector of the last item in this batch.
+    /// </summary>
     public string LastSentChangeVectorInBatch;
+    /// <summary>
+    /// The number of items in this batch.
+    /// </summary>
     public int NumberOfItemsInBatch => Items?.Count ?? 0;
     internal int NumberOfIncludes => _includes?.Count ?? 0;
 
@@ -55,10 +79,14 @@ public abstract class SubscriptionBatchBase<T>
     protected readonly string _dbName;
     protected readonly IRavenLogger _logger;
 
+    /// <summary>
+    /// The items contained in this batch.
+    /// </summary>
     public List<Item> Items { get; } = new List<Item>();
     protected List<BlittableJsonReaderObject> _includes;
     protected List<(BlittableJsonReaderObject Includes, Dictionary<string, string[]> IncludedCounterNames)> _counterIncludes;
     protected List<BlittableJsonReaderObject> _timeSeriesIncludes;
+    internal ISubscriptionsBlittableJsonConverter _converter;
 
     protected SubscriptionBatchBase(RequestExecutor requestExecutor, string dbName, IRavenLogger logger)
     {
@@ -104,7 +132,7 @@ public abstract class SubscriptionBatchBase<T>
                 {
                     try
                     {
-                        instance = _requestExecutor.Conventions.Serialization.DefaultConverter.FromBlittable<T>(curDoc, id);
+                        instance = _converter.FromBlittable<T>(curDoc, id);
                     }
                     catch (InvalidOperationException e)
                     {

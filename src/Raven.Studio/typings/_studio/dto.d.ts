@@ -1088,8 +1088,9 @@ type CertificateDto = Partial<Raven.Client.ServerWide.Operations.Certificates.Ce
 type CertificatesResponseDto = {
     Certificates: CertificateDto[],
     LoadedServerCert: string,
+    LoadedServerCertForCommunication?: string,
     WellKnownAdminCerts: string[],
-    WellKnownIssuers: string[]
+    WellKnownIssuers: string[],
 }
 
 interface TrafficWatchPostgresChange extends Raven.Client.Documents.Changes.TrafficWatchChangeBase {
@@ -1112,4 +1113,8 @@ interface AiModelsRequestDto {
     AzureOpenAiSettings?: Pick<Raven.Client.Documents.Operations.AI.AzureOpenAiSettings, "Endpoint", "ApiKey">;
     OllamaSettings?: Pick<Raven.Client.Documents.Operations.AI.OllamaSettings, "Uri" | "Think">;
     OpenAiSettings?: Pick<Raven.Client.Documents.Operations.AI.OpenAiSettings, "Endpoint" | "ApiKey" | "OrganizationId" | "ProjectId">;
+}
+
+interface GetAiAgentResultDto {
+    AiAgents: Raven.Client.Documents.Operations.AI.Agents.AiAgentConfiguration[];
 }

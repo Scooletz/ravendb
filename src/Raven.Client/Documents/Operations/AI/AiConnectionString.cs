@@ -212,43 +212,4 @@ public sealed class AiConnectionString : ConnectionString
                HuggingFaceSettings ??
                (AbstractAiSettings)MistralAiSettings;
     }
-
-    internal bool TryGetParametersForGenAiTesting(out string uri, out string apiKey, out string model, out string organizationId, out string projectId, out bool? think)
-    {
-        uri = null;
-        apiKey = null;
-        model = null;
-        organizationId = null;
-        projectId = null;
-        think = null;
-
-        switch (ModelType)
-        {
-            case AiModelType.Chat:
-                break;
-            default:
-                throw new InvalidOperationException(
-                    $"Invalid provider settings for '{Name}' with model type '{ModelType}'. " +
-                    $"Supported providers for '{nameof(ModelType.Chat)}' model type are '{nameof(AiConnectorType.OpenAi)}' and '{nameof(AiConnectorType.Ollama)}'");
-        }
-
-        var provider = GetActiveProvider();
-        switch (provider)
-        {
-            case AiConnectorType.OpenAi:
-                uri = OpenAiSettings.Endpoint;
-                apiKey = OpenAiSettings.ApiKey;
-                model = OpenAiSettings.Model;
-                organizationId = OpenAiSettings.OrganizationId;
-                projectId = OpenAiSettings.ProjectId;
-                return true;
-            case AiConnectorType.Ollama:
-                uri = OllamaSettings.Uri; 
-                model = OllamaSettings.Model;
-                think = OllamaSettings.Think;
-                return true;
-        }
-
-        return false;
-    }
 }

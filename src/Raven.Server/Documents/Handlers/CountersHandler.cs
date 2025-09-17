@@ -1,10 +1,4 @@
-﻿// -----------------------------------------------------------------------
-//  <copyright file="CountersHandler.cs" company="Hibernating Rhinos LTD">
-//      Copyright (c) Hibernating Rhinos LTD. All rights reserved.
-//  </copyright>
-// -----------------------------------------------------------------------
-
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
@@ -510,7 +504,7 @@ namespace Raven.Server.Documents.Handlers
 
                 var counterGroupChangeVector = context.GetChangeVector(counterGroupDetail.ChangeVector);
                 _database.DocumentsStorage.CountersStorage.PutCounters(context, counterGroupDetail.DocumentId, docCollection,
-                    counterGroupChangeVector, counterGroupDetail.Values);
+                    counterGroupChangeVector, counterGroupDetail.Values, out _);
 
                 context.LastDatabaseChangeVector ??= DocumentsStorage.GetDatabaseChangeVector(context);
                 context.LastDatabaseChangeVector = context.LastDatabaseChangeVector.MergeWith(counterGroupChangeVector, context);

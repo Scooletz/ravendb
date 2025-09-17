@@ -1,10 +1,4 @@
-// -----------------------------------------------------------------------
-//  <copyright file="SubscriptionWorkerOptions.cs" company="Hibernating Rhinos LTD">
-//      Copyright (c) Hibernating Rhinos LTD. All rights reserved.
-//  </copyright>
-// -----------------------------------------------------------------------
-
-using System;
+﻿using System;
 using System.Collections.Generic;
 using Sparrow.Json;
 
@@ -197,7 +191,7 @@ namespace Raven.Client.Documents.Subscriptions
         public int SendBufferSizeInBytes { get; set; }
 
         /// <summary>
-        /// Receive buffer for the underlying connection. Default: 4096 bytes (4 kB)
+        /// Receive buffer for the underlying connection. Default: 32768 bytes (32 kB)
         /// </summary>
         public int ReceiveBufferSizeInBytes { get; set; }
 

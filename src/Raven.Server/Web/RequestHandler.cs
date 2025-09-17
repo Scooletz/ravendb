@@ -340,7 +340,7 @@ namespace Raven.Server.Web
 
         internal long GetLongQueryString(string name)
         {
-            return GetLongQueryString(name, true).Value;
+            return GetLongQueryString(name, required: true)!.Value;
         }
 
         internal long? GetLongQueryString(string name, bool required)
@@ -746,7 +746,7 @@ namespace Raven.Server.Web
                     allowedOrigin = requestedOrigin;
                     break;
                 case CorsMode.Cluster:
-                    if (serverStore.Server.Certificate.Certificate == null || IsOriginAllowed(requestedOrigin, serverStore))
+                    if (serverStore.Server.Certificate.ServerCertificate == null || IsOriginAllowed(requestedOrigin, serverStore))
                         allowedOrigin = requestedOrigin;
                     break;
             }
