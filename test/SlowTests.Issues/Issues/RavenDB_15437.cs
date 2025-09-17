@@ -41,7 +41,7 @@ namespace SlowTests.Issues
                 var dbA = await GetDocumentDatabaseInstanceForAsync(storeA, options.DatabaseMode, "users/1");
                 dbA.Configuration.Replication.MaxItemsCount = 1;
 
-                var breakA = await SetActiveBreakpointAsync(dbA);
+                var breakA = await SetActiveBreakpointAsync(dbA, 1);
 
                 using (var session = storeA.OpenAsyncSession())
                 {

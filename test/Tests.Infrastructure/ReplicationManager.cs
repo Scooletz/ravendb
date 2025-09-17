@@ -76,6 +76,11 @@ public partial class RavenTestBase
             public bool BreakReplicationOnStart = true;
             public bool KeepMaxItemsCountOnDispose;
             public int? MaxItemsCount = 1;
+
+            /// <summary>
+            /// How many replication processes are handled by this manager.
+            /// </summary>
+            public int NumberOfReplications = 1;
         }
     }
 }

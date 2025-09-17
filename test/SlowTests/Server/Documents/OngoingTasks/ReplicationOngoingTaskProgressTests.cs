@@ -140,7 +140,7 @@ namespace SlowTests.Server.Documents.OngoingTasks
             await PullReplicationTests.SetupPullReplicationAsync("hub", sink1, hub);
             await PullReplicationTests.SetupPullReplicationAsync("hub", sink2, hub);
 
-            var replication = await BreakReplication(Server.ServerStore, hub.Database);
+            var replication = await BreakReplication(Server.ServerStore, hub.Database, 2);
 
             await StoreData(hub);
 

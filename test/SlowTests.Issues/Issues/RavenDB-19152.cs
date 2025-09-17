@@ -119,8 +119,8 @@ namespace SlowTests.Issues
 
             // halt replication to simulate out-of-sync updates
 
-            var breakA = await SetActiveBreakpointAsync(dbA);
-            var breakB = await SetActiveBreakpointAsync(dbB);
+            var breakA = await SetActiveBreakpointAsync(dbA, 1);
+            var breakB = await SetActiveBreakpointAsync(dbB, 1);
 
             using (var session = store1.OpenAsyncSession())
             {

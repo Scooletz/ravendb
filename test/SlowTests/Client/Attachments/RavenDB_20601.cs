@@ -85,7 +85,7 @@ namespace SlowTests.Client.Attachments
                 await SetupReplicationAsync(store1, store2);
                 await EnsureReplicatingAsync(store1, store2);
                 var d = await BreakReplication(Server.ServerStore, store1.Database);
-                using (var profileStream = new MemoryStream(new byte[] { 1, 2, 3 }))
+                using (var profileStream = new MemoryStream([1, 2, 3]))
                 {
                     using (var session = store1.OpenSession())
                     {
