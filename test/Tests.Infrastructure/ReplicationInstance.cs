@@ -24,7 +24,7 @@ namespace Tests.Infrastructure
             DatabaseName = databaseName ?? throw new ArgumentNullException(nameof(databaseName));
             _options = options;
 
-            _database.ReplicationLoader.DebugBreakpoint = _breakpoint = new AsyncBreakpoint();
+            _database.ReplicationLoader.DebugBreakpoint = _breakpoint = new AsyncBreakpoint(databaseName);
         }
 
         public Task Break() => _breakpoint.Break();

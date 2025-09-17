@@ -75,9 +75,8 @@ namespace Tests.Infrastructure
 
         protected static async Task<ReplicationInstance> BreakReplication(Raven.Server.ServerWide.ServerStore from, string databaseName)
         {
-            var replication = await ReplicationInstance.GetReplicationInstanceAsync(from.Server, databaseName, new ReplicationManager.ReplicationOptions());
-            await replication.Break();
-            return replication;
+            // The default replication options set already the replication to break
+            return await ReplicationInstance.GetReplicationInstanceAsync(from.Server, databaseName, new ReplicationManager.ReplicationOptions());
         }
 
         protected static GetConflictsResult.Conflict[] WaitUntilHasConflict(IDocumentStore store, string docId, int count = 2)
@@ -344,7 +343,7 @@ namespace Tests.Infrastructure
                 }
                 else
                 {
-                    _breakpoint = database.ReplicationLoader.DebugBreakpoint = new AsyncBreakpoint();
+                    _breakpoint = database.ReplicationLoader.DebugBreakpoint = new AsyncBreakpoint(database.Name);
                 }
             }
 
@@ -581,7 +580,7 @@ namespace Tests.Infrastructure
 
         protected static async Task<AsyncBreakpoint> SetActiveBreakpointAsync(DocumentDatabase db)
         {
-            AsyncBreakpoint breakpoint = new();
+            AsyncBreakpoint breakpoint = new(db.Name);
             db.ReplicationLoader.DebugBreakpoint = breakpoint;
             await breakpoint.Break();
             return breakpoint;

@@ -10,6 +10,7 @@ namespace Raven.Server.Utils;
 /// </summary>
 public sealed class AsyncBreakpoint
 {
+    private readonly string _name;
     private readonly object _locker = new();
 
     private TaskCompletionSource _break;
@@ -19,6 +20,11 @@ public sealed class AsyncBreakpoint
     private CancellationTokenRegistration? _registration;
     private bool _throwCancellation;
 
+    public AsyncBreakpoint(string name)
+    {
+        _name = name;
+    }
+
     /// <summary>
     /// When hit with the next call of the <see cref="Wait"/>, it will pause its execution synchronously.
     /// The returned 
@@ -27,7 +33,7 @@ public sealed class AsyncBreakpoint
     {
         lock (_locker)
         {
-            Debug.Assert(_break == null);
+            Debug.Assert(_break == null, $"{nameof(Break)} was already called. Ensure that you call it only once.");
             Debug.Assert(_continue == null);
 
             _break = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -126,5 +132,5 @@ public sealed class AsyncBreakpoint
         }
     }
 
-    
+    public override string ToString() => $"{nameof(AsyncBreakpoint)}: {_name}";
 }
