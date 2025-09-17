@@ -1208,6 +1208,8 @@ namespace RachisTests.DatabaseCluster
                 var database = await cluster.Leader.ServerStore.DatabasesLandlord.TryGetOrCreateResourceStore(store.Database);
                 using (var controller = new ReplicationController(database))
                 {
+                    await controller.Break();
+                    
                     using (var session = store.OpenSession(new SessionOptions { TransactionMode = TransactionMode.ClusterWide }))
                     {
                         session.Store(new User(), "users/1");
@@ -1226,7 +1228,7 @@ namespace RachisTests.DatabaseCluster
                         session.Store(new User(), "users/3");
                         session.SaveChanges();
                     }
-                    controller.ReplicateOnce();
+                    await controller.ReplicateOnce();
                     await WaitForDocumentInClusterAsync<User>(new DatabaseTopology { Members = new List<string> { "A", "B" } }, store.Database, "users/3", null,
                         TimeSpan.FromSeconds(10), assertTo: false);
                 }

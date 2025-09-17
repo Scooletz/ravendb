@@ -1539,7 +1539,7 @@ namespace SlowTests.Cluster
 
                 await StoreInTransactionMode(storeB, 1);
 
-                breakRepl.Mend();
+                await breakRepl.Mend();
 
                 var val = await WaitForValueAsync(async () => await GetMembersCount(storeB, database), 2, 20000);
                 Assert.Equal(2, val);

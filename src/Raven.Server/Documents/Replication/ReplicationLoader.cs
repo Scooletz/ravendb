@@ -60,7 +60,8 @@ namespace Raven.Server.Documents.Replication
 
         public event Action<DatabaseOutgoingReplicationHandler> OutgoingReplicationRemoved;
 
-        internal ManualResetEventSlim DebugWaitAndRunReplicationOnce;
+        internal volatile AsyncBreakpoint DebugBreakpoint;
+        internal readonly int MinimalHeartbeatInterval;
 
         public DocumentDatabase Database;
         private SingleUseFlag _isInitialized = new SingleUseFlag();

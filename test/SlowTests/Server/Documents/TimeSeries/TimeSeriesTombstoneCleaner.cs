@@ -449,6 +449,8 @@ namespace SlowTests.Server.Documents.TimeSeries
 
                 using (var controller = new ReplicationController(storage))
                 {
+                    await controller.Break();
+                    
                     foreach (string user in users)
                     {
                         using (var session = store1.OpenSession())
@@ -460,8 +462,7 @@ namespace SlowTests.Server.Documents.TimeSeries
                         }
                     }
 
-                    controller.ReplicateOnce();
-
+                    await controller.ReplicateOnce();
                     await cleaner.ExecuteCleanup();
                 }
 

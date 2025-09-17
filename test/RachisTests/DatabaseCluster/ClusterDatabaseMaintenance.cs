@@ -211,7 +211,7 @@ namespace RachisTests.DatabaseCluster
                 val = await WaitForValueAsync(async () => await GetRehabCount(store), 2);
                 Assert.Equal(2, val);
 
-                broken.Mend();
+                await broken.Mend();
 
                 val = await WaitForValueAsync(async () => await GetMembersCount(store), 3);
                 Assert.Equal(3, val);
@@ -229,7 +229,7 @@ namespace RachisTests.DatabaseCluster
             var dbNode = nodes.First(x => x.ServerStore.NodeTag != leader.ServerStore.NodeTag);
             using (var store = new DocumentStore()
             {
-                Urls = new string[] { leader.WebUrl },
+                Urls = [leader.WebUrl],
                 Database = name
             })
             {
@@ -1757,6 +1757,8 @@ namespace RachisTests.DatabaseCluster
             using (var nonDeletedController1 = new ReplicationController(nonDeletedStorage1))
             using (var nonDeletedController2 = new ReplicationController(nonDeletedStorage2))
             {
+                await deletedController.Break();
+                
                 using (var session = nonDeletedStores[0].OpenAsyncSession())
                 {
                     await session.StoreAsync(new User { Name = "Karmel" }, "foo/bar");
@@ -1775,8 +1777,7 @@ namespace RachisTests.DatabaseCluster
                 var t = Task.WhenAll(t1, t2);
                 while (t.IsCompleted == false)
                 {
-                    deletedController.ReplicateOnce();
-                    await Task.Delay(250);
+                    await deletedController.ReplicateOnce();
                 }
 
                 Assert.True(await t1);
@@ -1866,6 +1867,8 @@ namespace RachisTests.DatabaseCluster
             using (var nonDeletedController1 = new ReplicationController(nonDeletedStorage1))
             using (var nonDeletedController2 = new ReplicationController(nonDeletedStorage2))
             {
+                await deletedController.Break();
+                
                 using (var session = toBeDeletedStore.OpenAsyncSession())
                 {
                     await session.StoreAsync(new User { Name = "Karmel" }, "foo/bar");
@@ -1878,8 +1881,7 @@ namespace RachisTests.DatabaseCluster
 
                     while (t.IsCompleted == false)
                     {
-                        deletedController.ReplicateOnce();
-                        await Task.Delay(250);
+                        await deletedController.ReplicateOnce();
                     }
 
                     await t;
@@ -2004,8 +2006,8 @@ namespace RachisTests.DatabaseCluster
 
             await RemoveDatabaseNode(cluster.Nodes, database, toDelete.ServerStore.NodeTag);
 
-            rep1.Mend();
-            rep2.Mend();
+            await rep1.Mend();
+            await rep2.Mend();
 
             await Task.Delay(1000);
             EnsureReplicating(nonDeletedStores[0], nonDeletedStores[1]);

@@ -1,12 +1,11 @@
 ﻿using System;
-using System.Diagnostics;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 using FastTests;
 using Raven.Server;
 using Raven.Server.Documents;
 using Raven.Server.Documents.Replication.Stats;
+using Raven.Server.Utils;
 using Sparrow.Utils;
 using Xunit;
 
@@ -17,8 +16,7 @@ namespace Tests.Infrastructure
         private readonly DocumentDatabase _database;
         public readonly string DatabaseName;
         private readonly RavenTestBase.ReplicationManager.ReplicationOptions _options;
-        private ManualResetEventSlim _replicateOnceMre;
-        private bool _replicateOnceInitialized = false;
+        private readonly AsyncBreakpoint _breakpoint;
 
         public ReplicationInstance(DocumentDatabase database, string databaseName, RavenTestBase.ReplicationManager.ReplicationOptions options)
         {
@@ -26,63 +24,27 @@ namespace Tests.Infrastructure
             DatabaseName = databaseName ?? throw new ArgumentNullException(nameof(databaseName));
             _options = options;
 
-            if (options.BreakReplicationOnStart)
-            {
-                _database.ReplicationLoader.DebugWaitAndRunReplicationOnce ??= new ManualResetEventSlim(true);
-                _replicateOnceMre = _database.ReplicationLoader.DebugWaitAndRunReplicationOnce;
-            }
+            _database.ReplicationLoader.DebugBreakpoint = _breakpoint = new AsyncBreakpoint();
         }
 
-        public void Break()
-        {
-            var mre = new ManualResetEventSlim(false);
-            _database.ReplicationLoader.DebugWaitAndRunReplicationOnce = mre;
-        }
+        public Task Break() => _breakpoint.Break();
 
-        public void Mend()
+        public Task Mend()
         {
-            var mre = _database.ReplicationLoader.DebugWaitAndRunReplicationOnce;
-            Assert.NotNull(mre);
-            _database.ReplicationLoader.DebugWaitAndRunReplicationOnce = null;
             _database.Configuration.Replication.MaxItemsCount = null;
-            mre.Set();
+            return _breakpoint.Continue();
         }
 
-        private void InitializeReplicateOnce()
+        public async Task ReplicateOnce(string docId)
         {
             _database.Configuration.Replication.MaxItemsCount = _options.MaxItemsCount;
-
-            _database.ReplicationLoader.DebugWaitAndRunReplicationOnce ??= new ManualResetEventSlim(true);
-            _replicateOnceMre = _database.ReplicationLoader.DebugWaitAndRunReplicationOnce;
-
-            _replicateOnceInitialized = true;
+            
+            // Should there be a timeout for it?
+            await _breakpoint.Continue();
+            await _breakpoint.Break();
         }
 
-        public void ReplicateOnce(string docId)
-        {
-            if (_replicateOnceInitialized == false)
-                InitializeReplicateOnce();
-
-            WaitForReset(); //wait for server to block and wait
-            _replicateOnceMre.Set(); //let threads pass
-        }
-
-        //wait to reach reset and wait point in server
-        private void WaitForReset(int timeout = 15_000)
-        {
-            var sp = Stopwatch.StartNew();
-            while (sp.ElapsedMilliseconds < timeout)
-            {
-                if (_replicateOnceMre.IsSet == false)
-                    return;
-
-                Thread.Sleep(16);
-            }
-
-            throw new TimeoutException();
-        }
-
-        public virtual async Task EnsureNoReplicationLoopAsync()
+        public async Task EnsureNoReplicationLoopAsync()
         {
             using (var collector = new LiveReplicationPulsesCollector(_database))
             {
@@ -104,18 +66,22 @@ namespace Tests.Infrastructure
             }
         }
 
-        public virtual void Dispose()
+        public void Dispose()
         {
-            _database.ReplicationLoader.DebugWaitAndRunReplicationOnce = null;
+            _database.ReplicationLoader.DebugBreakpoint = null;
             if (_options.KeepMaxItemsCountOnDispose == false)
                 _database.Configuration.Replication.MaxItemsCount = null;
-            _replicateOnceMre?.Set();
         }
 
         internal static async ValueTask<ReplicationInstance> GetReplicationInstanceAsync(RavenServer server, string databaseName, RavenTestBase.ReplicationManager.ReplicationOptions options)
         {
             DevelopmentHelper.ShardingToDo(DevelopmentHelper.TeamMember.Stav, DevelopmentHelper.Severity.Normal, "Make this func private when legacy BreakReplication() is removed");
-            return new ReplicationInstance(await server.ServerStore.DatabasesLandlord.TryGetOrCreateResourceStore(databaseName), databaseName, options);
+            ReplicationInstance replication = new(await server.ServerStore.DatabasesLandlord.TryGetOrCreateResourceStore(databaseName), databaseName, options);
+            
+            if (options.BreakReplicationOnStart)
+                await replication.Break();
+            
+            return replication;
         }
     }
 }

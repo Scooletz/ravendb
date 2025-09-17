@@ -18,27 +18,27 @@ public partial class RavenTestBase
             Instances = instances;
         }
 
-        public void Break()
+        public async Task Break()
         {
             foreach (var (node, replicationInstance) in Instances)
             {
-                replicationInstance.Break();
+                await replicationInstance.Break();
             }
         }
 
-        public void Mend()
+        public async Task Mend()
         {
             foreach (var (node, replicationInstance) in Instances)
             {
-                replicationInstance.Mend();
+                await replicationInstance.Mend();
             }
         }
 
-        public void ReplicateOnce(string docId)
+        public async Task ReplicateOnce(string docId)
         {
             foreach (var (node, replicationInstance) in Instances)
             {
-                replicationInstance.ReplicateOnce(docId);
+                await replicationInstance.ReplicateOnce(docId);
             }
         }
 

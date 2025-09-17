@@ -681,6 +681,8 @@ namespace SlowTests.Client.Counters
                 var database1 = await Databases.GetDocumentDatabaseInstanceFor(storeA);
                 using (var controller = new ReplicationController(database1))
                 {
+                    await controller.Break();
+                    
                     using (var session = storeA.OpenAsyncSession())
                     {
                         await session.StoreAsync(new User { Name = "Name1" }, "users/1");
@@ -691,7 +693,7 @@ namespace SlowTests.Client.Counters
                     }
 
                     await SetupReplicationAsync(storeA, storeB);
-                    controller.ReplicateOnce();
+                    await controller.ReplicateOnce();
 
                     WaitForDocument(storeB, "users/1");
 
@@ -847,7 +849,7 @@ namespace SlowTests.Client.Counters
                            }))
                     {
                         await SetupReplicationAsync(intermediate, dst);
-                        manager.ReplicateOnce("users/2");
+                        await manager.ReplicateOnce("users/2");
                         await dst.Maintenance.Server.SendAsync(new ToggleDatabasesStateOperation(dst.Database, disable: true));
                     }
                     await dst.Maintenance.Server.SendAsync(new ToggleDatabasesStateOperation(dst.Database, disable: false));

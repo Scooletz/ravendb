@@ -40,7 +40,8 @@ namespace SlowTests.Issues
 
                 var dbA = await GetDocumentDatabaseInstanceForAsync(storeA, options.DatabaseMode, "users/1");
                 dbA.Configuration.Replication.MaxItemsCount = 1;
-                dbA.ReplicationLoader.DebugWaitAndRunReplicationOnce = new ManualResetEventSlim();
+
+                var breakA = await SetActiveBreakpointAsync(dbA);
 
                 using (var session = storeA.OpenAsyncSession())
                 {
@@ -57,7 +58,7 @@ namespace SlowTests.Issues
                     await session.SaveChangesAsync();
                 }
 
-                dbA.ReplicationLoader.DebugWaitAndRunReplicationOnce.Set();
+                await breakA.ContinueThenBreak();
 
                 using (var session = storeB.OpenAsyncSession())
                 {
@@ -75,8 +76,7 @@ namespace SlowTests.Issues
                     Assert.False(metadata.Keys.Contains(Constants.Documents.Metadata.RevisionCounters));
                 }
 
-                dbA.ReplicationLoader.DebugWaitAndRunReplicationOnce.Set();
-                dbA.ReplicationLoader.DebugWaitAndRunReplicationOnce = null;
+                await breakA.Continue();
 
                 await SetupReplicationAsync(storeA, storeB);
                 await EnsureReplicatingAsync(storeA, storeB);

@@ -94,8 +94,8 @@ namespace SlowTests.Issues
                 await session.SaveChangesAsync();
             }
 
-            rep1.Mend();
-            rep2.Mend();
+            await rep1.Mend();
+            await rep2.Mend();
 
             // wait until the conflict is resolved
 
@@ -119,8 +119,8 @@ namespace SlowTests.Issues
 
             // halt replication to simulate out-of-sync updates
 
-            dbA.ReplicationLoader.DebugWaitAndRunReplicationOnce = new ManualResetEventSlim();
-            dbB.ReplicationLoader.DebugWaitAndRunReplicationOnce = new ManualResetEventSlim();
+            var breakA = await SetActiveBreakpointAsync(dbA);
+            var breakB = await SetActiveBreakpointAsync(dbB);
 
             using (var session = store1.OpenAsyncSession())
             {
@@ -137,7 +137,7 @@ namespace SlowTests.Issues
             }
 
             // send document "foo/bar" with `Name="2-A"` from A to B
-            dbA.ReplicationLoader.DebugWaitAndRunReplicationOnce.Set();
+            await breakA.ContinueThenBreak();
 
             using (var session = store1.OpenAsyncSession())
             {
@@ -147,7 +147,7 @@ namespace SlowTests.Issues
             }
 
             // send document "foo/bar" with `Name="2-B"` from B to A
-            dbB.ReplicationLoader.DebugWaitAndRunReplicationOnce.Set();
+            await breakB.ContinueThenBreak();
 
             using (var session = store1.OpenAsyncSession())
             {
@@ -156,7 +156,7 @@ namespace SlowTests.Issues
                 await session.SaveChangesAsync();
             }
 
-            dbA.ReplicationLoader.DebugWaitAndRunReplicationOnce.Set();
+            await breakA.ContinueThenBreak();
             using (var session = store1.OpenAsyncSession())
             {
                 var user = new User { Name = "foo4-A" };
@@ -165,15 +165,13 @@ namespace SlowTests.Issues
             }
 
             // resume replication from A to B
-            dbA.ReplicationLoader.DebugWaitAndRunReplicationOnce.Set();
-            dbA.ReplicationLoader.DebugWaitAndRunReplicationOnce = null;
+            await breakA.Continue();
 
             // wait for heartbeat message from B to A 
             await Task.Delay(3000);
 
             // resume replication from B to A
-            dbB.ReplicationLoader.DebugWaitAndRunReplicationOnce.Set();
-            dbB.ReplicationLoader.DebugWaitAndRunReplicationOnce = null;
+            await breakB.Continue();
 
             await EnsureReplicatingAsync(store1, store2);
             await EnsureReplicatingAsync(store2, store1);

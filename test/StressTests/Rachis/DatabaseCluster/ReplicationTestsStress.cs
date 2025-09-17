@@ -111,9 +111,11 @@ namespace StressTests.Rachis.DatabaseCluster
 
                 using (var controller = new ReplicationController(database))
                 {
+                    await controller.Break();
+                    
                     var databaseWatcher1 = new ExternalReplication(dst.Database, $"ConnectionString-{src.Identifier}_1");
                     await AddWatcherToReplicationTopology(src, databaseWatcher1, src.Urls);
-                    controller.ReplicateOnce();
+                    await controller.ReplicateOnce();
 
                     Assert.NotNull(WaitForDocumentToReplicate<User>(dst, "foo/bar", 10_000));
                     await Task.Delay(ReplicationLoader.MaxInactiveTime.Add(TimeSpan.FromSeconds(10)));

@@ -76,7 +76,7 @@ namespace Tests.Infrastructure
         protected static async Task<ReplicationInstance> BreakReplication(Raven.Server.ServerWide.ServerStore from, string databaseName)
         {
             var replication = await ReplicationInstance.GetReplicationInstanceAsync(from.Server, databaseName, new ReplicationManager.ReplicationOptions());
-            replication.Break();
+            await replication.Break();
             return replication;
         }
 
@@ -330,43 +330,39 @@ namespace Tests.Infrastructure
         public class ReplicationController : IDisposable
         {
             private readonly DocumentDatabase _database;
-            private readonly ManualResetEventSlim _mre;
+            private readonly AsyncBreakpoint _breakpoint;
+            
             public ReplicationController(DocumentDatabase database, bool passSingleTx = true)
             {
                 _database = database;
                 if (passSingleTx)
                     database.Configuration.Replication.MaxItemsCount = 1;
 
-                database.ReplicationLoader.DebugWaitAndRunReplicationOnce ??= new ManualResetEventSlim(true);
-                _mre = database.ReplicationLoader.DebugWaitAndRunReplicationOnce;
-            }
-            public void ReplicateOnce()
-            {
-                WaitForReset();
-                _mre.Set();
-            }
-
-            private void WaitForReset(int timeout = 15_000)
-            {
-                var sp = Stopwatch.StartNew();
-                while (sp.ElapsedMilliseconds < timeout)
+                if (database.ReplicationLoader.DebugBreakpoint != null)
                 {
-                    if (_mre.IsSet == false)
-                        return;
-
-                    Thread.Sleep(16);
+                    _breakpoint = database.ReplicationLoader.DebugBreakpoint;
                 }
-
-                throw new TimeoutException();
+                else
+                {
+                    _breakpoint = database.ReplicationLoader.DebugBreakpoint = new AsyncBreakpoint();
+                }
             }
 
+            public Task Break() => _breakpoint.Break();
+
+            public async Task ReplicateOnce()
+            {
+                // Should there be a timeout here?
+                await _breakpoint.Continue();
+                await _breakpoint.Break();
+            }
+            
             public void Dispose()
             {
-                WaitForReset();
-                _database.ReplicationLoader.DebugWaitAndRunReplicationOnce = null;
-                _mre.Set();
+                _database.ReplicationLoader.DebugBreakpoint = null;
             }
         }
+        
         public static async Task SetScriptResolutionAsync(DocumentStore store, string script, string collection)
         {
             var resolveByCollection = new Dictionary<string, ScriptResolver>
@@ -581,6 +577,14 @@ namespace Tests.Infrastructure
                 return new ChangeVector(new ChangeVector(version, throwOnRecursion: true, this), 
                     new ChangeVector(version, throwOnRecursion: true, this));
             }
+        }
+
+        protected static async Task<AsyncBreakpoint> SetActiveBreakpointAsync(DocumentDatabase db)
+        {
+            AsyncBreakpoint breakpoint = new();
+            db.ReplicationLoader.DebugBreakpoint = breakpoint;
+            await breakpoint.Break();
+            return breakpoint;
         }
     }
 
