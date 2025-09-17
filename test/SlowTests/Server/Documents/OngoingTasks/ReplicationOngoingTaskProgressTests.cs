@@ -343,7 +343,7 @@ namespace SlowTests.Server.Documents.OngoingTasks
             return cmd.Result;
         }
 
-        private async Task StoreData(IDocumentStore store)
+        private static async Task StoreData(IDocumentStore store)
         {
             using var session = store.OpenAsyncSession();
 
@@ -353,19 +353,19 @@ namespace SlowTests.Server.Documents.OngoingTasks
             session.CountersFor(user).Increment("Likes");
             session.TimeSeriesFor(user, "HeartRate").Append(DateTime.Today, 94);
 
-            using var ms = new MemoryStream(new byte[] { 1, 2, 3 });
+            using var ms = new MemoryStream([1, 2, 3]);
             session.Advanced.Attachments.Store(user, "foo", ms);
             await session.SaveChangesAsync();
         }
 
-        private async Task DeleteUserDocument(IDocumentStore store)
+        private static async Task DeleteUserDocument(IDocumentStore store)
         {
             using var session = store.OpenAsyncSession();
             session.Delete(UserId);
             await session.SaveChangesAsync();
         }
 
-        private (long lastSentEtag, string sourceChangeVector, string destinationChangeVector) GetReplicationHandlerState(DocumentDatabase db)
+        private static (long lastSentEtag, string sourceChangeVector, string destinationChangeVector) GetReplicationHandlerState(DocumentDatabase db)
         {
             using (db.DocumentsStorage.ContextPool.AllocateOperationContext(out DocumentsOperationContext context))
             using (context.OpenReadTransaction())

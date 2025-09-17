@@ -33,12 +33,6 @@ namespace Tests.Infrastructure
             }
         }
 
-        public ReplicationInstance(DocumentDatabase database, string databaseName, bool breakReplication) :
-            this(database, databaseName, new RavenTestBase.ReplicationManager.ReplicationOptions { BreakReplicationOnStart = breakReplication })
-        {
-
-        }
-
         public void Break()
         {
             var mre = new ManualResetEventSlim(false);

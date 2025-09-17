@@ -73,26 +73,14 @@ namespace Tests.Infrastructure
                 servers ?? GetServers(), databaseName, options);
         }
 
-        public async Task<ReplicationInstance> BreakReplication(Raven.Server.ServerWide.ServerStore from, string databaseName)
+        protected static async Task<ReplicationInstance> BreakReplication(Raven.Server.ServerWide.ServerStore from, string databaseName)
         {
             var replication = await ReplicationInstance.GetReplicationInstanceAsync(from.Server, databaseName, new ReplicationManager.ReplicationOptions());
             replication.Break();
             return replication;
         }
 
-        protected Dictionary<string, string[]> GetConnectionFailures(DocumentStore store)
-        {
-            using (var commands = store.Commands())
-            {
-                var command = new GetConnectionFailuresCommand();
-
-                commands.RequestExecutor.Execute(command, commands.Context);
-
-                return command.Result;
-            }
-        }
-
-        protected GetConflictsResult.Conflict[] WaitUntilHasConflict(IDocumentStore store, string docId, int count = 2)
+        protected static GetConflictsResult.Conflict[] WaitUntilHasConflict(IDocumentStore store, string docId, int count = 2)
         {
             var timeout = 5000;
             if (Debugger.IsAttached)
