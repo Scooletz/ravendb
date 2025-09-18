@@ -64,9 +64,10 @@ namespace SlowTests.Server.Documents.OngoingTasks
 
             // break the replication again to perform deletion and check tombstone items
 
-            await replication.BreakAsync();
-
-            await DeleteUserDocument(source);
+            await using (replication.BreakThenAwaitAfter())
+            {
+                await DeleteUserDocument(source);    
+            }
 
             await VerifyReplicationProgressAsync(source, sourceDb, ReplicationNode.ReplicationType.External, isCompleted: false, hasTombstones: true);
 
@@ -110,11 +111,11 @@ namespace SlowTests.Server.Documents.OngoingTasks
 
             await VerifyReplicationProgressAsync(hub, hubDatabase, ReplicationNode.ReplicationType.PullAsHub, isCompleted: true);
 
-            // break the replication again to perform deletion and check tombstone items
-
-            await replication.BreakAsync();
-
-            await DeleteUserDocument(hub);
+            // Break the replication again to perform deletion and check tombstone items
+            await using (replication.BreakThenAwaitAfter())
+            {
+                await DeleteUserDocument(hub);    
+            }
 
             await VerifyReplicationProgressAsync(hub, hubDatabase, ReplicationNode.ReplicationType.PullAsHub, isCompleted: false, hasTombstones: true);
 
@@ -158,17 +159,15 @@ namespace SlowTests.Server.Documents.OngoingTasks
 
             await VerifyPullAsHubReplicationProgress(hub, hubDatabase, isCompleted: true);
 
-            // break the replication again to perform deletion and check tombstone items
-
-            var @break = replication.BreakAsync();
-
-            await DeleteUserDocument(hub);
-
-            await @break;
+            // Break the replication again to perform deletion and check tombstone items
+            await using (replication.BreakThenAwaitAfter())
+            {
+                await DeleteUserDocument(hub);    
+            }
 
             await VerifyPullAsHubReplicationProgress(hub, hubDatabase, isCompleted: false, hasTombstones: true);
 
-            // continue the replication and check if all tombstones are processed
+            // Continue the replication and check if all tombstones are processed
 
             await replication.MendAsync();
             Assert.True(WaitForDocumentDeletion(sink1, UserId));
