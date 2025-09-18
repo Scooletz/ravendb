@@ -2759,25 +2759,28 @@ namespace SlowTests.Client.Attachments
                 var replication1 = await GetReplicationManagerAsync(store1, store1.Database, options.DatabaseMode);
                 var replication2 = await GetReplicationManagerAsync(store2, store2.Database, options.DatabaseMode);
 
-                await replication1.BreakAsync();
-                await replication2.BreakAsync();
-
-                using (var backgroundStream = new MemoryStream(new byte[] { 10, 20, 30, 40, 50 }))
+                await using (replication1.BreakThenAwaitAfter())
                 {
-                    var result = store2.Operations.Send(new PutAttachmentOperation("users/1", "foo/bar", backgroundStream, "image/png"));
-                    Assert.Equal("foo/bar", result.Name);
-                    Assert.Equal("users/1", result.DocumentId);
-                    Assert.Equal("image/png", result.ContentType);
-                    Assert.Equal("igkD5aEdkdAsAB/VpYm1uFlfZIP9M2LSUsD6f6RVW9U=", result.Hash);
-                }
+                    await using (replication2.BreakThenAwaitAfter())
+                    {
+                        using (var backgroundStream = new MemoryStream([10, 20, 30, 40, 50]))
+                        {
+                            var result = store2.Operations.Send(new PutAttachmentOperation("users/1", "foo/bar", backgroundStream, "image/png"));
+                            Assert.Equal("foo/bar", result.Name);
+                            Assert.Equal("users/1", result.DocumentId);
+                            Assert.Equal("image/png", result.ContentType);
+                            Assert.Equal("igkD5aEdkdAsAB/VpYm1uFlfZIP9M2LSUsD6f6RVW9U=", result.Hash);
+                        }
 
-                using (var backgroundStream = new MemoryStream(new byte[] { 10, 20, 30, 40, 50 }))
-                {
-                    var result = store1.Operations.Send(new PutAttachmentOperation("users/1", "foo/bar", backgroundStream, "image/png"));
-                    Assert.Equal("foo/bar", result.Name);
-                    Assert.Equal("users/1", result.DocumentId);
-                    Assert.Equal("image/png", result.ContentType);
-                    Assert.Equal("igkD5aEdkdAsAB/VpYm1uFlfZIP9M2LSUsD6f6RVW9U=", result.Hash);
+                        using (var backgroundStream = new MemoryStream([10, 20, 30, 40, 50]))
+                        {
+                            var result = store1.Operations.Send(new PutAttachmentOperation("users/1", "foo/bar", backgroundStream, "image/png"));
+                            Assert.Equal("foo/bar", result.Name);
+                            Assert.Equal("users/1", result.DocumentId);
+                            Assert.Equal("image/png", result.ContentType);
+                            Assert.Equal("igkD5aEdkdAsAB/VpYm1uFlfZIP9M2LSUsD6f6RVW9U=", result.Hash);
+                        }
+                    }
                 }
 
                 await WriteStatus(stores, "Stage 2");
