@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 namespace Raven.Server.Utils;
 
 /// <summary>
-/// A breakpoint allowing a synchronous <see cref="Wait"/> and asynchronous configuration using <see cref="Break"/> and <see cref="Continue"/>.
+/// A breakpoint allowing a synchronous <see cref="Wait"/> and asynchronous configuration using <see cref="BreakAsync"/> and <see cref="ContinueAsync"/>.
 /// </summary>
 public sealed class AsyncBreakpoint
 {
@@ -31,11 +31,11 @@ public sealed class AsyncBreakpoint
     /// When hit with the next call of the <see cref="Wait"/>, it will pause its execution synchronously.
     /// The returned task completes when all the waiters wait.
     /// </summary>
-    public Task Break()
+    public Task BreakAsync()
     {
         lock (_locker)
         {
-            Debug.Assert(_break == null, $"{nameof(Break)} was already called. Ensure that you call it only once.");
+            Debug.Assert(_break == null, $"{nameof(BreakAsync)} was already called. Ensure that you call it only once.");
             Debug.Assert(_continue == null);
 
             _break = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -46,14 +46,14 @@ public sealed class AsyncBreakpoint
     }
 
     /// <summary>
-    /// Continues the execution of the thread that waits with <see cref="Wait"/> after previously being stopped with <see cref="Break"/>.
+    /// Continues the execution of the thread that waits with <see cref="Wait"/> after previously being stopped with <see cref="BreakAsync"/>.
     /// </summary>
     /// <param name="continueCountDown">The number of <see cref="Wait"/> to execute before making this method completed.</param>
-    public Task Continue()
+    public Task ContinueAsync()
     {
         lock (_locker)
         {
-            Debug.Assert(_continue != null, $"The {nameof(Continue)} can be requested only after {nameof(Break)} was requested.");
+            Debug.Assert(_continue != null, $"The {nameof(ContinueAsync)} can be requested only after {nameof(BreakAsync)} was requested.");
 
             // Capture the task and then pulse the waiting.
             var task = _continue.Task;
@@ -64,10 +64,10 @@ public sealed class AsyncBreakpoint
         }
     }
 
-    public async Task ContinueThenBreak()
+    public async Task ContinueThenBreakAsync()
     {
-        await Continue();
-        await Break();
+        await ContinueAsync();
+        await BreakAsync();
     }
 
     public void Wait(CancellationToken cancellationToken = default)
@@ -95,7 +95,7 @@ public sealed class AsyncBreakpoint
                 Monitor.Wait(_locker);
 
                 // The wait is over, we're continuing.
-                Debug.Assert(_continue != null, $"{nameof(Continue)} should have been called before.");
+                Debug.Assert(_continue != null, $"{nameof(ContinueAsync)} should have been called before.");
 
                 _continuing++;
                 if (_continuing == _count)

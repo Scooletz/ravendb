@@ -71,29 +71,29 @@ public partial class RavenTestBase
                 _config = config;
             }
 
-            public async Task Mend()
+            public async Task MendAsync()
             {
                 foreach (var (shardNumber, brokenReplication) in ShardReplications)
                 {
-                    await brokenReplication.Mend();
+                    await brokenReplication.MendAsync();
                 }
             }
 
-            public async Task Break()
+            public async Task BreakAsync()
             {
                 foreach (var (shardNumber, shardReplication) in ShardReplications)
                 {
-                    await shardReplication.Break();
+                    await shardReplication.BreakAsync();
                 }
             }
 
-            public async Task ReplicateOnce(string docId)
+            public async Task ReplicateOnceAsync(string docId)
             {
                 int shardNumber;
                 using (var allocator = new ByteStringContext(SharedMultipleUseFlag.None))
                     shardNumber = ShardHelper.GetShardNumberFor(_config, allocator, docId);
 
-                await ShardReplications[shardNumber].ReplicateOnce(docId);
+                await ShardReplications[shardNumber].ReplicateOnceAsync(docId);
             }
 
             public async Task EnsureNoReplicationLoopAsync()

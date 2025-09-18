@@ -53,7 +53,7 @@ namespace SlowTests.Client.TimeSeries.Issues
                 using (var replication = await GetReplicationManagerAsync(master, master.Database, options.DatabaseMode, breakReplication: true))
                 {
                     await SetupReplicationAsync(master, slave);
-                    await replication.ReplicateOnce("users/karmel");
+                    await replication.ReplicateOnceAsync("users/karmel");
 
                     await Indexes.WaitForIndexingAsync(slave);
                     RavenTestHelper.AssertNoIndexErrors(slave);
@@ -80,7 +80,7 @@ namespace SlowTests.Client.TimeSeries.Issues
                         session.SaveChanges();
                     }
 
-                    await replication.ReplicateOnce("users/karmel");
+                    await replication.ReplicateOnceAsync("users/karmel");
 
                     using (var session = master.OpenSession())
                     {
@@ -101,7 +101,7 @@ namespace SlowTests.Client.TimeSeries.Issues
                         session.SaveChanges();
                     }
 
-                    await replication.ReplicateOnce("users/karmel");
+                    await replication.ReplicateOnceAsync("users/karmel");
 
                     await new TimeSeriesIndex().ExecuteAsync(slave);
                     await Indexes.WaitForIndexingAsync(slave);

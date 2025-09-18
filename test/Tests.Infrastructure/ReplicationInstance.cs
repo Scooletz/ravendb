@@ -27,21 +27,21 @@ namespace Tests.Infrastructure
             _database.ReplicationLoader.DebugBreakpoint = _breakpoint = new AsyncBreakpoint(databaseName, options.NumberOfReplications);
         }
 
-        public Task Break() => _breakpoint.Break();
+        public Task BreakAsync() => _breakpoint.BreakAsync();
 
-        public Task Mend()
+        public Task MendAsync()
         {
             _database.Configuration.Replication.MaxItemsCount = null;
-            return _breakpoint.Continue();
+            return _breakpoint.ContinueAsync();
         }
 
-        public async Task ReplicateOnce(string docId)
+        public async Task ReplicateOnceAsync(string docId)
         {
             _database.Configuration.Replication.MaxItemsCount = _options.MaxItemsCount;
             
             // Should there be a timeout for it?
-            await _breakpoint.Continue();
-            await _breakpoint.Break();
+            await _breakpoint.ContinueAsync();
+            await _breakpoint.BreakAsync();
         }
 
         public async Task EnsureNoReplicationLoopAsync()
@@ -79,7 +79,7 @@ namespace Tests.Infrastructure
             ReplicationInstance replication = new(await server.ServerStore.DatabasesLandlord.TryGetOrCreateResourceStore(databaseName), databaseName, options);
             
             if (options.BreakReplicationOnStart)
-                await replication.Break();
+                await replication.BreakAsync();
             
             return replication;
         }

@@ -5,9 +5,9 @@ namespace Tests.Infrastructure
 {
     public interface IReplicationManager : IDisposable
     {
-        public Task Break();
-        public Task Mend();
-        public Task ReplicateOnce(string docId);
+        public Task BreakAsync();
+        public Task MendAsync();
+        public Task ReplicateOnceAsync(string docId);
         public Task EnsureNoReplicationLoopAsync();
     }
 }

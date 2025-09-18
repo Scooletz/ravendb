@@ -350,13 +350,13 @@ namespace Tests.Infrastructure
                 }
             }
 
-            public Task Break() => _breakpoint.Break();
+            public Task Break() => _breakpoint.BreakAsync();
 
             public async Task ReplicateOnce()
             {
                 // Should there be a timeout here?
-                await _breakpoint.Continue();
-                await _breakpoint.Break();
+                await _breakpoint.ContinueAsync();
+                await _breakpoint.BreakAsync();
             }
             
             public void Dispose()
@@ -585,7 +585,7 @@ namespace Tests.Infrastructure
         {
             AsyncBreakpoint breakpoint = new(db.Name, replicationsCount);
             db.ReplicationLoader.DebugBreakpoint = breakpoint;
-            await breakpoint.Break();
+            await breakpoint.BreakAsync();
             return breakpoint;
         }
     }

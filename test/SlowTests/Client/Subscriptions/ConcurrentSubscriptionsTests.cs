@@ -787,9 +787,9 @@ namespace SlowTests.Client.Subscriptions
                 await session.SaveChangesAsync();
             }
 
-            await t1.Mend();
-            await t2.Mend();
-            await t3.Mend();
+            await t1.MendAsync();
+            await t2.MendAsync();
+            await t3.MendAsync();
 
             await WaitForDocumentInClusterAsync<User>(cluster.Nodes, database, "user/6", predicate: null, TimeSpan.FromSeconds(15));
             await WaitForDocumentInClusterAsync<User>(cluster.Nodes, database, "user/3", predicate: null, TimeSpan.FromSeconds(15));

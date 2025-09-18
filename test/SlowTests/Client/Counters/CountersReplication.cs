@@ -849,7 +849,7 @@ namespace SlowTests.Client.Counters
                            }))
                     {
                         await SetupReplicationAsync(intermediate, dst);
-                        await manager.ReplicateOnce("users/2");
+                        await manager.ReplicateOnceAsync("users/2");
                         await dst.Maintenance.Server.SendAsync(new ToggleDatabasesStateOperation(dst.Database, disable: true));
                     }
                     await dst.Maintenance.Server.SendAsync(new ToggleDatabasesStateOperation(dst.Database, disable: false));

@@ -68,7 +68,7 @@ namespace SlowTests.Issues
                     await session.SaveChangesAsync();
                 }
 
-                await replication.Mend();
+                await replication.MendAsync();
 
                 Assert.True(WaitForDocument<User>(replica, id, u => u.Name == "ayende2"));
 
@@ -167,7 +167,7 @@ namespace SlowTests.Issues
                     await session.SaveChangesAsync();
                 }
 
-                await replication.Mend();
+                await replication.MendAsync();
 
                 Assert.True(WaitForDocumentDeletion(replica, id, 5000));
 
@@ -202,7 +202,7 @@ namespace SlowTests.Issues
 
                 Assert.True(WaitForDocument<User>(replica, id, u => u.Name == "ayende"));
 
-                await replication.Break();
+                await replication.BreakAsync();
 
                 using (var session = store.OpenAsyncSession())
                 {
@@ -218,7 +218,7 @@ namespace SlowTests.Issues
                     await session.SaveChangesAsync();
                 }
 
-                await replication.Mend();
+                await replication.MendAsync();
 
                 await AssertWaitForNotNullAsync(async () =>
                 {

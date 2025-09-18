@@ -94,8 +94,8 @@ namespace SlowTests.Issues
                 await session.SaveChangesAsync();
             }
 
-            await rep1.Mend();
-            await rep2.Mend();
+            await rep1.MendAsync();
+            await rep2.MendAsync();
 
             // wait until the conflict is resolved
 
@@ -137,7 +137,7 @@ namespace SlowTests.Issues
             }
 
             // send document "foo/bar" with `Name="2-A"` from A to B
-            await breakA.ContinueThenBreak();
+            await breakA.ContinueThenBreakAsync();
 
             using (var session = store1.OpenAsyncSession())
             {
@@ -147,7 +147,7 @@ namespace SlowTests.Issues
             }
 
             // send document "foo/bar" with `Name="2-B"` from B to A
-            await breakB.ContinueThenBreak();
+            await breakB.ContinueThenBreakAsync();
 
             using (var session = store1.OpenAsyncSession())
             {
@@ -156,7 +156,7 @@ namespace SlowTests.Issues
                 await session.SaveChangesAsync();
             }
 
-            await breakA.ContinueThenBreak();
+            await breakA.ContinueThenBreakAsync();
             using (var session = store1.OpenAsyncSession())
             {
                 var user = new User { Name = "foo4-A" };
@@ -165,13 +165,13 @@ namespace SlowTests.Issues
             }
 
             // resume replication from A to B
-            await breakA.Continue();
+            await breakA.ContinueAsync();
 
             // wait for heartbeat message from B to A 
             await Task.Delay(3000);
 
             // resume replication from B to A
-            await breakB.Continue();
+            await breakB.ContinueAsync();
 
             await EnsureReplicatingAsync(store1, store2);
             await EnsureReplicatingAsync(store2, store1);

@@ -462,8 +462,8 @@ namespace SlowTests.Sharding.BucketMigration
                     session.SaveChanges();
                 }
 
-                await b1.Mend();
-                await b2.Mend();
+                await b1.MendAsync();
+                await b2.MendAsync();
 
                 await db.DocumentsMigrator.ExecuteMoveDocumentsAsync();
 

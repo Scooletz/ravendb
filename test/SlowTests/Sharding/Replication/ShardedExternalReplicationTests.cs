@@ -770,7 +770,7 @@ namespace SlowTests.Sharding.Replication
                 var res = dstStore.Maintenance.Server.Send(new DeleteDatabasesOperation(dstDB, shardNumber: 0, hardDelete: true, fromNode: nodeContainingShard));
                 await Cluster.WaitForRaftIndexToBeAppliedInClusterAsync(res.RaftCommandIndex);
 
-                await replicationDst.Mend();
+                await replicationDst.MendAsync();
 
                 await WaitForValueAsync(async () =>
                 {

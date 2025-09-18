@@ -20,14 +20,14 @@ public class AsyncBreakpointTests
 
         for (int i = 0; i < SpinCount; i++)
         {
-            Task stop = b.Break();
+            Task stop = b.BreakAsync();
             Task waiter = waiterCount == 1 ? Task.Run(() => b.Wait()) : Task.WhenAll(Enumerable.Range(0, waiterCount).Select(_ => Task.Run(() => b.Wait())));
         
             Assert.False(waiter.IsCompleted);
             await stop; // stop should be completed
         
             Assert.False(waiter.IsCompleted);
-            await b.Continue();
+            await b.ContinueAsync();
             await waiter;
         }
     }

@@ -211,7 +211,7 @@ namespace RachisTests.DatabaseCluster
                 val = await WaitForValueAsync(async () => await GetRehabCount(store), 2);
                 Assert.Equal(2, val);
 
-                await broken.Mend();
+                await broken.MendAsync();
 
                 val = await WaitForValueAsync(async () => await GetMembersCount(store), 3);
                 Assert.Equal(3, val);
@@ -2006,8 +2006,8 @@ namespace RachisTests.DatabaseCluster
 
             await RemoveDatabaseNode(cluster.Nodes, database, toDelete.ServerStore.NodeTag);
 
-            await rep1.Mend();
-            await rep2.Mend();
+            await rep1.MendAsync();
+            await rep2.MendAsync();
 
             await Task.Delay(1000);
             EnsureReplicating(nonDeletedStores[0], nonDeletedStores[1]);

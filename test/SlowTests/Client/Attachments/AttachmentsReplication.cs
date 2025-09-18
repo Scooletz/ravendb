@@ -1418,7 +1418,7 @@ namespace SlowTests.Client.Attachments
                 var replication = await GetReplicationManagerAsync(store1, store1.Database, options.DatabaseMode, breakReplication: true, new List<RavenServer>() { server });
 
                 await SetupReplicationAsync(store1, store2);
-                await replication.ReplicateOnce("foo");
+                await replication.ReplicateOnceAsync("foo");
 
                 var db2 = await server.ServerStore.DatabasesLandlord.TryGetOrCreateResourceStore(options.DatabaseMode == RavenDatabaseMode.Single
                     ? store2.Database
@@ -1490,7 +1490,7 @@ namespace SlowTests.Client.Attachments
                 }
 
                 await SetupReplicationAsync(store1, store2);
-                await replication.ReplicateOnce(docId1);
+                await replication.ReplicateOnceAsync(docId1);
 
                 Assert.True(WaitForDocument(store2, docId1));
 
@@ -1507,7 +1507,7 @@ namespace SlowTests.Client.Attachments
                     Assert.Null(await session.LoadAsync<User>(docId2));
                 }
 
-                await replication.ReplicateOnce(docId1);
+                await replication.ReplicateOnceAsync(docId1);
                 Assert.True(WaitForDocument(store2, docId2));
 
                 using (var session = store2.OpenAsyncSession())
@@ -2759,8 +2759,8 @@ namespace SlowTests.Client.Attachments
                 var replication1 = await GetReplicationManagerAsync(store1, store1.Database, options.DatabaseMode);
                 var replication2 = await GetReplicationManagerAsync(store2, store2.Database, options.DatabaseMode);
 
-                await replication1.Break();
-                await replication2.Break();
+                await replication1.BreakAsync();
+                await replication2.BreakAsync();
 
                 using (var backgroundStream = new MemoryStream(new byte[] { 10, 20, 30, 40, 50 }))
                 {
@@ -2782,8 +2782,8 @@ namespace SlowTests.Client.Attachments
 
                 await WriteStatus(stores, "Stage 2");
 
-                await replication1.Mend();
-                await replication2.Mend();
+                await replication1.MendAsync();
+                await replication2.MendAsync();
 
                 await EnsureReplicatingAsync(store1, store2);
                 await EnsureReplicatingAsync(store2, store1);
@@ -2872,8 +2872,8 @@ namespace SlowTests.Client.Attachments
                 var replication1 = await GetReplicationManagerAsync(store1, store1.Database, options.DatabaseMode);
                 var replication2 = await GetReplicationManagerAsync(store2, store2.Database, options.DatabaseMode);
 
-                await replication1.Break();
-                await replication2.Break();
+                await replication1.BreakAsync();
+                await replication2.BreakAsync();
 
                 using (var backgroundStream = new MemoryStream(new byte[] { 10, 20, 30, 40, 50 }))
                 {
@@ -2893,9 +2893,9 @@ namespace SlowTests.Client.Attachments
 
                 await WriteStatus(stores, "Stage 2");
 
-                await replication1.Mend();
+                await replication1.MendAsync();
 
-                await replication2.Mend();
+                await replication2.MendAsync();
 
                 await EnsureReplicatingAsync(store2, store1);
                 await EnsureReplicatingAsync(store1, store2);
@@ -3004,9 +3004,9 @@ namespace SlowTests.Client.Attachments
             var replication2 = await GetReplicationManagerAsync(store2, store2.Database, options.DatabaseMode, servers: new List<RavenServer>() { Server });
             var replication3 = await GetReplicationManagerAsync(store3, store3.Database, options.DatabaseMode, servers: new List<RavenServer>() { Server });
 
-            await replication1.Break();
-            await replication2.Break();
-            await replication3.Break();
+            await replication1.BreakAsync();
+            await replication2.BreakAsync();
+            await replication3.BreakAsync();
 
             using (var backgroundStream = new MemoryStream(new byte[] { 10, 20, 30, 40, 50 }))
             {
@@ -3033,9 +3033,9 @@ namespace SlowTests.Client.Attachments
                 await session.SaveChangesAsync();
             }
 
-            await replication1.Mend();
-            await replication2.Mend();
-            await replication3.Mend();
+            await replication1.MendAsync();
+            await replication2.MendAsync();
+            await replication3.MendAsync();
 
             await EnsureReplicatingAsync(store1, store2);
             await EnsureReplicatingAsync(store1, store3);
@@ -3263,9 +3263,9 @@ namespace SlowTests.Client.Attachments
                 var replication2 = await GetReplicationManagerAsync(store2, store2.Database, options.DatabaseMode);
                 var replication3 = await GetReplicationManagerAsync(store3, store3.Database, options.DatabaseMode);
 
-                await replication1.Break();
-                await replication2.Break();
-                await replication3.Break();
+                await replication1.BreakAsync();
+                await replication2.BreakAsync();
+                await replication3.BreakAsync();
 
                 using (var backgroundStream = new MemoryStream(new byte[] { 10, 20, 30, 40, 50 }))
                 {
@@ -3298,19 +3298,19 @@ namespace SlowTests.Client.Attachments
                     await session.SaveChangesAsync();
                 }
 
-                await replication2.Mend();
+                await replication2.MendAsync();
 
                 await EnsureReplicatingAsync(store2, store1);
                 await EnsureReplicatingAsync(store2, store3);
 
-                await replication3.Mend();
+                await replication3.MendAsync();
 
                 await EnsureReplicatingAsync(store3, store2);
                 await EnsureReplicatingAsync(store3, store1);
 
                 await Task.Delay(3000); // wait for the replication ping-pong to settle down
 
-                await replication1.Mend();
+                await replication1.MendAsync();
 
                 await EnsureReplicatingAsync(store1, store2);
                 await EnsureReplicatingAsync(store1, store3);

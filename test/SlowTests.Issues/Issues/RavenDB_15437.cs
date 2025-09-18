@@ -58,7 +58,7 @@ namespace SlowTests.Issues
                     await session.SaveChangesAsync();
                 }
 
-                await breakA.ContinueThenBreak();
+                await breakA.ContinueThenBreakAsync();
 
                 using (var session = storeB.OpenAsyncSession())
                 {
@@ -76,7 +76,7 @@ namespace SlowTests.Issues
                     Assert.False(metadata.Keys.Contains(Constants.Documents.Metadata.RevisionCounters));
                 }
 
-                await breakA.Continue();
+                await breakA.ContinueAsync();
 
                 await SetupReplicationAsync(storeA, storeB);
                 await EnsureReplicatingAsync(storeA, storeB);

@@ -48,7 +48,7 @@ namespace SlowTests.Sharding.Issues
                     }
                 }
 
-                await b.Mend();
+                await b.MendAsync();
 
                 using (var session = source.OpenAsyncSession())
                 using (var stream = new MemoryStream(new byte[] { 1, 2, 3 }))

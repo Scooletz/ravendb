@@ -80,7 +80,7 @@ namespace SlowTests.Server.Documents.Revisions
                     }
 
                     await SetupReplicationAsync(store1, store2);
-                    await replication.ReplicateOnce(id1);
+                    await replication.ReplicateOnceAsync(id1);
 
                     using (var session = store2.OpenAsyncSession())
                     {
@@ -91,7 +91,7 @@ namespace SlowTests.Server.Documents.Revisions
                         Assert.Equal(10, oren.Balance);
                     }
 
-                    await replication.ReplicateOnce(id1);
+                    await replication.ReplicateOnceAsync(id1);
 
                     using (var session = store2.OpenAsyncSession())
                     {
@@ -102,7 +102,7 @@ namespace SlowTests.Server.Documents.Revisions
                         Assert.Equal(10, oren.Balance);
                     }
 
-                    await replication.ReplicateOnce(id1);
+                    await replication.ReplicateOnceAsync(id1);
 
                     using (var session = store2.OpenAsyncSession())
                     {
@@ -113,7 +113,7 @@ namespace SlowTests.Server.Documents.Revisions
                         Assert.Equal(0, michael.Balance);
                     }
 
-                    await replication.ReplicateOnce(id1);
+                    await replication.ReplicateOnceAsync(id1);
 
                     using (var session = store2.OpenAsyncSession())
                     {
@@ -124,7 +124,7 @@ namespace SlowTests.Server.Documents.Revisions
                         Assert.Null(michael);
                     }
 
-                    await replication.ReplicateOnce(id1);
+                    await replication.ReplicateOnceAsync(id1);
 
                     using (var session = store2.OpenAsyncSession())
                     {

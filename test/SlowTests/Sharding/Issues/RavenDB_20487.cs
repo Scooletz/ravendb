@@ -182,7 +182,7 @@ namespace SlowTests.Sharding.Issues
                     });
 
                 var externalList = await SetupReplicationAsync(store2, store3);
-                await replication.ShardReplications[2].Mend();
+                await replication.ShardReplications[2].MendAsync();
                 
                 var id = Sharding.GetRandomIdForShard(await Sharding.GetShardingConfigurationAsync(store2), 2);
                 EnsureReplicating(store2, store3, id);
@@ -197,8 +197,8 @@ namespace SlowTests.Sharding.Issues
                 external.Disabled = false;
                 await store2.Maintenance.SendAsync(new UpdateExternalReplicationOperation(external));
 
-                await replication.ShardReplications[0].Mend();
-                await replication.ShardReplications[1].Mend();
+                await replication.ShardReplications[0].MendAsync();
+                await replication.ShardReplications[1].MendAsync();
 
                 await EnsureReplicatingAsync(store2, store3);
 
@@ -234,7 +234,7 @@ namespace SlowTests.Sharding.Issues
                     });
 
                 var externalList = await SetupReplicationAsync(store2, store3);
-                await replication.ShardReplications[2].Mend();
+                await replication.ShardReplications[2].MendAsync();
                 var id = Sharding.GetRandomIdForShard(await Sharding.GetShardingConfigurationAsync(store2), 2);
                 EnsureReplicating(store2, store3, id);
 
@@ -248,8 +248,8 @@ namespace SlowTests.Sharding.Issues
                 external.Disabled = false;
                 await store2.Maintenance.SendAsync(new UpdateExternalReplicationOperation(external));
 
-                await replication.ShardReplications[0].Mend();
-                await replication.ShardReplications[1].Mend();
+                await replication.ShardReplications[0].MendAsync();
+                await replication.ShardReplications[1].MendAsync();
 
                 await EnsureReplicatingAsync(store2, store3);
 

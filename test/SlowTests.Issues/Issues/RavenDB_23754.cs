@@ -71,8 +71,8 @@ namespace SlowTests.Issues
                 await session.SaveChangesAsync();
             }
 
-            await r1.Result.Mend();
-            await r2.Result.Mend();
+            await r1.Result.MendAsync();
+            await r2.Result.MendAsync();
 
             await WaitAndAssertForValueAsync(() =>
                 {
