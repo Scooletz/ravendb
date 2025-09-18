@@ -2586,7 +2586,7 @@ namespace SlowTests.Client.Attachments
                 session.SaveChanges();
             }
 
-            using (var profileStream = new MemoryStream(new byte[] { 1, 2, 3 }))
+            using (var profileStream = new MemoryStream([1, 2, 3]))
             {
                 var result = store1.Operations.Send(new PutAttachmentOperation("users/1", "foo/bar", profileStream, "image/png"));
                 Assert.Equal("foo/bar", result.Name);
@@ -2600,7 +2600,7 @@ namespace SlowTests.Client.Attachments
             await EnsureReplicatingAsync(store1, store2);
             await EnsureReplicatingAsync(store1, store3);
 
-            using (var backgroundStream = new MemoryStream(new byte[] { 10, 20, 30, 40, 50 }))
+            using (var backgroundStream = new MemoryStream([10, 20, 30, 40, 50]))
             {
                 var result = store2.Operations.Send(new PutAttachmentOperation("users/1", "foo/bar", backgroundStream, "image/png"));
                 Assert.Equal("foo/bar", result.Name);
@@ -2609,7 +2609,7 @@ namespace SlowTests.Client.Attachments
                 Assert.Equal("igkD5aEdkdAsAB/VpYm1uFlfZIP9M2LSUsD6f6RVW9U=", result.Hash);
             }
 
-            using (var backgroundStream = new MemoryStream(new byte[] { 10, 20, 30, 40, 50, 60 }))
+            using (var backgroundStream = new MemoryStream([10, 20, 30, 40, 50, 60]))
             {
                 var result = store3.Operations.Send(new PutAttachmentOperation("users/1", "foo/bar", backgroundStream, "image/png"));
                 Assert.Equal("foo/bar", result.Name);
@@ -2866,29 +2866,30 @@ namespace SlowTests.Client.Attachments
                 await EnsureReplicatingAsync(store2, store1);
                 await EnsureReplicatingAsync(store1, store2);
 
-                var stores = new DocumentStore[] { store1, store2 };
+                var stores = new[] { store1, store2 };
                 await WriteStatus(stores, "Stage 1");
 
                 var replication1 = await GetReplicationManagerAsync(store1, store1.Database, options.DatabaseMode);
                 var replication2 = await GetReplicationManagerAsync(store2, store2.Database, options.DatabaseMode);
 
-                await replication1.BreakAsync();
-                await replication2.BreakAsync();
-
-                using (var backgroundStream = new MemoryStream(new byte[] { 10, 20, 30, 40, 50 }))
+                await using (replication1.BreakThenAwaitAfter())
+                await using (replication2.BreakThenAwaitAfter())
                 {
-                    var result = store2.Operations.Send(new PutAttachmentOperation("users/1", "foo/bar", backgroundStream, "image/png"));
-                    Assert.Equal("foo/bar", result.Name);
-                    Assert.Equal("users/1", result.DocumentId);
-                    Assert.Equal("image/png", result.ContentType);
-                    Assert.Equal("igkD5aEdkdAsAB/VpYm1uFlfZIP9M2LSUsD6f6RVW9U=", result.Hash);
-                }
+                    using (var backgroundStream = new MemoryStream([10, 20, 30, 40, 50]))
+                    {
+                        var result = store2.Operations.Send(new PutAttachmentOperation("users/1", "foo/bar", backgroundStream, "image/png"));
+                        Assert.Equal("foo/bar", result.Name);
+                        Assert.Equal("users/1", result.DocumentId);
+                        Assert.Equal("image/png", result.ContentType);
+                        Assert.Equal("igkD5aEdkdAsAB/VpYm1uFlfZIP9M2LSUsD6f6RVW9U=", result.Hash);
+                    }
 
-                using (var session = store1.OpenAsyncSession())
-                {
-                    var u = await session.LoadAsync<User>("users/1");
-                    u.Age = 30;
-                    await session.SaveChangesAsync();
+                    using (var session = store1.OpenAsyncSession())
+                    {
+                        var u = await session.LoadAsync<User>("users/1");
+                        u.Age = 30;
+                        await session.SaveChangesAsync();
+                    }
                 }
 
                 await WriteStatus(stores, "Stage 2");
@@ -3004,34 +3005,40 @@ namespace SlowTests.Client.Attachments
             var replication2 = await GetReplicationManagerAsync(store2, store2.Database, options.DatabaseMode, servers: new List<RavenServer>() { Server });
             var replication3 = await GetReplicationManagerAsync(store3, store3.Database, options.DatabaseMode, servers: new List<RavenServer>() { Server });
 
-            await replication1.BreakAsync();
-            await replication2.BreakAsync();
-            await replication3.BreakAsync();
-
-            using (var backgroundStream = new MemoryStream(new byte[] { 10, 20, 30, 40, 50 }))
+            await using (replication1.BreakThenAwaitAfter())
             {
-                var result = store2.Operations.Send(new PutAttachmentOperation("users/1", "foo/bar", backgroundStream, "image/png"));
-                Assert.Equal("foo/bar", result.Name);
-                Assert.Equal("users/1", result.DocumentId);
-                Assert.Equal("image/png", result.ContentType);
-                Assert.Equal("igkD5aEdkdAsAB/VpYm1uFlfZIP9M2LSUsD6f6RVW9U=", result.Hash);
-            }
+                await using (replication2.BreakThenAwaitAfter())
+                {
+                    await using (replication3.BreakThenAwaitAfter())
+                    {
+                        using (var backgroundStream = new MemoryStream([10, 20, 30, 40, 50]))
+                        {
+                            var result = store2.Operations.Send(new PutAttachmentOperation("users/1", "foo/bar", backgroundStream, "image/png"));
+                            Assert.Equal("foo/bar", result.Name);
+                            Assert.Equal("users/1", result.DocumentId);
+                            Assert.Equal("image/png", result.ContentType);
+                            Assert.Equal("igkD5aEdkdAsAB/VpYm1uFlfZIP9M2LSUsD6f6RVW9U=", result.Hash);
+                        }
 
-            using (var backgroundStream = new MemoryStream(new byte[] { 10, 20, 30, 40, 50, 60 }))
-            {
-                var result = store3.Operations.Send(new PutAttachmentOperation("users/1", "foo/bar", backgroundStream, "image/png"));
-                Assert.Equal("foo/bar", result.Name);
-                Assert.Equal("users/1", result.DocumentId);
-                Assert.Equal("image/png", result.ContentType);
-                Assert.Equal("7hoAZadly0e2TKk4NC6+MrtVuqZblV3+UDW7/Iz9H5U=", result.Hash);
-            }
+                        using (var backgroundStream = new MemoryStream([10, 20, 30, 40, 50, 60]))
+                        {
+                            var result = store3.Operations.Send(new PutAttachmentOperation("users/1", "foo/bar", backgroundStream, "image/png"));
+                            Assert.Equal("foo/bar", result.Name);
+                            Assert.Equal("users/1", result.DocumentId);
+                            Assert.Equal("image/png", result.ContentType);
+                            Assert.Equal("7hoAZadly0e2TKk4NC6+MrtVuqZblV3+UDW7/Iz9H5U=", result.Hash);
+                        }
 
-            using (var session = store1.OpenAsyncSession())
-            {
-                var u = await session.LoadAsync<User>("users/1");
-                u.Age = 30;
-                await session.SaveChangesAsync();
+                        using (var session = store1.OpenAsyncSession())
+                        {
+                            var u = await session.LoadAsync<User>("users/1");
+                            u.Age = 30;
+                            await session.SaveChangesAsync();
+                        }
+                    }
+                }    
             }
+            
 
             await replication1.MendAsync();
             await replication2.MendAsync();
