@@ -1,4 +1,6 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Raven.Server;
 using Tests.Infrastructure;
@@ -18,38 +20,16 @@ public partial class RavenTestBase
             Instances = instances;
         }
 
-        public async Task BreakAsync()
-        {
-            foreach (var (node, replicationInstance) in Instances)
-            {
-                await replicationInstance.BreakAsync();
-            }
-        }
+        public Task BreakAsync()  => WhenAll(static i => i.BreakAsync());
 
-        public async Task MendAsync()
-        {
-            foreach (var (node, replicationInstance) in Instances)
-            {
-                await replicationInstance.MendAsync();
-            }
-        }
+        public Task MendAsync() => WhenAll(static i => i.MendAsync());
 
-        public async Task ReplicateOnceAsync(string docId)
-        {
-            foreach (var (node, replicationInstance) in Instances)
-            {
-                await replicationInstance.ReplicateOnceAsync(docId);
-            }
-        }
+        public Task ReplicateOnceAsync(string docId) => WhenAll( i => i.ReplicateOnceAsync(docId));
 
-        public async Task EnsureNoReplicationLoopAsync()
-        {
-            foreach (var (node, replicationInstance) in Instances)
-            {
-                await replicationInstance.EnsureNoReplicationLoopAsync();
-            }
-        }
+        public Task EnsureNoReplicationLoopAsync() => WhenAll(static i => i.EnsureNoReplicationLoopAsync());
 
+        private Task WhenAll(Func<ReplicationInstance, Task> action) => Task.WhenAll(Instances.Values.Select(action));
+        
         public void Dispose()
         {
             foreach (var instance in Instances.Values)

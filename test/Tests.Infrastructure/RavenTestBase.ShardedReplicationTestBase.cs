@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Raven.Client.Documents;
 using Raven.Client.ServerWide.Sharding;
@@ -37,6 +38,7 @@ public partial class RavenTestBase
                     s.Store(new { }, id);
                     s.SaveChanges();
                 }
+
                 Assert.NotNull(await _parent.Replication.WaitForDocumentToReplicateAsync<object>(dst, id, 15 * 1000));
             }
         }
@@ -64,28 +66,18 @@ public partial class RavenTestBase
             public readonly string DatabaseName;
             private readonly ShardingConfiguration _config;
 
-            protected ShardedReplicationManager(Dictionary<int, ReplicationManager> shardReplications, string databaseName, ShardingConfiguration config)
+            private ShardedReplicationManager(Dictionary<int, ReplicationManager> shardReplications, string databaseName, ShardingConfiguration config)
             {
                 ShardReplications = shardReplications;
                 DatabaseName = databaseName;
                 _config = config;
             }
 
-            public async Task MendAsync()
-            {
-                foreach (var (shardNumber, brokenReplication) in ShardReplications)
-                {
-                    await brokenReplication.MendAsync();
-                }
-            }
+            public Task MendAsync() => WhenAll(static v => v.MendAsync());
 
-            public async Task BreakAsync()
-            {
-                foreach (var (shardNumber, shardReplication) in ShardReplications)
-                {
-                    await shardReplication.BreakAsync();
-                }
-            }
+            public Task BreakAsync() => WhenAll(static v => v.BreakAsync());
+
+            public Task EnsureNoReplicationLoopAsync() => WhenAll(static v => v.EnsureNoReplicationLoopAsync());
 
             public async Task ReplicateOnceAsync(string docId)
             {
@@ -96,13 +88,7 @@ public partial class RavenTestBase
                 await ShardReplications[shardNumber].ReplicateOnceAsync(docId);
             }
 
-            public async Task EnsureNoReplicationLoopAsync()
-            {
-                foreach (var (node, replicationInstance) in ShardReplications)
-                {
-                    await replicationInstance.EnsureNoReplicationLoopAsync();
-                }
-            }
+            private Task WhenAll(Func<ReplicationManager, Task> action) => Task.WhenAll(ShardReplications.Values.Select(action));
 
             public void Dispose()
             {

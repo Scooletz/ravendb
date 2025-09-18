@@ -202,20 +202,21 @@ namespace SlowTests.Issues
 
                 Assert.True(WaitForDocument<User>(replica, id, u => u.Name == "ayende"));
 
-                await replication.BreakAsync();
-
-                using (var session = store.OpenAsyncSession())
+                await using (replication.BreakThenAwaitAfter())
                 {
-                    session.TimeSeriesFor(id, "heartrate").Append(DateTime.UtcNow, 1);
-                    await session.SaveChangesAsync();
-                }
+                    using (var session = store.OpenAsyncSession())
+                    {
+                        session.TimeSeriesFor(id, "heartrate").Append(DateTime.UtcNow, 1);
+                        await session.SaveChangesAsync();
+                    }
 
-                using (var session = replica.OpenAsyncSession())
-                {
-                    var doc = await session.LoadAsync<User>(id);
-                    doc.Name = "ayende2";
+                    using (var session = replica.OpenAsyncSession())
+                    {
+                        var doc = await session.LoadAsync<User>(id);
+                        doc.Name = "ayende2";
 
-                    await session.SaveChangesAsync();
+                        await session.SaveChangesAsync();
+                    }
                 }
 
                 await replication.MendAsync();
