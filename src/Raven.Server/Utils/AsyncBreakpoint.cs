@@ -29,7 +29,7 @@ public sealed class AsyncBreakpoint
 
     /// <summary>
     /// When hit with the next call of the <see cref="Wait"/>, it will pause its execution synchronously.
-    /// The returned task 
+    /// The returned task completes when all the waiters wait.
     /// </summary>
     public Task Break()
     {
@@ -70,7 +70,7 @@ public sealed class AsyncBreakpoint
         await Break();
     }
 
-    public void Wait(CancellationToken cancellationToken)
+    public void Wait(CancellationToken cancellationToken = default)
     {
         if (cancellationToken.IsCancellationRequested)
             throw new OperationCanceledException(cancellationToken);
