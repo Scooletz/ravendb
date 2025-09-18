@@ -20,16 +20,16 @@ public partial class RavenTestBase
             Instances = instances;
         }
 
-        public Task BreakAsync()  => WhenAll(static i => i.BreakAsync());
+        public Task BreakAsync() => WhenAll(static i => i.BreakAsync());
 
         public Task MendAsync() => WhenAll(static i => i.MendAsync());
 
-        public Task ReplicateOnceAsync(string docId) => WhenAll( i => i.ReplicateOnceAsync(docId));
+        public Task ReplicateOnceAsync(string docId) => WhenAll(i => i.ReplicateOnceAsync(docId));
 
         public Task EnsureNoReplicationLoopAsync() => WhenAll(static i => i.EnsureNoReplicationLoopAsync());
 
         private Task WhenAll(Func<ReplicationInstance, Task> action) => Task.WhenAll(Instances.Values.Select(action));
-        
+
         public void Dispose()
         {
             foreach (var instance in Instances.Values)
@@ -50,7 +50,7 @@ public partial class RavenTestBase
 
             return new ReplicationManager(databaseName, instances);
         }
-        
+
         public class ReplicationOptions
         {
             public bool BreakReplicationOnStart = true;

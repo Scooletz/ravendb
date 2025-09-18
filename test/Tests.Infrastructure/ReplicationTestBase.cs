@@ -67,7 +67,7 @@ namespace Tests.Infrastructure
         public async ValueTask<IReplicationManager> GetReplicationManagerAsync(IDocumentStore store, string databaseName, RavenDatabaseMode mode, ReplicationManager.ReplicationOptions options, List<RavenServer> servers = null)
         {
             if (mode == RavenDatabaseMode.Single)
-                return await  ReplicationManager.GetReplicationManagerAsync(servers ?? GetServers() , databaseName, options);
+                return await ReplicationManager.GetReplicationManagerAsync(servers ?? GetServers() , databaseName, options);
 
             return await ShardedReplicationTestBase.ShardedReplicationManager.GetShardedReplicationManager(await Sharding.GetShardingConfigurationAsync(store),
                 servers ?? GetServers(), databaseName, options);

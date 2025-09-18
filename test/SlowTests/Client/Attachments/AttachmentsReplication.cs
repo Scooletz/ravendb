@@ -2851,7 +2851,7 @@ namespace SlowTests.Client.Attachments
                     session.SaveChanges();
                 }
 
-                using (var profileStream = new MemoryStream(new byte[] { 1, 2, 3 }))
+                using (var profileStream = new MemoryStream([1, 2, 3]))
                 {
                     var result = store1.Operations.Send(new PutAttachmentOperation("users/1", "foo/bar", profileStream, "image/png"));
                     Assert.Equal("foo/bar", result.Name);
