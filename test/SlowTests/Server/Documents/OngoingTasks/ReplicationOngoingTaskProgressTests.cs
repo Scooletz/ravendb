@@ -160,9 +160,11 @@ namespace SlowTests.Server.Documents.OngoingTasks
 
             // break the replication again to perform deletion and check tombstone items
 
-            await replication.Break();
+            var @break = replication.Break();
 
             await DeleteUserDocument(hub);
+
+            await @break;
 
             await VerifyPullAsHubReplicationProgress(hub, hubDatabase, isCompleted: false, hasTombstones: true);
 
