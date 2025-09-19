@@ -2842,20 +2842,22 @@ namespace SlowTests.Client.Attachments
         [RavenData(DatabaseMode = RavenDatabaseMode.All)]
         public async Task ConflictOfAttachmentAndDocument(Options options)
         {
+            const string docId = "users/1";
+            
             using (var store1 = GetDocumentStore(options))
             using (var store2 = GetDocumentStore(options))
             {
                 using (var session = store1.OpenSession())
                 {
-                    session.Store(new User { Name = "Karmel" }, "users/1");
+                    session.Store(new User { Name = "Karmel" }, docId);
                     session.SaveChanges();
                 }
 
                 using (var profileStream = new MemoryStream([1, 2, 3]))
                 {
-                    var result = store1.Operations.Send(new PutAttachmentOperation("users/1", "foo/bar", profileStream, "image/png"));
+                    var result = store1.Operations.Send(new PutAttachmentOperation(docId, "foo/bar", profileStream, "image/png"));
                     Assert.Equal("foo/bar", result.Name);
-                    Assert.Equal("users/1", result.DocumentId);
+                    Assert.Equal(docId, result.DocumentId);
                     Assert.Equal("image/png", result.ContentType);
                     Assert.Equal("EcDnm3HDl2zNDALRMQ4lFsCO3J2Lb1fM1oDWOk2Octo=", result.Hash);
                 }
@@ -2872,37 +2874,38 @@ namespace SlowTests.Client.Attachments
                 var replication1 = await GetReplicationManagerAsync(store1, store1.Database, options.DatabaseMode);
                 var replication2 = await GetReplicationManagerAsync(store2, store2.Database, options.DatabaseMode);
 
-                await using (replication1.BreakThenAwaitAfter(replication2))
+                Task<IReplicationBreak> break1 = replication1.BreakForAsync(docId);
+                Task<IReplicationBreak> break2 = replication2.BreakForAsync(docId);
+
                 {
                     using (var backgroundStream = new MemoryStream([10, 20, 30, 40, 50]))
                     {
-                        var result = store2.Operations.Send(new PutAttachmentOperation("users/1", "foo/bar", backgroundStream, "image/png"));
+                        var result = store2.Operations.Send(new PutAttachmentOperation(docId, "foo/bar", backgroundStream, "image/png"));
                         Assert.Equal("foo/bar", result.Name);
-                        Assert.Equal("users/1", result.DocumentId);
+                        Assert.Equal(docId, result.DocumentId);
                         Assert.Equal("image/png", result.ContentType);
                         Assert.Equal("igkD5aEdkdAsAB/VpYm1uFlfZIP9M2LSUsD6f6RVW9U=", result.Hash);
                     }
 
                     using (var session = store1.OpenAsyncSession())
                     {
-                        var u = await session.LoadAsync<User>("users/1");
+                        var u = await session.LoadAsync<User>(docId);
                         u.Age = 30;
                         await session.SaveChangesAsync();
                     }
                 }
 
+                await (await break1).MendAsync();
+                await (await break2).MendAsync();
+
                 await WriteStatus(stores, "Stage 2");
-
-                await replication1.MendAsync();
-
-                await replication2.MendAsync();
 
                 await EnsureReplicatingAsync(store2, store1);
                 await EnsureReplicatingAsync(store1, store2);
 
                 await WriteStatus(stores, "Stage 3");
 
-                var dbName1 = options.DatabaseMode == RavenDatabaseMode.Single ? store1.Database : await Sharding.GetShardDatabaseNameForDocAsync(store1, "users/1");
+                var dbName1 = options.DatabaseMode == RavenDatabaseMode.Single ? store1.Database : await Sharding.GetShardDatabaseNameForDocAsync(store1, docId);
                 var storage = await Server.ServerStore.DatabasesLandlord.TryGetOrCreateResourceStore(dbName1);
 
                 using (storage.DocumentsStorage.ContextPool.AllocateOperationContext(out DocumentsOperationContext context))
@@ -2911,8 +2914,8 @@ namespace SlowTests.Client.Attachments
                     {
                         using var session1 = store1.OpenAsyncSession();
                         using var session2 = store2.OpenAsyncSession();
-                        var attachment = await session1.Advanced.Attachments.GetAsync("users/1", "foo/bar");
-                        var attachment2 = await session2.Advanced.Attachments.GetAsync("users/1", "foo/bar");
+                        var attachment = await session1.Advanced.Attachments.GetAsync(docId, "foo/bar");
+                        var attachment2 = await session2.Advanced.Attachments.GetAsync(docId, "foo/bar");
 
                         if (attachment != null && attachment2 != null &&
                             attachment.Details.Hash == "EcDnm3HDl2zNDALRMQ4lFsCO3J2Lb1fM1oDWOk2Octo=" &&
@@ -2929,15 +2932,15 @@ namespace SlowTests.Client.Attachments
                     using var session1 = store1.OpenAsyncSession();
                     using var session2 = store2.OpenAsyncSession();
 
-                    var user = await session1.LoadAsync<User>("users/1");
+                    var user = await session1.LoadAsync<User>(docId);
                     Assert.Equal(30, user.Age);
-                    var user2 = await session2.LoadAsync<User>("users/1");
+                    var user2 = await session2.LoadAsync<User>(docId);
                     Assert.Equal(30, user2.Age);
 
                     await WriteAttachmentDetails(stores);
 
-                    var attachment = await session1.Advanced.Attachments.GetAsync("users/1", "foo/bar");
-                    var attachment2 = await session2.Advanced.Attachments.GetAsync("users/1", "foo/bar");
+                    var attachment = await session1.Advanced.Attachments.GetAsync(docId, "foo/bar");
+                    var attachment2 = await session2.Advanced.Attachments.GetAsync(docId, "foo/bar");
 
                     Assert.NotNull(attachment);
                     Assert.NotNull(attachment2);

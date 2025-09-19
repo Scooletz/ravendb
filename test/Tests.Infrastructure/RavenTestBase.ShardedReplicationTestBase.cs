@@ -73,19 +73,30 @@ public partial class RavenTestBase
                 _config = config;
             }
 
+            public async Task<IReplicationBreak> BreakForAsync(string docId)
+            {
+                ReplicationManager shard = GetShardFor(docId);
+                await shard.BreakAsync();
+                
+                // The shard itself implements the breaking
+                return shard;
+            }
+
             public Task MendAsync() => WhenAll(static v => v.MendAsync());
 
             public Task BreakAsync() => WhenAll(static v => v.BreakAsync());
 
             public Task EnsureNoReplicationLoopAsync() => WhenAll(static v => v.EnsureNoReplicationLoopAsync());
 
-            public async Task ReplicateOnceAsync(string docId)
+            public Task ReplicateOnceAsync(string docId) => GetShardFor(docId).ReplicateOnceAsync(docId);
+
+            private ReplicationManager GetShardFor(string docId)
             {
                 int shardNumber;
                 using (var allocator = new ByteStringContext(SharedMultipleUseFlag.None))
                     shardNumber = ShardHelper.GetShardNumberFor(_config, allocator, docId);
 
-                await ShardReplications[shardNumber].ReplicateOnceAsync(docId);
+                return ShardReplications[shardNumber];
             }
 
             private Task WhenAll(Func<ReplicationManager, Task> action) => Task.WhenAll(ShardReplications.Values.Select(action));

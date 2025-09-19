@@ -12,7 +12,7 @@ namespace Raven.Server.Utils;
 public sealed class AsyncBreakpoint
 {
     private readonly string _name;
-    private readonly int _count;
+    private int _count;
     private readonly object _locker = new();
 
     private TaskCompletionSource _break;
@@ -110,4 +110,12 @@ public sealed class AsyncBreakpoint
     }
 
     public override string ToString() => $"{nameof(AsyncBreakpoint)}: {_name}";
+
+    public void SetCount(int replicationLoaderDependentHandlerCount)
+    {
+        lock (_locker)
+        {
+            _count = _count;
+        }
+    }
 }

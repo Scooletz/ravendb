@@ -73,13 +73,10 @@ namespace Tests.Infrastructure
                 servers ?? GetServers(), databaseName, options);
         }
 
-        protected static async Task<ReplicationInstance> BreakReplication(Raven.Server.ServerWide.ServerStore from, string databaseName, int numberOfReplications = 1)
+        protected static async Task<ReplicationInstance> BreakReplication(Raven.Server.ServerWide.ServerStore from, string databaseName)
         {
             // The default replication options set already the replication to break
-            return await ReplicationInstance.GetReplicationInstanceAsync(from.Server, databaseName, new ReplicationManager.ReplicationOptions()
-            {
-                NumberOfReplications = numberOfReplications,
-            });
+            return await ReplicationInstance.GetReplicationInstanceAsync(from.Server, databaseName, new ReplicationManager.ReplicationOptions());
         }
 
         protected static GetConflictsResult.Conflict[] WaitUntilHasConflict(IDocumentStore store, string docId, int count = 2)
@@ -340,14 +337,8 @@ namespace Tests.Infrastructure
                 if (passSingleTx)
                     database.Configuration.Replication.MaxItemsCount = 1;
 
-                if (database.ReplicationLoader.DebugBreakpoint != null)
-                {
-                    _breakpoint = database.ReplicationLoader.DebugBreakpoint;
-                }
-                else
-                {
-                    _breakpoint = database.ReplicationLoader.DebugBreakpoint = new AsyncBreakpoint(database.Name, 1);
-                }
+                // ReSharper disable once ByRefArgumentIsVolatileField
+                _breakpoint = database.ReplicationLoader.EnsureBreakpoint();
             }
 
             public Task Break() => _breakpoint.BreakAsync();

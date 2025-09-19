@@ -84,6 +84,7 @@ namespace Raven.Server.Documents.Replication
         private bool _replicationDisabledByMarker;
         private readonly ConcurrentQueue<TaskCompletionSource<object>> _waitForReplicationTasks = new ConcurrentQueue<TaskCompletionSource<object>>();
         private readonly ConcurrentDictionary<ReplicationNode, LastEtagPerDestination> _lastSendEtagPerDestination = new ConcurrentDictionary<ReplicationNode, LastEtagPerDestination>();
+        private readonly ConcurrentSet<object> _dependentHandlers = new();
 
         public IEnumerable<ReplicationNode> OutgoingConnections => _outgoing.Select(x => x.Node);
         public IEnumerable<DatabaseOutgoingReplicationHandler> OutgoingHandlers => _outgoing;
@@ -2071,6 +2072,34 @@ namespace Raven.Server.Documents.Replication
             }
 
             return c;
+        }
+
+        /// <summary>
+        /// Registers a handler that is dependent on this <see cref="ReplicationLoader"/>.
+        /// </summary>
+        /// <param name="handler">The handler to register.</param>
+        public void RegisterDependentHandler(object handler) => _dependentHandlers.TryAdd(handler);
+        
+        /// <summary>
+        /// Unregisters the handler previously registered with <see cref="RegisterDependentHandler"/>.
+        /// </summary>
+        /// <param name="handler">The handler to unregister.</param>
+        public void UnregisterDependentHandler(object handler) => _dependentHandlers.TryRemove(handler);
+        
+        public AsyncBreakpoint EnsureBreakpoint()
+        {
+            int count = _dependentHandlers.Count;
+            
+            if (DebugBreakpoint != null)
+            {
+                DebugBreakpoint.SetCount(count);
+            }
+            else
+            {
+                DebugBreakpoint = new AsyncBreakpoint(Database.Name, count);    
+            }
+            
+            return DebugBreakpoint;
         }
     }
 

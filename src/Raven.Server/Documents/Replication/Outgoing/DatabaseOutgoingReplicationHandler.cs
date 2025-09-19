@@ -53,6 +53,9 @@ namespace Raven.Server.Documents.Replication.Outgoing
         : base(connectionInfo, parent._server, database.Name, database.NotificationCenter, node, database.DocumentsStorage.ContextPool, database.DatabaseShutdown)
         {
             _parent = parent;
+
+            parent.RegisterDependentHandler(this);
+            
             _database = database;
             _waitForChanges = new AsyncManualResetEvent(database.DatabaseShutdown);
             _replicationMinimalHeartbeatInMs = (int)database.Configuration.Replication.ReplicationMinimalHeartbeat.AsTimeSpan.TotalMilliseconds;
@@ -385,6 +388,8 @@ namespace Raven.Server.Documents.Replication.Outgoing
 
         public override void Dispose()
         {
+            _parent.UnregisterDependentHandler(this);
+            
             base.Dispose();
 
             try

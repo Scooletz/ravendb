@@ -9,7 +9,7 @@ namespace FastTests;
 
 public partial class RavenTestBase
 {
-    public class ReplicationManager : IReplicationManager
+    public class ReplicationManager : IReplicationManager, IReplicationBreak
     {
         public readonly string DatabaseName;
         public readonly Dictionary<string, ReplicationInstance> Instances;
@@ -21,6 +21,12 @@ public partial class RavenTestBase
         }
 
         public Task BreakAsync() => WhenAll(static i => i.BreakAsync());
+        
+        public async Task<IReplicationBreak> BreakForAsync(string docId)
+        {
+            await BreakAsync();
+            return this;
+        }
 
         public Task MendAsync() => WhenAll(static i => i.MendAsync());
 
@@ -56,11 +62,6 @@ public partial class RavenTestBase
             public bool BreakReplicationOnStart = true;
             public bool KeepMaxItemsCountOnDispose;
             public int? MaxItemsCount = 1;
-
-            /// <summary>
-            /// How many replication processes are handled by this manager.
-            /// </summary>
-            public int NumberOfReplications = 1;
         }
     }
 }

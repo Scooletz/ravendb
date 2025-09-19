@@ -11,7 +11,7 @@ using Xunit;
 
 namespace Tests.Infrastructure
 {
-    public class ReplicationInstance : IReplicationManager
+    public class ReplicationInstance : IReplicationManager, IReplicationBreak
     {
         private readonly DocumentDatabase _database;
         public readonly string DatabaseName;
@@ -24,10 +24,15 @@ namespace Tests.Infrastructure
             DatabaseName = databaseName ?? throw new ArgumentNullException(nameof(databaseName));
             _options = options;
 
-            _database.ReplicationLoader.DebugBreakpoint = _breakpoint = new AsyncBreakpoint(databaseName, options.NumberOfReplications);
+            _breakpoint = database.ReplicationLoader.EnsureBreakpoint();
         }
 
         public Task BreakAsync() => _breakpoint.BreakAsync();
+        public async Task<IReplicationBreak> BreakForAsync(string docId)
+        {
+            await BreakAsync();
+            return this;
+        }
 
         public Task MendAsync()
         {
