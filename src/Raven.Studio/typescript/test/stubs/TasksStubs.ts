@@ -276,6 +276,10 @@ export class TasksStubs {
                 MinimumBackupAgeToKeep: "1.00:00:00",
             },
             PinToMentorNode: false,
+            FullBackupFrequency: "0 2 * * 0",
+            IncrementalBackupFrequency: "0 2 * * *",
+            BackupUploadMode: "Default",
+            HasCloudBackup: false,
         };
     }
 
@@ -388,6 +392,7 @@ export class TasksStubs {
                     {
                         Path: "Name",
                         ChunkingOptions: {
+                            OverlapTokens: 0,
                             ChunkingMethod: "PlainTextSplit",
                             MaxTokensPerChunk: 2048,
                         },
@@ -397,6 +402,7 @@ export class TasksStubs {
                 Quantization: "Single",
                 EmbeddingsCacheExpiration: "90.00:00:00",
                 ChunkingOptionsForQuerying: {
+                    OverlapTokens: 0,
                     ChunkingMethod: "PlainTextSplit",
                     MaxTokensPerChunk: 2048,
                 },
@@ -822,13 +828,13 @@ namespace Orders
                             {
                                 Name: "heart.png",
                                 Type: "image/png",
-                                Source: "FromDatabase",
+                                Source: "FromAttachment",
                                 Data: "[Hash:'FLNK25A3VOpVPIiusBEZMwUU5mWqSZR7T2OqYF4nBfA=']",
                             },
                             {
                                 Name: "transactions.csv",
                                 Type: "text/plain",
-                                Source: "FromDatabase",
+                                Source: "FromAttachment",
                                 Data: "Date,Description,Category,Amount\r\n2025-01-01,Grocery Store,food,45.32\r\n2025-01-02,Utility Bill,Ut...",
                             },
                         ],
@@ -849,13 +855,13 @@ namespace Orders
                             {
                                 Name: "heart.png",
                                 Type: "image/png",
-                                Source: "FromDatabase",
+                                Source: "FromAttachment",
                                 Data: "[Hash:'FLNK25A3VOpVPIiusBEZMwUU5mWqSZR7T2OqYF4nBfA=']",
                             },
                             {
                                 Name: "transactions.csv",
                                 Type: "text/plain",
-                                Source: "FromDatabase",
+                                Source: "FromAttachment",
                                 Data: "Date,Description,Category,Amount\r\n2025-01-01,Grocery Store,food,45.32\r\n2025-01-02,Utility Bill,Ut...",
                             },
                         ],

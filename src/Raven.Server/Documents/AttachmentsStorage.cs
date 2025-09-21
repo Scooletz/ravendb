@@ -196,7 +196,7 @@ namespace Raven.Server.Documents
 
         public void RetireAttachment(DocumentsOperationContext context, AttachmentDetailsServer attachment, Slice keySlice)
         {
-            using (DocumentIdWorker.GetSliceFromId(context, attachment.DocumentId, out Slice lowerDocumentId))
+            using (DocumentIdWorker.GetLoweredIdSliceFromId(context, attachment.DocumentId, out Slice lowerDocumentId))
             {
                 if (TryGetDocumentTableValueReaderForAttachment(context, attachment.DocumentId, attachment.Name, lowerDocumentId, out var documentTvr) == false)
                     throw new DocumentDoesNotExistException($"Cannot retire attachment '{attachment.Name}' on a non existent document '{attachment.DocumentId}'.");
@@ -253,7 +253,7 @@ namespace Raven.Server.Documents
             // Attachment etag should be generated before updating the document
             var attachmentEtag = _documentsStorage.GenerateNextEtag();
 
-            using (DocumentIdWorker.GetSliceFromId(context, documentId, out Slice lowerDocumentId))
+            using (DocumentIdWorker.GetLoweredIdSliceFromId(context, documentId, out Slice lowerDocumentId))
             {
                 TableValueReader tvr = default;
                 if (fromSmuggler == false)
@@ -588,7 +588,7 @@ namespace Raven.Server.Documents
 
         public string UpdateDocumentAfterAttachmentChange(DocumentsOperationContext context, string documentId)
         {
-            using (DocumentIdWorker.GetSliceFromId(context, documentId, out Slice lowerDocumentId))
+            using (DocumentIdWorker.GetLoweredIdSliceFromId(context, documentId, out Slice lowerDocumentId))
             {
                 var exists = _documentsStorage.GetTableValueReaderForDocument(context, lowerDocumentId, throwOnConflict: true, tvr: out TableValueReader tvr);
                 if (exists == false)
@@ -643,7 +643,7 @@ namespace Raven.Server.Documents
                 {
                     retireParams = JsonDeserializationClient.RetireAttachmentParameters(retireParamsBjro);
                 }
-                using (DocumentIdWorker.GetSliceFromId(context, id, out Slice lowerDocumentId))
+                using (DocumentIdWorker.GetLoweredIdSliceFromId(context, id, out Slice lowerDocumentId))
                 using (DocumentIdWorker.GetLowerIdSliceAndStorageKey(context, name, out Slice lowerName, out Slice nameSlice))
                 using (DocumentIdWorker.GetLowerIdSliceAndStorageKey(context, contentType, out Slice lowerContentType, out Slice contentTypeSlice))
                 using (Slice.External(context.Allocator, hash, out Slice base64Hash))
@@ -940,8 +940,8 @@ namespace Raven.Server.Documents
 
         public bool AttachmentExists(DocumentsOperationContext context, string documentId, string name)
         {
-            using (DocumentIdWorker.GetSliceFromId(context, documentId, out Slice lowerId))
-            using (DocumentIdWorker.GetSliceFromId(context, name, out Slice lowerName))
+            using (DocumentIdWorker.GetLoweredIdSliceFromId(context, documentId, out Slice lowerId))
+            using (DocumentIdWorker.GetLoweredIdSliceFromId(context, name, out Slice lowerName))
             using (AttachmentKey.GetPartialKey(context, lowerId.Content.Ptr, lowerId.Size, lowerName.Content.Ptr, lowerName.Size, AttachmentType.Document,
                        null, out var keySlice))
             {
@@ -952,8 +952,8 @@ namespace Raven.Server.Documents
         private Attachment GetAttachmentDirect(DocumentsOperationContext context, string documentId, string name, AttachmentType type, string changeVector,
             string hash = null, string contentType = null, bool usePartialKey = true)
         {
-            using (DocumentIdWorker.GetSliceFromId(context, documentId, out Slice lowerId))
-            using (DocumentIdWorker.GetSliceFromId(context, name, out Slice lowerName))
+            using (DocumentIdWorker.GetLoweredIdSliceFromId(context, documentId, out Slice lowerId))
+            using (DocumentIdWorker.GetLoweredIdSliceFromId(context, name, out Slice lowerName))
             {
                 Slice keySlice;
                 ByteStringContext<ByteStringMemoryCache>.InternalScope scope;
@@ -1175,7 +1175,7 @@ namespace Raven.Server.Documents
                 throw new ArgumentException("Context must be set with a valid transaction before calling Get", nameof(context));
 
             collectionName = null;
-            using (DocumentIdWorker.GetSliceFromId(context, documentId, out Slice lowerDocumentId))
+            using (DocumentIdWorker.GetLoweredIdSliceFromId(context, documentId, out Slice lowerDocumentId))
             {
                 var hasDoc = TryGetDocumentTableValueReaderForAttachment(context, documentId, name, lowerDocumentId, out TableValueReader docTvr);
                 if (hasDoc == false)
@@ -1197,7 +1197,7 @@ namespace Raven.Server.Documents
                 var changeVector = _documentsStorage.GetNewChangeVector(context, tombstoneEtag);
                 context.LastDatabaseChangeVector = changeVector;
 
-                using (DocumentIdWorker.GetSliceFromId(context, name, out Slice lowerName))
+                using (DocumentIdWorker.GetLoweredIdSliceFromId(context, name, out Slice lowerName))
                 {
                     Slice keySlice;
                     ByteStringContext<ByteStringMemoryCache>.InternalScope scope;
@@ -1299,8 +1299,8 @@ namespace Raven.Server.Documents
         private void DeleteAttachmentFromConflict(DocumentsOperationContext context, Slice lowerId, LazyStringValue conflictName,
             LazyStringValue conflictContentType, LazyStringValue conflictHash, string changeVector, RetireAttachmentParameters retiredParams)
         {
-            using (DocumentIdWorker.GetSliceFromId(context, conflictName, out Slice lowerName))
-            using (DocumentIdWorker.GetSliceFromId(context, conflictContentType, out Slice lowerContentType))
+            using (DocumentIdWorker.GetLoweredIdSliceFromId(context, conflictName, out Slice lowerName))
+            using (DocumentIdWorker.GetLoweredIdSliceFromId(context, conflictContentType, out Slice lowerContentType))
             using (Slice.External(context.Allocator, conflictHash, out Slice base64Hash))
             using (AttachmentKey.GetKey(context, lowerId.Content.Ptr, lowerId.Size,
                        lowerName.Content.Ptr, lowerName.Size,
