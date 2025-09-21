@@ -603,6 +603,7 @@ export class DatabasesStubs {
                     EmbeddedSettings: null,
                     OpenAiSettings: null,
                     MistralAiSettings: null,
+                    VertexSettings: null,
                 },
                 "ai-name-gen-ai": {
                     Type: "Ai",
@@ -620,6 +621,7 @@ export class DatabasesStubs {
                     EmbeddedSettings: null,
                     OpenAiSettings: null,
                     MistralAiSettings: null,
+                    VertexSettings: null,
                 },
             },
         };
