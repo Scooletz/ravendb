@@ -64,7 +64,7 @@ namespace SlowTests.Server.Documents.OngoingTasks
 
             // break the replication again to perform deletion and check tombstone items
 
-            await using (replication.BreakThenAwaitAfter())
+            await using (replication.BreakAsync())
             {
                 await DeleteUserDocument(source);    
             }
@@ -112,7 +112,7 @@ namespace SlowTests.Server.Documents.OngoingTasks
             await VerifyReplicationProgressAsync(hub, hubDatabase, ReplicationNode.ReplicationType.PullAsHub, isCompleted: true);
 
             // Break the replication again to perform deletion and check tombstone items
-            await using (replication.BreakThenAwaitAfter())
+            await using (replication.BreakAsync())
             {
                 await DeleteUserDocument(hub);    
             }
@@ -160,7 +160,7 @@ namespace SlowTests.Server.Documents.OngoingTasks
             await VerifyPullAsHubReplicationProgress(hub, hubDatabase, isCompleted: true);
 
             // Break the replication again to perform deletion and check tombstone items
-            await using (replication.BreakThenAwaitAfter())
+            await using (replication.BreakAsync())
             {
                 await DeleteUserDocument(hub);    
             }

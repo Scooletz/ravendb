@@ -9,7 +9,7 @@ namespace FastTests;
 
 public partial class RavenTestBase
 {
-    public class ReplicationManager : IReplicationManager, IReplicationBreak
+    public class ReplicationManager : IReplicationManager
     {
         public readonly string DatabaseName;
         public readonly Dictionary<string, ReplicationInstance> Instances;
@@ -20,15 +20,19 @@ public partial class RavenTestBase
             Instances = instances;
         }
 
-        public Task BreakAsync() => WhenAll(static i => i.BreakAsync());
-        
-        public async Task<IReplicationBreak> BreakForAsync(string docId)
+        public IAsyncDisposable BreakAsync()
         {
-            await BreakAsync();
-            return this;
+            return new ComposableAsyncDisposable(Instances.Values.Select(i => i.BreakAsync()));
+        }
+
+        public IAsyncDisposable BreakAsync(params string[] docIds)
+        {
+            return new ComposableAsyncDisposable(Instances.Values.Select(i => i.BreakAsync(docIds)));
         }
 
         public Task MendAsync() => WhenAll(static i => i.MendAsync());
+
+        public Task MendAsync(params string[] docIds) => WhenAll(i => i.MendAsync(docIds));
 
         public Task ReplicateOnceAsync(string docId) => WhenAll(i => i.ReplicateOnceAsync(docId));
 

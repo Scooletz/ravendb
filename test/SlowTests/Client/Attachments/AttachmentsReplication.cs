@@ -52,6 +52,7 @@ namespace SlowTests.Client.Attachments
                     session.Store(new User { Name = "Fitzchak" }, "users/1");
                     session.SaveChanges();
                 }
+
                 if (replicateDocumentFirst)
                 {
                     await SetupAttachmentReplicationAsync(store1, store2, false);
@@ -72,6 +73,7 @@ namespace SlowTests.Client.Attachments
                     Assert.Equal("image/png", result.ContentType);
                     Assert.Equal("EcDnm3HDl2zNDALRMQ4lFsCO3J2Lb1fM1oDWOk2Octo=", result.Hash);
                 }
+
                 using (var backgroundStream = new MemoryStream(new byte[] { 10, 20, 30, 40, 50 }))
                 {
                     var result = store1.Operations.Send(new PutAttachmentOperation("users/1", names[1], backgroundStream, "ImGgE/jPeG"));
@@ -80,6 +82,7 @@ namespace SlowTests.Client.Attachments
                     Assert.Equal("ImGgE/jPeG", result.ContentType);
                     Assert.Equal("igkD5aEdkdAsAB/VpYm1uFlfZIP9M2LSUsD6f6RVW9U=", result.Hash);
                 }
+
                 using (var fileStream = new MemoryStream(new byte[] { 1, 2, 3, 4, 5 }))
                 {
                     var result = store1.Operations.Send(new PutAttachmentOperation("users/1", names[2], fileStream, null));
@@ -94,10 +97,12 @@ namespace SlowTests.Client.Attachments
                     session.Store(new User { Name = "Marker" }, "marker$users/1");
                     session.SaveChanges();
                 }
+
                 if (replicateDocumentFirst == false)
                 {
                     await SetupAttachmentReplicationAsync(store1, store2, false);
                 }
+
                 Assert.True(WaitForDocument(store2, "marker$users/1"));
 
                 using (var session = store2.OpenSession())
@@ -192,6 +197,7 @@ namespace SlowTests.Client.Attachments
                     session.Store(new User { Name = "Fitzchak" }, "users/1");
                     session.SaveChanges();
                 }
+
                 using (var profileStream = new MemoryStream(new byte[] { 1, 2, 3 }))
                 {
                     var result = store1.Operations.Send(new PutAttachmentOperation("users/1", name, profileStream, name));
@@ -247,6 +253,7 @@ namespace SlowTests.Client.Attachments
                     using (var profileStream = new MemoryStream(Enumerable.Range(1, 3 * i).Select(x => (byte)x).ToArray()))
                         store1.Operations.Send(new PutAttachmentOperation("users/1", "file" + i, profileStream, "image/png"));
                 }
+
                 await AssertAttachmentCount(store1, 3);
 
                 await store1.Operations.SendAsync(new DeleteAttachmentOperation("users/1", "file2"));
@@ -280,6 +287,7 @@ namespace SlowTests.Client.Attachments
                         Assert.Equal(3, attachmentStream.Position);
                         Assert.Equal(new byte[] { 1, 2, 3 }, readBuffer.Take(3));
                     }
+
                     using (var attachmentStream = new MemoryStream(readBuffer))
                     using (var attachment = session.Advanced.Attachments.Get("users/1", "file3"))
                     {
@@ -299,6 +307,7 @@ namespace SlowTests.Client.Attachments
                     session.Store(new User { Name = "Marker 2" }, "users/1$marker2");
                     session.SaveChanges();
                 }
+
                 Assert.True(WaitForDocument(store2, "users/1$marker2"));
                 await AssertAttachmentCount(store2, 0);
             }
@@ -333,6 +342,7 @@ namespace SlowTests.Client.Attachments
                     using (var stream1 = new MemoryStream(Enumerable.Range(1, 128 * 1024).Select(x => (byte)x).ToArray()))
                         store1.Operations.Send(new PutAttachmentOperation("users/" + i, "file" + i, stream1, "image/png"));
                 }
+
                 using (var stream2 = new MemoryStream(Enumerable.Range(1, 999 * 1024).Select(x => (byte)x).ToArray()))
                     store1.Operations.Send(new PutAttachmentOperation("users/1", "big-file", stream2, "image/png"));
 
@@ -355,6 +365,7 @@ namespace SlowTests.Client.Attachments
                         var actual = readBuffer.Take((int)attachmentStream.Position);
                         Assert.Equal(expected, actual);
                     }
+
                     using (var attachmentStream = new MemoryStream(readBuffer))
                     using (var attachment = session.Advanced.Attachments.Get("users/1", "big-file"))
                     {
@@ -396,8 +407,8 @@ namespace SlowTests.Client.Attachments
         {
             var settings = new Dictionary<string, string>()
             {
-                {"Replication.MaxItemsCount" , null},
-                {"Replication.MaxSizeToSend" , null}
+                { "Replication.MaxItemsCount", null },
+                { "Replication.MaxSizeToSend", null }
             };
             await store1.Maintenance.SendAsync(new PutDatabaseSettingsOperation(store1.Database, settings));
             await SetupReplicationAsync(store1, store2);
@@ -416,6 +427,7 @@ namespace SlowTests.Client.Attachments
                 session.Store(new Product { Name = "Marker" }, id);
                 session.SaveChanges();
             }
+
             Assert.True(WaitForDocument(store2, id));
         }
 
@@ -426,6 +438,7 @@ namespace SlowTests.Client.Attachments
                 session.Store(new User { Name = "Marker " + name }, "marker-" + name);
                 session.SaveChanges();
             }
+
             Assert.True(WaitForDocument(store2, "marker-" + name));
             await AssertAttachmentCount(store2, expectedUniqueAttachments, expectedAttachments);
         }
@@ -448,6 +461,7 @@ namespace SlowTests.Client.Attachments
                     using (var profileStream = new MemoryStream(Enumerable.Range(1, 3).Select(x => (byte)x).ToArray()))
                         store1.Operations.Send(new PutAttachmentOperation("users/" + i, "file" + i, profileStream, "image/png"));
                 }
+
                 using (var profileStream = new MemoryStream(Enumerable.Range(1, 17).Select(x => (byte)x).ToArray()))
                     store1.Operations.Send(new PutAttachmentOperation("users/1", "second-file", profileStream, "image/png"));
 
@@ -735,6 +749,7 @@ namespace SlowTests.Client.Attachments
                     Assert.Equal("image/png", result.ContentType);
                     Assert.Equal("EcDnm3HDl2zNDALRMQ4lFsCO3J2Lb1fM1oDWOk2Octo=", result.Hash);
                 }
+
                 using (var backgroundStream = new MemoryStream(new byte[] { 10, 20, 30, 40, 50 }))
                 {
                     var result = store1.Operations.Send(new PutAttachmentOperation("users/1", names[1], backgroundStream, "ImGgE/jPeG"));
@@ -744,6 +759,7 @@ namespace SlowTests.Client.Attachments
                     Assert.Equal("ImGgE/jPeG", result.ContentType);
                     Assert.Equal("igkD5aEdkdAsAB/VpYm1uFlfZIP9M2LSUsD6f6RVW9U=", result.Hash);
                 }
+
                 using (var fileStream = new MemoryStream(new byte[] { 1, 2, 3, 4, 5 }))
                 {
                     var result = store1.Operations.Send(new PutAttachmentOperation("users/1", names[2], fileStream, null));
@@ -985,6 +1001,7 @@ namespace SlowTests.Client.Attachments
                     await session.StoreAsync(new User { Name = "Marker 1" }, "marker 1");
                     await session.SaveChangesAsync();
                 }
+
                 using (var session = store2.OpenAsyncSession())
                 {
                     await session.StoreAsync(new User { Name = "Fitzchak" }, "users/1");
@@ -1046,6 +1063,7 @@ namespace SlowTests.Client.Attachments
                     await session.StoreAsync(new User { Name = "Marker 1" }, "marker 1");
                     await session.SaveChangesAsync();
                 }
+
                 using (var session = store2.OpenAsyncSession())
                 {
                     await session.StoreAsync(new User { Name = "Fitzchak" }, "users/1");
@@ -1055,6 +1073,7 @@ namespace SlowTests.Client.Attachments
                     {
                         store2.Operations.Send(new PutAttachmentOperation("users/1", "a2", a2, "a1/png"));
                     }
+
                     await store2.Operations.SendAsync(new DeleteAttachmentOperation("users/1", "a2"));
 
                     await session.StoreAsync(new User { Name = "Marker 2" }, "marker 2");
@@ -1092,6 +1111,7 @@ namespace SlowTests.Client.Attachments
                     await session.StoreAsync(new User { Name = "Marker 1" }, "marker 1");
                     await session.SaveChangesAsync();
                 }
+
                 using (var session = store2.OpenAsyncSession())
                 {
                     await session.StoreAsync(new User { Name = "Fitzchak" }, "users/1");
@@ -1233,6 +1253,7 @@ namespace SlowTests.Client.Attachments
                         await store1.Operations.SendAsync(new PutAttachmentOperation("users/1", "a1", a1, "a1/png"));
                     }
                 }
+
                 using (var session = store2.OpenAsyncSession())
                 {
                     await session.StoreAsync(new User { Name = "Fitzchak" }, "users/1");
@@ -1307,6 +1328,7 @@ namespace SlowTests.Client.Attachments
                     await session.StoreAsync(new User { Name = "Marker 1" }, "marker 1");
                     await session.SaveChangesAsync();
                 }
+
                 using (var session = store2.OpenAsyncSession())
                 {
                     await session.StoreAsync(new User { Name = "Fitzchak" }, "users/1");
@@ -1316,7 +1338,12 @@ namespace SlowTests.Client.Attachments
                     {
                         store2.Operations.Send(new PutAttachmentOperation("users/1", "a1", a2, "a1/png"));
                     }
+<<<<<<< HEAD
                     await store2.Operations.SendAsync(new DeleteAttachmentOperation("users/1", "a1"));
+=======
+
+                    store2.Operations.Send(new DeleteAttachmentOperation("users/1", "a1"));
+>>>>>>> 49a18b554f1 (RavenDB-24202 sharded break and mend)
 
                     await session.StoreAsync(new User { Name = "Marker 2" }, "marker 2");
                     await session.SaveChangesAsync();
@@ -1355,6 +1382,7 @@ namespace SlowTests.Client.Attachments
                     await session.StoreAsync(new User { Name = "Marker 1" }, "marker 1");
                     await session.SaveChangesAsync();
                 }
+
                 using (var session = store2.OpenAsyncSession())
                 {
                     using (var commands = store2.Commands())
@@ -1366,6 +1394,7 @@ namespace SlowTests.Client.Attachments
                     {
                         await store2.Operations.SendAsync(new PutAttachmentOperation("users/1", "a1", a2, "a1/png"));
                     }
+
                     await store2.Operations.SendAsync(new DeleteAttachmentOperation("users/1", "a1"));
 
                     await session.StoreAsync(new User { Name = "Marker 2" }, "marker 2");
@@ -1535,21 +1564,21 @@ namespace SlowTests.Client.Attachments
             var toRemove = mainServer.ServerStore.NodeTag;
 
             using (var store = GetDocumentStore(new Options(options)
-            {
-                Server = mainServer,
-                ModifyDatabaseName = s => databaseName,
-                ReplicationFactor = 3,
-                ModifyDocumentStore = s => s.Conventions = new DocumentConventions
-                {
-                    DisableTopologyUpdates = true
-                }
-            }))
+                   {
+                       Server = mainServer,
+                       ModifyDatabaseName = s => databaseName,
+                       ReplicationFactor = 3,
+                       ModifyDocumentStore = s => s.Conventions = new DocumentConventions
+                       {
+                           DisableTopologyUpdates = true
+                       }
+                   }))
             using (var temp = GetDocumentStore(new Options(options)
-            {
-                Server = cluster.Nodes[1],
-                ModifyDatabaseName = s => databaseName,
-                CreateDatabase = false
-            }))
+                   {
+                       Server = cluster.Nodes[1],
+                       ModifyDatabaseName = s => databaseName,
+                       CreateDatabase = false
+                   }))
             {
                 await using (var ms = new MemoryStream(new byte[] { 1, 2, 3, 4 }))
                 using (var session = store.OpenAsyncSession())
@@ -1899,10 +1928,12 @@ namespace SlowTests.Client.Attachments
                 {
                     await store1.Operations.SendAsync(new PutAttachmentOperation("users/1", "a1", a1, "a1/jpeg"));
                 }
+
                 await using (var a1 = new MemoryStream(new byte[] { 1, 2, 3, 5 }))
                 {
                     await store2.Operations.SendAsync(new PutAttachmentOperation("users/1", "a1", a1, "a1/jpeg"));
                 }
+
                 external1.Disabled = false;
                 external2.Disabled = false;
 
@@ -1960,51 +1991,51 @@ namespace SlowTests.Client.Attachments
         {
             var modifyDatabaseRecord = options.ModifyDatabaseRecord;
             using (var store1 = GetDocumentStore(options: new Options(options)
-            {
-                ModifyDatabaseRecord = record =>
-                {
-                    modifyDatabaseRecord?.Invoke(record);
-                    record.ConflictSolverConfig = new ConflictSolver
-                    {
-                        ResolveToLatest = false,
-                        ResolveByCollection = new Dictionary<string, ScriptResolver>()
-                        {
-                            {
-                                "Users", new ScriptResolver()
-                                {
-                                    Script = @"docs[0]['@metadata']['@attachments'][0]['Name'] = 'newName';
+                   {
+                       ModifyDatabaseRecord = record =>
+                       {
+                           modifyDatabaseRecord?.Invoke(record);
+                           record.ConflictSolverConfig = new ConflictSolver
+                           {
+                               ResolveToLatest = false,
+                               ResolveByCollection = new Dictionary<string, ScriptResolver>()
+                               {
+                                   {
+                                       "Users", new ScriptResolver()
+                                       {
+                                           Script = @"docs[0]['@metadata']['@attachments'][0]['Name'] = 'newName';
                                                docs[0].Name = docs[0].Name + '_RESOLVED';
                                                return docs[0];
                                                "
-                                }
-                            }
-                        }
-                    };
-                }
-            }))
+                                       }
+                                   }
+                               }
+                           };
+                       }
+                   }))
             using (var store2 = GetDocumentStore(options: new Options(options)
-            {
-                ModifyDatabaseRecord = record =>
-                {
-                    modifyDatabaseRecord?.Invoke(record);
-                    record.ConflictSolverConfig = new ConflictSolver
-                    {
-                        ResolveToLatest = false,
-                        ResolveByCollection = new Dictionary<string, ScriptResolver>()
-                        {
-                            {
-                                "Users", new ScriptResolver()
-                                {
-                                    Script = @"docs[0]['@metadata']['@attachments'][0]['Name'] = 'newName';
+                   {
+                       ModifyDatabaseRecord = record =>
+                       {
+                           modifyDatabaseRecord?.Invoke(record);
+                           record.ConflictSolverConfig = new ConflictSolver
+                           {
+                               ResolveToLatest = false,
+                               ResolveByCollection = new Dictionary<string, ScriptResolver>()
+                               {
+                                   {
+                                       "Users", new ScriptResolver()
+                                       {
+                                           Script = @"docs[0]['@metadata']['@attachments'][0]['Name'] = 'newName';
                                                docs[0].Name = docs[0].Name + '_RESOLVED';
                                                return docs[0];
                                                "
-                                }
-                            }
-                        }
-                    };
-                }
-            }))
+                                       }
+                                   }
+                               }
+                           };
+                       }
+                   }))
             {
                 var cvs = new List<(string, string)>();
                 using (var session = store1.OpenAsyncSession())
@@ -2038,6 +2069,7 @@ namespace SlowTests.Client.Attachments
                     var cv = session.Advanced.GetChangeVectorFor(u);
                     cvs.Add(("EGOR", cv));
                 }
+
                 cvs.Sort(ChangeVectorComparer.Instance);
                 var orderedDocsByEtag = cvs;
                 await SetupReplicationAsync(store1, store2);
@@ -2092,51 +2124,51 @@ namespace SlowTests.Client.Attachments
         {
             var modifyDatabaseRecord = options.ModifyDatabaseRecord;
             using (var store1 = GetDocumentStore(options: new Options(options)
-            {
-                ModifyDatabaseRecord = record =>
-                {
-                    modifyDatabaseRecord?.Invoke(record);
-                    record.ConflictSolverConfig = new ConflictSolver
-                    {
-                        ResolveToLatest = false,
-                        ResolveByCollection = new Dictionary<string, ScriptResolver>()
-                        {
-                            {
-                                "Users", new ScriptResolver()
-                                {
-                                    Script = @"docs[0]['@metadata']['@attachments'][0]['Name'] = 'newName';
+                   {
+                       ModifyDatabaseRecord = record =>
+                       {
+                           modifyDatabaseRecord?.Invoke(record);
+                           record.ConflictSolverConfig = new ConflictSolver
+                           {
+                               ResolveToLatest = false,
+                               ResolveByCollection = new Dictionary<string, ScriptResolver>()
+                               {
+                                   {
+                                       "Users", new ScriptResolver()
+                                       {
+                                           Script = @"docs[0]['@metadata']['@attachments'][0]['Name'] = 'newName';
                                                docs[0].Name = docs[0].Name + '_RESOLVED';
                                                return docs[0];
                                                "
-                                }
-                            }
-                        }
-                    };
-                }
-            }))
+                                       }
+                                   }
+                               }
+                           };
+                       }
+                   }))
             using (var store2 = GetDocumentStore(options: new Options(options)
-            {
-                ModifyDatabaseRecord = record =>
-                {
-                    modifyDatabaseRecord?.Invoke(record);
-                    record.ConflictSolverConfig = new ConflictSolver
-                    {
-                        ResolveToLatest = false,
-                        ResolveByCollection = new Dictionary<string, ScriptResolver>()
-                        {
-                            {
-                                "Users", new ScriptResolver()
-                                {
-                                    Script = @"docs[0]['@metadata']['@attachments'][0]['Name'] = 'newName';
+                   {
+                       ModifyDatabaseRecord = record =>
+                       {
+                           modifyDatabaseRecord?.Invoke(record);
+                           record.ConflictSolverConfig = new ConflictSolver
+                           {
+                               ResolveToLatest = false,
+                               ResolveByCollection = new Dictionary<string, ScriptResolver>()
+                               {
+                                   {
+                                       "Users", new ScriptResolver()
+                                       {
+                                           Script = @"docs[0]['@metadata']['@attachments'][0]['Name'] = 'newName';
                                                docs[0].Name = docs[0].Name + '_RESOLVED';
                                                return docs[0];
                                                "
-                                }
-                            }
-                        }
-                    };
-                }
-            }))
+                                       }
+                                   }
+                               }
+                           };
+                       }
+                   }))
             {
                 var cvs = new List<(string, string)>();
                 using (var session = store1.OpenAsyncSession())
@@ -2237,51 +2269,51 @@ namespace SlowTests.Client.Attachments
         {
             var modifyDatabaseRecord = options.ModifyDatabaseRecord;
             using (var store1 = GetDocumentStore(options: new Options(options)
-            {
-                ModifyDatabaseRecord = record =>
-                {
-                    modifyDatabaseRecord?.Invoke(record);
-                    record.ConflictSolverConfig = new ConflictSolver
-                    {
-                        ResolveToLatest = false,
-                        ResolveByCollection = new Dictionary<string, ScriptResolver>()
-                        {
-                            {
-                                "Users", new ScriptResolver()
-                                {
-                                    Script = @"docs[0]['@metadata']['@attachments'].pop();
+                   {
+                       ModifyDatabaseRecord = record =>
+                       {
+                           modifyDatabaseRecord?.Invoke(record);
+                           record.ConflictSolverConfig = new ConflictSolver
+                           {
+                               ResolveToLatest = false,
+                               ResolveByCollection = new Dictionary<string, ScriptResolver>()
+                               {
+                                   {
+                                       "Users", new ScriptResolver()
+                                       {
+                                           Script = @"docs[0]['@metadata']['@attachments'].pop();
                                                docs[0].Name = docs[0].Name + '_RESOLVED';
                                                return docs[0];
                                                "
-                                }
-                            }
-                        }
-                    };
-                }
-            }))
+                                       }
+                                   }
+                               }
+                           };
+                       }
+                   }))
             using (var store2 = GetDocumentStore(options: new Options(options)
-            {
-                ModifyDatabaseRecord = record =>
-                {
-                    modifyDatabaseRecord?.Invoke(record);
-                    record.ConflictSolverConfig = new ConflictSolver
-                    {
-                        ResolveToLatest = false,
-                        ResolveByCollection = new Dictionary<string, ScriptResolver>()
-                        {
-                            {
-                                "Users", new ScriptResolver()
-                                {
-                                    Script = @"docs[0]['@metadata']['@attachments'].pop();
+                   {
+                       ModifyDatabaseRecord = record =>
+                       {
+                           modifyDatabaseRecord?.Invoke(record);
+                           record.ConflictSolverConfig = new ConflictSolver
+                           {
+                               ResolveToLatest = false,
+                               ResolveByCollection = new Dictionary<string, ScriptResolver>()
+                               {
+                                   {
+                                       "Users", new ScriptResolver()
+                                       {
+                                           Script = @"docs[0]['@metadata']['@attachments'].pop();
                                                docs[0].Name = docs[0].Name + '_RESOLVED';
                                                return docs[0];
                                                "
-                                }
-                            }
-                        }
-                    };
-                }
-            }))
+                                       }
+                                   }
+                               }
+                           };
+                       }
+                   }))
             {
                 var cvs = new List<(string, string, string)>();
                 using (var session = store1.OpenAsyncSession())
@@ -2422,53 +2454,53 @@ namespace SlowTests.Client.Attachments
         {
             var modifyDatabaseRecord = options.ModifyDatabaseRecord;
             using (var store1 = GetDocumentStore(options: new Options(options)
-            {
-                ModifyDatabaseRecord = record =>
-                {
-                    modifyDatabaseRecord?.Invoke(record);
-                    record.ConflictSolverConfig = new ConflictSolver
-                    {
-                        ResolveToLatest = false,
-                        ResolveByCollection = new Dictionary<string, ScriptResolver>()
-                        {
-                            {
-                                "Users", new ScriptResolver()
-                                {
-                                    Script = @"var attachment = {Name:'newnewnew', Hash:'322+228skHmEGRg7A3J8p3Q8IaOIBnJCnM/FvRXqX3I=', Size:50, ContentType:'image/gif'};
+                   {
+                       ModifyDatabaseRecord = record =>
+                       {
+                           modifyDatabaseRecord?.Invoke(record);
+                           record.ConflictSolverConfig = new ConflictSolver
+                           {
+                               ResolveToLatest = false,
+                               ResolveByCollection = new Dictionary<string, ScriptResolver>()
+                               {
+                                   {
+                                       "Users", new ScriptResolver()
+                                       {
+                                           Script = @"var attachment = {Name:'newnewnew', Hash:'322+228skHmEGRg7A3J8p3Q8IaOIBnJCnM/FvRXqX3I=', Size:50, ContentType:'image/gif'};
                                                docs[0]['@metadata']['@attachments'].push(attachment);
                                                docs[0].Name = docs[0].Name + '_RESOLVED';
                                                return docs[0];
                                                "
-                                }
-                            }
-                        }
-                    };
-                }
-            }))
+                                       }
+                                   }
+                               }
+                           };
+                       }
+                   }))
             using (var store2 = GetDocumentStore(options: new Options(options)
-            {
-                ModifyDatabaseRecord = record =>
-                {
-                    modifyDatabaseRecord?.Invoke(record);
-                    record.ConflictSolverConfig = new ConflictSolver
-                    {
-                        ResolveToLatest = false,
-                        ResolveByCollection = new Dictionary<string, ScriptResolver>()
-                        {
-                            {
-                                "Users", new ScriptResolver()
-                                {
-                                    Script = @"var attachment = {Name:'newnewnew', Hash:'322+228skHmEGRg7A3J8p3Q8IaOIBnJCnM/FvRXqX3I=', Size:50, ContentType:'image/gif'};
+                   {
+                       ModifyDatabaseRecord = record =>
+                       {
+                           modifyDatabaseRecord?.Invoke(record);
+                           record.ConflictSolverConfig = new ConflictSolver
+                           {
+                               ResolveToLatest = false,
+                               ResolveByCollection = new Dictionary<string, ScriptResolver>()
+                               {
+                                   {
+                                       "Users", new ScriptResolver()
+                                       {
+                                           Script = @"var attachment = {Name:'newnewnew', Hash:'322+228skHmEGRg7A3J8p3Q8IaOIBnJCnM/FvRXqX3I=', Size:50, ContentType:'image/gif'};
                                                docs[0]['@metadata']['@attachments'].push(attachment);
                                                docs[0].Name = docs[0].Name + '_RESOLVED';
                                                return docs[0];
                                                "
-                                }
-                            }
-                        }
-                    };
-                }
-            }))
+                                       }
+                                   }
+                               }
+                           };
+                       }
+                   }))
             {
                 var cvs = new List<(string, string, string)>();
                 using (var session = store1.OpenAsyncSession())
@@ -2594,6 +2626,7 @@ namespace SlowTests.Client.Attachments
                 Assert.Equal("image/png", result.ContentType);
                 Assert.Equal("EcDnm3HDl2zNDALRMQ4lFsCO3J2Lb1fM1oDWOk2Octo=", result.Hash);
             }
+
             await SetupReplicationAsync(store1, store2);
             await SetupReplicationAsync(store1, store3);
 
@@ -2746,6 +2779,7 @@ namespace SlowTests.Client.Attachments
                     Assert.Equal("image/png", result.ContentType);
                     Assert.Equal("EcDnm3HDl2zNDALRMQ4lFsCO3J2Lb1fM1oDWOk2Octo=", result.Hash);
                 }
+
                 await SetupReplicationAsync(store1, store2);
                 await SetupReplicationAsync(store2, store1);
 
@@ -2759,7 +2793,7 @@ namespace SlowTests.Client.Attachments
                 var replication1 = await GetReplicationManagerAsync(store1, store1.Database, options.DatabaseMode);
                 var replication2 = await GetReplicationManagerAsync(store2, store2.Database, options.DatabaseMode);
 
-                await using (replication1.BreakThenAwaitAfter(replication2))
+                await using (replication1.BreakAsync(replication2))
                 {
                     using (var backgroundStream = new MemoryStream([10, 20, 30, 40, 50]))
                     {
@@ -2810,6 +2844,7 @@ namespace SlowTests.Client.Attachments
                             {
                                 return true;
                             }
+
                             return false;
                         }
                     }, true, 15_000, 500);
@@ -2843,6 +2878,7 @@ namespace SlowTests.Client.Attachments
         public async Task ConflictOfAttachmentAndDocument(Options options)
         {
             const string docId = "users/1";
+            const string attachmentId = "foo/bar";
             
             using (var store1 = GetDocumentStore(options))
             using (var store2 = GetDocumentStore(options))
@@ -2855,8 +2891,8 @@ namespace SlowTests.Client.Attachments
 
                 using (var profileStream = new MemoryStream([1, 2, 3]))
                 {
-                    var result = store1.Operations.Send(new PutAttachmentOperation(docId, "foo/bar", profileStream, "image/png"));
-                    Assert.Equal("foo/bar", result.Name);
+                    var result = store1.Operations.Send(new PutAttachmentOperation(docId, attachmentId, profileStream, "image/png"));
+                    Assert.Equal(attachmentId, result.Name);
                     Assert.Equal(docId, result.DocumentId);
                     Assert.Equal("image/png", result.ContentType);
                     Assert.Equal("EcDnm3HDl2zNDALRMQ4lFsCO3J2Lb1fM1oDWOk2Octo=", result.Hash);
@@ -2874,14 +2910,13 @@ namespace SlowTests.Client.Attachments
                 var replication1 = await GetReplicationManagerAsync(store1, store1.Database, options.DatabaseMode);
                 var replication2 = await GetReplicationManagerAsync(store2, store2.Database, options.DatabaseMode);
 
-                Task<IReplicationBreak> break1 = replication1.BreakForAsync(docId);
-                Task<IReplicationBreak> break2 = replication2.BreakForAsync(docId);
-
+                await using (replication1.BreakAsync(docId))
+                await using (replication2.BreakAsync(docId))
                 {
                     using (var backgroundStream = new MemoryStream([10, 20, 30, 40, 50]))
                     {
-                        var result = store2.Operations.Send(new PutAttachmentOperation(docId, "foo/bar", backgroundStream, "image/png"));
-                        Assert.Equal("foo/bar", result.Name);
+                        var result = store2.Operations.Send(new PutAttachmentOperation(docId, attachmentId, backgroundStream, "image/png"));
+                        Assert.Equal(attachmentId, result.Name);
                         Assert.Equal(docId, result.DocumentId);
                         Assert.Equal("image/png", result.ContentType);
                         Assert.Equal("igkD5aEdkdAsAB/VpYm1uFlfZIP9M2LSUsD6f6RVW9U=", result.Hash);
@@ -2895,8 +2930,8 @@ namespace SlowTests.Client.Attachments
                     }
                 }
 
-                await (await break1).MendAsync();
-                await (await break2).MendAsync();
+                await replication1.MendAsync(docId);
+                await replication2.MendAsync(docId);
 
                 await WriteStatus(stores, "Stage 2");
 
@@ -2914,12 +2949,12 @@ namespace SlowTests.Client.Attachments
                     {
                         using var session1 = store1.OpenAsyncSession();
                         using var session2 = store2.OpenAsyncSession();
-                        var attachment = await session1.Advanced.Attachments.GetAsync(docId, "foo/bar");
-                        var attachment2 = await session2.Advanced.Attachments.GetAsync(docId, "foo/bar");
+                        var attachment = await session1.Advanced.Attachments.GetAsync(docId, attachmentId);
+                        var attachment2 = await session2.Advanced.Attachments.GetAsync(docId, attachmentId);
 
                         if (attachment != null && attachment2 != null &&
                             attachment.Details.Hash == "EcDnm3HDl2zNDALRMQ4lFsCO3J2Lb1fM1oDWOk2Octo=" &&
-                            attachment.Details.Name == "foo/bar" &&
+                            attachment.Details.Name == attachmentId &&
                             AreAttachmentDetailsEqual(attachment.Details, attachment2.Details, context, excludeChangeVector: true))
                         {
                             return true;
@@ -2939,14 +2974,14 @@ namespace SlowTests.Client.Attachments
 
                     await WriteAttachmentDetails(stores);
 
-                    var attachment = await session1.Advanced.Attachments.GetAsync(docId, "foo/bar");
-                    var attachment2 = await session2.Advanced.Attachments.GetAsync(docId, "foo/bar");
+                    var attachment = await session1.Advanced.Attachments.GetAsync(docId, attachmentId);
+                    var attachment2 = await session2.Advanced.Attachments.GetAsync(docId, attachmentId);
 
                     Assert.NotNull(attachment);
                     Assert.NotNull(attachment2);
 
                     Assert.Equal("EcDnm3HDl2zNDALRMQ4lFsCO3J2Lb1fM1oDWOk2Octo=", attachment.Details.Hash);
-                    Assert.Equal("foo/bar", attachment.Details.Name);
+                    Assert.Equal(attachmentId, attachment.Details.Name);
 
                     Assert.Equal(attachment.Details.Hash, attachment2.Details.Hash);
                     Assert.Equal(attachment.Details.Name, attachment2.Details.Name);
@@ -3007,7 +3042,7 @@ namespace SlowTests.Client.Attachments
             var replication2 = await GetReplicationManagerAsync(store2, store2.Database, options.DatabaseMode, servers: new List<RavenServer>() { Server });
             var replication3 = await GetReplicationManagerAsync(store3, store3.Database, options.DatabaseMode, servers: new List<RavenServer>() { Server });
 
-            await using (replication1.BreakThenAwaitAfter(replication2, replication3))
+            await using (replication1.BreakAsync(replication2, replication3))
             {
                 using (var backgroundStream = new MemoryStream([10, 20, 30, 40, 50]))
                 {
@@ -3032,9 +3067,9 @@ namespace SlowTests.Client.Attachments
                     var u = await session.LoadAsync<User>("users/1");
                     u.Age = 30;
                     await session.SaveChangesAsync();
-                }    
+                }
             }
-            
+
 
             await replication1.MendAsync();
             await replication2.MendAsync();
@@ -3266,7 +3301,7 @@ namespace SlowTests.Client.Attachments
                 var replication2 = await GetReplicationManagerAsync(store2, store2.Database, options.DatabaseMode);
                 var replication3 = await GetReplicationManagerAsync(store3, store3.Database, options.DatabaseMode);
 
-                await using (replication1.BreakThenAwaitAfter(replication2, replication3))
+                await using (replication1.BreakAsync(replication2, replication3))
                 {
                     using (var backgroundStream = new MemoryStream([10, 20, 30, 40, 50]))
                     {
@@ -3482,6 +3517,7 @@ namespace SlowTests.Client.Attachments
                     Console.WriteLine($"cv{i}: {cv}");
                 }
             }
+
             Console.WriteLine();
             Console.WriteLine("-----");
         }
@@ -3498,6 +3534,7 @@ namespace SlowTests.Client.Attachments
                     Console.WriteLine($"Attachments {i}: {string.Join(", ", names.Select(x => new string($"{x.Name}; Hash: {x.Hash}; ContentType: {x.ContentType}")))}");
                 }
             }
+
             Console.WriteLine();
             Console.WriteLine("-----");
         }

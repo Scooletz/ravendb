@@ -11,7 +11,7 @@ using Xunit;
 
 namespace Tests.Infrastructure
 {
-    public class ReplicationInstance : IReplicationManager, IReplicationBreak
+    public class ReplicationInstance : IReplicationManager
     {
         private readonly DocumentDatabase _database;
         public readonly string DatabaseName;
@@ -27,18 +27,17 @@ namespace Tests.Infrastructure
             _breakpoint = database.ReplicationLoader.EnsureBreakpoint();
         }
 
-        public Task BreakAsync() => _breakpoint.BreakAsync();
-        public async Task<IReplicationBreak> BreakForAsync(string docId)
-        {
-            await BreakAsync();
-            return this;
-        }
+        public IAsyncDisposable BreakAsync() => new AsyncDisposableScope(_breakpoint.BreakAsync());
+
+        public IAsyncDisposable BreakAsync(params string[] docIds) => BreakAsync();
 
         public Task MendAsync()
         {
             _database.Configuration.Replication.MaxItemsCount = null;
             return _breakpoint.ContinueAsync();
         }
+
+        public Task MendAsync(params string[] docIds) => MendAsync();
 
         public async Task ReplicateOnceAsync(string docId)
         {
@@ -83,8 +82,9 @@ namespace Tests.Infrastructure
             DevelopmentHelper.ShardingToDo(DevelopmentHelper.TeamMember.Stav, DevelopmentHelper.Severity.Normal, "Make this func private when legacy BreakReplication() is removed");
             ReplicationInstance replication = new(await server.ServerStore.DatabasesLandlord.TryGetOrCreateResourceStore(databaseName), databaseName, options);
             
-            if (options.BreakReplicationOnStart)
-                await replication.BreakAsync();
+            // TODO: break on start is not possible atm. Needs reworking.
+            // if (options.BreakReplicationOnStart)
+            //     await replication.BreakAsync();
             
             return replication;
         }

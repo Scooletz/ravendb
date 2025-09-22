@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Nito.Disposables;
 using Raven.Client.Documents;
 using Raven.Client.ServerWide.Sharding;
 using Raven.Server;
@@ -73,18 +74,13 @@ public partial class RavenTestBase
                 _config = config;
             }
 
-            public async Task<IReplicationBreak> BreakForAsync(string docId)
-            {
-                ReplicationManager shard = GetShardFor(docId);
-                await shard.BreakAsync();
-                
-                // The shard itself implements the breaking
-                return shard;
-            }
+            public IAsyncDisposable BreakAsync() => new ComposableAsyncDisposable(ShardReplications.Values.Select(v => v.BreakAsync()));
+
+            public IAsyncDisposable BreakAsync(params string[] docIds) => new ComposableAsyncDisposable(GetManagers(docIds).Select(v => v.BreakAsync()));
 
             public Task MendAsync() => WhenAll(static v => v.MendAsync());
 
-            public Task BreakAsync() => WhenAll(static v => v.BreakAsync());
+            public Task MendAsync(params string[] docIds) => Task.WhenAll(GetManagers(docIds).Select(v => v.MendAsync()));
 
             public Task EnsureNoReplicationLoopAsync() => WhenAll(static v => v.EnsureNoReplicationLoopAsync());
 
@@ -97,6 +93,18 @@ public partial class RavenTestBase
                     shardNumber = ShardHelper.GetShardNumberFor(_config, allocator, docId);
 
                 return ShardReplications[shardNumber];
+            }
+
+            private IEnumerable<ReplicationManager> GetManagers(string[] docIds)
+            {
+                HashSet<ReplicationManager> managers = new();
+
+                foreach (string docId in docIds)
+                {
+                    managers.Add(GetShardFor(docId));
+                }
+
+                return managers;
             }
 
             private Task WhenAll(Func<ReplicationManager, Task> action) => Task.WhenAll(ShardReplications.Values.Select(action));

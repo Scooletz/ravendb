@@ -96,7 +96,7 @@ public sealed class AsyncBreakpoint
 
                 // The wait is over, we're continuing.
                 Debug.Assert(_continue != null, $"{nameof(ContinueAsync)} should have been called before.");
-
+                
                 _continuing++;
                 if (_continuing == _count)
                 {
@@ -105,6 +105,7 @@ public sealed class AsyncBreakpoint
                     _continue = null;
                     _continuing = 0;
                 }
+                
             }
         }
     }

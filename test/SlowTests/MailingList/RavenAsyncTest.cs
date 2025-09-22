@@ -9,9 +9,9 @@ using Xunit.Abstractions;
 
 namespace SlowTests.MailingList
 {
-    public class AsyncTest : RavenTestBase
+    public class ComposableAsyncDisposableTest : RavenTestBase
     {
-        public AsyncTest(ITestOutputHelper output) : base(output)
+        public ComposableAsyncDisposableTest(ITestOutputHelper output) : base(output)
         {
         }
 

@@ -202,7 +202,7 @@ namespace SlowTests.Issues
 
                 Assert.True(WaitForDocument<User>(replica, id, u => u.Name == "ayende"));
 
-                await using (replication.BreakThenAwaitAfter())
+                await using (replication.BreakAsync())
                 {
                     using (var session = store.OpenAsyncSession())
                     {
