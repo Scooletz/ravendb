@@ -257,4 +257,8 @@ public struct VectorSearchMatch : IQueryMatch
     }
 
     public string DebugView => Inspect().ToString();
+
+    public DuplicatesOccurrence DuplicatesOccurrenceStatus => _singleVectorSearchDoNotSort == false || IsBoosting == false
+        ? DuplicatesOccurrence.NotPossible
+        : DuplicatesOccurrence.Possible;
 }
