@@ -236,7 +236,7 @@ const defaultValues: SetupWizardFormData = {
         setupCertificatePath: "",
         adminCertificateExpirationTime: 60,
         postgresqlIntegration: false,
-        serverEnvironment: "Production",
+        serverEnvironment: "None",
     },
     finishStep: {
         finishingStatus: "InProgress",

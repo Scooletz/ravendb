@@ -149,36 +149,41 @@ function ServerEnvironmentSection({
     control: Control<SetupWizardFormData>;
     licenseInfo: SetupWizardFormData["licenseKeyStep"]["licenseInfo"];
 }) {
-    return getLicenseType(licenseInfo).isHigherThan("Community") ? (
-        <FormGroup>
-            <FormLabel className="d-flex">
-                <div>Server environment</div>
-                <PopoverWithHoverWrapper
-                    message={
-                        <PopoverMessage
-                            description={
-                                <>
-                                    <img src={serverEnvironmentImg} className="mb-2 w-100" />
-                                    <span>
-                                        Server environment allows you to add a visual identifier to the UI, making it
-                                        easier to distinguish between multiple environments when working simultaneously.
-                                    </span>
-                                </>
-                            }
-                        />
-                    }
-                    placement="right"
-                >
-                    <Icon icon="info-new" />
-                </PopoverWithHoverWrapper>
-            </FormLabel>
-            <FormSelect
-                control={control}
-                name="additionalSettingsStep.serverEnvironment"
-                options={setupWizardConstants.allServerEnvironmentOptions}
-            />
-        </FormGroup>
-    ) : null;
+    if (getLicenseType(licenseInfo).isHigherThan("Community")) {
+        return (
+            <FormGroup>
+                <FormLabel className="d-flex">
+                    <div>Server environment</div>
+                    <PopoverWithHoverWrapper
+                        message={
+                            <PopoverMessage
+                                description={
+                                    <>
+                                        <img src={serverEnvironmentImg} className="mb-2 w-100" />
+                                        <span>
+                                            Server environment allows you to add a visual identifier to the UI, making
+                                            it easier to distinguish between multiple environments when working
+                                            simultaneously.
+                                        </span>
+                                    </>
+                                }
+                            />
+                        }
+                        placement="right"
+                    >
+                        <Icon icon="info-new" />
+                    </PopoverWithHoverWrapper>
+                </FormLabel>
+                <FormSelect
+                    control={control}
+                    name="additionalSettingsStep.serverEnvironment"
+                    options={setupWizardConstants.allServerEnvironmentOptions}
+                />
+            </FormGroup>
+        );
+    }
+
+    return null;
 }
 
 function CertificateExpirationSection({ control }: { control: Control<SetupWizardFormData> }) {

@@ -12,6 +12,7 @@ import InputGroupText from "react-bootstrap/InputGroupText";
 import ButtonWithSpinner from "components/common/ButtonWithSpinner";
 import Button from "react-bootstrap/Button";
 import messagePublisher from "common/messagePublisher";
+import { has } from "lodash";
 
 export function SetupWizardDomainStep() {
     const { control, setValue, setError, clearErrors } = useFormContext<SetupWizardFormData>();
@@ -211,8 +212,8 @@ export function SetupWizardDomainStepFooter() {
         const key = JSON.parse(licenseKeyStep.key);
 
         if (domain) {
-            // @ts-expect-error when validation will be fixed, ts error will disappear TODO: remove.
-            if (!licenseKeyStep.licenseInfo.userDomainsWithIps.domains[domain]) {
+            const domains = licenseKeyStep?.licenseInfo?.userDomainsWithIps?.domains;
+            if (has(domains, domain)) {
                 await setupWizardService.claimDomain(domain, key);
             }
             setValue("currentStep", "Node address");

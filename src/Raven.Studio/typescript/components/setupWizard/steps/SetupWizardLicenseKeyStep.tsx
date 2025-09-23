@@ -1,4 +1,3 @@
-import "./SetupWizardLicenseKeyStep.scss";
 import { useFormContext, useWatch } from "react-hook-form";
 import { licenseKeySchema, LicenseTypeToGenerate, SetupWizardFormData } from "../setupWizardValidation";
 import { Icon } from "components/common/Icon";
@@ -48,47 +47,15 @@ export function SetupWizardLicenseKeyStep() {
     );
 }
 
-// Developer key for testing purposes - speed up the process. TODO: To remove!
-const developerKey = `{
-    "Id": "d66e8c49-cc2f-4f29-9aa4-f47da0527285",
-    "Name": "RavenDB",
-    "Keys": [
-        "0eC9Y0+VZXe1AC+QVpH1L9UO4",
-        "N6Wy4xpmrksnMN9wklvAcl5lQ",
-        "6aUlmVYRADvaprXbvf1LCZMcQ",
-        "EqHXfSX1seMbFxi1FMwgZwQmY",
-        "tBmE8aL3mTA5wDCSOaP7WrdpS",
-        "18gJwpAesWobjUx0UiAekdREo",
-        "UD0qVUX+fDJyOqWXZlIlZABYE",
-        "DNy4wBSYoSQMqKywtLi8wJzEy",
-        "MzQVFjc4OTo7PD0+nwIfIJ8CI",
-        "CCfAiEgnwIjIJ8CJCCfAiUgnw",
-        "ImIJ8CJyCfAiggnwIpIJ8CKiC",
-        "fAisgnwIsIJ8CLSCfAi4gnwIv",
-        "IJ8CMCCfAzZAAZ8CQiCfAkMgn",
-        "wJEIEMkRAliLVyfBEFgKlw="
-    ]
-}`;
-
 function NoLicenseToGenerate() {
     const { reportEvent } = useEventsCollector();
     const { control, setValue } = useFormContext<SetupWizardFormData>();
-
-    const pasteDeveloperKey = () => {
-        setValue("licenseKeyStep.key", developerKey);
-    };
 
     return (
         <div>
             <h2 className="mb-1">Enter license key</h2>
             <p className="mb-4 text-muted">You can either use your existing key or generate a free license.</p>
 
-            {/*Button for development purposes only. - speed up the process. - TODO: REMOVE! */}
-            {process.env.NODE_ENV === "development" && (
-                <Button variant="outline-node" onClick={pasteDeveloperKey}>
-                    Paste Developer Key
-                </Button>
-            )}
             <FormGroup>
                 <FormLabel>Your key</FormLabel>
                 <div className="position-relative">
@@ -706,7 +673,6 @@ export function SetupWizardLicenseKeyStepFooter() {
 
             try {
                 const parsedKey = JSON.parse(key);
-                // TODO: okay there is error. what should we do? - lock button or smth?
                 await licenseKeySchema.validate(parsedKey);
 
                 const info = await setupWizardService.registrationInfo(parsedKey);

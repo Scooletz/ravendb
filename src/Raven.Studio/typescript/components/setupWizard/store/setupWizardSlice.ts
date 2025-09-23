@@ -6,7 +6,7 @@ interface SetupWizardState {
 }
 
 const initialState: SetupWizardState = {
-    isEulaScrolledToBottom: process.env.NODE_ENV === "development", // TODO Default to true in development for easier testing
+    isEulaScrolledToBottom: false,
 };
 
 export const setupWizardSlice = createSlice({

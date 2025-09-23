@@ -370,7 +370,6 @@ interface PopoverMessageProps {
 }
 
 export function PopoverMessage({ description, ravenLinkHash = "37GM2Z", alert }: PopoverMessageProps) {
-    // TODO: We need an updated version of the documentation - that way, we will be able to insert links that point directly to the relevant sections
     const docsLink = useRavenLink({ hash: ravenLinkHash });
 
     return (

@@ -11,7 +11,7 @@ const setupMethodStepSchema = yup.object({
 });
 
 const usePackageStepSchema = yup.object({
-    fileName: yup.string(), // TODO is it needed?
+    fileName: yup.string(),
     fileZip: yup.string(), // should be required
     isZipSecure: yup.boolean(),
     isZipValid: yup.boolean(),
@@ -85,7 +85,7 @@ const securityStepSchema = yup.object({
 });
 
 const selfSignedCertificateStepSchema = yup.object({
-    certificateFileName: yup.string(), // TODO is it needed?
+    certificateFileName: yup.string(),
     certificate: yup.string(),
     password: yup.string(),
     cns: yup.array().of(yup.string()),

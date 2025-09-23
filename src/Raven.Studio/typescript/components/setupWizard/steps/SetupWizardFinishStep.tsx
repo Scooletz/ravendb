@@ -53,13 +53,13 @@ export function SetupWizardFinishStep() {
                 case "Completed":
                     dto = operation.State.Result as Raven.Server.Commercial.SetupProgressAndResult;
                     setConfigurationProcess(operation.State.Result);
-                    setValue("finishStep.finishingStatus", "Completed")
+                    setValue("finishStep.finishingStatus", "Completed");
                     reportEvent(setupWizardGA4Prefixes.finalStep, "status", "Completed");
                     break;
                 case "InProgress":
                     dto = operation.State.Progress as Raven.Server.Commercial.SetupProgressAndResult;
                     setConfigurationProcess(operation.State.Progress);
-                    setValue("finishStep.finishingStatus", "InProgress")
+                    setValue("finishStep.finishingStatus", "InProgress");
                     reportEvent(setupWizardGA4Prefixes.finalStep, "status", "InProgress");
                     break;
                 case "Faulted": {
@@ -68,14 +68,14 @@ export function SetupWizardFinishStep() {
                         .Result as Raven.Client.Documents.Operations.OperationExceptionResult;
                     setLogs((prev) => [...prev, { message: failure.Message, color: "danger" }]);
                     setLogs((prev) => [...prev, { message: failure.Error, color: "danger" }]);
-                    setValue("finishStep.finishingStatus", "Faulted")
+                    setValue("finishStep.finishingStatus", "Faulted");
                     reportEvent(setupWizardGA4Prefixes.finalStep, "status", "Faulted");
                     break;
                 }
                 case "Canceled": {
                     dto = operation.State.Result as Raven.Server.Commercial.SetupProgressAndResult;
                     setConfigurationProcess(operation.State.Result);
-                    setValue("finishStep.finishingStatus", "Canceled")
+                    setValue("finishStep.finishingStatus", "Canceled");
                     reportEvent(setupWizardGA4Prefixes.finalStep, "status", "Canceled");
                 }
             }
@@ -959,7 +959,7 @@ export function SetupWizardFinishStepFooter() {
         finishStep.finishingStatus === "InProgress" ||
         finishStep.finishingStatus === "Faulted" ||
         finishStep.finishingStatus === "Canceled";
-    
+
     return (
         <div className="d-flex justify-content-end">
             <ButtonWithSpinner
@@ -968,8 +968,9 @@ export function SetupWizardFinishStepFooter() {
                 variant="primary"
                 onClick={handleReset}
                 className="mt-2 rounded-pill"
+                icon="reset"
             >
-                Restart server <Icon icon="reset" margin="m-0" />
+                Restart server
             </ButtonWithSpinner>
             {isCertInstallationConfirmed && (
                 <CertInstallationConfirm
