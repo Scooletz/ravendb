@@ -27,6 +27,7 @@ import classNames from "classnames";
 import { useEventsCollector } from "components/hooks/useEventsCollector";
 import { setupWizardGA4Prefixes } from "components/setupWizard/utils/setupWizardConstants";
 import ButtonWithSpinner from "components/common/ButtonWithSpinner";
+import { useAsyncCallback } from "react-async-hook";
 
 type OperationStatus = Raven.Client.Documents.Operations.OperationStatus;
 
@@ -940,10 +941,10 @@ export function SetupWizardFinishStepFooter() {
         }, waitBeforeRedirectInMs);
     };
 
-    const handleReset = () => {
+    const handleRestart = useAsyncCallback(async () => {
         reportEvent(setupWizardGA4Prefixes.finalStep, "restart-click");
         const isSecure =
-            securityStep.securityOption !== "none" ||
+            (securityStep.securityOption !== null && securityStep.securityOption !== "none") ||
             (setupMethodStep.method === "usePackage" && usePackageStep.isZipSecure);
 
         if (isSecure) {
@@ -951,9 +952,9 @@ export function SetupWizardFinishStepFooter() {
             toggleIsCertInstallationConfirmed();
         } else {
             reportEvent(setupWizardGA4Prefixes.finalStep, "restart-without-cert-modal");
-            resetServer();
+            await resetServer();
         }
-    };
+    });
 
     const finishStepIsDisabled =
         finishStep.finishingStatus === "InProgress" ||
@@ -963,10 +964,10 @@ export function SetupWizardFinishStepFooter() {
     return (
         <div className="d-flex justify-content-end">
             <ButtonWithSpinner
-                isSpinning={finishStep.finishingStatus === "InProgress"}
+                isSpinning={handleRestart.loading}
                 disabled={finishStepIsDisabled}
                 variant="primary"
-                onClick={handleReset}
+                onClick={handleRestart.execute}
                 className="mt-2 rounded-pill"
                 icon="reset"
             >

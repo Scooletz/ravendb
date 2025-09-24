@@ -202,6 +202,10 @@ const defaultValues: SetupWizardFormData = {
     usePackageStep: {
         fileZip: "",
         nodeTag: "",
+        isZipValid: false,
+        isZipSecure: false,
+        publicServerUrl: "",
+        serverUrl: ""
     },
     licenseKeyStep: {
         isAcceptTerms: false,

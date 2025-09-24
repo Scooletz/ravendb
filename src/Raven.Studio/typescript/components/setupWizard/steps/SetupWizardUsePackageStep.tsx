@@ -40,10 +40,19 @@ export function SetupWizardUsePackageStep() {
         label: `Node ${nodeInfo.Tag} (${nodeInfo.PublicServerUrl || nodeInfo.ServerUrl})`,
     }));
 
+    const handleNodeTagChange = (newValue: SelectOption) => {
+        setValue("usePackageStep.nodeTag", newValue.value);
+        const nodeInfo = nodeInfos.find((x) => x.Tag === newValue.value);
+        setValue("usePackageStep.serverUrl", nodeInfo.ServerUrl);
+        setValue("usePackageStep.publicServerUrl", nodeInfo.PublicServerUrl);
+    };
+
     useEffect(() => {
         if (nodeInfos.length === 1) {
             const singleNode = nodeInfos[0];
             setValue("usePackageStep.nodeTag", singleNode.Tag);
+            setValue("usePackageStep.serverUrl", singleNode.ServerUrl);
+            setValue("usePackageStep.publicServerUrl", singleNode.PublicServerUrl);
         }
     }, [nodeInfos, setValue]);
 
@@ -72,20 +81,13 @@ export function SetupWizardUsePackageStep() {
         setValue("usePackageStep.isZipSecure", isSecure);
     }, [nodeInfos, setValue]);
 
-    // Handle isZipValid
     useEffect(() => {
         if (!nodeInfos.length) {
             setValue("usePackageStep.isZipValid", true);
             return;
         }
 
-        const firstNode = nodeInfos[0];
-
-        if (firstNode.PublicServerUrl) {
-            setValue("usePackageStep.isZipSecure", nodeInfos.every(isNodeSecure));
-        } else {
-            setValue("usePackageStep.isZipSecure", nodeInfos.every(isNodeUnsecure));
-        }
+        setValue("usePackageStep.isZipSecure", nodeInfos.every(isNodeSecure));
     }, [nodeInfos, setValue]);
 
     const handleFileChange = (files: File[]) => {
@@ -150,6 +152,7 @@ export function SetupWizardUsePackageStep() {
                         control={control}
                         name="usePackageStep.nodeTag"
                         placeholder="Select node tag"
+                        onChange={handleNodeTagChange}
                         options={nodeOptions}
                     />
                 </FormGroup>
@@ -181,7 +184,12 @@ export function SetupWizardUsePackageStepFooter() {
             <Button variant="secondary" className="rounded-pill" onClick={handleBack}>
                 <Icon icon="arrow-left" /> Back
             </Button>
-            <Button variant="primary" className="rounded-pill" onClick={handleContinue} disabled={!isZipValid || !fileZip}>
+            <Button
+                variant="primary"
+                className="rounded-pill"
+                onClick={handleContinue}
+                disabled={!isZipValid || !fileZip}
+            >
                 Continue <Icon icon="arrow-right" margin="m-0" />
             </Button>
         </div>
@@ -192,9 +200,4 @@ const isNodeSecure = (node: Raven.Server.Web.System.ConfigurationNodeInfo): bool
     return node.PublicServerUrl && node.PublicServerUrl.startsWith(securePrefix);
 };
 
-const isNodeUnsecure = (node: Raven.Server.Web.System.ConfigurationNodeInfo): boolean => {
-    return node.ServerUrl && node.ServerUrl.startsWith(unsecurePrefix);
-};
-
 const securePrefix = "https://";
-const unsecurePrefix = "http://";
