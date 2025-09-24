@@ -44,7 +44,7 @@ namespace SlowTests.Server.Documents.AI.AiAgent
         }
 
         [RavenTheory(RavenTestCategory.Ai)]
-        [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi, DatabaseMode = RavenDatabaseMode.Single, CheckCanConnect = false, NightlyBuildRequired = false)]
+        [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi, DatabaseMode = RavenDatabaseMode.Single)]
         public async Task CanCreateAiAgent(Options options, GenAiConfiguration config)
         {
             using var store = GetDocumentStore(options);
@@ -93,7 +93,7 @@ namespace SlowTests.Server.Documents.AI.AiAgent
         }
 
         [RavenTheory(RavenTestCategory.Ai)]
-        [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi, DatabaseMode = RavenDatabaseMode.Single, CheckCanConnect = false, NightlyBuildRequired = false)]
+        [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi, DatabaseMode = RavenDatabaseMode.Single)]
         public async Task CanGetAiAgent(Options options, GenAiConfiguration config)
         {
             using var store = GetDocumentStore(options);
@@ -136,7 +136,7 @@ namespace SlowTests.Server.Documents.AI.AiAgent
         }
 
         [RavenTheory(RavenTestCategory.Ai)]
-        [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi, DatabaseMode = RavenDatabaseMode.Single, CheckCanConnect = false, NightlyBuildRequired = false)]
+        [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi, DatabaseMode = RavenDatabaseMode.Single)]
         public async Task CanResumeConversation(Options options, GenAiConfiguration config)
         {
             using var store = GetDocumentStore(options);
@@ -186,7 +186,7 @@ namespace SlowTests.Server.Documents.AI.AiAgent
         }
 
         [RavenTheory(RavenTestCategory.Ai)]
-        [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi, DatabaseMode = RavenDatabaseMode.Single, CheckCanConnect = false, NightlyBuildRequired = false)]
+        [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi, DatabaseMode = RavenDatabaseMode.Single)]
         public async Task CanRunTest(Options options, GenAiConfiguration config)
         {
             using var store = GetDocumentStore(options);
@@ -346,8 +346,8 @@ namespace SlowTests.Server.Documents.AI.AiAgent
 
             internal static TestResult<TSchema> Convert(BlittableJsonReaderObject response, DocumentConventions conventions)
             {
-                response.TryGet(nameof(Usage), out BlittableJsonReaderObject usage);
-                response.TryGet(nameof(Response), out BlittableJsonReaderObject result);
+                response.TryGet(nameof(ConversationResult<object>.TotalUsage), out BlittableJsonReaderObject usage);
+                response.TryGet(nameof(ConversationResult<object>.Response), out BlittableJsonReaderObject result);
                 response.TryGet(nameof(Document), out BlittableJsonReaderObject document);
 
                 List<AiAgentActionRequest> requests = null;

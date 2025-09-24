@@ -155,7 +155,7 @@ public sealed class GenAiTask : EtlProcess<GenAiItem, GenAiScriptResult, GenAiCo
         if (exceptions?.Count > 0)
         {
             _maxConcurrency = 1;
-            throw new AggregateException(exceptions);
+            throw new AggregateException(exceptions).ExtractSingleInnerException();
         }
 
         // we had no errors, re-raise max concurrency slowly
@@ -497,7 +497,7 @@ public sealed class GenAiTask : EtlProcess<GenAiItem, GenAiScriptResult, GenAiCo
             if (item.ContextOutput.Attachments.IsNullOrEmpty())
                 continue;
 
-            foreach (var genAtt in item.ContextOutput.Attachments.Where(a => a.Source == AiAttachmentSource.FromDatabase))
+            foreach (var genAtt in item.ContextOutput.Attachments.Where(a => a.Source == AiAttachmentSource.FromAttachment))
             {
                 // try to reload again every loaded/not-found attachment
                 var attachment = Database.DocumentsStorage.AttachmentsStorage.GetAttachment(context, item.DocumentId, genAtt.Name, AttachmentType.Document, changeVector: null);
