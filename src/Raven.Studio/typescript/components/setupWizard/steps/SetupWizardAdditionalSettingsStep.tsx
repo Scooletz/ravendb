@@ -3,7 +3,7 @@ import { SetupWizardFormData } from "../setupWizardValidation";
 import { Icon } from "components/common/Icon";
 import Button from "react-bootstrap/Button";
 import { FormGroup, FormInput, FormLabel, FormPathSelector, FormSelect, FormSwitch } from "components/common/Form";
-import { setupWizardConstants } from "components/setupWizard/utils/setupWizardConstants";
+import { setupWizardConstants, setupWizardGA4Prefixes } from "components/setupWizard/utils/setupWizardConstants";
 import { HrHeader } from "components/common/HrHeader";
 import classNames from "classnames";
 import { useEffect } from "react";
@@ -13,7 +13,7 @@ import { PopoverMessage } from "components/setupWizard/steps/SetupWizardNodeAddr
 import { ConditionalPopover } from "components/common/ConditionalPopover";
 import { useServices } from "hooks/useServices";
 import { useEventsCollector } from "components/hooks/useEventsCollector";
-import { setupWizardGA4Prefixes } from "components/setupWizard/utils/setupWizardConstants";
+import { OperatingSystem, useOS } from "hooks/useOS";
 
 export function SetupWizardAdditionalSettingsStep() {
     const { control } = useFormContext<SetupWizardFormData>();
@@ -260,7 +260,24 @@ interface AdvancedSettingsContentProps {
     isVisible: boolean;
 }
 
+const getDefaultPath = (os: OperatingSystem, type: "certificate" | "dataDirectory") => {
+    const isUnix = os === "Linux" || os === "MacOS";
+
+    const paths = {
+        certificate: isUnix
+            ? "/etc/ravendb/security/server.pfx"
+            : "C:\\RavenDB\\Certificate\\server.pfx",
+        dataDirectory: isUnix
+            ? "/var/lib/ravendb/data"
+            : "C:\\RavenDB\\Data"
+    };
+
+    return paths[type];
+};
+
+
 function AdvancedSettingsContent({ control, isVisible }: AdvancedSettingsContentProps) {
+    const os = useOS();
     const { resourcesService } = useServices();
 
     const getLocalFolderPathsProvider = (path: string) => {
@@ -293,7 +310,7 @@ function AdvancedSettingsContent({ control, isVisible }: AdvancedSettingsContent
                     disabled={!isVisible}
                     name="additionalSettingsStep.dataDirectory"
                     control={control}
-                    placeholder="/data"
+                    placeholder={getDefaultPath(os, "dataDirectory")}
                     getPathsProvider={(path: string) => getLocalFolderPathsProvider(path)}
                     getPathDependencies={(path: string) => [path]}
                 />
@@ -315,7 +332,7 @@ function AdvancedSettingsContent({ control, isVisible }: AdvancedSettingsContent
                     disabled={!isVisible}
                     name="additionalSettingsStep.setupCertificatePath"
                     control={control}
-                    placeholder="/etc/ravendb/security/server.pfx"
+                    placeholder={getDefaultPath(os, "certificate")}
                     getPathsProvider={(path: string) => getLocalFolderPathsProvider(path)}
                     getPathDependencies={(path: string) => [path]}
                 />
