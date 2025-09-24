@@ -445,8 +445,8 @@ namespace Raven.Server.Documents.Handlers.Debugging
                 finally
                 {
                     debugInfoDict[route.Path] = sw.Elapsed;
-                    if (Logger.IsInfoEnabled)
-                        Logger.Info($"Finished gathering debug info from '{route.Path}' for Debug Package '{id}'. Took: {(int)sw.Elapsed.TotalMilliseconds} ms",
+                    if (_logger.IsOperationsEnabled)
+                        _logger.Operations($"Finished gathering debug info from '{route.Path}' for Debug Package '{id}'. Took: {(int)sw.Elapsed.TotalMilliseconds} ms",
                             ex);
                 }
             }
