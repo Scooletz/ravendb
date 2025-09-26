@@ -159,7 +159,7 @@ function ServerEnvironmentSection({
                             <PopoverMessage
                                 description={
                                     <>
-                                        <img src={serverEnvironmentImg} className="mb-2 w-100" />
+                                        <img src={serverEnvironmentImg} alt="server-environment-image" className="mb-2 w-100" />
                                         <span>
                                             Server environment allows you to add a visual identifier to the UI, making
                                             it easier to distinguish between multiple environments when working
