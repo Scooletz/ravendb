@@ -213,7 +213,7 @@ export function SetupWizardDomainStepFooter() {
 
         if (domain) {
             const domains = licenseKeyStep?.licenseInfo?.userDomainsWithIps?.domains;
-            if (has(domains, domain)) {
+            if (!has(domains, domain)) {
                 await setupWizardService.claimDomain(domain, key);
             }
             setValue("currentStep", "Node address");
@@ -221,10 +221,6 @@ export function SetupWizardDomainStepFooter() {
             messagePublisher.reportError("Domain is required");
         }
     });
-
-    const handleContinue = async () => {
-        await asyncClaimDomain.execute();
-    };
 
     const handleBack = () => {
         switch (securityOption) {
@@ -247,7 +243,7 @@ export function SetupWizardDomainStepFooter() {
                 isSpinning={asyncClaimDomain.loading}
                 variant="primary"
                 className="rounded-pill"
-                onClick={handleContinue}
+                onClick={asyncClaimDomain.execute}
             >
                 Continue&nbsp;
                 <Icon icon="arrow-right" margin="m-0" />

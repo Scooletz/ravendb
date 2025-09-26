@@ -1165,9 +1165,14 @@ export function SetupWizardNodeAddressStepFooter() {
             <Button variant="secondary" className="rounded-pill" onClick={handleBack}>
                 <Icon icon="arrow-left" /> Back
             </Button>
+            <ConditionalPopover conditions={{
+                isActive: isEditing,
+                message: "You can't proceed if you have unsaved nodes."
+            }}>
             <Button disabled={isEditing} variant="primary" className="rounded-pill" onClick={handleContinue}>
                 Continue <Icon icon="arrow-right" margin="m-0" />
             </Button>
+            </ConditionalPopover>
         </div>
     );
 }
