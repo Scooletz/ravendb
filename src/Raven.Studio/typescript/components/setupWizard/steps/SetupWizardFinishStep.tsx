@@ -920,7 +920,7 @@ function CertInstallationConfirm(props: { onCancel: () => void; onConfirm: () =>
 export function SetupWizardFinishStepFooter() {
     const { setupWizardService } = useServices();
     const { reportEvent } = useEventsCollector();
-    const { control } = useFormContext<SetupWizardFormData>();
+    const { control, setValue, reset } = useFormContext<SetupWizardFormData>();
     const { securityStep, setupMethodStep, usePackageStep, finishStep } = useWatch({ control });
     const { value: isCertInstallationConfirmed, toggle: toggleIsCertInstallationConfirmed } = useBoolean(false);
 
@@ -961,8 +961,81 @@ export function SetupWizardFinishStepFooter() {
         finishStep.finishingStatus === "Faulted" ||
         finishStep.finishingStatus === "Canceled";
 
+    const handleNewSetupPackage = () => {
+        const defaultValues: SetupWizardFormData = {
+            currentStep: "Setup method",
+            setupMethodStep: {
+                method: "usePackage",
+            },
+            usePackageStep: {
+                fileZip: "",
+                nodeTag: "",
+                isZipValid: false,
+                isZipSecure: false,
+                publicServerUrl: "",
+                serverUrl: ""
+            },
+            licenseKeyStep: {
+                isAcceptTerms: false,
+                isAcceptEmails: false,
+                key: "",
+                licenseInfo: null,
+                licenseTypeToGenerate: null,
+                firstName: "",
+                lastName: "",
+                email: "",
+                phone: "",
+            },
+            domainStep: {
+                domain: "",
+                email: "todo@todo.com",
+            },
+            securityStep: {
+                securityOption: null,
+            },
+            selfSignedCertificateStep: {
+                certificateFileName: "",
+                certificate: "",
+                password: "",
+                cns: [],
+            },
+            nodeAddressStep: {
+                nodes: [],
+            },
+            additionalSettingsStep: {
+                isAdvancedSettingsVisible: false,
+                dataDirectory: "",
+                setupCertificatePath: "",
+                adminCertificateExpirationTime: 60,
+                postgresqlIntegration: false,
+                serverEnvironment: "None",
+            },
+            finishStep: {
+                finishingStatus: "InProgress" as const,
+            },
+        };
+
+        reset(defaultValues);
+    };
+
+    
     return (
-        <div className="d-flex justify-content-end">
+        <div className={classNames("d-flex justify-content-end", {
+            "justify-content-between": finishStep.finishingStatus === "Faulted"
+        })}>
+            {finishStep.finishingStatus === "Faulted" && (
+                <Button
+                onClick={() => setValue("currentStep", "Summary")}>
+                    <Icon icon="arrow-left" />
+                    Back
+                </Button>
+            )}
+            {setupMethodStep.method === "createPackage" ? (
+                <Button disabled={finishStepIsDisabled} className="mt-2 rounded-pill" onClick={handleNewSetupPackage}>
+                    New setup package
+                </Button>
+            ) : (
+                <>
             <ButtonWithSpinner
                 isSpinning={handleRestart.loading}
                 disabled={finishStepIsDisabled}
@@ -982,6 +1055,8 @@ export function SetupWizardFinishStepFooter() {
                         toggleIsCertInstallationConfirmed();
                     }}
                 />
+            )}
+                </>
             )}
         </div>
     );

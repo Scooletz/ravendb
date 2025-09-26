@@ -77,17 +77,12 @@ export function SetupWizardUsePackageStep() {
             return;
         }
 
-        const isSecure = nodeInfos.every(isNodeSecure);
-        setValue("usePackageStep.isZipSecure", isSecure);
+        setValue("usePackageStep.isZipSecure", nodeInfos.every(isNodeSecure));
     }, [nodeInfos, setValue]);
 
     useEffect(() => {
-        if (!nodeInfos.length) {
-            setValue("usePackageStep.isZipValid", true);
-            return;
-        }
-
-        setValue("usePackageStep.isZipSecure", nodeInfos.every(isNodeSecure));
+        // packages should have any node
+        setValue("usePackageStep.isZipValid", nodeInfos.length !== 0);
     }, [nodeInfos, setValue]);
 
     const handleFileChange = (files: File[]) => {
@@ -136,7 +131,7 @@ export function SetupWizardUsePackageStep() {
             <FormGroup>
                 <FileDropzone onChange={handleFileChange} validExtensions={["zip"]} maxFiles={1} />
             </FormGroup>
-            {fileZip && asyncExtractNodeInfos.status === "success" && (
+            {fileZip && isZipValid && asyncExtractNodeInfos.status === "success" && (
                 <FormGroup>
                     <FormLabel className="hstack">
                         <div>Node tag</div>
@@ -157,7 +152,7 @@ export function SetupWizardUsePackageStep() {
                     />
                 </FormGroup>
             )}
-            {!isZipValid && <RichAlert variant="danger">Invalid nodes configuration in zip file.</RichAlert>}
+            {!isZipValid && fileZip && <RichAlert variant="danger">Invalid nodes configuration in zip file.</RichAlert>}
         </div>
     );
 }

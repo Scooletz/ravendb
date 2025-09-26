@@ -871,7 +871,7 @@ interface UseHostnameDetectionSideEffectsProps {
 }
 
 function useHostnameDetectionSideEffects({ editNodeForm, parentControl }: UseHostnameDetectionSideEffectsProps) {
-    const { setValue, control, watch } = editNodeForm;
+    const { setValue, control, watch, clearErrors } = editNodeForm;
     const nodeData = useWatch({ control });
     const {
         securityStep: { securityOption },
@@ -893,6 +893,11 @@ function useHostnameDetectionSideEffects({ editNodeForm, parentControl }: UseHos
 
     useEffect(() => {
         const { unsubscribe } = watch((values, { name }) => {
+            // When user turn off external config, errors should be cleared.
+            if (!values.hasExternalConfig) {
+                clearErrors("externalIpAddress")
+            }
+            
             // Only run this logic when relevant fields change, not when hasExternalConfig changes
             if (name === "hasExternalConfig") {
                 return;

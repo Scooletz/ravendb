@@ -260,16 +260,13 @@ interface AdvancedSettingsContentProps {
     isVisible: boolean;
 }
 
-const getDefaultPath = (os: OperatingSystem, type: "certificate" | "dataDirectory") => {
+const getDefaultPath = (os: OperatingSystem, type: "certificate" | "dataDirectory" | "logs") => {
     const isUnix = os === "Linux" || os === "MacOS";
 
     const paths = {
-        certificate: isUnix
-            ? "/etc/ravendb/security/server.pfx"
-            : "C:\\RavenDB\\Certificate\\server.pfx",
-        dataDirectory: isUnix
-            ? "/var/lib/ravendb/data"
-            : "C:\\RavenDB\\Data"
+        certificate: isUnix ? "/etc/ravendb/security/server.pfx" : "C:\\RavenDB\\Certificate\\server.pfx",
+        dataDirectory: isUnix ? "/var/lib/ravendb/data" : "C:\\RavenDB\\Data",
+        logs: isUnix ? "/logs" : "C:\\RavenDB\\Logs",
     };
 
     return paths[type];
@@ -354,7 +351,7 @@ function AdvancedSettingsContent({ control, isVisible }: AdvancedSettingsContent
                     disabled={!isVisible}
                     name="additionalSettingsStep.logsPath"
                     control={control}
-                    placeholder="/logs"
+                    placeholder={getDefaultPath(os, "logs")}
                     getPathsProvider={(path: string) => getLocalFolderPathsProvider(path)}
                     getPathDependencies={(path: string) => [path]}
                 />
