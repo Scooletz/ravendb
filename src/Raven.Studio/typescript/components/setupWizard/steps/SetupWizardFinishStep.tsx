@@ -988,7 +988,7 @@ export function SetupWizardFinishStepFooter() {
             },
             domainStep: {
                 domain: "",
-                email: "todo@todo.com",
+                email: "",
             },
             securityStep: {
                 securityOption: null,

@@ -220,7 +220,7 @@ const defaultValues: SetupWizardFormData = {
     },
     domainStep: {
         domain: "",
-        email: "todo@todo.com",
+        email: "",
     },
     securityStep: {
         securityOption: null,

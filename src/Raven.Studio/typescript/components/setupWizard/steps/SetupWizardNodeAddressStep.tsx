@@ -897,7 +897,7 @@ function useHostnameDetectionSideEffects({ editNodeForm, parentControl }: UseHos
             if (!values.hasExternalConfig) {
                 clearErrors("externalIpAddress")
             }
-            
+
             // Only run this logic when relevant fields change, not when hasExternalConfig changes
             if (name === "hasExternalConfig") {
                 return;
@@ -911,6 +911,17 @@ function useHostnameDetectionSideEffects({ editNodeForm, parentControl }: UseHos
                 setValue("nodeTag", "", {
                     shouldValidate: false,
                 });
+            }
+
+            // Clear external IP errors and disable external config when switching away from 0.0.0.0
+            // This handles the case where user changes IP from 0.0.0.0 to something else
+            if (!hasBindAllIp && values.hasExternalConfig && !ipsContainHostname) {
+                setValue("hasExternalConfig", false, {
+                    shouldValidate: true,
+                    shouldDirty: false,
+                    shouldTouch: false,
+                });
+                clearErrors("externalIpAddress");
             }
 
             // Automatically enable external configuration in these scenarios:

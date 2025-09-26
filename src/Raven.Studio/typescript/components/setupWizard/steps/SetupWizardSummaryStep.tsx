@@ -28,7 +28,7 @@ export function SetupWizardSummaryStep() {
                 <h2 className="mb-1">Summary</h2>
                 <p className="mb-4 text-muted">Check if everything’s correct before proceeding.</p>
             </div>
-            <div className="vstack gap-1">
+            <div className="vstack gap-1 mb-2">
                 <h5 className="mb-0">Security & license</h5>
                 <Card>
                     <Card.Body>
