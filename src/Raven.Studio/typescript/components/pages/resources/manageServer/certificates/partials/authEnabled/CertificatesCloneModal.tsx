@@ -1,3 +1,4 @@
+/* eslint-disable react-compiler/react-compiler */
 import { yupResolver } from "@hookform/resolvers/yup";
 import genUtils from "common/generalUtils";
 import { FormInput, FormGroup, FormLabel } from "components/common/Form";

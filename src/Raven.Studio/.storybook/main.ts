@@ -3,35 +3,34 @@ import type { Configuration } from "webpack";
 import webpackConfigFunc from "../webpack.config.js";
 import path from "path";
 import webpack from "webpack";
+import CopyPlugin from "copy-webpack-plugin";
+import ForkTsCheckerWebpackPlugin from "fork-ts-checker-webpack-plugin";
 import { hooksForAutoMock } from "../typescript/components/hooks/hooksForAutoMock";
-
-const customHooksAliases: Record<string, string> = Object.fromEntries(
-    hooksForAutoMock.map((name: string) => [
-        `hooks/${name}`,
-        path.resolve(__dirname, "../typescript/components/hooks/__mocks__/" + name),
-    ])
-);
 
 const webpackConfig: Configuration = webpackConfigFunc(null, {
     mode: "development",
     watch: false,
 });
 
+const customHooksAliases: Record<string, string> = {};
+
+hooksForAutoMock.forEach((name: string) => {
+    customHooksAliases["hooks/" + name] = path.resolve(__dirname, "../typescript/components/hooks/__mocks__/" + name);
+});
+
 const config: StorybookConfig = {
-    framework: "@storybook/react-webpack5",
-    core: {
-        builder: {
-            name: "@storybook/builder-webpack5",
-            options: {},
-        },
-    },
-    stories: ["../typescript/components/common/**/*.stories.tsx", "../typescript/components/pages/**/*.stories.tsx"],
-    addons: ["@storybook/addon-a11y", "@storybook/addon-designs"],
     docs: {
         docsMode: false,
     },
     typescript: {
         reactDocgen: false,
+    },
+    stories: ["../typescript/**/*.stories.tsx"],
+    addons: ["@storybook/addon-webpack5-compiler-swc", "@storybook/addon-a11y", "@storybook/addon-designs"],
+
+    framework: {
+        name: "@storybook/react-webpack5",
+        options: {},
     },
 
     webpackFinal: async (config) => {
@@ -65,6 +64,8 @@ const config: StorybookConfig = {
         config.watchOptions ??= {};
         config.watchOptions.ignored = /(node_modules|storybook-config-entry|storybook-stories)/;
 
+        config.plugins?.unshift(webpackConfig.plugins.find((x) => x.constructor.name === "ProvidePlugin"));
+
         const incomingRules = webpackConfig.module.rules.filter(
             (x: any) =>
                 (x.use && x.use.indexOf && x.use.indexOf("imports-loader") === 0) ||
@@ -73,7 +74,7 @@ const config: StorybookConfig = {
                 (x.test && x.test.toString().includes(".less")) ||
                 (x.test && x.test.toString().includes(".font\\.js")) ||
                 (x.test && x.test.toString().includes(".scss")) ||
-                (x.test && x.test.toString().includes(".tsx"))
+                (x.test && x.test.toString().includes(".tsx") && x.include && x.include[0].includes("components"))
         );
 
         const scssRule = incomingRules.find((x: any) => x.test && x.test.toString().includes(".scss")) as any;
@@ -81,25 +82,27 @@ const config: StorybookConfig = {
             publicPath: "/",
         };
 
-        config.module?.rules?.push(...incomingRules);
+        config.plugins?.push(webpackConfig.plugins[0]); // MiniCssExtractPlugin
 
-        const incomingPluginsNames = [
-            "ProvidePlugin",
-            "MiniCssExtractPlugin",
-            "ForkTsCheckerWebpackPlugin",
-            "CopyPlugin",
-        ];
+        const copyPlugin = new CopyPlugin({
+            patterns: [
+                {
+                    from: path.resolve(__dirname, "../wwwroot/Content/ace/"),
+                    to: "./ace/",
+                },
+            ],
+        });
 
-        // it runs on every file save and it is very slow (+5s) - let's skip it
-        config.plugins = config.plugins.filter(
-            (x) =>
-                x?.constructor.name !== "WebpackInjectMockerRuntimePlugin" &&
-                x?.constructor.name !== "WebpackMockPlugin"
-        );
-
+        config.plugins?.push(copyPlugin);
         config.plugins?.push(
-            ...incomingPluginsNames.map((name) => webpackConfig.plugins.find((x) => x.constructor.name === name))
+            new ForkTsCheckerWebpackPlugin({
+                typescript: {
+                    configFile: path.resolve(__dirname, "../tsconfig.json"),
+                },
+            })
         );
+
+        config.module?.rules?.push(...incomingRules);
 
         config.plugins?.push(
             new webpack.ProvidePlugin({
@@ -110,5 +113,4 @@ const config: StorybookConfig = {
         return config;
     },
 };
-
 export default config;
