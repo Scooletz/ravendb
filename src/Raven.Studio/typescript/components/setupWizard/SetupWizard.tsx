@@ -80,7 +80,7 @@ export default function SetupWizard() {
                     return fieldState.isDirty;
                 });
 
-                if (dirtyStepsToClear.length > 0) {
+                if (dirtyStepsToClear.length > 0 && currentValues.finishStep.finishingStatus !== "Faulted") {
                     const isConfirmed = await confirm({
                         title: `Go back to step (${stepTitle})`,
                         message: (

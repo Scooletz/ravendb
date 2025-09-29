@@ -1178,7 +1178,7 @@ export function SetupWizardNodeAddressStepFooter() {
             </Button>
             <ConditionalPopover conditions={{
                 isActive: isEditing,
-                message: "You can't proceed if you have unsaved nodes."
+                message: "You can't proceed if you have unsaved nodes. Save your changes first.",
             }}>
             <Button disabled={isEditing} variant="primary" className="rounded-pill" onClick={handleContinue}>
                 Continue <Icon icon="arrow-right" margin="m-0" />
@@ -1289,7 +1289,7 @@ export const nodeEditFormSchema = yup.object({
             },
             then: (schema) =>
                 schema
-                    .required("External IP address is required")
+                    .required("External IP address is required, it tells RavenDB how to identify itself to other nodes and clients")
                     .test(
                         "not-url",
                         "Expected valid IP address, not URL",
