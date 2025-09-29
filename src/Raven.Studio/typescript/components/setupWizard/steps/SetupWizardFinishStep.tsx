@@ -295,8 +295,16 @@ const ConfigurationItem = ({ configurationState, stepTitle }: ConfigurationItemP
                 {getConfigurationItemStatus()}
             </div>
             {configurationState?.State === "Error" && (
-                <RichAlert variant="danger" title={configurationState?.ErrorType ?? "XDD"} className="my-2">
-                    {configurationState?.ErrorMessage}
+                <RichAlert
+                    style={{ height: "150px" }}
+                    childrenClassName="w-100 h-100 d-flex align-items-stretch text-truncate"
+                    variant="danger"
+                    title={configurationState?.ErrorType ?? "XDD"}
+                    className="my-2"
+                >
+                    <span className="text-wrap" title={configurationState?.ErrorMessage}>
+                        {configurationState?.ErrorMessage}
+                    </span>
                 </RichAlert>
             )}
         </div>
@@ -973,7 +981,7 @@ export function SetupWizardFinishStepFooter() {
                 isZipValid: false,
                 isZipSecure: false,
                 publicServerUrl: "",
-                serverUrl: ""
+                serverUrl: "",
             },
             licenseKeyStep: {
                 isAcceptTerms: false,
@@ -1018,14 +1026,18 @@ export function SetupWizardFinishStepFooter() {
         reset(defaultValues);
     };
 
-    
     return (
-        <div className={classNames("d-flex justify-content-end", {
-            "justify-content-between": finishStep.finishingStatus === "Faulted"
-        })}>
+        <div
+            className={classNames("d-flex justify-content-end", {
+                "justify-content-between": finishStep.finishingStatus === "Faulted",
+            })}
+        >
             {finishStep.finishingStatus === "Faulted" && (
                 <Button
-                onClick={() => setValue("currentStep", "Summary")}>
+                    variant="secondary"
+                    className="rounded-pill mt-2"
+                    onClick={() => setValue("currentStep", "Summary")}
+                >
                     <Icon icon="arrow-left" />
                     Back
                 </Button>
@@ -1036,26 +1048,26 @@ export function SetupWizardFinishStepFooter() {
                 </Button>
             ) : (
                 <>
-            <ButtonWithSpinner
-                isSpinning={handleRestart.loading}
-                disabled={finishStepIsDisabled}
-                variant="primary"
-                onClick={handleRestart.execute}
-                className="mt-2 rounded-pill"
-                icon="reset"
-            >
-                Restart server
-            </ButtonWithSpinner>
-            {isCertInstallationConfirmed && (
-                <CertInstallationConfirm
-                    onCancel={toggleIsCertInstallationConfirmed}
-                    onConfirm={() => {
-                        reportEvent(setupWizardGA4Prefixes.finalStep, "confirm-cert", "confirm");
-                        resetServer();
-                        toggleIsCertInstallationConfirmed();
-                    }}
-                />
-            )}
+                    <ButtonWithSpinner
+                        isSpinning={handleRestart.loading}
+                        disabled={finishStepIsDisabled}
+                        variant="primary"
+                        onClick={handleRestart.execute}
+                        className="mt-2 rounded-pill"
+                        icon="reset"
+                    >
+                        Restart server
+                    </ButtonWithSpinner>
+                    {isCertInstallationConfirmed && (
+                        <CertInstallationConfirm
+                            onCancel={toggleIsCertInstallationConfirmed}
+                            onConfirm={() => {
+                                reportEvent(setupWizardGA4Prefixes.finalStep, "confirm-cert", "confirm");
+                                resetServer();
+                                toggleIsCertInstallationConfirmed();
+                            }}
+                        />
+                    )}
                 </>
             )}
         </div>

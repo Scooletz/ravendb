@@ -9,6 +9,7 @@ interface RichAlertProps extends AlertProps {
     title?: string;
     color?: never;
     variant: (typeof richAlertColors)[number];
+    childrenClassName?: string;
 }
 
 const defaultIcons: { [key: string]: IconName } = {
@@ -32,7 +33,7 @@ export const richAlertColors = [
     "light",
 ] as const;
 
-export function RichAlert({ className, variant, children, icon, iconAddon, title, ...rest }: RichAlertProps) {
+export function RichAlert({ className, variant, children, icon, iconAddon, title, childrenClassName, ...rest }: RichAlertProps) {
     const renderAlertIcon = icon ?? defaultIcons[variant] ?? "terms";
 
     return (
@@ -44,7 +45,7 @@ export function RichAlert({ className, variant, children, icon, iconAddon, title
             ) : (
                 <Icon icon={renderAlertIcon} addon={iconAddon} margin="m-0" className="title-icon fs-3" />
             )}
-            <div className="w-100">{children}</div>
+            <div className={classNames("w-100", childrenClassName)}>{children}</div>
         </Alert>
     );
 }
