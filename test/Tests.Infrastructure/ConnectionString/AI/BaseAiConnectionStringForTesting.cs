@@ -114,7 +114,7 @@ public abstract class BaseAiConnectorForTesting<T, TConfig> : IAiConnectorForTes
 
         try
         {
-            using (var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30)))
+            using (var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5)))
             {
                 return TryConnect(out logger, cts.Token);
             }
@@ -180,10 +180,8 @@ public abstract class AbstractGenAiConnectorForTesting<T> : BaseAiConnectorForTe
         using (var client = ChatCompletionClient.CreateChatCompletionClient(contextPool, configuration.Connection))
         {
             logger = null;
-            var result = client.CompleteAsync(systemPrompt: "Reply with exact word only: raven", "", schema, null, token).GetAwaiter().GetResult();
-
+            client.TestCompleteAsync(systemPrompt: "Reply with exact word only: raven", "", schema, token).GetAwaiter().GetResult();
             return true;
-
         }
     }
 }
