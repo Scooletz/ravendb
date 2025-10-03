@@ -33,7 +33,7 @@ namespace StressTests.Server.Replication
             var hubCertificates = Certificates.GenerateAndSaveSelfSignedCertificate(createNew: true, with2Eku: with2Eku);
             var hubCerts = Certificates.SetupServerAuthentication(hubSettings, certificates: hubCertificates);
 
-            var sinkCertificates = Certificates.GenerateAndSaveSelfSignedCertificate(createNew: false, with2Eku: with2Eku);
+            var sinkCertificates = Certificates.GenerateAndSaveSelfSignedCertificate(createNew: true, with2Eku: with2Eku);
             var sinkCerts = Certificates.SetupServerAuthentication(sinkSettings, certificates: sinkCertificates);
 
             var hubDB = GetDatabaseName();
