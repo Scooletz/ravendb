@@ -1,0 +1,68 @@
+name: Check posts submodule
+
+on:
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update-posts-submodule:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          submodules: recursive
+
+      - name: Configure Git user
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Update posts submodule
+        id: update
+        run: |
+          if [ ! -d posts ]; then
+            echo "The posts submodule directory was not found. Skipping." >&2
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          git submodule update --init posts
+          git submodule update --remote posts
+          echo "found=true" >> "$GITHUB_OUTPUT"
+
+      - name: Detect submodule changes
+        if: steps.update.outputs.found == 'true'
+        id: changes
+        run: |
+          git add posts
+          if git diff --cached --quiet; then
+            git reset HEAD posts
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create Pull Request
+        if: steps.changes.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: Update posts submodule
+          branch: automation/update-posts-submodule
+          delete-branch: true
+          title: Update posts submodule
+          body: |
+            ## Summary
+            - Update the posts submodule to the latest upstream commit.
+
+            ## Testing
+            - No automated tests were run for this submodule synchronization.
+          add-paths: |
+            posts
