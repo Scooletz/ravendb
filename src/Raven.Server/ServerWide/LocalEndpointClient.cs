@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
@@ -29,10 +29,10 @@ namespace Raven.Server.ServerWide
             _server = server;
         }
 
-        public async Task<HttpResponse> InvokeAsync(RouteInformation route, 
+        public async Task<HttpResponse> InvokeAsync(RouteInformation route,
             Dictionary<string, StringValues> parameters = null, CancellationToken cancellationToken = default)
         {
-            var requestContext = new RequestHandlerContext
+            using var requestContext = new RequestHandlerContext
             {
                 HttpContext = new LocalInvocationCustomHttpContext(route.Method, route.Path),
                 RavenServer = _server,

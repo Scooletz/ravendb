@@ -386,12 +386,13 @@ internal class ConversationHandler(ServerStore server, DocumentDatabase database
             return;
 
         var multiGetHandler = new MultiGetHandler();
-        multiGetHandler.Init(new RequestHandlerContext
+        using var multiGetContext = new RequestHandlerContext
         {
             Database = database,
             RavenServer = server.Server,
             HttpContext = new DefaultHttpContext()
-        });
+        };
+        multiGetHandler.Init(multiGetContext);
 
         using (var reqsBlittable = context.ReadObject(new DynamicJsonValue { ["Requests"] = reqs }, "ai-agent/multi-query"))
         using (var handler = new MultiGetHandlerProcessorForPost(multiGetHandler))
