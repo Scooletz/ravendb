@@ -361,32 +361,42 @@ namespace Raven.Server.Commercial
                     progress.Processed++;
                     progress.AddInfo("Starting validation.");
                     onProgress(progress);
-
+                    progress.SetupActionSteps.StepsByConfigurationStepType[ConfigurationStepType.Validation].SetState(State.InProgress);
+                    
                     try
                     {
                         await LetsEncryptValidationHelper.ValidateServerCanRunOnThisNode(settingsJsonObject, null, serverStore, continueSetupInfo.NodeTag, token);
                     }
                     catch (Exception e)
                     {
+                        progress.SetupActionSteps.SetError(ConfigurationStepType.Validation, ErrorType.ValidationError, e.Message);
                         throw new InvalidOperationException("Validation failed.", e);
                     }
 
                     progress.Processed++;
                     progress.AddInfo("Validation is successful.");
+                    progress.SetupActionSteps.StepsByConfigurationStepType[ConfigurationStepType.Validation].SetState(State.Completed);
+                    
                     progress.AddInfo("Writing configuration settings and certificate.");
                     onProgress(progress);
 
                     try
                     {
+                        progress.SetupActionSteps.StepsByConfigurationStepType[ConfigurationStepType.ConfigurationSettings].SetState(State.InProgress);
+                        progress.SetupActionSteps.StepsByConfigurationStepType[ConfigurationStepType.CreatingSettingsJson].SetState(State.InProgress);
                         await CompleteUnsecuredConfigurationForNewNode(onProgress, progress, continueSetupInfo, settingsJsonObject, serverStore, firstNodeTag, otherNodesUrls, license, context);
                     }
                     catch (Exception e)
                     {
+                        progress.SetupActionSteps.SetError(ConfigurationStepType.ConfigurationSettings, ErrorType.ConfigurationSettingsError, e.Message);
+                        progress.SetupActionSteps.SetError(ConfigurationStepType.CreatingSettingsJson, ErrorType.SettingsJsonError, e.Message);
                         throw new InvalidOperationException("Could not complete configuration for new node.", e);
                     }
 
                     progress.Processed++;
                     progress.AddInfo("Configuration settings created.");
+                    progress.SetupActionSteps.StepsByConfigurationStepType[ConfigurationStepType.ConfigurationSettings].SetState(State.Completed);
+                    progress.SetupActionSteps.StepsByConfigurationStepType[ConfigurationStepType.CreatingSettingsJson].SetState(State.Completed);
                     progress.AddInfo("Setting up RavenDB in 'Secured Mode' finished successfully.");
                     onProgress(progress);
 

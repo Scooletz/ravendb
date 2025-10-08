@@ -472,7 +472,7 @@ public static class SettingsZipFileHelper
                 
                 settingsJson.Modifications[RavenConfiguration.GetKey(x => x.Core.DataDirectory)] = setupInfo.DataDirectory;
             }
-
+#if !RVN
             if (setupInfo.LogsPath != null)
             {
                 if (Path.IsPathRooted(setupInfo.LogsPath))
@@ -496,6 +496,7 @@ public static class SettingsZipFileHelper
 
                 settingsJson.Modifications[RavenConfiguration.GetKey(x => x.Indexing.StaticIndexingEngineType)] = setupInfo.StaticIndexingEngineType;
             }
+#endif
         }
         catch (Exception e)
         {
