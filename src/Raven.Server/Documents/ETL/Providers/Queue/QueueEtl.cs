@@ -9,6 +9,7 @@ using Raven.Client.Documents.Operations.ETL.Queue;
 using Raven.Server.Documents.ETL.Metrics;
 using Raven.Server.Documents.ETL.Providers.Queue.AmazonSqs;
 using Raven.Server.Documents.ETL.Providers.Queue.AzureQueueStorage;
+using Raven.Server.Documents.ETL.Providers.Queue.AzureServiceBus;
 using Raven.Server.Documents.ETL.Providers.Queue.Enumerators;
 using Raven.Server.Documents.ETL.Providers.Queue.Kafka;
 using Raven.Server.Documents.ETL.Providers.Queue.RabbitMq;
@@ -51,6 +52,8 @@ public abstract class QueueEtl<T> : EtlProcess<QueueItem, QueueWithItems<T>, Que
                 return new AzureQueueStorageEtl(transformation, configuration, database, serverStore);
             case QueueBrokerType.AmazonSqs:
                 return new AmazonSqsEtl(transformation, configuration, database, serverStore);
+            case QueueBrokerType.AzureServiceBus:
+                return new AzureServiceBusEtl(transformation, configuration, database, serverStore);
             default:
                 throw new NotSupportedException($"Unknown broker type: {configuration.BrokerType}");
         }

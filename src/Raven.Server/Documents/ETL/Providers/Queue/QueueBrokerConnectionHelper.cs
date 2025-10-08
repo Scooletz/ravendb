@@ -4,6 +4,8 @@ using System.IO;
 using Amazon;
 using Amazon.SQS;
 using Azure.Identity;
+using Azure.Messaging.ServiceBus;
+using Azure.Messaging.ServiceBus.Administration;
 using Azure.Storage.Queues;
 using Confluent.Kafka;
 using Org.BouncyCastle.Utilities.IO.Pem;
@@ -149,6 +151,58 @@ public static class QueueBrokerConnectionHelper
         }
 
         return queueServiceClient;
+    }
+
+    public static ServiceBusClient CreateAzureServiceBusClient(
+        AzureServiceBusConnectionSettings connectionSettings)
+    {
+        if (connectionSettings == null)
+            throw new ArgumentNullException(nameof(connectionSettings));
+
+        if (string.IsNullOrWhiteSpace(connectionSettings.ConnectionString) == false)
+            return new ServiceBusClient(connectionSettings.ConnectionString);
+
+        if (connectionSettings.EntraId != null)
+        {
+            var credential = new ClientSecretCredential(connectionSettings.EntraId.TenantId,
+                connectionSettings.EntraId.ClientId, connectionSettings.EntraId.ClientSecret);
+
+            return new ServiceBusClient(connectionSettings.GetFullyQualifiedNamespace(), credential);
+        }
+
+        if (connectionSettings.Passwordless != null)
+        {
+            return new ServiceBusClient(connectionSettings.Passwordless.FullyQualifiedNamespace,
+                new DefaultAzureCredential());
+        }
+
+        throw new InvalidOperationException("No valid Azure Service Bus connection settings were provided.");
+    }
+
+    public static ServiceBusAdministrationClient CreateAzureServiceBusAdministrationClient(
+        AzureServiceBusConnectionSettings connectionSettings)
+    {
+        if (connectionSettings == null)
+            throw new ArgumentNullException(nameof(connectionSettings));
+
+        if (string.IsNullOrWhiteSpace(connectionSettings.ConnectionString) == false)
+            return new ServiceBusAdministrationClient(connectionSettings.ConnectionString);
+
+        if (connectionSettings.EntraId != null)
+        {
+            var credential = new ClientSecretCredential(connectionSettings.EntraId.TenantId,
+                connectionSettings.EntraId.ClientId, connectionSettings.EntraId.ClientSecret);
+
+            return new ServiceBusAdministrationClient(connectionSettings.GetFullyQualifiedNamespace(), credential);
+        }
+
+        if (connectionSettings.Passwordless != null)
+        {
+            return new ServiceBusAdministrationClient(connectionSettings.Passwordless.FullyQualifiedNamespace,
+                new DefaultAzureCredential());
+        }
+
+        throw new InvalidOperationException("No valid Azure Service Bus connection settings were provided.");
     }
 
     public static IAmazonSQS CreateAmazonSqsClient(AmazonSqsConnectionSettings connectionSettings)

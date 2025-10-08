@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Sparrow.Json.Parsing;
@@ -52,12 +52,17 @@ namespace Raven.Client.Documents.Operations.ETL.Queue
                 case QueueBrokerType.AzureQueueStorage:
                     return Connection.AzureQueueStorageConnectionSettings.GetStorageUrl()
                         .StartsWith("https", StringComparison.OrdinalIgnoreCase);
-                case QueueBrokerType.AmazonSqs:
-                    return Connection.AmazonSqsConnectionSettings.GetQueueUrl()
-                        .StartsWith("https", StringComparison.OrdinalIgnoreCase);
-                default:
-                    throw new NotSupportedException($"Unknown broker type: {BrokerType}");
-            }
+            case QueueBrokerType.AmazonSqs:
+                return Connection.AmazonSqsConnectionSettings.GetQueueUrl()
+                    .StartsWith("https", StringComparison.OrdinalIgnoreCase);
+            case QueueBrokerType.AzureServiceBus:
+                var endpoint = Connection.AzureServiceBusConnectionSettings.GetEndpoint();
+                return endpoint != null &&
+                       (endpoint.StartsWith("sb://", StringComparison.OrdinalIgnoreCase) ||
+                        endpoint.StartsWith("https://", StringComparison.OrdinalIgnoreCase));
+            default:
+                throw new NotSupportedException($"Unknown broker type: {BrokerType}");
+        }
 
             return false;
         }
