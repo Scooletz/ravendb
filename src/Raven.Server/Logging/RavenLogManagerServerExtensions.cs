@@ -27,7 +27,6 @@ using Sparrow;
 using Sparrow.Global;
 using Sparrow.Logging;
 using Sparrow.Server.Logging;
-using AsyncHelpers = Raven.Client.Util.AsyncHelpers;
 using LogLevel = NLog.LogLevel;
 using Size = Sparrow.Size;
 
