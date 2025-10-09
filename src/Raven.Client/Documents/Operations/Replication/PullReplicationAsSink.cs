@@ -70,16 +70,8 @@ namespace Raven.Client.Documents.Operations.Replication
 #pragma warning disable CS0618 // Type or member is obsolete
             djv[nameof(HubDefinitionName)] = HubDefinitionName;
 #pragma warning restore CS0618 // Type or member is obsolete
-            if (CertificateWithPrivateKey != null)
-            {
-                djv[nameof(CertificateWithPrivateKey)] = CertificateWithPrivateKey;
-            }
-
-            if (CertificatePassword != null)
-            {
-                djv[nameof(CertificatePassword)] = CertificatePassword;
-            }
-
+            djv[nameof(CertificateWithPrivateKey)] = CertificateWithPrivateKey;
+            djv[nameof(CertificatePassword)] = CertificatePassword;
             djv[nameof(AllowedHubToSinkPaths)] = AllowedHubToSinkPaths;
             djv[nameof(AllowedSinkToHubPaths)] = AllowedSinkToHubPaths;
             djv[nameof(AccessName)] = AccessName;
@@ -113,9 +105,6 @@ namespace Raven.Client.Documents.Operations.Replication
             return sb.ToString();
         }
 
-        public override string GetDefaultTaskName()
-        {
-            return ToString();
-        }
+        public override string GetDefaultTaskName() => ToString();
     }
 }

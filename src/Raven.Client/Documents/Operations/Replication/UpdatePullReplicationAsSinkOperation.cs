@@ -16,10 +16,23 @@ namespace Raven.Client.Documents.Operations.Replication
     public class UpdatePullReplicationAsSinkOperation : IMaintenanceOperation<ModifyOngoingTaskResult>
     {
         private readonly PullReplicationAsSink _pullReplication;
+        private readonly bool _keepOriginalCertificateOnNull;
 
-        public UpdatePullReplicationAsSinkOperation(PullReplicationAsSink pullReplication)
+        // Kept for the binary compatibility purposes.
+        public UpdatePullReplicationAsSinkOperation(PullReplicationAsSink pullReplication) : this(pullReplication, false)
+        {
+        }
+        
+        /// <summary>
+        /// Initializes the update operation for the <see cref="PullReplicationAsSink"/>.
+        /// </summary>
+        /// <param name="pullReplication">The pull replication object.</param>
+        /// <param name="keepOriginalCertificateOnNull">If <see cref="PullReplicationAsSink.CertificateWithPrivateKey"/> is null, whether to keep the original or remove.</param>
+        /// <exception cref="AuthorizationException">If the <see cref="PullReplicationAsSink.CertificateWithPrivateKey"/> isn't null and cannot be parsed.</exception>
+        public UpdatePullReplicationAsSinkOperation(PullReplicationAsSink pullReplication, bool keepOriginalCertificateOnNull = false)
         {
             _pullReplication = pullReplication;
+            _keepOriginalCertificateOnNull = keepOriginalCertificateOnNull;
 
             if (pullReplication.CertificateWithPrivateKey != null)
             {
@@ -36,20 +49,22 @@ namespace Raven.Client.Documents.Operations.Replication
 
         public RavenCommand<ModifyOngoingTaskResult> GetCommand(DocumentConventions conventions, JsonOperationContext ctx)
         {
-            return new UpdatePullEdgeReplication(_pullReplication);
+            return new UpdatePullEdgeReplication(_pullReplication, _keepOriginalCertificateOnNull);
         }
 
-        private class UpdatePullEdgeReplication : RavenCommand<ModifyOngoingTaskResult>, IRaftCommand
+        private class UpdatePullEdgeReplication(PullReplicationAsSink pullReplication, bool keepOriginalCertificateOnNull) : RavenCommand<ModifyOngoingTaskResult>, IRaftCommand
         {
-            private readonly PullReplicationAsSink _pullReplication;
-
-            public UpdatePullEdgeReplication(PullReplicationAsSink pullReplication)
-            {
-                _pullReplication = pullReplication ?? throw new ArgumentNullException(nameof(pullReplication));
-            }
 
             public override HttpRequestMessage CreateRequest(JsonOperationContext ctx, ServerNode node, out string url)
             {
+                DynamicJsonValue replication = pullReplication.ToJson();
+                
+                // Aligned with ServerStore.UpdatePullReplicationAsSink to not introduce breaking changes
+                if (pullReplication.CertificateWithPrivateKey == null && keepOriginalCertificateOnNull)
+                {
+                    replication.Remove(nameof(PullReplicationAsSink.CertificateWithPrivateKey));
+                }
+                
                 url = $"{node.Url}/databases/{node.Database}/admin/tasks/sink-pull-replication";
 
                 var request = new HttpRequestMessage
@@ -59,7 +74,7 @@ namespace Raven.Client.Documents.Operations.Replication
                     {
                         var json = new DynamicJsonValue
                         {
-                            ["PullReplicationAsSink"] = _pullReplication.ToJson()
+                            ["PullReplicationAsSink"] = replication
                         };
 
                         await ctx.WriteAsync(stream, ctx.ReadObject(json, "update-pull-replication")).ConfigureAwait(false);
