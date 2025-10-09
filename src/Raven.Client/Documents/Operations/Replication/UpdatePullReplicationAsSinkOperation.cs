@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Net.Http;
 using System.Security.Cryptography.X509Certificates;
 using Raven.Client.Documents.Conventions;
@@ -62,7 +63,8 @@ namespace Raven.Client.Documents.Operations.Replication
                 // Aligned with ServerStore.UpdatePullReplicationAsSink to not introduce breaking changes
                 if (pullReplication.CertificateWithPrivateKey == null && keepOriginalCertificateOnNull)
                 {
-                    replication.Remove(nameof(PullReplicationAsSink.CertificateWithPrivateKey));
+                    int removed = replication.Properties.RemoveAll(pair => pair.Name == nameof(PullReplicationAsSink.CertificateWithPrivateKey));
+                    Debug.Assert(removed > 0);
                 }
                 
                 url = $"{node.Url}/databases/{node.Database}/admin/tasks/sink-pull-replication";

@@ -81,15 +81,18 @@ namespace StressTests.Server.Replication
                 var timeout = 5000;
                 Assert.True(WaitForDocument(sinkStore, "foo/bar", timeout), sinkStore.Identifier);
                 
-                // test if certificate is retained when we don't send one
-                // sending null as cert - but it should copy old one
+                // Test if certificate is retained when we don't send one and specify the flag to keep the old one.
                 await sinkStore.Maintenance.SendAsync(new UpdatePullReplicationAsSinkOperation(new PullReplicationAsSink
-                {
-                    TaskId = sinkTaskId,
-                    Name = pullReplicationName,
-                    HubName = pullReplicationName,
-                    ConnectionStringName = "ConnectionString-" + hubStore.Database
-                }));
+                    {
+                        TaskId = sinkTaskId,
+                        Name = pullReplicationName,
+                        HubName = pullReplicationName,
+                        ConnectionStringName = "ConnectionString-" + hubStore.Database,
+                        
+                        CertificateWithPrivateKey = null
+                    }, 
+                    keepOriginalCertificateOnNull: true
+                ));
                 
                 using (var hubSession = hubStore.OpenSession())
                 {
