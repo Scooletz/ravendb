@@ -41,15 +41,18 @@ import Col from "react-bootstrap/esm/Col";
 import { useRavenLink } from "hooks/useRavenLink";
 import { useEventsCollector } from "components/hooks/useEventsCollector";
 import { setupWizardGA4Prefixes } from "components/setupWizard/utils/setupWizardConstants";
+import useBoolean from "hooks/useBoolean";
 
 export function SetupWizardNodeAddressStep() {
     const { control } = useFormContext<SetupWizardFormData>();
     const { reportEvent } = useEventsCollector();
-
+    const { setupWizardService } = useServices();
     const { fields, append, remove } = useFieldArray({
         control,
         name: "nodeAddressStep.nodes",
     });
+
+    const asyncGetSetupParameters = useAsync(async () => setupWizardService.getSetupParameters(), []);
 
     const {
         domainStep,
@@ -83,7 +86,7 @@ export function SetupWizardNodeAddressStep() {
                 nodeTag: "A",
                 ipAddress: [
                     {
-                        ipAddress: "127.0.0.1",
+                        ipAddress: asyncGetSetupParameters.result?.IsDocker ? "0.0.0.0" : "127.0.0.1",
                     },
                 ],
                 isEditing: true, // the first node should be added with default values and in editing mode
@@ -871,74 +874,78 @@ interface UseHostnameDetectionSideEffectsProps {
 }
 
 function useHostnameDetectionSideEffects({ editNodeForm, parentControl }: UseHostnameDetectionSideEffectsProps) {
+    const { setupWizardService } = useServices();
+    const asyncGetSetupParameters = useAsync(async () => setupWizardService.getSetupParameters(), []);
     const { setValue, control, watch, clearErrors } = editNodeForm;
+    const { value: wasAutoEnabled, setValue: setWasAutoEnabled } = useBoolean(false);
+    const { value: prevHadBindAllIp, setValue: setPrevHadBindAllIp } = useBoolean(false);
+
     const nodeData = useWatch({ control });
     const {
         securityStep: { securityOption },
     } = useWatch({ control: parentControl });
 
-    const isHostname = useMemo(() => {
-        return (
-            nodeData.ipAddress.some((ip) => genUtils.isHostname(ip.ipAddress)) && securityOption === "ownCertificate"
-        );
-    }, [nodeData.ipAddress]); // eslint-disable-line react-hooks/exhaustive-deps
+    const hasBindAllIp = useMemo(
+        () => nodeData.ipAddress.some((ip) => genUtils.isBindAllIpAddress(ip.ipAddress)),
+        [nodeData.ipAddress]
+    );
 
-    const hasBindAllIp = useMemo(() => {
-        return nodeData.ipAddress.some((ip) => genUtils.isBindAllIpAddress(ip.ipAddress));
-    }, [nodeData.ipAddress]);
+    const ipsContainHostname = useMemo(
+        () => nodeData.ipAddress.some((ip) => genUtils.isHostname(ip.ipAddress)),
+        [nodeData.ipAddress]
+    );
 
-    const ipsContainHostname = useMemo(() => {
-        return nodeData.ipAddress.some((ip) => genUtils.isHostname(ip.ipAddress));
-    }, [nodeData.ipAddress]);
+    const isHostname = useMemo(
+        () => ipsContainHostname && securityOption === "ownCertificate",
+        [ipsContainHostname, securityOption]
+    );
 
     useEffect(() => {
         const { unsubscribe } = watch((values, { name }) => {
-            // When user turn off external config, errors should be cleared.
-            if (!values.hasExternalConfig) {
-                clearErrors("externalIpAddress")
-            }
+            const { hasExternalConfig, ipAddress, isPassive, nodeTag } = values;
 
-            // Only run this logic when relevant fields change, not when hasExternalConfig changes
+            const containsHostname = ipAddress.some((ip) => genUtils.isHostname(ip.ipAddress));
+            const containsBindAllIp = ipAddress.some((ip) => genUtils.isBindAllIpAddress(ip.ipAddress));
+
             if (name === "hasExternalConfig") {
+                setWasAutoEnabled(false);
+
+                if (!hasExternalConfig) {
+                    setValue("externalIpAddress", "");
+                    clearErrors("externalIpAddress");
+                }
+
                 return;
             }
 
-            const ipsContainHostname = values.ipAddress.some((ip) => genUtils.isHostname(ip.ipAddress));
-            const hasBindAllIp = values.ipAddress.some((ip) => genUtils.isBindAllIpAddress(ip?.ipAddress));
-
-            // when node is passive, we need to clear the nodeTag value to show placeholder
-            if (values.isPassive && values.nodeTag) {
-                setValue("nodeTag", "", {
-                    shouldValidate: false,
-                });
+            if (isPassive && nodeTag) {
+                setValue("nodeTag", "", { shouldValidate: false });
             }
 
-            // Clear external IP errors and disable external config when switching away from 0.0.0.0
-            // This handles the case where user changes IP from 0.0.0.0 to something else
-            if (!hasBindAllIp && values.hasExternalConfig && !ipsContainHostname) {
-                setValue("hasExternalConfig", false, {
-                    shouldValidate: true,
-                    shouldDirty: false,
-                    shouldTouch: false,
-                });
+            const shouldAutoDisable =
+                !containsBindAllIp &&
+                hasExternalConfig &&
+                !containsHostname &&
+                !asyncGetSetupParameters.result?.IsDocker &&
+                wasAutoEnabled &&
+                prevHadBindAllIp &&
+                securityOption === "letsEncrypt";
+
+            if (shouldAutoDisable) {
+                setValue("hasExternalConfig", false, { shouldValidate: true });
                 clearErrors("externalIpAddress");
+                setWasAutoEnabled(false);
             }
 
-            // Automatically enable external configuration in these scenarios:
-            // 1. When using Let's Encrypt with hostnames instead of IP addresses
-            // 2. When using Let's Encrypt with bind-all address (0.0.0.0)
-            const isLetsEncryptWithHostname = ipsContainHostname && securityOption === "letsEncrypt";
-            const isLetsEncryptWithBindAll = hasBindAllIp && securityOption === "letsEncrypt";
-            const needsExternalConfig =
-                (isLetsEncryptWithHostname || isLetsEncryptWithBindAll) && !values.hasExternalConfig;
+            const shouldAutoEnable =
+                securityOption === "letsEncrypt" && (containsHostname || containsBindAllIp) && !hasExternalConfig;
 
-            if (needsExternalConfig) {
-                setValue("hasExternalConfig", true, {
-                    shouldValidate: true,
-                    shouldDirty: false,
-                    shouldTouch: false,
-                });
+            if (shouldAutoEnable) {
+                setValue("hasExternalConfig", true, { shouldValidate: true });
+                setWasAutoEnabled(true);
             }
+
+            setPrevHadBindAllIp(containsBindAllIp);
         });
 
         return () => unsubscribe();
@@ -1176,13 +1183,15 @@ export function SetupWizardNodeAddressStepFooter() {
             <Button variant="secondary" className="rounded-pill" onClick={handleBack}>
                 <Icon icon="arrow-left" /> Back
             </Button>
-            <ConditionalPopover conditions={{
-                isActive: isEditing,
-                message: "You can't proceed if you have unsaved nodes. Save your changes first.",
-            }}>
-            <Button disabled={isEditing} variant="primary" className="rounded-pill" onClick={handleContinue}>
-                Continue <Icon icon="arrow-right" margin="m-0" />
-            </Button>
+            <ConditionalPopover
+                conditions={{
+                    isActive: isEditing,
+                    message: "You can't proceed if you have unsaved nodes. Save your changes first.",
+                }}
+            >
+                <Button disabled={isEditing} variant="primary" className="rounded-pill" onClick={handleContinue}>
+                    Continue <Icon icon="arrow-right" margin="m-0" />
+                </Button>
             </ConditionalPopover>
         </div>
     );
@@ -1289,7 +1298,9 @@ export const nodeEditFormSchema = yup.object({
             },
             then: (schema) =>
                 schema
-                    .required("External IP address is required, it tells RavenDB how to identify itself to other nodes and clients")
+                    .required(
+                        "External IP address is required, it tells RavenDB how to identify itself to other nodes and clients"
+                    )
                     .test(
                         "not-url",
                         "Expected valid IP address, not URL",
@@ -1304,7 +1315,12 @@ export const nodeEditFormSchema = yup.object({
                 schema.test(
                     "valid-ipv4-optional",
                     "Please enter a valid IPv4 address (hostname not allowed, no port)",
-                    (value) => !value || genUtils.regexIPv4.test(value) // optional, but must be valid if filled
+                    (value) => {
+                        if (value == null || value === "") {
+                            return true;
+                        }
+                        return genUtils.regexIPv4.test(value);
+                    }
                 ),
         }),
 
