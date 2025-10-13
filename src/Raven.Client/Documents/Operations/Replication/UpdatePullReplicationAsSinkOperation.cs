@@ -17,7 +17,7 @@ namespace Raven.Client.Documents.Operations.Replication
     public class UpdatePullReplicationAsSinkOperation : IMaintenanceOperation<ModifyOngoingTaskResult>
     {
         private readonly PullReplicationAsSink _pullReplication;
-        private readonly bool _keepOriginalCertificateOnNull;
+        private readonly bool _useServerCertificate;
 
         // Kept for the binary compatibility purposes.
         public UpdatePullReplicationAsSinkOperation(PullReplicationAsSink pullReplication) : this(pullReplication, false)
@@ -28,15 +28,21 @@ namespace Raven.Client.Documents.Operations.Replication
         /// Initializes the update operation for the <see cref="PullReplicationAsSink"/>.
         /// </summary>
         /// <param name="pullReplication">The pull replication object.</param>
-        /// <param name="keepOriginalCertificateOnNull">If <see cref="PullReplicationAsSink.CertificateWithPrivateKey"/> is null, whether to keep the original or remove.</param>
+        /// <param name="useServerCertificate">Makes the replication use the server certificate. Requires <see cref="PullReplicationAsSink.CertificateWithPrivateKey"/> to be null.</param>
         /// <exception cref="AuthorizationException">If the <see cref="PullReplicationAsSink.CertificateWithPrivateKey"/> isn't null and cannot be parsed.</exception>
-        public UpdatePullReplicationAsSinkOperation(PullReplicationAsSink pullReplication, bool keepOriginalCertificateOnNull = false)
+        public UpdatePullReplicationAsSinkOperation(PullReplicationAsSink pullReplication, bool useServerCertificate = false)
         {
             _pullReplication = pullReplication;
-            _keepOriginalCertificateOnNull = keepOriginalCertificateOnNull;
+            _useServerCertificate = useServerCertificate;
 
             if (pullReplication.CertificateWithPrivateKey != null)
             {
+                if (useServerCertificate)
+                    throw new ArgumentException(
+                        $"When {nameof(useServerCertificate)} is set to true, " +
+                        $"{nameof(PullReplicationAsSink.CertificateWithPrivateKey)} should be null to use server certificate.");
+                
+                
                 var certBytes = Convert.FromBase64String(pullReplication.CertificateWithPrivateKey);
                 using (var certificate = CertificateLoaderUtil.CreateCertificate(certBytes,
                     pullReplication.CertificatePassword,
@@ -50,10 +56,10 @@ namespace Raven.Client.Documents.Operations.Replication
 
         public RavenCommand<ModifyOngoingTaskResult> GetCommand(DocumentConventions conventions, JsonOperationContext ctx)
         {
-            return new UpdatePullEdgeReplication(_pullReplication, _keepOriginalCertificateOnNull);
+            return new UpdatePullEdgeReplication(_pullReplication, _useServerCertificate);
         }
 
-        private class UpdatePullEdgeReplication(PullReplicationAsSink pullReplication, bool keepOriginalCertificateOnNull) : RavenCommand<ModifyOngoingTaskResult>, IRaftCommand
+        private class UpdatePullEdgeReplication(PullReplicationAsSink pullReplication, bool useServerCertificate) : RavenCommand<ModifyOngoingTaskResult>, IRaftCommand
         {
 
             public override HttpRequestMessage CreateRequest(JsonOperationContext ctx, ServerNode node, out string url)
@@ -61,7 +67,7 @@ namespace Raven.Client.Documents.Operations.Replication
                 DynamicJsonValue replication = pullReplication.ToJson();
                 
                 // Aligned with ServerStore.UpdatePullReplicationAsSink to not introduce breaking changes
-                if (pullReplication.CertificateWithPrivateKey == null && keepOriginalCertificateOnNull)
+                if (pullReplication.CertificateWithPrivateKey == null && useServerCertificate)
                 {
                     int removed = replication.Properties.RemoveAll(pair => pair.Name == nameof(PullReplicationAsSink.CertificateWithPrivateKey));
                     Debug.Assert(removed > 0);
