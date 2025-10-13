@@ -91,7 +91,7 @@ namespace StressTests.Server.Replication
                         
                         CertificateWithPrivateKey = null
                     }, 
-                    keepOriginalCertificateOnNull: true
+                    useServerCertificate: true
                 ));
                 
                 using (var hubSession = hubStore.OpenSession())
