@@ -23,7 +23,6 @@ using Raven.Server.Documents.PeriodicBackup.Aws;
 using Raven.Server.Documents.PeriodicBackup.Restore;
 using Raven.Server.NotificationCenter.Notifications;
 using Raven.Server.NotificationCenter.Notifications.Details;
-using SlowTests.Server.Documents.Attachments;
 using SlowTests.Server.Documents.ETL.Olap;
 using Sparrow.Json;
 using Tests.Infrastructure;
@@ -209,8 +208,7 @@ namespace InterversionTests
 
                 // Wait for ETL to complete
                 var etlDone = Etl.WaitForEtlToComplete(sourceStore);
-                Assert.True(etlDone.Wait(TimeSpan.FromMinutes(1)));
-
+                Assert.True(await etlDone.WaitAsync(TimeSpan.FromMinutes(1)));
                 // Verify document was ETL'd to the older version
                 using (var session = destinationStore.OpenSession())
                 {
@@ -630,7 +628,7 @@ namespace InterversionTests
                 if (settings == null)
                     return;
 
-                await S3Tests.DeleteObjects(settings, prefix: $"{settings.RemoteFolderName}", delimiter: string.Empty);
+                await S3TestsHelper.DeleteObjects(settings, prefix: $"{settings.RemoteFolderName}", delimiter: string.Empty);
             });
         }
 
@@ -677,7 +675,7 @@ namespace InterversionTests
             }, expected);
             Assert.Equal(expected, val3);
 
-            var x123 = cloudObjects.Select(x => new RetiredAttachmentsHolderBase.FileInfoDetails()
+            var x123 = cloudObjects.Select(x => new FileInfoDetails()
             {
                 FullPath = x.FullPath,
                 LastModified = x.LastModified
@@ -686,5 +684,11 @@ namespace InterversionTests
             Assert.Equal(expected, x123.Count);
         }
 
+        private class FileInfoDetails
+        {
+            public string FullPath { get; set; }
+
+            public DateTime LastModified { get; set; }
+        }
     }
 }

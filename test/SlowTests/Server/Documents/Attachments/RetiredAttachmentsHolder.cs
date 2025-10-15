@@ -344,7 +344,7 @@ public abstract class RetiredAttachmentsHolder<TSettings> : RetiredAttachmentsHo
 
                 var etlDone = Etl.WaitForEtlToComplete(store);
                 Etl.AddEtl(store, configuration, connectionString);
-                etlDone.Wait(TimeSpan.FromSeconds(15));
+                await etlDone.WaitAsync(TimeSpan.FromSeconds(15));
 
                 var replicaDb = await Databases.GetDocumentDatabaseInstanceFor(replica);
                 var val3 = WaitForValue(() =>
@@ -1212,7 +1212,7 @@ public abstract class RetiredAttachmentsHolder<TSettings> : RetiredAttachmentsHo
 
                 Etl.AddEtl(store, configuration, connectionString);
 
-                etlDone.Wait(TimeSpan.FromSeconds(15));
+                await etlDone.WaitAsync(TimeSpan.FromSeconds(15));
 
                 var database2 = (await GetDocumentDatabaseInstanceForAsync(replica.Database));
                 GetStorageAttachmentsMetadataFromAllAttachments(database2);

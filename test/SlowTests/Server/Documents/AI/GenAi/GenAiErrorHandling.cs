@@ -18,6 +18,7 @@ using Raven.Server.NotificationCenter.Notifications.Details;
 using Sparrow.Json;
 using Sparrow.Server;
 using Tests.Infrastructure;
+using Tests.Infrastructure.Extensions;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -26,7 +27,7 @@ namespace SlowTests.Server.Documents.AI.GenAi;
 public class GenAiErrorHandling(ITestOutputHelper output) : RavenTestBase(output)
 {
     [RavenTheory(RavenTestCategory.Etl | RavenTestCategory.Ai)]
-    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single, NightlyBuildRequired = false)]
+    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single)]
     public async Task GenAi_ShouldRaiseAlertOnInvalidContextExtractionScript(Options options, GenAiConfiguration config)
     {
         using (var store = GetDocumentStore(options))
@@ -79,7 +80,7 @@ this.Comments[idx].IsSpam = $output.Blocked;
     }
 
     [RavenTheory(RavenTestCategory.Etl | RavenTestCategory.Ai)]
-    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single, NightlyBuildRequired = false)]
+    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single)]
     public async Task GenAi_ShouldRaiseAlertOnInvalidUpdateScript(Options options, GenAiConfiguration config)
     {
         using (var store = GetDocumentStore(options))
@@ -137,7 +138,7 @@ if($output.Blocked)
     }
 
     [RavenTheory(RavenTestCategory.Etl | RavenTestCategory.Ai)]
-    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single, NightlyBuildRequired = false)]
+    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single)]
     public async Task GenAi_UpdateScriptErrorsShouldBeHandledPerContext(Options options, GenAiConfiguration config)
     {
         using (var store = GetDocumentStore(options))
@@ -210,7 +211,7 @@ if($output.Blocked)
     }
 
     [RavenTheory(RavenTestCategory.Etl | RavenTestCategory.Ai)]
-    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single, NightlyBuildRequired = false)]
+    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single)]
     public async Task GenAi_LoadError_ModelRefusedToAnswer(Options options, GenAiConfiguration config)
     {
         using (var store = GetDocumentStore(options))
@@ -240,7 +241,7 @@ this.Comments[idx].IsBlocked = $output.Blocked;";
             var etlProcess = db.EtlLoader.Processes.FirstOrDefault() as GenAiTask;
             Assert.NotNull(etlProcess);
 
-            var chatCompletionClient = (IChatCompletionClientForTesting)etlProcess.GetChatCompletionClient();
+            var chatCompletionClient = etlProcess.GetChatCompletionClient();
             chatCompletionClient.ForTestingPurposesOnly().SimulateFailureAsync = (ctx) =>
             {
                 if (ctx.Contains("win $$$$"))
@@ -261,7 +262,7 @@ this.Comments[idx].IsBlocked = $output.Blocked;";
                 session.SaveChanges();
             }
 
-            Assert.True(etlDone.Wait(TimeSpan.FromMinutes(1)));
+            Assert.True(await etlDone.WaitAsync(TimeSpan.FromMinutes(1)));
 
             EtlErrorInfo error = null;
             var value = await WaitForValueAsync(async () =>
@@ -299,7 +300,7 @@ this.Comments[idx].IsBlocked = $output.Blocked;";
     }
 
     [RavenTheory(RavenTestCategory.Etl | RavenTestCategory.Ai)]
-    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single, NightlyBuildRequired = false)]
+    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single)]
     public async Task GenAi_ShouldRespectRateLimitErrorAndFallback(Options options, GenAiConfiguration config)
     {
         using var store = GetDocumentStore(options);
@@ -320,9 +321,12 @@ this.Comments[idx].IsBlocked = $output.Blocked;";
         Assert.NotNull(etlProcess);
 
         int triggerOn = 2;
-        var chatCompletionClient = (IChatCompletionClientForTesting)etlProcess.GetChatCompletionClient();
+        var chatCompletionClient = etlProcess.GetChatCompletionClient();
         chatCompletionClient.ForTestingPurposesOnly().SimulateFailureAsync = (ctx) =>
         {
+            if (ctx.Contains(config.Prompt))
+                return Task.CompletedTask;
+
             if (Interlocked.Decrement(ref triggerOn) <= 0)
                 throw new RateLimitException("rate limit") { RetryAfter = TimeSpan.FromMinutes(10), RequestId = "test" };
 
@@ -393,7 +397,7 @@ this.Comments[idx].IsBlocked = $output.Blocked;";
             session.SaveChanges();
         }
 
-        Assert.False(etlDone.Wait(TimeSpan.FromSeconds(10)));
+        Assert.False(await etlDone.WaitAsync(TimeSpan.FromSeconds(10)));
 
         using (var session = store.OpenSession())
         {
@@ -404,7 +408,7 @@ this.Comments[idx].IsBlocked = $output.Blocked;";
     }
 
     [RavenTheory(RavenTestCategory.Etl | RavenTestCategory.Ai)]
-    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single, NightlyBuildRequired = false)]
+    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single)]
     public async Task GenAi_LoadError_AuthFailure_ShouldOnlyTrackSuccess(Options options, GenAiConfiguration config)
     {
         using var store = GetDocumentStore();
@@ -432,7 +436,7 @@ this.Comments[idx].IsSpam = $output.Blocked;";
         var etlProcess = db.EtlLoader.Processes.FirstOrDefault() as GenAiTask;
         Assert.NotNull(etlProcess);
 
-        var chatCompletionClient = (IChatCompletionClientForTesting)etlProcess.GetChatCompletionClient();
+        var chatCompletionClient = etlProcess.GetChatCompletionClient();
         var enteredOnce = 0;
         var blockEtlMre = new AsyncManualResetEvent();
 
@@ -507,7 +511,7 @@ this.Comments[idx].IsSpam = $output.Blocked;";
         // assert that the comment with model failure is processed in the next ETL batch
         var etlDone = Etl.WaitForEtlToComplete(store);
 
-        Assert.True(etlDone.Wait(TimeSpan.FromSeconds(60)));
+        Assert.True(await etlDone.WaitAsync(TimeSpan.FromSeconds(60)));
 
         using (var session = store.OpenSession())
         {

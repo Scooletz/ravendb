@@ -21,6 +21,7 @@ using SlowTests.Core.Utils.Entities;
 using Sparrow.Json;
 using Sparrow.Json.Parsing;
 using Tests.Infrastructure;
+using Tests.Infrastructure.Extensions;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -29,7 +30,7 @@ namespace SlowTests.Server.Documents.AI.GenAi;
 public class GenAiBasics(ITestOutputHelper output) : RavenTestBase(output)
 {
     [RavenTheory(RavenTestCategory.Ai)]
-    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single, NightlyBuildRequired = false)]
+    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single)]
     public void CanCreateGenAiTask(Options options, GenAiConfiguration config)
     {
         using var store = GetDocumentStore(options);
@@ -58,8 +59,8 @@ for(const comment of this.Comments)
     }
 
     [RavenTheory(RavenTestCategory.Ai)]
-    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single, NightlyBuildRequired = false)]
-    public void CanProcessDocuments(Options options, GenAiConfiguration config)
+    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single)]
+    public async Task CanProcessDocuments(Options options, GenAiConfiguration config)
     {
         using var store = GetDocumentStore(options);
         store.Maintenance.Send(new PutConnectionStringOperation<AiConnectionString>(config.Connection));
@@ -102,11 +103,11 @@ for(const comment of this.Comments)
             session.SaveChanges();
         }
 
-        Assert.True(etl.Wait(TimeSpan.FromSeconds(30)));
+        Assert.True(await etl.WaitAsync(TimeSpan.FromSeconds(30)));
     }
 
     [RavenTheory(RavenTestCategory.Ai)]
-    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single, NightlyBuildRequired = false)]
+    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single)]
     public async Task CanGetGenAiOngoingTask(Options options, GenAiConfiguration config)
     {
         using var store = GetDocumentStore(options);
@@ -153,7 +154,7 @@ for(const comment of this.Comments)
             session.SaveChanges();
         }
 
-        Assert.True(etlDone.Wait(TimeSpan.FromSeconds(60)));
+        Assert.True(await etlDone.WaitAsync(TimeSpan.FromSeconds(60)));
 
         var secondBatchCompleted = await WaitForValueAsync(() =>
         {
@@ -194,7 +195,7 @@ for(const comment of this.Comments)
     }
 
     [RavenTheory(RavenTestCategory.Ai)]
-    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single, NightlyBuildRequired = false)]
+    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single)]
     public async Task CanEditGenAiTask(Options options, GenAiConfiguration config)
     {
         using var store = GetDocumentStore(options);
@@ -242,7 +243,7 @@ this.Comments[idx].LegitComment = $output.Blocked == false;
     }
 
     [RavenTheory(RavenTestCategory.Ai)]
-    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single, NightlyBuildRequired = false)]
+    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single)]
     public async Task CanDeleteGenAiTask(Options options, GenAiConfiguration config)
     {
         using var store = GetDocumentStore(options);
@@ -280,7 +281,7 @@ for(const comment of this.Comments)
     }
 
     [RavenTheory(RavenTestCategory.Ai)]
-    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single, NightlyBuildRequired = false)]
+    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single)]
     public async Task CanToggleGenAiTaskState(Options options, GenAiConfiguration config)
     {
         using var store = GetDocumentStore(options);
@@ -324,7 +325,7 @@ for(const comment of this.Comments)
     }
 
     [RavenTheory(RavenTestCategory.Ai)]
-    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single, NightlyBuildRequired = false, Skip = "need to fix")]
+    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single, Skip = "need to fix")]
     public async Task ShouldTrackAiHashesInMetadata(Options options, GenAiConfiguration config)
     {
         using var store = GetDocumentStore(options);
@@ -367,7 +368,7 @@ for(const comment of this.Comments)
             session.SaveChanges();
         }
 
-        etl.Wait();
+        await etl.WaitAsync(TimeSpan.FromSeconds(60));
 
         using (var session = store.OpenAsyncSession())
         {
@@ -397,7 +398,7 @@ for(const comment of this.Comments)
             session.SaveChanges();
         }
 
-        etl.Wait();
+        await etl.WaitAsync(TimeSpan.FromSeconds(60));
 
         using (var session = store.OpenAsyncSession())
         {
@@ -461,7 +462,7 @@ if($output.Blocked)
     }
 
     [RavenTheory(RavenTestCategory.Ai)]
-    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single, NightlyBuildRequired = false)]
+    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single)]
     public async Task ShouldResendContextWhenPromptChanges(Options options, GenAiConfiguration configuration)
     {
         await ShouldResendContextOnConfigChange(configuration,
@@ -470,7 +471,7 @@ if($output.Blocked)
     }
 
     [RavenTheory(RavenTestCategory.Ai)]
-    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single, NightlyBuildRequired = false)]
+    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single)]
     public async Task ShouldResendContextWhenSchemaChanges(Options options, GenAiConfiguration configuration)
     {
         await ShouldResendContextOnConfigChange(configuration,
@@ -488,7 +489,7 @@ if($output.Blocked)
     }
 
     [RavenTheory(RavenTestCategory.Ai)]
-    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single, NightlyBuildRequired = false)]
+    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single)]
     public async Task ShouldResendContextWhenUpdateScriptChanges(Options options, GenAiConfiguration configuration)
     {
         await ShouldResendContextOnConfigChange(configuration,
@@ -497,7 +498,7 @@ if($output.Blocked)
     }
 
     [RavenTheory(RavenTestCategory.Ai)]
-    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single, NightlyBuildRequired = false)]
+    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single)]
     public async Task ShouldUseTaskIdentifierInMetadataHashes(Options options, GenAiConfiguration config)
     {
         using var store = GetDocumentStore(options);
@@ -547,7 +548,8 @@ for (const comment of this.Comments)
             session.SaveChanges();
         }
 
-        Assert.True(etl.Wait(TimeSpan.FromSeconds(60)), await Etl.GetEtlDebugInfo(store.Database, TimeSpan.FromSeconds(60)));
+        var r = await etl.WaitAsync(TimeSpan.FromSeconds(60));
+        Assert.True(r, await Etl.GetEtlDebugInfo(store.Database, TimeSpan.FromSeconds(60)));
 
         using (var session = store.OpenAsyncSession())
         {
@@ -559,7 +561,7 @@ for (const comment of this.Comments)
     }
 
     [RavenTheory(RavenTestCategory.Ai)]
-    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single, NightlyBuildRequired = false)]
+    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single)]
     public async Task ShouldThrowOnNonUniqueIdentifier(Options options, GenAiConfiguration config)
     {
         using var store = GetDocumentStore(options);
@@ -637,7 +639,7 @@ for(const comment of this.Comments)
             session.SaveChanges();
         }
 
-        Assert.True(etlDone.Wait(TimeSpan.FromMinutes(1)));
+        Assert.True(await etlDone.WaitAsync(TimeSpan.FromMinutes(1)));
 
         string originalHash;
         using (var session = store.OpenAsyncSession())
@@ -679,6 +681,8 @@ for(const comment of this.Comments)
         var taskInfo = await store.Maintenance.SendAsync(new GetOngoingTaskInfoOperation(config.Name, OngoingTaskType.GenAi));
         Assert.Equal(OngoingTaskState.Disabled, taskInfo.TaskState);
 
+        await AssertWaitForTrueAsync(() => Task.FromResult(etlProcess.IsRunning == false));
+        
         // update the configuration
         changeConfig(config);
         store.Maintenance.Send(new UpdateGenAiOperation(taskId, config));
@@ -710,7 +714,7 @@ for(const comment of this.Comments)
             session.SaveChanges();
         }
 
-        Assert.True(etlDone.Wait(TimeSpan.FromMinutes(1)));
+        Assert.True(await etlDone.WaitAsync(TimeSpan.FromMinutes(1)));
 
         // assert that context was sent again
 
@@ -754,7 +758,7 @@ for(const comment of this.Comments)
     }
 
     [RavenTheory(RavenTestCategory.Ai)]
-    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single, NightlyBuildRequired = false)]
+    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single)]
     public async Task ShouldStartFromNewDocumentsByDefault(Options options, GenAiConfiguration config)
     {
         using var store = GetDocumentStore(options);
@@ -832,7 +836,7 @@ for(const comment of this.Comments)
             session.SaveChanges();
         }
 
-        Assert.True(etl.Wait(TimeSpan.FromSeconds(30)));
+        Assert.True(await etl.WaitAsync(TimeSpan.FromSeconds(30)));
 
         using (var session = store.OpenSession())
         {
@@ -855,7 +859,7 @@ for(const comment of this.Comments)
     }
 
     [RavenTheory(RavenTestCategory.Ai)]
-    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single, NightlyBuildRequired = false)]
+    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single)]
     public async Task CanStartFromBeginningOfTime(Options options, GenAiConfiguration config)
     {
         using var store = GetDocumentStore(options);
@@ -902,7 +906,8 @@ for(const comment of this.Comments)
 
         store.Maintenance.Send(new AddGenAiOperation(config, StartingPointChangeVector.BeginningOfTime));
 
-        Assert.True(etl.Wait(TimeSpan.FromSeconds(120)), await Etl.GetEtlDebugInfo(store.Database, TimeSpan.FromSeconds(120)));
+        var r = await etl.WaitAsync(TimeSpan.FromSeconds(120));
+        Assert.True(r, await Etl.GetEtlDebugInfo(store.Database, TimeSpan.FromSeconds(120)));
 
         using (var session = store.OpenSession())
         {
@@ -924,7 +929,7 @@ for(const comment of this.Comments)
     }
 
     [RavenTheory(RavenTestCategory.Ai)]
-    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single, NightlyBuildRequired = false)]
+    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single)]
     private async Task CanUpdateGenAiChangeVector(Options options, GenAiConfiguration config)
     {
         using var store = GetDocumentStore();
@@ -991,7 +996,7 @@ for(const comment of this.Comments)
     }
 
     [RavenTheory(RavenTestCategory.Ai)]
-    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single, NightlyBuildRequired = false)]
+    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single)]
     public async Task EnsureGenAiTaskHasUniqueName(Options options, GenAiConfiguration config)
     {
         using var store = GetDocumentStore(options);
@@ -1021,7 +1026,7 @@ for(const comment of this.Comments)
     }
 
     [RavenTheory(RavenTestCategory.Ai)]
-    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single, NightlyBuildRequired = false)]
+    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single)]
     public async Task EnsureGenAiTaskHasUniqueName2(Options options, GenAiConfiguration config)
     {
         using var store = GetDocumentStore(options);

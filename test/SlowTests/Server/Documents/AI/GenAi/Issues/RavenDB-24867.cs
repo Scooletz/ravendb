@@ -23,7 +23,7 @@ public class RavenDB_24867(ITestOutputHelper output) : RavenTestBase(output)
         " ;Always provide a valid structured response matching the schema (if you have no answer or an empty answer - please return default values instead)";
 
     [RavenTheory(RavenTestCategory.Ai)]
-    [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi, DatabaseMode = RavenDatabaseMode.Single, CheckCanConnect = false, NightlyBuildRequired = false)]
+    [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi, DatabaseMode = RavenDatabaseMode.Single)]
     public async Task PngAsBase64Directly(Options options, GenAiConfiguration config)
     {
         string script = 
@@ -85,7 +85,7 @@ if (this.Name === 'aviv') {
             await session.SaveChangesAsync();
         }
 
-        Assert.True(etl.Wait(TimeSpan.FromSeconds(Debugger.IsAttached ? 1200 : 120)));
+        Assert.True(await etl.WaitAsync(TimeSpan.FromSeconds(Debugger.IsAttached ? 1200 : 120)));
 
         using (var session = store.OpenAsyncSession())
         {
@@ -100,7 +100,7 @@ if (this.Name === 'aviv') {
     }
 
     [RavenTheory(RavenTestCategory.Ai)]
-    [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi, DatabaseMode = RavenDatabaseMode.Single, CheckCanConnect = false, NightlyBuildRequired = false)]
+    [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi, DatabaseMode = RavenDatabaseMode.Single)]
     public async Task PngNotAsBase64ShouldThrow(Options options, GenAiConfiguration config)
     {
         string script =
@@ -162,7 +162,7 @@ if (this.Name === 'Aviv') {
             await session.SaveChangesAsync();
         }
 
-        Assert.True(etl.Wait(TimeSpan.FromSeconds(Debugger.IsAttached ? 1200 : 120)));
+        Assert.True(await etl.WaitAsync(TimeSpan.FromSeconds(Debugger.IsAttached ? 1200 : 120)));
 
         using (var session = store.OpenAsyncSession())
         {

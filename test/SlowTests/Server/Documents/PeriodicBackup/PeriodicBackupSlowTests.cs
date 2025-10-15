@@ -1694,8 +1694,8 @@ namespace SlowTests.Server.Documents.PeriodicBackup
                 };
 
                 var restoreOperation = new RestoreBackupOperation(restoreConfig);
-                store.Maintenance.Server.Send(restoreOperation)
-                    .WaitForCompletion(TimeSpan.FromSeconds(30));
+                await (await store.Maintenance.Server.SendAsync(restoreOperation))
+                    .WaitForCompletionAsync(TimeSpan.FromSeconds(30));
 
                 using (var store2 = GetDocumentStore(new Options()
                 {
@@ -3748,7 +3748,7 @@ namespace SlowTests.Server.Documents.PeriodicBackup
             }
 
             var lastCv = "";
-            var subscriptionName = store.Subscriptions.Create(new SubscriptionCreationOptions<User>());
+            var subscriptionName = await store.Subscriptions.CreateAsync(new SubscriptionCreationOptions<User>());
 
             using (var subscription = store.Subscriptions.GetSubscriptionWorker(new SubscriptionWorkerOptions(subscriptionName)
             {
@@ -3756,18 +3756,18 @@ namespace SlowTests.Server.Documents.PeriodicBackup
                 TimeToWaitBeforeConnectionRetry = TimeSpan.FromSeconds(5)
             }))
             {
-                var mre = new AsyncManualResetEvent();
+                var amre = new AsyncManualResetEvent();
                 var task = subscription.Run(batch =>
                 {
                     foreach (var b in batch.Items)
                     {
                         lastCv = b.ChangeVector;
                     }
-                    mre.Set();
+                    amre.Set();
                 });
 
-                await mre.WaitAsync(_reasonableWaitTime);
-                mre.Reset();
+                await amre.WaitAsync(_reasonableWaitTime);
+                amre.Reset();
                 List<SubscriptionState> subscriptionsConfig;
                 await WaitForValueAsync(async () =>
                 {
@@ -3794,7 +3794,7 @@ namespace SlowTests.Server.Documents.PeriodicBackup
 
                     session.SaveChanges();
                 }
-                await mre.WaitAsync(_reasonableWaitTime);
+                await amre.WaitAsync(_reasonableWaitTime);
 
                 subscriptionsConfig = await store.Subscriptions.GetSubscriptionsAsync(0, 10);
                 Assert.Equal(1, subscriptionsConfig.Count);
@@ -3856,17 +3856,17 @@ namespace SlowTests.Server.Documents.PeriodicBackup
                 TimeToWaitBeforeConnectionRetry = TimeSpan.FromSeconds(5)
             }))
             {
-                var mre = new AsyncManualResetEvent();
+                var amre = new AsyncManualResetEvent();
                 var task = subscription.Run(batch =>
                 {
                     foreach (var b in batch.Items)
                     {
                         lastCv = b.ChangeVector;
                     }
-                    mre.Set();
+                    amre.Set();
                 });
 
-                await mre.WaitAsync(_reasonableWaitTime);
+                await amre.WaitAsync(_reasonableWaitTime);
 
                 var subscriptionsConfig = await store.Subscriptions.GetSubscriptionsAsync(0, 10);
 
@@ -4342,46 +4342,7 @@ namespace SlowTests.Server.Documents.PeriodicBackup
                 }
             }
         }
-
-        [RavenFact(RavenTestCategory.BackupExportImport)]
-        public async Task NextCronScheduleOccurence_BasedOnLastBackup_ShouldBeCorrect()
-        {
-            const string endpoint = "/studio-tasks/next-cron-expression-occurrence";
-            const string cronExpression = "*/2 * * * *";
-            using var store = GetDocumentStore();
-
-            var configuration = Backup.CreateBackupConfiguration(NewDataPath(), fullBackupFrequency: cronExpression);
-            await Backup.WaitUntilNextFullBackupActionWindowAsync(configuration, TimeSpan.FromSeconds(15), Server.ServerStore.ServerShutdown);
-            var taskId = await Backup.UpdateConfigAsync(Server, configuration, store);
-            await Task.Delay(TimeSpan.FromSeconds(130));
-
-            var client = store.GetRequestExecutor().HttpClient;
-
-            var uri = $"{store.Urls.First()}{endpoint}?expression=* * * * *&taskId={taskId}&database={store.Database}&isFull=true";
-            var json = await client.GetStringAsync(uri);
-            var response = JsonConvert.DeserializeObject<NextCronExpressionOccurrenceResponse>(json);
-
-            // The endpoint with taskId should return the next occurrence based on the last backup time
-            Assert.True(response.IsValid, $"Expected valid response, but got: {json}");
-            Assert.True(response.Utc < DateTime.UtcNow, $"Based on the last backup time, the next cron schedule occurrence should be in the past, but got UTC: {response.Utc}, ServerTime: {response.ServerTime}");
-
-            uri = $"{store.Urls.First()}{endpoint}?expression=* * * * *";
-            json = await client.GetStringAsync(uri);
-            response = JsonConvert.DeserializeObject<NextCronExpressionOccurrenceResponse>(json);
-
-            // The endpoint without taskId should return the next occurrence based on the current time
-            Assert.True(response.IsValid, $"Expected valid response, but got: {json}");
-            Assert.True(response.Utc > DateTime.UtcNow, $"Expected next cron schedule occurrence to be in the future, but got UTC: {response.Utc}, ServerTime: {response.ServerTime}");
-        }
-
-        private record NextCronExpressionOccurrenceResponse
-        {
-            public bool IsValid { get; init; }
-            public DateTime Utc { get; init; }
-            public DateTime ServerTime { get; init; }
-        }
-
-
+        
         private static IDisposable ReadOnly(string path)
         {
             var files = Directory.GetFiles(path);

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -19,7 +20,6 @@ using Sparrow.Server;
 using Tests.Infrastructure;
 using Xunit;
 using Xunit.Abstractions;
-using static SlowTests.Issues.RavenDB_17096;
 
 namespace SlowTests.Server.Documents.ETL.Olap
 {
@@ -168,16 +168,16 @@ loadToOrders(partitionBy(key),
         {
             var database = await server.ServerStore.DatabasesLandlord.TryGetOrCreateResourceStore(databaseName);
 
-            var mre = new AsyncManualResetEvent();
+            var amre = new AsyncManualResetEvent();
 
             database.EtlLoader.BatchCompleted += x =>
             {
                 if (predicate($"{x.ConfigurationName}/{x.TransformationName}", x.Statistics))
-                    mre.Set();
+                    amre.Set();
             };
 
 
-            return mre;
+            return amre;
         }
 
         private async Task<string> GetPerformanceStats(RavenServer server, string database, TimeSpan timeout)
@@ -216,6 +216,21 @@ loadToOrders(partitionBy(key),
             await GetClusterDebugLogsAsync(sb);
             return sb.ToString();
         }
+        
+        internal static string WaitForNewResponsibleNode(IDocumentStore store, long taskId, OngoingTaskType type, string oldTag, int timeout = 10_000)
+        {
+            var sw = Stopwatch.StartNew();
+            while (true)
+            {
+                if (sw.ElapsedMilliseconds > timeout)
+                    return null;
 
+                var taskInfo = store.Maintenance.Send(new GetOngoingTaskInfoOperation(taskId, type));
+                if (taskInfo.ResponsibleNode.NodeTag != oldTag)
+                    return taskInfo.ResponsibleNode.NodeTag;
+
+                Thread.Sleep(100);
+            }
+        }
     }
 }

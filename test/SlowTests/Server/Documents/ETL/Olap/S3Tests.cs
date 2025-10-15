@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -16,10 +15,10 @@ using Raven.Client.Documents.Operations.ETL;
 using Raven.Client.Documents.Operations.ETL.OLAP;
 using Raven.Server.Documents.ETL.Providers.OLAP;
 using Raven.Server.Documents.PeriodicBackup.Aws;
-using Raven.Server.Documents.PeriodicBackup.Restore;
 using Sparrow.Server;
 using Tests.Infrastructure;
 using Tests.Infrastructure.Entities;
+using Tests.Infrastructure.Extensions;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -32,7 +31,6 @@ namespace SlowTests.Server.Documents.ETL.Olap
         }
 
         private readonly string _s3TestsPrefix = $"olap/tests/{nameof(S3Tests)}-{Guid.NewGuid()}";
-        private const string CollectionName = "Orders";
         private static readonly HashSet<char> SpecialChars = new HashSet<char> { '&', '@', ':', ',', '$', '=', '+', '?', ';', ' ', '"', '^', '`', '>', '<', '{', '}', '[', ']', '#', '\'', '~', '|' };
 
         [AmazonS3RetryFact]
@@ -89,12 +87,12 @@ loadToOrders(partitionBy(key),
 ";
                     SetupS3OlapEtl(store, script, settings);
 
-                    etlDone.Wait(TimeSpan.FromMinutes(1));
+                    await etlDone.WaitAsync(TimeSpan.FromMinutes(1));
 
                     using (var cts = new CancellationTokenSource(TimeSpan.FromMinutes(5)))
                     using (var s3Client = new RavenAwsS3Client(settings, EtlTestBase.DefaultBackupConfiguration, cancellationToken: cts.Token))
                     {
-                        var prefix = $"{settings.RemoteFolderName}/{CollectionName}";
+                        var prefix = $"{settings.RemoteFolderName}/{S3TestsHelper.CollectionName}";
                         var cloudObjects = await s3Client.ListObjectsAsync(prefix, string.Empty, false);
 
                         Assert.Equal(2, cloudObjects.FileInfoDetails.Count);
@@ -106,7 +104,7 @@ loadToOrders(partitionBy(key),
 
             finally
             {
-                await DeleteObjects(settings);
+                await S3TestsHelper.DeleteObjects(settings);
             }
         }
 
@@ -154,12 +152,12 @@ loadToOrders(partitionBy(key),
 ";
                     SetupS3OlapEtl(store, script, settings);
 
-                    etlDone.Wait(TimeSpan.FromMinutes(1));
+                    await etlDone.WaitAsync(TimeSpan.FromMinutes(1));
 
                     using (var cts = new CancellationTokenSource(TimeSpan.FromMinutes(5)))
                     using (var s3Client = new RavenAwsS3Client(settings, EtlTestBase.DefaultBackupConfiguration, cancellationToken: cts.Token))
                     {
-                        var prefix = $"{settings.RemoteFolderName}/{CollectionName}";
+                        var prefix = $"{settings.RemoteFolderName}/{S3TestsHelper.CollectionName}";
 
                         var cloudObjects = await s3Client.ListObjectsAsync(prefix, delimiter: string.Empty, listFolders: false);
 
@@ -213,7 +211,7 @@ loadToOrders(partitionBy(key),
 
             finally
             {
-                await DeleteObjects(settings);
+                await S3TestsHelper.DeleteObjects(settings);
             }
         }
 
@@ -336,12 +334,13 @@ loadToOrders(partitionBy(key), orderData);
                         ? TimeSpan.FromMinutes(2)
                         : TimeSpan.FromMinutes(1);
 
-                    Assert.True(await etlDone.WaitAsync(timeout), await Etl.GetEtlDebugInfo(store.Database, timeout));
+                    var r = await etlDone.WaitAsync(timeout);
+                    Assert.True(r, await Etl.GetEtlDebugInfo(store.Database, timeout));
 
                     using (var cts = new CancellationTokenSource(TimeSpan.FromMinutes(5)))
                     using (var s3Client = new RavenAwsS3Client(settings, EtlTestBase.DefaultBackupConfiguration, cancellationToken: cts.Token))
                     {
-                        var prefix = $"{settings.RemoteFolderName}/{CollectionName}";
+                        var prefix = $"{settings.RemoteFolderName}/{S3TestsHelper.CollectionName}";
                         var cloudObjects = await s3Client.ListObjectsAsync(prefix, string.Empty, false);
 
                         Assert.Equal(2, cloudObjects.FileInfoDetails.Count);
@@ -410,7 +409,7 @@ loadToOrders(partitionBy(key), orderData);
             }
             finally
             {
-                await DeleteObjects(settings, salesTableName);
+                await S3TestsHelper.DeleteObjects(settings, salesTableName);
             }
         }
 
@@ -489,12 +488,12 @@ loadToOrders(partitionBy(['order_date', key]),
 
                     SetupS3OlapEtl(store, settings, configuration);
 
-                    etlDone.Wait(TimeSpan.FromMinutes(1));
+                    await etlDone.WaitAsync(TimeSpan.FromMinutes(1));
 
                     using (var cts = new CancellationTokenSource(TimeSpan.FromMinutes(5)))
                     using (var s3Client = new RavenAwsS3Client(settings, EtlTestBase.DefaultBackupConfiguration, cancellationToken: cts.Token))
                     {
-                        var prefix = $"{settings.RemoteFolderName}/{CollectionName}";
+                        var prefix = $"{settings.RemoteFolderName}/{S3TestsHelper.CollectionName}";
                         var cloudObjects = await s3Client.ListObjectsAsync(prefix, string.Empty, false);
 
                         Assert.Equal(2, cloudObjects.FileInfoDetails.Count);
@@ -507,7 +506,7 @@ loadToOrders(partitionBy(['order_date', key]),
 
             finally
             {
-                await DeleteObjects(settings);
+                await S3TestsHelper.DeleteObjects(settings);
             }
         }
 
@@ -549,12 +548,12 @@ loadToOrders(noPartition(),
 ";
                     SetupS3OlapEtl(store, script, settings);
 
-                    etlDone.Wait(TimeSpan.FromMinutes(1));
+                    await etlDone.WaitAsync(TimeSpan.FromMinutes(1));
 
                     using (var cts = new CancellationTokenSource(TimeSpan.FromMinutes(5)))
                     using (var s3Client = new RavenAwsS3Client(settings, EtlTestBase.DefaultBackupConfiguration, cancellationToken: cts.Token))
                     {
-                        var prefix = $"{settings.RemoteFolderName}/{CollectionName}";
+                        var prefix = $"{settings.RemoteFolderName}/{S3TestsHelper.CollectionName}";
 
                         var cloudObjects = await s3Client.ListObjectsAsync(prefix, delimiter: string.Empty, listFolders: false);
 
@@ -616,7 +615,7 @@ loadToOrders(noPartition(),
             }
             finally
             {
-                await DeleteObjects(settings);
+                await S3TestsHelper.DeleteObjects(settings);
             }
         }
 
@@ -681,14 +680,14 @@ loadToOrders(partitionBy(
 ";
                     SetupS3OlapEtl(store, script, settings);
 
-                    etlDone.Wait(TimeSpan.FromMinutes(1));
+                    await etlDone.WaitAsync(TimeSpan.FromMinutes(1));
 
                     var expectedFields = new[] { "RequireAt", "ShipVia", "Company", ParquetTransformedItems.DefaultIdColumn, ParquetTransformedItems.LastModifiedColumn };
 
                     using (var cts = new CancellationTokenSource(TimeSpan.FromMinutes(5)))
                     using (var s3Client = new RavenAwsS3Client(settings, EtlTestBase.DefaultBackupConfiguration, cancellationToken: cts.Token))
                     {
-                        var prefix = $"{settings.RemoteFolderName}/{CollectionName}/";
+                        var prefix = $"{settings.RemoteFolderName}/{S3TestsHelper.CollectionName}/";
                         var cloudObjects = await s3Client.ListObjectsAsync(prefix, delimiter: "/", listFolders: true);
 
                         Assert.Equal(2, cloudObjects.FileInfoDetails.Count);
@@ -705,7 +704,7 @@ loadToOrders(partitionBy(
                             Assert.Contains($"month={index + 1}/", objectsInFolder.FileInfoDetails[1].FullPath);
                         }
 
-                        var files = await ListAllFilesInFolders(s3Client, cloudObjects);
+                        var files = await S3TestsHelper.ListAllFilesInFolders(s3Client, cloudObjects);
                         Assert.Equal(4, files.Count);
 
                         foreach (var filePath in files)
@@ -752,7 +751,7 @@ loadToOrders(partitionBy(
             }
             finally
             {
-                await DeleteObjects(settings, prefix: $"{settings.RemoteFolderName}/{CollectionName}/", delimiter: "/", listFolder: true);
+                await S3TestsHelper.DeleteObjects(settings, prefix: $"{settings.RemoteFolderName}/{S3TestsHelper.CollectionName}/", delimiter: "/", listFolder: true);
             }
         }
 
@@ -810,16 +809,16 @@ loadToOrders(partitionBy(['year', year], ['month', month], ['source', $customPar
                     const string customPartition = "shop-16";
                     SetupS3OlapEtl(store, script, settings, customPartitionValue: customPartition);
 
-                    etlDone.Wait(TimeSpan.FromMinutes(1));
+                    await etlDone.WaitAsync(TimeSpan.FromMinutes(1));
 
                     using (var cts = new CancellationTokenSource(TimeSpan.FromMinutes(5)))
                     using (var s3Client = new RavenAwsS3Client(settings, EtlTestBase.DefaultBackupConfiguration, cancellationToken: cts.Token))
                     {
-                        var prefix = $"{settings.RemoteFolderName}/{CollectionName}/";
+                        var prefix = $"{settings.RemoteFolderName}/{S3TestsHelper.CollectionName}/";
                         var cloudObjects = await s3Client.ListObjectsAsync(prefix, delimiter: "/", listFolders: true);
                         Assert.Equal(1, cloudObjects.FileInfoDetails.Count);
 
-                        var files = await ListAllFilesInFolders(s3Client, cloudObjects);
+                        var files = await S3TestsHelper.ListAllFilesInFolders(s3Client, cloudObjects);
                         Assert.Equal(2, files.Count);
                         Assert.Contains($"/Orders/year=2020/month=1/source={customPartition}/", files[0]);
                         Assert.Contains($"/Orders/year=2020/month=2/source={customPartition}/", files[1]);
@@ -828,7 +827,7 @@ loadToOrders(partitionBy(['year', year], ['month', month], ['source', $customPar
             }
             finally
             {
-                await DeleteObjects(settings, prefix: $"{settings.RemoteFolderName}/{CollectionName}/", delimiter: "/", listFolder: true);
+                await S3TestsHelper.DeleteObjects(settings, prefix: $"{settings.RemoteFolderName}/{S3TestsHelper.CollectionName}/", delimiter: "/", listFolder: true);
             }
         }
 
@@ -854,12 +853,12 @@ loadToOrders(noPartition(), {
 ;
                     SetupS3OlapEtl(store, script, settings, transformationName: "script#1=$'/orders'");
 
-                    etlDone.Wait(TimeSpan.FromMinutes(1));
+                    await etlDone.WaitAsync(TimeSpan.FromMinutes(1));
 
                     using (var cts = new CancellationTokenSource(TimeSpan.FromMinutes(5)))
                     using (var s3Client = new RavenAwsS3Client(settings, EtlTestBase.DefaultBackupConfiguration, cancellationToken: cts.Token))
                     {
-                        var prefix = $"{settings.RemoteFolderName}/{CollectionName}";
+                        var prefix = $"{settings.RemoteFolderName}/{S3TestsHelper.CollectionName}";
                         var cloudObjects = await s3Client.ListObjectsAsync(prefix, delimiter: string.Empty, listFolders: false);
 
                         Assert.Equal(1, cloudObjects.FileInfoDetails.Count);
@@ -870,7 +869,7 @@ loadToOrders(noPartition(), {
             }
             finally
             {
-                await DeleteObjects(settings, prefix: $"{settings.RemoteFolderName}/{CollectionName}", delimiter: string.Empty);
+                await S3TestsHelper.DeleteObjects(settings, prefix: $"{settings.RemoteFolderName}/{S3TestsHelper.CollectionName}", delimiter: string.Empty);
 
             }
         }
@@ -960,12 +959,12 @@ for (var i = 0; i < this.Lines.length; i++){
 })}";
                     SetupS3OlapEtl(store, script, settings);
 
-                    etlDone.Wait(TimeSpan.FromMinutes(1));
+                    await etlDone.WaitAsync(TimeSpan.FromMinutes(1));
 
                     using (var cts = new CancellationTokenSource(TimeSpan.FromMinutes(5)))
                     using (var s3Client = new RavenAwsS3Client(settings, EtlTestBase.DefaultBackupConfiguration, cancellationToken: cts.Token))
                     {
-                        var prefix = $"{settings.RemoteFolderName}/{CollectionName}";
+                        var prefix = $"{settings.RemoteFolderName}/{S3TestsHelper.CollectionName}";
                         var cloudObjects = await s3Client.ListObjectsAsync(prefix, delimiter: string.Empty, listFolders: false);
 
                         Assert.Equal(7, cloudObjects.FileInfoDetails.Count);
@@ -982,7 +981,7 @@ for (var i = 0; i < this.Lines.length; i++){
             }
             finally
             {
-                await DeleteObjects(settings, prefix: $"{settings.RemoteFolderName}/{CollectionName}", delimiter: string.Empty);
+                await S3TestsHelper.DeleteObjects(settings, prefix: $"{settings.RemoteFolderName}/{S3TestsHelper.CollectionName}", delimiter: string.Empty);
             }
         }
 
@@ -1018,12 +1017,12 @@ for (var i = 0; i < this.Lines.length; i++){
 ";
                     SetupS3OlapEtl(store, script, settings);
 
-                    etlDone.Wait(TimeSpan.FromMinutes(1));
+                    await etlDone.WaitAsync(TimeSpan.FromMinutes(1));
 
                     using (var cts = new CancellationTokenSource(TimeSpan.FromMinutes(5)))
                     using (var s3Client = new RavenAwsS3Client(settings, EtlTestBase.DefaultBackupConfiguration, cancellationToken: cts.Token))
                     {
-                        var prefix = $"{settings.RemoteFolderName}/{CollectionName}";
+                        var prefix = $"{settings.RemoteFolderName}/{S3TestsHelper.CollectionName}";
                         var cloudObjects = await s3Client.ListObjectsAsync(prefix, delimiter: string.Empty, listFolders: false);
 
                         Assert.Equal(5, cloudObjects.FileInfoDetails.Count);
@@ -1038,7 +1037,7 @@ for (var i = 0; i < this.Lines.length; i++){
             }
             finally
             {
-                await DeleteObjects(settings, prefix: $"{settings.RemoteFolderName}/{CollectionName}", delimiter: string.Empty);
+                await S3TestsHelper.DeleteObjects(settings, prefix: $"{settings.RemoteFolderName}/{S3TestsHelper.CollectionName}", delimiter: string.Empty);
             }
         }
 
@@ -1124,12 +1123,12 @@ loadToOrders(partitionBy(['year', orderDate.getFullYear()]),
                     var result = Etl.AddEtl(store, configuration, connectionString);
                     var taskId = result.TaskId;
 
-                    etlDone.Wait(TimeSpan.FromMinutes(1));
+                    await etlDone.WaitAsync(TimeSpan.FromMinutes(1));
 
                     using (var cts = new CancellationTokenSource(TimeSpan.FromMinutes(5)))
                     using (var s3Client = new RavenAwsS3Client(settings, EtlTestBase.DefaultBackupConfiguration, cancellationToken: cts.Token))
                     {
-                        var prefix = $"{settings1.RemoteFolderName}/{CollectionName}";
+                        var prefix = $"{settings1.RemoteFolderName}/{S3TestsHelper.CollectionName}";
                         var cloudObjects = await s3Client.ListObjectsAsync(prefix, delimiter: string.Empty, listFolders: false);
 
                         Assert.Equal(5, cloudObjects.FileInfoDetails.Count);
@@ -1194,12 +1193,12 @@ loadToOrders(partitionBy(['year', orderDate.getFullYear()]),
                     Assert.NotNull(update.RaftCommandIndex);
 
                     etlDone = Etl.WaitForEtlToComplete(store);
-                    Assert.True(etlDone.Wait(TimeSpan.FromMinutes(1)));
+                    Assert.True(await etlDone.WaitAsync(TimeSpan.FromMinutes(1)));
 
                     using (var cts = new CancellationTokenSource(TimeSpan.FromMinutes(5)))
                     using (var s3Client = new RavenAwsS3Client(settings, EtlTestBase.DefaultBackupConfiguration, cancellationToken: cts.Token))
                     {
-                        var prefix = $"{settings2.RemoteFolderName}/{CollectionName}";
+                        var prefix = $"{settings2.RemoteFolderName}/{S3TestsHelper.CollectionName}";
                         var cloudObjects = await s3Client.ListObjectsAsync(prefix, delimiter: string.Empty, listFolders: false);
 
                         Assert.Equal(5, cloudObjects.FileInfoDetails.Count);
@@ -1214,8 +1213,8 @@ loadToOrders(partitionBy(['year', orderDate.getFullYear()]),
             }
             finally
             {
-                await DeleteObjects(settings1, prefix: $"{settings1?.RemoteFolderName}/{CollectionName}", delimiter: string.Empty);
-                await DeleteObjects(settings2, prefix: $"{settings2?.RemoteFolderName}/{CollectionName}", delimiter: string.Empty);
+                await S3TestsHelper.DeleteObjects(settings1, prefix: $"{settings1?.RemoteFolderName}/{S3TestsHelper.CollectionName}", delimiter: string.Empty);
+                await S3TestsHelper.DeleteObjects(settings2, prefix: $"{settings2?.RemoteFolderName}/{S3TestsHelper.CollectionName}", delimiter: string.Empty);
             }
         }
 
@@ -1255,12 +1254,12 @@ loadToOrders(partitionBy(['year', orderDate.getFullYear()]),
 
                     SetupS3OlapEtl(store, script, settings);
 
-                    etlDone.Wait(TimeSpan.FromMinutes(1));
+                    await etlDone.WaitAsync(TimeSpan.FromMinutes(1));
 
                     using (var cts = new CancellationTokenSource(TimeSpan.FromMinutes(5)))
                     using (var s3Client = new RavenAwsS3Client(settings, EtlTestBase.DefaultBackupConfiguration, cancellationToken: cts.Token))
                     {
-                        var prefix = $"{settings.RemoteFolderName}{CollectionName}";
+                        var prefix = $"{settings.RemoteFolderName}{S3TestsHelper.CollectionName}";
                         Assert.False(prefix.EndsWith('/'));
 
                         var cloudObjects = await s3Client.ListObjectsAsync(prefix, delimiter: string.Empty, listFolders: false);
@@ -1282,7 +1281,7 @@ loadToOrders(partitionBy(['year', orderDate.getFullYear()]),
             }
             finally
             {
-                await DeleteObjects(settings, prefix: $"{settings.RemoteFolderName}{CollectionName}", delimiter: string.Empty);
+                await S3TestsHelper.DeleteObjects(settings, prefix: $"{settings.RemoteFolderName}{S3TestsHelper.CollectionName}", delimiter: string.Empty);
             }
         }
 
@@ -1322,62 +1321,5 @@ loadToOrders(partitionBy(['year', orderDate.getFullYear()]),
                 S3Settings = settings
             });
         }
-
-        internal static async Task DeleteObjects(S3Settings s3Settings, string additionalTable = null)
-        {
-            if (s3Settings == null)
-                return;
-
-            await DeleteObjects(s3Settings, prefix: $"{s3Settings.RemoteFolderName}/{CollectionName}", delimiter: string.Empty);
-
-            if (additionalTable == null)
-                return;
-
-            await DeleteObjects(s3Settings, prefix: $"{s3Settings.RemoteFolderName}/{additionalTable}", delimiter: string.Empty);
-        }
-
-        internal static async Task DeleteObjects(S3Settings s3Settings, string prefix, string delimiter, bool listFolder = false)
-        {
-            if (s3Settings == null)
-                return;
-
-            try
-            {
-                using (var cts = new CancellationTokenSource(TimeSpan.FromMinutes(5)))
-                using (var s3Client = new RavenAwsS3Client(s3Settings, EtlTestBase.DefaultBackupConfiguration, cancellationToken: cts.Token))
-                {
-                    var cloudObjects = await s3Client.ListObjectsAsync(prefix, delimiter, listFolder);
-                    if (cloudObjects.FileInfoDetails.Count == 0)
-                        return;
-
-                    if (listFolder == false)
-                    {
-                        var pathsToDelete = cloudObjects.FileInfoDetails.Select(x => x.FullPath).ToList();
-                        s3Client.DeleteMultipleObjects(pathsToDelete);
-                        return;
-                    }
-
-                    var filesToDelete = await ListAllFilesInFolders(s3Client, cloudObjects);
-                    s3Client.DeleteMultipleObjects(filesToDelete);
-                }
-            }
-            catch (Exception)
-            {
-                // ignored
-            }
-        }
-
-        private static async Task<List<string>> ListAllFilesInFolders(RavenAwsS3Client s3Client, ListObjectsResult cloudObjects)
-        {
-            var files = new List<string>();
-            foreach (var folder in cloudObjects.FileInfoDetails)
-            {
-                var objectsInFolder = await s3Client.ListObjectsAsync(prefix: folder.FullPath, delimiter: string.Empty, listFolders: false);
-                files.AddRange(objectsInFolder.FileInfoDetails.Select(fi => fi.FullPath));
-            }
-
-            return files;
-        }
-
     }
 }

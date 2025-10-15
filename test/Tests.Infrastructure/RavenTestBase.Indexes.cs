@@ -5,7 +5,6 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Amazon.Runtime.Internal.Util;
 using Nito.AsyncEx;
 using Raven.Client.Documents;
 using Raven.Client.Documents.Indexes;
@@ -13,10 +12,12 @@ using Raven.Client.Documents.Operations;
 using Raven.Client.Documents.Operations.Indexes;
 using Raven.Client.Exceptions.Documents.Indexes;
 using Raven.Client.ServerWide.Operations;
+using Raven.Server;
 using Raven.Server.Utils;
 using Sparrow.Json;
 using Sparrow.Json.Parsing;
 using Sparrow.Json.Sync;
+using Index = Raven.Server.Documents.Indexes.Index;
 
 namespace FastTests;
 
@@ -349,15 +350,44 @@ public partial class RavenTestBase
         {
             var database = await _parent.GetDatabase(store.Database);
 
-            var mre = new AsyncManualResetEvent();
+            var amre = new AsyncManualResetEvent();
 
             database.IndexStore.IndexBatchCompleted += x =>
             {
                 if (predicate(x))
-                    mre.Set();
+                    amre.Set();
             };
 
-            return mre;
+            return amre;
+        }
+        
+        public async Task<Index> WaitForRollingIndexAsync(string database, string name, RavenServer server)
+        {
+            var db = await server.ServerStore.DatabasesLandlord.TryGetOrCreateResourceStore(database);
+
+            while (true)
+            {
+                await Task.Delay(250);
+
+                try
+                {
+                    var index = db.IndexStore.GetIndex(name);
+                    if (index == null)
+                        continue;
+                    return index;
+                }
+                catch (PendingRollingIndexException)
+                {
+                }
+            }
+        }
+
+        public async Task WaitForRollingIndexAsync(string database, string name, List<RavenServer> servers)
+        {
+            foreach (var server in servers)
+            {
+                await WaitForRollingIndexAsync(database, name, server);
+            }
         }
 
         [Flags]

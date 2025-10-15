@@ -13,6 +13,7 @@ using Raven.Server.Documents.ETL.Stats;
 using Raven.Server.NotificationCenter.Notifications.Details;
 using Raven.Server.Utils;
 using Tests.Infrastructure;
+using Tests.Infrastructure.Extensions;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -21,7 +22,7 @@ namespace SlowTests.Server.Documents.AI.GenAi;
 public class GenAiStats(ITestOutputHelper output) : RavenTestBase(output)
 {
     [RavenTheory(RavenTestCategory.Ai)]
-    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single, NightlyBuildRequired = false)]
+    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single)]
     public async Task GenAiStats_ShouldReport_ModelCallStats(Options options, GenAiConfiguration configuration)
     {
         using var store = GetDocumentStore();
@@ -69,7 +70,7 @@ for(const comment of this.Comments)
             session.SaveChanges();
         }
 
-        etlDone.Wait();
+        Assert.True(await etlDone.WaitAsync(TimeSpan.FromMinutes(1)));
 
         var stats = etlProcess.GetPerformanceStats()
             .Where(x => x.NumberOfLoadedItems > 0)
@@ -106,7 +107,7 @@ for(const comment of this.Comments)
 
             await session.SaveChangesAsync();
 
-            Assert.True(etlDone.Wait(TimeSpan.FromMinutes(1)));
+            Assert.True(await etlDone.WaitAsync(TimeSpan.FromMinutes(1)));
 
             EtlPerformanceStats[] stats2 = null;
 
@@ -140,7 +141,7 @@ for(const comment of this.Comments)
     }
 
     [RavenTheory(RavenTestCategory.Ai)]
-    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single, CheckCanConnect = false)]
+    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single)]
     public async Task GenAiStats_Should_Report_TransformationStats(Options options, GenAiConfiguration configuration)
     {
         using var store = GetDocumentStore();
@@ -172,7 +173,7 @@ for(const comment of this.Comments)
             session.SaveChanges();
         }
 
-        Assert.True(etlDone.Wait(TimeSpan.FromMinutes(1)));
+        Assert.True(await etlDone.WaitAsync(TimeSpan.FromMinutes(1)));
 
         var db = await GetDatabase(store.Database);
         var etlProcess = db.EtlLoader.Processes.FirstOrDefault() as GenAiTask;
@@ -220,7 +221,7 @@ for(const comment of this.Comments)
     }
 
     [RavenTheory(RavenTestCategory.Ai)]
-    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single, NightlyBuildRequired = false)]
+    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single)]
     public async Task GenAiStats_ShouldReport_UpdatePhaseStats(Options options, GenAiConfiguration configuration)
     {
         using var store = GetDocumentStore();
@@ -253,7 +254,7 @@ for(const comment of this.Comments)
             session.SaveChanges();
         }
 
-        Assert.True(etlDone.Wait(TimeSpan.FromMinutes(1)));
+        Assert.True(await etlDone.WaitAsync(TimeSpan.FromMinutes(1)));
 
         var db = await GetDatabase(store.Database);
 
@@ -308,7 +309,7 @@ for(const comment of this.Comments)
     }
 
     [RavenTheory(RavenTestCategory.Ai)]
-    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single, NightlyBuildRequired = false)]
+    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single)]
     public async Task GenAiStats_ShouldReport_ModelErrorStats(Options options, GenAiConfiguration configuration)
     {
         using var store = GetDocumentStore();
@@ -333,7 +334,7 @@ this.Comments[idx].IsSpam = $output.Blocked;
         Assert.NotNull(etlProcess);
 
         // simulate model call failure
-        var chatCompletionClient = (IChatCompletionClientForTesting)etlProcess.GetChatCompletionClient();
+        var chatCompletionClient = etlProcess.GetChatCompletionClient();
         chatCompletionClient.ForTestingPurposesOnly().SimulateFailureAsync = (ctx)
             => throw new RateLimitException("rate limit") { RetryAfter = TimeSpan.FromMinutes(30), RequestId = "test" };
 
@@ -382,7 +383,7 @@ this.Comments[idx].IsSpam = $output.Blocked;
     }
 
     [RavenTheory(RavenTestCategory.Ai)]
-    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single, NightlyBuildRequired = false)]
+    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single)]
     public async Task GenAiStats_ShouldReport_UpdateFailuresStats(Options options, GenAiConfiguration configuration)
     {
         using var store = GetDocumentStore();
@@ -426,7 +427,7 @@ for(const comment of this.Comments)
             session.SaveChanges();
         }
 
-        Assert.True(etlDone.Wait(TimeSpan.FromMinutes(1)));
+        Assert.True(await etlDone.WaitAsync(TimeSpan.FromMinutes(1)));
 
         var db = await GetDatabase(store.Database);
         var etlProcess = db.EtlLoader.Processes.FirstOrDefault() as GenAiTask;

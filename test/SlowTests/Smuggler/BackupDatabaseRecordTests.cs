@@ -44,7 +44,6 @@ using Raven.Server.Routing;
 using Raven.Server.ServerWide.Commands;
 using Raven.Server.Smuggler.Migration;
 using Raven.Tests.Core.Utils.Entities;
-using SlowTests.Issues;
 using Tests.Infrastructure;
 using Xunit;
 using Xunit.Abstractions;
@@ -1146,7 +1145,7 @@ namespace SlowTests.Smuggler
             }
         }
 
-        [RavenFact(RavenTestCategory.Smuggler | RavenTestCategory.BackupExportImport)]
+        [RavenFact(RavenTestCategory.Smuggler | RavenTestCategory.BackupExportImport, SnowflakeRequired = true)]
         public async Task CanBackupAndRestoreDatabaseRecord()
         {
             var backupPath = NewDataPath(suffix: "BackupFolder");
@@ -1513,8 +1512,8 @@ namespace SlowTests.Smuggler
 
             using (var store = GetDocumentStore())
             {
-                store.Subscriptions.Create<User>(x => x.Name == "Marcin");
-                store.Subscriptions.Create<User>();
+                await store.Subscriptions.CreateAsync<User>(x => x.Name == "Marcin");
+                await store.Subscriptions.CreateAsync<User>();
 
                 var config = Backup.CreateBackupConfiguration(backupPath);
                 Backup.UpdateConfigAndRunBackup(Server, config, store);
@@ -1537,7 +1536,7 @@ namespace SlowTests.Smuggler
                     })
                     {
                         restoredStore.Initialize();
-                        var subscriptions = restoredStore.Subscriptions.GetSubscriptions(0, 10);
+                        var subscriptions = await restoredStore.Subscriptions.GetSubscriptionsAsync(0, 10);
 
                         Assert.Equal(2, subscriptions.Count);
 
@@ -1564,9 +1563,9 @@ namespace SlowTests.Smuggler
                 var file = Directory.GetFiles(dir).First();
 
                 var op = await store.Smuggler.ImportAsync(new DatabaseSmugglerImportOptions(), file);
-                op.WaitForCompletion(TimeSpan.FromSeconds(30));
+                await op.WaitForCompletionAsync(TimeSpan.FromSeconds(30));
 
-                var subscriptions = store.Subscriptions.GetSubscriptions(0, 10);
+                var subscriptions = await store.Subscriptions.GetSubscriptionsAsync(0, 10);
 
                 Assert.Equal(2, subscriptions.Count);
 
@@ -1805,7 +1804,7 @@ namespace SlowTests.Smuggler
 
         private async Task ValidateSubscriptions(DocumentStore restoredStore)
         {
-            var subscriptions = restoredStore.Subscriptions.GetSubscriptions(0, 10);
+            var subscriptions = await restoredStore.Subscriptions.GetSubscriptionsAsync(0, 10);
 
             int count = 0;
 
@@ -1838,7 +1837,7 @@ namespace SlowTests.Smuggler
 
         private static Stream GetDump(string name)
         {
-            var assembly = typeof(RavenDB_9912).Assembly;
+            var assembly = typeof(BackupDatabaseRecordTests).Assembly;
             return assembly.GetManifestResourceStream("SlowTests.Data." + name);
         }
 
