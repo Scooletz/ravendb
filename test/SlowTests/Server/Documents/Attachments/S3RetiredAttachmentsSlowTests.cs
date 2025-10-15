@@ -1123,7 +1123,7 @@ namespace SlowTests.Server.Documents.Attachments
 
                     var res = Etl.AddEtl(store, configuration, connectionString);
 
-                    etlDone.Wait(TimeSpan.FromSeconds(15));
+                    await etlDone.WaitAsync(TimeSpan.FromSeconds(15));
                     var replicaDb = await Databases.GetDocumentDatabaseInstanceFor(replica);
                     var val4 = WaitForValue(() =>
                     {
@@ -1164,7 +1164,7 @@ namespace SlowTests.Server.Documents.Attachments
                     await GetBlobsFromCloudAndAssertForCount(Settings, attachmentsCount); // we dont delete the retired attachments from cloud, so we still have them
 
                     etlDone = Etl.WaitForEtlToComplete(store);
-                    etlDone.Wait(TimeSpan.FromSeconds(15));
+                    await etlDone.WaitAsync(TimeSpan.FromSeconds(15));
 
                     using (database.DocumentsStorage.ContextPool.AllocateOperationContext(out DocumentsOperationContext context))
                     using (context.OpenReadTransaction())

@@ -275,5 +275,16 @@ namespace Raven.Client.Util
                 return this;
             }
         }
+
+        // NETSTANDARD polyfills
+#if !NET6_0_OR_GREATER
+#pragma warning disable RDB0007
+        internal static CancellationTokenRegistration Register(this CancellationToken token, Action<object, CancellationToken> callback, object state)
+        {
+            // Captures the token as there's no overload for it. The state is passed without a closure, but the token needs to be passed with the captured one.
+            return token.Register(s => callback(s, token), state);
+        }
+#pragma warning restore RDB0007
+#endif
     }
 }

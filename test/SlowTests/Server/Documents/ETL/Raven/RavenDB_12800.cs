@@ -7,6 +7,7 @@ using Raven.Server.Config;
 using Raven.Server.Documents.ETL.Providers.Raven;
 using Raven.Tests.Core.Utils.Entities;
 using Tests.Infrastructure;
+using Tests.Infrastructure.Extensions;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -39,7 +40,7 @@ namespace SlowTests.Server.Documents.ETL.Raven
             {
                 using (var session = src.OpenAsyncSession())
                 {
-                    for (int i = 0; i < 6; i++)
+                    for (int i = 0; i < 8; i++)
                     {
                         var user = new User();
                         await session.StoreAsync(user);
@@ -60,7 +61,7 @@ namespace SlowTests.Server.Documents.ETL.Raven
 
                 var etlDone = Etl.WaitForEtlToComplete(src, (n, s) => s.LoadSuccesses >= 5);
 
-                etlDone.Wait(TimeSpan.FromMinutes(1));
+                await etlDone.WaitAsync(TimeSpan.FromMinutes(1));
 
                 var database = await GetDatabase(src.Database);
 
@@ -70,9 +71,15 @@ namespace SlowTests.Server.Documents.ETL.Raven
 
                 Assert.Contains("Stopping the batch because maximum batch size limit was reached (5 MBytes)", stats.Select(x => x.BatchTransformationCompleteReason).ToList());
 
-                etlDone = Etl.WaitForEtlToComplete(src, (n, s) => s.LoadSuccesses >= 6);
+                var loadSuccesses = -1;
+                
+                etlDone = Etl.WaitForEtlToComplete(src, (n, s) =>
+                {
+                    loadSuccesses = s.LoadSuccesses;
+                    return s.LoadSuccesses >= 6;
+                });
 
-                Assert.True(etlDone.Wait(TimeSpan.FromMinutes(1)));
+                Assert.True(await etlDone.WaitAsync(TimeSpan.FromMinutes(1)), $"ETL sent only {loadSuccesses} docs");;
             }
         }
     }

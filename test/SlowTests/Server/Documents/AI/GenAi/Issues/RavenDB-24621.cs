@@ -33,7 +33,7 @@ public class RavenDB_24621(ITestOutputHelper output) : RavenTestBase(output)
     //  - withJpeg(this.ImageBase64) <-- should work
     
     [RavenTheory(RavenTestCategory.Ai)]
-    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single, CheckCanConnect = false, NightlyBuildRequired = false)]
+    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single)]
     public async Task CanUseModelToDescribeImages(Options options, GenAiConfiguration config)
     {
         using var store = GetDocumentStore(options);
@@ -71,7 +71,7 @@ ai.genContext({})
             session.Advanced.Attachments.Store("items/1", "image.png", new MemoryStream(Convert.FromBase64String(HeartPngBase64)));
             await session.SaveChangesAsync();
         }
-        Assert.True(etl.Wait(TimeSpan.FromSeconds(Debugger.IsAttached ? 1200 : 120 )));
+        Assert.True(await etl.WaitAsync(TimeSpan.FromSeconds(Debugger.IsAttached ? 1200 : 120 )));
         using (var session = store.OpenAsyncSession())
         {
             var item = await session.LoadAsync<Item>("items/1");
@@ -85,7 +85,7 @@ ai.genContext({})
     private record Transaction(string User, DateTime Date, string Location, Summary[] Summary = null);
     
     [RavenTheory(RavenTestCategory.Ai)]
-    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single, CheckCanConnect = false, NightlyBuildRequired = false)]
+    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single)]
     public async Task CanAttachTextFile(Options options, GenAiConfiguration config)
     {
         using var store = GetDocumentStore(options);
@@ -128,7 +128,7 @@ ai.genContext({
             session.Advanced.Attachments.Store("txs/2025-01-01", "transactions.csv", new MemoryStream(Csv.ToArray()));
             await session.SaveChangesAsync();
         }
-        Assert.True(etl.Wait(TimeSpan.FromSeconds(Debugger.IsAttached ? 1200 : 120 )));
+        Assert.True(await etl.WaitAsync(TimeSpan.FromSeconds(Debugger.IsAttached ? 1200 : 120 )));
         using (var session = store.OpenAsyncSession())
         {
             Transaction tx = await session.LoadAsync<Transaction>("txs/2025-01-01");

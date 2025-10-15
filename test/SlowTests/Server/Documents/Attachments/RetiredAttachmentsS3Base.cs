@@ -123,6 +123,6 @@ public abstract class RetiredAttachmentsS3Base : RetiredAttachmentsHolder<S3Sett
         if (settings == null)
             return;
 
-        await S3Tests.DeleteObjects(settings, prefix: $"{settings.RemoteFolderName}", delimiter: string.Empty);
+        await S3TestsHelper.DeleteObjects(settings, prefix: $"{settings.RemoteFolderName}", delimiter: string.Empty);
     }
 }

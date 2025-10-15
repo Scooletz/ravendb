@@ -11,6 +11,7 @@ using System.Net.Http;
 using System.Net.Security;
 using System.Net.Sockets;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -32,10 +33,6 @@ using OpenTelemetry;
 using OpenTelemetry.Exporter;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
-using Org.BouncyCastle.Asn1.X509;
-using Org.BouncyCastle.Crypto;
-using Org.BouncyCastle.Pkcs;
-using Org.BouncyCastle.Security;
 using Raven.Client;
 using Raven.Client.Documents.Changes;
 using Raven.Client.Documents.Conventions;
@@ -454,11 +451,9 @@ namespace Raven.Server
 
         private void StartOpenTelemetry()
         {
-            if (_openTelemetryInitialized == false)
-                return; // since we're not exposing there is no reason to initialize meters itself.
-
-            MetricsManager = new MetricsManager(ServerStore.Server);
-            MetricsManager.Execute();
+            MetricsManager = new MetricsManager(ServerStore.Server, _openTelemetryInitialized); 
+            if (_openTelemetryInitialized)
+                MetricsManager.Execute(); // initialize only when OpenTelemetry is configured in `Initialize()`
         }
 
         private void ConfigureOpenTelemetry(IServiceCollection services)
@@ -1691,7 +1686,7 @@ namespace Raven.Server
                 }
 
                 X509Certificate2 serverCertificate = null;
-                AsymmetricKeyEntry privateKey = null;
+                AsymmetricAlgorithm privateKey = null;
                 if (string.IsNullOrEmpty(Configuration.Security.CertificatePath) == false)
                     (serverCertificate, privateKey) = ServerStore.Secrets.LoadCertificateFromPath(
                         Configuration.Security.CertificatePath,
@@ -2822,6 +2817,7 @@ namespace Raven.Server
             switch (header.Operation)
             {
                 case TcpConnectionHeaderMessage.OperationTypes.Subscription:
+                    // tcp ownership - properly scoped by SubscriptionBinder method
                     CreateSubscriptionConnection(ServerStore, result, tcp, bufferToCopy);
                     break;
 
@@ -2842,9 +2838,9 @@ namespace Raven.Server
                     throw new InvalidOperationException("Unknown operation for TCP " + header.Operation);
             }
 
-            //since the responses to TCP connections mostly continue to run
-            //beyond this point, no sense to dispose the connection now, so set it to null.
-            //this way the responders are responsible to dispose the connection and the context
+            // Since the responses to TCP connections mostly continue to run beyond this point,
+            // there's no sense to dispose the connection now, so set it to null.
+            // This way the responders are responsible to dispose the connection and the context.
             // ReSharper disable once RedundantAssignment
             tcp = null;
             return false;
