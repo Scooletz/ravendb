@@ -466,20 +466,10 @@ public static class SettingsZipFileHelper
         try
         {
             if (setupInfo.DataDirectory != null)
-            {
-                if (Path.IsPathRooted(setupInfo.DataDirectory))
-                    throw new ArgumentException($"{nameof(setupInfo.DataDirectory)} path has to be relative.");
-                
                 settingsJson.Modifications[RavenConfiguration.GetKey(x => x.Core.DataDirectory)] = setupInfo.DataDirectory;
-            }
 #if !RVN
             if (setupInfo.LogsPath != null)
-            {
-                if (Path.IsPathRooted(setupInfo.LogsPath))
-                    throw new ArgumentException($"{nameof(setupInfo.LogsPath)} path has to be relative.");
-
                 settingsJson.Modifications[RavenConfiguration.GetKey(x => x.Logs.Path)] = setupInfo.LogsPath;
-            }
 
             if (setupInfo.AutoIndexingEngineType != null)
             {
