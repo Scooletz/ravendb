@@ -65,9 +65,9 @@ export function SetupWizardSecurityStep() {
                         message: (
                             <div>
                                 Secure setup methods are not available without a license. If you&#39;d like to use one
-                                of the secure options, you can go back to <u>License Key</u> step and insert an existing
-                                license or generate a free <u className="text-info">Community</u> or{" "}
-                                <u className="text-developer">Developer</u> license.
+                                of the secure options, you can go back to <b>License Key</b> step and insert an existing
+                                license or generate a free <b className="text-info">Community</b> or{" "}
+                                <b className="text-developer">Developer</b> license.
                             </div>
                         ),
                     }}
@@ -106,9 +106,9 @@ export function SetupWizardSecurityStep() {
                         message: (
                             <div>
                                 Secure setup methods are not available without a license. If you&#39;d like to use one
-                                of the secure options, you can go back to <u>License Key</u> step and insert an existing
-                                license or generate a free <u className="text-success">Community</u> or{" "}
-                                <u className="text-developer">Developer</u> license.
+                                of the secure options, you can go back to <b>License Key</b> step and insert an existing
+                                license or generate a free <b className="text-info">Community</b> or{" "}
+                                <b className="text-developer">Developer</b> license.
                             </div>
                         ),
                     }}

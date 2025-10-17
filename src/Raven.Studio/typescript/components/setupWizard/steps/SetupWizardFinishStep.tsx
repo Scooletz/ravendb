@@ -28,6 +28,7 @@ import { useEventsCollector } from "components/hooks/useEventsCollector";
 import { setupWizardGA4Prefixes } from "components/setupWizard/utils/setupWizardConstants";
 import ButtonWithSpinner from "components/common/ButtonWithSpinner";
 import { useAsyncCallback } from "react-async-hook";
+import Code from "components/common/Code";
 
 type OperationStatus = Raven.Client.Documents.Operations.OperationStatus;
 
@@ -145,24 +146,31 @@ export function SetupWizardFinishStep() {
     return (
         <div className="finish-step">
             <TopInfo status={finishStep.finishingStatus} />
-            <div className="hstack mt-4 mb-1 justify-content-between">
-                <FormGroup marginClass="mb-0">
-                    <Switch
-                        className="mb-0"
-                        selected={isShowLogs}
-                        toggleSelection={() => {
-                            reportEvent(
-                                setupWizardGA4Prefixes.finalStep,
-                                "toggle-logs",
-                                isShowLogs ? "hidden" : "shown"
-                            );
-                            toggleIsShowLogs();
-                        }}
-                        color="primary"
-                    >
-                        Show configuration log
-                    </Switch>
-                </FormGroup>
+            <div
+                className={classNames(
+                    "hstack mt-4 mb-1",
+                    finishStep.finishingStatus === "Completed" ? "justify-content-end" : "justify-content-between"
+                )}
+            >
+                {finishStep.finishingStatus !== "Completed" && (
+                    <FormGroup marginClass="mb-0">
+                        <Switch
+                            className="mb-0"
+                            selected={isShowLogs}
+                            toggleSelection={() => {
+                                reportEvent(
+                                    setupWizardGA4Prefixes.finalStep,
+                                    "toggle-logs",
+                                    isShowLogs ? "hidden" : "shown"
+                                );
+                                toggleIsShowLogs();
+                            }}
+                            color="primary"
+                        >
+                            Show configuration log
+                        </Switch>
+                    </FormGroup>
+                )}
                 <Button
                     disabled={!configurationProcess?.Messages?.length && finishStep.finishingStatus !== "InProgress"}
                     variant="link"
@@ -179,23 +187,33 @@ export function SetupWizardFinishStep() {
                     Download configuration log
                 </Button>
             </div>
-            {!isShowLogs && configurationProcess && (
-                <div className="summary-tab-container mb-4">
-                    <pre className="p-4 mb-0">
-                        <Configuration configurationProcess={configurationProcess} />
-                    </pre>
-                </div>
-            )}
-            {isShowLogs && (
-                <div className="mb-4">
-                    <pre>
-                        {logs.map((message, idx) => (
-                            <div key={idx} className={message.color ? `text-${message.color}` : ""}>
-                                {message.message}
+            {finishStep.finishingStatus !== "Completed" && (
+                <>
+                    {!isShowLogs && configurationProcess && (
+                        <div className="summary-tab-container mb-4">
+                            <pre className="p-4 mb-0">
+                                <Configuration configurationProcess={configurationProcess} />
+                            </pre>
+                        </div>
+                    )}
+                    {isShowLogs && (
+                        <>
+                            <div className="mb-4">
+                                <Code
+                                    className="border rounded"
+                                    code={logs
+                                        .map((message) =>
+                                            message.color
+                                                ? `<span class="text-${message.color}">${message.message}</span>`
+                                                : message.message
+                                        )
+                                        .join("\n")}
+                                    language="plaintext"
+                                />
                             </div>
-                        ))}
-                    </pre>
-                </div>
+                        </>
+                    )}
+                </>
             )}
             {finishStep.finishingStatus === "Completed" && <CompletedSummary />}
 
@@ -424,9 +442,7 @@ function CompletedSummary() {
                     </NumberedList>
                     <RichAlert variant="info" className="mt-3">
                         When the Setup Wizard is done and the new node was restarted, the cluster will automatically
-                        detect it.
-                        <br />
-                        There is no need to manually add it again from the studio. Simply access the &apos;Cluster&apos;
+                        detect it. There is no need to manually add it again from the studio. Simply access the &apos;Cluster&apos;
                         view and observe the topology being updated.
                     </RichAlert>
                 </div>
@@ -1043,8 +1059,8 @@ export function SetupWizardFinishStepFooter() {
                 </Button>
             )}
             {setupMethodStep.method === "createPackage" ? (
-                <Button disabled={finishStepIsDisabled} className="mt-2 rounded-pill" onClick={handleNewSetupPackage}>
-                    New setup package
+                <Button disabled={finishStepIsDisabled} variant="secondary" className="mt-2 rounded-pill" onClick={handleNewSetupPackage}>
+                    Go to setup method
                 </Button>
             ) : (
                 <>
