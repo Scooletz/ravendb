@@ -145,7 +145,7 @@ export function SetupWizardSecurityStep() {
                     />
                 </ConditionalPopover>
             </div>
-            <div className="mt-4">
+            <div className="my-4">
                 <h5 className="mb-1">
                     <Icon icon="lock" color="warning" />
                     Unsecure

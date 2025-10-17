@@ -74,7 +74,7 @@ export function SetupWizardDomainStep() {
 
     const rootDomainOptions = (licenseInfo?.userDomainsWithIps?.rootDomains ?? []).map((domain) => ({
         value: domain,
-        label: domain,
+        label: `.${domain}`,
     }));
 
     return (

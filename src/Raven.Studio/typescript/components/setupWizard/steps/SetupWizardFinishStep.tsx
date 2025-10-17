@@ -179,7 +179,7 @@ export function SetupWizardFinishStep() {
                     Download configuration log
                 </Button>
             </div>
-            {configurationProcess && (
+            {!isShowLogs && configurationProcess && (
                 <div className="summary-tab-container mb-4">
                     <pre className="p-4 mb-0">
                         <Configuration configurationProcess={configurationProcess} />

@@ -11,11 +11,13 @@ import { useSetupWizardSteps } from "./hooks/useSetupWizardSteps";
 import useConfirm from "components/common/ConfirmDialog";
 import { useEventsCollector } from "components/hooks/useEventsCollector";
 import { setupWizardGA4Prefixes } from "components/setupWizard/utils/setupWizardConstants";
+import { useRavenLink } from "hooks/useRavenLink";
 
 const ravenLogo = require("Content/img/ravendb_logo.svg");
 const ravenSidebarImg = require("Content/img/setupWizard/setup-wizard-sidebar-background.png");
 
 export default function SetupWizard() {
+    const docsLink = useRavenLink({ hash: "C844RA", isDocs: false });
     const form = useForm<SetupWizardFormData>({
         resolver: yupResolver(setupWizardSchema),
         defaultValues,
@@ -163,7 +165,9 @@ export default function SetupWizard() {
                                                 })}
                                                 onClick={() => handleStepNavigation(step.title)}
                                             >
-                                                <div className="vstack gap-1">
+                                                <div className={classNames("vstack gap-1", {
+                                                    "opacity-25": idx > currentStepIdx
+                                                })}>
                                                     <h5 className="mb-0">{step.title}</h5>
                                                     <small className="text-muted">{step.description}</small>
                                                 </div>
@@ -181,9 +185,9 @@ export default function SetupWizard() {
                                             step
                                         </p>
                                     </div>
-                                    <Button variant="outline-secondary w-fit-content">
+                                    <a className="btn btn-outline-secondary w-fit-content" href={docsLink}>
                                         See documentation <Icon icon="newtab" margin="m-0" />
-                                    </Button>
+                                    </a>
                                 </div>
                             </>
                         )}

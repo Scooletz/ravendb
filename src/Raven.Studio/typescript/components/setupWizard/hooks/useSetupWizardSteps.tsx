@@ -131,7 +131,7 @@ export function useSetupWizardSteps({
             component: <SetupWizardSummaryStep />,
             footer: <SetupWizardSummaryStepFooter />,
             isCurrent: currentStep === "Summary",
-            isAvailable: true,
+            isAvailable: setupMethod === "newCluster" || setupMethod === "createPackage",
             isVisible: getIsNotInStepIds(["Eula", "Setup method", "License key", "Security", "Use setup package"]),
         },
         {

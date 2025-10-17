@@ -75,7 +75,7 @@ export function SetupWizardSummaryStep() {
                 {securityOption !== "none" && (
                     <>
                         <h5 className="mb-0 mt-4">Additional & advanced</h5>
-                        <Card>
+                        <Card className="mb-4">
                             <Card.Body>
                                 <div className="vstack gap-1">
                                     {getLicenseType(licenseKeyStep.licenseInfo).isHigherThan("Community") && (
@@ -222,7 +222,7 @@ function NodeDistributionItem({
                 <PopoverWithHoverWrapper
                     message={
                         <div>
-                            Your node is accessible internally via multiple IPs:
+                            Your node is accessible internally via {ipAddress.length === 1 ? "IP" : "multiple IPs"}:
                             <ul className="mb-0">
                                 {ipAddress.map((ip) => (
                                     <li key={ip.ipAddress}>

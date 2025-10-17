@@ -24,7 +24,7 @@ export function SetupWizardEulaStep() {
     const handleScroll = useCallback(
         (node: React.UIEvent<HTMLDivElement, UIEvent>) => {
             if (genUtils.isScrolledToBottom(node.target as HTMLElement)) {
-                dispatch(setupWizardActions.isEulaScrolledToBottomSet(true));
+                dispatch(setupWizardActions.isEulaScrolledToBottomSet(process.env.NODE_ENV === "development")); // TODO: Remove this when we have a real EULA
                 reportEvent(setupWizardGA4Prefixes.eulaStep, "scroll", "reached-bottom");
             }
         },

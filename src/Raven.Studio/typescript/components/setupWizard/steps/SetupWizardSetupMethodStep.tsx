@@ -72,8 +72,8 @@ export function SetupWizardSetupMethodStep() {
                     }
                 />
             </div>
-            <div className="mt-4">
-                <h5 className="mb-1">I have some to working with</h5>
+            <div className="my-4">
+                <h5 className="mb-1">I have something to work with</h5>
                 <SetupWizardClickableCard
                     icon="default"
                     addon="arrow-up"

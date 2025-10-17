@@ -54,7 +54,7 @@ export default function SetupWizardClickableCard({
                 </div>
                 {popoverMessage && (
                     <PopoverWithHoverWrapper message={popoverMessage}>
-                        <div className="md-label mb-0">
+                        <div style={{minWidth: "2rem"}} className="md-label mb-0">
                             <Icon icon="info" />
                             When to use?
                         </div>

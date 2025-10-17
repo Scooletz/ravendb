@@ -28,11 +28,12 @@
     }
 
     .setup-wizard-sidebar {
+        overflow: auto;
         grid-area: 1 / 2 / 11 / 3;
         display: flex;
         flex-direction: column;
         background-color: colors.$panel-bg-1-var;
-        padding: sizes.$gutter-md;
+        padding: sizes.$gutter;
     }
 
     .logo-container {

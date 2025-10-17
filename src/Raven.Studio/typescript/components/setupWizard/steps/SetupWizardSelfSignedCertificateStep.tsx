@@ -5,14 +5,12 @@ import Button from "react-bootstrap/Button";
 import messagePublisher from "common/messagePublisher";
 import FileDropzone from "components/common/FileDropzone";
 import { FormGroup, FormInput, FormLabel } from "components/common/Form";
-import { useAsync, useAsyncCallback } from "react-async-hook";
 import { useServices } from "components/hooks/useServices";
-import { useAsyncDebounce } from "components/hooks/useAsyncDebounce";
 import useBoolean from "components/hooks/useBoolean";
 import Form from "react-bootstrap/Form";
 import PopoverWithHoverWrapper from "components/common/PopoverWithHoverWrapper";
 import React from "react";
-import ButtonWithSpinner from "components/common/ButtonWithSpinner";
+import { useAsyncDebounce } from "hooks/useAsyncDebounce";
 
 export function SetupWizardSelfSignedCertificateStep() {
     const { control, setValue, clearErrors, setError } = useFormContext<SetupWizardFormData>();
@@ -25,16 +23,22 @@ export function SetupWizardSelfSignedCertificateStep() {
 
     const { setupWizardService } = useServices();
 
-    const asyncGetCNs = useAsyncCallback(
+    const asyncGetCNs = useAsyncDebounce(
         async () => {
-            setValue("selfSignedCertificateStep.cns", []);
+            try {
+                setValue("selfSignedCertificateStep.cns", []);
 
-            if (!certificate) {
-                return;
+                if (!certificate) {
+                    return;
+                }
+
+                return setupWizardService.listHostsForCertificate(certificate, password);
+            } catch (e) {
+            } finally {
             }
-
-            return setupWizardService.listHostsForCertificate(certificate, password);
         },
+        [password, certificate],
+        300,
         {
             onSuccess: (cns) => {
                 const uniqueCns = Array.from(new Set(cns));
@@ -52,17 +56,14 @@ export function SetupWizardSelfSignedCertificateStep() {
             onError: (error) => {
                 if ((error as unknown as JQueryXHR).status === 400) {
                     setIsFileProtected(true);
-                    setError("selfSignedCertificateStep.password", { message: "Invalid password" });
+
+                    if (password.length > 0) {
+                        setError("selfSignedCertificateStep.password", { message: "Invalid password" });
+                    }
                 }
             },
         }
     );
-
-    // Fetch CNs when certificate is changed immediately
-    useAsync(asyncGetCNs.execute, [certificate]);
-
-    // Fetch CNs when password is changed with debounce
-    useAsyncDebounce(asyncGetCNs.execute, [password], 300);
 
     const handleFileChange = (files: File[]) => {
         const file = files[0];
@@ -97,6 +98,8 @@ export function SetupWizardSelfSignedCertificateStep() {
     const clearFile = () => {
         setValue("selfSignedCertificateStep.certificate", "");
     };
+
+    console.log("maxym asyncGetCns", asyncGetCNs);
 
     return (
         <div>
@@ -186,17 +189,6 @@ export function SetupWizardSelfSignedCertificateStepFooter() {
         selfSignedCertificateStep: { certificate, password },
     } = useWatch({ control });
 
-    const asyncGetCNs = useAsyncDebounce(
-        async () => {
-            if (!certificate) {
-                return;
-            }
-            return setupWizardService.listHostsForCertificate(certificate, password);
-        },
-        [certificate, password],
-        300
-    );
-
     const handleContinue = () => {
         setValue("currentStep", "Domain");
     };
@@ -210,15 +202,16 @@ export function SetupWizardSelfSignedCertificateStepFooter() {
             <Button variant="secondary" className="rounded-pill" onClick={handleBack}>
                 <Icon icon="arrow-left" /> Back
             </Button>
-            <ButtonWithSpinner
+            <Button
                 variant="primary"
                 className="rounded-pill"
+                disabled={!certificate}
                 onClick={handleContinue}
-                isSpinning={asyncGetCNs.loading}
+                // isSpinning={asyncGetCNs.loading}
             >
                 Continue&nbsp;
                 <Icon icon="arrow-right" margin="m-0" />
-            </ButtonWithSpinner>
+            </Button>
         </div>
     );
 }

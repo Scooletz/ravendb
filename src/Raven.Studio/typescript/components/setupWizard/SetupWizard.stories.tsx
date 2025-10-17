@@ -1,10 +1,8 @@
 import { withForceRerender } from "test/storybookTestUtils";
 import { withBootstrap5 } from "test/storybookTestUtils";
-import { Meta, StoryObj } from "@storybook/react";
 import { withStorybookContexts } from "test/storybookTestUtils";
 import SetupWizard from "./SetupWizard";
 import { mockServices } from "test/mocks/services/MockServices";
-import { userEvent, waitFor, expect } from "@storybook/test";
 import { Canvas } from "storybook/internal/types";
 import {
     SetupWizardSecurityOption,
@@ -12,6 +10,8 @@ import {
     SetupWizardStepId,
 } from "components/setupWizard/setupWizardValidation";
 import { setupWizardConstants } from "components/setupWizard/utils/setupWizardConstants";
+import { expect, userEvent, waitFor } from "storybook/internal/test";
+import { Meta, StoryObj } from "@storybook/react-webpack5";
 
 const getSecurityOptionLabel = (option: SetupWizardSecurityOption): string => {
     switch (option) {
@@ -232,6 +232,7 @@ async function navigateToStep(canvas: Canvas, targetStep: SetupWizardStepId | "G
 
     // Enter license key
     if (args.licenseType) {
+        await userEvent.clear(canvas.getByTestId("license-key-input"));
         await userEvent.type(
             canvas.getByTestId("license-key-input"),
             `{{ "Id": "${args.licenseType}", "Name": "RavenDB", "Keys": [[] }`
@@ -267,7 +268,7 @@ async function navigateToStep(canvas: Canvas, targetStep: SetupWizardStepId | "G
         return;
     }
 
-    // For remaining steps, go through Let's Encrypt certificate path
+    // For the remaining steps, go through Let's Encrypt a certificate path
     await userEvent.click(canvas.getByRole("heading", { name: getSecurityOptionLabel(args.securityOption) }));
     if (args.securityOption === "letsEncrypt") {
         await userEvent.click(canvas.getByRole("checkbox"));
