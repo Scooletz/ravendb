@@ -525,14 +525,14 @@ export function SetupWizardLicenseKeyVerifyCodeModal({
         {
             onSuccess: async (license) => {
                 reportEvent(setupWizardGA4Prefixes.licenseKeyStep, "verify-code", "success");
-                setValue("licenseKeyStep.key", JSON.stringify(license.License), {
+                setValue("licenseKeyStep.key", JSON.stringify(license.License, null, 2), {
                     shouldDirty: true,
                 });
                 close();
                 setValue("licenseKeyStep.licenseTypeToGenerate", null);
             },
             onError: async (error) => {
-                reportEvent(setupWizardGA4Prefixes.licenseKeyStep, "verify-code", error.message as string);
+                reportEvent(setupWizardGA4Prefixes.licenseKeyStep, "verify-code", error.message);
                 setError("licenseKeyStep.verificationCode", {
                     message: convertVerificationCodeErrorMessage(error.message as FreeLicenseDownloadStatus),
                 });
