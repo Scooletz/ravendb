@@ -1228,7 +1228,7 @@ export const ipAddressFormSchema = yup.object().shape({
             };
 
             const isHostname = genUtils.isHostname(value);
-            const isUnsecureMode = context.securityOption === "none";
+            const isUnsecureMode = context?.securityOption === "none";
 
             return !isHostname || !isUnsecureMode;
         })
