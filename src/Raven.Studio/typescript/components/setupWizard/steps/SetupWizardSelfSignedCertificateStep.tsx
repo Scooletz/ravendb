@@ -1,4 +1,4 @@
-import { useFormContext, useWatch } from "react-hook-form";
+import { Controller, useFormContext, useWatch } from "react-hook-form";
 import { SetupWizardFormData } from "../setupWizardValidation";
 import { Icon } from "components/common/Icon";
 import Button from "react-bootstrap/Button";
@@ -13,6 +13,7 @@ import React from "react";
 import { useAsyncDebounce } from "hooks/useAsyncDebounce";
 import { useAppDispatch, useAppSelector } from "components/store";
 import { setupWizardActions, setupWizardSelectors } from "components/setupWizard/store/setupWizardSlice";
+import { PopoverMessage } from "components/setupWizard/steps/SetupWizardNodeAddressStep";
 
 export function SetupWizardSelfSignedCertificateStep() {
     const { control, setValue, clearErrors, setError } = useFormContext<SetupWizardFormData>();
@@ -98,6 +99,8 @@ export function SetupWizardSelfSignedCertificateStep() {
 
     const clearFile = () => {
         setValue("selfSignedCertificateStep.certificate", "");
+        setValue("selfSignedCertificateStep.certificateFileName", "");
+        setValue("selfSignedCertificateStep.cns", []);
     };
 
     return (
@@ -115,19 +118,7 @@ export function SetupWizardSelfSignedCertificateStep() {
                         Passphrase
                         <PopoverWithHoverWrapper
                             message={
-                                <>
-                                    <p className="mb-0">
-                                        Enter the passphrase used to encrypt your private key. This is required to
-                                        unlock and use your certificate.
-                                    </p>
-                                    <hr className="my-2" />
-                                    <span className="md-label">
-                                        <Icon icon="link" /> Read more in our{" "}
-                                        <a href="#TODO" target="_blank">
-                                            documentation <Icon icon="newtab" />
-                                        </a>
-                                    </span>
-                                </>
+                                <PopoverMessage description="Enter the passphrase used to encrypt your private key. This is required to unlock and use your certificate." />
                             }
                         >
                             <div className="text-info">
@@ -149,19 +140,7 @@ export function SetupWizardSelfSignedCertificateStep() {
                         CN Names
                         <PopoverWithHoverWrapper
                             message={
-                                <>
-                                    <p className="mb-0">
-                                        The Common Name (CN) is automatically extracted from your certificate. It
-                                        represents the domain or hostname the certificate is issued for.
-                                    </p>
-                                    <hr className="my-2" />
-                                    <span className="md-label">
-                                        <Icon icon="link" /> Read more in our{" "}
-                                        <a href="#TODO" target="_blank">
-                                            documentation <Icon icon="newtab" />
-                                        </a>
-                                    </span>
-                                </>
+                                <PopoverMessage description="The common name (CN) of the certificate. This is the name that will be displayed in the browser when you access the server." />
                             }
                         >
                             <Icon icon="info-new" />
@@ -206,7 +185,6 @@ export function SetupWizardSelfSignedCertificateStepFooter() {
                 className="rounded-pill"
                 disabled={!certificate || !isPasswordValid}
                 onClick={handleContinue}
-                // isSpinning={asyncGetCNs.loading}
             >
                 Continue&nbsp;
                 <Icon icon="arrow-right" margin="m-0" />

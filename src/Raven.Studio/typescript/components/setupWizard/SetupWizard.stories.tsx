@@ -242,7 +242,7 @@ async function navigateToStep(canvas: Canvas, targetStep: SetupWizardStepId | "G
     if (targetStep === "License key") {
         return;
     }
-    
+
     if (targetStep === "Generate license") {
         await userEvent.click(canvas.getByRole("button", { name: /Get your free license/ }));
         return;
@@ -258,13 +258,18 @@ async function navigateToStep(canvas: Canvas, targetStep: SetupWizardStepId | "G
     }
 
     // Handle certificate paths
-    if (targetStep === "Self-signed certificate" || args.securityOption === "ownCertificate") {
+    if (args.securityOption === "ownCertificate") {
         await userEvent.click(canvas.getByRole("heading", { name: /Provide your own certificate/ }));
         await userEvent.click(canvas.getByRole("button", { name: /Continue/ }));
-        
+
         const mockedCertificateFile = new File(["foo-bar"], "certificate.pfx");
         await userEvent.upload(await canvas.findByTestId("file-input"), mockedCertificateFile);
-        await userEvent.click(canvas.getByRole("button", { name: /Continue/ }));
+        if (targetStep === "Self-signed certificate") {
+            return;
+        } else {
+            await userEvent.click(canvas.getByRole("button", { name: /Continue/ }));
+        }
+
         return;
     }
 
