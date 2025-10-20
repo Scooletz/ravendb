@@ -103,8 +103,7 @@ function AdditionalSettingsFormSideEffects() {
                     break;
                 }
                 case "additionalSettingsStep.postgresqlIntegration": {
-                    const enabled = values.additionalSettingsStep.postgresqlIntegration ? "enabled" : "disabled";
-                    reportEvent(setupWizardGA4Prefixes.additionalSettingsStep, "toggle-postgresql", enabled);
+                    reportEvent(setupWizardGA4Prefixes.additionalSettingsStep, "set-postgresql");
                     break;
                 }
                 case "additionalSettingsStep.dataDirectory": {
@@ -120,17 +119,19 @@ function AdditionalSettingsFormSideEffects() {
                     break;
                 }
                 case "additionalSettingsStep.autoIndexingEngineType": {
-                    const type = values.additionalSettingsStep.autoIndexingEngineType as string | undefined;
-                    if (type) {
-                        reportEvent(setupWizardGA4Prefixes.additionalSettingsStep, "set-auto-indexing-engine", type);
-                    }
+                    reportEvent(
+                        setupWizardGA4Prefixes.additionalSettingsStep,
+                        "set-auto-indexing-engine",
+                        values.additionalSettingsStep.autoIndexingEngineType
+                    );
                     break;
                 }
                 case "additionalSettingsStep.staticIndexingEngineType": {
-                    const type = values.additionalSettingsStep.staticIndexingEngineType as string | undefined;
-                    if (type) {
-                        reportEvent(setupWizardGA4Prefixes.additionalSettingsStep, "set-static-indexing-engine", type);
-                    }
+                    reportEvent(
+                        setupWizardGA4Prefixes.additionalSettingsStep,
+                        "set-static-indexing-engine",
+                        values.additionalSettingsStep.staticIndexingEngineType
+                    );
                     break;
                 }
             }
@@ -159,7 +160,11 @@ function ServerEnvironmentSection({
                             <PopoverMessage
                                 description={
                                     <>
-                                        <img src={serverEnvironmentImg} alt="server-environment-image" className="mb-2 w-100" />
+                                        <img
+                                            src={serverEnvironmentImg}
+                                            alt="server-environment-image"
+                                            className="mb-2 w-100"
+                                        />
                                         <span>
                                             Server environment allows you to add a visual identifier to the UI, making
                                             it easier to distinguish between multiple environments when working
@@ -271,7 +276,6 @@ const getDefaultPath = (os: OperatingSystem, type: "certificate" | "dataDirector
 
     return paths[type];
 };
-
 
 function AdvancedSettingsContent({ control, isVisible }: AdvancedSettingsContentProps) {
     const os = useOS();

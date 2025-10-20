@@ -3,6 +3,8 @@ import classNames from "classnames";
 import { HTMLAttributes, ReactNode } from "react";
 import { Icon } from "components/common/Icon";
 import IconName from "typings/server/icons";
+import { setupWizardSelectors } from "components/setupWizard/store/setupWizardSlice";
+import { useAppSelector } from "components/store";
 
 interface SetupWizardStepItemProps extends HTMLAttributes<HTMLLIElement> {
     children: ReactNode;
@@ -15,9 +17,10 @@ interface SetupWizardStepItemProps extends HTMLAttributes<HTMLLIElement> {
 
 export function SetupWizardStepItem(props: SetupWizardStepItemProps) {
     const { children, isCurrent, isChecked, isInactive, className, stepIndicator, ...rest } = props;
+    const finishStatus = useAppSelector(setupWizardSelectors.finishStepStatus);
 
     const dotIcon = ((): IconName => {
-        if (isChecked) {
+        if (isChecked || finishStatus === "Completed") {
             return "check";
         }
         if (isCurrent) {
@@ -33,8 +36,8 @@ export function SetupWizardStepItem(props: SetupWizardStepItemProps) {
                 className={classNames(
                     "dot",
                     { inactive: isInactive },
-                    { "bg-light": isChecked },
-                    { "border-primary text-primary": isCurrent }
+                    { "bg-light": isChecked || finishStatus === "Completed" },
+                    { "border-primary text-primary": isCurrent && finishStatus !== "Completed" },
                 )}
             >
                 {stepIndicator && (

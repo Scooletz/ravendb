@@ -29,13 +29,15 @@ import { setupWizardGA4Prefixes } from "components/setupWizard/utils/setupWizard
 import ButtonWithSpinner from "components/common/ButtonWithSpinner";
 import { useAsyncCallback } from "react-async-hook";
 import Code from "components/common/Code";
-
-type OperationStatus = Raven.Client.Documents.Operations.OperationStatus;
+import OperationStatus = Raven.Client.Documents.Operations.OperationStatus;
+import { useAppDispatch } from "components/store";
+import { setupWizardActions } from "components/setupWizard/store/setupWizardSlice";
 
 export function SetupWizardFinishStep() {
     const { control, setValue } = useFormContext<SetupWizardFormData>();
     const { reportEvent } = useEventsCollector();
-
+    const dispatch = useAppDispatch();
+    
     const { value: isShowLogs, toggle: toggleIsShowLogs } = useBoolean(false);
 
     const { setupMethodStep, usePackageStep, finishStep } = useWatch({ control });
@@ -47,6 +49,13 @@ export function SetupWizardFinishStep() {
     const [logs, setLogs] = useState<{ message: string; color?: ThemeColor }[]>([]);
     const [configurationProcess, setConfigurationProcess] =
         useState<Raven.Server.Commercial.SetupProgressAndResult>(null);
+
+    const handleSetFinishStatus = (status: OperationStatus) => {
+        dispatch(setupWizardActions.finishStepStatusSet(status));
+        setValue("finishStep.finishingStatus", status);
+        reportEvent(setupWizardGA4Prefixes.finalStep, "status", status);
+    };
+    
     const handleWebSocketOperation = (operation: Raven.Server.NotificationCenter.Notifications.OperationChanged) => {
         if (operation.TaskType === "Setup") {
             let dto: Raven.Server.Commercial.SetupProgressAndResult = operation.State.Progress;
@@ -55,31 +64,26 @@ export function SetupWizardFinishStep() {
                 case "Completed":
                     dto = operation.State.Result as Raven.Server.Commercial.SetupProgressAndResult;
                     setConfigurationProcess(operation.State.Result);
-                    setValue("finishStep.finishingStatus", "Completed");
-                    reportEvent(setupWizardGA4Prefixes.finalStep, "status", "Completed");
+                    handleSetFinishStatus("Completed");
                     break;
                 case "InProgress":
                     dto = operation.State.Progress as Raven.Server.Commercial.SetupProgressAndResult;
                     setConfigurationProcess(operation.State.Progress);
-                    setValue("finishStep.finishingStatus", "InProgress");
-                    reportEvent(setupWizardGA4Prefixes.finalStep, "status", "InProgress");
+                    handleSetFinishStatus("InProgress");
                     break;
-                case "Faulted": {
+                case "Faulted":
                     setConfigurationProcess(operation.State.Progress);
                     const failure = operation.State
                         .Result as Raven.Client.Documents.Operations.OperationExceptionResult;
                     setLogs((prev) => [...prev, { message: failure.Message, color: "danger" }]);
                     setLogs((prev) => [...prev, { message: failure.Error, color: "danger" }]);
-                    setValue("finishStep.finishingStatus", "Faulted");
-                    reportEvent(setupWizardGA4Prefixes.finalStep, "status", "Faulted");
+                    handleSetFinishStatus("Faulted");
                     break;
-                }
-                case "Canceled": {
+                case "Canceled":
                     dto = operation.State.Result as Raven.Server.Commercial.SetupProgressAndResult;
                     setConfigurationProcess(operation.State.Result);
-                    setValue("finishStep.finishingStatus", "Canceled");
-                    reportEvent(setupWizardGA4Prefixes.finalStep, "status", "Canceled");
-                }
+                    handleSetFinishStatus("Canceled");
+                    break;
             }
 
             if (dto) {
@@ -810,8 +814,12 @@ function useSetupWizardFinishUtils() {
     };
 }
 
-function CertInstallationConfirm(props: { onCancel: () => void; onConfirm: () => void }) {
-    const { onCancel, onConfirm } = props;
+interface CertInstallationConfirmProps {
+    onCancel: () => void;
+    onConfirm: () => void;
+}
+
+function CertInstallationConfirm({ onCancel, onConfirm }: CertInstallationConfirmProps) {
     const { reportEvent } = useEventsCollector();
 
     const browser = useBrowser();
@@ -1028,8 +1036,8 @@ export function SetupWizardFinishStepFooter() {
             },
             additionalSettingsStep: {
                 isAdvancedSettingsVisible: false,
-                dataDirectory: "",
-                setupCertificatePath: "",
+                dataDirectory: null,
+                setupCertificatePath: null,
                 adminCertificateExpirationTime: 60,
                 postgresqlIntegration: false,
                 serverEnvironment: "None",

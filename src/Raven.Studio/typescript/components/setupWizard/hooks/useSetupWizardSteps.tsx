@@ -16,6 +16,8 @@ import {
 import { SetupWizardSetupMethodStep, SetupWizardSetupMethodStepFooter } from "../steps/SetupWizardSetupMethodStep";
 import { SetupWizardSummaryStep, SetupWizardSummaryStepFooter } from "../steps/SetupWizardSummaryStep";
 import { SetupWizardUsePackageStep, SetupWizardUsePackageStepFooter } from "../steps/SetupWizardUsePackageStep";
+import { useAppSelector } from "components/store";
+import { setupWizardSelectors } from "components/setupWizard/store/setupWizardSlice";
 
 export interface SetupWizardStep {
     title: SetupWizardStepId;
@@ -38,6 +40,7 @@ export function useSetupWizardSteps({
     setupMethod,
     securityOption,
 }: SetupWizardStepsProps): SetupWizardStep[] {
+    const finishStatus = useAppSelector(setupWizardSelectors.finishStepStatus);
     const getIsNotInStepIds = (stepIds: SetupWizardStepId[]) => !stepIds.some((x) => currentStep === x);
 
     const steps: SetupWizardStep[] = [
@@ -136,7 +139,7 @@ export function useSetupWizardSteps({
         },
         {
             title: "Finish",
-            description: "Proceed to cluster installation",
+            description: finishStatus === "Completed" ? "Installation successful" : "Proceed to cluster installation",
             component: <SetupWizardFinishStep />,
             footer: <SetupWizardFinishStepFooter />,
             isCurrent: currentStep === "Finish",

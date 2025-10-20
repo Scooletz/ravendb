@@ -1,5 +1,4 @@
 import "./SetupWizard.scss";
-import Button from "react-bootstrap/Button";
 import { Icon } from "components/common/Icon";
 import { FormProvider, useForm, useWatch } from "react-hook-form";
 import { SetupWizardFormData, setupWizardSchema, SetupWizardStepId } from "./setupWizardValidation";
@@ -12,6 +11,8 @@ import useConfirm from "components/common/ConfirmDialog";
 import { useEventsCollector } from "components/hooks/useEventsCollector";
 import { setupWizardGA4Prefixes } from "components/setupWizard/utils/setupWizardConstants";
 import { useRavenLink } from "hooks/useRavenLink";
+import { useAppSelector } from "components/store";
+import { setupWizardSelectors } from "components/setupWizard/store/setupWizardSlice";
 
 const ravenLogo = require("Content/img/ravendb_logo.svg");
 const ravenSidebarImg = require("Content/img/setupWizard/setup-wizard-sidebar-background.png");
@@ -33,6 +34,8 @@ export default function SetupWizard() {
         securityOption: formValues.securityStep.securityOption,
     });
 
+    const finishStatus = useAppSelector(setupWizardSelectors.finishStepStatus);
+    
     const confirm = useConfirm();
 
     const { reportEvent } = useEventsCollector();
@@ -58,6 +61,10 @@ export default function SetupWizard() {
     };
 
     const handleStepNavigation = async (stepTitle: SetupWizardStepId) => {
+        if (finishStatus === "Completed") {
+            return; // if finish status is completed, we don't need to navigate to any other step
+        }
+        
         const targetStepIdx = steps.findIndex((s) => s.title === stepTitle);
 
         if (targetStepIdx > currentStepIdx) {
@@ -161,13 +168,23 @@ export default function SetupWizard() {
                                                 isInactive={idx > currentStepIdx}
                                                 className={classNames("cursor-pointer", {
                                                     "d-none": !step.isVisible,
-                                                    "cursor-not-allowed": idx > currentStepIdx,
+                                                    "cursor-not-allowed":
+                                                        idx > currentStepIdx || finishStatus === "Completed",
                                                 })}
                                                 onClick={() => handleStepNavigation(step.title)}
+                                                title={
+                                                    finishStatus === "Completed"
+                                                        ? "Setup is completed"
+                                                        : idx > currentStepIdx
+                                                          ? "Complete previous steps first"
+                                                          : "Go to this step"
+                                                }
                                             >
-                                                <div className={classNames("vstack gap-1", {
-                                                    "opacity-25": idx > currentStepIdx
-                                                })}>
+                                                <div
+                                                    className={classNames("vstack gap-1", {
+                                                        "opacity-25": idx > currentStepIdx,
+                                                    })}
+                                                >
                                                     <h5 className="mb-0">{step.title}</h5>
                                                     <small className="text-muted">{step.description}</small>
                                                 </div>
@@ -209,7 +226,7 @@ const defaultValues: SetupWizardFormData = {
         isZipValid: false,
         isZipSecure: false,
         publicServerUrl: "",
-        serverUrl: ""
+        serverUrl: "",
     },
     licenseKeyStep: {
         isAcceptTerms: false,

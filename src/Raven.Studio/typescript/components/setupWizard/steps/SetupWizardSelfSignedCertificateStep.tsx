@@ -11,9 +11,12 @@ import Form from "react-bootstrap/Form";
 import PopoverWithHoverWrapper from "components/common/PopoverWithHoverWrapper";
 import React from "react";
 import { useAsyncDebounce } from "hooks/useAsyncDebounce";
+import { useAppDispatch, useAppSelector } from "components/store";
+import { setupWizardActions, setupWizardSelectors } from "components/setupWizard/store/setupWizardSlice";
 
 export function SetupWizardSelfSignedCertificateStep() {
     const { control, setValue, clearErrors, setError } = useFormContext<SetupWizardFormData>();
+    const dispatch = useAppDispatch();
 
     const { value: isFileProtected, setValue: setIsFileProtected } = useBoolean(false);
 
@@ -23,19 +26,15 @@ export function SetupWizardSelfSignedCertificateStep() {
 
     const { setupWizardService } = useServices();
 
-    const asyncGetCNs = useAsyncDebounce(
+    useAsyncDebounce(
         async () => {
-            try {
-                setValue("selfSignedCertificateStep.cns", []);
+            setValue("selfSignedCertificateStep.cns", []);
 
-                if (!certificate) {
-                    return;
-                }
-
-                return setupWizardService.listHostsForCertificate(certificate, password);
-            } catch (e) {
-            } finally {
+            if (!certificate) {
+                return;
             }
+
+            return setupWizardService.listHostsForCertificate(certificate, password);
         },
         [password, certificate],
         300,
@@ -48,6 +47,7 @@ export function SetupWizardSelfSignedCertificateStep() {
                 setValue("selfSignedCertificateStep.isWildcardCertificate", isWildcardCertificate);
 
                 clearErrors("selfSignedCertificateStep.password");
+                dispatch(setupWizardActions.selfSignedCertificateStepIsPasswordValidSet(true));
 
                 if (!password) {
                     setIsFileProtected(false);
@@ -56,6 +56,7 @@ export function SetupWizardSelfSignedCertificateStep() {
             onError: (error) => {
                 if ((error as unknown as JQueryXHR).status === 400) {
                     setIsFileProtected(true);
+                    dispatch(setupWizardActions.selfSignedCertificateStepIsPasswordValidSet(false));
 
                     if (password.length > 0) {
                         setError("selfSignedCertificateStep.password", { message: "Invalid password" });
@@ -98,8 +99,6 @@ export function SetupWizardSelfSignedCertificateStep() {
     const clearFile = () => {
         setValue("selfSignedCertificateStep.certificate", "");
     };
-
-    console.log("maxym asyncGetCns", asyncGetCNs);
 
     return (
         <div>
@@ -183,10 +182,10 @@ export function SetupWizardSelfSignedCertificateStep() {
 
 export function SetupWizardSelfSignedCertificateStepFooter() {
     const { setValue, control } = useFormContext<SetupWizardFormData>();
-    const { setupWizardService } = useServices();
+    const isPasswordValid = useAppSelector(setupWizardSelectors.selfSignedCertificateStepIsPasswordValid);
 
     const {
-        selfSignedCertificateStep: { certificate, password },
+        selfSignedCertificateStep: { certificate },
     } = useWatch({ control });
 
     const handleContinue = () => {
@@ -205,7 +204,7 @@ export function SetupWizardSelfSignedCertificateStepFooter() {
             <Button
                 variant="primary"
                 className="rounded-pill"
-                disabled={!certificate}
+                disabled={!certificate || !isPasswordValid}
                 onClick={handleContinue}
                 // isSpinning={asyncGetCNs.loading}
             >

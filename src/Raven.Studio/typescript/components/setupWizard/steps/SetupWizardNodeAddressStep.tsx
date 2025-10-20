@@ -56,11 +56,13 @@ export function SetupWizardNodeAddressStep() {
 
     const {
         domainStep,
+        selfSignedCertificateStep: { cns },
         securityStep: { securityOption },
     } = useWatch({ control });
 
     const hasDomainStep = domainStep?.domain && domainStep?.rootDomain;
     const fullDomain = `a.${domainStep.domain.toLocaleLowerCase()}.${domainStep.rootDomain}`;
+
     const addNewNode = () => {
         const existingTags = fields.map((field) => field.nodeTag);
         const nodeTags = generateAlphabeticTags(2); // validation allows us to contain 4 letters, but generated tags are around +- 500k length, so we limit it to 2. (700 tags)
@@ -72,13 +74,15 @@ export function SetupWizardNodeAddressStep() {
             nodeTag: availableNodeTag,
             ipAddress: [
                 {
-                    ipAddress: "127.0.0.1",
+                    ipAddress: asyncGetSetupParameters.result?.IsDocker ? "0.0.0.0" : "127.0.0.1",
                 },
             ],
+            dnsName: securityOption === "ownCertificate" ? cns[0] : undefined,
             isEditing: true,
             isNewlyAdded: true,
         });
     };
+
     // add default node
     useEffect(() => {
         if (fields.length === 0) {
@@ -89,6 +93,7 @@ export function SetupWizardNodeAddressStep() {
                         ipAddress: asyncGetSetupParameters.result?.IsDocker ? "0.0.0.0" : "127.0.0.1",
                     },
                 ],
+                dnsName: securityOption === "ownCertificate" ? cns[0] : undefined,
                 isEditing: true, // the first node should be added with default values and in editing mode
                 isNewlyAdded: false,
                 isPassive: false,
@@ -827,7 +832,7 @@ function AddAnotherNode({ onAddNode }: AddAnotherNodeProps) {
     const licenseKeyStep = getValues("licenseKeyStep");
     const nodeData = getValues("nodeAddressStep.nodes");
 
-    const maxClusterSize = licenseKeyStep?.licenseInfo?.maxClusterSize ?? 1; // Default to 1 (agpl license) if license is not available
+    const maxClusterSize = licenseKeyStep?.licenseInfo?.maxClusterSize ?? 1; // Default to 1 (AGPL license) if the license is not available
     const isMaxClusterNodes = maxClusterSize === nodeData?.length;
 
     return (
@@ -857,7 +862,9 @@ function AddAnotherNode({ onAddNode }: AddAnotherNodeProps) {
                 <Button
                     disabled={isMaxClusterNodes}
                     variant={isMaxClusterNodes ? "outline-secondary" : "outline-node"}
-                    className="rounded-pill my-4"
+                    className={classNames("rounded-pill my-4", {
+                        "item-disabled": isMaxClusterNodes,
+                    })}
                     onClick={onAddNode}
                 >
                     <Icon icon="node-add" />
@@ -953,7 +960,7 @@ function useHostnameDetectionSideEffects({ editNodeForm, parentControl }: UseHos
 
     return {
         isHostname,
-        isExternalRequired: isHostname || hasBindAllIp || ipsContainHostname,
+        isExternalRequired: securityOption !== "ownCertificate" && (isHostname || hasBindAllIp || ipsContainHostname),
     };
 }
 
@@ -1288,7 +1295,7 @@ export const nodeEditFormSchema = yup.object({
                 ipAddresses: NodeEditFormData["ipAddress"],
                 securityOption: SetupWizardSecurityOption
             ) {
-                if (securityOption === "none") {
+                if (securityOption !== "letsEncrypt") {
                     return false;
                 }
 
