@@ -16,7 +16,7 @@ interface SetupWizardState {
 
 const initialState: SetupWizardState = {
     eulaStep: {
-        isEulaScrolledToBottom: process.env.NODE_ENV === "development", // TODO: Remove this when we are ready to release
+        isEulaScrolledToBottom: false,
     },
     finishStep: {
         status: "InProgress"

@@ -46,55 +46,15 @@ export function SetupWizardLicenseKeyStep() {
         </div>
     );
 }
-const developerLicenseKey = `{
-         "Id": "d66e8c49-cc2f-4f29-9aa4-f47da0527285",
-         "Name": "RavenDB",
-         "Keys": [
-             "0eC9Y0+VZXe1AC+QVpH1L9UO4",
-             "N6Wy4xpmrksnMN9wklvAcl5lQ",
-             "6aUlmVYRADvaprXbvf1LCZMcQ",
-             "EqHXfSX1seMbFxi1FMwgZwQmY",
-             "tBmE8aL3mTA5wDCSOaP7WrdpS",
-             "18gJwpAesWobjUx0UiAekdREo",
-             "UD0qVUX+fDJyOqWXZlIlZABYE",
-             "DNy4wBSYoSQMqKywtLi8wJzEy",
-             "MzQVFjc4OTo7PD0+nwIfIJ8CI",
-             "CCfAiEgnwIjIJ8CJCCfAiUgnw",
-             "ImIJ8CJyCfAiggnwIpIJ8CKiC",
-             "fAisgnwIsIJ8CLSCfAi4gnwIv",
-             "IJ8CMCCfAzZAAZ8CQiCfAkMgn",
-             "wJEIEMkRAliLVyfBEFgKlw="
-         ]
- }`;
+
 function NoLicenseToGenerate() {
     const { reportEvent } = useEventsCollector();
     const { control, setValue } = useFormContext<SetupWizardFormData>();
 
-    const handleDeveloperLicenseKey = () => {
-        if (process.env.NODE_ENV !== "development") {
-            return;
-        }
-
-        setValue("licenseKeyStep.key", JSON.parse(JSON.stringify(developerLicenseKey)));
-    };
-
-    useEffect(() => {
-        if (process.env.NODE_ENV !== "development") {
-            return;
-        }
-
-        setValue("licenseKeyStep.key", JSON.parse(JSON.stringify(developerLicenseKey)));
-    }, []);
-    
     return (
         <div>
             <h2 className="mb-1">Enter license key</h2>
             <p className="mb-4 text-muted">You can either use your existing key or generate a free license.</p>
-
-            {/*developing purposes*/}
-            <Button onClick={handleDeveloperLicenseKey} variant="outline-success">
-                Add Developer License key
-            </Button>
 
             <FormGroup>
                 <FormLabel>Your key</FormLabel>
