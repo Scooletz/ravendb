@@ -9,11 +9,12 @@ import { useServices } from "components/hooks/useServices";
 import useBoolean from "components/hooks/useBoolean";
 import Form from "react-bootstrap/Form";
 import PopoverWithHoverWrapper from "components/common/PopoverWithHoverWrapper";
-import React from "react";
+import React, { useMemo } from "react";
 import { useAsyncDebounce } from "hooks/useAsyncDebounce";
 import { useAppDispatch, useAppSelector } from "components/store";
 import { setupWizardActions, setupWizardSelectors } from "components/setupWizard/store/setupWizardSlice";
 import { PopoverMessage } from "components/setupWizard/steps/SetupWizardNodeAddressStep";
+import { fileToBase64, base64ToFile } from "components/setupWizard/utils/setupWizardUtils";
 
 export function SetupWizardSelfSignedCertificateStep() {
     const { control, setValue, clearErrors, setError } = useFormContext<SetupWizardFormData>();
@@ -22,7 +23,7 @@ export function SetupWizardSelfSignedCertificateStep() {
     const { value: isFileProtected, setValue: setIsFileProtected } = useBoolean(false);
 
     const {
-        selfSignedCertificateStep: { certificate, password, cns },
+        selfSignedCertificateStep: { certificate, password, cns, certificateFileName },
     } = useWatch({ control });
 
     const { setupWizardService } = useServices();
@@ -67,41 +68,23 @@ export function SetupWizardSelfSignedCertificateStep() {
         }
     );
 
-    const handleFileChange = (files: File[]) => {
-        const file = files[0];
-        const fileName = file.name;
-        const reader = new FileReader();
-
-        reader.onload = function () {
-            const textResult = String(reader.result);
-
-            const isFileSelected = fileName ? !!fileName.trim() : false;
-
-            if (!isFileSelected) {
-                clearFile();
-                messagePublisher.reportError("Failed to load file");
-                return;
-            }
-
-            setValue("selfSignedCertificateStep.certificateFileName", fileName.split(/(\\|\/)/g).pop());
-
-            // dataUrl has following format: data:;base64,PD94bW... trim on first comma
-            setValue("selfSignedCertificateStep.certificate", textResult.substring(textResult.indexOf(",") + 1));
-        };
-
-        reader.onerror = function () {
-            clearFile();
-            messagePublisher.reportError("Failed to load file", reader.error.message);
-        };
-
-        reader.readAsDataURL(file);
-    };
-
     const clearFile = () => {
         setValue("selfSignedCertificateStep.certificate", "");
         setValue("selfSignedCertificateStep.certificateFileName", "");
         setValue("selfSignedCertificateStep.cns", []);
     };
+
+    const getInitialFiles = useMemo((): File[] => {
+        if (certificate && certificateFileName) {
+            try {
+                return [base64ToFile(certificate, certificateFileName)];
+            } catch (error) {
+                messagePublisher.reportError("Failed to load file", error);
+                return [];
+            }
+        }
+        return [];
+    }, [certificate, certificateFileName]);
 
     return (
         <div>
@@ -110,7 +93,39 @@ export function SetupWizardSelfSignedCertificateStep() {
                 For the highest security and control, you can use your own certificate once obtained.
             </p>
             <FormGroup>
-                <FileDropzone onChange={handleFileChange} validExtensions={["pfx"]} maxFiles={1} />
+                <Controller
+                    render={({ field }) => (
+                        <FileDropzone
+                            validExtensions={["pfx"]}
+                            maxFiles={1}
+                            initialFiles={getInitialFiles}
+                            {...field}
+                            onChange={async (files: File[]) => {
+                                const file = files[0];
+                                if (!file.name.trim()) {
+                                    clearFile();
+                                    messagePublisher.reportError("Failed to load file");
+                                    return;
+                                }
+
+                                try {
+                                    const fileInString = await fileToBase64(file);
+                                    const cleanFileInBase64 = fileInString.substring(fileInString.indexOf(",") + 1);
+
+                                    setValue("selfSignedCertificateStep.certificate", cleanFileInBase64);
+                                    setValue("selfSignedCertificateStep.certificateFileName", file.name);
+
+                                    field.onChange(cleanFileInBase64);
+                                } catch (e) {
+                                    clearFile();
+                                    messagePublisher.reportError("Failed to load file", e.message);
+                                }
+                            }}
+                        />
+                    )}
+                    name="selfSignedCertificateStep.certificate"
+                    control={control}
+                />
             </FormGroup>
             {isFileProtected && (
                 <FormGroup>
@@ -122,7 +137,7 @@ export function SetupWizardSelfSignedCertificateStep() {
                             }
                         >
                             <div className="text-info">
-                                <Icon icon="info" size="xs" /> What is this?
+                                <Icon icon="info-new" size="xs" /> What is this?
                             </div>
                         </PopoverWithHoverWrapper>
                     </FormLabel>
