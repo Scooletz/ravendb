@@ -3,6 +3,7 @@ import { SetupWizardFormData } from "../setupWizardValidation";
 import { Icon } from "components/common/Icon";
 import Button from "react-bootstrap/Button";
 import { FormGroup, FormInput, FormLabel, FormPathSelector, FormSelect, FormSwitch } from "components/common/Form";
+import { RichAlert } from "components/common/RichAlert";
 import { setupWizardConstants, setupWizardGA4Prefixes } from "components/setupWizard/utils/setupWizardConstants";
 import { HrHeader } from "components/common/HrHeader";
 import classNames from "classnames";
@@ -277,9 +278,29 @@ const getDefaultPath = (os: OperatingSystem, type: "certificate" | "dataDirector
     return paths[type];
 };
 
+const isAbsolutePath = (path: string | null | undefined): boolean => {
+    if (!path) {
+        return false;
+    }
+
+    // Windows absolute path: starts with drive letter (e.g., C:\) or UNC path (\\)
+    if (/^[A-Za-z]:\\/.test(path) || /^\\\\/.test(path)) {
+        return true;
+    }
+
+    // Unix/Mac absolute path: starts with /
+    return path.startsWith("/");
+};
+
 function AdvancedSettingsContent({ control, isVisible }: AdvancedSettingsContentProps) {
     const os = useOS();
     const { resourcesService } = useServices();
+
+    const {
+        additionalSettingsStep: { dataDirectory, logsPath },
+    } = useWatch({
+        control,
+    });
 
     const getLocalFolderPathsProvider = (path: string) => {
         return async () => {
@@ -315,6 +336,12 @@ function AdvancedSettingsContent({ control, isVisible }: AdvancedSettingsContent
                     getPathsProvider={(path: string) => getLocalFolderPathsProvider(path)}
                     getPathDependencies={(path: string) => [path]}
                 />
+                {isVisible && isAbsolutePath(dataDirectory) && (
+                    <RichAlert variant="warning" className="mt-2">
+                        This path will be used on all nodes. Please ensure this directory exists on each node, as setup
+                        will fail otherwise.
+                    </RichAlert>
+                )}
             </FormGroup>
             <FormGroup>
                 <FormLabel className="hstack">
@@ -359,6 +386,12 @@ function AdvancedSettingsContent({ control, isVisible }: AdvancedSettingsContent
                     getPathsProvider={(path: string) => getLocalFolderPathsProvider(path)}
                     getPathDependencies={(path: string) => [path]}
                 />
+                {isVisible && isAbsolutePath(logsPath) && (
+                    <RichAlert variant="warning" className="mt-2">
+                        This path will be used on all nodes. Please ensure this directory exists on each node, as setup
+                        will fail otherwise.
+                    </RichAlert>
+                )}
             </FormGroup>
             <FormGroup>
                 <FormLabel className="hstack">
