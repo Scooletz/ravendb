@@ -1,4 +1,4 @@
-import { useFormContext, useWatch } from "react-hook-form";
+import { Controller, useFormContext, useWatch } from "react-hook-form";
 import { SetupWizardFormData } from "../setupWizardValidation";
 import Button from "react-bootstrap/Button";
 import { Icon } from "components/common/Icon";
@@ -14,11 +14,13 @@ import PopoverWithHoverWrapper from "components/common/PopoverWithHoverWrapper";
 import { PopoverMessage } from "components/setupWizard/steps/SetupWizardNodeAddressStep";
 import { setupWizardGA4Prefixes } from "components/setupWizard/utils/setupWizardConstants";
 import { useEventsCollector } from "hooks/useEventsCollector";
+import { base64ToFile, fileToBase64 } from "components/setupWizard/utils/setupWizardUtils";
+import { LazyLoad } from "components/common/LazyLoad";
 
 export function SetupWizardUsePackageStep() {
     const { control, setValue, watch } = useFormContext<SetupWizardFormData>();
     const {
-        usePackageStep: { fileZip, isZipValid },
+        usePackageStep: { fileZip, fileName, isZipValid },
     } = useWatch({ control });
 
     const { setupWizardService } = useServices();
@@ -85,37 +87,19 @@ export function SetupWizardUsePackageStep() {
         setValue("usePackageStep.isZipValid", nodeInfos.length !== 0);
     }, [nodeInfos, setValue]);
 
-    const handleFileChange = (files: File[]) => {
-        const file = files[0];
-        const fileName = file.name;
-        const reader = new FileReader();
-
-        reader.onload = function () {
-            const textResult = String(reader.result);
-
-            const isFileSelected = fileName ? !!fileName.trim() : false;
-
-            if (!isFileSelected) {
-                clearFile();
-                messagePublisher.reportError("Failed to load file");
-                return;
+    
+    const getInitialFiles = useMemo((): File[] => {
+        if (fileZip) {
+            try {
+                return [base64ToFile(fileZip, fileName, "application/zip")];
+            } catch (error) {
+                messagePublisher.reportError("Failed to load file", error);
+                return [];
             }
+        }
+        return [];
+    }, [fileZip]);
 
-            setValue("usePackageStep.fileName", fileName.split(/(\\|\/)/g).pop());
-
-            // dataUrl has following format: data:;base64,PD94bW... trim on first comma
-            setValue("usePackageStep.fileZip", textResult.substring(textResult.indexOf(",") + 1), {
-                shouldDirty: true,
-            });
-        };
-
-        reader.onerror = function () {
-            clearFile();
-            messagePublisher.reportError("Failed to load file", reader.error.message);
-        };
-
-        reader.readAsDataURL(file);
-    };
 
     const clearFile = () => {
         setValue("usePackageStep.fileName", "");
@@ -129,8 +113,46 @@ export function SetupWizardUsePackageStep() {
                 Here you can use an existing package to set up selected nodes in your cluster.
             </p>
             <FormGroup>
-                <FileDropzone onChange={handleFileChange} validExtensions={["zip"]} maxFiles={1} />
+                <Controller
+                    name="usePackageStep.fileZip"
+                    control={control}
+                    render={({ field }) => (
+                        <FileDropzone
+                            maxFiles={1}
+                            validExtensions={["zip"]}
+                            initialFiles={getInitialFiles}
+                            {...field}
+                            onChange={async (files: File[]) => {
+                                const file = files[0];
+
+                                if (!file.name.trim()) {
+                                    clearFile();
+                                    messagePublisher.reportError("Failed to load file");
+                                    return;
+                                }
+
+                                try {
+                                    const fileInString = await fileToBase64(file);
+                                    const cleanFileInBase64 = fileInString.substring(fileInString.indexOf(",") + 1);
+
+                                    setValue("usePackageStep.fileZip", cleanFileInBase64, {
+                                        shouldDirty: true
+                                    });
+                                    setValue("usePackageStep.fileName", file.name, {
+                                        shouldDirty: true
+                                    });
+
+                                    field.onChange(cleanFileInBase64);
+                                } catch (e) {
+                                    clearFile();
+                                    messagePublisher.reportError("Failed to load file", e.message);
+                                }
+                            }}
+                        />
+                    )}
+                />
             </FormGroup>
+            <LazyLoad active={asyncExtractNodeInfos.loading}>
             {fileZip && isZipValid && asyncExtractNodeInfos.status === "success" && (
                 <FormGroup>
                     <FormLabel className="hstack">
@@ -153,6 +175,7 @@ export function SetupWizardUsePackageStep() {
                 </FormGroup>
             )}
             {!isZipValid && fileZip && <RichAlert variant="danger">Invalid nodes configuration in zip file.</RichAlert>}
+            </LazyLoad>
         </div>
     );
 }

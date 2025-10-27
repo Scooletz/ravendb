@@ -61,11 +61,11 @@ function AdditionalSettingsFormSideEffects() {
 
     useEffect(() => {
         if (getLicenseType(licenseKeyStep.licenseInfo).isDeveloper()) {
-            setValue("additionalSettingsStep.serverEnvironment", "Development", {
+            setValue("additionalSettingsStep.studioEnvironment", "Development", {
                 shouldDirty: true,
             });
         } else if (getLicenseType(licenseKeyStep.licenseInfo).isProfessionalOrHigher()) {
-            setValue("additionalSettingsStep.serverEnvironment", "Production", {
+            setValue("additionalSettingsStep.studioEnvironment", "Production", {
                 shouldDirty: true,
             });
         }
@@ -85,8 +85,8 @@ function AdditionalSettingsFormSideEffects() {
                     reportEvent(setupWizardGA4Prefixes.additionalSettingsStep, "toggle-advanced", state);
                     break;
                 }
-                case "additionalSettingsStep.serverEnvironment": {
-                    const env = values.additionalSettingsStep.serverEnvironment as string | undefined;
+                case "additionalSettingsStep.studioEnvironment": {
+                    const env = values.additionalSettingsStep.studioEnvironment;
                     if (env) {
                         reportEvent(setupWizardGA4Prefixes.additionalSettingsStep, "set-environment", env);
                     }
@@ -142,7 +142,7 @@ function AdditionalSettingsFormSideEffects() {
     }, [watch, setValue]); // eslint-disable-line react-hooks/exhaustive-deps
 }
 
-const serverEnvironmentImg = require("Content/img/setupWizard/studioEnvironment.png");
+const studioEnvironmentImage = require("Content/img/setupWizard/studioEnvironment.png");
 
 function ServerEnvironmentSection({
     control,
@@ -155,19 +155,19 @@ function ServerEnvironmentSection({
         return (
             <FormGroup>
                 <FormLabel className="d-flex">
-                    <div>Server environment</div>
+                    <div>Studio environment</div>
                     <PopoverWithHoverWrapper
                         message={
                             <PopoverMessage
                                 description={
                                     <>
                                         <img
-                                            src={serverEnvironmentImg}
-                                            alt="server-environment-image"
+                                            src={studioEnvironmentImage}
+                                            alt="studio-environment-image"
                                             className="mb-2 w-100"
                                         />
                                         <span>
-                                            Server environment allows you to add a visual identifier to the UI, making
+                                            Studio environment allows you to add a visual identifier to the UI, making
                                             it easier to distinguish between multiple environments when working
                                             simultaneously.
                                         </span>
@@ -182,8 +182,8 @@ function ServerEnvironmentSection({
                 </FormLabel>
                 <FormSelect
                     control={control}
-                    name="additionalSettingsStep.serverEnvironment"
-                    options={setupWizardConstants.allServerEnvironmentOptions}
+                    name="additionalSettingsStep.studioEnvironment"
+                    options={setupWizardConstants.allStudioEnvironmentOptions}
                 />
             </FormGroup>
         );
@@ -452,7 +452,7 @@ export function SetupWizardAdditionalSettingsStepFooter() {
 
     const handleBack = () => {
         reportEvent(setupWizardGA4Prefixes.additionalSettingsStep, "back");
-        setValue("currentStep", "Node address");
+        setValue("currentStep", "Node addresses");
     };
 
     return (

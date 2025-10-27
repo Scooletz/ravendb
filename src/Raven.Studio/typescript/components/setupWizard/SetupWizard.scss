@@ -10,6 +10,15 @@
     grid-column-gap: 0;
     grid-row-gap: 0;
 
+    input[type='number'] {
+        -moz-appearance: textfield;
+    }
+
+    input::-webkit-outer-spin-button,
+    input::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+    }
+
     .setup-wizard-main {
         grid-area: 1 / 1 / 10 / 2;
         display: flex;

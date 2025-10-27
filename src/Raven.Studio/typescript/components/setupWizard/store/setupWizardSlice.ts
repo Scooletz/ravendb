@@ -7,23 +7,25 @@ interface SetupWizardState {
         isEulaScrolledToBottom: boolean;
     };
     finishStep: {
-        status: OperationStatus
+        status: OperationStatus;
     };
     selfSignedCertificateStep: {
         isPasswordValid: boolean;
-    }
+        hasPassword: boolean;
+    };
 }
 
 const initialState: SetupWizardState = {
     eulaStep: {
-        isEulaScrolledToBottom: false,
+        isEulaScrolledToBottom: process.env.NODE_ENV === 'development',
     },
     finishStep: {
-        status: "InProgress"
+        status: "InProgress",
     },
     selfSignedCertificateStep: {
-        isPasswordValid: true
-    }
+        isPasswordValid: true,
+        hasPassword: false,
+    },
 };
 
 export const setupWizardSlice = createSlice({
@@ -38,7 +40,10 @@ export const setupWizardSlice = createSlice({
         },
         selfSignedCertificateStepIsPasswordValidSet: (state, action: PayloadAction<boolean>) => {
             state.selfSignedCertificateStep.isPasswordValid = action.payload;
-        }
+        },
+        selfSignedCertificateStepHasPasswordSet: (state, action: PayloadAction<boolean>) => {
+            state.selfSignedCertificateStep.hasPassword = action.payload;
+        },
     },
 });
 
@@ -48,4 +53,5 @@ export const setupWizardSelectors = {
     isEulaScrolledToBottom: (state: RootState) => state.setupWizard.eulaStep.isEulaScrolledToBottom,
     finishStepStatus: (state: RootState) => state.setupWizard.finishStep.status,
     selfSignedCertificateStepIsPasswordValid: (state: RootState) => state.setupWizard.selfSignedCertificateStep.isPasswordValid,
+    selfSignedCertificateStepHasPassword: (state: RootState) => state.setupWizard.selfSignedCertificateStep.hasPassword,
 };

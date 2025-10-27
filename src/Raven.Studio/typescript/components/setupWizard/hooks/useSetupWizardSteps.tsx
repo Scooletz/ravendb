@@ -107,15 +107,15 @@ export function useSetupWizardSteps({
             footer: <SetupWizardDomainStepFooter />,
             isCurrent: currentStep === "Domain",
             isAvailable:
-                (setupMethod === "newCluster" || setupMethod === "createPackage") && securityOption === "letsEncrypt" || securityOption === "ownCertificate",
+                (setupMethod === "newCluster" || setupMethod === "createPackage") && securityOption === "letsEncrypt",
             isVisible: getIsNotInStepIds(["Eula", "Setup method", "License key", "Security"]),
         },
         {
-            title: "Node address",
+            title: "Node addresses",
             description: "Configure your cluster settings",
             component: <SetupWizardNodeAddressStep />,
             footer: <SetupWizardNodeAddressStepFooter />,
-            isCurrent: currentStep === "Node address",
+            isCurrent: currentStep === "Node addresses",
             isAvailable: setupMethod === "newCluster" || setupMethod === "createPackage",
             isVisible: getIsNotInStepIds(["Eula", "Setup method", "License key", "Security"]),
         },

@@ -305,9 +305,9 @@ const howYouPlanToUseRavenDBOptions: SelectOption[] = allHowYouPlanToUseRavenDB.
 
 const nodeTags = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'];
 
-const allServerEnvironments = ["Production", "Testing", "Development", "None"] as const;
+const allStudioEnvironments = ["Production", "Testing", "Development", "None"] as const;
 
-const allServerEnvironmentOptions: SelectOption[] = allServerEnvironments.map((env) => ({
+const allStudioEnvironmentOptions: SelectOption[] = allStudioEnvironments.map((env) => ({
     label: env,
     value: env,
 }));
@@ -348,8 +348,8 @@ export const setupWizardConstants = {
     allHowYouPlanToUseRavenDB,
     howYouPlanToUseRavenDBOptions,
     nodeTags,
-    allServerEnvironments,
-    allServerEnvironmentOptions,
+    allStudioEnvironments,
+    allStudioEnvironmentOptions,
     indexingEngineTypes,
     indexingEngineTypeOptions,
     SETUP_WIZARD_MOCK_LICENSE_KEYS_IDS

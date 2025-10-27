@@ -224,19 +224,13 @@ function NodeDetailsPanelHeader({ control, index, onRemove, editNodeForm }: Node
         name: `nodeAddressStep.nodes.${index}`,
     });
 
-    const nodeAddressNodes = useWatch({
+    const {
+        domainStep,
+        setupMethodStep: { method },
+        nodeAddressStep: { nodes },
+        securityStep: { securityOption },
+    } = useWatch({
         control,
-        name: "nodeAddressStep.nodes",
-    });
-
-    const domainData = useWatch({
-        control,
-        name: "domainStep",
-    });
-
-    const securityOption = useWatch({
-        control,
-        name: "securityStep.securityOption",
     });
 
     const { handleSubmit, reset, formState } = editNodeForm;
@@ -264,7 +258,7 @@ function NodeDetailsPanelHeader({ control, index, onRemove, editNodeForm }: Node
         setValue(`nodeAddressStep.nodes.${index}`, {
             nodeUrl:
                 securityOption !== "none"
-                    ? `${formData.nodeTag.toLowerCase()}.${domainData.domain.toLocaleLowerCase()}.${domainData.rootDomain}`
+                    ? `${formData.nodeTag.toLowerCase()}.${domainStep.domain.toLocaleLowerCase()}.${domainStep.rootDomain}`
                     : undefined,
             ...formData,
             nodeTag: formData.isPassive ? undefined : formData.nodeTag,
@@ -300,6 +294,8 @@ function NodeDetailsPanelHeader({ control, index, onRemove, editNodeForm }: Node
         }
     };
 
+    const isPassiveVisible = securityOption === "none" && method !== "createPackage" && nodes.length === 1;
+
     return (
         <RichPanelHeader>
             <RichPanelInfo>
@@ -314,7 +310,7 @@ function NodeDetailsPanelHeader({ control, index, onRemove, editNodeForm }: Node
                             {nodeName}{" "}
                             {index === 0 && (
                                 <small className="text-muted">
-                                    {nodeData.isPassive ? (
+                                    {nodeData.isPassive && isPassiveVisible ? (
                                         <span className="text-info">(Passive)</span>
                                     ) : (
                                         "(current node)"
@@ -359,7 +355,7 @@ function NodeDetailsPanelHeader({ control, index, onRemove, editNodeForm }: Node
                         >
                             <Icon icon="edit" margin="m-0" />
                         </Button>
-                        {nodeAddressNodes.filter((node) => !node.isNewlyAdded).length > 1 && (
+                        {nodes.filter((node) => !node.isNewlyAdded).length > 1 && (
                             <Button variant="danger" onClick={handleDeleteNode}>
                                 <Icon icon="trash" margin="m-0" />
                             </Button>
@@ -582,8 +578,12 @@ function NodeDetailsPanelEdit({
                                 </PopoverWithHoverWrapper>
                             </FormLabel>
                             <FormInput
-                                disabled={nodeData.isPassive}
-                                placeholder={nodeData.isPassive ? "Node will start in Passive state" : "Enter Node Tag"}
+                                disabled={nodeData.isPassive && isPassiveVisible}
+                                placeholder={
+                                    nodeData.isPassive && isPassiveVisible
+                                        ? "Node will start in Passive state"
+                                        : "Enter Node Tag"
+                                }
                                 type="text"
                                 name="nodeTag"
                                 control={control}
@@ -890,6 +890,7 @@ function useHostnameDetectionSideEffects({ editNodeForm, parentControl }: UseHos
     const nodeData = useWatch({ control });
     const {
         securityStep: { securityOption },
+        nodeAddressStep: { nodes },
     } = useWatch({ control: parentControl });
 
     const hasBindAllIp = useMemo(
@@ -925,7 +926,11 @@ function useHostnameDetectionSideEffects({ editNodeForm, parentControl }: UseHos
                 return;
             }
 
-            if (isPassive && nodeTag) {
+            if (isPassive && nodes.length > 1) {
+                setValue("isPassive", false);
+            }
+
+            if (isPassive && nodes.length > 1 && nodeTag) {
                 setValue("nodeTag", "", { shouldValidate: false });
             }
 

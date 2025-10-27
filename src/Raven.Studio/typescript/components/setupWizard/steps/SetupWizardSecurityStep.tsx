@@ -213,7 +213,7 @@ export function SetupWizardSecurityStepFooter() {
                 setValue("currentStep", "Self-signed certificate");
                 break;
             case "none":
-                setValue("currentStep", "Node address");
+                setValue("currentStep", "Node addresses");
                 break;
             default:
                 assertUnreachable(securityOption);

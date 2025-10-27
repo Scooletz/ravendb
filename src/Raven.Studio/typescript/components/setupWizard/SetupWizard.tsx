@@ -18,7 +18,7 @@ const ravenLogo = require("Content/img/ravendb_logo.svg");
 const ravenSidebarImg = require("Content/img/setupWizard/setup-wizard-sidebar-background.png");
 
 export default function SetupWizard() {
-    const docsLink = useRavenLink({ hash: "C844RA", isDocs: false });
+    const docsLink = useRavenLink({ hash: "37GM2Z" });
     const form = useForm<SetupWizardFormData>({
         resolver: yupResolver(setupWizardSchema),
         defaultValues,
@@ -51,7 +51,7 @@ export default function SetupWizard() {
             Domain: "domainStep",
             Security: "securityStep",
             "Self-signed certificate": "selfSignedCertificateStep",
-            "Node address": "nodeAddressStep",
+            "Node addresses": "nodeAddressStep",
             "Additional settings": "additionalSettingsStep",
             Summary: "currentStep", // Not actually used but included for completeness and avoiding TypeScript errors
             Finish: "currentStep", // Not actually used but included for completeness and avoiding TypeScript errors
@@ -261,7 +261,7 @@ const defaultValues: SetupWizardFormData = {
         setupCertificatePath: "",
         adminCertificateExpirationTime: 60,
         postgresqlIntegration: false,
-        serverEnvironment: "None",
+        studioEnvironment: "None",
     },
     finishStep: {
         finishingStatus: "InProgress",

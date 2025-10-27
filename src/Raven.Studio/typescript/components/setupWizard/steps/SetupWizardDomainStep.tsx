@@ -216,7 +216,7 @@ export function SetupWizardDomainStepFooter() {
             if (!has(domains, domain)) {
                 await setupWizardService.claimDomain(domain, key);
             }
-            setValue("currentStep", "Node address");
+            setValue("currentStep", "Node addresses");
         } else {
             messagePublisher.reportError("Domain is required");
         }

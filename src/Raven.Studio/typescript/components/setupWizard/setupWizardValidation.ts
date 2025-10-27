@@ -121,7 +121,7 @@ const nodeAddressStepSchema = yup.object({
 });
 
 const additionalSettingsStepSchema = yup.object({
-    serverEnvironment: yup.string().oneOf(setupWizardConstants.allServerEnvironments),
+    studioEnvironment: yup.string().oneOf(setupWizardConstants.allStudioEnvironments),
     adminCertificateExpirationTime: yup.number(),
     
     // advanced settings
@@ -149,7 +149,7 @@ export type SetupWizardStepId =
     | "Security"
     | "Self-signed certificate"
     | "Domain"
-    | "Node address"
+    | "Node addresses"
     | "Additional settings"
     | "Summary"
     | "Finish";

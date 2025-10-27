@@ -590,7 +590,7 @@ function useSetupWizardFinishUtils() {
     const getNodeSetupInfos = (): Record<string, Raven.Server.Commercial.NodeInfo> => {
         const nodesInfo: Record<string, Raven.Server.Commercial.NodeInfo> = {};
         nodeAddressStep.nodes.forEach((node) => {
-            nodesInfo[node.nodeTag] = getNodeInfo(node);
+            nodesInfo[node.nodeTag ?? "A"] = getNodeInfo(node);
         });
 
         return nodesInfo;
@@ -613,7 +613,7 @@ function useSetupWizardFinishUtils() {
                 : null,
             EnableExperimentalFeatures: additionalSettingsStep.postgresqlIntegration,
             LocalNodeTag: isPassive ? null : localNode.nodeTag,
-            Environment: isPassive ? null : additionalSettingsStep.serverEnvironment,
+            Environment: isPassive ? null : additionalSettingsStep.studioEnvironment,
             ZipOnly: setupMethodStep.method === "createPackage",
             NodeSetupInfos: getNodeSetupInfos(),
         };
@@ -638,7 +638,7 @@ function useSetupWizardFinishUtils() {
                 ? additionalSettingsStep.staticIndexingEngineType
                 : null,
             EnableExperimentalFeatures: additionalSettingsStep.postgresqlIntegration,
-            Environment: additionalSettingsStep.serverEnvironment,
+            Environment: additionalSettingsStep.studioEnvironment,
             License: JSON.parse(licenseKeyStep.key),
             Email: domainStep.email,
             Domain: domainStep.domain,
@@ -1040,7 +1040,7 @@ export function SetupWizardFinishStepFooter() {
                 setupCertificatePath: null,
                 adminCertificateExpirationTime: 60,
                 postgresqlIntegration: false,
-                serverEnvironment: "None",
+                studioEnvironment: "None",
             },
             finishStep: {
                 finishingStatus: "InProgress" as const,

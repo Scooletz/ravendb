@@ -5,9 +5,9 @@ import Button from "react-bootstrap/Button";
 import React from "react";
 import Card from "react-bootstrap/Card";
 import { DistributionItem, DistributionLegend, LocationDistribution } from "components/common/LocationDistribution";
-import LicenseType = Raven.Server.Commercial.LicenseType;
 import PopoverWithHoverWrapper from "components/common/PopoverWithHoverWrapper";
 import { getLicenseType } from "components/setupWizard/utils/setupWizardUtils";
+import LicenseType = Raven.Server.Commercial.LicenseType;
 import License = Raven.Server.Commercial.License;
 
 export function SetupWizardSummaryStep() {
@@ -44,7 +44,7 @@ export function SetupWizardSummaryStep() {
                                 value={licenseKeyStep.licenseInfo?.licenseType ?? "AGPLv3"}
                                 valueClassName={colorizeLicenseType(licenseKeyStep.licenseInfo?.licenseType)}
                             />
-                            {securityOption !== "none" && (
+                            {securityOption === "letsEncrypt" && (
                                 <>
                                     <CardRow label="License expiration" value="01/29/2027" />
                                     <CardRow
@@ -81,7 +81,7 @@ export function SetupWizardSummaryStep() {
                                     {getLicenseType(licenseKeyStep.licenseInfo).isHigherThan("Community") && (
                                         <CardRow
                                             label="Studio environment"
-                                            value={additionalSettingsStep.serverEnvironment}
+                                            value={additionalSettingsStep.studioEnvironment}
                                         />
                                     )}
                                     <CardRow
@@ -104,8 +104,23 @@ export function SetupWizardSummaryStep() {
                                     )}
                                     {additionalSettingsStep.setupCertificatePath && (
                                         <CardRow
-                                            label="Certificate path"
+                                            label="Setup certificate path"
                                             value={additionalSettingsStep.setupCertificatePath}
+                                        />
+                                    )}
+                                    {additionalSettingsStep.logsPath && (
+                                        <CardRow label="Logs path" value={additionalSettingsStep.logsPath} />
+                                    )}
+                                    {additionalSettingsStep.autoIndexingEngineType && (
+                                        <CardRow
+                                            label="Auto indexing engine type"
+                                            value={additionalSettingsStep.autoIndexingEngineType}
+                                        />
+                                    )}
+                                    {additionalSettingsStep.staticIndexingEngineType && (
+                                        <CardRow
+                                            label="Static indexing engine type"
+                                            value={additionalSettingsStep.staticIndexingEngineType}
                                         />
                                     )}
                                 </div>

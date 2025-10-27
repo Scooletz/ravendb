@@ -42,11 +42,13 @@ class setupShell extends viewModelBase {
     serverEnvironment = ko.observable<Raven.Client.Documents.Operations.Configuration.StudioConfiguration.StudioEnvironment>();
 
     setupWizardView: ReactInKnockout<typeof SetupWizard.default>;
+    theme: chooseTheme = new chooseTheme();
 
     constructor() {
         super();
 
         autoCompleteBindingHandler.install();
+        this.theme.useTheme(chooseTheme.defaultTheme) // in new setup wizard we want to use default theme.
 
         this.studioLoadingFakeRequest = protractedCommandsDetector.instance.requestStarted(0);
         

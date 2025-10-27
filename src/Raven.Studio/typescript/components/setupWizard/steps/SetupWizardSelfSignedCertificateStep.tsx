@@ -18,15 +18,16 @@ import { fileToBase64, base64ToFile } from "components/setupWizard/utils/setupWi
 
 export function SetupWizardSelfSignedCertificateStep() {
     const { control, setValue, clearErrors, setError } = useFormContext<SetupWizardFormData>();
+    const { setupWizardService } = useServices();
     const dispatch = useAppDispatch();
 
     const { value: isFileProtected, setValue: setIsFileProtected } = useBoolean(false);
-
+    const { value: isPasswordReadOnly, setValue: setIsPasswordReadOnly } = useBoolean(false);
     const {
         selfSignedCertificateStep: { certificate, password, cns, certificateFileName },
     } = useWatch({ control });
 
-    const { setupWizardService } = useServices();
+    const certificateHasPassword = useAppSelector(setupWizardSelectors.selfSignedCertificateStepHasPassword);
 
     useAsyncDebounce(
         async () => {
@@ -53,11 +54,18 @@ export function SetupWizardSelfSignedCertificateStep() {
 
                 if (!password) {
                     setIsFileProtected(false);
+                    dispatch(setupWizardActions.selfSignedCertificateStepHasPasswordSet(false));
+                }
+
+                if (password) {
+                    setIsPasswordReadOnly(true);
                 }
             },
             onError: (error) => {
                 if ((error as unknown as JQueryXHR).status === 400) {
+                    setIsPasswordReadOnly(false);
                     setIsFileProtected(true);
+                    dispatch(setupWizardActions.selfSignedCertificateStepHasPasswordSet(true));
                     dispatch(setupWizardActions.selfSignedCertificateStepIsPasswordValidSet(false));
 
                     if (password.length > 0) {
@@ -127,21 +135,20 @@ export function SetupWizardSelfSignedCertificateStep() {
                     control={control}
                 />
             </FormGroup>
-            {isFileProtected && (
+            {(certificateHasPassword || isFileProtected || (isFileProtected && isPasswordReadOnly)) && (
                 <FormGroup>
-                    <FormLabel className="hstack justify-content-between">
+                    <FormLabel className="hstack">
                         Passphrase
                         <PopoverWithHoverWrapper
                             message={
                                 <PopoverMessage description="Enter the passphrase used to encrypt your private key. This is required to unlock and use your certificate." />
                             }
                         >
-                            <div className="text-info">
-                                <Icon icon="info-new" size="xs" /> What is this?
-                            </div>
+                            <Icon icon="info-new" />
                         </PopoverWithHoverWrapper>
                     </FormLabel>
                     <FormInput
+                        disabled={isPasswordReadOnly}
                         type="password"
                         control={control}
                         name="selfSignedCertificateStep.password"
@@ -183,7 +190,7 @@ export function SetupWizardSelfSignedCertificateStepFooter() {
     } = useWatch({ control });
 
     const handleContinue = () => {
-        setValue("currentStep", "Domain");
+        setValue("currentStep", "Node addresses");
     };
 
     const handleBack = () => {

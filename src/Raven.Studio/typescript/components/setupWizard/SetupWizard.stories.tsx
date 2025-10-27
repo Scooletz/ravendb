@@ -124,6 +124,9 @@ export const SetupMethod: StoryObj = {
 
 export const UsePackage: StoryObj = {
     ...Eula,
+    args: {
+        setupMethod: "usePackage"
+    },
     play: async ({ canvas }) => {
         await navigateToStep(canvas, "Use setup package");
     },
@@ -161,6 +164,9 @@ export const Domain: StoryObj<SetupWizardStoryArgs> = {
 export const SelfSignedCertificate: StoryObj<SetupWizardStoryArgs> = {
     ...Eula,
     name: "Self-signed certificate",
+    args: {
+        securityOption: "ownCertificate"
+    },
     play: async ({ canvas, args }) => {
         await navigateToStep(canvas, "Self-signed certificate", args);
     },
@@ -170,7 +176,7 @@ export const NodeAddresses: StoryObj<SetupWizardStoryArgs> = {
     ...Eula,
     name: "Node addresses",
     play: async ({ canvas, args }) => {
-        await navigateToStep(canvas, "Node address", args);
+        await navigateToStep(canvas, "Node addresses", args);
     },
 };
 
@@ -289,7 +295,7 @@ async function navigateToStep(canvas: Canvas, targetStep: SetupWizardStepId | "G
         await userEvent.click(canvas.getByRole("button", { name: /Continue/ }));
     }
 
-    if (targetStep === "Node address") {
+    if (targetStep === "Node addresses") {
         return;
     }
 
