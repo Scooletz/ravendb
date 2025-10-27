@@ -17,7 +17,7 @@ namespace SlowTests.Server.Documents.AI.GenAi.Issues;
 public class RavenDB_24298(ITestOutputHelper output) : RavenTestBase(output)
 {
     [RavenTheory(RavenTestCategory.Ai)]
-    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single, NightlyBuildRequired = false)]
+    [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi, DatabaseMode = RavenDatabaseMode.Single)]
     public async Task ConfigurationUpdateShouldTakeAffect(Options options, GenAiConfiguration config)
     {
         using var store = GetDocumentStore();
@@ -48,7 +48,7 @@ public class RavenDB_24298(ITestOutputHelper output) : RavenTestBase(output)
             session.SaveChanges();
         }
 
-        Assert.True(etlDone.Wait(TimeSpan.FromMinutes(1)));
+        Assert.True(await etlDone.WaitAsync(TimeSpan.FromMinutes(1)));
 
         var taskInfo = await store.Maintenance.SendAsync(new GetOngoingTaskInfoOperation(config.Name, OngoingTaskType.GenAi));
         var taskId = taskInfo.TaskId;

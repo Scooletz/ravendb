@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
-    <RuntimeFrameworkVersion>8.0.20</RuntimeFrameworkVersion>
+    <RuntimeFrameworkVersion>8.0.21</RuntimeFrameworkVersion>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <AssemblyName>Tryouts</AssemblyName>
     <OutputType>Exe</OutputType>
@@ -67,13 +67,9 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Corax\Corax.csproj" />
     <ProjectReference Include="..\..\src\Raven.Server\Raven.Server.csproj" />
-    <ProjectReference Include="..\..\src\Voron\Voron.csproj" />
-    <ProjectReference Include="..\FastTests\FastTests.csproj" />
     <ProjectReference Include="..\RachisTests\RachisTests.csproj" />
     <ProjectReference Include="..\SlowTests\SlowTests.csproj" />
-    <ProjectReference Include="..\Tests.Infrastructure\Tests.Infrastructure.csproj" />
   </ItemGroup>
 
   <Target Name="PlatformMessage" AfterTargets="Build">

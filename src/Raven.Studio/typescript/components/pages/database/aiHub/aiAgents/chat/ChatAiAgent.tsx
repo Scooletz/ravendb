@@ -22,8 +22,16 @@ import AiTokensUsagePopoverBody from "components/common/AiTokensUsagePopoverBody
 import AiAgentLinkedConversationsDropdown from "../partials/AiAgentLinkedConversationsDropdown";
 
 export default function ChatAiAgent({ queryParams }: ReactQueryParamsProps<ChatAiAgentQueryParams>) {
-    const { handleSend, reloadForm, handleNewChat, chatForm, asyncGetDefaultValues, handleSubmit, runChat } =
-        useChatAiAgent(queryParams);
+    const {
+        handleSend,
+        reloadForm,
+        handleNewChat,
+        chatForm,
+        asyncGetDefaultValues,
+        handleSubmit,
+        runChat,
+        promptsFieldsArray,
+    } = useChatAiAgent(queryParams);
 
     const dispatch = useAppDispatch();
     const { appUrl } = useAppUrls();
@@ -33,6 +41,7 @@ export default function ChatAiAgent({ queryParams }: ReactQueryParamsProps<ChatA
     const isRawData = useAppSelector(chatAiAgentSelectors.isRawData);
     const document = useAppSelector(chatAiAgentSelectors.document);
     const conversationId = useAppSelector(chatAiAgentSelectors.conversationId);
+    const isDocumentDeleted = useAppSelector(chatAiAgentSelectors.isDocumentDeleted);
 
     const title = config.data?.Name ?? "AI Agent";
 
@@ -70,7 +79,7 @@ export default function ChatAiAgent({ queryParams }: ReactQueryParamsProps<ChatA
                     >
                         <Icon icon="plus" /> New chat
                     </Button>
-                    {conversationId && (
+                    {conversationId && !isDocumentDeleted && (
                         <a
                             href={appUrl.forEditDoc(conversationId, databaseName)}
                             className="btn btn-secondary rounded-pill"
@@ -116,6 +125,7 @@ export default function ChatAiAgent({ queryParams }: ReactQueryParamsProps<ChatA
                                     handleSend={handleSend}
                                     runChat={runChat}
                                     isHistory={queryParams?.isHistory}
+                                    promptsFieldsArray={promptsFieldsArray}
                                 />
                             </form>
                         </FormProvider>
@@ -136,6 +146,7 @@ function TotalUsageBadge({ usage }: { usage: Raven.Client.Documents.Operations.A
                         prompt={usage.PromptTokens}
                         completion={usage.CompletionTokens}
                         cached={usage.CachedTokens}
+                        reasoning={usage.ReasoningTokens}
                         total={usage.TotalTokens}
                     />
                 }

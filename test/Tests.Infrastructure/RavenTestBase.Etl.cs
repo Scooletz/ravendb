@@ -38,6 +38,7 @@ using Raven.Server.Documents.ETL.Providers.AI.Embeddings;
 using Raven.Server.Documents.ETL.Providers.AI.GenAi;
 using Raven.Server.Documents.ETL.Providers.RelationalDatabase.Snowflake;
 using Raven.Server.Documents.ETL.Providers.RelationalDatabase.SQL;
+using Sparrow.Server;
 using Tests.Infrastructure;
 
 namespace FastTests
@@ -141,7 +142,7 @@ namespace FastTests
                 return (_src, _dest, result);
             }
 
-            public ManualResetEventSlim WaitForEtlToComplete(DocumentStore store, Func<string, EtlProcessStatistics, bool> predicate = null, int numOfProcessesToWaitFor = 1)
+            public AsyncManualResetEvent WaitForEtlToComplete(DocumentStore store, Func<string, EtlProcessStatistics, bool> predicate = null, int numOfProcessesToWaitFor = 1)
             {
                 predicate ??= (n, statistics) => statistics.LoadSuccesses > 0;
                 var record = store.Maintenance.Server.Send(new GetDatabaseRecordOperation(store.Database));
@@ -159,19 +160,19 @@ namespace FastTests
                 }, timeout, interval);
             }
 
-            private ManualResetEventSlim WaitForEtl(DocumentStore store, Func<string, EtlProcessStatistics, bool> predicate)
+            private AsyncManualResetEvent WaitForEtl(DocumentStore store, Func<string, EtlProcessStatistics, bool> predicate)
             {
                 var database = AsyncHelpers.RunSync(() => _parent.GetDatabase(store.Database));
 
-                var mre = new ManualResetEventSlim();
+                var amre = new AsyncManualResetEvent();
 
                 database.EtlLoader.BatchCompleted += x =>
                 {
                     if (predicate($"{x.ConfigurationName}/{x.TransformationName}", x.Statistics))
-                        mre.Set();
+                        amre.Set();
                 };
                 
-                return mre;
+                return amre;
             }
 
             public async Task<(string, string, EtlProcessStatistics)> WaitForEtlAsync(DocumentStore store, Func<string, EtlProcessStatistics, bool> predicate, TimeSpan timeout)
@@ -347,6 +348,16 @@ namespace FastTests
                 return string.Join(Environment.NewLine, stats.Select(JsonConvert.SerializeObject));
             }
 
+            public async Task AssertEtlDoneAsync<T>(AsyncManualResetEvent etlDone, TimeSpan timeout, string databaseName, EtlConfiguration<T> config) where T : ConnectionString
+            {
+                if (await etlDone.WaitAsync(timeout) == false)
+                {
+                    var loadError = await TryGetLoadErrorAsync(databaseName, config);
+                    var transformationError = await TryGetTransformationErrorAsync(databaseName, config);
+
+                    Assert.Fail($"ETL wasn't done. Load error: {loadError?.Error}. Transformation error: {transformationError?.Error}");
+                }
+            }
             public void Dispose()
             {
                 try

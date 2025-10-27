@@ -1,3 +1,4 @@
+#pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
 using System;
 using System.Diagnostics;
 using System.Diagnostics.Tracing;
@@ -52,7 +53,7 @@ public static class Program
     private static (RavenTestBase.Options Options, GenAiConfiguration Configuration) GetGenAiConfig(RavenAiIntegration type, RavenDatabaseMode databaseMode = RavenDatabaseMode.Single)
     {
         var att = new RavenGenAiDataAttribute();
-        var connector = att.GetAiConnectionStringsNewInstance(type, "").First();
+        var connector = att.GetAiConnectionStringsSingleton(type).First();
         var config = connector.GetAiConfiguration();
         var options = RavenTestBase.Options.ForMode(databaseMode);
         return (options, config);
@@ -61,7 +62,7 @@ public static class Program
     private static (RavenTestBase.Options Options, EmbeddingsGenerationConfiguration Configuration) GetEmbeddingsConfig(RavenAiIntegration type, RavenDatabaseMode databaseMode = RavenDatabaseMode.Single)
     {
         var att = new RavenAiEmbeddingsDataAttribute();
-        var connector = att.GetAiConnectionStringsNewInstance(type, "").First();
+        var connector = att.GetAiConnectionStringsSingleton(type).First();
         var config = connector.GetAiConfiguration();
         var options = RavenTestBase.Options.ForMode(databaseMode);
         return (options, config);

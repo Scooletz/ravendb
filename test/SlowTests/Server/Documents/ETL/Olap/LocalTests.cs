@@ -29,7 +29,7 @@ namespace SlowTests.Server.Documents.ETL.Olap
     {
         internal const string DefaultFrequency = "* * * * *"; // every minute
         internal const string AllFilesPattern = "*.*";
-        private readonly TimeSpan _defaultTimeout = TimeSpan.FromSeconds(65);
+        private readonly TimeSpan _defaultTimeout = TimeSpan.FromSeconds(70);
 
         public LocalTests(ITestOutputHelper output) : base(output)
         {
@@ -132,7 +132,7 @@ loadTo(""Orders"", partitionBy(key),
                 var path = NewDataPath(forceCreateDir: true);
                 SetupLocalOlapEtl(store, script, path);
 
-                etlDone.Wait(TimeSpan.FromMinutes(1));
+                await etlDone.WaitAsync(TimeSpan.FromMinutes(1));
 
                 var files = Directory.GetFiles(path, searchPattern: AllFilesPattern, SearchOption.AllDirectories);
                 Assert.Equal(2, files.Length);
@@ -240,7 +240,7 @@ loadToOrders(partitionBy(key), o);
                 var path = NewDataPath(forceCreateDir: true);
                 SetupLocalOlapEtl(store, script, path);
 
-                etlDone.Wait(TimeSpan.FromMinutes(1));
+                await etlDone.WaitAsync(TimeSpan.FromMinutes(1));
 
                 var files = Directory.GetFiles(path, searchPattern: AllFilesPattern, SearchOption.AllDirectories);
                 Assert.Equal(1, files.Length);
@@ -350,7 +350,7 @@ loadToOrders(partitionBy(key), o);
                 var path = NewDataPath(forceCreateDir: true);
                 SetupLocalOlapEtl(store, script, path);
 
-                etlDone.Wait(TimeSpan.FromMinutes(1));
+                await etlDone.WaitAsync(TimeSpan.FromMinutes(1));
 
                 var files = Directory.GetFiles(path, searchPattern: AllFilesPattern, SearchOption.AllDirectories);
                 Assert.Equal(7, files.Length);
@@ -436,7 +436,7 @@ loadToOrders(partitionBy(key), o);
                 var path = NewDataPath(forceCreateDir: true);
                 SetupLocalOlapEtl(store, script, path);
 
-                etlDone.Wait(TimeSpan.FromMinutes(1));
+                await etlDone.WaitAsync(TimeSpan.FromMinutes(1));
 
                 var files = Directory.GetFiles(path, searchPattern: AllFilesPattern, SearchOption.AllDirectories);
                 Assert.Equal(24, files.Length);
@@ -512,7 +512,7 @@ loadToOrders(partitionBy(key), o);
                 var path = NewDataPath(forceCreateDir: true);
                 SetupLocalOlapEtl(store, script, path);
 
-                etlDone.Wait(TimeSpan.FromMinutes(1));
+                await etlDone.WaitAsync(TimeSpan.FromMinutes(1));
 
                 var files = Directory.GetFiles(path, searchPattern: AllFilesPattern, SearchOption.AllDirectories);
                 Assert.Equal(1, files.Length);
@@ -606,7 +606,7 @@ loadToOrders(partitionBy(key), o);
                 var path = NewDataPath(forceCreateDir: true);
                 SetupLocalOlapEtl(store, script, path);
 
-                etlDone.Wait(TimeSpan.FromMinutes(1));
+                await etlDone.WaitAsync(TimeSpan.FromMinutes(1));
 
                 var files = Directory.GetFiles(path, searchPattern: AllFilesPattern, SearchOption.AllDirectories);
                 Assert.Equal(1, files.Length);
@@ -743,7 +743,7 @@ loadToOrders(partitionBy(key), o);
 
                 Etl.AddEtl(store, configuration, connectionString);
 
-                etlDone.Wait(TimeSpan.FromMinutes(1));
+                await etlDone.WaitAsync(TimeSpan.FromMinutes(1));
 
                 var files = Directory.GetFiles(path, searchPattern: AllFilesPattern, SearchOption.AllDirectories);
                 Assert.Equal(1, files.Length);
@@ -805,7 +805,7 @@ loadToOrders(partitionBy(key), o);
                 var path = NewDataPath(forceCreateDir: true);
                 SetupLocalOlapEtl(store, script, path);
 
-                etlDone.Wait(TimeSpan.FromMinutes(1));
+                await etlDone.WaitAsync(TimeSpan.FromMinutes(1));
 
                 var files = Directory.GetFiles(path, searchPattern: AllFilesPattern, SearchOption.AllDirectories);
                 Assert.Equal(1, files.Length);
@@ -952,7 +952,7 @@ loadToOrders(partitionBy(key), o);
                 var path = NewDataPath(forceCreateDir: true);
                 SetupLocalOlapEtl(store, configuration, path, connectionStringName);
 
-                etlDone.Wait(TimeSpan.FromMinutes(1));
+                await etlDone.WaitAsync(TimeSpan.FromMinutes(1));
 
                 var files = Directory.GetFiles(path, searchPattern: AllFilesPattern, SearchOption.AllDirectories);
                 Assert.Equal(1, files.Length);
@@ -1038,7 +1038,7 @@ loadToOrders(noPartition(),
                 var path = NewDataPath(forceCreateDir: true);
                 SetupLocalOlapEtl(store, script, path);
 
-                etlDone.Wait(TimeSpan.FromMinutes(1));
+                await etlDone.WaitAsync(TimeSpan.FromMinutes(1));
 
                 var files = Directory.GetFiles(path, searchPattern: AllFilesPattern, SearchOption.AllDirectories);
                 Assert.Equal(1, files.Length);
@@ -1158,7 +1158,7 @@ loadToOrders(partitionBy(
                 var path = NewDataPath(forceCreateDir: true);
                 SetupLocalOlapEtl(store, script, path);
 
-                etlDone.Wait(TimeSpan.FromMinutes(1));
+                await etlDone.WaitAsync(TimeSpan.FromMinutes(1));
 
                 var files = Directory.GetFiles(path, searchPattern: AllFilesPattern, SearchOption.AllDirectories);
                 Assert.Equal(4, files.Length);
@@ -1275,7 +1275,7 @@ loadToOrders(partitionBy(
                 var path = NewDataPath(forceCreateDir: true);
                 SetupLocalOlapEtl(store, configuration, path, connectionStringName);
 
-                etlDone.Wait(TimeSpan.FromMinutes(1));
+                await etlDone.WaitAsync(TimeSpan.FromMinutes(1));
 
                 var files = Directory.GetFiles(path, searchPattern: AllFilesPattern, SearchOption.AllDirectories);
                 Assert.Equal(1, files.Length);
@@ -1361,7 +1361,7 @@ for (var i = 0; i < this.Lines.length; i++) {
                 var path = NewDataPath(forceCreateDir: true);
                 SetupLocalOlapEtl(store, script, path);
 
-                etlDone.Wait(TimeSpan.FromMinutes(1));
+                await etlDone.WaitAsync(TimeSpan.FromMinutes(1));
 
                 var files = Directory.GetFiles(path, searchPattern: AllFilesPattern, SearchOption.AllDirectories);
                 Assert.Equal(expectedCount, files.Length);
@@ -1423,7 +1423,7 @@ for (var i = 0; i < this.Lines.length; i++) {
                 var path = NewDataPath(forceCreateDir: true);
                 SetupLocalOlapEtl(store, script, path);
 
-                etlDone.Wait(TimeSpan.FromMinutes(1));
+                await etlDone.WaitAsync(TimeSpan.FromMinutes(1));
 
                 var files = Directory.GetFiles(path, searchPattern: AllFilesPattern, SearchOption.AllDirectories);
                 Assert.Equal(1, files.Length);
@@ -1528,7 +1528,7 @@ loadToUsers(noPartition(), {
 
                 var path = NewDataPath(forceCreateDir: true);
                 SetupLocalOlapEtl(store, configuration, path, connectionStringName);
-                etlDone.Wait(TimeSpan.FromMinutes(1));
+                await etlDone.WaitAsync(TimeSpan.FromMinutes(1));
 
                 var files = Directory.GetFiles(path, searchPattern: AllFilesPattern, SearchOption.AllDirectories);
                 Assert.Equal(1, files.Length);
@@ -1658,7 +1658,7 @@ loadToOrders(partitionBy(['year', orderDate.getFullYear()], ['month', orderDate.
                 var path = NewDataPath(forceCreateDir: true);
                 SetupLocalOlapEtl(store, script, path);
 
-                etlDone.Wait(TimeSpan.FromMinutes(1));
+                await etlDone.WaitAsync(TimeSpan.FromMinutes(1));
 
                 string[] files = Directory.GetFiles(path, searchPattern: AllFilesPattern, SearchOption.AllDirectories)
                     .OrderBy(x => x)
@@ -1802,7 +1802,7 @@ loadToOrders(partitionBy(['year', orderDate.getFullYear()]),
 
                 SetupLocalOlapEtl(store, script, path);
 
-                etlDone.Wait(TimeSpan.FromMinutes(1));
+                await etlDone.WaitAsync(TimeSpan.FromMinutes(1));
 
                 string[] files = Directory.GetFiles(path, searchPattern: AllFilesPattern, SearchOption.AllDirectories)
                     .OrderBy(x => x)
@@ -1891,7 +1891,8 @@ loadToOrders(partitionBy(['year', orderDate.getFullYear()]),
                 var result = Etl.AddEtl(store, configuration, connectionString);
                 var taskId = result.TaskId;
 
-                Assert.True(etlDone.Wait(_defaultTimeout), await Etl.GetEtlDebugInfo(store.Database, _defaultTimeout, databaseMode));
+                var r = await etlDone.WaitAsync(_defaultTimeout);
+                Assert.True(r, await Etl.GetEtlDebugInfo(store.Database, _defaultTimeout, databaseMode));
 
                 var files = Directory.GetFiles(path, searchPattern: AllFilesPattern, SearchOption.AllDirectories).OrderBy(x => x).ToList();
 
@@ -1903,22 +1904,8 @@ loadToOrders(partitionBy(['year', orderDate.getFullYear()]),
                 Assert.Contains("year=2023", files[3]);
                 Assert.Contains("year=2024", files[4]);
 
-                // update 
-
-                const string documentIdColumn = "order_id";
-
-                configuration.OlapTables = new List<OlapEtlTable>
-                {
-                    new OlapEtlTable
-                    {
-                        TableName = "Orders",
-                        DocumentIdColumn = documentIdColumn
-                    }
-                };
-
-                store.Maintenance.Send(new UpdateEtlOperation<OlapConnectionString>(taskId, configuration));
-
                 // add more data
+                etlDone = Etl.WaitForEtlToComplete(store, numOfProcessesToWaitFor: 2);
 
                 using (var session = store.OpenAsyncSession())
                 {
@@ -1940,8 +1927,22 @@ loadToOrders(partitionBy(['year', orderDate.getFullYear()]),
                     await session.SaveChangesAsync();
                 }
 
-                etlDone = Etl.WaitForEtlToComplete(store, numOfProcessesToWaitFor: 2);
-                Assert.True(etlDone.Wait(_defaultTimeout), await Etl.GetEtlDebugInfo(store.Database, _defaultTimeout, databaseMode));
+                // update
+                const string documentIdColumn = "order_id";
+                configuration.OlapTables = new List<OlapEtlTable>
+                {
+                    new OlapEtlTable
+                    {
+                        TableName = "Orders",
+                        DocumentIdColumn = documentIdColumn
+                    }
+                };
+
+                store.Maintenance.Send(new UpdateEtlOperation<OlapConnectionString>(taskId, configuration));
+
+                // assert that batch completed successfully and that we got new files with new name of the document id column
+                r = await etlDone.WaitAsync(_defaultTimeout);
+                Assert.True(r, await Etl.GetEtlDebugInfo(store.Database, _defaultTimeout, databaseMode));
 
                 files = Directory.GetFiles(path, searchPattern: AllFilesPattern, SearchOption.AllDirectories).OrderBy(x => x).ToList();
                 Assert.Equal(10, files.Count);
@@ -2045,7 +2046,8 @@ loadToOrders(partitionBy(['year', orderDate.getFullYear()]),
                     ? _defaultTimeout * 2
                     : _defaultTimeout;
 
-                Assert.True(etlDone.Wait(timeout), await Etl.GetEtlDebugInfo(store.Database, timeout, databaseMode));
+                var r = await etlDone.WaitAsync(timeout);
+                Assert.True(r, await Etl.GetEtlDebugInfo(store.Database, timeout, databaseMode));
 
                 var files = Directory.GetFiles(path, searchPattern: AllFilesPattern, SearchOption.AllDirectories).OrderBy(x => x).ToList();
 
@@ -2057,12 +2059,8 @@ loadToOrders(partitionBy(['year', orderDate.getFullYear()]),
                 Assert.Contains("year=2023", files[3]);
                 Assert.Contains("year=2024", files[4]);
 
-                // update 
-
-                configuration.RunFrequency = DefaultFrequency; // every minute
-                store.Maintenance.Send(new UpdateEtlOperation<OlapConnectionString>(taskId, configuration));
-
                 // add more data
+                etlDone = Etl.WaitForEtlToComplete(store, numOfProcessesToWaitFor: 2);
 
                 using (var session = store.OpenAsyncSession())
                 {
@@ -2084,8 +2082,12 @@ loadToOrders(partitionBy(['year', orderDate.getFullYear()]),
                     await session.SaveChangesAsync();
                 }
 
-                etlDone = Etl.WaitForEtlToComplete(store, numOfProcessesToWaitFor: 2);
-                Assert.True(etlDone.Wait(timeout), await Etl.GetEtlDebugInfo(store.Database, timeout, databaseMode));
+                // update 
+                configuration.RunFrequency = DefaultFrequency; // every minute
+                store.Maintenance.Send(new UpdateEtlOperation<OlapConnectionString>(taskId, configuration));
+
+                r = await etlDone.WaitAsync(timeout);
+                Assert.True(r, await Etl.GetEtlDebugInfo(store.Database, timeout, databaseMode));
 
                 files = Directory.GetFiles(path, searchPattern: AllFilesPattern, SearchOption.AllDirectories).OrderBy(x => x).ToList();
                 Assert.Equal(10, files.Count);
@@ -2173,7 +2175,8 @@ loadToOrders(partitionBy(['year', orderDate.getFullYear()], ['location', $custom
                 var result = Etl.AddEtl(store, configuration, connectionString);
                 var taskId = result.TaskId;
 
-                Assert.True(etlDone.Wait(_defaultTimeout), await Etl.GetEtlDebugInfo(store.Database, _defaultTimeout, databaseMode));
+                var r = await etlDone.WaitAsync(_defaultTimeout);
+                Assert.True(r, await Etl.GetEtlDebugInfo(store.Database, _defaultTimeout, databaseMode));
 
                 var files = Directory.GetFiles(path, searchPattern: AllFilesPattern, SearchOption.AllDirectories).ToList();
 
@@ -2184,12 +2187,8 @@ loadToOrders(partitionBy(['year', orderDate.getFullYear()], ['location', $custom
                     Assert.Contains(customPartition, file);
                 }
 
-                // update 
-                const string newCustomPartition = "shop35";
-                configuration.CustomPartitionValue = newCustomPartition;
-                store.Maintenance.Send(new UpdateEtlOperation<OlapConnectionString>(taskId, configuration));
-
                 // add more data
+                etlDone = Etl.WaitForEtlToComplete(store, numOfProcessesToWaitFor: 2);
 
                 using (var session = store.OpenAsyncSession())
                 {
@@ -2211,8 +2210,15 @@ loadToOrders(partitionBy(['year', orderDate.getFullYear()], ['location', $custom
                     await session.SaveChangesAsync();
                 }
 
-                etlDone = Etl.WaitForEtlToComplete(store, numOfProcessesToWaitFor: 2);
-                Assert.True(etlDone.Wait(_defaultTimeout), await Etl.GetEtlDebugInfo(store.Database, _defaultTimeout, databaseMode));
+                // update
+                const string newCustomPartition = "shop35";
+                configuration.CustomPartitionValue = newCustomPartition;
+
+                store.Maintenance.Send(new UpdateEtlOperation<OlapConnectionString>(taskId, configuration));
+
+                // assert that batch completed successfully with the new partition value
+                r = await etlDone.WaitAsync(_defaultTimeout);
+                Assert.True(r, await Etl.GetEtlDebugInfo(store.Database, _defaultTimeout, databaseMode));
 
                 files = Directory.GetFiles(path, searchPattern: AllFilesPattern, SearchOption.AllDirectories).OrderBy(x => x).ToList();
                 Assert.Equal(10, files.Count);
@@ -2297,7 +2303,8 @@ loadToOrders(partitionBy(['year', orderDate.getFullYear()]),
                 var result = Etl.AddEtl(store, configuration, connectionString);
                 var taskId = result.TaskId;
 
-                Assert.True(etlDone.Wait(_defaultTimeout), await Etl.GetEtlDebugInfo(store.Database, _defaultTimeout, databaseMode));
+                var r = await etlDone.WaitAsync(_defaultTimeout);
+                Assert.True(r, await Etl.GetEtlDebugInfo(store.Database, _defaultTimeout, databaseMode));
 
                 var files = Directory.GetFiles(path, searchPattern: AllFilesPattern, SearchOption.AllDirectories).OrderBy(x => x).ToList();
 
@@ -2326,15 +2333,6 @@ loadToOrders(partitionBy(['year', orderDate.getFullYear()]),
                 var putResult = store.Maintenance.Send(new PutConnectionStringOperation<OlapConnectionString>(connectionString));
                 Assert.NotNull(putResult.RaftCommandIndex);
 
-                // re enable task
-
-                configuration.Disabled = false;
-                update = store.Maintenance.Send(new UpdateEtlOperation<OlapConnectionString>(taskId, configuration));
-                Assert.NotNull(update.RaftCommandIndex);
-
-                var ongoingTask = store.Maintenance.Send(new GetOngoingTaskInfoOperation(update.TaskId, OngoingTaskType.OlapEtl));
-                Assert.Equal(OngoingTaskState.Enabled, ongoingTask.TaskState);
-
                 // add more data
                 using (var session = store.OpenAsyncSession())
                 {
@@ -2356,8 +2354,19 @@ loadToOrders(partitionBy(['year', orderDate.getFullYear()]),
                     await session.SaveChangesAsync();
                 }
 
+                // re enable task
+
                 etlDone = Etl.WaitForEtlToComplete(store, numOfProcessesToWaitFor: 2);
-                Assert.True(etlDone.Wait(_defaultTimeout), await Etl.GetEtlDebugInfo(store.Database, _defaultTimeout, databaseMode));
+
+                configuration.Disabled = false;
+                update = store.Maintenance.Send(new UpdateEtlOperation<OlapConnectionString>(taskId, configuration));
+                Assert.NotNull(update.RaftCommandIndex);
+
+                var ongoingTask = store.Maintenance.Send(new GetOngoingTaskInfoOperation(update.TaskId, OngoingTaskType.OlapEtl));
+                Assert.Equal(OngoingTaskState.Enabled, ongoingTask.TaskState);
+
+                r = await etlDone.WaitAsync(_defaultTimeout);
+                Assert.True(r, await Etl.GetEtlDebugInfo(store.Database, _defaultTimeout, databaseMode));
 
                 files = Directory.GetFiles(newPath, searchPattern: AllFilesPattern, SearchOption.AllDirectories).OrderBy(x => x).ToList();
                 Assert.Equal(5, files.Count);
@@ -2405,7 +2414,7 @@ loadToOrders(partitionBy(['year', orderDate.getFullYear()]),
 
                 SetupLocalOlapEtl(store, script, path);
 
-                etlDone.Wait(TimeSpan.FromMinutes(1));
+                await etlDone.WaitAsync(TimeSpan.FromMinutes(1));
 
                 string[] files = Directory.GetFiles(path, searchPattern: AllFilesPattern, SearchOption.AllDirectories);
 

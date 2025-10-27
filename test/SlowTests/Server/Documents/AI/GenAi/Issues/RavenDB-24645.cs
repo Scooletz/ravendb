@@ -31,25 +31,25 @@ ai.genContext({})
         private const string FirstItemId = "items/1";
 
         [RavenTheory(RavenTestCategory.Ai)]
-        [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi, DatabaseMode = RavenDatabaseMode.Single, CheckCanConnect = true, NightlyBuildRequired = false, Data = new object[] { "Png", "jpeg" })]
-        // [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi, DatabaseMode = RavenDatabaseMode.Single, CheckCanConnect = true, NightlyBuildRequired = false, Data = new object[] { "Png", "webp" })]
-        // [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi, DatabaseMode = RavenDatabaseMode.Single, CheckCanConnect = true, NightlyBuildRequired = false, Data = new object[] { "Png", "gif" })]
-        // [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi, DatabaseMode = RavenDatabaseMode.Single, CheckCanConnect = true, NightlyBuildRequired = false, Data = new object[] { "Png", "png" })]
+        [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi, DatabaseMode = RavenDatabaseMode.Single, Data = new object[] { "Png", "jpeg" })]
+        // [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi, DatabaseMode = RavenDatabaseMode.Single, Data = new object[] { "Png", "webp" })]
+        // [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi, DatabaseMode = RavenDatabaseMode.Single, Data = new object[] { "Png", "gif" })]
+        // [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi, DatabaseMode = RavenDatabaseMode.Single, Data = new object[] { "Png", "png" })]
 
-        // [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi, DatabaseMode = RavenDatabaseMode.Single, CheckCanConnect = true, NightlyBuildRequired = false, Data = new object[] { "Jpeg", "png" })]
-        [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi, DatabaseMode = RavenDatabaseMode.Single, CheckCanConnect = true, NightlyBuildRequired = false, Data = new object[] { "Jpeg", "webp" })]
-        // [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi, DatabaseMode = RavenDatabaseMode.Single, CheckCanConnect = true, NightlyBuildRequired = false, Data = new object[] { "Jpeg", "gif" })]
-        // [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi, DatabaseMode = RavenDatabaseMode.Single, CheckCanConnect = true, NightlyBuildRequired = false, Data = new object[] { "Jpeg", "jpeg" })]
+        // [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi, DatabaseMode = RavenDatabaseMode.Single, Data = new object[] { "Jpeg", "png" })]
+        [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi, DatabaseMode = RavenDatabaseMode.Single, Data = new object[] { "Jpeg", "webp" })]
+        // [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi, DatabaseMode = RavenDatabaseMode.Single, Data = new object[] { "Jpeg", "gif" })]
+        // [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi, DatabaseMode = RavenDatabaseMode.Single, Data = new object[] { "Jpeg", "jpeg" })]
 
-        // [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi, DatabaseMode = RavenDatabaseMode.Single, CheckCanConnect = true, NightlyBuildRequired = false, Data = new object[] { "Webp", "png" })]
-        // [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi, DatabaseMode = RavenDatabaseMode.Single, CheckCanConnect = true, NightlyBuildRequired = false, Data = new object[] { "Webp", "jpeg" })]
-        [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi, DatabaseMode = RavenDatabaseMode.Single, CheckCanConnect = true, NightlyBuildRequired = false, Data = new object[] { "Webp", "gif" })]
-        // [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi, DatabaseMode = RavenDatabaseMode.Single, CheckCanConnect = true, NightlyBuildRequired = false, Data = new object[] { "Webp", "webp" })]
+        // [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi, DatabaseMode = RavenDatabaseMode.Single, Data = new object[] { "Webp", "png" })]
+        // [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi, DatabaseMode = RavenDatabaseMode.Single, Data = new object[] { "Webp", "jpeg" })]
+        [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi, DatabaseMode = RavenDatabaseMode.Single, Data = new object[] { "Webp", "gif" })]
+        // [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi, DatabaseMode = RavenDatabaseMode.Single, Data = new object[] { "Webp", "webp" })]
 
-        // [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi, DatabaseMode = RavenDatabaseMode.Single, CheckCanConnect = true, NightlyBuildRequired = false, Data = new object[] { "Gif", "png" })]
-        // [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi, DatabaseMode = RavenDatabaseMode.Single, CheckCanConnect = true, NightlyBuildRequired = false, Data = new object[] { "Gif", "jpeg" })]
-        // [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi, DatabaseMode = RavenDatabaseMode.Single, CheckCanConnect = true, NightlyBuildRequired = false, Data = new object[] { "Gif", "webp" })]
-        // [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi, DatabaseMode = RavenDatabaseMode.Single, CheckCanConnect = true, NightlyBuildRequired = false, Data = new object[] { "Gif", "gif" })]
+        // [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi, DatabaseMode = RavenDatabaseMode.Single, Data = new object[] { "Gif", "png" })]
+        // [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi, DatabaseMode = RavenDatabaseMode.Single, Data = new object[] { "Gif", "jpeg" })]
+        // [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi, DatabaseMode = RavenDatabaseMode.Single, Data = new object[] { "Gif", "webp" })]
+        // [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi, DatabaseMode = RavenDatabaseMode.Single, Data = new object[] { "Gif", "gif" })]
 
         public async Task CanUseImageWithTheWrongFormat(Options options, GenAiConfiguration config, string expectedFormat, string actualFormat)
         {
@@ -88,7 +88,7 @@ ai.genContext({})
                 session.Advanced.Attachments.Store(FirstItemId, Image+actualFormat, file1);
                 await session.SaveChangesAsync();
             }
-            Assert.True(etl.Wait(TimeSpan.FromSeconds(Debugger.IsAttached ? 1200 : 30)));
+            Assert.True(await etl.WaitAsync(TimeSpan.FromSeconds(Debugger.IsAttached ? 1200 : 30)));
         
             var db = await Server.ServerStore.DatabasesLandlord.TryGetOrCreateResourceStore(store.Database);
             Assert.False(ValidateErrorNotification(db, string.Empty));
@@ -102,7 +102,7 @@ ai.genContext({})
         }
 
         [RavenTheory(RavenTestCategory.Ai)]
-        [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi, DatabaseMode = RavenDatabaseMode.Single, CheckCanConnect = true, NightlyBuildRequired = false, Data = new object[] { "png" })]
+        [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi, DatabaseMode = RavenDatabaseMode.Single, Data = new object[] { "png" })]
         public async Task CanUseImageActualName(Options options, GenAiConfiguration config, string format)
         {
             using var store = GetDocumentStore(options);
@@ -134,14 +134,14 @@ ai.genContext({})
                 session.Advanced.Attachments.Store(FirstItemId, "image.png", file1);
                 await session.SaveChangesAsync();
             }
-            etl.Wait(TimeSpan.FromSeconds(Debugger.IsAttached ? 1200 : 30));
+            await etl.WaitAsync(TimeSpan.FromSeconds(Debugger.IsAttached ? 1200 : 30));
 
             var db = await Server.ServerStore.DatabasesLandlord.TryGetOrCreateResourceStore(store.Database);
             Assert.True(ValidateErrorNotification(db, $"Attachment must be loaded or base64 string (on type image/png)"));
         }
 
         [RavenTheory(RavenTestCategory.Ai)]
-        [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi, DatabaseMode = RavenDatabaseMode.Single, CheckCanConnect = true, NightlyBuildRequired = false, Data = new object[] { "png" })]
+        [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi, DatabaseMode = RavenDatabaseMode.Single, Data = new object[] { "png" })]
         public async Task ShouldNotifyOnInvalidImage(Options options, GenAiConfiguration config, string format)
         {
             using var store = GetDocumentStore(options);
@@ -182,7 +182,7 @@ ai.genContext({})
                 session.Advanced.Attachments.Store(FirstItemId, "image.png", file1);
                 await session.SaveChangesAsync();
             }
-            Assert.False(etl.Wait(TimeSpan.FromSeconds(Debugger.IsAttached ? 1200 : 30)));
+            Assert.False(await etl.WaitAsync(TimeSpan.FromSeconds(Debugger.IsAttached ? 1200 : 30)));
 
             var db = await Server.ServerStore.DatabasesLandlord.TryGetOrCreateResourceStore(store.Database);
             Assert.True(ValidateErrorNotification(db, "You uploaded an unsupported image."));

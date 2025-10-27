@@ -68,6 +68,9 @@ public sealed partial class ClusterStateMachine
 
     private void AssertLicenseLimits(string type, ServerStore serverStore, DatabaseRecord databaseRecord, Table items, ClusterOperationContext context, UpdateDatabaseCommand updateDatabaseCommand = null)
     {
+        if (updateDatabaseCommand is UpdateDatabaseRecordFeaturesCommand { Disabled: true })
+            return;
+
         switch (type)
         {
             case nameof(AddDatabaseCommand):
@@ -179,6 +182,10 @@ public sealed partial class ClusterStateMachine
                 break;
             case nameof(AddOrUpdateAiAgentCommand):
                 AssertAiAgent(databaseRecord, serverStore.LicenseManager.LicenseStatus, context);
+                break;
+            case nameof(PutClientConfigurationCommand):
+                if (AssertClientConfiguration(serverStore.LicenseManager.LicenseStatus, context) == false)
+                    throw new LicenseLimitException(LimitType.ClientConfiguration, "Your license doesn't support adding the client configuration.");
                 break;
         }
     }
@@ -792,6 +799,12 @@ public sealed partial class ClusterStateMachine
             case LicenseAttribute.ServerWideAnalyzers:
                 if (serverStore.LicenseManager.LicenseStatus.HasServerWideAnalyzers == false)
                     throw new LicenseLimitException(LimitType.ServerWideAnalyzers, "Your license doesn't support adding server wide analyzers.");
+
+                break;
+
+            case LicenseAttribute.ClientConfiguration:
+                if (serverStore.LicenseManager.LicenseStatus.HasClientConfiguration == false)
+                    throw new LicenseLimitException(LimitType.ServerWideBackups, "Your license doesn't support adding server wide Client Configuration .");
 
                 break;
         }

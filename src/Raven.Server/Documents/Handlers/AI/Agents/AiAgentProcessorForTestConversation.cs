@@ -1,14 +1,14 @@
-﻿using System;
-using System.Linq;
-using System.Threading;
+﻿using System.Collections.Generic;
 using System.Threading.Tasks;
 using JetBrains.Annotations;
+using Microsoft.AspNetCore.Http.Features.Authentication;
 using Raven.Client.Documents.AI;
 using Raven.Client.Documents.Operations.AI;
 using Raven.Client.Documents.Operations.AI.Agents;
 using Raven.Server.Json;
+using Raven.Server.ServerWide;
 using Raven.Server.ServerWide.Commands.AI;
-using Raven.Server.Utils;
+using Raven.Server.ServerWide.Context;
 using Sparrow.Json;
 using Sparrow.Json.Parsing;
 
@@ -22,8 +22,9 @@ internal class AiAgentProcessorForTestConversation : AbstractAiAgentProcessor
 
     public override async ValueTask ExecuteAsync()
     {
-        using var _ = ContextPool.AllocateOperationContext(out JsonOperationContext context);
+        using var _ = ContextPool.AllocateOperationContext(out DocumentsOperationContext context);
         using var token = RequestHandler.CreateHttpRequestBoundOperationToken();
+        var streaming = RequestHandler.GetBoolValueQueryString("streaming", required: false) ?? false;
         var options = await context.ReadForMemoryAsync(RequestHandler.RequestBodyStream(), "ai-agent", token.Token);
         
         var body = JsonDeserializationServer.AiAgentTestRequest(options);
@@ -32,41 +33,38 @@ internal class AiAgentProcessorForTestConversation : AbstractAiAgentProcessor
         AiAgentHelpers.AddDefaultValues(body.Configuration, RequestHandler.Configuration.Ai);
         AddOrUpdateAiAgentCommand.ValidateConfiguration(context, body.Configuration);
 
-        ConversationDocument conversation = null;
-        if (body.Document != null)
+        var handler = new TestConversationHandler(ServerStore, RequestHandler.Database, body)
         {
-            conversation = ConversationDocument.ToDocument("test", body.Document);
-        }
-
-        if (conversation == null)
-        {
-            conversation = new ConversationDocument("test", req.Parameters);
-            conversation.Initialize(context, body.Configuration);
-        }
-
-        await HandleRequest(context, body.Configuration, "test", conversation, req, token.Token);
+            Authentication = RequestHandler.HttpContext.Features.Get<IHttpAuthenticationFeature>() as RavenServer.AuthenticateConnection
+        };
+        await ExecuteInternalAsync(handler, context, body.Configuration, "TestConversation", req, changeVector: null, streaming: streaming, token: token);
     }
 
-    public override Task<string> TryPersistAsync(JsonOperationContext context, AiAgentConfiguration configuration, string conversationId, ConversationDocument conversation,
-        BlittableJsonReaderObject history)
+    public class TestConversationHandler(ServerStore server, DocumentDatabase database, AiAgentTestRequest request) : ConversationHandler(server, database)
     {
-        // In test mode, we don't persist the conversation document
-        return Task.FromResult("test");
-    }
-
-    public override void WriteResponse(JsonOperationContext context, AsyncBlittableJsonTextWriter writer,
-        string conversationId, ConversationDocument document,
-        BlittableJsonReaderObject response)
-    {
-        context.Write(writer, new DynamicJsonValue
+        protected override Task<string> TryPersistAsync(JsonOperationContext context, List<BlittableJsonReaderObject> historyDocs)
         {
-            [nameof(ConversationResult<object>.ConversationId)] = conversationId,
-            [nameof(ConversationResult<object>.ChangeVector)] = document.ChangeVector,
-            [nameof(ConversationResult<object>.Response)] = response,
-            [nameof(ConversationResult<object>.ActionRequests)] = new DynamicJsonArray(document.OpenActionCalls.Select(t => t.Value.ToJson())),
-            [nameof(ConversationResult<object>.TotalUsage)] = document.TotalUsage.ToJson(),
-            ["Document"] = document.ToBlittable(context)
-        });
+            // In test mode, we don't persist the conversation document
+            return Task.FromResult("test");
+        }
+
+        public override DynamicJsonValue GetConversationResponse(JsonOperationContext context, BlittableJsonReaderObject response)
+        {
+            var r = base.GetConversationResponse(context, response);
+            r["Document"] = _document.ToBlittable(context);
+            return r;
+        }
+
+        protected override async Task InitializeDocument(DocumentsOperationContext context)
+        {
+            if (request.Document == null)
+            {
+                await base.InitializeDocument(context);
+                return;
+            }
+
+            _document = ConversationDocument.ToDocument("TestConversation", request.Document, request.Configuration);
+        }
     }
 
     public class AiAgentTestResult
@@ -79,7 +77,7 @@ internal class AiAgentProcessorForTestConversation : AbstractAiAgentProcessor
 
     public class AiAgentTestRequest
     {
-        public string UserPrompt;
+        public object UserPrompt;
         public BlittableJsonReaderObject CreationOptions;
         public AiAgentConfiguration Configuration;
         public BlittableJsonReaderArray ActionResponses;
@@ -94,7 +92,8 @@ internal class AiAgentProcessorForTestConversation : AbstractAiAgentProcessor
                 {
                     UserPrompt = UserPrompt, 
                     Parameters = param, 
-                    ActionResponses = ActionResponses
+                    ActionResponses = ActionResponses,
+                    CreationOptions = new AiConversationCreationOptions()
                 };
             }
         }

@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
-    <RuntimeFrameworkVersion>8.0.20</RuntimeFrameworkVersion>
+    <RuntimeFrameworkVersion>8.0.21</RuntimeFrameworkVersion>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <AssemblyName>FastTests</AssemblyName>
     <PackageId>FastTests</PackageId>
@@ -18,6 +18,9 @@
   <ItemGroup>
     <Compile Include="..\..\src\CommonAssemblyInfo.cs" Link="Properties\CommonAssemblyInfo.cs" />
     <Compile Include="..\Tests.Infrastructure\CommonTestsAssemblyInfo.cs" Link="Properties\CommonTestsAssemblyInfo.cs" />
+    <Compile Include="..\..\src\Usings.Server.cs">
+      <Link>Properties\Usings.Server.cs</Link>
+    </Compile>
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Blittable\BlittableJsonWriterTests\Jsons\*.json" />
@@ -68,11 +71,7 @@
     </Content>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Corax\Corax.csproj" />
-    <ProjectReference Include="..\..\src\Raven.Client\Raven.Client.csproj" />
     <ProjectReference Include="..\..\src\Raven.Server\Raven.Server.csproj" />
-    <ProjectReference Include="..\..\src\Sparrow\Sparrow.csproj" />
-    <ProjectReference Include="..\..\src\Voron\Voron.csproj" />
     <ProjectReference Include="..\Tests.Infrastructure\Tests.Infrastructure.csproj" />
   </ItemGroup>
   <ItemGroup>

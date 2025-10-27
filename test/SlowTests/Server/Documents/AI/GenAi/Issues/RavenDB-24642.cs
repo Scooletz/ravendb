@@ -49,9 +49,9 @@ ai.genContext({}).withPng(img1);
 
 
     [RavenTheory(RavenTestCategory.Ai)]
-    [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi, DatabaseMode = RavenDatabaseMode.Single, CheckCanConnect = false, NightlyBuildRequired = false,
+    [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi, DatabaseMode = RavenDatabaseMode.Single,
         Data = new object[] { true })]
-    [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi, DatabaseMode = RavenDatabaseMode.Single, CheckCanConnect = false, NightlyBuildRequired = false,
+    [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi, DatabaseMode = RavenDatabaseMode.Single,
         Data = new object[] { false })]
     public async Task CanProcessNonExistedImageAttachment(Options options, GenAiConfiguration config, bool withNullAttachments)
     {
@@ -93,7 +93,7 @@ ai.genContext({}).withPng(img1);
             await session.SaveChangesAsync();
         }
 
-        Assert.True(etl.Wait(TimeSpan.FromSeconds(Debugger.IsAttached ? 1200 : 120)));
+        Assert.True(await etl.WaitAsync(TimeSpan.FromSeconds(Debugger.IsAttached ? 1200 : 120)));
 
         var db = await Server.ServerStore.DatabasesLandlord.TryGetOrCreateResourceStore(store.Database);
 
@@ -179,9 +179,9 @@ ai.genContext({
 2025-01-06,Internet Bill,Utilities,79.99"u8;
 
     [RavenTheory(RavenTestCategory.Ai)]
-    [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi, DatabaseMode = RavenDatabaseMode.Single, CheckCanConnect = false, NightlyBuildRequired = false,
+    [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi, DatabaseMode = RavenDatabaseMode.Single,
         Data = new object[] { true })]
-    [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi, DatabaseMode = RavenDatabaseMode.Single, CheckCanConnect = false, NightlyBuildRequired = false,
+    [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi, DatabaseMode = RavenDatabaseMode.Single,
         Data = new object[] { false })]
     public async Task CanProcessNonExistedTextAttachment(Options options, GenAiConfiguration config, bool withNullAttachments)
     {
@@ -230,7 +230,7 @@ ai.genContext({
             await session.SaveChangesAsync();
         }
 
-        Assert.True(etl.Wait(TimeSpan.FromSeconds(Debugger.IsAttached ? 1200 : 120)));
+        Assert.True(await etl.WaitAsync(TimeSpan.FromSeconds(Debugger.IsAttached ? 1200 : 120)));
 
         var db = await Server.ServerStore.DatabasesLandlord.TryGetOrCreateResourceStore(store.Database);
 
@@ -261,7 +261,7 @@ ai.genContext({
     public record FileDescription(string Description, bool SafeForWork, string[] Tags);
 
     [RavenTheory(RavenTestCategory.Ai)]
-    [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi, DatabaseMode = RavenDatabaseMode.Single, CheckCanConnect = false, NightlyBuildRequired = false)]
+    [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi, DatabaseMode = RavenDatabaseMode.Single)]
     public async Task GenAiDifferentAttachmentsPerContexts(Options options, GenAiConfiguration config)
     {
         using var store = GetDocumentStore(options);
@@ -336,7 +336,7 @@ ai.genContext({})
 
         }
 
-        Assert.True(etl.Wait(TimeSpan.FromSeconds(Debugger.IsAttached ? 1200 : 120)));
+        Assert.True(await etl.WaitAsync(TimeSpan.FromSeconds(Debugger.IsAttached ? 1200 : 120)));
 
         var db = await Server.ServerStore.DatabasesLandlord.TryGetOrCreateResourceStore(store.Database);
 
@@ -357,7 +357,7 @@ ai.genContext({})
     public record Comment(string Id, string Author, string Content, string AuthorDescription, string ProfileImage);
 
     [RavenTheory(RavenTestCategory.Ai)]
-    [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi, DatabaseMode = RavenDatabaseMode.Single, CheckCanConnect = false)]
+    [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi, DatabaseMode = RavenDatabaseMode.Single)]
     public async Task GenAiMultipleAttachment(Options options, GenAiConfiguration config)
     {
         using var store = GetDocumentStore(options);
@@ -411,7 +411,7 @@ for(const comment of this.Comments)
             await session.SaveChangesAsync();
         }
 
-        Assert.True(etl.Wait(TimeSpan.FromSeconds(Debugger.IsAttached ? 1200 : 120)));
+        Assert.True(await etl.WaitAsync(TimeSpan.FromSeconds(Debugger.IsAttached ? 1200 : 120)));
 
         using (var session = store.OpenAsyncSession())
         {
@@ -434,7 +434,7 @@ for(const comment of this.Comments)
             session.Advanced.Attachments.Store("Post/1", "star.png", heart); // changing star to be heart
             await session.SaveChangesAsync();
         }
-        Assert.True(etl.Wait(TimeSpan.FromSeconds(Debugger.IsAttached ? 1200 : 120)));
+        Assert.True(await etl.WaitAsync(TimeSpan.FromSeconds(Debugger.IsAttached ? 1200 : 120)));
 
         await WaitForAssertionAsync(async () =>
         {
@@ -451,7 +451,7 @@ for(const comment of this.Comments)
             session.Advanced.Attachments.Delete("Post/1", "star.png");
             await session.SaveChangesAsync();
         }
-        Assert.True(etl.Wait(TimeSpan.FromSeconds(Debugger.IsAttached ? 1200 : 120)));
+        Assert.True(await etl.WaitAsync(TimeSpan.FromSeconds(Debugger.IsAttached ? 1200 : 120)));
 
         await WaitForAssertionAsync(async () =>
         {
@@ -490,7 +490,7 @@ for(const comment of this.Comments)
             await session.SaveChangesAsync();
         }
 
-        Assert.True(etl.Wait(TimeSpan.FromSeconds(Debugger.IsAttached ? 1200 : 120)));
+        Assert.True(await etl.WaitAsync(TimeSpan.FromSeconds(Debugger.IsAttached ? 1200 : 120)));
 
         var hash1 = string.Empty;
         var hash2 = string.Empty;
@@ -512,7 +512,7 @@ for(const comment of this.Comments)
             await session.SaveChangesAsync();
         }
 
-        Assert.True(etl.Wait(TimeSpan.FromSeconds(Debugger.IsAttached ? 1200 : 120)));
+        Assert.True(await etl.WaitAsync(TimeSpan.FromSeconds(Debugger.IsAttached ? 1200 : 120)));
 
         await WaitForAssertionAsync(async () =>
         {
