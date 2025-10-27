@@ -455,7 +455,11 @@ function NodeDetailsPanelView({ index, control }: { index: number; control: Cont
                             <Icon icon="info-new" />
                         </PopoverWithHoverWrapper>
                     </span>
-                    <div>{nodeData.httpPort}</div>
+                    <div>
+                        {nodeData.hasExternalConfig && nodeData.externalHttpPort
+                            ? nodeData.externalHttpPort
+                            : nodeData.httpPort}
+                    </div>
                 </div>
             </RichPanelDetailItem>
             <RichPanelDetailItem>
@@ -473,7 +477,11 @@ function NodeDetailsPanelView({ index, control }: { index: number; control: Cont
                             <Icon icon="info-new" />
                         </PopoverWithHoverWrapper>
                     </span>
-                    <div>{nodeData.tcpPort}</div>
+                    <div>
+                        {nodeData.hasExternalConfig && nodeData.externalTcpPort
+                            ? nodeData.externalTcpPort
+                            : nodeData.tcpPort}
+                    </div>
                 </div>
             </RichPanelDetailItem>
             <RichPanelDetailItem>
