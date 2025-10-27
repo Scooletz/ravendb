@@ -32,6 +32,11 @@ import { useEventsCollector } from "components/hooks/useEventsCollector";
 import { setupWizardGA4Prefixes } from "components/setupWizard/utils/setupWizardConstants";
 import { setupWizardFormDefaultValues } from "components/setupWizard/SetupWizard";
 
+function scrollSetupWizardToTop() {
+    const container = document.querySelector<HTMLElement>(".setup-wizard-main");
+    container.scrollTo({ top: 0, left: 0 });
+}
+
 export function SetupWizardLicenseKeyStep() {
     const { control } = useFormContext<SetupWizardFormData>();
 
@@ -85,7 +90,7 @@ function NoLicenseToGenerate() {
                         onClick={() => {
                             setValue("licenseKeyStep.licenseTypeToGenerate", "developer");
                             reportEvent(setupWizardGA4Prefixes.licenseKeyStep, "start-generate", "developer");
-                            window.scrollTo({ top: 0 });
+                            scrollSetupWizardToTop();
                         }}
                     >
                         Get your free license <Icon icon="arrow-thin-right" margin="m-0" />
@@ -716,13 +721,13 @@ export function SetupWizardLicenseKeyStepFooter() {
     const handleAlreadyHaveLicense = () => {
         reportEvent(setupWizardGA4Prefixes.licenseKeyStep, "already-have-license");
         setValue("licenseKeyStep.licenseTypeToGenerate", null);
-        window.scrollTo({ top: 0 });
+        scrollSetupWizardToTop();
     };
 
     const handleBack = () => {
         reportEvent(setupWizardGA4Prefixes.licenseKeyStep, "back");
         setValue("currentStep", "Setup method");
-        window.scrollTo({ top: 0 });
+        scrollSetupWizardToTop();
         setValue("licenseKeyStep", setupWizardFormDefaultValues["licenseKeyStep"]);
     };
 
