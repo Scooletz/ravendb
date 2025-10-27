@@ -105,9 +105,6 @@ namespace Raven.Client.Documents.Operations.Replication
             return sb.ToString();
         }
 
-        public override string GetDefaultTaskName()
-        {
-            return ToString();
-        }
+        public override string GetDefaultTaskName() => ToString();
     }
 }

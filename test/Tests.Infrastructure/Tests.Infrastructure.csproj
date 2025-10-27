@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
-    <RuntimeFrameworkVersion>8.0.20</RuntimeFrameworkVersion>
+    <RuntimeFrameworkVersion>8.0.21</RuntimeFrameworkVersion>
     <AssemblyName>Tests.Infrastructure</AssemblyName>
     <PackageId>Tests.Infrastructure</PackageId>
     <CodeAnalysisRuleSet>..\..\RavenDB.ruleset</CodeAnalysisRuleSet>
@@ -23,6 +23,7 @@
     <EmbeddedResource Include="Data\Northwind.4.2.ravendbdump" />
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="BouncyCastle.Cryptography" />
     <PackageReference Include="JunitXml.TestLogger" />
     <PackageReference Include="MongoDB.Driver" />
     <PackageReference Include="System.Text.RegularExpressions" />
