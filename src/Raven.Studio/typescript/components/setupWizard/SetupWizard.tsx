@@ -21,7 +21,7 @@ export default function SetupWizard() {
     const docsLink = useRavenLink({ hash: "37GM2Z" });
     const form = useForm<SetupWizardFormData>({
         resolver: yupResolver(setupWizardSchema),
-        defaultValues,
+        defaultValues: setupWizardFormDefaultValues,
     });
 
     const { handleSubmit, control, setValue, getValues } = form;
@@ -118,8 +118,8 @@ export default function SetupWizard() {
 
             stepsToClear.forEach((stepTitle) => {
                 const stepKey = getStepKey(stepTitle);
-                if (stepKey !== "currentStep" && stepKey in defaultValues && stepKey in currentValues) {
-                    setValue(stepKey, defaultValues[stepKey]);
+                if (stepKey !== "currentStep" && stepKey in setupWizardFormDefaultValues && stepKey in currentValues) {
+                    setValue(stepKey, setupWizardFormDefaultValues[stepKey]);
                 }
             });
         }
@@ -215,7 +215,7 @@ export default function SetupWizard() {
     );
 }
 
-const defaultValues: SetupWizardFormData = {
+export const setupWizardFormDefaultValues: SetupWizardFormData = {
     currentStep: "Eula",
     setupMethodStep: {
         method: null,

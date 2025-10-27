@@ -15,6 +15,7 @@ import { useAppDispatch, useAppSelector } from "components/store";
 import { setupWizardActions, setupWizardSelectors } from "components/setupWizard/store/setupWizardSlice";
 import { PopoverMessage } from "components/setupWizard/steps/SetupWizardNodeAddressStep";
 import { fileToBase64, base64ToFile } from "components/setupWizard/utils/setupWizardUtils";
+import { setupWizardFormDefaultValues } from "components/setupWizard/SetupWizard";
 
 export function SetupWizardSelfSignedCertificateStep() {
     const { control, setValue, clearErrors, setError } = useFormContext<SetupWizardFormData>();
@@ -195,6 +196,7 @@ export function SetupWizardSelfSignedCertificateStepFooter() {
 
     const handleBack = () => {
         setValue("currentStep", "Security");
+        setValue("selfSignedCertificateStep", setupWizardFormDefaultValues["selfSignedCertificateStep"]);
     };
 
     return (

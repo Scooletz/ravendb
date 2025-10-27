@@ -15,6 +15,7 @@ import { ConditionalPopover } from "components/common/ConditionalPopover";
 import { useServices } from "hooks/useServices";
 import { useEventsCollector } from "components/hooks/useEventsCollector";
 import { OperatingSystem, useOS } from "hooks/useOS";
+import { setupWizardFormDefaultValues } from "../SetupWizard";
 
 export function SetupWizardAdditionalSettingsStep() {
     const { control } = useFormContext<SetupWizardFormData>();
@@ -452,6 +453,7 @@ export function SetupWizardAdditionalSettingsStepFooter() {
 
     const handleBack = () => {
         reportEvent(setupWizardGA4Prefixes.additionalSettingsStep, "back");
+        setValue("additionalSettingsStep", setupWizardFormDefaultValues["additionalSettingsStep"]);
         setValue("currentStep", "Node addresses");
     };
 

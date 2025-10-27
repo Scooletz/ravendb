@@ -9,8 +9,8 @@ import {
     FormLabel,
     FormMultiRadioToggle,
     FormSelect,
-    OptionalLabel,
     FormVerificationCodeInput,
+    OptionalLabel,
 } from "components/common/Form";
 import { HStack } from "components/common/HStack";
 import { setupWizardConstants } from "../utils/setupWizardConstants";
@@ -30,6 +30,7 @@ import { LazyLoad } from "components/common/LazyLoad";
 import PopoverWithHoverWrapper from "components/common/PopoverWithHoverWrapper";
 import { useEventsCollector } from "components/hooks/useEventsCollector";
 import { setupWizardGA4Prefixes } from "components/setupWizard/utils/setupWizardConstants";
+import { setupWizardFormDefaultValues } from "components/setupWizard/SetupWizard";
 
 export function SetupWizardLicenseKeyStep() {
     const { control } = useFormContext<SetupWizardFormData>();
@@ -722,6 +723,7 @@ export function SetupWizardLicenseKeyStepFooter() {
         reportEvent(setupWizardGA4Prefixes.licenseKeyStep, "back");
         setValue("currentStep", "Setup method");
         window.scrollTo({ top: 0 });
+        setValue("licenseKeyStep", setupWizardFormDefaultValues["licenseKeyStep"]);
     };
 
     const handleGenerateLicense = async () => {

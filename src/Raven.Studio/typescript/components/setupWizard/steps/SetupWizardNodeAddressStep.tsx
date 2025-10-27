@@ -42,6 +42,7 @@ import { useRavenLink } from "hooks/useRavenLink";
 import { useEventsCollector } from "components/hooks/useEventsCollector";
 import { setupWizardGA4Prefixes } from "components/setupWizard/utils/setupWizardConstants";
 import useBoolean from "hooks/useBoolean";
+import { setupWizardFormDefaultValues } from "components/setupWizard/SetupWizard";
 
 export function SetupWizardNodeAddressStep() {
     const { control } = useFormContext<SetupWizardFormData>();
@@ -1188,6 +1189,7 @@ export function SetupWizardNodeAddressStepFooter() {
                 setValue("currentStep", "Security");
                 break;
         }
+        setValue("nodeAddressStep", setupWizardFormDefaultValues["nodeAddressStep"]);
     };
 
     return (

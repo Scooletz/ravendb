@@ -14,6 +14,7 @@ import { ConditionalPopover } from "components/common/ConditionalPopover";
 import { useEffect } from "react";
 import { useEventsCollector } from "components/hooks/useEventsCollector";
 import { setupWizardGA4Prefixes } from "components/setupWizard/utils/setupWizardConstants";
+import { setupWizardFormDefaultValues } from "components/setupWizard/SetupWizard";
 
 export function SetupWizardSecurityStep() {
     const { control, setValue } = useFormContext<SetupWizardFormData>();
@@ -201,6 +202,7 @@ export function SetupWizardSecurityStepFooter() {
     const handleBack = () => {
         reportEvent(setupWizardGA4Prefixes.securityStep, "back");
         setValue("currentStep", "License key");
+        setValue("securityStep", setupWizardFormDefaultValues["securityStep"]);
     };
 
     const handleContinue = () => {

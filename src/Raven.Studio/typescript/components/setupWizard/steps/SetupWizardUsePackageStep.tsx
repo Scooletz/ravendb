@@ -16,6 +16,7 @@ import { setupWizardGA4Prefixes } from "components/setupWizard/utils/setupWizard
 import { useEventsCollector } from "hooks/useEventsCollector";
 import { base64ToFile, fileToBase64 } from "components/setupWizard/utils/setupWizardUtils";
 import { LazyLoad } from "components/common/LazyLoad";
+import { setupWizardFormDefaultValues } from "components/setupWizard/SetupWizard";
 
 export function SetupWizardUsePackageStep() {
     const { control, setValue, watch } = useFormContext<SetupWizardFormData>();
@@ -195,6 +196,7 @@ export function SetupWizardUsePackageStepFooter() {
     const handleBack = () => {
         reportEvent(setupWizardGA4Prefixes.usePackageStep, "back");
         setValue("currentStep", "Setup method");
+        setValue("usePackageStep", setupWizardFormDefaultValues["usePackageStep"]);
     };
 
     return (
