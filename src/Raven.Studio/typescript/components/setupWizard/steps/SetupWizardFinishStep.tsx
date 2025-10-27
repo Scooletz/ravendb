@@ -33,11 +33,16 @@ import OperationStatus = Raven.Client.Documents.Operations.OperationStatus;
 import { useAppDispatch } from "components/store";
 import { setupWizardActions } from "components/setupWizard/store/setupWizardSlice";
 
+interface Logs {
+    message: string;
+    color?: ThemeColor;
+}
+
 export function SetupWizardFinishStep() {
     const { control, setValue } = useFormContext<SetupWizardFormData>();
     const { reportEvent } = useEventsCollector();
     const dispatch = useAppDispatch();
-    
+
     const { value: isShowLogs, toggle: toggleIsShowLogs } = useBoolean(false);
 
     const { setupMethodStep, usePackageStep, finishStep } = useWatch({ control });
@@ -46,7 +51,9 @@ export function SetupWizardFinishStep() {
 
     const { databasesService, setupWizardService } = useServices();
 
-    const [logs, setLogs] = useState<{ message: string; color?: ThemeColor }[]>([]);
+    // TODO: maybe we should consider moving logs to the store?
+    const [logs, setLogs] = useState<Logs[]>([]);
+    const [errorLogs, setErrorLogs] = useState<Logs[]>([]);
     const [configurationProcess, setConfigurationProcess] =
         useState<Raven.Server.Commercial.SetupProgressAndResult>(null);
 
@@ -55,7 +62,7 @@ export function SetupWizardFinishStep() {
         setValue("finishStep.finishingStatus", status);
         reportEvent(setupWizardGA4Prefixes.finalStep, "status", status);
     };
-    
+
     const handleWebSocketOperation = (operation: Raven.Server.NotificationCenter.Notifications.OperationChanged) => {
         if (operation.TaskType === "Setup") {
             let dto: Raven.Server.Commercial.SetupProgressAndResult = operation.State.Progress;
@@ -75,8 +82,11 @@ export function SetupWizardFinishStep() {
                     setConfigurationProcess(operation.State.Progress);
                     const failure = operation.State
                         .Result as Raven.Client.Documents.Operations.OperationExceptionResult;
+                    
                     setLogs((prev) => [...prev, { message: failure.Message, color: "danger" }]);
-                    setLogs((prev) => [...prev, { message: failure.Error, color: "danger" }]);
+                    setLogs((prev) => [...prev, { message: operation.State.Result.Error, color: "danger" }]);
+                    setErrorLogs((prev) => [...prev, { message: failure.Error, color: "danger" }]);
+
                     handleSetFinishStatus("Faulted");
                     break;
                 case "Canceled":
@@ -196,7 +206,7 @@ export function SetupWizardFinishStep() {
                     {!isShowLogs && configurationProcess && (
                         <div className="summary-tab-container mb-4">
                             <pre className="p-4 mb-0">
-                                <Configuration configurationProcess={configurationProcess} />
+                                <Configuration configurationProcess={configurationProcess} errorLogs={errorLogs} />
                             </pre>
                         </div>
                     )}
@@ -232,24 +242,28 @@ export function SetupWizardFinishStep() {
 
 interface ConfigurationProps {
     configurationProcess: Raven.Server.Commercial.SetupProgressAndResult;
+    errorLogs: Logs[];
 }
 
-const Configuration = ({ configurationProcess }: ConfigurationProps) => {
+const Configuration = ({ configurationProcess, errorLogs }: ConfigurationProps) => {
     return (
         <div>
             <ConfigurationItem
                 stepTitle="Validation"
                 configurationState={configurationProcess?.SetupActionSteps?.StepsByConfigurationStepType.Validation}
+                errorLogs={errorLogs}
             />
 
             <ConfigurationItem
                 stepTitle="Let's encrypt"
                 configurationState={configurationProcess?.SetupActionSteps?.StepsByConfigurationStepType.LetsEncrypt}
+                errorLogs={errorLogs}
             />
 
             <ConfigurationItem
                 stepTitle="DNS records"
                 configurationState={configurationProcess?.SetupActionSteps?.StepsByConfigurationStepType.DnsRecords}
+                errorLogs={errorLogs}
             />
 
             <ConfigurationItem
@@ -257,6 +271,7 @@ const Configuration = ({ configurationProcess }: ConfigurationProps) => {
                 configurationState={
                     configurationProcess?.SetupActionSteps?.StepsByConfigurationStepType.ClientCertificate
                 }
+                errorLogs={errorLogs}
             />
 
             <ConfigurationItem
@@ -264,6 +279,7 @@ const Configuration = ({ configurationProcess }: ConfigurationProps) => {
                 configurationState={
                     configurationProcess?.SetupActionSteps?.StepsByConfigurationStepType.ConfigurationSettings
                 }
+                errorLogs={errorLogs}
             />
 
             <ConfigurationItem
@@ -271,6 +287,7 @@ const Configuration = ({ configurationProcess }: ConfigurationProps) => {
                 configurationState={
                     configurationProcess?.SetupActionSteps?.StepsByConfigurationStepType.ClientCertificate
                 }
+                errorLogs={errorLogs}
             />
 
             <ConfigurationItem
@@ -278,6 +295,7 @@ const Configuration = ({ configurationProcess }: ConfigurationProps) => {
                 configurationState={
                     configurationProcess?.SetupActionSteps?.StepsByConfigurationStepType.CreatingSettingsJson
                 }
+                errorLogs={errorLogs}
             />
         </div>
     );
@@ -286,9 +304,10 @@ const Configuration = ({ configurationProcess }: ConfigurationProps) => {
 interface ConfigurationItemProps {
     stepTitle: string;
     configurationState: Raven.Server.Commercial.SetupActionInfo;
+    errorLogs: Logs[];
 }
 
-const ConfigurationItem = ({ configurationState, stepTitle }: ConfigurationItemProps) => {
+const ConfigurationItem = ({ configurationState, stepTitle, errorLogs }: ConfigurationItemProps) => {
     if (!configurationState?.State || configurationState?.State === "NotApplicable") {
         return null;
     }
@@ -318,15 +337,22 @@ const ConfigurationItem = ({ configurationState, stepTitle }: ConfigurationItemP
             </div>
             {configurationState?.State === "Error" && (
                 <RichAlert
-                    style={{ height: "150px" }}
-                    childrenClassName="w-100 h-100 d-flex align-items-stretch text-truncate"
+                    style={{ height: "350px" }}
+                    childrenClassName="w-100 overflow-auto h-100 d-flex align-items-stretch flex-column text-truncate"
                     variant="danger"
-                    title={configurationState?.ErrorType ?? "XDD"}
+                    title={configurationState?.ErrorType}
                     className="my-2"
                 >
-                    <span className="text-wrap" title={configurationState?.ErrorMessage}>
+                    <div className="text-wrap" title={configurationState?.ErrorMessage}>
                         {configurationState?.ErrorMessage}
-                    </span>
+                    </div>
+                    <div className="text-wrap">
+                        {errorLogs.map((log, index) => (
+                            <span key={index} className={classNames(log.color && `text-${log.color}`)}>
+                                {log.message}
+                            </span>
+                        ))}
+                    </div>
                 </RichAlert>
             )}
         </div>
@@ -446,8 +472,8 @@ function CompletedSummary() {
                     </NumberedList>
                     <RichAlert variant="info" className="mt-3">
                         When the Setup Wizard is done and the new node was restarted, the cluster will automatically
-                        detect it. There is no need to manually add it again from the studio. Simply access the &apos;Cluster&apos;
-                        view and observe the topology being updated.
+                        detect it. There is no need to manually add it again from the studio. Simply access the
+                        &apos;Cluster&apos; view and observe the topology being updated.
                     </RichAlert>
                 </div>
             </div>
@@ -1067,7 +1093,12 @@ export function SetupWizardFinishStepFooter() {
                 </Button>
             )}
             {setupMethodStep.method === "createPackage" ? (
-                <Button disabled={finishStepIsDisabled} variant="secondary" className="mt-2 rounded-pill" onClick={handleNewSetupPackage}>
+                <Button
+                    disabled={finishStepIsDisabled}
+                    variant="secondary"
+                    className="mt-2 rounded-pill"
+                    onClick={handleNewSetupPackage}
+                >
                     Go to setup method
                 </Button>
             ) : (

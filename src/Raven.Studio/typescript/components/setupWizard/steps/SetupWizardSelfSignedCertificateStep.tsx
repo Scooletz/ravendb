@@ -152,6 +152,7 @@ export function SetupWizardSelfSignedCertificateStep() {
                         disabled={isPasswordReadOnly}
                         type="password"
                         control={control}
+                        passwordPreview
                         name="selfSignedCertificateStep.password"
                         placeholder="Enter your passphrase"
                     />
