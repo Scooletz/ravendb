@@ -30,7 +30,7 @@ import { LazyLoad } from "components/common/LazyLoad";
 import PopoverWithHoverWrapper from "components/common/PopoverWithHoverWrapper";
 import { useEventsCollector } from "components/hooks/useEventsCollector";
 import { setupWizardGA4Prefixes } from "components/setupWizard/utils/setupWizardConstants";
-import { setupWizardFormDefaultValues } from "components/setupWizard/SetupWizard";
+import { setupWizardFormDefaultValues } from "components/setupWizard/utils/setupWizardFormDefaultValues";
 
 function scrollSetupWizardToTop() {
     const container = document.querySelector<HTMLElement>(".setup-wizard-main");

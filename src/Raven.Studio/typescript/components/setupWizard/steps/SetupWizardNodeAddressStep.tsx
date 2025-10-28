@@ -38,11 +38,11 @@ import { SelectOption } from "components/common/select/Select";
 import { isEmpty } from "common/typeUtils";
 import Row from "react-bootstrap/Row";
 import Col from "react-bootstrap/esm/Col";
-import { useRavenLink } from "hooks/useRavenLink";
 import { useEventsCollector } from "components/hooks/useEventsCollector";
 import { setupWizardGA4Prefixes } from "components/setupWizard/utils/setupWizardConstants";
 import useBoolean from "hooks/useBoolean";
-import { setupWizardFormDefaultValues } from "components/setupWizard/SetupWizard";
+import { PopoverMessage } from "components/setupWizard/partials/PopoverMessage";
+import { setupWizardFormDefaultValues } from "components/setupWizard/utils/setupWizardFormDefaultValues";
 
 export function SetupWizardNodeAddressStep() {
     const { control } = useFormContext<SetupWizardFormData>();
@@ -365,31 +365,6 @@ function NodeDetailsPanelHeader({ control, index, onRemove, editNodeForm }: Node
                 )}
             </RichPanelActions>
         </RichPanelHeader>
-    );
-}
-
-interface PopoverMessageProps {
-    description: string | React.ReactNode;
-    alert?: React.ReactNode;
-    ravenLinkHash?: string;
-}
-
-export function PopoverMessage({ description, ravenLinkHash = "37GM2Z", alert }: PopoverMessageProps) {
-    const docsLink = useRavenLink({ hash: ravenLinkHash });
-
-    return (
-        <>
-            <p className="mb-0">{description}</p>
-            {alert}
-            <hr className="my-2" />
-            <span className="md-label">
-                <Icon icon="link" />
-                Read more in our{" "}
-                <a href={docsLink} target="_blank" className="text-primary fw-bold">
-                    documentation <Icon icon="newtab" />
-                </a>
-            </span>
-        </>
     );
 }
 

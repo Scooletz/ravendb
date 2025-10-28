@@ -14,7 +14,7 @@ import { ConditionalPopover } from "components/common/ConditionalPopover";
 import { useEffect } from "react";
 import { useEventsCollector } from "components/hooks/useEventsCollector";
 import { setupWizardGA4Prefixes } from "components/setupWizard/utils/setupWizardConstants";
-import { setupWizardFormDefaultValues } from "components/setupWizard/SetupWizard";
+import { setupWizardFormDefaultValues } from "components/setupWizard/utils/setupWizardFormDefaultValues";
 
 export function SetupWizardSecurityStep() {
     const { control, setValue } = useFormContext<SetupWizardFormData>();

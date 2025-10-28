@@ -10,12 +10,12 @@ import classNames from "classnames";
 import { useEffect } from "react";
 import { getLicenseType } from "components/setupWizard/utils/setupWizardUtils";
 import PopoverWithHoverWrapper from "components/common/PopoverWithHoverWrapper";
-import { PopoverMessage } from "components/setupWizard/steps/SetupWizardNodeAddressStep";
 import { ConditionalPopover } from "components/common/ConditionalPopover";
 import { useServices } from "hooks/useServices";
 import { useEventsCollector } from "components/hooks/useEventsCollector";
 import { OperatingSystem, useOS } from "hooks/useOS";
-import { setupWizardFormDefaultValues } from "../SetupWizard";
+import { PopoverMessage } from "components/setupWizard/partials/PopoverMessage";
+import { setupWizardFormDefaultValues } from "components/setupWizard/utils/setupWizardFormDefaultValues";
 
 export function SetupWizardAdditionalSettingsStep() {
     const { control } = useFormContext<SetupWizardFormData>();

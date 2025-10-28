@@ -13,9 +13,9 @@ import React, { useMemo } from "react";
 import { useAsyncDebounce } from "hooks/useAsyncDebounce";
 import { useAppDispatch, useAppSelector } from "components/store";
 import { setupWizardActions, setupWizardSelectors } from "components/setupWizard/store/setupWizardSlice";
-import { PopoverMessage } from "components/setupWizard/steps/SetupWizardNodeAddressStep";
-import { fileToBase64, base64ToFile } from "components/setupWizard/utils/setupWizardUtils";
-import { setupWizardFormDefaultValues } from "components/setupWizard/SetupWizard";
+import { base64ToFile, fileToBase64 } from "components/setupWizard/utils/setupWizardUtils";
+import { PopoverMessage } from "components/setupWizard/partials/PopoverMessage";
+import { setupWizardFormDefaultValues } from "components/setupWizard/utils/setupWizardFormDefaultValues";
 
 export function SetupWizardSelfSignedCertificateStep() {
     const { control, setValue, clearErrors, setError } = useFormContext<SetupWizardFormData>();

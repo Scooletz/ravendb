@@ -11,12 +11,12 @@ import { SelectOption } from "components/common/select/Select";
 import { useEffect, useMemo } from "react";
 import RichAlert from "components/common/RichAlert";
 import PopoverWithHoverWrapper from "components/common/PopoverWithHoverWrapper";
-import { PopoverMessage } from "components/setupWizard/steps/SetupWizardNodeAddressStep";
 import { setupWizardGA4Prefixes } from "components/setupWizard/utils/setupWizardConstants";
 import { useEventsCollector } from "hooks/useEventsCollector";
 import { base64ToFile, fileToBase64 } from "components/setupWizard/utils/setupWizardUtils";
 import { LazyLoad } from "components/common/LazyLoad";
-import { setupWizardFormDefaultValues } from "components/setupWizard/SetupWizard";
+import { PopoverMessage } from "components/setupWizard/partials/PopoverMessage";
+import { setupWizardFormDefaultValues } from "components/setupWizard/utils/setupWizardFormDefaultValues";
 
 export function SetupWizardUsePackageStep() {
     const { control, setValue, watch } = useFormContext<SetupWizardFormData>();

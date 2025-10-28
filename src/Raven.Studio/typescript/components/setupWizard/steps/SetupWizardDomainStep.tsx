@@ -13,7 +13,7 @@ import ButtonWithSpinner from "components/common/ButtonWithSpinner";
 import Button from "react-bootstrap/Button";
 import messagePublisher from "common/messagePublisher";
 import { has } from "lodash";
-import { setupWizardFormDefaultValues } from "components/setupWizard/SetupWizard";
+import { setupWizardFormDefaultValues } from "components/setupWizard/utils/setupWizardFormDefaultValues";
 
 export function SetupWizardDomainStep() {
     const { control, setValue, setError, clearErrors } = useFormContext<SetupWizardFormData>();

@@ -8,10 +8,10 @@ import { ConditionalPopover } from "components/common/ConditionalPopover";
 import PopoverWithHoverWrapper from "components/common/PopoverWithHoverWrapper";
 import { SetupWizardStepItem } from "components/setupWizard/partials/SetupWizardStepItem";
 import { NumberedList } from "components/common/NumberedList";
-import { PopoverMessage } from "components/setupWizard/steps/SetupWizardNodeAddressStep";
 import { useEffect } from "react";
 import { useEventsCollector } from "components/hooks/useEventsCollector";
 import { setupWizardGA4Prefixes } from "components/setupWizard/utils/setupWizardConstants";
+import { PopoverMessage } from "components/setupWizard/partials/PopoverMessage";
 
 export function SetupWizardSetupMethodStep() {
     const { control, setValue } = useFormContext<SetupWizardFormData>();
