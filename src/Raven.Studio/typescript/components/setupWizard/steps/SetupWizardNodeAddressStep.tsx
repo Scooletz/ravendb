@@ -75,7 +75,7 @@ export function SetupWizardNodeAddressStep() {
             nodeTag: availableNodeTag,
             ipAddress: [
                 {
-                    ipAddress: asyncGetSetupParameters.result?.IsDocker ? "0.0.0.0" : "127.0.0.1",
+                    ipAddress: asyncGetSetupParameters.result?.IsDocker ? "" : "127.0.0.1",
                 },
             ],
             dnsName: securityOption === "ownCertificate" ? cns[0] : undefined,
@@ -91,7 +91,7 @@ export function SetupWizardNodeAddressStep() {
                 nodeTag: "A",
                 ipAddress: [
                     {
-                        ipAddress: asyncGetSetupParameters.result?.IsDocker ? "0.0.0.0" : "127.0.0.1",
+                        ipAddress: asyncGetSetupParameters.result?.IsDocker ? "" : "127.0.0.1",
                     },
                 ],
                 dnsName: securityOption === "ownCertificate" ? cns[0] : undefined,
@@ -978,7 +978,7 @@ function IpAddressList({
 
     const asyncGetSetupLocalNodeIps = useAsync(async () => setupWizardService.getSetupLocalNodeIps(), []);
 
-    const localIpAddresses: SelectOption[] = (asyncGetSetupLocalNodeIps.result || []).map((ip) => ({
+    const localIpAddresses: SelectOption[] = Array.from(new Set(asyncGetSetupLocalNodeIps.result || [])).map((ip) => ({
         label: ip,
         value: ip,
     }));

@@ -39,7 +39,7 @@ export class SetupWizardStubs {
     }
     
     static localNodeIps(): string[] {
-        return ["172.20.208.1", "192.168.2.189", "127.0.0.1"];
+        return ["172.20.208.1", "192.168.2.189", "127.0.0.1", "unique-hostname", "unique-hostname"];
     }
     
     static setupParameters(): Raven.Server.Commercial.SetupParameters {
