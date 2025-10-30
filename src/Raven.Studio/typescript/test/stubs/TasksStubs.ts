@@ -350,6 +350,8 @@ export class TasksStubs {
                     Script: "for(const comment of this.Comments)\r\n{\r\n    ai.genContext({\r\n        Text: `Blog post topic: ${this.Topic}. Comment: ${comment.Text}`, \r\n        AuthorName: comment.Author,\r\n        CommentId: comment.Id\r\n    });\r\n}",
                 },
                 MaxConcurrency: 4,
+                // temporary until UI supports queries
+                Queries: null,
             },
             ChangeVector: null,
         };
@@ -912,8 +914,9 @@ namespace Orders
                     ModelOutput: {
                         Usage: {
                             PromptTokens: 22,
-                            CompletionTokens: 48,
+                            CompletionTokens: 28,
                             CachedTokens: 10,
+                            ReasoningTokens: 20,
                             TotalTokens: 80,
                         },
                         Output: {
@@ -937,8 +940,9 @@ namespace Orders
                     ModelOutput: {
                         Usage: {
                             PromptTokens: 23,
-                            CompletionTokens: 78,
+                            CompletionTokens: 28,
                             CachedTokens: 10,
+                            ReasoningTokens: 20,
                             TotalTokens: 111,
                         },
                         Output: {
@@ -1000,8 +1004,9 @@ namespace Orders
                     ModelOutput: {
                         Usage: {
                             PromptTokens: 22,
-                            CompletionTokens: 48,
+                            CompletionTokens: 28,
                             CachedTokens: 10,
+                            ReasoningTokens: 20,
                             TotalTokens: 80,
                         },
                         Output: {
@@ -1025,8 +1030,9 @@ namespace Orders
                     ModelOutput: {
                         Usage: {
                             PromptTokens: 23,
-                            CompletionTokens: 78,
+                            CompletionTokens: 58,
                             CachedTokens: 10,
+                            ReasoningTokens: 20,
                             TotalTokens: 111,
                         },
                         Output: {
