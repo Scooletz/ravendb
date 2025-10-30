@@ -66,6 +66,7 @@ import groupedVirtualNotification = require("common/notifications/models/grouped
 import typeUtils = require("common/typeUtils");
 import storeCompat = require("components/storeCompat");
 import chatbotSlice = require("components/shell/chatbot/store/chatbotSlice");
+import aiAgentExceededTokenThreshold = require("viewmodels/common/notificationCenter/detailViewer/alerts/aiAgentExceededTokenThreshold");
 
 interface detailsProvider {
     supportsDetailsFor(notification: abstractNotification): boolean;
@@ -192,6 +193,7 @@ class notificationCenter {
             serverLimitsDetails,
             conflictExceededDetails,
             complexFieldsAlertDetails,
+            aiAgentExceededTokenThreshold,
             genericAlertDetails  // leave it as last item on this list - this is fallback handler for all alert types
         );
 
@@ -349,7 +351,7 @@ class notificationCenter {
             const alertObject = new alert(database, alertDto);
             notificationsContainer.push(alertObject);
             
-            if (alertObject.alertType() === "LicenseManager_LicenseLimit") {
+            if (alertObject.alertReason() === "LicenseManager_LicenseLimit") {
                 this.openDetails(alertObject);
             }
         }

@@ -263,7 +263,7 @@ namespace FastTests
                 else
                     throw new NotSupportedException($"Unknown ETL type: {typeof(T)}");
 
-                var loadAlert = database.NotificationCenter.EtlNotifications.GetAlert<EtlErrorsDetails>(tag, $"{config.Name}/{config.Transforms.First().Name}", AlertType.Etl_LoadError);
+                var loadAlert = database.NotificationCenter.EtlNotifications.GetAlert<EtlErrorsDetails>(tag, $"{config.Name}/{config.Transforms.First().Name}", AlertReason.Etl_LoadError);
 
                 if (loadAlert is null)
                     return null;
@@ -298,7 +298,7 @@ namespace FastTests
                 else
                     throw new NotSupportedException($"Unknown ETL type: {typeof(T)}");
 
-                var loadAlert = database.NotificationCenter.EtlNotifications.GetAlert<EtlErrorsDetails>(tag, $"{config.Name}/{config.Transforms.First().Name}", AlertType.Etl_TransformationError);
+                var loadAlert = database.NotificationCenter.EtlNotifications.GetAlert<EtlErrorsDetails>(tag, $"{config.Name}/{config.Transforms.First().Name}", AlertReason.Etl_TransformationError);
                 
                 if (loadAlert is null)
                     return null;
@@ -348,6 +348,16 @@ namespace FastTests
                 return string.Join(Environment.NewLine, stats.Select(JsonConvert.SerializeObject));
             }
 
+            public async Task AssertEtlDoneAsync<T>(AsyncManualResetEvent etlDone, TimeSpan timeout, string databaseName, EtlConfiguration<T> config) where T : ConnectionString
+            {
+                if (await etlDone.WaitAsync(timeout) == false)
+                {
+                    var loadError = await TryGetLoadErrorAsync(databaseName, config);
+                    var transformationError = await TryGetTransformationErrorAsync(databaseName, config);
+
+                    Assert.Fail($"ETL wasn't done. Load error: {loadError?.Error}. Transformation error: {transformationError?.Error}");
+                }
+            }
             public void Dispose()
             {
                 try

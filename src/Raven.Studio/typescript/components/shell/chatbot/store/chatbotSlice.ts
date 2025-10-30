@@ -115,6 +115,7 @@ const runChat = createAsyncThunk(
                 PromptTokens: 100,
                 CompletionTokens: 100,
                 CachedTokens: 100,
+                ReasoningTokens: 0,
             },
         };
 
@@ -155,6 +156,7 @@ const runChat = createAsyncThunk(
                     PromptTokens: result.InputTokenCount,
                     CompletionTokens: result.OutputTokenCount,
                     CachedTokens: 0, // TODO server-side
+                    ReasoningTokens: 0, // TODO server-side
                 },
                 relevantLinks: result.Response.RelevantLinks,
             };
