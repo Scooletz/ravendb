@@ -122,7 +122,7 @@ namespace InterversionTests
 
                 Assert.NotNull(alert);
 
-                Assert.Equal(AlertType.Etl_LoadError, alert.AlertType);
+                Assert.Equal(AlertReason.Etl_LoadError, alert.Reason);
                 Assert.NotNull(alert.Details);
                 EtlErrorsDetails details = (EtlErrorsDetails)alert.Details;
 
