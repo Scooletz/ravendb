@@ -578,7 +578,7 @@ namespace Raven.Server
                     msg += $" Automatic renewal is no longer possible. Please check the logs for errors and contact support at https://ravendb.net/support/request.";
                 }
 
-                ServerStore.NotificationCenter.Add(AlertRaised.Create(null, CertificateReplacement.CertReplaceAlertTitle, msg, AlertType.Certificates_Expiration, NotificationSeverity.Error));
+                ServerStore.NotificationCenter.Add(AlertRaised.Create(null, CertificateReplacement.CertReplaceAlertTitle, msg, AlertReason.Certificates_Expiration, NotificationSeverity.Error));
 
                 if (Logger.IsErrorEnabled)
                     Logger.Error(msg);
@@ -602,14 +602,14 @@ namespace Raven.Server
                 var severity = remainingDays < 3 ? NotificationSeverity.Error : NotificationSeverity.Warning;
                 var logLevel = remainingDays < 3 ? LogLevel.Error : LogLevel.Warn;
 
-                ServerStore.NotificationCenter.Add(AlertRaised.Create(null, CertificateReplacement.CertReplaceAlertTitle, msg, AlertType.Certificates_Expiration, severity));
+                ServerStore.NotificationCenter.Add(AlertRaised.Create(null, CertificateReplacement.CertReplaceAlertTitle, msg, AlertReason.Certificates_Expiration, severity));
 
                 if (Logger.IsEnabled(logLevel))
                     Logger.Log(logLevel, msg);
             }
             else
             {
-                ServerStore.NotificationCenter.Dismiss(AlertRaised.GetKey(AlertType.Certificates_Expiration, null));
+                ServerStore.NotificationCenter.Dismiss(AlertRaised.GetKey(AlertReason.Certificates_Expiration, null));
             }
         }
 
@@ -865,7 +865,7 @@ namespace Raven.Server
                     if (alert == null && remainingTimeToAlert-- > 0)
                     {
                         alert = AlertRaised.Create(null, "CPU credits balance exhausted", alertMessage,
-                            AlertType.Throttling_CpuCreditsBalance,
+                            AlertReason.Throttling_CpuCreditsBalance,
                             NotificationSeverity.Warning);
                         ServerStore.NotificationCenter.Add(alert);
                     }
@@ -1219,7 +1219,7 @@ namespace Raven.Server
                             null,
                             CertificateReplacement.CertReplaceAlertTitle,
                             msg,
-                            AlertType.Certificates_ReplaceError,
+                            AlertReason.Certificates_ReplaceError,
                             NotificationSeverity.Error));
                         return;
                     }
@@ -1281,7 +1281,7 @@ namespace Raven.Server
                     null,
                     CertificateReplacement.CertReplaceAlertTitle,
                     msg,
-                    AlertType.Certificates_ReplaceError,
+                    AlertReason.Certificates_ReplaceError,
                     NotificationSeverity.Error,
                     details: new ExceptionDetails(e)));
 
@@ -1374,7 +1374,7 @@ namespace Raven.Server
                     null,
                     CertificateReplacement.CertReplaceAlertTitle,
                     msg,
-                    AlertType.Certificates_DeveloperLetsEncryptRenewal,
+                    AlertReason.Certificates_DeveloperLetsEncryptRenewal,
                     NotificationSeverity.Warning));
 
                 if (Logger.IsWarnEnabled)
@@ -1523,7 +1523,7 @@ namespace Raven.Server
                     null,
                     CertificateReplacement.CertReplaceAlertTitle,
                     msg,
-                    AlertType.Certificates_ReplaceError,
+                    AlertReason.Certificates_ReplaceError,
                     NotificationSeverity.Error,
                     details: new ExceptionDetails(e)));
 
@@ -1881,7 +1881,7 @@ namespace Raven.Server
             }
         }
 
-        internal AuthenticateConnection AuthenticateConnectionCertificate(X509Certificate2 certificate, object connectionInfo)
+        internal AuthenticateConnection AuthenticateConnectionCertificate(X509Certificate2 certificate, object connectionInfo, StringBuilder log = null)
         {
             var authenticationStatus = new AuthenticateConnection(TwoFactor)
             {
@@ -1908,13 +1908,14 @@ namespace Raven.Server
             {
                 authenticationStatus.Status = AuthenticationStatus.ClusterAdmin;
             }
-            else if (CertificateHasWellKnownIssuer(certificate, out var issuer))
+            else if (CertificateHasWellKnownIssuer(certificate, out var issuer, log))
             {
                 string authLogMessage;
 
                 if (Configuration.Security.ValidateSanForCertificateWithWellKnownIssuer)
                 {
-                    if (AreCertificateSansValid(certificate))
+                    log?.AppendLine($"Validating SAN for certificate with {certificate.GetDisplayName()} ({certificate.Thumbprint}) well known issuer '{issuer}'");
+                    if (AreCertificateSansValid(certificate, log))
                     {
                         authLogMessage =
                             $"Connection from {GetRemoteAddress(connectionInfo)} with new certificate '{certificate.GetDisplayName()} ({certificate.Thumbprint})' which is not registered in the cluster. " +
@@ -2189,7 +2190,7 @@ namespace Raven.Server
                             Logger.Error(msg, ex);
 
                         ServerStore.NotificationCenter.Add(AlertRaised.Create(Notification.ServerWide, "Unable to start tcp listener", msg,
-                            AlertType.TcpListenerError, NotificationSeverity.Error, key: $"tcp/listener/{ipAddress}/{port}", details: new ExceptionDetails(ex)));
+                            AlertReason.TcpListenerError, NotificationSeverity.Error, key: $"tcp/listener/{ipAddress}/{port}", details: new ExceptionDetails(ex)));
 
                         continue;
                     }
@@ -2620,7 +2621,7 @@ namespace Raven.Server
                         msg,
                         $"Unable to accept connections from TCP, because the listening socket on {listener.LocalEndpoint} was disconnected.{Environment.NewLine}" +
                         $"Restarting the server might temporary fix the issue, but further investigation is required.",
-                        AlertType.TcpListenerError,
+                        AlertReason.TcpListenerError,
                         NotificationSeverity.Error,
                         key: msg,
                         details: new ExceptionDetails(e)
@@ -3274,14 +3275,18 @@ namespace Raven.Server
             return serverCertificate != null && certificate.Equals(serverCertificate);
         }
 
-        public bool CertificateHasWellKnownIssuer(X509Certificate2 cert, out string issuer)
+        public bool CertificateHasWellKnownIssuer(X509Certificate2 cert, out string issuer, StringBuilder log = null)
         {
             issuer = null;
             if (WellKnownIssuers == null)
+            {
+                log?.AppendLine("No well known issuers configured");
                 return false;
+            }
 
             foreach (var knownIssuer in WellKnownIssuers)
             {
+                log?.AppendLine($"Checking if {knownIssuer.GetDisplayName()} ({knownIssuer.Thumbprint}) is a well known issuer for {cert.GetDisplayName()} ({cert.Thumbprint})");
                 using var chain = new X509Chain(false);
                 chain.ChainPolicy.RevocationMode = X509RevocationMode.NoCheck;
                 chain.ChainPolicy.DisableCertificateDownloads = true;
@@ -3291,14 +3296,16 @@ namespace Raven.Server
                 if (chain.Build(cert))
                 {
                     issuer = knownIssuer.SubjectName.Name + " - " + knownIssuer.Thumbprint;
+                    log?.AppendLine($"Issuer is a well known issuer: {issuer} for {cert.GetDisplayName()} ({cert.Thumbprint})");
                     return true;
                 }
             }
 
+            log?.AppendLine($"No well known issuer found for {cert.GetDisplayName()} ({cert.Thumbprint})");
             return false;
         }
 
-        private bool AreCertificateSansValid(X509Certificate2 cert)
+        private bool AreCertificateSansValid(X509Certificate2 cert, StringBuilder log = null)
         {
             var serverDomain = new Uri(ServerStore.GetNodeHttpServerUrl()).Host;
             var sans = CertificateUtils.GetCertificateAlternativeNames(cert).ToList();
@@ -3308,12 +3315,14 @@ namespace Raven.Server
                 {
                     _auditLogger.Audit("Certificate does not contain any SAN.");
                 }
+                log?.AppendLine("Certificate does not contain any SAN.");
 
                 return false;
             }
 
             foreach (var san in sans)
             {
+                log?.AppendLine($"Checking if {san} is a valid SAN for domain {serverDomain}");
                 if (san.StartsWith("*."))
                 {
                     var array = san.Split("*.");
@@ -3323,6 +3332,7 @@ namespace Raven.Server
                         {
                             _auditLogger.Audit($"Certificate {cert.Thumbprint} contains invalid SAN {san}");
                         }
+                        log?.AppendLine($"Certificate {cert.Thumbprint} contains invalid SAN {san}");
 
                         continue;
                     }
@@ -3331,16 +3341,21 @@ namespace Raven.Server
                         serverDomain.Length > array[1].Length &&
                         serverDomain[..(serverDomain.Length - array[1].Length - 1)].Contains('.') == false)
                     {
+                        log?.AppendLine($"Certificate {cert.GetDisplayName()} ({cert.Thumbprint}) contains valid SAN {san}");
                         return true;
                     }
                 }
                 else
                 {
                     if (string.Compare(serverDomain, san, StringComparison.OrdinalIgnoreCase) == 0)
+                    {
+                        log?.AppendLine($"Certificate {cert.GetDisplayName()} ({cert.Thumbprint}) contains valid SAN {san}");
                         return true;
+                    }
                 }
             }
 
+            log?.AppendLine($"Certificate {cert.GetDisplayName()} ({cert.Thumbprint}) does not contain a valid SAN for domain {serverDomain}");
             return false;
         }
 

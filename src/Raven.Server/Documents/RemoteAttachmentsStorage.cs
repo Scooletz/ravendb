@@ -291,7 +291,7 @@ public class RemoteAttachmentsStorage : AbstractBackgroundWorkStorage<Attachment
 
         if (_counter++ % 1024 == 0)
         {
-            var alert = AlertRaised.Create(Database.Name, AlertTitle, WarnMessage, AlertType.Attachments_RemoteAttachmentWithoutIdentifier, NotificationSeverity.Warning, key: nameof(AlertType.Attachments_RemoteAttachmentWithoutIdentifier));
+            var alert = AlertRaised.Create(Database.Name, AlertTitle, WarnMessage, AlertReason.Attachments_RemoteAttachmentWithoutIdentifier, NotificationSeverity.Warning, key: nameof(AlertReason.Attachments_RemoteAttachmentWithoutIdentifier));
             Database.NotificationCenter.Add(alert);
         }
     }
@@ -479,7 +479,7 @@ public class RemoteAttachmentsStorage : AbstractBackgroundWorkStorage<Attachment
             Database.NotificationCenter.Add(AlertRaised.Create(
             Database.Name,
                 $"Remote attachment upload error in '{Database.Name}'", msg,
-                AlertType.RemoteAttachmentsConfigurationNotValid, NotificationSeverity.Error, Database.Name));
+                AlertReason.RemoteAttachmentsConfigurationNotValid, NotificationSeverity.Error, Database.Name));
 
             if (_logger.IsWarnEnabled)
                 _logger.Warn(msg, e);

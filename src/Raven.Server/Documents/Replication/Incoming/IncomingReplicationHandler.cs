@@ -534,7 +534,7 @@ namespace Raven.Server.Documents.Replication.Incoming
                                         database.Name,
                                         "Incoming Replication",
                                         msg,
-                                        AlertType.Replication,
+                                        AlertReason.Replication,
                                         NotificationSeverity.Error));
 
                                     throw new LegacyReplicationViolationException(msg);
@@ -580,7 +580,7 @@ namespace Raven.Server.Documents.Replication.Incoming
                                             "Incoming Replication",
                                             $"Detected missing attachments for document '{doc.Id}'. Existing attachments in metadata:" +
                                             $" ({string.Join(',', GetAttachmentsNameAndHash(document).Select(x => $"name: {x.Name}, hash: {x.Hash}"))}).",
-                                            AlertType.ReplicationMissingAttachments,
+                                            AlertReason.ReplicationMissingAttachments,
                                             NotificationSeverity.Warning));
                                         
                                         if (_replicationInfo.Logger.IsDebugEnabled)

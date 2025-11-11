@@ -324,7 +324,7 @@ this.Comments[idx].IsBlocked = $output.Blocked;";
         var chatCompletionClient = etlProcess.GetChatCompletionClient();
         chatCompletionClient.ForTestingPurposesOnly().SimulateFailureAsync = (ctx) =>
         {
-            if (ctx.Contains(config.Prompt))
+            if (ctx.Contains(config.Prompt) || ctx.Contains("AI Agent Parameters:"))
                 return Task.CompletedTask;
 
             if (Interlocked.Decrement(ref triggerOn) <= 0)
@@ -552,7 +552,7 @@ this.Comments[idx].IsSpam = $output.Blocked;";
         sb.AppendLine("ETL performance stats:").AppendLine(perfStats);
 
         var loadAlert = database.NotificationCenter.EtlNotifications.GetAlert<EtlErrorsDetails>(
-            GenAiTask.GenAiTaskTag, $"{config.Name}/{config.Transforms.First().Name}", AlertType.Etl_LoadError);
+            GenAiTask.GenAiTaskTag, $"{config.Name}/{config.Transforms.First().Name}", AlertReason.Etl_LoadError);
 
         if (loadAlert?.Details is EtlErrorsDetails details)
         {

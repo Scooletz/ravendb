@@ -34,6 +34,10 @@ public class GenAiConfiguration : AbstractAiIntegrationConfiguration
 
     public List<AiAgentToolQuery> Queries { get; set; } = [];
 
+    public bool EnableTracing { get; set; }
+
+    public int? ExpirationInSec { get; set; }
+
     private List<Transformation> _transforms;
 
     private const int DefaultMaxConcurrency = 4;
@@ -119,8 +123,9 @@ public class GenAiConfiguration : AbstractAiIntegrationConfiguration
         json[nameof(UpdateScript)] = UpdateScript;
         json[nameof(GenAiTransformation)] = GenAiTransformation.ToJson();
         json[nameof(MaxConcurrency)] = MaxConcurrency;
-        json[nameof(MaxConcurrency)] = MaxConcurrency;
         json[nameof(Queries)] = Queries != null ? new DynamicJsonArray(Queries) : null;
+        json[nameof(EnableTracing)] = EnableTracing;
+        json[nameof(ExpirationInSec)] = ExpirationInSec;
 
         return json;
     }
