@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using Newtonsoft.Json;
+using Raven.Client.Documents.Operations.AI.Agents;
 using Raven.Client.Documents.Operations.ETL;
 using Sparrow.Json;
 using Sparrow.Json.Parsing;
@@ -31,6 +32,11 @@ public class GenAiConfiguration : AbstractAiIntegrationConfiguration
 
     public int MaxConcurrency { get; set; } = DefaultMaxConcurrency;
 
+    public List<AiAgentToolQuery> Queries { get; set; } = [];
+
+    public bool EnableTracing { get; set; }
+
+    public int? ExpirationInSec { get; set; }
 
     private List<Transformation> _transforms;
 
@@ -97,6 +103,12 @@ public class GenAiConfiguration : AbstractAiIntegrationConfiguration
         else if (GenAiTransformation.ValidateScript(out var error) == false)
             errors.Add(error);
 
+        if (string.IsNullOrEmpty(Prompt))
+            errors.Add($"{nameof(Prompt)} must be provided");
+
+        if (string.IsNullOrEmpty(JsonSchema) && string.IsNullOrEmpty(SampleObject))
+            errors.Add("You must provide either a JSON schema or a sample object");
+
         if (TestMode == false && string.IsNullOrEmpty(UpdateScript))
             errors.Add("You must provide an update function");
 
@@ -117,6 +129,9 @@ public class GenAiConfiguration : AbstractAiIntegrationConfiguration
         json[nameof(UpdateScript)] = UpdateScript;
         json[nameof(GenAiTransformation)] = GenAiTransformation.ToJson();
         json[nameof(MaxConcurrency)] = MaxConcurrency;
+        json[nameof(Queries)] = Queries != null ? new DynamicJsonArray(Queries) : null;
+        json[nameof(EnableTracing)] = EnableTracing;
+        json[nameof(ExpirationInSec)] = ExpirationInSec;
 
         return json;
     }

@@ -1,7 +1,7 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
-    <RuntimeFrameworkVersion>8.0.20</RuntimeFrameworkVersion>
+    <RuntimeFrameworkVersion>8.0.21</RuntimeFrameworkVersion>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <AssemblyName>SlowTests</AssemblyName>
     <PackageId>SlowTests</PackageId>
@@ -87,7 +87,6 @@
     <EmbeddedResource Include="Smuggler\Data\Northwind_3.5.35168.ravendbdump" />
     <EmbeddedResource Include="Smuggler\Data\RevisionsWithoutADocument.ravendbdump" />
     <EmbeddedResource Include="Smuggler\Data\Revisions_3.5.35220.ravendbdump" />
-    <EmbeddedResource Include="Data\RavenDB_25136\RavenDB_25136.ravendb-snapshot" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\Raven.Server\Raven.Server.csproj" />
@@ -223,6 +222,12 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Update="SchemaUpgrade\Issues\SystemVersion\Identities_CompareExchange_RavenData_from12.zip">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="SchemaUpgrade\Issues\SystemVersion\RavenDB-24424_pre_schema_upgrade.zip">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="SchemaUpgrade\Issues\SystemVersion\RavenDB-24424_two_databases.zip">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>

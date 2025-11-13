@@ -1,20 +1,22 @@
-﻿using Sparrow.Json;
+﻿using System;
+using Sparrow.Json;
 using Sparrow.Json.Parsing;
 
 namespace Raven.Client.Documents.Operations.AI;
 
 public class AiUsage : IDynamicJsonValueConvertible
 {
-    public int PromptTokens { get; set; }
-    public int CompletionTokens { get; set; }
-    public int TotalTokens { get; set; }
-    public int CachedTokens { get; set; }
+    public long PromptTokens { get; set; }
+    public long CompletionTokens { get; set; }
+    public long TotalTokens { get; set; }
+    public long CachedTokens { get; set; }
+    public long ReasoningTokens { get; set; }
 
     internal void UpdateFrom(BlittableJsonReaderObject json)
     {
-        json.TryGet("prompt_tokens", out int promptTokens);
-        json.TryGet("completion_tokens", out int completionTokens);
-        json.TryGet("total_tokens", out int totalTokens);
+        json.TryGet("prompt_tokens", out long promptTokens);
+        json.TryGet("completion_tokens", out long completionTokens);
+        json.TryGet("total_tokens", out long totalTokens);
 
         PromptTokens += promptTokens;
         CompletionTokens += completionTokens;
@@ -22,8 +24,16 @@ public class AiUsage : IDynamicJsonValueConvertible
 
         if (json.TryGet("prompt_tokens_details", out BlittableJsonReaderObject promptDetails) && promptDetails != null)
         {
-            if (promptDetails.TryGet("cached_tokens", out int cachedTokens))
+            if (promptDetails.TryGet("cached_tokens", out long cachedTokens))
                 CachedTokens += cachedTokens;
+        }
+
+        if (json.TryGet("completion_tokens_details", out BlittableJsonReaderObject completionTokensDetails) && completionTokensDetails != null)
+        {
+            if (completionTokensDetails.TryGet("reasoning_tokens", out long reasoningTokens))
+            {
+                ReasoningTokens += reasoningTokens;
+            }
         }
     }
 
@@ -35,17 +45,20 @@ public class AiUsage : IDynamicJsonValueConvertible
             [nameof(CompletionTokens)] = CompletionTokens,
             [nameof(TotalTokens)] = TotalTokens,
             [nameof(CachedTokens)] = CachedTokens,
+            [nameof(ReasoningTokens)] = ReasoningTokens
         };
     }
 
-    internal static AiUsage GetUsageDifference(AiUsage usage2, AiUsage usage1)
+    internal static AiUsage GetUsageDifference(AiUsage current, AiUsage previous)
     {
+        var previousTotalWithoutReasoning = (previous.CompletionTokens - previous.ReasoningTokens + previous.PromptTokens);
         return new AiUsage
         {
-            PromptTokens = usage2.PromptTokens - usage1.PromptTokens,
-            TotalTokens = usage2.TotalTokens - usage1.TotalTokens,
-            CachedTokens = usage2.CachedTokens, // we don't want to subtract cached tokens, as they are only for the last response
-            CompletionTokens = usage2.CompletionTokens, // we don't want to subtract completion tokens, as they are only for the last response
+            PromptTokens = Math.Max(current.PromptTokens - previousTotalWithoutReasoning, 0), // in case the model gives us crappy results and current.PromptTokens - previousTotalWithoutReasoning < 0
+            TotalTokens = Math.Max(current.TotalTokens - previousTotalWithoutReasoning, 0), // in case the model gives us crappy results and current.TotalTokens - previousTotalWithoutReasoning < 0
+            CachedTokens = current.CachedTokens, // we don't want to subtract cached tokens, as they are only for the last response
+            CompletionTokens = current.CompletionTokens, // we don't want to subtract completion tokens, as they are only for the last response
+            ReasoningTokens = current.ReasoningTokens
         };
     }
 

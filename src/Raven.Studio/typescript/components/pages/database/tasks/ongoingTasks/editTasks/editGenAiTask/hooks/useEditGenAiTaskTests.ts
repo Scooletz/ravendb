@@ -120,8 +120,10 @@ export function useEditGenAiTaskTests() {
                             CachedTokens: 0,
                             CompletionTokens: 0,
                             PromptTokens: 0,
+                            ReasoningTokens: 0,
                             TotalTokens: 0,
                         },
+                        ConversationDocument: undefined,
                     },
                     DocumentId: getDocumentId(formValues),
                 };

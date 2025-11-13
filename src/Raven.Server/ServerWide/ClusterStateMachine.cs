@@ -753,7 +753,7 @@ namespace Raven.Server.ServerWide
             {
                 try
                 {
-                    serverStore.NotificationCenter.Dismiss(AlertRaised.GetKey(AlertType.UnrecoverableClusterError, $"{index}"), context.Transaction, sendNotificationEvenIfDoesntExist: false);
+                    serverStore.NotificationCenter.Dismiss(AlertRaised.GetKey(AlertReason.UnrecoverableClusterError, $"{index}"), context.Transaction, sendNotificationEvenIfDoesntExist: false);
                 }
                 catch
                 {
@@ -772,7 +772,7 @@ namespace Raven.Server.ServerWide
                             null,
                             $"Unrecoverable Cluster Error at Index {index}",
                             error,
-                            AlertType.UnrecoverableClusterError,
+                            AlertReason.UnrecoverableClusterError,
                             NotificationSeverity.Error,
                             key: $"{index}",
                             details: new ExceptionDetails(exception)));
@@ -1145,7 +1145,7 @@ namespace Raven.Server.ServerWide
                     null,
                     CertificateReplacement.CertReplaceAlertTitle,
                     "Failed to confirm receipt of the new certificate.",
-                    AlertType.Certificates_ReplaceError,
+                    AlertReason.Certificates_ReplaceError,
                     NotificationSeverity.Error,
                     details: new ExceptionDetails(e)));
 
@@ -1200,7 +1200,7 @@ namespace Raven.Server.ServerWide
                     null,
                     CertificateReplacement.CertReplaceAlertTitle,
                     $"{nameof(InstallUpdatedServerCertificateCommand)} failed.",
-                    AlertType.Certificates_ReplaceError,
+                    AlertReason.Certificates_ReplaceError,
                     NotificationSeverity.Error,
                     details: new ExceptionDetails(e)));
 
@@ -1280,7 +1280,7 @@ namespace Raven.Server.ServerWide
                     null,
                     CertificateReplacement.CertReplaceAlertTitle,
                     "Failed to confirm replacement of the new certificate.",
-                    AlertType.Certificates_ReplaceError,
+                    AlertReason.Certificates_ReplaceError,
                     NotificationSeverity.Error,
                     details: new ExceptionDetails(e)));
 

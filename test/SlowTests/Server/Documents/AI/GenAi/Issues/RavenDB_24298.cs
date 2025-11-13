@@ -9,7 +9,6 @@ using Raven.Client.Documents.Operations.OngoingTasks;
 using Raven.Server.Documents.AI;
 using Sparrow.Json;
 using Tests.Infrastructure;
-using Tests.Infrastructure.Extensions;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -18,7 +17,7 @@ namespace SlowTests.Server.Documents.AI.GenAi.Issues;
 public class RavenDB_24298(ITestOutputHelper output) : RavenTestBase(output)
 {
     [RavenTheory(RavenTestCategory.Ai)]
-    [RavenGenAiData(IntegrationType = RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single)]
+    [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi, DatabaseMode = RavenDatabaseMode.Single)]
     public async Task ConfigurationUpdateShouldTakeAffect(Options options, GenAiConfiguration config)
     {
         using var store = GetDocumentStore();

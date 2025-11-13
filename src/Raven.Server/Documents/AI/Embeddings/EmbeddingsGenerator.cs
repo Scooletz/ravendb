@@ -106,8 +106,8 @@ public class EmbeddingsGenerator(DocumentDatabase database, RavenLogger logger, 
             _embeddingGenerationService = AiHelper.CreateEmbeddingService(connectionString);
             _shutdown = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             _cancellationToken = _shutdown.Token;
-            var shutdownTask = new TaskCompletionSource();
-            _cancellationToken.Register(_ => shutdownTask.TrySetCanceled(), null);
+            var shutdownTask = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            _cancellationToken.Register(static tcs => ((TaskCompletionSource)tcs).TrySetCanceled(), shutdownTask);
             _tasks = new Task[maxConcurrentBatches + 1];
             Array.Fill(_tasks, Task.CompletedTask);
             _tasks[^1] = shutdownTask.Task;
@@ -387,11 +387,22 @@ public class EmbeddingsGenerator(DocumentDatabase database, RavenLogger logger, 
                 }
                 _parent.ProcessInBackground(new StoreEmbeddings(works, Configuration.Quantization));
             }
+            catch (HttpOperationException httpEx)
+            {
+                var enrichedException = new HttpOperationException($"{httpEx.Message}{Environment.NewLine}ResponseContent:{Environment.NewLine}{httpEx.ResponseContent}", httpEx);
+                PropagateExceptionToWorks(enrichedException);
+            }
             catch (Exception e)
+            {
+                PropagateExceptionToWorks(e);
+            }
+
+            return;
+            void PropagateExceptionToWorks(Exception exToPropagate)
             {
                 foreach (var work in works)
                 {
-                    work.TaskCompletionSource.TrySetException(e);
+                    work.TaskCompletionSource.TrySetException(exToPropagate);
                     work.Owner.RemoveFromCache(work.CacheKey);
                 }
             }

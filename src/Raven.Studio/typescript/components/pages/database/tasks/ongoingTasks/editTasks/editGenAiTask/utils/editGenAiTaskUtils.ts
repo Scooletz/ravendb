@@ -86,6 +86,10 @@ const mapToDto = (
         GenAiTransformation: {
             Script: data.script,
         },
+        //temporary until UI supports queries
+        Queries: null,
+        EnableTracing: false,
+        ExpirationInSec: null,
     };
 };
 
