@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -27,7 +28,7 @@ namespace SlowTests.Server.Documents.AI.AiAgent
         [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi, DatabaseMode = RavenDatabaseMode.Single)]
         public async Task ShouldRaiseServerAlertOnExceededActionToolResponse(Options options, GenAiConfiguration config)
         {
-            options.ModifyDatabaseRecord = r => r.Settings[RavenConfiguration.GetKey(x => x.Ai.ToolsTokenUsageThreshold)] = "100";
+            options.ModifyDatabaseRecord = r => r.Settings[RavenConfiguration.GetKey(x => x.Ai.ToolsTokenUsageThreshold)] = "50";
 
             using var store = GetDocumentStore(options);
             await store.Maintenance.SendAsync(new PutConnectionStringOperation<AiConnectionString>(config.Connection));
@@ -208,8 +209,25 @@ namespace SlowTests.Server.Documents.AI.AiAgent
                 if (details.TryGet("TokenCount", out int tokenCount) == false || details.TryGet("TokenThreshold", out int tokenThreshold) == false || tokenCount <= tokenThreshold)
                     return false;
 
-                if (details.TryGet("ToolCalls", out BlittableJsonReaderArray toolCalls) == false || toolCalls.Length == 0)
+                if (details.TryGet("ConversationId", out string conversationId) == false ||
+                    string.IsNullOrWhiteSpace(conversationId))
                     return false;
+
+                char sep = db.IdentityPartsSeparator;
+
+                if (conversationId[^1] == sep || conversationId[^1] == '|')
+                    return false;
+
+                int lastSep = conversationId.LastIndexOf(sep);
+                if (lastSep >= 0)
+                {
+                    var suffix = conversationId.AsSpan(lastSep + 1);
+                    if (suffix.Length == 0 || !suffix.Contains('-'))
+                        return false;
+                }
+
+                if (details.TryGet("ToolCalls", out BlittableJsonReaderArray toolCalls) == false || toolCalls.Length == 0)
+                        return false;
 
                 var actualToolTypes = new HashSet<string>();
                 foreach (BlittableJsonReaderObject toolCall in toolCalls)

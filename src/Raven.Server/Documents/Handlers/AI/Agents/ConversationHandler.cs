@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -7,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using JetBrains.Annotations;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.Features.Authentication;
 using Newtonsoft.Json;
 using Raven.Client.Documents.Commands.MultiGet;
 using Raven.Client.Documents.Operations.AI;
@@ -29,15 +31,19 @@ namespace Raven.Server.Documents.Handlers.AI.Agents;
 
 internal class ConversationHandler(ServerStore server, DocumentDatabase database)
 {
+    public const int DefaultMaxModelIterationsPerCall = 16;
     private const int DefaultMaxTokensBeforeSummarization = 32 * 1024;
     private const int DefaultMaxTokensAfterSummarization = 1024;
+
     protected ConversationDocument _document;
     private string _conversationId;
     private RequestBody _request;
     private AiAgentConfiguration _configuration;
     private string _changeVector;
     private string _raftId;
+    private int _maxModelIterationsPerCall;
 
+    public required RavenServer.AuthenticateConnection Authentication;
     public void Initialize(AiAgentConfiguration configuration, string conversationId, RequestBody body, string changeVector, string raftId = null)
     {
         _conversationId = conversationId;
@@ -45,6 +51,7 @@ internal class ConversationHandler(ServerStore server, DocumentDatabase database
         _configuration = configuration;
         _changeVector = changeVector;
         _raftId = raftId;
+        _maxModelIterationsPerCall = configuration.MaxModelIterationsPerCall ?? DefaultMaxModelIterationsPerCall;
     }
 
     protected virtual async Task InitializeDocument(DocumentsOperationContext context)
@@ -88,7 +95,8 @@ internal class ConversationHandler(ServerStore server, DocumentDatabase database
         }
         else
         {
-            _document = ConversationDocument.ToDocument(_conversationId, conversation.Data);
+            _document = ConversationDocument.ToDocument(_conversationId, conversation.Data, _configuration);
+
             if (_document.Agent != agentId)
             {
                 throw new InvalidOperationException(
@@ -143,6 +151,8 @@ internal class ConversationHandler(ServerStore server, DocumentDatabase database
         return await RunInternalAsync(context, talker, token);
     }
 
+    private TimeSpan _elapsed;
+
     private async Task<(BlittableJsonReaderObject Response, AiUsage Usage)> RunInternalAsync(
         JsonOperationContext context,
         Talker talker, CancellationToken token)
@@ -152,7 +162,9 @@ internal class ConversationHandler(ServerStore server, DocumentDatabase database
         AiResponse r = default;
         List<BlittableJsonReaderObject> historyDocs = default;
         bool shouldContinueConversation = true;
+        var sw = Stopwatch.StartNew();
 
+        var pendingAlertsDetails = new List<ExceededTokenThresholdDetails>();
         while (shouldContinueConversation)
         {
             using var request = talker.CreateCompletionRequest(_request.Attachments);
@@ -168,25 +180,30 @@ internal class ConversationHandler(ServerStore server, DocumentDatabase database
             {
                 if (_document.TryGetDetailsOfRecentToolCall(_configuration, out var toolCalls))
                 {
-                    ExceededTokenThresholdDetails.Add(
-                        database.NotificationCenter,
-                        _configuration.Name,
-                        _conversationId,
-                        currentTurnUsage.PromptTokens,
-                        database.Configuration.Ai.ToolsTokenUsageThreshold,
-                        toolCalls
+                    pendingAlertsDetails.Add(ExceededTokenThresholdDetails.Add(
+                            database.NotificationCenter,
+                            _configuration.Name,
+                            _conversationId,
+                            currentTurnUsage.PromptTokens,
+                            database.Configuration.Ai.ToolsTokenUsageThreshold,
+                            toolCalls
+                        )
                     );
                 }
             }
 
             if (r.Type is AiResponseType.Result)
             {
+                _document.RemainingToolIterations = _maxModelIterationsPerCall;
                 shouldContinueConversation = false;
             }
             else
             {
                 await HandleQueryToolCallsAsync(context, r.ToolCalls);
-                shouldContinueConversation = TryGetUserTools(context, r.ToolCalls) == false;
+                if (TryGetUserTools(context, r.ToolCalls))
+                {
+                    shouldContinueConversation = false;
+                }
             }
 
             _document.CurrentUsage = talker.AiUsage;
@@ -200,8 +217,15 @@ internal class ConversationHandler(ServerStore server, DocumentDatabase database
             }
         }
 
+        _elapsed = sw.Elapsed;
         _conversationId = await TryPersistAsync(context, historyDocs);
 
+        foreach (ExceededTokenThresholdDetails pendingAlertDetails in pendingAlertsDetails)
+        {
+            pendingAlertDetails.ConversationId = _conversationId;
+            database.NotificationCenter.Add(
+                ExceededTokenThresholdDetails.CreateAlert(pendingAlertDetails, database.Name));
+        }
         return (r.Result, talker.AiUsage);
     }
 
@@ -296,7 +320,8 @@ internal class ConversationHandler(ServerStore server, DocumentDatabase database
 
         oldChat.Messages.Clear();
 
-        oldChat.Initialize(context, configuration);
+        oldChat.Initialize(context, configuration, resetRemainingToolIterations: false);
+
         oldChat.AddMessage(context,
             context.ReadObject(
                 new DynamicJsonValue
@@ -393,10 +418,11 @@ internal class ConversationHandler(ServerStore server, DocumentDatabase database
             HttpContext = new DefaultHttpContext()
         });
 
+        multiGetHandler.HttpContext.Features.Set<IHttpAuthenticationFeature>(Authentication);
+
         using (var reqsBlittable = context.ReadObject(new DynamicJsonValue { ["Requests"] = reqs }, "ai-agent/multi-query"))
         using (var handler = new MultiGetHandlerProcessorForPost(multiGetHandler))
         using (var memoryStream = RecyclableMemoryStreamFactory.GetRecyclableStream())
-        using (database.DocumentsStorage.ContextPool.AllocateOperationContext(out JsonOperationContext clone))
         {
             await handler.ExecuteMultiGetAsync(context, reqsBlittable, memoryStream);
             memoryStream.Position = 0;
@@ -425,7 +451,7 @@ internal class ConversationHandler(ServerStore server, DocumentDatabase database
                     {
                         ["tool_call_id"] = toolCallsIds[i],
                         ["role"] = "tool",
-                        ["content"] = queryResult.Clone(clone).ToString()
+                        ["content"] = queryResult.Clone().ToString()
                     }, "tool-call/response"), usage: null);
             }
         }
@@ -531,13 +557,6 @@ internal class ConversationHandler(ServerStore server, DocumentDatabase database
         return await TalkAsync(context, token: token);
     }
 
-    public async Task<(string, AiUsage Usage)> HandleRequest(CancellationToken token)
-    {
-        using var _ = database.DocumentsStorage.ContextPool.AllocateOperationContext(out DocumentsOperationContext context);
-        var r = await HandleRequest(context, token);
-        return (r.Response.ToString(), r.Usage);
-    }
-
     public async Task<(BlittableJsonReaderObject Response, AiUsage Usage)> HandleStreamingRequest(
         DocumentsOperationContext context,
         Stream outputStream,
@@ -574,7 +593,9 @@ internal class ConversationHandler(ServerStore server, DocumentDatabase database
             [nameof(ConversationResult<object>.ChangeVector)] = _document.ChangeVector,
             [nameof(ConversationResult<object>.Response)] = response,
             [nameof(ConversationResult<object>.ActionRequests)] = new DynamicJsonArray(_document.OpenActionCalls.Select(t => t.Value.ToJson())),
-            [nameof(ConversationResult<object>.TotalUsage)] = _document.TotalUsage.ToJson()
+            [nameof(ConversationResult<object>.TotalUsage)] = _document.TotalUsage.ToJson(),
+            [nameof(ConversationResult<object>.Usage)] = _document.CurrentUsage.ToJson(),
+            [nameof(ConversationResult<object>.Elapsed)] = _elapsed
         };
     }
 }
