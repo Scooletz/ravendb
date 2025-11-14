@@ -1,8 +1,8 @@
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Net;
 using System.Threading.Tasks;
-using BenchmarkDotNet.Attributes;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
@@ -10,40 +10,48 @@ using Microsoft.AspNetCore.Http.Features.Authentication;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Raven.Client.Documents;
+using Raven.Client.Exceptions;
 using Raven.Client.ServerWide;
 using Raven.Client.ServerWide.Operations;
-using Raven.Client.Exceptions;
+using Raven.Client.ServerWide.Operations.Certificates;
 using Raven.Server;
 using Raven.Server.Config;
 using Raven.Server.Config.Settings;
-using Raven.Client.ServerWide.Operations.Certificates;
 
 namespace RequestHandler.Benchmark;
 
-[MemoryDiagnoser]
-[RankColumn]
-public class RequestHandlerBenchmark
+internal sealed class RequestHandlerHarness : IAsyncDisposable
 {
+    private const string DatabaseName = "RequestHandlerBenchmark";
+    private readonly bool _useRequestScope;
+    private readonly string _dataDirectory;
     private RavenServer _server = null!;
-    private IDocumentStore _store = null!;
     private IServiceProvider _rootServiceProvider = null!;
     private IServiceScopeFactory _scopeFactory = null!;
-    private RequestDelegate _requestDelegate = null!;
-    private string _databaseName = null!;
     private ILoggerFactory _loggerFactory = null!;
-    private string _dataDirectory = null!;
+    private IDocumentStore _store = null!;
+    private RequestDelegate _requestDelegate = null!;
 
-    [Params(false, true)]
-    public bool UseRequestScope { get; set; }
+    private RequestHandlerHarness(bool useRequestScope, string dataDirectory)
+    {
+        _useRequestScope = useRequestScope;
+        _dataDirectory = dataDirectory;
+    }
 
-    [GlobalSetup]
-    public async Task GlobalSetup()
+    public static async Task<RequestHandlerHarness> CreateAsync(bool useRequestScope)
     {
         RavenServerStartup.SkipHttpLogging = true;
 
-        _dataDirectory = Path.Combine(Path.GetTempPath(), "RequestHandlerBenchmark", Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(_dataDirectory);
+        var dataDirectory = Path.Combine(Path.GetTempPath(), "RequestHandlerHarness", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dataDirectory);
 
+        var harness = new RequestHandlerHarness(useRequestScope, dataDirectory);
+        await harness.InitializeAsync();
+        return harness;
+    }
+
+    private async Task InitializeAsync()
+    {
         var configuration = RavenConfiguration.CreateForServer(null);
         configuration.Core.RunInMemory = true;
         configuration.Core.DataDirectory = new PathSetting(_dataDirectory);
@@ -64,37 +72,39 @@ public class RequestHandlerBenchmark
         _requestDelegate = BuildRequestDelegate();
     }
 
-    [GlobalCleanup]
-    public Task GlobalCleanup()
+    public async Task WarmupAsync()
     {
-        if (_store != null)
-        {
-            _store.Dispose();
-        }
+        // Warmup a single request to make sure caches are ready before measurement.
+        await ExecuteRequestAsync();
+    }
 
-        _loggerFactory?.Dispose();
-        _server?.Dispose();
+    public async Task<(TimeSpan Elapsed, int Failures, Exception LastFailure)> ExecuteAsync(int iterations)
+    {
+        var stopwatch = Stopwatch.StartNew();
+        var failures = 0;
+        Exception lastFailure = null;
 
-        if (_dataDirectory != null && Directory.Exists(_dataDirectory))
+        for (var i = 0; i < iterations; i++)
         {
             try
             {
-                Directory.Delete(_dataDirectory, recursive: true);
+                await ExecuteRequestAsync();
             }
-            catch
+            catch (Exception e)
             {
-                // ignored
+                failures++;
+                lastFailure = e;
             }
         }
 
-        return Task.CompletedTask;
+        stopwatch.Stop();
+        return (stopwatch.Elapsed, failures, lastFailure);
     }
 
-    [Benchmark(Description = "GET /databases/{db}/docs?id=users/1-A")]
-    public async Task ExecuteRequestAsync()
+    private async Task ExecuteRequestAsync()
     {
         var context = CreateHttpContext();
-        using var scope = UseRequestScope ? _scopeFactory.CreateScope() : null;
+        using var scope = _useRequestScope ? _scopeFactory.CreateScope() : null;
 
         context.RequestServices = scope?.ServiceProvider ?? _rootServiceProvider;
 
@@ -114,17 +124,15 @@ public class RequestHandlerBenchmark
 
     private async Task EnsureDatabaseAsync()
     {
-        _databaseName = "RequestHandlerBenchmark";
-
         _store = new DocumentStore
         {
             Urls = new[] { _server.WebUrl },
-            Database = _databaseName
+            Database = DatabaseName
         };
 
         _store.Initialize();
 
-        var databaseRecord = new DatabaseRecord(_databaseName)
+        var databaseRecord = new DatabaseRecord(DatabaseName)
         {
             Settings =
             {
@@ -138,17 +146,15 @@ public class RequestHandlerBenchmark
         }
         catch (ConcurrencyException)
         {
-            // database already exists - this can happen when GlobalSetup is rerun by BenchmarkDotNet
+            // Database already exists.
         }
     }
 
     private async Task SeedSampleDocumentAsync()
     {
-        using (var session = _store.OpenAsyncSession())
-        {
-            await session.StoreAsync(new { Name = "Benchmark" }, "users/1-A");
-            await session.SaveChangesAsync();
-        }
+        using var session = _store.OpenAsyncSession();
+        await session.StoreAsync(new { Name = "Benchmark" }, "users/1-A");
+        await session.SaveChangesAsync();
     }
 
     private RequestDelegate BuildRequestDelegate()
@@ -170,7 +176,7 @@ public class RequestHandlerBenchmark
         context.Request.Scheme = "http";
         context.Request.Host = new HostString("127.0.0.1");
         context.Request.Protocol = "HTTP/1.1";
-        context.Request.Path = $"/databases/{_databaseName}/docs";
+        context.Request.Path = $"/databases/{DatabaseName}/docs";
         context.Request.QueryString = new QueryString("?id=users/1-A");
         context.Request.Body = Stream.Null;
         context.Request.ContentLength = 0;
@@ -200,7 +206,28 @@ public class RequestHandlerBenchmark
             Status = RavenServer.AuthenticationStatus.Allowed
         };
 
-        feature.AuthorizedDatabases[_databaseName] = DatabaseAccess.ReadWrite;
+        feature.AuthorizedDatabases[DatabaseName] = DatabaseAccess.ReadWrite;
         return feature;
+    }
+
+    public ValueTask DisposeAsync()
+    {
+        _store?.Dispose();
+        _loggerFactory?.Dispose();
+        _server?.Dispose();
+
+        if (Directory.Exists(_dataDirectory))
+        {
+            try
+            {
+                Directory.Delete(_dataDirectory, recursive: true);
+            }
+            catch
+            {
+                // ignored
+            }
+        }
+
+        return ValueTask.CompletedTask;
     }
 }
