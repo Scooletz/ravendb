@@ -1,9 +1,9 @@
-﻿using System;
+using System;
 using Sparrow.Json;
 
 namespace Raven.Client.Documents.Operations.Replication
 {
-    internal interface IExternalReplication : IDynamicJsonValueConvertible
+    internal interface IExternalReplication : IDynamicJson
     {
         bool Disabled { get; set; }
 
