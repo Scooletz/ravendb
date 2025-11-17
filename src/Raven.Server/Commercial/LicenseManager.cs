@@ -1407,7 +1407,7 @@ namespace Raven.Server.Commercial
 
             foreach (var kvp in indexes)
             {
-                if (HasAdditionalAssembliesFromNuGet(kvp.Value))
+                if (HasAdditionalAssembliesFromNuGet(kvp.Value) && kvp.Value.State != IndexState.Disabled)
                     return true;
             }
 
