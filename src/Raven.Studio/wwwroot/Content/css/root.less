@@ -230,6 +230,7 @@ body {
     &.pin-notifications {
         #notification-center {
             transition: none;
+            z-index: @zindex-notification-center-pinned !important;
         }
     }
 
@@ -255,6 +256,7 @@ body {
                 #notification-center {
                     transform: none;
                     box-shadow: none;
+                    z-index: @zindex-notification-center-pinned !important;
                 }
             }
 
