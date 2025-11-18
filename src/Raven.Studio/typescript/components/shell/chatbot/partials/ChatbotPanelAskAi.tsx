@@ -4,15 +4,14 @@ import { useAppDispatch, useAppSelector } from "components/store";
 import { useForm, useWatch } from "react-hook-form";
 import { chatbotSelectors, chatbotActions } from "../store/chatbotSlice";
 import ChatbotMessages from "./ChatbotMessages";
-import router from "plugins/router";
 import { aiAssistantSelectors } from "components/common/shell/aiAssistantSlice";
 import AiAssistantConsentStatusChecker from "components/common/aiAssistant/AiAssistantConsentStatusChecker";
+import ChatbotCommonActions from "./ChatbotCommonActions";
 
 export default function ChatbotPanelAskAi() {
     const dispatch = useAppDispatch();
-    const messages = useAppSelector(chatbotSelectors.messages);
     const consentStatus = useAppSelector(aiAssistantSelectors.consentStatus);
-    const lastRunChatData = useAppSelector(chatbotSelectors.lastRunChatData);
+    const runChatLastMessage = useAppSelector(chatbotSelectors.runChatLastMessage);
 
     const isConsentSuccess = consentStatus.data === "Success";
 
@@ -27,17 +26,16 @@ export default function ChatbotPanelAskAi() {
     });
 
     const handleSend = async () => {
-        const viewTitle = router.activeInstruction().config.title;
         await dispatch(
             chatbotActions.runChat({
-                data: { View: viewTitle, Message: formValues.prompt },
+                message: formValues.prompt,
             })
         ).unwrap();
         reset();
     };
 
     const onConsentGiven = () => {
-        if (lastRunChatData) {
+        if (runChatLastMessage) {
             dispatch(chatbotActions.retryRunChat());
         }
     };
@@ -46,8 +44,11 @@ export default function ChatbotPanelAskAi() {
 
     return (
         <div className="vstack flex-grow py-2 h-100">
-            <AiAssistantConsentStatusChecker className="p-2 flex-grow" onConsentGiven={onConsentGiven} />
-            <ChatbotMessages messages={messages} />
+            <div className="overflow-y-auto">
+                <AiAssistantConsentStatusChecker className="p-2 flex-grow" onConsentGiven={onConsentGiven} />
+                <ChatbotCommonActions />
+            </div>
+            <ChatbotMessages />
             <div className="position-relative flex-shrink-0 px-2 pt-2">
                 <FormInput
                     type="textarea"

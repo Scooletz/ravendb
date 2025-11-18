@@ -5,13 +5,21 @@ import Button from "react-bootstrap/Button";
 import Spinner from "react-bootstrap/Spinner";
 import Form from "react-bootstrap/Form";
 import { useAsync } from "react-async-hook";
-import { RefinePromptAiAssistantViewData } from "commands/aiAssistant/refinePromptAiAssistantCommand";
-import { ReactNode } from "react";
-import { useAppSelector } from "components/store";
-import { aiAssistantSelectors } from "../shell/aiAssistantSlice";
+import {
+    RefinePromptAiAssistantResultDto,
+    RefinePromptAiAssistantViewData,
+} from "commands/aiAssistant/refinePromptAiAssistantCommand";
+import { ReactNode, useMemo, useState } from "react";
+import { useAppDispatch, useAppSelector } from "components/store";
+import { aiAssistantActions, aiAssistantSelectors } from "../shell/aiAssistantSlice";
 import RichAlert from "../RichAlert";
 import { aiAssistantConstants } from "./aiAssistantConstants";
 import AiAssistantConsentStatusChecker from "./AiAssistantConsentStatusChecker";
+import { loadableData } from "components/models/common";
+import { createFailureState, createIdleState, createLoadingState, createSuccessState } from "components/utils/common";
+import { processStreamingResponse } from "components/utils/streamingUtils";
+import ButtonWithSpinner from "../ButtonWithSpinner";
+import useTypewriter from "components/hooks/useTypewriter";
 
 interface AiAssistWindowProps {
     closeWindow: () => void;
@@ -21,31 +29,63 @@ interface AiAssistWindowProps {
 }
 
 export default function AiAssistantWindow({ closeWindow, data, acceptResult, successMessage }: AiAssistWindowProps) {
+    const dispatch = useAppDispatch();
     const { aiAssistantService } = useServices();
     const consentStatus = useAppSelector(aiAssistantSelectors.consentStatus);
-
     const isConsentSuccess = consentStatus.data === "Success";
+
+    const [assistResult, setAssistResult] = useState<loadableData<RefinePromptAiAssistantResultDto>>(createIdleState());
+    const abortController = useMemo(() => new AbortController(), []);
 
     const asyncAssist = useAsync(async () => {
         if (!isConsentSuccess) {
             return null;
         }
 
-        return await aiAssistantService.refinePrompt(data);
-    }, []);
+        setAssistResult(createLoadingState());
 
-    const getAssistResultText = () => {
-        if (!asyncAssist.result || asyncAssist.result.Status !== "Success") {
-            return null;
+        const result = await processStreamingResponse<RefinePromptAiAssistantResultDto>({
+            promiseFn: () => aiAssistantService.refinePrompt(data, abortController),
+            streamPropertyPath: "RefinedPrompt",
+            onChunksCombined: (text) => {
+                setAssistResult((prev) => {
+                    if (prev.data) {
+                        return createSuccessState({
+                            ...prev.data,
+                            RefinedPrompt: text,
+                        });
+                    } else {
+                        return createSuccessState({
+                            RefinedPrompt: text,
+                            Status: "Success",
+                            UsagePercentage: 0,
+                        });
+                    }
+                });
+            },
+        });
+
+        if (result.status === "error") {
+            setAssistResult(createFailureState(result.error));
+            return;
         }
 
-        return asyncAssist.result.RefinedPrompt;
-    };
+        dispatch(aiAssistantActions.usagePercentageSet(result.data.UsagePercentage));
+        setAssistResult(createSuccessState(result.data));
+    }, []);
 
-    const assistResultText = getAssistResultText();
+    const refinedPromptTypewriter = useTypewriter({
+        text: assistResult.data?.RefinedPrompt,
+        isDone: asyncAssist.status === "success",
+    });
 
     const handleAccept = () => {
-        acceptResult(assistResultText);
+        acceptResult(assistResult.data?.RefinedPrompt || "");
+        closeWindow();
+    };
+
+    const handleClose = () => {
+        abortController.abort();
         closeWindow();
     };
 
@@ -62,56 +102,69 @@ export default function AiAssistantWindow({ closeWindow, data, acceptResult, suc
             <div className="ai-assistant-window-inner p-2 rounded-2">
                 <div className="hstack justify-content-between align-items-center mb-2">
                     <div>
-                        <Icon icon="refine-ai" />
+                        <Icon icon="ai-assistant" />
                         AI Assistant
                     </div>
-                    <Button variant="link" className="text-reset" onClick={closeWindow} size="sm">
+                    <Button variant="link" className="text-reset" onClick={handleClose} size="sm">
                         <Icon icon="close" margin="m-0" />
                     </Button>
                 </div>
                 <AiAssistantConsentStatusChecker onConsentGiven={asyncAssist.execute} />
-                {isConsentSuccess && asyncAssist.loading && (
+                {isConsentSuccess && assistResult.status === "loading" && (
                     <div className="hstack align-items-center gap-1">
                         <Spinner size="sm" variant="progress" />
                         Text refine in progress... Please wait.
                     </div>
                 )}
-                {asyncAssist.error && <RichAlert variant="danger">Failed to assist. Please try again.</RichAlert>}
-                {asyncAssist.result?.Status === "InvalidData" && (
-                    <RichAlert variant="danger">Invalid data. Please check your data and try again.</RichAlert>
-                )}
-                {asyncAssist.result?.Status === "OutOfTokens" && (
-                    <RichAlert variant="danger">
-                        You have used all your AI Assistant tokens for this month. Your token allowance will be reset at
-                        the beginning of the next month.
-                    </RichAlert>
-                )}
-                {asyncAssist.result?.Status === "InvalidCredentials" && (
-                    <RichAlert variant="danger">{aiAssistantConstants.invalidCredentials}</RichAlert>
-                )}
-                {assistResultText && (
+                {assistResult.error && <RichAlert variant="danger">Failed to assist. Please try again.</RichAlert>}
+                <AiAssistStatus status={asyncAssist.result?.Status} />
+                {assistResult.status === "success" && (
                     <div>
                         <div className="mb-2">{successMessage}</div>
                         <Form.Control
-                            defaultValue={assistResultText}
+                            value={refinedPromptTypewriter}
                             readOnly
                             as="textarea"
-                            rows={3}
-                            className="mb-2"
+                            className="refined-prompt-textarea mb-2"
                         />
                         <div className="hstack gap-2 justify-content-end">
-                            <Button variant="secondary" className="rounded-pill" onClick={closeWindow}>
+                            <Button variant="secondary" className="rounded-pill" onClick={handleClose}>
                                 <Icon icon="cancel" />
                                 Discard
                             </Button>
-                            <Button variant="primary" className="rounded-pill" onClick={handleAccept}>
-                                <Icon icon="check" />
+                            <ButtonWithSpinner
+                                variant="primary"
+                                className="rounded-pill"
+                                onClick={handleAccept}
+                                isSpinning={asyncAssist.loading}
+                                icon="check"
+                            >
                                 Accept
-                            </Button>
+                            </ButtonWithSpinner>
                         </div>
                     </div>
                 )}
             </div>
         </div>
     );
+}
+
+interface AiAssistStatusProps {
+    status: AiAssistantResponseStatus;
+}
+
+function AiAssistStatus({ status }: AiAssistStatusProps) {
+    if (status === "InvalidData") {
+        return <RichAlert variant="danger">{aiAssistantConstants.invalidData}</RichAlert>;
+    }
+
+    if (status === "OutOfTokens") {
+        return <RichAlert variant="danger">{aiAssistantConstants.outOfTokens}</RichAlert>;
+    }
+
+    if (status === "InvalidCredentials") {
+        return <RichAlert variant="danger">{aiAssistantConstants.invalidCredentials}</RichAlert>;
+    }
+
+    return null;
 }

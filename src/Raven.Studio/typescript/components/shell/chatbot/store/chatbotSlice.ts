@@ -1,26 +1,46 @@
-import { createAsyncThunk, createSlice, PayloadAction } from "@reduxjs/toolkit";
 import {
-    RunChatbotAiAssistantResultDto,
-    RunChatbotAiAssistantViewData,
-} from "commands/aiAssistant/runChatbotAiAssistantCommand";
+    createAsyncThunk,
+    createEntityAdapter,
+    createSlice,
+    EntityState,
+    PayloadAction,
+    Update,
+} from "@reduxjs/toolkit";
+import { RunChatbotAiAssistantResultDto } from "commands/aiAssistant/runChatbotAiAssistantCommand";
+import { aiAssistantActions } from "components/common/shell/aiAssistantSlice";
 import { services } from "components/hooks/useServices";
 import { RootState } from "components/store";
+import { processStreamingResponse } from "components/utils/streamingUtils";
+import router from "plugins/router";
 
-export type ChatbotRole = "user" | "assistant";
 type ChatbotTab = "Ask AI" | "What's new" | "News" | "Resources";
 type ChatbotResourcesTab = "Help and resources" | "Join the community" | "Contact support" | "Submit feedback";
 
-type ChatbotRunChatData = Omit<RunChatbotAiAssistantViewData, "RavenVersion">;
-
-export interface ChatbotMessage {
-    id: string;
-    role: ChatbotRole;
-    content?: string;
-    thinkingTimeInMs?: number;
-    state?: "loading" | "success" | "error";
-    usage?: Raven.Client.Documents.Operations.AI.AiUsage;
-    relevantLinks?: RunChatbotAiAssistantResultDto["Response"]["RelevantLinks"];
+interface ChatbotRunChatData {
+    message: string;
 }
+
+interface ChatbotMessageBase {
+    id: string;
+    content: string;
+    role: "user" | "assistant";
+}
+
+export interface ChatbotUserMessage extends ChatbotMessageBase {
+    role: "user";
+}
+
+export interface ChatbotAssistantMessage extends ChatbotMessageBase {
+    role: "assistant";
+    thinkingTimeInMs: number;
+    state: "Loading" | "Error" | AiAssistantResponseStatus;
+    errorMessage?: string;
+    usage: Raven.Client.Documents.Operations.AI.AiUsage;
+    relevantLinks: RunChatbotAiAssistantResultDto["Response"]["RelevantLinks"];
+    followUpQuestions: string[];
+}
+
+export type ChatbotMessage = ChatbotUserMessage | ChatbotAssistantMessage;
 
 interface ChatbotState {
     isOpen: boolean;
@@ -28,10 +48,16 @@ interface ChatbotState {
     chatbotTab: ChatbotTab;
     chatbotResourcesTab: ChatbotResourcesTab;
     conversationId: string;
-    messages: ChatbotMessage[];
-    absoluteNotificationsWidth: number;
-    lastRunChatData: ChatbotRunChatData;
+    messages: EntityState<ChatbotMessage, string>;
+    runChatLastMessage: string;
+    isNotificationsVisibleAndPinned: boolean;
 }
+
+const chatbotMessagesAdapter = createEntityAdapter<ChatbotMessage, string>({
+    selectId: (message) => message.id,
+});
+
+const chatbotMessagesSelectors = chatbotMessagesAdapter.getSelectors();
 
 const initialState: ChatbotState = {
     isOpen: false,
@@ -39,9 +65,9 @@ const initialState: ChatbotState = {
     chatbotTab: "Ask AI",
     chatbotResourcesTab: "Help and resources",
     conversationId: null,
-    messages: [],
-    absoluteNotificationsWidth: 0,
-    lastRunChatData: null,
+    messages: chatbotMessagesAdapter.getInitialState(),
+    runChatLastMessage: null,
+    isNotificationsVisibleAndPinned: false,
 };
 
 export const chatbotSlice = createSlice({
@@ -51,8 +77,11 @@ export const chatbotSlice = createSlice({
         isOpenSet: (state, action: PayloadAction<boolean>) => {
             state.isOpen = action.payload;
         },
-        isPinnedSet: (state, action: PayloadAction<boolean>) => {
-            state.isPinned = action.payload;
+        isOpenToggled: (state) => {
+            state.isOpen = !state.isOpen;
+        },
+        isPinnedToggled: (state) => {
+            state.isPinned = !state.isPinned;
         },
         chatbotTabSet: (state, action: PayloadAction<ChatbotTab>) => {
             state.chatbotTab = action.payload;
@@ -61,61 +90,49 @@ export const chatbotSlice = createSlice({
             state.chatbotResourcesTab = action.payload;
         },
         messagesSet: (state, action: PayloadAction<ChatbotMessage[]>) => {
-            state.messages = action.payload;
+            chatbotMessagesAdapter.setAll(state.messages, action.payload);
         },
         messageAdded: (state, action: PayloadAction<ChatbotMessage>) => {
-            state.messages.push(action.payload);
+            chatbotMessagesAdapter.addOne(state.messages, action.payload);
+        },
+        messageUpdated: (state, action: PayloadAction<Update<ChatbotMessage, string>>) => {
+            chatbotMessagesAdapter.updateOne(state.messages, action.payload);
         },
         conversationIdSet: (state, action: PayloadAction<string>) => {
             state.conversationId = action.payload;
         },
-        lastRunChatDataSet: (state, action: PayloadAction<ChatbotRunChatData>) => {
-            state.lastRunChatData = action.payload;
+        runChatLastMessageSet: (state, action: PayloadAction<string>) => {
+            state.runChatLastMessage = action.payload;
         },
-        absoluteNotificationsWidthSet: (state, action: PayloadAction<number>) => {
-            state.absoluteNotificationsWidth = action.payload;
+        isNotificationsVisibleAndPinnedSet: (state, action: PayloadAction<boolean>) => {
+            state.isNotificationsVisibleAndPinned = action.payload;
         },
     },
     extraReducers: (builder) => {
         builder.addCase(runChat.fulfilled, (state, { payload }) => {
-            if ("failedResponseId" in payload) {
-                state.messages = state.messages.map((x) =>
-                    x.id === payload.failedResponseId ? { ...x, state: "error" } : x
-                );
-            } else {
-                state.messages = state.messages.map((x) => (x.id === payload.id ? payload : x));
-            }
+            chatbotMessagesAdapter.updateOne(state.messages, {
+                id: payload.id,
+                changes: payload,
+            });
         });
     },
 });
 
 const runChat = createAsyncThunk(
     chatbotSlice.name + "/runChat",
-    async (
-        payload: { data: ChatbotRunChatData },
-        { dispatch, getState }
-    ): Promise<ChatbotMessage | { failedResponseId: string }> => {
-        const { aiAssistant, chatbot, cluster } = getState() as RootState;
+    async (payload: ChatbotRunChatData, { dispatch, getState }): Promise<ChatbotMessage> => {
+        const { aiAssistant, chatbot } = getState() as RootState;
 
-        dispatch(chatbotActions.lastRunChatDataSet(payload.data));
+        dispatch(chatbotActions.runChatLastMessageSet(payload.message));
 
         if (aiAssistant.consentStatus.data !== "Success") {
             throw new Error("AI Assistant consent is required");
         }
 
-        const userId = _.uniqueId();
-
-        const userMessage: ChatbotMessage = {
-            id: userId,
+        const userMessage: ChatbotUserMessage = {
+            id: _.uniqueId(),
             role: "user",
-            content: payload.data.Message,
-            state: "success",
-            usage: {
-                TotalTokens: 100,
-                PromptTokens: 100,
-                CompletionTokens: 100,
-                CachedTokens: 100,
-            },
+            content: payload.message,
         };
 
         if (chatbot.conversationId) {
@@ -127,50 +144,66 @@ const runChat = createAsyncThunk(
         const responseId = _.uniqueId();
         const startThinkingTime = new Date().getTime();
 
-        const assistantMessage: ChatbotMessage = {
+        const assistantMessage: ChatbotAssistantMessage = {
             id: responseId,
             role: "assistant",
-            state: "loading",
+            content: "",
+            state: "Loading",
+            thinkingTimeInMs: 0,
+            usage: null,
+            relevantLinks: [],
+            followUpQuestions: [],
         };
 
         dispatch(chatbotActions.messageAdded(assistantMessage));
 
-        try {
-            const result = await services.aiAssistantService.runChatbot({
-                View: payload.data.View,
-                Message: payload.data.Message,
-                ConversationId: chatbot.conversationId,
-                RavenVersion: cluster.serverVersion?.ProductVersion ?? "latest",
-            });
+        const viewTitle = router.activeInstruction().config.title;
 
-            dispatch(chatbotActions.conversationIdSet(result.ConversationId));
+        const result = await processStreamingResponse<RunChatbotAiAssistantResultDto>({
+            promiseFn: () =>
+                services.aiAssistantService.runChatbot({
+                    Message: payload.message,
+                    View: viewTitle,
+                    ConversationId: chatbot.conversationId,
+                }),
+            streamPropertyPath: "Response.Answer",
+            onChunksCombined(text) {
+                dispatch(
+                    chatbotActions.messageUpdated({
+                        id: responseId,
+                        changes: { state: "Success", content: text },
+                    })
+                );
+            },
+        });
 
+        if (result.status === "error") {
             return {
                 ...assistantMessage,
-                content: result.Response.Answer,
-                state: "success",
-                thinkingTimeInMs: new Date().getTime() - startThinkingTime,
-                usage: {
-                    TotalTokens: result.InputTokenCount,
-                    PromptTokens: result.InputTokenCount,
-                    CompletionTokens: result.OutputTokenCount,
-                    CachedTokens: 0, // TODO server-side
-                },
-                relevantLinks: result.Response.RelevantLinks,
-            };
-        } catch {
-            return {
-                failedResponseId: responseId,
+                state: "Error",
+                errorMessage: result.error,
             };
         }
+
+        dispatch(aiAssistantActions.usagePercentageSet(result.data.UsagePercentage));
+        dispatch(chatbotActions.conversationIdSet(result.data.ConversationId));
+
+        return {
+            ...assistantMessage,
+            state: result.data.Status,
+            content: result.data.Response.Answer,
+            thinkingTimeInMs: new Date().getTime() - startThinkingTime,
+            relevantLinks: result.data.Response.RelevantLinks,
+            followUpQuestions: result.data.Response.FollowUpQuestions,
+        };
     }
 );
 
 const retryRunChat = createAsyncThunk(chatbotSlice.name + "/retryRunChat", async (_, { dispatch, getState }) => {
     const { chatbot } = getState() as RootState;
-    const { lastRunChatData } = chatbot;
+    const { runChatLastMessage } = chatbot;
 
-    return await dispatch(runChat({ data: lastRunChatData }));
+    return await dispatch(runChat({ message: runChatLastMessage }));
 });
 
 export const chatbotActions = {
@@ -184,8 +217,12 @@ export const chatbotSelectors = {
     isPinned: (state: RootState) => state.chatbot.isPinned,
     chatbotTab: (state: RootState) => state.chatbot.chatbotTab,
     chatbotResourcesTab: (state: RootState) => state.chatbot.chatbotResourcesTab,
-    messages: (state: RootState) => state.chatbot.messages,
+    messageIds: (state: RootState) => chatbotMessagesSelectors.selectIds(state.chatbot.messages),
+    messageById: (state: RootState, id: string) => chatbotMessagesSelectors.selectById(state.chatbot.messages, id),
+    messagesCount: (state: RootState) => chatbotMessagesSelectors.selectTotal(state.chatbot.messages),
+    isLastMessage: (state: RootState, id: string) =>
+        chatbotMessagesSelectors.selectIds(state.chatbot.messages).at(-1) === id,
     conversationId: (state: RootState) => state.chatbot.conversationId,
-    absoluteNotificationsWidth: (state: RootState) => state.chatbot.absoluteNotificationsWidth,
-    lastRunChatData: (state: RootState) => state.chatbot.lastRunChatData,
+    runChatLastMessage: (state: RootState) => state.chatbot.runChatLastMessage,
+    isNotificationsVisibleAndPinned: (state: RootState) => state.chatbot.isNotificationsVisibleAndPinned,
 };

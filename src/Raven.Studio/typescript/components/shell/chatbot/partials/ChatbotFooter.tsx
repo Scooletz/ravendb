@@ -8,31 +8,14 @@ export default function ChatbotFooter() {
     const dispatch = useAppDispatch();
 
     const chatbotTab = useAppSelector(chatbotSelectors.chatbotTab);
-    const isPinned = useAppSelector(chatbotSelectors.isPinned);
 
     return (
-        <div
-            className={classNames("panel-bg-2 border-top border-secondary p-2 hstack", {
-                "rounded-bottom-2": !isPinned,
-            })}
-        >
+        <div className="chatbot-footer panel-bg-2 border-top border-secondary p-2 hstack">
             <FooterItem
-                icon="chatbot"
+                icon="ask-ai"
                 title="Ask AI"
                 isActive={chatbotTab === "Ask AI"}
                 handleClick={() => dispatch(chatbotActions.chatbotTabSet("Ask AI"))}
-            />
-            <FooterItem
-                icon="document2"
-                title="What's new"
-                isActive={chatbotTab === "What's new"}
-                handleClick={() => dispatch(chatbotActions.chatbotTabSet("What's new"))}
-            />
-            <FooterItem
-                icon="document"
-                title="News"
-                isActive={chatbotTab === "News"}
-                handleClick={() => dispatch(chatbotActions.chatbotTabSet("News"))}
             />
             <FooterItem
                 icon="resources"
