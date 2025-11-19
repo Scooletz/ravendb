@@ -39,7 +39,7 @@ export default function AiAssistantWindow({ closeWindow, data, acceptResult, suc
 
     const asyncAssist = useAsync(async () => {
         if (!isConsentSuccess) {
-            return null;
+            return;
         }
 
         setAssistResult(createLoadingState());
@@ -117,8 +117,8 @@ export default function AiAssistantWindow({ closeWindow, data, acceptResult, suc
                     </div>
                 )}
                 {assistResult.error && <RichAlert variant="danger">Failed to assist. Please try again.</RichAlert>}
-                <AiAssistStatus status={asyncAssist.result?.Status} />
-                {assistResult.status === "success" && (
+                <AiAssistStatus status={assistResult.data?.Status} />
+                {assistResult.data?.Status === "Success" && (
                     <div>
                         <div className="mb-2">{successMessage}</div>
                         <Form.Control
