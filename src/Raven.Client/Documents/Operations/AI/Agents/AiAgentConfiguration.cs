@@ -181,7 +181,7 @@ public class AiAgentConfiguration : IDynamicJson
         };
     }
 
-    public void AppendCapabilities(StringBuilder sb)
+    internal void AppendCapabilities(StringBuilder sb)
     {
         sb.AppendLine("Capabilities:");
         foreach (var q in Queries ?? [])

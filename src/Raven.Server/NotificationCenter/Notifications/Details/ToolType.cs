@@ -4,7 +4,7 @@
     {
         Unknown,
         Action,
-        SubAgent,
-        Query
+        Query,
+        SubAgent
     }
 }

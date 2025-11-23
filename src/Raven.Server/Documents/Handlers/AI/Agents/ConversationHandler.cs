@@ -91,7 +91,7 @@ public class ConversationHandler(ServerStore server, DocumentDatabase database)
                 _document.Expires = TimeSpan.FromSeconds(_request.CreationOptions.ExpirationInSec.Value);
             }
 
-            _document.Initialize(context, _configuration);
+            _document.Initialize(context, _configuration, resetRemainingToolIterations: true);
             if (_document.InitialOperations(context, _configuration) is { } queries)
             {
                 // run initial tool calls...
@@ -326,7 +326,7 @@ public class ConversationHandler(ServerStore server, DocumentDatabase database)
 
         oldChat.Messages.Clear();
 
-        oldChat.Initialize(context, configuration);
+        oldChat.Initialize(context, configuration, resetRemainingToolIterations: false);
         oldChat.AddMessage(context,
             context.ReadObject(
                 new DynamicJsonValue
@@ -450,27 +450,56 @@ public class ConversationHandler(ServerStore server, DocumentDatabase database)
 
         if (actionRequests?.Length > 0)
         {
-            _document.OpenActionCalls.TryAdd(currentCall.Id, new AiAgentActionRequest
+            if (_document.OpenActionCalls.TryGetValue(currentCall.Id, // Parent call
+                    out var parentCall) == false)
             {
-                ToolId = currentCall.Id,
-                Name = currentCall.Name,
-                Type = AiAgentActionRequestType.SubAgent,
-                Arguments = currentCall.Arguments,
-                RefUserActions = actionRequests.Length
-            });
+                parentCall = _document.OpenActionCalls[currentCall.Id] = // Parent call
+                    new AiAgentActionRequest
+                    {
+                        ToolId = currentCall.Id, // Parent call
+                        Name = currentCall.Name,
+                        Type = AiAgentActionRequestType.SubAgent,
+                        Arguments = currentCall.Arguments
+                    };
+            }
+            
 
             foreach (BlittableJsonReaderObject req in actionRequests)
             {
                 var actionRequest = JsonDeserializationClient.ActionRequest(req);
-                // TODO if already exists, need to ensure that the values are identical
-                _document.OpenActionCalls.TryAdd(actionRequest.ToolId, new AiAgentActionRequest
+                var newActionCall = new AiAgentActionRequest
                 {
-                    ToolId = currentCall.Id,
+                    ToolId = currentCall.Id, // Parent call
                     Name = currentCall.Name + "/" + actionRequest.Name,
                     Type = AiAgentActionRequestType.UserAction,
                     Arguments = actionRequest.Arguments,
                     SubConversation = agentConversationId
-                });
+                };
+
+                // TODO if already exists, need to ensure that the values are identical - USE debug.assert
+                if (_document.OpenActionCalls.TryAdd(actionRequest.ToolId, // Sub call
+                        newActionCall))
+                {
+                    parentCall.RefUserActions++;
+                }
+                else
+                {
+                    // Already exists
+                    var existingActionCall = _document.OpenActionCalls[actionRequest.ToolId];
+                    Debug.Assert(newActionCall == null || existingActionCall == null
+                        ? newActionCall == existingActionCall
+                        : newActionCall.ToolId == existingActionCall.ToolId &&
+                          newActionCall.Name == existingActionCall.Name &&
+                          newActionCall.Type == existingActionCall.Type &&
+                          newActionCall.SubConversation == existingActionCall.SubConversation &&
+                          newActionCall.Arguments == existingActionCall.Arguments,
+                        $"Mismatch detected in OpenActionCalls for key '{actionRequest.ToolId}'.\n" +
+                        $"--- NEW ACTION CALL ---\n{AiAgentActionRequestToJsonString(newActionCall)}\n\n" +
+                        $"--- EXISTING ACTION CALL ---\n{AiAgentActionRequestToJsonString(existingActionCall)}\n\n" +
+                        "The existing ActionCall does not match the newly attempted ActionCall insertion.\n" +
+                        "If this mismatch is valid, ensure higher-level logic prevents conflicting ActionCalls with the same ToolId."
+                        );
+                }
             }
 
             return;
@@ -494,6 +523,10 @@ public class ConversationHandler(ServerStore server, DocumentDatabase database)
                 ["content"] = agentResult.ToString(),
                 ["subConversation"] = agentConversationId,
             }, "tool-call/response"), usage: null);
+
+        string AiAgentActionRequestToJsonString(AiAgentActionRequest call)
+            => call == null ? null : context.ReadObject(call.ToJson(), "").ToString();
+        
     }
 
     private static void RemoveNonEssentialFieldsFromMetadata(BlittableJsonReaderArray queryResult)
@@ -535,13 +568,13 @@ public class ConversationHandler(ServerStore server, DocumentDatabase database)
     private void BuildAgentRequest(JsonOperationContext context, ConversationDocument document, AiToolCall call, AiAgentToolSubAgent agent, DynamicJsonArray reqs)
     {
         var args = context.Sync.ReadForMemory(call.Arguments, "call/args");
-        if (args.TryGet("subAgentUserPrompt", out string prompt) is false)
+        if (args.TryGet(ConversationDocument.SubAgentUserPromptKey, out string prompt) is false)
         {
             throw new InvalidOperationException($"Missing required 'subAgentUserPrompt' parameter on call to {call.Name}. Arguments: {call.Arguments}.");
         }
 
         args.Modifications = new DynamicJsonValue(args);
-        args.Modifications.Remove("subAgentUserPrompt");
+        args.Modifications.Remove(ConversationDocument.SubAgentUserPromptKey);
 
         var parameters = MergeParams(context, document.Parameters, args);
         var subConversationParamsHash = call.Name + "/" + AttachmentsStorageHelper.CalculateHash(parameters.AsSpan());
@@ -684,7 +717,7 @@ public class ConversationHandler(ServerStore server, DocumentDatabase database)
                     var responses = subAgentsActions.GetOrAdd(instance);
                     responses.Add(new AiAgentActionResponse
                     {
-                        ToolId = t.ToolId,
+                        ToolId = t.ToolId, // sub call ID
                         Content = t.Content,
                     });
                 }
@@ -761,7 +794,7 @@ public class ConversationHandler(ServerStore server, DocumentDatabase database)
         }
     }
 
-    private object CreateAgentRequest(string agent, string conversationId, string prompt, IEnumerable<object> actionResponses, DynamicJsonValue creationOptions)
+    private DynamicJsonValue CreateAgentRequest(string agent, string conversationId, string prompt, IEnumerable<object> actionResponses, DynamicJsonValue creationOptions)
     {
         var queryString = new StringBuilder("?")
             .Append("&conversationId=").Append(Uri.EscapeDataString(conversationId))
@@ -869,7 +902,7 @@ public class ConversationHandler(ServerStore server, DocumentDatabase database)
         public string Answer = "Summary of the following chat messages history";
     }
 
-    public virtual DynamicJsonValue GetConversationResponse(DocumentsOperationContext context, BlittableJsonReaderObject response)
+    public virtual DynamicJsonValue GetConversationResponse(JsonOperationContext context, BlittableJsonReaderObject response)
     {
         return new DynamicJsonValue
         {

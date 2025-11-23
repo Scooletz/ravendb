@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.InteropServices.JavaScript;
 using System.Text;
 using JetBrains.Annotations;
 using Raven.Client;
@@ -18,6 +19,8 @@ namespace Raven.Server.Documents.Handlers.AI.Agents;
 
 public class ConversationDocument([NotNull] string agent, BlittableJsonReaderObject parameters)
 {
+    public const string SubAgentUserPromptKey = "subAgentUserPrompt";
+
     public string Agent = agent;
 
     public BlittableJsonReaderObject Parameters = parameters;
@@ -35,7 +38,7 @@ public class ConversationDocument([NotNull] string agent, BlittableJsonReaderObj
 
     public int RemainingToolIterations;
 
-    public void Initialize(JsonOperationContext context, AiAgentConfiguration configuration, bool resetRemainingToolIterations = true)
+    public void Initialize(JsonOperationContext context, AiAgentConfiguration configuration, bool resetRemainingToolIterations)
     {
         if (Messages.Count > 0)
             throw new InvalidOperationException("conversation document is already initialized. Cannot re-initialize.");
@@ -320,13 +323,27 @@ public class ConversationDocument([NotNull] string agent, BlittableJsonReaderObj
         foreach(var subAgent in configuration.SubAgents ?? [])
         {
             AiAgentConfiguration subAgentConfiguration = handler.GetAiAgentConfiguration(subAgent.Identifier);
-            var argsSampleObject = new DynamicJsonValue();
+            var parameters = new Dictionary<string, string>();
             foreach (AiAgentParameter parameter in subAgentConfiguration.Parameters ?? [])
             {
-                argsSampleObject[parameter.Name] = parameter.Description;
+                parameters[parameter.Name] = parameter.Description;
             }
 
-            argsSampleObject["subAgentUserPrompt"] = "A natural language prompt instructions for the sub-agent to do its work";
+            foreach (AiAgentParameter parameter in configuration.Parameters)
+            {
+                if (parameters.TryAdd(parameter.Name, parameter.Description) == false && parameters[parameter.Name] != parameter.Description)
+                {
+                    throw new InvalidOperationException(
+                        $"Parameter conflict detected for '{parameter.Name}'. " +
+                        $"Parent agent '{configuration.Identifier}' defines this parameter with value '{parameter.Description}', " +
+                        $"but sub-agent '{subAgentConfiguration.Identifier}' provides a different value '{parameters[parameter.Name]}'. " +
+                        $"These values must match to ensure consistent behavior.");
+                }
+            }
+
+            var argsSampleObject = DynamicJsonValue.Convert(parameters);
+
+            argsSampleObject[SubAgentUserPromptKey] = "A natural language prompt instructions for the sub-agent to do its work";
             using var args = context.ReadObject(argsSampleObject, "args");
             string paramsSchema = ChatCompletionClient.GetSchemaForTool(null, args.ToString());
             var description = new StringBuilder(subAgent.Description).AppendLine();
