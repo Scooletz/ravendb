@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.InteropServices.JavaScript;
 using System.Text;
 using JetBrains.Annotations;
 using Raven.Client;
@@ -8,6 +9,7 @@ using Raven.Client.Documents.Operations.AI;
 using Raven.Client.Documents.Operations.AI.Agents;
 using Raven.Client.Json.Serialization;
 using Raven.Server.Documents.AI;
+using Raven.Server.Json;
 using Raven.Server.NotificationCenter.Notifications.Details;
 using Sparrow.Json;
 using Sparrow.Json.Parsing;
@@ -17,6 +19,8 @@ namespace Raven.Server.Documents.Handlers.AI.Agents;
 
 public class ConversationDocument([NotNull] string agent, BlittableJsonReaderObject parameters)
 {
+    public const string SubAgentUserPromptKey = "subAgentUserPrompt";
+
     public string Agent = agent;
 
     public BlittableJsonReaderObject Parameters = parameters;
@@ -34,7 +38,7 @@ public class ConversationDocument([NotNull] string agent, BlittableJsonReaderObj
 
     public int RemainingToolIterations;
 
-    public void Initialize(JsonOperationContext context, AiAgentConfiguration configuration, bool resetRemainingToolIterations = true)
+    public void Initialize(JsonOperationContext context, AiAgentConfiguration configuration, bool resetRemainingToolIterations)
     {
         if (Messages.Count > 0)
             throw new InvalidOperationException("conversation document is already initialized. Cannot re-initialize.");
@@ -85,7 +89,7 @@ public class ConversationDocument([NotNull] string agent, BlittableJsonReaderObj
         RemainingToolIterations = configuration.MaxModelIterationsPerCall ?? ConversationHandler.DefaultMaxModelIterationsPerCall;
     }
 
-    public List<AiToolCall> InitialQueries(JsonOperationContext context, AiAgentConfiguration configuration)
+    public List<AiToolCall> InitialOperations(JsonOperationContext context, AiAgentConfiguration configuration)
     {
         List<AiToolCall> result = null;
 
@@ -272,10 +276,11 @@ public class ConversationDocument([NotNull] string agent, BlittableJsonReaderObj
         {
             conversation.CurrentUsage = JsonDeserializationClient.AiUsage(currentUsageBlittable);
         }
+
         return conversation;
     }
 
-    public static List<BlittableJsonReaderObject> GenerateTools(JsonOperationContext context, AiAgentConfiguration configuration)
+    public static List<BlittableJsonReaderObject> GenerateTools(JsonOperationContext context, AiAgentConfiguration configuration, ConversationHandler handler)
     {
         List<BlittableJsonReaderObject> tools = [];
         foreach (var q in configuration.Queries ?? [])
@@ -311,6 +316,48 @@ public class ConversationDocument([NotNull] string agent, BlittableJsonReaderObj
                     ["parameters"] = context.Sync.ReadForMemory(paramsSchema, "params/schema")
                 },
                 ["strict"] = true
+            };
+            tools.Add(context.ReadObject(tool, "tool"));
+        }
+
+        foreach(var subAgent in configuration.SubAgents ?? [])
+        {
+            AiAgentConfiguration subAgentConfiguration = handler.GetAiAgentConfiguration(subAgent.Identifier);
+            var parameters = new Dictionary<string, string>();
+            foreach (AiAgentParameter parameter in subAgentConfiguration.Parameters ?? [])
+            {
+                parameters[parameter.Name] = parameter.Description;
+            }
+
+            foreach (AiAgentParameter parameter in configuration.Parameters)
+            {
+                if (parameters.TryAdd(parameter.Name, parameter.Description) == false && parameters[parameter.Name] != parameter.Description)
+                {
+                    throw new InvalidOperationException(
+                        $"Parameter conflict detected for '{parameter.Name}'. " +
+                        $"Parent agent '{configuration.Identifier}' defines this parameter with value '{parameter.Description}', " +
+                        $"but sub-agent '{subAgentConfiguration.Identifier}' provides a different value '{parameters[parameter.Name]}'. " +
+                        $"These values must match to ensure consistent behavior.");
+                }
+            }
+
+            var argsSampleObject = DynamicJsonValue.Convert(parameters);
+
+            argsSampleObject[SubAgentUserPromptKey] = "A natural language prompt instructions for the sub-agent to do its work";
+            using var args = context.ReadObject(argsSampleObject, "args");
+            string paramsSchema = ChatCompletionClient.GetSchemaForTool(null, args.ToString());
+            var description = new StringBuilder(subAgent.Description).AppendLine();
+            subAgentConfiguration.AppendCapabilities(description);
+            var tool = new DynamicJsonValue
+            {
+                [ChatCompletionClient.Constants.JsonSchemaFields.Type] = "function",
+                [ChatCompletionClient.Constants.ResponseFields.Function] = new DynamicJsonValue
+                {
+                    [ChatCompletionClient.Constants.ResponseFields.Name] = subAgent.Identifier,
+                    [ChatCompletionClient.Constants.JsonSchemaFields.Description] = description.ToString(),
+                    ["parameters"] = context.Sync.ReadForMemory(paramsSchema, "params/schema")
+                },
+                [ChatCompletionClient.Constants.JsonSchemaFields.Strict] = true
             };
             tools.Add(context.ReadObject(tool, "tool"));
         }
@@ -427,9 +474,14 @@ public class ConversationDocument([NotNull] string agent, BlittableJsonReaderObj
     private static ToolType GetToolType(AiAgentConfiguration configuration, string name)
     {
         if (configuration.FindAction(name) != null)
-        {
             return ToolType.Action;
-        }
-        return configuration.FindQuery(name) != null ? ToolType.Query : ToolType.Unknown;
+
+        if (configuration.FindQuery(name) != null)
+            return ToolType.Query;
+
+        if (configuration.FindSubAgents(name) != null)
+            return ToolType.SubAgent;
+
+        return ToolType.Unknown;
     }
 }
