@@ -744,9 +744,9 @@ namespace Raven.Server.Commercial
                 progress.Processed++;
                 progress.AddInfo("Successfully acquired certificate from Let's Encrypt.");
                 progress.SetupActionSteps.StepsByConfigurationStepType[ConfigurationStepType.AcquiringLetsEncryptCertificate].SetState(State.Completed);
-                progress.SetupActionSteps.StepsByConfigurationStepType[ConfigurationStepType.LetsEncrypt].SetState(State.Completed);
                 
                 progress.AddInfo("Starting validation.");
+                progress.SetupActionSteps.StepsByConfigurationStepType[ConfigurationStepType.Validation].SetState(State.InProgress);
                 onProgress(progress);
 
                 try
@@ -755,10 +755,12 @@ namespace Raven.Server.Commercial
                 }
                 catch (Exception e)
                 {
+                    progress.SetupActionSteps.SetError(ConfigurationStepType.Validation, ErrorType.ValidationError, e.Message);
                     throw new InvalidOperationException("Validation failed.", e);
                 }
 
                 progress.Processed++;
+                progress.SetupActionSteps.StepsByConfigurationStepType[ConfigurationStepType.Validation].SetState(State.Completed);
                 progress.AddInfo("Validation is successful.");
 
                 progress.AddInfo("Creating new RavenDB configuration settings.");
@@ -812,8 +814,11 @@ namespace Raven.Server.Commercial
             }
             catch (Exception e)
             {
+                progress.SetupActionSteps.SetError(ConfigurationStepType.LetsEncrypt, ErrorType.LetsEncryptChallengeError, e.Message);
                 LogErrorAndThrow(onProgress, progress, "Setting up RavenDB in Let's Encrypt security mode failed.", e);
             }
+            
+            progress.SetupActionSteps.StepsByConfigurationStepType[ConfigurationStepType.LetsEncrypt].SetState(State.Completed);
 
             return progress;
         }
