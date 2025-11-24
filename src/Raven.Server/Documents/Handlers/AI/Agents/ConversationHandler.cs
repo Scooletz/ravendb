@@ -476,7 +476,6 @@ public class ConversationHandler(ServerStore server, DocumentDatabase database)
                     SubConversation = agentConversationId
                 };
 
-                // TODO if already exists, need to ensure that the values are identical - USE debug.assert
                 if (_document.OpenActionCalls.TryAdd(actionRequest.ToolId, // Sub call
                         newActionCall))
                 {
@@ -486,16 +485,10 @@ public class ConversationHandler(ServerStore server, DocumentDatabase database)
                 {
                     // Already exists
                     var existingActionCall = _document.OpenActionCalls[actionRequest.ToolId];
-                    Debug.Assert(newActionCall == null || existingActionCall == null
-                        ? newActionCall == existingActionCall
-                        : newActionCall.ToolId == existingActionCall.ToolId &&
-                          newActionCall.Name == existingActionCall.Name &&
-                          newActionCall.Type == existingActionCall.Type &&
-                          newActionCall.SubConversation == existingActionCall.SubConversation &&
-                          newActionCall.Arguments == existingActionCall.Arguments,
+                    Debug.Assert(newActionCall.IsEqual(existingActionCall),
                         $"Mismatch detected in OpenActionCalls for key '{actionRequest.ToolId}'.\n" +
-                        $"--- NEW ACTION CALL ---\n{AiAgentActionRequestToJsonString(newActionCall)}\n\n" +
-                        $"--- EXISTING ACTION CALL ---\n{AiAgentActionRequestToJsonString(existingActionCall)}\n\n" +
+                        $"--- NEW ACTION CALL ---\n{newActionCall}\n\n" +
+                        $"--- EXISTING ACTION CALL ---\n{existingActionCall}\n\n" +
                         "The existing ActionCall does not match the newly attempted ActionCall insertion.\n" +
                         "If this mismatch is valid, ensure higher-level logic prevents conflicting ActionCalls with the same ToolId."
                         );
@@ -507,7 +500,6 @@ public class ConversationHandler(ServerStore server, DocumentDatabase database)
 
         if (_document.OpenActionCalls.TryGetValue(currentCall.Id, out var subAction))
         {
-            subAction.RefUserActions--;
             if (subAction.RefUserActions > 0)
                 return;
 
@@ -523,10 +515,6 @@ public class ConversationHandler(ServerStore server, DocumentDatabase database)
                 ["content"] = agentResult.ToString(),
                 ["subConversation"] = agentConversationId,
             }, "tool-call/response"), usage: null);
-
-        string AiAgentActionRequestToJsonString(AiAgentActionRequest call)
-            => call == null ? null : context.ReadObject(call.ToJson(), "").ToString();
-        
     }
 
     private static void RemoveNonEssentialFieldsFromMetadata(BlittableJsonReaderArray queryResult)
@@ -761,13 +749,19 @@ public class ConversationHandler(ServerStore server, DocumentDatabase database)
 
         foreach (var (subAgent, responses) in subAgentsActions)
         {
-            activeToolCalls.Add(new AiToolCall(subAgent.ToolId, subAgent.Agent, Arguments: null));
+            activeToolCalls.Add(new AiToolCall(subAgent.ToolId /*Parent call*/, subAgent.Agent, Arguments: null));
             reqs.Add(CreateAgentRequest(subAgent.Agent, subAgent.ConversationId, prompt: null, responses, creationOptions: new DynamicJsonValue()));
         }
 
         await foreach (var (requestResult, i) in ExecuteMultiRequests(context, reqs))
         {
             var current = activeToolCalls[i];
+            if (_document.OpenActionCalls.TryGetValue(current.Id, // Parent call
+                    out var parentCall))
+                parentCall.RefUserActions--; // the sub action has been handled
+            else
+                throw new InvalidOperationException($"Cannot find '{current.Id}' (Name: {current.Name}) on OpenActionCalls");
+            
             HandleSubAgentResponse(context, requestResult, current);
         }
 
