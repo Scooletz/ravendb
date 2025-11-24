@@ -9,6 +9,7 @@ public abstract class SetupInfoBase
 {
     public bool EnableExperimentalFeatures { get; set; }
     public string DataDirectory { get; set; }
+    public string SetupCertificatePath { get; set; }
     public string LogsPath { get; set; }
     public string AutoIndexingEngineType { get; set; }
     public string StaticIndexingEngineType { get; set; }

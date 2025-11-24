@@ -633,6 +633,9 @@ function useSetupWizardFinishUtils() {
             DataDirectory: additionalSettingsStep.isAdvancedSettingsVisible
                 ? additionalSettingsStep.dataDirectory
                 : null,
+            SetupCertificatePath: additionalSettingsStep.isAdvancedSettingsVisible
+                ? additionalSettingsStep.setupCertificatePath
+                : null,
             LogsPath: additionalSettingsStep.isAdvancedSettingsVisible ? additionalSettingsStep.logsPath : null,
             StaticIndexingEngineType: additionalSettingsStep.isAdvancedSettingsVisible
                 ? additionalSettingsStep.staticIndexingEngineType
@@ -658,6 +661,9 @@ function useSetupWizardFinishUtils() {
                 : null,
             DataDirectory: additionalSettingsStep.isAdvancedSettingsVisible
                 ? additionalSettingsStep.dataDirectory
+                : null,
+            SetupCertificatePath: additionalSettingsStep.isAdvancedSettingsVisible
+                ? additionalSettingsStep.setupCertificatePath
                 : null,
             LogsPath: additionalSettingsStep.isAdvancedSettingsVisible ? additionalSettingsStep.logsPath : null,
             StaticIndexingEngineType: additionalSettingsStep.isAdvancedSettingsVisible

@@ -212,7 +212,9 @@ namespace Raven.Server.Commercial
                         OnWriteSettingsJsonLocally = indentedJson => SettingsZipFileHelper.WriteSettingsJsonLocally(serverStore.Configuration.ConfigPath, indentedJson),
                         OnGetCertificatePath = certificateFileName =>
                         {
-                            return serverStore.Configuration.GetSetting(RavenConfiguration.GetKey(x => x.Core.SetupResultingServerCertificatePath)) ?? certificateFileName;
+                            return setupInfo.SetupCertificatePath 
+                                   ?? serverStore.Configuration.GetSetting(RavenConfiguration.GetKey(x => x.Core.SetupResultingServerCertificatePath)) 
+                                   ?? certificateFileName;
                         },
                         OnPutServerWideStudioConfigurationValues = async studioEnvironment =>
                         {

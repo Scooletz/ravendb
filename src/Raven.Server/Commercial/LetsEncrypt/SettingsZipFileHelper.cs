@@ -468,6 +468,12 @@ public static class SettingsZipFileHelper
             if (setupInfo.DataDirectory != null)
                 settingsJson.Modifications[RavenConfiguration.GetKey(x => x.Core.DataDirectory)] = setupInfo.DataDirectory;
 #if !RVN
+            if (setupInfo.SetupCertificatePath != null)
+            {
+                settingsJson.Modifications[RavenConfiguration.GetKey(x => x.Security.CertificatePath)] = setupInfo.SetupCertificatePath;
+                settingsJson.Modifications[RavenConfiguration.GetKey(x => x.Core.SetupResultingServerCertificatePath)] = setupInfo.SetupCertificatePath;
+            }
+
             if (setupInfo.LogsPath != null)
                 settingsJson.Modifications[RavenConfiguration.GetKey(x => x.Logs.Path)] = setupInfo.LogsPath;
 
