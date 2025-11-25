@@ -37,7 +37,7 @@ export default function SetupWizard() {
     });
 
     const finishStatus = useAppSelector(setupWizardSelectors.finishStepStatus);
-    
+
     const confirm = useConfirm();
 
     const { reportEvent } = useEventsCollector();
@@ -63,7 +63,7 @@ export default function SetupWizard() {
         if (finishStatus === "Completed") {
             return; // if finish status is completed, we don't need to navigate to any other step
         }
-        
+
         const targetStepIdx = steps.findIndex((s) => s.title === stepTitle);
 
         if (targetStepIdx > currentStepIdx) {

@@ -78,17 +78,18 @@ export function SetupWizardFinishStep() {
                     setConfigurationProcess(operation.State.Progress);
                     handleSetFinishStatus("InProgress");
                     break;
-                case "Faulted":
+                case "Faulted": {
                     setConfigurationProcess(operation.State.Progress);
                     const failure = operation.State
                         .Result as Raven.Client.Documents.Operations.OperationExceptionResult;
-                    
+
                     setLogs((prev) => [...prev, { message: failure.Message, color: "danger" }]);
                     setLogs((prev) => [...prev, { message: operation.State.Result.Error, color: "danger" }]);
                     setErrorLogs((prev) => [...prev, { message: failure.Error, color: "danger" }]);
 
                     handleSetFinishStatus("Faulted");
                     break;
+                }
                 case "Canceled":
                     dto = operation.State.Result as Raven.Server.Commercial.SetupProgressAndResult;
                     setConfigurationProcess(operation.State.Result);

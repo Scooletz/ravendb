@@ -272,9 +272,13 @@ interface FormatIpAddressesProps {
 function FormatIpAddresses({ addresses, externalIpAddress }: FormatIpAddressesProps) {
     if (addresses.length <= 1) {
         if (externalIpAddress) {
-            return <>{addresses[0]} → {externalIpAddress}</>
+            return (
+                <>
+                    {addresses[0]} → {externalIpAddress}
+                </>
+            );
         }
-        
+
         return <>{addresses[0]}</>;
     }
 

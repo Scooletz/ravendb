@@ -14,7 +14,8 @@ import {
     FormSelect,
     FormSelectAutocomplete,
     FormSelectCreatable,
-    FormSwitch, FormVerificationCodeInput,
+    FormSwitch,
+    FormVerificationCodeInput,
 } from "./Form";
 import { useEffect } from "react";
 import { withBootstrap5, withStorybookContexts } from "test/storybookTestUtils";
@@ -212,7 +213,11 @@ export function Form({ isDefaultValid }: { isDefaultValid: boolean }) {
             </FormGroup>
             <FormGroup>
                 <FormLabel>Verification Code Input</FormLabel>
-                <FormVerificationCodeInput control={control} name="inputVerificationCode" onLastDigitInsertSubmit={() => console.log("last digit inserted")}  />
+                <FormVerificationCodeInput
+                    control={control}
+                    name="inputVerificationCode"
+                    onLastDigitInsertSubmit={() => console.log("last digit inserted")}
+                />
             </FormGroup>
         </div>
     );

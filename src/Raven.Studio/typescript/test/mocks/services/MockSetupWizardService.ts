@@ -21,7 +21,6 @@ export default class MockSetupWizardService extends AutoMockService<SetupWizardS
 
     withRegistrationInfo() {
         return this.mocks.registrationInfo.mockImplementation(async (license) => {
-
             if (license.Id === "53f54157-3862-47b6-9dbd-94d323687a90") {
                 return SetupWizardStubs.registrationInfoCommunity();
             }
@@ -62,25 +61,29 @@ export default class MockSetupWizardService extends AutoMockService<SetupWizardS
     withHostsForCertificate(dto?: MockedValue<string[]>) {
         return this.mockResolvedValue(this.mock.listHostsForCertificate, dto, SetupWizardStubs.hostsForCertificate());
     }
-    
+
     withGetSetupLocalNodeIps(dto?: MockedValue<string[]>) {
         return this.mockResolvedValue(this.mock.getSetupLocalNodeIps, dto, SetupWizardStubs.localNodeIps());
     }
-    
+
     withGetSetupParameters(dto?: MockedValue<Raven.Server.Commercial.SetupParameters>) {
         return this.mockResolvedValue(this.mock.getSetupParameters, dto, SetupWizardStubs.setupParameters());
     }
-    
+
     withGetIpsInfo(dto?: MockedValue<Raven.Server.Commercial.UserDomainsWithIps>) {
         return this.mockResolvedValue(this.mock.getIpsInfo, dto, SetupWizardStubs.ipsInfo());
     }
-    
+
     withCheckDomainAvailability(dto?: MockedValue<domainAvailabilityResult>) {
-        return this.mockResolvedValue(this.mock.checkDomainAvailability, dto, SetupWizardStubs.checkDomainAvailability());
+        return this.mockResolvedValue(
+            this.mock.checkDomainAvailability,
+            dto,
+            SetupWizardStubs.checkDomainAvailability()
+        );
     }
-    
+
     withClaimDomain(dto?: MockedValue<ClaimDomainResult>) {
-        return this.mockResolvedValue(this.mock.claimDomain, dto, SetupWizardStubs.claimDomain())
+        return this.mockResolvedValue(this.mock.claimDomain, dto, SetupWizardStubs.claimDomain());
     }
 
     withLetsEncryptAgreement() {

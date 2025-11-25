@@ -303,7 +303,34 @@ const howYouPlanToUseRavenDBOptions: SelectOption[] = allHowYouPlanToUseRavenDB.
     value: option,
 }));
 
-const nodeTags = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'];
+const nodeTags = [
+    "A",
+    "B",
+    "C",
+    "D",
+    "E",
+    "F",
+    "G",
+    "H",
+    "I",
+    "J",
+    "K",
+    "L",
+    "M",
+    "N",
+    "O",
+    "P",
+    "Q",
+    "R",
+    "S",
+    "T",
+    "U",
+    "V",
+    "W",
+    "X",
+    "Y",
+    "Z",
+];
 
 const allStudioEnvironments = ["Production", "Testing", "Development", "None"] as const;
 
@@ -325,7 +352,7 @@ const SETUP_WIZARD_MOCK_LICENSE_KEYS_IDS = {
     ENTERPRISE: "53f54157-3862-47b6-9dbd-94d323687a92",
     DEVELOPER: "53f54157-3862-47b6-9dbd-94d323687a93",
     PROFESSIONAL: "53f54157-3862-47b6-9dbd-94d323687a94",
-}
+};
 
 export const setupWizardGA4Prefixes: Record<string, string> = {
     eulaStep: "setupWizard-eulaStep",
@@ -339,7 +366,7 @@ export const setupWizardGA4Prefixes: Record<string, string> = {
     additionalSettingsStep: "setupWizard-additionalSettingsStep",
     finalStep: "setupWizard-finalStep",
     navigation: "setupWizard-navigation",
-}
+};
 
 export const setupWizardConstants = {
     allCountries,
@@ -352,5 +379,5 @@ export const setupWizardConstants = {
     allStudioEnvironmentOptions,
     indexingEngineTypes,
     indexingEngineTypeOptions,
-    SETUP_WIZARD_MOCK_LICENSE_KEYS_IDS
+    SETUP_WIZARD_MOCK_LICENSE_KEYS_IDS,
 };

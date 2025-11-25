@@ -10,8 +10,9 @@ import {
     SetupWizardStepId,
 } from "components/setupWizard/setupWizardValidation";
 import { setupWizardConstants } from "components/setupWizard/utils/setupWizardConstants";
-import { expect, userEvent, waitFor } from "storybook/internal/test";
 import { Meta, StoryObj } from "@storybook/react-webpack5";
+import { expect, waitFor } from "storybook/test";
+import { userEvent } from "storybook/internal/test";
 
 const getSecurityOptionLabel = (option: SetupWizardSecurityOption): string => {
     switch (option) {
@@ -33,7 +34,7 @@ const getSetupMethodLabel = (option: SetupWizardSetupMethod): string => {
         case "usePackage":
             return "Use setup package";
     }
-}
+};
 
 export default {
     title: "Setup Wizard",
@@ -50,7 +51,7 @@ export default {
                     {}
                 ) satisfies Partial<Record<Raven.Server.Commercial.LicenseType, string>>,
             },
-            options: Object.values(setupWizardConstants.SETUP_WIZARD_MOCK_LICENSE_KEYS_IDS)
+            options: Object.values(setupWizardConstants.SETUP_WIZARD_MOCK_LICENSE_KEYS_IDS),
         },
         securityOption: {
             control: {
@@ -59,11 +60,9 @@ export default {
                     letsEncrypt: "Generate Let's Encrypt certificate",
                     ownCertificate: "Provide your own certificate",
                     none: "Don't use certificate",
-                } satisfies Record<SetupWizardSecurityOption, string>
+                } satisfies Record<SetupWizardSecurityOption, string>,
             },
-            options: [
-                "none", "letsEncrypt", "ownCertificate",
-            ] satisfies SetupWizardSecurityOption[],
+            options: ["none", "letsEncrypt", "ownCertificate"] satisfies SetupWizardSecurityOption[],
         },
         setupMethod: {
             control: {
@@ -72,15 +71,16 @@ export default {
                     newCluster: "Set up new cluster",
                     createPackage: "Create package for external setup",
                     usePackage: "Use setup package",
-                } satisfies Record<SetupWizardSetupMethod, string>
+                } satisfies Record<SetupWizardSetupMethod, string>,
             },
             options: ["newCluster", "createPackage", "usePackage"] satisfies SetupWizardSetupMethod[],
-        }
+        },
     },
     args: {
         securityOption: "letsEncrypt",
-        licenseType: setupWizardConstants.SETUP_WIZARD_MOCK_LICENSE_KEYS_IDS.COMMUNITY as Raven.Server.Commercial.LicenseType,
-        setupMethod: "newCluster"
+        licenseType: setupWizardConstants.SETUP_WIZARD_MOCK_LICENSE_KEYS_IDS
+            .COMMUNITY as Raven.Server.Commercial.LicenseType,
+        setupMethod: "newCluster",
     },
 } satisfies Meta<SetupWizardStoryArgs>;
 
@@ -125,7 +125,7 @@ export const SetupMethod: StoryObj = {
 export const UsePackage: StoryObj = {
     ...Eula,
     args: {
-        setupMethod: "usePackage"
+        setupMethod: "usePackage",
     },
     play: async ({ canvas }) => {
         await navigateToStep(canvas, "Use setup package");
@@ -142,10 +142,10 @@ export const LicenseKey: StoryObj<SetupWizardStoryArgs> = {
 
 export const GenerateLicenseKey: StoryObj<SetupWizardStoryArgs> = {
     ...Eula,
-    play: async ({canvas, args}) => {
+    play: async ({ canvas, args }) => {
         await navigateToStep(canvas, "Generate license", args);
-    }
-}
+    },
+};
 
 export const Security: StoryObj<SetupWizardStoryArgs> = {
     ...Eula,
@@ -165,7 +165,7 @@ export const SelfSignedCertificate: StoryObj<SetupWizardStoryArgs> = {
     ...Eula,
     name: "Self-signed certificate",
     args: {
-        securityOption: "ownCertificate"
+        securityOption: "ownCertificate",
     },
     play: async ({ canvas, args }) => {
         await navigateToStep(canvas, "Self-signed certificate", args);
@@ -202,8 +202,11 @@ export const Finish: StoryObj<SetupWizardStoryArgs> = {
     },
 };
 
-
-async function navigateToStep(canvas: Canvas, targetStep: SetupWizardStepId | "Generate license", args?: SetupWizardStoryArgs): Promise<void> {
+async function navigateToStep(
+    canvas: Canvas,
+    targetStep: SetupWizardStepId | "Generate license",
+    args?: SetupWizardStoryArgs
+): Promise<void> {
     // await waitForElementToBeRemoved(canvas.getByTestId("loader"));
 
     // If target is EULA, we're already there

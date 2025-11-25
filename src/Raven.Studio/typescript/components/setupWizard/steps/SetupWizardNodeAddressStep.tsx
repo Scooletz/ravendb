@@ -1168,7 +1168,7 @@ export function SetupWizardNodeAddressStepFooter() {
                 setValue("currentStep", "Domain");
                 break;
             case "ownCertificate":
-                setValue("currentStep", "Self-signed certificate")
+                setValue("currentStep", "Self-signed certificate");
                 break;
             case "none":
                 setValue("currentStep", "Security");

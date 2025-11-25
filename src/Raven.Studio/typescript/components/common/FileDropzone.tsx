@@ -13,7 +13,13 @@ interface FileDropzoneProps {
     initialFiles?: File[];
 }
 
-export default function FileDropzone({ onChange, validExtensions = [], maxFiles = Infinity, initialFiles = [], ...inputProps }: FileDropzoneProps & { [key: string]: any }) {
+export default function FileDropzone({
+    onChange,
+    validExtensions = [],
+    maxFiles = Infinity,
+    initialFiles = [],
+    ...inputProps
+}: FileDropzoneProps & { [key: string]: any }) {
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const { value: isDragging, toggle: toggleIsDragging } = useBoolean(false);

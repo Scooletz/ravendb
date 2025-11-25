@@ -33,7 +33,16 @@ export const richAlertColors = [
     "light",
 ] as const;
 
-export function RichAlert({ className, variant, children, icon, iconAddon, title, childrenClassName, ...rest }: RichAlertProps) {
+export function RichAlert({
+    className,
+    variant,
+    children,
+    icon,
+    iconAddon,
+    title,
+    childrenClassName,
+    ...rest
+}: RichAlertProps) {
     const renderAlertIcon = icon ?? defaultIcons[variant] ?? "terms";
 
     return (

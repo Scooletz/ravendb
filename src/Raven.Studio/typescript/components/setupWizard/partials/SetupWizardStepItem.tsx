@@ -37,7 +37,7 @@ export function SetupWizardStepItem(props: SetupWizardStepItemProps) {
                     "dot",
                     { inactive: isInactive },
                     { "bg-light": isChecked || finishStatus === "Completed" },
-                    { "border-primary text-primary": isCurrent && finishStatus !== "Completed" },
+                    { "border-primary text-primary": isCurrent && finishStatus !== "Completed" }
                 )}
             >
                 {stepIndicator && (

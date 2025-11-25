@@ -69,7 +69,7 @@ const licenseKeyStepSchema = yup.object({
     howYouPlanToUseRavenDB: licenseRequiredField(yup.string().oneOf(setupWizardConstants.allHowYouPlanToUseRavenDB)),
 
     verificationCode: yup.string(),
-    
+
     //states
     isLoadingKey: yup.boolean(),
     isInvalidKey: yup.boolean(),

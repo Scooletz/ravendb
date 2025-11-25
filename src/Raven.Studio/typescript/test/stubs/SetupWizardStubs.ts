@@ -2,7 +2,7 @@ export class SetupWizardStubs {
     static eula() {
         return eula;
     }
-    
+
     static nodesInfoFromPackage(): Raven.Server.Web.System.ConfigurationNodeInfo[] {
         return [
             {
@@ -12,19 +12,17 @@ export class SetupWizardStubs {
             },
         ];
     }
-    
+
     static registrationInfoCommunity(): Raven.Server.Commercial.UserDomainsAndLicenseInfo {
         return {
             UserDomainsWithIps: {
                 Emails: ["damian@ravendb.net"],
                 RootDomains: ["ravendb.community"],
                 Domains: {
-                    "SetupWizard": [
+                    SetupWizard: [
                         {
-                            "SubDomain": "a.setupwizard",
-                            "Ips": [
-                                "127.0.0.1",
-                            ],
+                            SubDomain: "a.setupwizard",
+                            Ips: ["127.0.0.1"],
                         },
                     ],
                 },
@@ -33,15 +31,15 @@ export class SetupWizardStubs {
             LicenseType: "Community",
         };
     }
-    
+
     static hostsForCertificate(): string[] {
         return [".build.development.run", ".build2.development.run"];
     }
-    
+
     static localNodeIps(): string[] {
         return ["172.20.208.1", "192.168.2.189", "127.0.0.1", "unique-hostname", "unique-hostname"];
     }
-    
+
     static setupParameters(): Raven.Server.Commercial.SetupParameters {
         return {
             DockerHostname: "",
@@ -50,54 +48,42 @@ export class SetupWizardStubs {
             IsAzure: false,
             IsAws: false,
             RunningOnPosix: false,
-            RunningOnMacOsx: false
+            RunningOnMacOsx: false,
         };
     }
-    
+
     static ipsInfo(): Raven.Server.Commercial.UserDomainsWithIps {
         return {
-            "Emails": [
-                "setup.wizard@ravendb.net",
-            ],
-            "RootDomains": [
-                "development.run",
-            ],
-            "Domains": {
-                "SetupWizard": [
+            Emails: ["setup.wizard@ravendb.net"],
+            RootDomains: ["development.run"],
+            Domains: {
+                SetupWizard: [
                     {
-                        "SubDomain": "a.setupwizard",
-                        "Ips": [
-                            "127.0.0.1",
-                        ],
+                        SubDomain: "a.setupwizard",
+                        Ips: ["127.0.0.1"],
                     },
                 ],
             },
         };
     }
-    
+
     static checkDomainAvailability(): domainAvailabilityResult {
         return {
             Available: true,
-            IsOwnedByMe: false
-        }
+            IsOwnedByMe: false,
+        };
     }
-    
+
     static claimDomain(): ClaimDomainResult {
         return {
-            "Email": "maksym.smolinski@ravendb.net",
-            "Emails": [
-                "maksym.smolinski@ravendb.net",
-            ],
-            "Domains": {
-                "Maxym": [
-                    "a.maxym",
-                ],
-                "Maxym1": [],
-                "Maxym2": [],
+            Email: "maksym.smolinski@ravendb.net",
+            Emails: ["maksym.smolinski@ravendb.net"],
+            Domains: {
+                Maxym: ["a.maxym"],
+                Maxym1: [],
+                Maxym2: [],
             },
-            "RootDomains": [
-                "development.run",
-            ],
+            RootDomains: ["development.run"],
         };
     }
 
@@ -105,8 +91,6 @@ export class SetupWizardStubs {
         return "https://letsencrypt.org/documents/LE-SA-v1.5-February-24-2025.pdf";
     }
 }
-
-
 
 const eula = `
 End User License Agreement

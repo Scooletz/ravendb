@@ -40,11 +40,11 @@ export default class LicenseService {
     async forceUpdate() {
         return new forceLicenseUpdateCommand().execute();
     }
-    
+
     async sendVerificationCode(...args: ConstructorParameters<typeof licenseSendVerificationCodeCommand>) {
-        return new licenseSendVerificationCodeCommand(...args).execute()
+        return new licenseSendVerificationCodeCommand(...args).execute();
     }
-    
+
     async verifyLicense(...args: ConstructorParameters<typeof licenseVerifyLicenseCommand>) {
         return new licenseVerifyLicenseCommand(...args).execute();
     }

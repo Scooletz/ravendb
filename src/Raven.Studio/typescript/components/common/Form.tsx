@@ -315,11 +315,7 @@ export function FormSelectCreatable<
                     disabled={formState.isSubmitting}
                     {...rest}
                 />
-                {addon && (
-                <InputGroup.Text>
-                    {addon}
-                </InputGroup.Text>
-                )}
+                {addon && <InputGroup.Text>{addon}</InputGroup.Text>}
             </InputGroup>
             {invalid && <FormValidationMessage>{error.message}</FormValidationMessage>}
         </div>

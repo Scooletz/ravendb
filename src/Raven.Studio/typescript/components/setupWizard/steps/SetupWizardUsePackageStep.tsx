@@ -88,7 +88,6 @@ export function SetupWizardUsePackageStep() {
         setValue("usePackageStep.isZipValid", nodeInfos.length !== 0);
     }, [nodeInfos, setValue]);
 
-    
     const getInitialFiles = useMemo((): File[] => {
         if (fileZip) {
             try {
@@ -100,7 +99,6 @@ export function SetupWizardUsePackageStep() {
         }
         return [];
     }, [fileZip]);
-
 
     const clearFile = () => {
         setValue("usePackageStep.fileName", "");
@@ -137,10 +135,10 @@ export function SetupWizardUsePackageStep() {
                                     const cleanFileInBase64 = fileInString.substring(fileInString.indexOf(",") + 1);
 
                                     setValue("usePackageStep.fileZip", cleanFileInBase64, {
-                                        shouldDirty: true
+                                        shouldDirty: true,
                                     });
                                     setValue("usePackageStep.fileName", file.name, {
-                                        shouldDirty: true
+                                        shouldDirty: true,
                                     });
 
                                     field.onChange(cleanFileInBase64);
@@ -154,28 +152,30 @@ export function SetupWizardUsePackageStep() {
                 />
             </FormGroup>
             <LazyLoad active={asyncExtractNodeInfos.loading}>
-            {fileZip && isZipValid && asyncExtractNodeInfos.status === "success" && (
-                <FormGroup>
-                    <FormLabel className="hstack">
-                        <div>Node tag</div>
-                        <PopoverWithHoverWrapper
-                            message={
-                                <PopoverMessage description="Select which node of the predefined cluster would you like to set up now." />
-                            }
-                        >
-                            <Icon icon="info-new" />
-                        </PopoverWithHoverWrapper>
-                    </FormLabel>
-                    <FormSelect
-                        control={control}
-                        name="usePackageStep.nodeTag"
-                        placeholder="Select node tag"
-                        onChange={handleNodeTagChange}
-                        options={nodeOptions}
-                    />
-                </FormGroup>
-            )}
-            {!isZipValid && fileZip && <RichAlert variant="danger">Invalid nodes configuration in zip file.</RichAlert>}
+                {fileZip && isZipValid && asyncExtractNodeInfos.status === "success" && (
+                    <FormGroup>
+                        <FormLabel className="hstack">
+                            <div>Node tag</div>
+                            <PopoverWithHoverWrapper
+                                message={
+                                    <PopoverMessage description="Select which node of the predefined cluster would you like to set up now." />
+                                }
+                            >
+                                <Icon icon="info-new" />
+                            </PopoverWithHoverWrapper>
+                        </FormLabel>
+                        <FormSelect
+                            control={control}
+                            name="usePackageStep.nodeTag"
+                            placeholder="Select node tag"
+                            onChange={handleNodeTagChange}
+                            options={nodeOptions}
+                        />
+                    </FormGroup>
+                )}
+                {!isZipValid && fileZip && (
+                    <RichAlert variant="danger">Invalid nodes configuration in zip file.</RichAlert>
+                )}
             </LazyLoad>
         </div>
     );

@@ -35,7 +35,7 @@ export function fileToBase64(file: File): Promise<string> {
         reader.readAsDataURL(file);
         reader.onload = () => resolve(reader.result as string);
         reader.onerror = reject;
-    })
+    });
 }
 
 export function base64ToFile(base64: string, filename: string, mimeType = "application/x-pkcs12"): File {

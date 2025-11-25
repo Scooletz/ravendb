@@ -23,7 +23,11 @@ export default function PopoverWithHoverWrapper({
     const [target, setTarget] = useState<HTMLElement>();
     return (
         <>
-            <div style={targetStyle} ref={setTarget} className={classNames({ "d-inline-block": inline }, wrapperClassName)}>
+            <div
+                style={targetStyle}
+                ref={setTarget}
+                className={classNames({ "d-inline-block": inline }, wrapperClassName)}
+            >
                 {children}
             </div>
             {message && (

@@ -52,6 +52,7 @@ export const setupWizardActions = setupWizardSlice.actions;
 export const setupWizardSelectors = {
     isEulaScrolledToBottom: (state: RootState) => state.setupWizard.eulaStep.isEulaScrolledToBottom,
     finishStepStatus: (state: RootState) => state.setupWizard.finishStep.status,
-    selfSignedCertificateStepIsPasswordValid: (state: RootState) => state.setupWizard.selfSignedCertificateStep.isPasswordValid,
+    selfSignedCertificateStepIsPasswordValid: (state: RootState) =>
+        state.setupWizard.selfSignedCertificateStep.isPasswordValid,
     selfSignedCertificateStepHasPassword: (state: RootState) => state.setupWizard.selfSignedCertificateStep.hasPassword,
 };
