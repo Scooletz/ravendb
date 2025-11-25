@@ -22,6 +22,7 @@ export default function SetupWizard() {
     const docsLink = useRavenLink({ hash: "37GM2Z" });
     const form = useForm<SetupWizardFormData>({
         resolver: yupResolver(setupWizardSchema),
+        mode: "onChange",
         defaultValues: setupWizardFormDefaultValues,
     });
 

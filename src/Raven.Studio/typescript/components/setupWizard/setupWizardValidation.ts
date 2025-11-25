@@ -99,16 +99,13 @@ const domainStepSchema = yup.object({
         .string()
         .max(31)
         .required()
-        .test(
-            "valid-format",
-            "The domain can contain only alphanumeric characters, '-', and must contain exactly one '.'.",
-            (value) => {
-                if (!value) {
-                    return false;
-                }
-                return /^[A-Za-z0-9-]+\.[A-Za-z0-9-]+$/.test(value);
+        .test("valid-format", "The domain can contain only alphanumeric characters or '-'", (value) => {
+            if (!value) {
+                return false;
             }
-        )
+
+            return /^[A-Za-z0-9-]+$/.test(value);
+        })
         .test("no-lead-trail", "The domain cannot start or end with '-' or '.'.", (value) => {
             if (!value) {
                 return false;

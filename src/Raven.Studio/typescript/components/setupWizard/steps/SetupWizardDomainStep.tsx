@@ -41,7 +41,6 @@ export function SetupWizardDomainStep() {
     const handleDomainAvailability = async (rawDomain: string) => {
         const domain = (rawDomain ?? "").trim();
         const newOption = createNewOption(domain);
-        clearErrors("domainStep.domain");
         try {
             const domainAvailability = await asyncCheckDomainAvailability.execute(domain);
 
@@ -184,15 +183,8 @@ const useDomainFormSideEffects = () => {
     useEffect(() => {
         const subscription = watch((values, { name }) => {
             if (name === "domainStep.domain") {
-                if (values.domainStep.domain?.length <= 31) {
-                    // Clear validation error as soon as user types, but do not modify the value.
-                    clearErrors("domainStep.domain");
-                } else {
-                    setError("domainStep.domain", {
-                        type: "value",
-                        message: "Domain name cannot exceed 31 characters",
-                    });
-                }
+                // Clear validation error as soon as user types, but do not modify the value.
+                clearErrors("domainStep.domain");
             }
         });
 
