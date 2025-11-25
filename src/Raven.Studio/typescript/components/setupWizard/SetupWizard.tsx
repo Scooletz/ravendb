@@ -44,8 +44,7 @@ export default function SetupWizard() {
     const currentStepIdx = steps.findIndex((x) => x.isCurrent);
 
     const getStepKey = (stepTitle: SetupWizardStepId): keyof SetupWizardFormData => {
-        const stepKeyMap: Record<SetupWizardStepId, keyof SetupWizardFormData> = {
-            Eula: "currentStep", // Not actually used but included for completeness and avoiding TypeScript errors
+        const stepKeyMap: Partial<Record<SetupWizardStepId, keyof SetupWizardFormData>> = {
             "Setup method": "setupMethodStep",
             "Use setup package": "usePackageStep",
             "License key": "licenseKeyStep",
@@ -54,8 +53,6 @@ export default function SetupWizard() {
             "Self-signed certificate": "selfSignedCertificateStep",
             "Node addresses": "nodeAddressStep",
             "Additional settings": "additionalSettingsStep",
-            Summary: "currentStep", // Not actually used but included for completeness and avoiding TypeScript errors
-            Finish: "currentStep", // Not actually used but included for completeness and avoiding TypeScript errors
         };
 
         return stepKeyMap[stepTitle];

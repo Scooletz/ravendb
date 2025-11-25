@@ -34,7 +34,9 @@ const subDomainAndIpsSchema = yup.object().shape({
 
 const userDomainsWithIpsSchema = yup.object().shape({
     domains: yup.object().test("is-valid-domains", "Invalid domains structure", (value) => {
-        if (!value) {return true;}
+        if (!value) {
+            return true;
+        }
         return Object.entries(value).every(([_key, subDomains]) => {
             return (
                 Array.isArray(subDomains) &&
@@ -93,7 +95,26 @@ const selfSignedCertificateStepSchema = yup.object({
 });
 
 const domainStepSchema = yup.object({
-    domain: yup.string(),
+    domain: yup
+        .string()
+        .max(31)
+        .required()
+        .test(
+            "valid-format",
+            "The domain can contain only alphanumeric characters, '-', and must contain exactly one '.'.",
+            (value) => {
+                if (!value) {
+                    return false;
+                }
+                return /^[A-Za-z0-9-]+\.[A-Za-z0-9-]+$/.test(value);
+            }
+        )
+        .test("no-lead-trail", "The domain cannot start or end with '-' or '.'.", (value) => {
+            if (!value) {
+                return false;
+            }
+            return !value.startsWith("-") && !value.endsWith("-") && !value.startsWith(".") && !value.endsWith(".");
+        }),
     email: yup.string().email(),
     rootDomain: yup.string(),
 });
@@ -123,7 +144,7 @@ const nodeAddressStepSchema = yup.object({
 const additionalSettingsStepSchema = yup.object({
     studioEnvironment: yup.string().oneOf(setupWizardConstants.allStudioEnvironments),
     adminCertificateExpirationTime: yup.number(),
-    
+
     // advanced settings
     dataDirectory: yup.string().nullable(),
     setupCertificatePath: yup.string().nullable(),
@@ -131,7 +152,7 @@ const additionalSettingsStepSchema = yup.object({
     logsPath: yup.string().nullable(),
     staticIndexingEngineType: yup.string().oneOf(setupWizardConstants.indexingEngineTypes).nullable(),
     autoIndexingEngineType: yup.string().oneOf(setupWizardConstants.indexingEngineTypes).nullable(),
-    
+
     // states
     isAdvancedSettingsVisible: yup.boolean(),
 });
@@ -139,7 +160,7 @@ const additionalSettingsStepSchema = yup.object({
 const finishStepSchema = yup.object({
     // states
     finishingStatus: yup.string<Raven.Client.Documents.Operations.OperationStatus>(),
-})
+});
 
 export type SetupWizardStepId =
     | "Eula"

@@ -1165,8 +1165,10 @@ export function SetupWizardNodeAddressStepFooter() {
         const setupWizardFormData = getValues();
         switch (setupWizardFormData.securityStep.securityOption) {
             case "letsEncrypt":
-            case "ownCertificate":
                 setValue("currentStep", "Domain");
+                break;
+            case "ownCertificate":
+                setValue("currentStep", "Self-signed certificate")
                 break;
             case "none":
                 setValue("currentStep", "Security");

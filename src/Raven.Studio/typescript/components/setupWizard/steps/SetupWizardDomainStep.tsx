@@ -162,7 +162,7 @@ export function SetupWizardDomainStep() {
 }
 
 const useDomainFormSideEffects = () => {
-    const { setValue, control, watch, clearErrors } = useFormContext<SetupWizardFormData>();
+    const { setValue, control, setError, watch, clearErrors } = useFormContext<SetupWizardFormData>();
     const {
         licenseKeyStep: { licenseInfo },
     } = useWatch({ control });
@@ -181,12 +181,18 @@ const useDomainFormSideEffects = () => {
         }
     }, []);
 
-    // Set up subscription for form changes
     useEffect(() => {
         const subscription = watch((values, { name }) => {
             if (name === "domainStep.domain") {
-                // Clear validation error as soon as user types, but do not modify the value.
-                clearErrors("domainStep.domain");
+                if (values.domainStep.domain?.length <= 31) {
+                    // Clear validation error as soon as user types, but do not modify the value.
+                    clearErrors("domainStep.domain");
+                } else {
+                    setError("domainStep.domain", {
+                        type: "value",
+                        message: "Domain name cannot exceed 31 characters",
+                    });
+                }
             }
         });
 
