@@ -248,7 +248,7 @@ namespace Raven.Server.Documents.PeriodicBackup.GoogleCloud
                 }
 
                 // Optionally include standard properties as metadata
-                if (!string.IsNullOrEmpty(obj.ContentType))
+                if (string.IsNullOrEmpty(obj.ContentType) == false)
                     metadata["ContentType"] = obj.ContentType;
                 if (obj.Size != null)
                     metadata["ContentLength"] = obj.Size.ToString();
