@@ -4,7 +4,7 @@ using Sparrow.Json.Parsing;
 
 namespace Raven.Client.Documents.Operations.AI;
 
-public class AiUsage : IDynamicJsonValueConvertible
+public class AiUsage : IDynamicJson
 {
     public long PromptTokens { get; set; }
     public long CompletionTokens { get; set; }

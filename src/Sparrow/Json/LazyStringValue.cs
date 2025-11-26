@@ -321,7 +321,8 @@ namespace Sparrow.Json
 
             if (ReferenceEquals(self, null))
                 return false;
-            return !ReferenceEquals(str, null) && self.Equals(str);
+            
+            return ReferenceEquals(str, null) == false && self.Equals(str);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
