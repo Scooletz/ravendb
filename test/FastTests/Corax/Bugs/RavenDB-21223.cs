@@ -20,11 +20,11 @@ namespace FastTests.Corax.Bugs
         [RavenFact(RavenTestCategory.Voron)]
         public void ContainerAllocateDeleteAndAllocate()
         {
-            List<ContainerEntryId> toDelete = new();
+            List<long> toDelete = new();
 
             {
                 using var wtx = Env.WriteTransaction();
-                var rootContainer = (ContainerId)wtx.OpenContainer("TestContainer");
+                var rootContainer = wtx.OpenContainer("TestContainer");
                 for (int i = 0; i < 1000; i++)
                 {
                     var allocatedPage = Container.Allocate(wtx.LowLevelTransaction, rootContainer, 50, out var space);
@@ -37,7 +37,7 @@ namespace FastTests.Corax.Bugs
 
             {
                 using var wtx = Env.WriteTransaction();
-                var rootContainer = (ContainerId)wtx.OpenContainer("TestContainer");
+                var rootContainer = wtx.OpenContainer("TestContainer");
                 for (int i = 0; i < 1000; i++)
                 {
                     var allocatedPage = Container.Allocate(wtx.LowLevelTransaction, rootContainer, 50, out var space);

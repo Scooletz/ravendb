@@ -53,7 +53,7 @@ namespace Voron.Debugging
         public List<JournalFile> Journals;
         public JournalFile[] FlushedJournals { get; set; }
         public List<Table> Tables;
-        public Dictionary<Slice, ContainerId> Containers;
+        public Dictionary<Slice, long> Containers;
         public List<PostingList> PostingLists;
         public List<PersistentDictionaryRootHeader> PersistentDictionaries;
         public List<Lookup<Int64LookupKey>> NumericLookups;
@@ -475,7 +475,7 @@ namespace Voron.Debugging
             {
                 pageDensities = GetLookupPageDensities(lookup.Llt, lookup.AllPages());
             }
-
+            
             // CompactTree also has a ContainerId, but that is accounted for _separately_, using the EntriesTerms
             long pageCount = lookup.State.BranchPages + lookup.State.LeafPages;
 
@@ -498,7 +498,7 @@ namespace Voron.Debugging
             return treeReport;
         }
 
-        public TreeReport GetContainerReport(string name, ContainerId page, bool includeDetails)
+        public TreeReport GetContainerReport(string name, long page, bool includeDetails)
         {
             List<double> pageDensities = null;
 
@@ -526,7 +526,7 @@ namespace Voron.Debugging
             var (allPages, freePages) = Container.GetPagesFor(_tx, page);
             
             // cannot use GetPageHeader since we are reading not just from the header
-            var root = new Container(_tx.GetPage((long)page));
+            var root = new Container(_tx.GetPage(page));
             double density = pageDensities?.Average() ?? -1;
             long totalPages = allPages.State.NumberOfEntries + root.Header.NumberOfOverflowPages + freePages.State.PageCount + allPages.State.PageCount;
             var treeReport = new TreeReport

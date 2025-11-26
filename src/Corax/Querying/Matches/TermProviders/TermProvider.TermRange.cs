@@ -267,11 +267,10 @@ public struct TermRangeProvider<TLookupIterator, TLow, THigh> : ITermProvider, I
         }
 
         using var _ = allocator.Allocate((sizeof(UnmanagedSpan)) * postingLists.Count, out ByteString containers);
-        var containersSpan = containers.ToSpan<UnmanagedSpan>();
-
-        Container.GetAll(_indexSearcher._transaction.LowLevelTransaction, postingLists.ToSpan(), containersSpan, singleMarker,
-            _indexSearcher._transaction.LowLevelTransaction.PageLocator);
         var containersPtr = (UnmanagedSpan*)containers.Ptr;
+
+        Container.GetAll(_indexSearcher._transaction.LowLevelTransaction, postingLists.ToSpan(), containersPtr, singleMarker,
+            _indexSearcher._transaction.LowLevelTransaction.PageLocator);
 
         long totalCount = 0;
         for (int i = 0; i < postingLists.Count; ++i)

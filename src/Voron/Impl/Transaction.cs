@@ -167,7 +167,7 @@ namespace Voron.Impl
             _lowLevelTransaction.EndAsyncCommit();
         }
 
-        public ContainerId OpenContainer(string name)
+        public long OpenContainer(string name)
         {
             using (Slice.From(Allocator, name, ByteStringType.Immutable, out Slice nameSlice))
             {
@@ -187,12 +187,12 @@ namespace Voron.Impl
             return LowLevelTransaction.RootObjects.LookupFor<TKey>(name);
         }
 
-        public ContainerId OpenContainer(Slice name)
+        public long OpenContainer(Slice name)
         {
             var exists = LowLevelTransaction.RootObjects.DirectRead(name);
             if (exists != null)
             {
-                return new ContainerId(((ContainerRootHeader*)exists)->ContainerId);
+                return ((ContainerRootHeader*)exists)->ContainerId;
             }
             var id = Container.Create(LowLevelTransaction);
 
@@ -200,10 +200,10 @@ namespace Voron.Impl
                 *((ContainerRootHeader*)ptr) = new ContainerRootHeader
                 {
                     RootObjectType = RootObjectType.Container,
-                    ContainerId = (long)id
+                    ContainerId = id
                 };
-
-
+            
+            
             return id;
         }
 
@@ -737,13 +737,13 @@ namespace Voron.Impl
             LowLevelTransaction.RootObjects.Forget(name);
         }
 
-        public Container.TransactionState GetContainerState(ContainerId containerId)
+        public Container.TransactionState GetContainerState(long containerId)
         {
             _containers ??= new Dictionary<long, Container.TransactionState>();
-            if (_containers.TryGetValue((long)containerId, out var state))
+            if (_containers.TryGetValue(containerId, out var state))
                 return state;
             state = new Container.TransactionState(containerId);
-            _containers[(long)containerId] = state;
+            _containers[containerId] = state;
             return state;
         }
 

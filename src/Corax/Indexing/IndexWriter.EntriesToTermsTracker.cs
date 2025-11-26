@@ -4,7 +4,6 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Sparrow.Server.Utils.VxSort;
 using Voron;
-using Voron.Data.Containers;
 using Voron.Data.Lookups;
 using Voron.Util;
 
@@ -20,14 +19,14 @@ public partial class IndexWriter
         private readonly IndexWriter _writer;
         private ContextBoundNativeList<long> _entriesForTermsRemovalsBuffer;
         private NativeList<long> _entriesForTermsAdditionsBufferEntryId;
-        private NativeList<ContainerEntryId> _entriesForTermsAdditionsBufferTermId;
+        private NativeList<long> _entriesForTermsAdditionsBufferTermId;
         private readonly List<long> _additionsForTerm, _removalsForTerm;
         private readonly HashSet<long> _entriesAlreadyAdded;
-        private ContainerEntryId _termContainerId;
+        private long _termContainerId;
         
         public EntriesToTermsTracker(IndexWriter writer)
         {
-            _termContainerId = ContainerEntryId.Invalid;
+            _termContainerId = Constants.IndexWriter.InvalidPageId;
             _writer = writer;
             _entriesForTermsRemovalsBuffer = new(writer._entriesAllocator);
             _entriesForTermsAdditionsBufferEntryId.Initialize(_writer._entriesAllocator);
@@ -40,9 +39,9 @@ public partial class IndexWriter
         /// <summary>
         /// Gathers all entry IDs to be processed with the term.
         /// </summary>
-        public void InsertEntries(in EntriesModifications entries, ContainerEntryId termContainerId)
+        public void InsertEntries(in EntriesModifications entries, long termContainerId)
         {
-            Debug.Assert(_termContainerId == ContainerEntryId.Invalid);
+            Debug.Assert(_termContainerId == Constants.IndexWriter.InvalidPageId);
             _termContainerId = termContainerId;
 
             SetRange(_additionsForTerm, entries.Additions);
@@ -100,7 +99,7 @@ public partial class IndexWriter
                 _entriesForTermsAdditionsBufferTermId.AddUnsafe(_termContainerId);
             }
 
-            _termContainerId = ContainerEntryId.Invalid;
+            _termContainerId = Constants.IndexWriter.InvalidPageId;
         }
         
         /// <summary>
@@ -134,7 +133,7 @@ public partial class IndexWriter
                 {
                     Int64LookupKey key = entriesIds[idX];
                     entriesToTermsTree.TryGetNextValue(ref key, out _);
-                    entriesToTermsTree.AddOrSetAfterGetNext(ref key, (long)entriesTerms[idX]);
+                    entriesToTermsTree.AddOrSetAfterGetNext(ref key, entriesTerms[idX]);
                 }
             }
         }
