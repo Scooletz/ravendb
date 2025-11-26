@@ -97,7 +97,7 @@ const selfSignedCertificateStepSchema = yup.object({
 const domainStepSchema = yup.object({
     domain: yup
         .string()
-        .max(31)
+        .max(36) // Api limit is 36 characters
         .required()
         .test("valid-format", "The domain can contain only alphanumeric characters or '-'", (value) => {
             if (!value) {

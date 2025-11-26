@@ -16,6 +16,7 @@ import { setupWizardActions, setupWizardSelectors } from "components/setupWizard
 import { base64ToFile, fileToBase64 } from "components/setupWizard/utils/setupWizardUtils";
 import { PopoverMessage } from "components/setupWizard/partials/PopoverMessage";
 import { setupWizardFormDefaultValues } from "components/setupWizard/utils/setupWizardFormDefaultValues";
+import { LazyLoad } from "components/common/LazyLoad";
 
 export function SetupWizardSelfSignedCertificateStep() {
     const { control, setValue, clearErrors, setError } = useFormContext<SetupWizardFormData>();
@@ -30,7 +31,7 @@ export function SetupWizardSelfSignedCertificateStep() {
 
     const certificateHasPassword = useAppSelector(setupWizardSelectors.selfSignedCertificateStepHasPassword);
 
-    useAsyncDebounce(
+    const cnsDebounce = useAsyncDebounce(
         async () => {
             setValue("selfSignedCertificateStep.cns", []);
 
@@ -170,13 +171,15 @@ export function SetupWizardSelfSignedCertificateStep() {
                             <Icon icon="info-new" />
                         </PopoverWithHoverWrapper>
                     </FormLabel>
-                    <div className="vstack gap-1">
-                        {cns.map((cn) => (
-                            <div className="panel-bg-2">
-                                <Form.Control key={cn} type="text" value={cn} disabled readOnly />
-                            </div>
-                        ))}
-                    </div>
+                    <LazyLoad active={cnsDebounce.loading}>
+                        <div className="vstack gap-1">
+                            {cns.map((cn) => (
+                                <div className="panel-bg-2">
+                                    <Form.Control key={cn} type="text" value={cn} disabled readOnly />
+                                </div>
+                            ))}
+                        </div>
+                    </LazyLoad>
                 </FormGroup>
             )}
         </div>
