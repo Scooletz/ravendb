@@ -16,13 +16,17 @@ namespace Raven.Client.Documents.Operations
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue(GetType())
+            var djv = new DynamicJsonValue(GetType())
             {
                 [nameof(Progress)] = Progress?.ToJson(),
                 [nameof(Result)] = Result?.ToJson(),
-                [nameof(Status)] = Status.ToString(),
-                [nameof(PersistProgressOnFaultedStatus)] = PersistProgressOnFaultedStatus.ToString()
+                [nameof(Status)] = Status.ToString()
             };
+
+            if (PersistProgressOnFaultedStatus)
+                djv[nameof(PersistProgressOnFaultedStatus)] = PersistProgressOnFaultedStatus;
+
+            return djv;
         }
     }
 
