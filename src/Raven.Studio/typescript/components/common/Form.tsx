@@ -708,6 +708,7 @@ export function FormPathSelector<
         getPathsProvider,
         getPathDependencies,
         disabled,
+        ...rest
     } = props;
 
     const {
@@ -757,6 +758,7 @@ export function FormPathSelector<
                         disabled={disabled || formState.isSubmitting}
                         buttonClassName={classNames("input-btn", invalid && "me-3")}
                         stateRef={pathSelectorStateRef}
+                        {...rest}
                     />
                 </InputGroup>
             </div>

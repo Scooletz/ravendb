@@ -23,6 +23,7 @@ export interface PathSelectorProps<ParamsType extends unknown[] = unknown[]> {
     handleSelect: (path: string) => void;
     defaultPath?: string;
     selectorTitle?: string;
+    defaultFileName?: string;
     placeholder?: string;
     disabled?: boolean;
     buttonClassName?: string;
@@ -37,6 +38,7 @@ export default function PathSelector<ParamsType extends unknown[] = unknown[]>(p
         defaultPath,
         buttonClassName,
         selectorTitle,
+        defaultFileName,
         disabled,
         stateRef,
     } = props;
@@ -57,12 +59,51 @@ export default function PathSelector<ParamsType extends unknown[] = unknown[]>(p
     const { canGoBack, parentDir } = getParentPath(pathInput);
 
     const handleSelectWithClose = () => {
-        handleSelect(pathInput);
+        let finalPath = pathInput || "";
+
+        if (defaultFileName) {
+            const lowerFinal = finalPath.toLowerCase();
+            const lowerDefault = defaultFileName.toLowerCase();
+            const endsWithSep = finalPath.endsWith("/") || finalPath.endsWith("\\");
+            
+            const shouldAppend = endsWithSep || finalPath === "";
+            
+            if (shouldAppend && !lowerFinal.endsWith(lowerDefault)) {
+                const separator = getSeparator(finalPath);
+                const sepToUse = endsWithSep
+                    ? ""
+                    : separator || (finalPath ? (finalPath.includes("\\") ? "\\" : "/") : "");
+
+                finalPath = `${finalPath}${sepToUse}${defaultFileName}`;
+            }
+        }
+
+        handleSelect(finalPath);
         toggleIsModalOpen();
     };
 
     const separator = getSeparator(pathInput);
-    const pathParts = separator ? pathInput.split(separator) : [pathInput];
+
+    const breadcrumbPath = (() => {
+        if (!separator) {
+            return pathInput;
+        }
+        if (!pathInput) {
+            return "";
+        }
+        const endsWithSep = pathInput.endsWith(separator);
+        if (endsWithSep) {
+            return pathInput;
+        }
+        const lastSepIdx = pathInput.lastIndexOf(separator);
+        if (lastSepIdx === -1) {
+            return "";
+        }
+
+        return pathInput.substring(0, lastSepIdx + 1);
+    })();
+
+    const pathParts = separator ? breadcrumbPath.split(separator) : [breadcrumbPath];
 
     const setPathToDir = (dir: string) => {
         const dirIndex = pathParts.indexOf(dir);

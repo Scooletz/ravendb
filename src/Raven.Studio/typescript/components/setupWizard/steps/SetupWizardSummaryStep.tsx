@@ -6,7 +6,7 @@ import React from "react";
 import Card from "react-bootstrap/Card";
 import { DistributionItem, DistributionLegend, LocationDistribution } from "components/common/LocationDistribution";
 import PopoverWithHoverWrapper from "components/common/PopoverWithHoverWrapper";
-import { getLicenseType } from "components/setupWizard/utils/setupWizardUtils";
+import { getFullDomain, getLicenseType } from "components/setupWizard/utils/setupWizardUtils";
 import LicenseType = Raven.Server.Commercial.LicenseType;
 import License = Raven.Server.Commercial.License;
 
@@ -49,7 +49,7 @@ export function SetupWizardSummaryStep() {
                                     <CardRow label="License expiration" value="01/29/2027" />
                                     <CardRow
                                         label="Full domain"
-                                        value={`${domainStep.domain}.${domainStep.rootDomain}`}
+                                        value={getFullDomain(domainStep)}
                                     />
                                 </>
                             )}

@@ -8,7 +8,7 @@ import { setupWizardConstants, setupWizardGA4Prefixes } from "components/setupWi
 import { HrHeader } from "components/common/HrHeader";
 import classNames from "classnames";
 import { useEffect } from "react";
-import { getLicenseType } from "components/setupWizard/utils/setupWizardUtils";
+import { getFullDomain, getLicenseType } from "components/setupWizard/utils/setupWizardUtils";
 import PopoverWithHoverWrapper from "components/common/PopoverWithHoverWrapper";
 import { ConditionalPopover } from "components/common/ConditionalPopover";
 import { useServices } from "hooks/useServices";
@@ -298,7 +298,9 @@ function AdvancedSettingsContent({ control, isVisible }: AdvancedSettingsContent
     const { resourcesService } = useServices();
 
     const {
+        securityStep: { securityOption },
         additionalSettingsStep: { dataDirectory, logsPath },
+        domainStep,
     } = useWatch({
         control,
     });
@@ -309,6 +311,8 @@ function AdvancedSettingsContent({ control, isVisible }: AdvancedSettingsContent
             return dto?.List || [];
         };
     };
+
+    const defaultCertificatePathFileName = `cluster.server.certificate.${getFullDomain(domainStep)}.pfx`;
 
     return (
         <div
@@ -344,28 +348,31 @@ function AdvancedSettingsContent({ control, isVisible }: AdvancedSettingsContent
                     </RichAlert>
                 )}
             </FormGroup>
-            <FormGroup>
-                <FormLabel className="hstack">
-                    <div>Setup certificate path</div>
-                    <ConditionalPopover
-                        conditions={{
-                            isActive: isVisible,
-                            message: <PopoverMessage description="Defines the path to the certificate location." />,
-                        }}
-                        popoverPlacement="right"
-                    >
-                        <Icon icon="info-new" />
-                    </ConditionalPopover>
-                </FormLabel>
-                <FormPathSelector
-                    disabled={!isVisible}
-                    name="additionalSettingsStep.setupCertificatePath"
-                    control={control}
-                    placeholder={getDefaultPath(os, "certificate")}
-                    getPathsProvider={(path: string) => getLocalFolderPathsProvider(path)}
-                    getPathDependencies={(path: string) => [path]}
-                />
-            </FormGroup>
+            {securityOption !== "none" && (
+                <FormGroup>
+                    <FormLabel className="hstack">
+                        <div>Setup certificate path</div>
+                        <ConditionalPopover
+                            conditions={{
+                                isActive: isVisible,
+                                message: <PopoverMessage description="Defines the path to the certificate location." />,
+                            }}
+                            popoverPlacement="right"
+                        >
+                            <Icon icon="info-new" />
+                        </ConditionalPopover>
+                    </FormLabel>
+                    <FormPathSelector
+                        disabled={!isVisible}
+                        name="additionalSettingsStep.setupCertificatePath"
+                        control={control}
+                        defaultFileName={defaultCertificatePathFileName}
+                        placeholder={getDefaultPath(os, "certificate")}
+                        getPathsProvider={(path: string) => getLocalFolderPathsProvider(path)}
+                        getPathDependencies={(path: string) => [path]}
+                    />
+                </FormGroup>
+            )}
             <FormGroup>
                 <FormLabel className="hstack">
                     <div>Logs path</div>

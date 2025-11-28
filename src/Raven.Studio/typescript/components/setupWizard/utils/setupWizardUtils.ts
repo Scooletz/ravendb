@@ -49,3 +49,7 @@ export function base64ToFile(base64: string, filename: string, mimeType = "appli
 
     return new File([intArray], filename, { type: mimeType });
 }
+
+export function getFullDomain(domainStep: SetupWizardFormData["domainStep"]) {
+    return domainStep.domain + "." + domainStep.rootDomain;
+}
