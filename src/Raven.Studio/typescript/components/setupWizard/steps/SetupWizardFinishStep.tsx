@@ -343,6 +343,7 @@ const ConfigurationItem = ({ configurationState, stepTitle, errorLogs }: Configu
                     variant="danger"
                     title={configurationState?.ErrorType}
                     className="my-2"
+                    copyText={errorLogs.map((log) => log.message).join("\n")}
                 >
                     <div className="text-wrap" title={configurationState?.ErrorMessage}>
                         {configurationState?.ErrorMessage}

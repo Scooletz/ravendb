@@ -2,6 +2,8 @@ import classNames from "classnames";
 import { Icon } from "components/common/Icon";
 import IconName from "../../../typings/server/icons";
 import Alert, { AlertProps } from "react-bootstrap/Alert";
+import Button from "react-bootstrap/Button";
+import copyToClipboard from "common/copyToClipboard";
 
 interface RichAlertProps extends AlertProps {
     icon?: IconName;
@@ -10,6 +12,8 @@ interface RichAlertProps extends AlertProps {
     color?: never;
     variant: (typeof richAlertColors)[number];
     childrenClassName?: string;
+    copyText?: string;
+    copyTextSuccessMessage?: string;
 }
 
 const defaultIcons: { [key: string]: IconName } = {
@@ -41,12 +45,31 @@ export function RichAlert({
     iconAddon,
     title,
     childrenClassName,
+    copyText,
+    copyTextSuccessMessage,
     ...rest
 }: RichAlertProps) {
     const renderAlertIcon = icon ?? defaultIcons[variant] ?? "terms";
 
+    const handleCopyToClipboard = () => {
+        copyToClipboard.copy(copyText, copyTextSuccessMessage);
+    };
+
     return (
-        <Alert variant={variant} className={classNames(title ? "vstack" : "hstack gap-2", className)} {...rest}>
+        <Alert
+            variant={variant}
+            className={classNames("position-relative", title ? "vstack" : "hstack gap-2", className)}
+            {...rest}
+        >
+            {copyText && (
+                <Button
+                    onClick={handleCopyToClipboard}
+                    className="position-absolute top-0 end-0 m-2 hover-filter"
+                    variant="link"
+                >
+                    <Icon icon="copy-to-clipboard" margin="m-0" color="muted" />
+                </Button>
+            )}
             {title ? (
                 <h3 className="hstack mb-1 gap-1">
                     <Icon icon={renderAlertIcon} addon={iconAddon} margin="m-0" className="title-icon" /> {title}
