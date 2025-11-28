@@ -108,7 +108,7 @@ public class ChatCompletionClient : IDisposable
 
         public void Merge(BlittableJsonReaderObject toolCallChunk)
         {
-            if (!toolCallChunk.TryGet(Constants.ResponseFields.Index, out int index))
+            if (toolCallChunk.TryGet(Constants.ResponseFields.Index, out int index) == false)
                 return;
 
             if (index != _toolCallIndex)
