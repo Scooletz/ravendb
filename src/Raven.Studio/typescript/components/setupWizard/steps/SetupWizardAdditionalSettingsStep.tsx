@@ -7,7 +7,7 @@ import { RichAlert } from "components/common/RichAlert";
 import { setupWizardConstants, setupWizardGA4Prefixes } from "components/setupWizard/utils/setupWizardConstants";
 import { HrHeader } from "components/common/HrHeader";
 import classNames from "classnames";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { getFullDomain, getLicenseType } from "components/setupWizard/utils/setupWizardUtils";
 import PopoverWithHoverWrapper from "components/common/PopoverWithHoverWrapper";
 import { ConditionalPopover } from "components/common/ConditionalPopover";
@@ -300,6 +300,7 @@ function AdvancedSettingsContent({ control, isVisible }: AdvancedSettingsContent
     const {
         securityStep: { securityOption },
         additionalSettingsStep: { dataDirectory, logsPath },
+        selfSignedCertificateStep,
         domainStep,
     } = useWatch({
         control,
@@ -312,7 +313,16 @@ function AdvancedSettingsContent({ control, isVisible }: AdvancedSettingsContent
         };
     };
 
-    const defaultCertificatePathFileName = `cluster.server.certificate.${getFullDomain(domainStep)}.pfx`;
+    const defaultCertificatePathFileName = useMemo(() => {
+        switch (securityOption) {
+            case "ownCertificate":
+                return `cluster.server.certificate.${selfSignedCertificateStep.cns[0]}.pfx`; // For own certificates, we use the first Common Name (CN) as the main identifier
+            case "letsEncrypt":
+                return `cluster.server.certificate.${getFullDomain(domainStep)}.pfx`;
+            default:
+                return undefined;
+        }
+    }, []);
 
     return (
         <div
