@@ -10,9 +10,11 @@ import { LazyLoad } from "components/common/LazyLoad";
 import { useDispatch } from "react-redux";
 import { setupWizardActions, setupWizardSelectors } from "../store/setupWizardSlice";
 import { useAppSelector } from "components/store";
-import { useCallback } from "react";
+import { useCallback, useEffect } from "react";
 import { useEventsCollector } from "components/hooks/useEventsCollector";
 import { setupWizardGA4Prefixes } from "components/setupWizard/utils/setupWizardConstants";
+
+type StorybookGlobalWindow = Window & typeof globalThis & { storybookMode?: boolean };
 
 export function SetupWizardEulaStep() {
     const dispatch = useDispatch();
@@ -20,6 +22,12 @@ export function SetupWizardEulaStep() {
     const { reportEvent } = useEventsCollector();
 
     const asyncGetEula = useAsync(setupWizardService.getEula, []);
+
+    useEffect(() => {
+        if ((window as StorybookGlobalWindow).storybookMode) {
+            dispatch(setupWizardActions.isEulaScrolledToBottomSet(true));
+        }
+    }, []);
 
     const handleScroll = useCallback(
         (node: React.UIEvent<HTMLDivElement, UIEvent>) => {
