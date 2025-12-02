@@ -217,7 +217,6 @@ namespace Raven.Server.Documents.PeriodicBackup.Restore
         {
             Result.Files.CurrentFileName = null;
 
-            DisableOngoingTasksIfNeeded(RestoreSettings.DatabaseRecord);
             SmugglerBase.EnsureProcessed(Result, skipped: false, indexesSkipped: Result.Indexes.Skipped);
             Progress.Invoke(Result.Progress);
 
@@ -617,6 +616,8 @@ namespace Raven.Server.Documents.PeriodicBackup.Restore
                     databaseRecord.AiAgents = smugglerDatabaseRecord.AiAgents;
                     databaseRecord.EmbeddingsGenerations = smugglerDatabaseRecord.EmbeddingsGenerations;
                     databaseRecord.GenAis = smugglerDatabaseRecord.GenAis;
+
+                    DisableOngoingTasksIfNeeded(databaseRecord);
 
                     ServerStore.Engine.StateMachine.AssertAllLicenseLimitsOnRestore(ServerStore, databaseRecord);
                 };
