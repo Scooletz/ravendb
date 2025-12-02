@@ -252,16 +252,6 @@ namespace Raven.Server.Web.System
         [RavenAction("/wizard/index.html", "GET", AuthorizationStatus.UnauthenticatedClients)]
         public Task GetSetupIndexFile()
         {
-            // TODO kalczur
-            // if (ServerStore.LicenseManager.IsEulaAccepted == false)
-            // {
-            //     // redirect to studio - if user didn't configured it yet
-            //     // then studio endpoint redirect to wizard
-            //     HttpContext.Response.Headers["Location"] = "/eula/index.html";
-            //     HttpContext.Response.StatusCode = (int)HttpStatusCode.Moved;
-            //     return Task.CompletedTask;
-            // }
-
             // if user asks for entry point but we are already configured redirect to studio
             if (ServerStore.Configuration.Core.SetupMode != SetupMode.Initial)
             {
@@ -300,14 +290,6 @@ namespace Raven.Server.Web.System
                 HttpContext.Response.StatusCode = (int)HttpStatusCode.Moved;
                 return Task.CompletedTask;
             }
-
-            // TODO kalczur            
-            // if (ServerStore.LicenseManager.IsEulaAccepted == false)
-            // {
-            //     HttpContext.Response.Headers["Location"] = "/eula/index.html";
-            //     HttpContext.Response.StatusCode = (int)HttpStatusCode.Moved;
-            //     return Task.CompletedTask;
-            // }
 
             // if user asks for entry point but we are NOT already configured redirect to setup
             if (ServerStore.Configuration.Core.SetupMode == SetupMode.Initial)
