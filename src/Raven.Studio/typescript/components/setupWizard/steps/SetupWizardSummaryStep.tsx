@@ -47,10 +47,7 @@ export function SetupWizardSummaryStep() {
                             {securityOption === "letsEncrypt" && (
                                 <>
                                     <CardRow label="License expiration" value="01/29/2027" />
-                                    <CardRow
-                                        label="Full domain"
-                                        value={getFullDomain(domainStep)}
-                                    />
+                                    <CardRow label="Full domain" value={getFullDomain(domainStep)} />
                                 </>
                             )}
                         </div>

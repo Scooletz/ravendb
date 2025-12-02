@@ -65,9 +65,9 @@ export default function PathSelector<ParamsType extends unknown[] = unknown[]>(p
             const lowerFinal = finalPath.toLowerCase();
             const lowerDefault = defaultFileName.toLowerCase();
             const endsWithSep = finalPath.endsWith("/") || finalPath.endsWith("\\");
-            
+
             const shouldAppend = endsWithSep || finalPath === "";
-            
+
             if (shouldAppend && !lowerFinal.endsWith(lowerDefault)) {
                 const separator = getSeparator(finalPath);
                 const sepToUse = endsWithSep
