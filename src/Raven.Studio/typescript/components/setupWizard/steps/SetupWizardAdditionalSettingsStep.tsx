@@ -366,19 +366,25 @@ function AdvancedSettingsContent({ control, isVisible }: AdvancedSettingsContent
             </FormGroup>
             {securityOption !== "none" && (
                 <FormGroup>
-                    <FormLabel className="hstack">
-                        <div>Setup certificate path</div>
-                        <ConditionalPopover
-                            conditions={{
-                                isActive: isVisible,
-                                message: (
-                                    <SetupWizardInfoPopover description="Defines the path to the certificate location." />
-                                ),
-                            }}
-                            popoverPlacement="right"
-                        >
-                            <Icon icon="info-new" />
-                        </ConditionalPopover>
+                    <FormLabel className="vstack">
+                        <div className="hstack">
+                            <div>Setup certificate path</div>
+                            <ConditionalPopover
+                                conditions={{
+                                    isActive: isVisible,
+                                    message: (
+                                        <SetupWizardInfoPopover description="Indicates where the server certificate will be saved on your system. Make sure the location is accessible and has the required write permissions" />
+                                    ),
+                                }}
+                                popoverPlacement="right"
+                            >
+                                <Icon icon="info-new" />
+                            </ConditionalPopover>
+                        </div>
+                        <small className="text-muted">
+                            This specifies the location where the server certificate will be stored after the server is
+                            created
+                        </small>
                     </FormLabel>
                     <FormPathSelector
                         disabled={!isVisible}
