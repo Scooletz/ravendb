@@ -42,8 +42,8 @@ export const setupWizardFormDefaultValues: SetupWizardFormData = {
     },
     additionalSettingsStep: {
         isAdvancedSettingsVisible: false,
-        dataDirectory: "",
-        setupCertificatePath: "",
+        dataDirectory: null,
+        setupCertificatePath: null,
         adminCertificateExpirationTime: 60,
         postgresqlIntegration: false,
         studioEnvironment: "None",
