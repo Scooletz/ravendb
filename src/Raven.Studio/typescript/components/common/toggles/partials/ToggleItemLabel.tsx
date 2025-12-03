@@ -22,9 +22,9 @@ export default function ToggleItemLabel<T extends string | number = string>({
             <label htmlFor={id} ref={setTarget} className={classNames("rounded-pill", bgClass)}>
                 {inputItem.icon && <span style={{ zIndex: 1 }}>{inputItem.icon}</span>}
                 <span>{inputItem.label}</span>
-                {inputItem.count !== null && inputItem.count !== undefined && inputItem.count > 0 && inputItem.limit ? (
+                {inputItem.count != null && inputItem.count > 0 && inputItem.limit ? (
                     <ToggleLimitBadge count={inputItem.count} limit={inputItem.limit} />
-                ) : inputItem.count !== null && inputItem.count !== undefined && inputItem.count > 0 ? (
+                ) : inputItem.count != null && inputItem.count > 0 ? (
                     <span className="multi-toggle-item-count">{inputItem.count}</span>
                 ) : null}
             </label>

@@ -34,11 +34,7 @@ export default function SetupWizardClickableCard({
                 className,
                 {
                     "bg-faded-primary border-primary active": isSelected,
-                },
-                {
                     "border-secondary": !isSelected,
-                },
-                {
                     "item-disabled pe-none": isDisabled,
                 }
             )}

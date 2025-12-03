@@ -11,7 +11,7 @@ import { NumberedList } from "components/common/NumberedList";
 import { useEffect } from "react";
 import { useEventsCollector } from "components/hooks/useEventsCollector";
 import { setupWizardGA4Prefixes } from "components/setupWizard/utils/setupWizardConstants";
-import { PopoverMessage } from "components/setupWizard/partials/PopoverMessage";
+import { SetupWizardInfoPopover } from "components/setupWizard/partials/SetupWizardInfoPopover";
 
 export function SetupWizardSetupMethodStep() {
     const { control, setValue } = useFormContext<SetupWizardFormData>();
@@ -133,7 +133,7 @@ export function SetupWizardSetupMethodStepFooter() {
         <div className="d-flex justify-content-between">
             <PopoverWithHoverWrapper
                 message={
-                    <PopoverMessage
+                    <SetupWizardInfoPopover
                         description={
                             <NumberedList>
                                 <SetupWizardStepItem stepIndicator={1}>

@@ -18,7 +18,6 @@ export default function FileDropzone({
     validExtensions = [],
     maxFiles = Infinity,
     initialFiles = [],
-    ...inputProps
 }: FileDropzoneProps & { [key: string]: any }) {
     const fileInputRef = useRef<HTMLInputElement>(null);
 

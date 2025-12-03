@@ -12,10 +12,10 @@ const setupMethodStepSchema = yup.object({
 
 const usePackageStepSchema = yup.object({
     fileName: yup.string(),
-    fileZip: yup.string(), // should be required
+    fileZip: yup.string(),
     isZipSecure: yup.boolean(),
     isZipValid: yup.boolean(),
-    nodeTag: yup.string(), // should be required
+    nodeTag: yup.string(),
     publicServerUrl: yup.string(),
     serverUrl: yup.string(),
 });

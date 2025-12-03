@@ -66,7 +66,6 @@ app.start().then(() => {
             app.setRoot(twoFactorShell);
         } else {
             const setupShell = require("viewmodels/wizard/setupShell");
-            // const setupShell = bridgeToReact(SetupWizard, "nonShardedView");
             app.setRoot(setupShell);
         }
     } else {

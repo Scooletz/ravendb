@@ -1,4 +1,4 @@
-import { Controller, useFormContext, useWatch } from "react-hook-form";
+import { Controller, ControllerRenderProps, useFormContext, useWatch } from "react-hook-form";
 import { SetupWizardFormData } from "../setupWizardValidation";
 import Button from "react-bootstrap/Button";
 import { Icon } from "components/common/Icon";
@@ -15,7 +15,7 @@ import { setupWizardGA4Prefixes } from "components/setupWizard/utils/setupWizard
 import { useEventsCollector } from "hooks/useEventsCollector";
 import { base64ToFile, fileToBase64 } from "components/setupWizard/utils/setupWizardUtils";
 import { LazyLoad } from "components/common/LazyLoad";
-import { PopoverMessage } from "components/setupWizard/partials/PopoverMessage";
+import { SetupWizardInfoPopover } from "components/setupWizard/partials/SetupWizardInfoPopover";
 import { setupWizardFormDefaultValues } from "components/setupWizard/utils/setupWizardFormDefaultValues";
 
 export function SetupWizardUsePackageStep() {
@@ -105,6 +105,33 @@ export function SetupWizardUsePackageStep() {
         setValue("usePackageStep.fileZip", "");
     };
 
+    const handleFileChange = async (files: File[], field: ControllerRenderProps<SetupWizardFormData>) => {
+        const file = files[0];
+
+        if (!file.name.trim()) {
+            clearFile();
+            messagePublisher.reportError("Failed to load file");
+            return;
+        }
+
+        try {
+            const fileInString = await fileToBase64(file);
+            const cleanFileInBase64 = fileInString.substring(fileInString.indexOf(",") + 1);
+
+            setValue("usePackageStep.fileZip", cleanFileInBase64, {
+                shouldDirty: true,
+            });
+            setValue("usePackageStep.fileName", file.name, {
+                shouldDirty: true,
+            });
+
+            field.onChange(cleanFileInBase64);
+        } catch (e) {
+            clearFile();
+            messagePublisher.reportError("Failed to load file", e.message);
+        }
+    };
+
     return (
         <div>
             <h2 className="mb-1">Use setup package</h2>
@@ -121,32 +148,7 @@ export function SetupWizardUsePackageStep() {
                             validExtensions={["zip"]}
                             initialFiles={getInitialFiles}
                             {...field}
-                            onChange={async (files: File[]) => {
-                                const file = files[0];
-
-                                if (!file.name.trim()) {
-                                    clearFile();
-                                    messagePublisher.reportError("Failed to load file");
-                                    return;
-                                }
-
-                                try {
-                                    const fileInString = await fileToBase64(file);
-                                    const cleanFileInBase64 = fileInString.substring(fileInString.indexOf(",") + 1);
-
-                                    setValue("usePackageStep.fileZip", cleanFileInBase64, {
-                                        shouldDirty: true,
-                                    });
-                                    setValue("usePackageStep.fileName", file.name, {
-                                        shouldDirty: true,
-                                    });
-
-                                    field.onChange(cleanFileInBase64);
-                                } catch (e) {
-                                    clearFile();
-                                    messagePublisher.reportError("Failed to load file", e.message);
-                                }
-                            }}
+                            onChange={(files) => handleFileChange(files, field)}
                         />
                     )}
                 />
@@ -158,7 +160,7 @@ export function SetupWizardUsePackageStep() {
                             <div>Node tag</div>
                             <PopoverWithHoverWrapper
                                 message={
-                                    <PopoverMessage description="Select which node of the predefined cluster would you like to set up now." />
+                                    <SetupWizardInfoPopover description="Select which node of the predefined cluster would you like to set up now." />
                                 }
                             >
                                 <Icon icon="info-new" />

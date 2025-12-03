@@ -20,7 +20,6 @@ import Col from "react-bootstrap/Col";
 import RichAlert from "components/common/RichAlert";
 import { NumberedList, NumberedListItem } from "components/common/NumberedList";
 import Modal from "components/common/Modal";
-import { useBrowser } from "components/hooks/useBrowser";
 import Spinner from "react-bootstrap/Spinner";
 import { useRavenLink } from "hooks/useRavenLink";
 import classNames from "classnames";
@@ -29,9 +28,9 @@ import { setupWizardGA4Prefixes } from "components/setupWizard/utils/setupWizard
 import ButtonWithSpinner from "components/common/ButtonWithSpinner";
 import { useAsyncCallback } from "react-async-hook";
 import Code from "components/common/Code";
-import OperationStatus = Raven.Client.Documents.Operations.OperationStatus;
 import { useAppDispatch } from "components/store";
 import { setupWizardActions } from "components/setupWizard/store/setupWizardSlice";
+import OperationStatus = Raven.Client.Documents.Operations.OperationStatus;
 
 interface Logs {
     message: string;
@@ -51,7 +50,6 @@ export function SetupWizardFinishStep() {
 
     const { databasesService, setupWizardService } = useServices();
 
-    // TODO: maybe we should consider moving logs to the store?
     const [logs, setLogs] = useState<Logs[]>([]);
     const [errorLogs, setErrorLogs] = useState<Logs[]>([]);
     const [configurationProcess, setConfigurationProcess] =
@@ -852,6 +850,25 @@ function useSetupWizardFinishUtils() {
 interface CertInstallationConfirmProps {
     onCancel: () => void;
     onConfirm: () => void;
+}
+
+type Browser = "Chrome" | "Firefox" | "Safari" | "Other";
+
+function useBrowser(): Browser {
+    return useMemo(() => {
+        const userAgent = window.navigator.userAgent.toLowerCase();
+
+        // Check for Chromium-based browsers first
+        if (userAgent.includes("chrome") || userAgent.includes("edg") || userAgent.includes("opr")) {
+            return "Chrome";
+        } else if (userAgent.includes("firefox")) {
+            return "Firefox";
+        } else if (userAgent.includes("safari") && !userAgent.includes("chrome")) {
+            return "Safari";
+        }
+
+        return "Other";
+    }, []);
 }
 
 function CertInstallationConfirm({ onCancel, onConfirm }: CertInstallationConfirmProps) {

@@ -540,7 +540,7 @@ export function SetupWizardLicenseKeyVerifyCodeModal({
                 <p className="text-center mb-1">Before generating license we need to confirm provided email.</p>
                 <p>
                     Please check you email inbox. We have sent verification code to{" "}
-                    <b>{licenseKeyStepData?.email || "test@gmail.com"}</b>
+                    <b>{licenseKeyStepData?.email}</b>
                 </p>
                 <form>
                     <FormVerificationCodeInput
@@ -584,8 +584,8 @@ export function SetupWizardLicenseKeyVerifyCodeModal({
                     className="rounded-pill"
                     onClick={() => onSubmitVerifiedCode.execute(licenseKeyStepData.verificationCode)}
                 >
-                    Verify email &nbsp;
-                    <Icon icon="arrow-right" margin="m-0" />
+                    Verify email
+                    <Icon icon="arrow-right" margin="ms-1" />
                 </ButtonWithSpinner>
             </Modal.Footer>
         </Modal>
@@ -793,7 +793,7 @@ export function SetupWizardLicenseKeyStepFooter() {
                     onClick={handleContinue}
                     isSpinning={asyncRegistrationInfo.loading}
                 >
-                    Continue&nbsp;
+                    Continue
                     <Icon icon="arrow-right" margin="m-0" />
                 </ButtonWithSpinner>
             )}

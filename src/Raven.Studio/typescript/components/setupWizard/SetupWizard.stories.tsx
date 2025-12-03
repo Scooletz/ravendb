@@ -207,8 +207,6 @@ async function navigateToStep(
     targetStep: SetupWizardStepId | "Generate license",
     args?: SetupWizardStoryArgs
 ): Promise<void> {
-    // await waitForElementToBeRemoved(canvas.getByTestId("loader"));
-
     // If target is EULA, we're already there
     if (targetStep === "Eula") {
         return;

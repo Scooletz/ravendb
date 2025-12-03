@@ -14,7 +14,7 @@ import { useAsyncDebounce } from "hooks/useAsyncDebounce";
 import { useAppDispatch, useAppSelector } from "components/store";
 import { setupWizardActions, setupWizardSelectors } from "components/setupWizard/store/setupWizardSlice";
 import { base64ToFile, fileToBase64 } from "components/setupWizard/utils/setupWizardUtils";
-import { PopoverMessage } from "components/setupWizard/partials/PopoverMessage";
+import { SetupWizardInfoPopover } from "components/setupWizard/partials/SetupWizardInfoPopover";
 import { setupWizardFormDefaultValues } from "components/setupWizard/utils/setupWizardFormDefaultValues";
 import { LazyLoad } from "components/common/LazyLoad";
 
@@ -143,7 +143,7 @@ export function SetupWizardSelfSignedCertificateStep() {
                         Passphrase
                         <PopoverWithHoverWrapper
                             message={
-                                <PopoverMessage description="Enter the passphrase used to encrypt your private key. This is required to unlock and use your certificate." />
+                                <SetupWizardInfoPopover description="Enter the passphrase used to encrypt your private key. This is required to unlock and use your certificate." />
                             }
                         >
                             <Icon icon="info-new" />
@@ -165,7 +165,7 @@ export function SetupWizardSelfSignedCertificateStep() {
                         CN Names
                         <PopoverWithHoverWrapper
                             message={
-                                <PopoverMessage description="The common name (CN) of the certificate. This is the name that will be displayed in the browser when you access the server." />
+                                <SetupWizardInfoPopover description="The common name (CN) of the certificate. This is the name that will be displayed in the browser when you access the server." />
                             }
                         >
                             <Icon icon="info-new" />
@@ -214,8 +214,7 @@ export function SetupWizardSelfSignedCertificateStepFooter() {
                 disabled={!certificate || !isPasswordValid}
                 onClick={handleContinue}
             >
-                Continue&nbsp;
-                <Icon icon="arrow-right" margin="m-0" />
+                Continue <Icon icon="arrow-right" margin="m-0" />
             </Button>
         </div>
     );

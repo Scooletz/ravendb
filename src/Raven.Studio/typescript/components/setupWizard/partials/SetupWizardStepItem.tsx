@@ -33,12 +33,11 @@ export function SetupWizardStepItem(props: SetupWizardStepItemProps) {
     return (
         <li title="Go to this step" className={classNames("setup-wizard-step-item lh-1", className)} {...rest}>
             <span
-                className={classNames(
-                    "dot",
-                    { inactive: isInactive },
-                    { "bg-light": isChecked || finishStatus === "Completed" },
-                    { "border-primary text-primary": isCurrent && finishStatus !== "Completed" }
-                )}
+                className={classNames("dot", {
+                    "inactive": isInactive,
+                    "bg-light": isChecked || finishStatus === "Completed",
+                    "border-primary text-primary": isCurrent && finishStatus !== "Completed",
+                })}
             >
                 {stepIndicator && (
                     <span className="d-flex align-items-center justify-content-center">{stepIndicator}</span>

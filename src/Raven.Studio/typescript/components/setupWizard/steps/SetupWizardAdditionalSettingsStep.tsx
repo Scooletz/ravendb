@@ -14,7 +14,7 @@ import { ConditionalPopover } from "components/common/ConditionalPopover";
 import { useServices } from "hooks/useServices";
 import { useEventsCollector } from "components/hooks/useEventsCollector";
 import { OperatingSystem, useOS } from "hooks/useOS";
-import { PopoverMessage } from "components/setupWizard/partials/PopoverMessage";
+import { SetupWizardInfoPopover } from "components/setupWizard/partials/SetupWizardInfoPopover";
 import { setupWizardFormDefaultValues } from "components/setupWizard/utils/setupWizardFormDefaultValues";
 
 export function SetupWizardAdditionalSettingsStep() {
@@ -24,7 +24,7 @@ export function SetupWizardAdditionalSettingsStep() {
 
     const { licenseInfo } = licenseKeyStep;
 
-    AdditionalSettingsFormSideEffects();
+    useAdditionalSettingsFormSideEffects();
 
     return (
         <div className="setup-wizard-additional-settings">
@@ -54,7 +54,7 @@ export function SetupWizardAdditionalSettingsStep() {
     );
 }
 
-function AdditionalSettingsFormSideEffects() {
+function useAdditionalSettingsFormSideEffects() {
     const { reportEvent } = useEventsCollector();
     const { setValue, watch, control } = useFormContext<SetupWizardFormData>();
 
@@ -159,7 +159,7 @@ function ServerEnvironmentSection({
                     <div>Studio environment</div>
                     <PopoverWithHoverWrapper
                         message={
-                            <PopoverMessage
+                            <SetupWizardInfoPopover
                                 description={
                                     <>
                                         <img
@@ -200,7 +200,7 @@ function CertificateExpirationSection({ control }: { control: Control<SetupWizar
                 Admin client certificate expiration time
                 <PopoverWithHoverWrapper
                     message={
-                        <PopoverMessage description="This allows you to define how long the admin client certificate should be valid. By default, this value is set to 60 months." />
+                        <SetupWizardInfoPopover description="This allows you to define how long the admin client certificate should be valid. By default, this value is set to 60 months." />
                     }
                     placement="right"
                 >
@@ -224,7 +224,11 @@ interface ExperimentalFeaturesSectionProps {
 }
 
 function ExperimentalFeaturesSection({ control, licenseInfo }: ExperimentalFeaturesSectionProps) {
-    return getLicenseType(licenseInfo).isHigherThan("Community") ? (
+    if (!getLicenseType(licenseInfo).isHigherThan("Community")) {
+        return null;
+    }
+
+    return (
         <div>
             <h4 className="mb-0">Experimental features</h4>
             <p className="text-muted">
@@ -232,7 +236,7 @@ function ExperimentalFeaturesSection({ control, licenseInfo }: ExperimentalFeatu
             </p>
             <PostgreSqlIntegrationToggle control={control} />
         </div>
-    ) : null;
+    );
 }
 
 function PostgreSqlIntegrationToggle({ control }: { control: Control<SetupWizardFormData> }) {
@@ -245,7 +249,7 @@ function PostgreSqlIntegrationToggle({ control }: { control: Control<SetupWizard
                         PostgreSQL integration
                         <PopoverWithHoverWrapper
                             message={
-                                <PopoverMessage description="Enabling this feature allows you to use RavenDB as a PostgreSQL server. You will also need a license that contains PostgreSQL Protocol." />
+                                <SetupWizardInfoPopover description="Enabling this feature allows you to use RavenDB as a PostgreSQL server. You will also need a license that contains PostgreSQL Protocol." />
                             }
                             placement="right"
                         >
@@ -336,7 +340,9 @@ function AdvancedSettingsContent({ control, isVisible }: AdvancedSettingsContent
                     <ConditionalPopover
                         conditions={{
                             isActive: isVisible,
-                            message: <PopoverMessage description="Defines the path to the RavenDB data directory." />,
+                            message: (
+                                <SetupWizardInfoPopover description="Defines the path to the RavenDB data directory." />
+                            ),
                         }}
                         popoverPlacement="right"
                     >
@@ -365,7 +371,9 @@ function AdvancedSettingsContent({ control, isVisible }: AdvancedSettingsContent
                         <ConditionalPopover
                             conditions={{
                                 isActive: isVisible,
-                                message: <PopoverMessage description="Defines the path to the certificate location." />,
+                                message: (
+                                    <SetupWizardInfoPopover description="Defines the path to the certificate location." />
+                                ),
                             }}
                             popoverPlacement="right"
                         >
@@ -389,7 +397,7 @@ function AdvancedSettingsContent({ control, isVisible }: AdvancedSettingsContent
                     <ConditionalPopover
                         conditions={{
                             isActive: isVisible,
-                            message: <PopoverMessage description="Defines the path to the logs." />,
+                            message: <SetupWizardInfoPopover description="Defines the path to the logs." />,
                         }}
                         popoverPlacement="right"
                     >
@@ -418,7 +426,7 @@ function AdvancedSettingsContent({ control, isVisible }: AdvancedSettingsContent
                         conditions={{
                             isActive: isVisible,
                             message: (
-                                <PopoverMessage description="Defines the indexing engine used for auto indexes in RavenDB." />
+                                <SetupWizardInfoPopover description="Defines the indexing engine used for auto indexes in RavenDB." />
                             ),
                         }}
                         popoverPlacement="right"
@@ -440,7 +448,7 @@ function AdvancedSettingsContent({ control, isVisible }: AdvancedSettingsContent
                         conditions={{
                             isActive: isVisible,
                             message: (
-                                <PopoverMessage description="Defines the indexing engine used for static indexes in RavenDB." />
+                                <SetupWizardInfoPopover description="Defines the indexing engine used for static indexes in RavenDB." />
                             ),
                         }}
                         popoverPlacement="right"

@@ -45,10 +45,7 @@ export function SetupWizardSummaryStep() {
                                 valueClassName={colorizeLicenseType(licenseKeyStep.licenseInfo?.licenseType)}
                             />
                             {securityOption === "letsEncrypt" && (
-                                <>
-                                    <CardRow label="License expiration" value="01/29/2027" />
                                     <CardRow label="Full domain" value={getFullDomain(domainStep)} />
-                                </>
                             )}
                         </div>
                     </Card.Body>
@@ -152,7 +149,6 @@ function colorizeLicenseType(licenseType: LicenseType) {
         case "Professional":
             return "text-professional";
         case "Community":
-            return "text-info";
         case "Essential":
             return "text-info";
         default:
@@ -211,7 +207,7 @@ function NodeDistributionItem({
                         </div>
                     }
                 >
-                    {httpPort} {externalHttpPort && <span>&nbsp;→ {externalHttpPort}</span>}
+                    {httpPort} {externalHttpPort && <span> → {externalHttpPort}</span>}
                 </PopoverWithHoverWrapper>
             </div>
             <div>
@@ -227,7 +223,7 @@ function NodeDistributionItem({
                         </div>
                     }
                 >
-                    {tcpPort} {externalTcpPort && <span>&nbsp;→ {externalTcpPort}</span>}
+                    {tcpPort} {externalTcpPort && <span> → {externalTcpPort}</span>}
                 </PopoverWithHoverWrapper>
             </div>
             <div>

@@ -39,9 +39,9 @@ import { isEmpty } from "common/typeUtils";
 import Row from "react-bootstrap/Row";
 import Col from "react-bootstrap/esm/Col";
 import { useEventsCollector } from "components/hooks/useEventsCollector";
-import { setupWizardGA4Prefixes } from "components/setupWizard/utils/setupWizardConstants";
+import { setupWizardConstants, setupWizardGA4Prefixes } from "components/setupWizard/utils/setupWizardConstants";
 import useBoolean from "hooks/useBoolean";
-import { PopoverMessage } from "components/setupWizard/partials/PopoverMessage";
+import { SetupWizardInfoPopover } from "components/setupWizard/partials/SetupWizardInfoPopover";
 import { setupWizardFormDefaultValues } from "components/setupWizard/utils/setupWizardFormDefaultValues";
 
 export function SetupWizardNodeAddressStep() {
@@ -383,7 +383,7 @@ function NodeDetailsPanelView({ index, control }: { index: number; control: Cont
                         <span className="md-label mb-0">Node URL</span>
                         <PopoverWithHoverWrapper
                             message={
-                                <PopoverMessage description="Defines the address under which specific node will be available." />
+                                <SetupWizardInfoPopover description="Defines the address under which specific node will be available." />
                             }
                         >
                             <Icon icon="info-new" />
@@ -402,7 +402,7 @@ function NodeDetailsPanelView({ index, control }: { index: number; control: Cont
                             <span className="md-label mb-0">DNS Name</span>
                             <PopoverWithHoverWrapper
                                 message={
-                                    <PopoverMessage description="Defines the address under which specific node will be available." />
+                                    <SetupWizardInfoPopover description="Defines the address under which specific node will be available." />
                                 }
                             >
                                 <Icon icon="info-new" />
@@ -421,7 +421,7 @@ function NodeDetailsPanelView({ index, control }: { index: number; control: Cont
                         <span className="md-label mb-0">HTTPS port</span>
                         <PopoverWithHoverWrapper
                             message={
-                                <PopoverMessage
+                                <SetupWizardInfoPopover
                                     description="Defines the private communication endpoint for clients and browsers. By default,
                                         this value is set to 8080."
                                 />
@@ -443,7 +443,7 @@ function NodeDetailsPanelView({ index, control }: { index: number; control: Cont
                         <span className="md-label mb-0">TCP port</span>
                         <PopoverWithHoverWrapper
                             message={
-                                <PopoverMessage
+                                <SetupWizardInfoPopover
                                     description="Defines the privately accessible TCP endpoint for cluster nodes to communicate
                                         with each other. By default, this value is set to 38888."
                                 />
@@ -465,7 +465,7 @@ function NodeDetailsPanelView({ index, control }: { index: number; control: Cont
                         <span className="md-label mb-0">IP address/Hostname</span>
                         <PopoverWithHoverWrapper
                             message={
-                                <PopoverMessage description="Defines the private network endpoint where the server is accessible." />
+                                <SetupWizardInfoPopover description="Defines the private network endpoint where the server is accessible." />
                             }
                         >
                             <Icon icon="info-new" />
@@ -532,7 +532,7 @@ function NodeDetailsPanelEdit({
                                 Start node as Passive, not part of a cluster
                                 <PopoverWithHoverWrapper
                                     message={
-                                        <PopoverMessage description="When enabled, the node remains passive and does not join any cluster. This is useful when the node is meant for monitoring, initialization, or handling setup tasks without actively participating in cluster operations. It can also be used to isolate the node for testing or debugging purposes." />
+                                        <SetupWizardInfoPopover description="When enabled, the node remains passive and does not join any cluster. This is useful when the node is meant for monitoring, initialization, or handling setup tasks without actively participating in cluster operations. It can also be used to isolate the node for testing or debugging purposes." />
                                     }
                                 >
                                     <Icon icon="info-new" />
@@ -548,7 +548,7 @@ function NodeDetailsPanelEdit({
                                 Node tag
                                 <PopoverWithHoverWrapper
                                     message={
-                                        <PopoverMessage
+                                        <SetupWizardInfoPopover
                                             description="Defines a unique identifier for each node in the cluster."
                                             alert={
                                                 <RichAlert variant="info" icon="info" className="mt-1">
@@ -581,7 +581,7 @@ function NodeDetailsPanelEdit({
                                     DNS Name
                                     <PopoverWithHoverWrapper
                                         message={
-                                            <PopoverMessage
+                                            <SetupWizardInfoPopover
                                                 description={
                                                     <>
                                                         Domain name that will be used to reach the server on this node.
@@ -610,7 +610,7 @@ function NodeDetailsPanelEdit({
                                 HTTPS port
                                 <PopoverWithHoverWrapper
                                     message={
-                                        <PopoverMessage
+                                        <SetupWizardInfoPopover
                                             description="Defines the private communication endpoint for clients and browsers.
                                                     By default, this value is set to 443."
                                         />
@@ -628,7 +628,7 @@ function NodeDetailsPanelEdit({
                                 TCP Port
                                 <PopoverWithHoverWrapper
                                     message={
-                                        <PopoverMessage
+                                        <SetupWizardInfoPopover
                                             description="Defines the privately accessible TCP endpoint for cluster nodes to
                                                     communicate with each other. By default, this value is set to 38888."
                                         />
@@ -686,7 +686,7 @@ function NodeDetailsPanelEdit({
                             Customize external IP and ports
                             <PopoverWithHoverWrapper
                                 message={
-                                    <PopoverMessage
+                                    <SetupWizardInfoPopover
                                         description="External overrides allow you to specify an alternative IP address, hostname, or
                                         HTTPS port that clients should use instead of the default settings."
                                     />
@@ -729,7 +729,7 @@ function EditFormExternalAddressInputs({
                             External IP address
                             <PopoverWithHoverWrapper
                                 message={
-                                    <PopoverMessage
+                                    <SetupWizardInfoPopover
                                         description="Defines the public network endpoint from which the requests will be
                                             forwarded to the private IP address (which RavenDB listens on)."
                                     />
@@ -755,7 +755,7 @@ function EditFormExternalAddressInputs({
                                 <span>External HTTPS port&nbsp;</span> <OptionalLabel />
                                 <PopoverWithHoverWrapper
                                     message={
-                                        <PopoverMessage
+                                        <SetupWizardInfoPopover
                                             description="Defines the public HTTPS endpoint that clients and browsers should use
                                                 instead of default binding."
                                         />
@@ -783,7 +783,7 @@ function EditFormExternalAddressInputs({
                                 <OptionalLabel />
                                 <PopoverWithHoverWrapper
                                     message={
-                                        <PopoverMessage
+                                        <SetupWizardInfoPopover
                                             description="Defines the publicly accessible TCP endpoint for inter-node communication
                                                 and client connections."
                                         />
@@ -816,7 +816,7 @@ function AddAnotherNode({ onAddNode }: AddAnotherNodeProps) {
     const licenseKeyStep = getValues("licenseKeyStep");
     const nodeData = getValues("nodeAddressStep.nodes");
 
-    const maxClusterSize = licenseKeyStep?.licenseInfo?.maxClusterSize ?? 1; // Default to 1 (AGPL license) if the license is not available
+    const maxClusterSize = licenseKeyStep?.licenseInfo?.maxClusterSize ?? setupWizardConstants.AGPL_MAX_CLUSTER_SIZE;
     const isMaxClusterNodes = maxClusterSize === nodeData?.length;
 
     return (
@@ -993,7 +993,7 @@ function IpAddressList({
                         IP address/Hostname
                         <PopoverWithHoverWrapper
                             message={
-                                <PopoverMessage description="Defines the private network endpoint where the server is accessible." />
+                                <SetupWizardInfoPopover description="Defines the private network endpoint where the server is accessible." />
                             }
                         >
                             <Icon icon="info-new" />

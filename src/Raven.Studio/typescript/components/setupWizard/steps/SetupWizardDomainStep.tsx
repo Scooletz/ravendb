@@ -114,13 +114,13 @@ export function SetupWizardDomainStep() {
                     options={domainsOptions}
                     placeholder="Enter your domain name..."
                     onBlur={async () => {
-                        const d = (domainStep.domain ?? "").trim();
-                        if (!d) {
+                        const trimmedDomain = (domainStep.domain ?? "").trim();
+                        if (!trimmedDomain) {
                             return;
                         }
-                        const exists = domainsOptions.some((o) => o.value === d);
+                        const exists = domainsOptions.some((o) => o.value === trimmedDomain);
                         if (!exists) {
-                            await handleDomainAvailability(d);
+                            await handleDomainAvailability(trimmedDomain);
                         }
                     }}
                     addon={
@@ -161,7 +161,7 @@ export function SetupWizardDomainStep() {
 }
 
 const useDomainFormSideEffects = () => {
-    const { setValue, control, setError, watch, clearErrors } = useFormContext<SetupWizardFormData>();
+    const { setValue, control, watch, clearErrors } = useFormContext<SetupWizardFormData>();
     const {
         licenseKeyStep: { licenseInfo },
     } = useWatch({ control });

@@ -8,7 +8,7 @@ interface PopoverMessageProps {
     ravenLinkHash?: string;
 }
 
-export function PopoverMessage({ description, ravenLinkHash = "37GM2Z", alert }: PopoverMessageProps) {
+export function SetupWizardInfoPopover({ description, ravenLinkHash = "37GM2Z", alert }: PopoverMessageProps) {
     const docsLink = useRavenLink({ hash: ravenLinkHash });
 
     return (
