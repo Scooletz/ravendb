@@ -45,7 +45,7 @@ export function SetupWizardSummaryStep() {
                                 valueClassName={colorizeLicenseType(licenseKeyStep.licenseInfo?.licenseType)}
                             />
                             {securityOption === "letsEncrypt" && (
-                                    <CardRow label="Full domain" value={getFullDomain(domainStep)} />
+                                <CardRow label="Full domain" value={getFullDomain(domainStep)} />
                             )}
                         </div>
                     </Card.Body>

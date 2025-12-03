@@ -29,15 +29,11 @@ export default function SetupWizardClickableCard({
 }: SetupWizardClickableCardProps) {
     return (
         <div
-            className={classNames(
-                "wizard-card border rounded p-4",
-                className,
-                {
-                    "bg-faded-primary border-primary active": isSelected,
-                    "border-secondary": !isSelected,
-                    "item-disabled pe-none": isDisabled,
-                }
-            )}
+            className={classNames("wizard-card border rounded p-4", className, {
+                "bg-faded-primary border-primary active": isSelected,
+                "border-secondary": !isSelected,
+                "item-disabled pe-none": isDisabled,
+            })}
             onClick={onClick}
         >
             <div className="text-emphasis hstack gap-4">

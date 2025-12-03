@@ -34,7 +34,7 @@ export function SetupWizardStepItem(props: SetupWizardStepItemProps) {
         <li title="Go to this step" className={classNames("setup-wizard-step-item lh-1", className)} {...rest}>
             <span
                 className={classNames("dot", {
-                    "inactive": isInactive,
+                    inactive: isInactive,
                     "bg-light": isChecked || finishStatus === "Completed",
                     "border-primary text-primary": isCurrent && finishStatus !== "Completed",
                 })}

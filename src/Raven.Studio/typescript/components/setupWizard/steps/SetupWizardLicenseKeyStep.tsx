@@ -539,8 +539,7 @@ export function SetupWizardLicenseKeyVerifyCodeModal({
             <Modal.Body className="d-flex align-items-center flex-column justify-items-center">
                 <p className="text-center mb-1">Before generating license we need to confirm provided email.</p>
                 <p>
-                    Please check you email inbox. We have sent verification code to{" "}
-                    <b>{licenseKeyStepData?.email}</b>
+                    Please check you email inbox. We have sent verification code to <b>{licenseKeyStepData?.email}</b>
                 </p>
                 <form>
                     <FormVerificationCodeInput

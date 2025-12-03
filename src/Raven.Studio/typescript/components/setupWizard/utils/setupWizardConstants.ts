@@ -368,7 +368,7 @@ export const setupWizardGA4Prefixes = {
     navigation: "setupWizard-navigation",
 } as const;
 
-const AGPL_MAX_CLUSTER_SIZE = 1  // Default to 1 (AGPL license) if the license is not available
+const AGPL_MAX_CLUSTER_SIZE = 1; // Default to 1 (AGPL license) if the license is not available
 
 export const setupWizardConstants = {
     allCountries,
@@ -382,5 +382,5 @@ export const setupWizardConstants = {
     indexingEngineTypes,
     indexingEngineTypeOptions,
     SETUP_WIZARD_MOCK_LICENSE_KEYS_IDS,
-    AGPL_MAX_CLUSTER_SIZE
+    AGPL_MAX_CLUSTER_SIZE,
 };
