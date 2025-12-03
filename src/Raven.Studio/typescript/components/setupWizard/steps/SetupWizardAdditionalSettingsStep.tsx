@@ -393,11 +393,11 @@ function AdvancedSettingsContent({ control, isVisible }: AdvancedSettingsContent
             )}
             <FormGroup>
                 <FormLabel className="hstack">
-                    <div>Logs path</div>
+                    <div>Logs directory</div>
                     <ConditionalPopover
                         conditions={{
                             isActive: isVisible,
-                            message: <SetupWizardInfoPopover description="Defines the path to the logs." />,
+                            message: <SetupWizardInfoPopover description="Defines the path to the logs directory." />,
                         }}
                         popoverPlacement="right"
                     >
