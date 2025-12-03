@@ -1122,3 +1122,5 @@ interface TrafficWatchPostgresChange extends Raven.Client.Documents.Changes.Traf
     Source: string;
     Query: string;
 }
+
+type Browser = "Chrome" | "Firefox" | "Safari" | "Other";

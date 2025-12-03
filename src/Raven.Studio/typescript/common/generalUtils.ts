@@ -806,6 +806,21 @@ class genUtils {
     static isScrolledToBottom(element: HTMLElement) {
         return Math.abs(element.scrollHeight - element.clientHeight - element.scrollTop) < 1;
     }
+    
+    static getBrowser(): Browser {
+        const userAgent = window.navigator.userAgent.toLowerCase();
+
+        // Chromium-based browsers
+        if (userAgent.includes("chrome") || userAgent.includes("edg") || userAgent.includes("opr")) {
+            return "Chrome";
+        } else if (userAgent.includes("firefox")) {
+            return "Firefox";
+        } else if (userAgent.includes("safari") && !userAgent.includes("chrome")) {
+            return "Safari";
+        }
+
+        return "Other";
+    }
 } 
 
 export = genUtils;
