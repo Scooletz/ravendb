@@ -793,8 +793,7 @@ export function SetupWizardLicenseKeyStepFooter() {
                     onClick={handleContinue}
                     isSpinning={asyncRegistrationInfo.loading}
                 >
-                    Continue
-                    <Icon icon="arrow-right" margin="m-0" />
+                    Continue <Icon icon="arrow-right" margin="m-s1" />
                 </ButtonWithSpinner>
             )}
             {isLicenseSkipModalOpen && <SkipLicenseVerificationConfirmModal close={toggleIsLicenseSkipModalOpen} />}

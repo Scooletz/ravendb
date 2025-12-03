@@ -1,7 +1,6 @@
 /// <reference path="../../../typings/tsd.d.ts" />
 import router = require("plugins/router");
 import sys = require("durandal/system");
-import setupRoutes = require("common/setup/routes");
 import getClientBuildVersionCommand = require("commands/database/studio/getClientBuildVersionCommand");
 import getServerBuildVersionCommand = require("commands/resources/getServerBuildVersionCommand");
 import messagePublisher = require("common/messagePublisher");
@@ -136,13 +135,11 @@ class setupShell extends viewModelBase {
     activate(args: any) {
         super.activate(args, { shell: true });
 
-        this.setupRouting();
-        
-        return this.router.activate()
-            .then(() => {
-                this.fetchClientBuildVersion();
-                this.fetchServerBuildVersion();
-            })
+        // return this.router.activate()
+        //     .then(() => {
+        //         this.fetchClientBuildVersion();
+        //         this.fetchServerBuildVersion();
+        //     })
     }
 
     private fetchServerBuildVersion() {
@@ -161,18 +158,6 @@ class setupShell extends viewModelBase {
                 this.clientBuildVersion(result);
                 viewModelBase.clientVersion(result.Version);
             });
-    }
-
-    private setupRouting() {
-        router.map(setupRoutes.get()).buildNavigationModel();
-
-        router.mapUnknownRoutes((instruction: DurandalRouteInstruction) => {
-            const queryString = instruction.queryString ? ("?" + instruction.queryString) : "";
-
-            messagePublisher.reportError("Unknown route", "The route " + instruction.fragment + queryString + " doesn't exist, redirecting...");
-
-            window.location.href = "#welcome";
-        });
     }
 
     attached() {
