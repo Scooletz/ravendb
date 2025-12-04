@@ -1,5 +1,5 @@
 import ButtonWithSpinner from "components/common/ButtonWithSpinner";
-import { FormGroup, FormInput, FormLabel, FormSelect } from "components/common/Form";
+import { FormGroup, FormInput, FormLabel, FormSelect, FormErrorIcon } from "components/common/Form";
 import PopoverWithHoverWrapper from "components/common/PopoverWithHoverWrapper";
 import SampleObjectAndSchemaFields from "components/common/sampleObjectAndSchemaFields/SampleObjectAndSchemaFields";
 import EditConnectionStrings from "components/pages/database/settings/connectionStrings/EditConnectionStrings";
@@ -22,6 +22,7 @@ import EditAiAgentCollapseButton from "./EditAiAgentCollapseButton";
 import EditAiAgentErrorIcon from "./EditAiAgentErrorIcon";
 import AiAssistantWindow from "components/common/aiAssistant/AiAssistantWindow";
 import AiAssistantButton from "components/common/aiAssistant/AiAssistantButton";
+import CollapseButton from "components/common/CollapseButton";
 
 interface EditAiAgentBasicSectionProps {
     isEditAiAgent: boolean;
@@ -72,8 +73,9 @@ export default function EditAiAgentBasicSection({ isEditAiAgent }: EditAiAgentBa
         <>
             <div className="hstack align-items-center">
                 <h3 className="m-0">Configure basic settings</h3>
-                <EditAiAgentErrorIcon
-                    fieldNames={[
+                <FormErrorIcon
+                    control={control}
+                    paths={[
                         "name",
                         "identifier",
                         "connectionStringName",
@@ -81,9 +83,9 @@ export default function EditAiAgentBasicSection({ isEditAiAgent }: EditAiAgentBa
                         "sampleObject",
                         "outputSchema",
                     ]}
-                    openPanel={setIsPanelOpen}
+                    onError={() => setIsPanelOpen(true)}
                 />
-                <EditAiAgentCollapseButton isPanelOpen={isPanelOpen} toggleIsPanelOpen={toggleIsPanelOpen} />
+                <CollapseButton isExpanded={isPanelOpen} toggle={toggleIsPanelOpen} />
             </div>
             <div className="mb-1">
                 Define your agent&apos;s purpose, its AI provider connection, and the structure of its responses.
@@ -140,6 +142,10 @@ export default function EditAiAgentBasicSection({ isEditAiAgent }: EditAiAgentBa
                                     </Button>
                                 }
                             />
+                        </FormGroup>
+                        <FormGroup>
+                            <FormLabel>Agent State</FormLabel>
+                            <FormSelect control={control} name="state" options={stateOptions} />
                         </FormGroup>
                         <FormGroup>
                             <FormLabel>
@@ -333,3 +339,8 @@ function getRefinePromptMessage(formValues: EditAiAgentFormData) {
 ${formValues.systemPrompt}
 `;
 }
+
+const stateOptions: SelectOption[] = ["Enabled", "Disabled"].map((x) => ({
+    label: x,
+    value: x,
+}));
