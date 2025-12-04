@@ -18,8 +18,6 @@ import Button from "react-bootstrap/Button";
 import InputGroup from "react-bootstrap/InputGroup";
 import Code from "components/common/Code";
 import Collapse from "react-bootstrap/Collapse";
-import EditAiAgentCollapseButton from "./EditAiAgentCollapseButton";
-import EditAiAgentErrorIcon from "./EditAiAgentErrorIcon";
 import AiAssistantWindow from "components/common/aiAssistant/AiAssistantWindow";
 import AiAssistantButton from "components/common/aiAssistant/AiAssistantButton";
 import CollapseButton from "components/common/CollapseButton";
