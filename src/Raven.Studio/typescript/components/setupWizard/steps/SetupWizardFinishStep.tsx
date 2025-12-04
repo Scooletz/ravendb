@@ -852,7 +852,6 @@ interface CertInstallationConfirmProps {
     onConfirm: () => void;
 }
 
-
 function CertInstallationConfirm({ onCancel, onConfirm }: CertInstallationConfirmProps) {
     const { reportEvent } = useEventsCollector();
 
