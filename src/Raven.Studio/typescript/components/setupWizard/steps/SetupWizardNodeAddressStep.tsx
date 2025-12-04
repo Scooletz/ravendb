@@ -262,7 +262,7 @@ function NodeDetailsPanelHeader({ control, index, onRemove, editNodeForm }: Node
                     ? `${formData.nodeTag.toLowerCase()}.${domainStep.domain.toLocaleLowerCase()}.${domainStep.rootDomain}`
                     : undefined,
             ...formData,
-            httpPort: formData.httpPort == null ? securityOption === "none" ? 8080 : 443 : formData.httpPort,
+            httpPort: formData.httpPort == null ? (securityOption === "none" ? 8080 : 443) : formData.httpPort,
             nodeTag: formData.isPassive ? undefined : formData.nodeTag,
             isEditing: false,
             isNewlyAdded: false,
@@ -620,7 +620,12 @@ function NodeDetailsPanelEdit({
                                     <Icon icon="info-new" />
                                 </PopoverWithHoverWrapper>
                             </FormLabel>
-                            <FormInput type="number" name="httpPort" placeholder={securityOption === "none" ? "Default: 8080" : "Default: 443"} control={control} />
+                            <FormInput
+                                type="number"
+                                name="httpPort"
+                                placeholder={securityOption === "none" ? "Default: 8080" : "Default: 443"}
+                                control={control}
+                            />
                         </FormGroup>
                     </Col>
                     <Col md={colWidth}>

@@ -20,7 +20,11 @@ import { setupWizardFormDefaultValues } from "components/setupWizard/utils/setup
 export function SetupWizardAdditionalSettingsStep() {
     const { control } = useFormContext<SetupWizardFormData>();
 
-    const { additionalSettingsStep, licenseKeyStep, securityStep: {securityOption} } = useWatch({ control });
+    const {
+        additionalSettingsStep,
+        licenseKeyStep,
+        securityStep: { securityOption },
+    } = useWatch({ control });
 
     const { licenseInfo } = licenseKeyStep;
 
@@ -28,7 +32,7 @@ export function SetupWizardAdditionalSettingsStep() {
 
     return (
         <div className="setup-wizard-additional-settings">
-            {(getLicenseType(licenseInfo).isHigherThan("None") && securityOption !== "none") && (
+            {getLicenseType(licenseInfo).isHigherThan("None") && securityOption !== "none" && (
                 <>
                     <div className="mb-4">
                         <h2 className="mb-1">Additional settings</h2>

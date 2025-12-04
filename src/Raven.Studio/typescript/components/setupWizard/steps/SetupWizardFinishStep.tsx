@@ -1021,10 +1021,7 @@ export function SetupWizardFinishStepFooter() {
         }
     });
 
-    const finishStepIsDisabled =
-        finishStep.finishingStatus === "InProgress" ||
-        finishStep.finishingStatus === "Faulted" ||
-        finishStep.finishingStatus === "Canceled";
+    const finishStepIsDisabled = finishStep.finishingStatus === "InProgress";
 
     const handleNewSetupPackage = () => {
         const defaultValues: SetupWizardFormData = {
