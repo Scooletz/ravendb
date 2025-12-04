@@ -201,7 +201,11 @@ export default function SetupWizard() {
                                             step
                                         </p>
                                     </div>
-                                    <a className="btn btn-outline-secondary w-fit-content" href={docsLink}>
+                                    <a
+                                        target="_blank"
+                                        className="btn btn-outline-secondary w-fit-content"
+                                        href={docsLink}
+                                    >
                                         See documentation <Icon icon="newtab" margin="m-0" />
                                     </a>
                                 </div>
