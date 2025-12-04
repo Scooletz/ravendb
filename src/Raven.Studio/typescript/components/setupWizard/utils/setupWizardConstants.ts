@@ -346,12 +346,13 @@ const indexingEngineTypeOptions: SelectOption[] = indexingEngineTypes.map((type)
     value: type,
 }));
 
-const SETUP_WIZARD_MOCK_LICENSE_KEYS_IDS = {
-    COMMUNITY: "53f54157-3862-47b6-9dbd-94d323687a90",
-    ESSENTIAL: "53f54157-3862-47b6-9dbd-94d323687a91",
-    ENTERPRISE: "53f54157-3862-47b6-9dbd-94d323687a92",
-    DEVELOPER: "53f54157-3862-47b6-9dbd-94d323687a93",
-    PROFESSIONAL: "53f54157-3862-47b6-9dbd-94d323687a94",
+const SETUP_WIZARD_MOCK_LICENSE_KEYS_IDS: Partial<Record<Raven.Server.Commercial.LicenseType, string>> = {
+    None: "None",
+    Community: "53f54157-3862-47b6-9dbd-94d323687a90",
+    Essential: "53f54157-3862-47b6-9dbd-94d323687a91",
+    Enterprise: "53f54157-3862-47b6-9dbd-94d323687a92",
+    Developer: "53f54157-3862-47b6-9dbd-94d323687a93",
+    Professional: "53f54157-3862-47b6-9dbd-94d323687a94",
 };
 
 export const setupWizardGA4Prefixes = {

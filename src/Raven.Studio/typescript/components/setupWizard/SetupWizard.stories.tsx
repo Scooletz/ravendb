@@ -79,7 +79,7 @@ export default {
     args: {
         securityOption: "letsEncrypt",
         licenseType: setupWizardConstants.SETUP_WIZARD_MOCK_LICENSE_KEYS_IDS
-            .COMMUNITY as Raven.Server.Commercial.LicenseType,
+            .Community as Raven.Server.Commercial.LicenseType,
         setupMethod: "newCluster",
     },
 } satisfies Meta<SetupWizardStoryArgs>;
@@ -240,10 +240,14 @@ async function navigateToStep(
     // Enter license key
     if (args.licenseType) {
         await userEvent.clear(canvas.getByTestId("license-key-input"));
-        await userEvent.type(
-            canvas.getByTestId("license-key-input"),
-            `{{ "Id": "${args.licenseType}", "Name": "RavenDB", "Keys": [[] }`
-        );
+        if (args.licenseType !== "None") {
+            await userEvent.type(
+                canvas.getByTestId("license-key-input"),
+                `{{ "Id": "${args.licenseType}", "Name": "RavenDB", "Keys": [[] }`
+            );
+        } else {
+            return;
+        }
     }
 
     if (targetStep === "License key") {

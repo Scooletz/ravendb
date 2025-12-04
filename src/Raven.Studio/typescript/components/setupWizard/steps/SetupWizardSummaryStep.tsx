@@ -22,6 +22,20 @@ export function SetupWizardSummaryStep() {
     } = useWatch({ control });
 
     const license: License = licenseKeyStep.key ? JSON.parse(licenseKeyStep.key) : ({} as License);
+
+    const hasAdditionalSettings =
+        !!additionalSettingsStep?.logsPath ||
+        !!additionalSettingsStep?.dataDirectory ||
+        !!additionalSettingsStep?.autoIndexingEngineType ||
+        !!additionalSettingsStep?.staticIndexingEngineType ||
+        !!additionalSettingsStep?.setupCertificatePath ||
+        !!(
+            getLicenseType(licenseKeyStep.licenseInfo).isHigherThan("Professional") &&
+            additionalSettingsStep?.studioEnvironment
+        ) ||
+        !!(securityOption !== "none" && additionalSettingsStep?.adminCertificateExpirationTime) ||
+        !!additionalSettingsStep?.postgresqlIntegration;
+
     return (
         <div>
             <div className="mb-5">
@@ -66,7 +80,7 @@ export function SetupWizardSummaryStep() {
                         </LocationDistribution>
                     </Card.Body>
                 </Card>
-                {securityOption !== "none" && (
+                {hasAdditionalSettings && (
                     <>
                         <h5 className="mb-0 mt-4">Additional & advanced</h5>
                         <Card className="mb-4">
@@ -78,10 +92,12 @@ export function SetupWizardSummaryStep() {
                                             value={additionalSettingsStep.studioEnvironment}
                                         />
                                     )}
-                                    <CardRow
-                                        label="Admin client certificate expiration time"
-                                        value={`${additionalSettingsStep.adminCertificateExpirationTime} months`}
-                                    />
+                                    {securityOption !== "none" && (
+                                        <CardRow
+                                            label="Admin client certificate expiration time"
+                                            value={`${additionalSettingsStep.adminCertificateExpirationTime} months`}
+                                        />
+                                    )}
                                     {getLicenseType(licenseKeyStep.licenseInfo).isHigherThan("Community") && (
                                         <CardRow
                                             label="Experimental features"

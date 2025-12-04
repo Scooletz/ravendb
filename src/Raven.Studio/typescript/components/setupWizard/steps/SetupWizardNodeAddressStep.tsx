@@ -99,7 +99,7 @@ export function SetupWizardNodeAddressStep() {
                 isNewlyAdded: false,
                 isPassive: false,
                 nodeUrl: hasDomainStep && securityOption !== "none" ? fullDomain : undefined,
-                httpPort: 8080,
+                httpPort: securityOption === "none" ? 8080 : 443,
                 tcpPort: 38888,
                 hasExternalConfig: false,
             });
@@ -262,6 +262,7 @@ function NodeDetailsPanelHeader({ control, index, onRemove, editNodeForm }: Node
                     ? `${formData.nodeTag.toLowerCase()}.${domainStep.domain.toLocaleLowerCase()}.${domainStep.rootDomain}`
                     : undefined,
             ...formData,
+            httpPort: formData.httpPort == null ? securityOption === "none" ? 8080 : 443 : formData.httpPort,
             nodeTag: formData.isPassive ? undefined : formData.nodeTag,
             isEditing: false,
             isNewlyAdded: false,
@@ -619,7 +620,7 @@ function NodeDetailsPanelEdit({
                                     <Icon icon="info-new" />
                                 </PopoverWithHoverWrapper>
                             </FormLabel>
-                            <FormInput type="number" name="httpPort" placeholder="Default: 8080" control={control} />
+                            <FormInput type="number" name="httpPort" placeholder={securityOption === "none" ? "Default: 8080" : "Default: 443"} control={control} />
                         </FormGroup>
                     </Col>
                     <Col md={colWidth}>
@@ -1264,11 +1265,10 @@ export const nodeEditFormSchema = yup.object({
     }),
     httpPort: yup
         .number()
-        .default(8080)
+        .nullable()
         .typeError("HTTPS port must be a number")
         .min(1, "Port must be greater than 0")
-        .max(65535, "Port must be less than 65536")
-        .required("HTTPS port is required"),
+        .max(65535, "Port must be less than 65536"), // 'required' validation is handled separately when saving
     tcpPort: yup
         .number()
         .default(38888)
