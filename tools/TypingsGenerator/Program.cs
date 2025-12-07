@@ -606,6 +606,7 @@ namespace TypingsGenerator
 
             // AI
             scripter.AddType(typeof(AiModelsRequest));
+            scripter.AddType(typeof(ConversationDocument));
 
             // AI Agent
             scripter.AddType(typeof(AiAgentConfiguration));
