@@ -42,7 +42,6 @@ public static class SettingsZipFileHelper
             {
                 try
                 {
-
                     var entry = archive.CreateEntry($"admin.client.certificate.{parameters.CompleteClusterConfigurationResult.Domain}.pfx");
 
                     // Structure of external attributes field: https://unix.stackexchange.com/questions/14705/the-zip-formats-external-file-attribute/14727#14727
