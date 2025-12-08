@@ -27,11 +27,17 @@ internal static class CertificateLoaderUtil
         {
             collection.Import(rawData, password, f);
         }
+#pragma warning disable CS0168 // Variable is declared but never used
         catch (Exception e)
+#pragma warning restore CS0168 // Variable is declared but never used
         {
+#if NET9_0_OR_GREATER
+            throw;
+#else
             exception = e;
             f = AddMachineKeySet(flags);
             collection.Import(rawData, password, f);
+#endif
         }
 
         LogIfNeeded(nameof(Import), f, exception);
@@ -58,11 +64,17 @@ internal static class CertificateLoaderUtil
         {
             certificate = creator(f);
         }
+#pragma warning disable CS0168 // Variable is declared but never used
         catch (Exception e)
+#pragma warning restore CS0168 // Variable is declared but never used
         {
+#if NET9_0_OR_GREATER
+            throw;
+#else
             exception = e;
             f = AddMachineKeySet(flag);
             certificate = creator(f);
+#endif
         }
 
         LogIfNeeded(nameof(CreateCertificate), f, exception);
@@ -85,11 +97,13 @@ internal static class CertificateLoaderUtil
     private static void DebugAssertDoesntContainKeySet(X509KeyStorageFlags? flags)
     {
         const X509KeyStorageFlags keyStorageFlags =
-#if NETCOREAPP3_1_OR_GREATER 
+#if NETCOREAPP3_1_OR_GREATER
             X509KeyStorageFlags.EphemeralKeySet |
 #endif
-            X509KeyStorageFlags.UserKeySet |
-            X509KeyStorageFlags.MachineKeySet;
+#if !NET9_0_OR_GREATER
+            X509KeyStorageFlags.MachineKeySet |
+#endif
+            X509KeyStorageFlags.UserKeySet;
 
         Debug.Assert(flags.HasValue == false || (flags.Value & keyStorageFlags) == 0);
     }
