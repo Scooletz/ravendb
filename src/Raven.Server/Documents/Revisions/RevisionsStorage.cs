@@ -235,14 +235,14 @@ namespace Raven.Server.Documents.Revisions
             if (docConfiguration.MinimumRevisionAgeToKeep.HasValue && lastModifiedTicks.HasValue)
                 return true;
 
+            if (nonPersistentFlags.Contain(NonPersistentDocumentFlags.SkipRevisionCreationForSmuggler))
+            {
+                // Smuggler is configured to avoid creating new revisions during import
+                return false;
+            }
+
             if (existingDocument == null)
             {
-                if (nonPersistentFlags.Contain(NonPersistentDocumentFlags.SkipRevisionCreationForSmuggler))
-                {
-                    // Smuggler is configured to avoid creating new revisions during import
-                    return false;
-                }
-
                 // we are not going to create a revision if it's an import from v3
                 // (since this import is going to import revisions as well)
                 if (nonPersistentFlags.Contain(NonPersistentDocumentFlags.LegacyHasRevisions))
@@ -2870,6 +2870,8 @@ namespace Raven.Server.Documents.Revisions
             if (size > expectedSize || size <= 0)
                 throw new ArgumentException("Data size is invalid, possible corruption when parsing BlittableJsonReaderObject", nameof(size));
 
+            BlittableJsonReaderObject.BlittableValidation(context, ptr, size);
+            
             var result = new Document
             {
                 StorageId = tvr.Id,

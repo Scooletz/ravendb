@@ -1105,7 +1105,8 @@ public static class CoraxQueryBuilder
         }
 
         var fieldMetadata = QueryBuilderHelper.GetFieldMetadata(allocator, fieldName, index, indexFieldsMapping, fieldsToFetch, builderParameters.HasDynamics,
-            builderParameters.DynamicFields, handleSearch: true, hasBoost: builderParameters.HasBoost);
+            builderParameters.DynamicFields, handleSearch: true, hasBoost: builderParameters.HasBoost
+            , forceDefaultSearchAnalyzer: builderParameters.Index.Configuration.UseSearchAnalyzerForDynamicFieldsIfNotSetExplicitlyInSearchQuery);
 
         // Wildcard queries:
         if (searchQueryOptions is IndexSearcher.SearchQueryOptions.PhraseQueryWithWildcardAdjustments && valueAsString.Length >= 1 && (valueAsString[0] == '*' || (valueAsString.Length >= 2 && valueAsString[^1] == '*')))
@@ -1385,7 +1386,10 @@ public static class CoraxQueryBuilder
         }
 
         int sortIndex = 0;
-        var sortArray = new OrderMetadata[8];
+        var sortArray = new OrderMetadata[16];
+
+        if (orderByFields.Length > sortArray.Length)
+            throw new InvalidOperationException($"Corax does not support ordering by more than {sortArray.Length} properties.");
 
         foreach (var field in orderByFields)
         {

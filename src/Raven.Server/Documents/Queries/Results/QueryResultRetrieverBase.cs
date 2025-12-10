@@ -865,7 +865,9 @@ namespace Raven.Server.Documents.Queries.Results
                                         continue;
 
                                     fieldValue = ConvertType(_context, field, GetFieldType(field.Name, retrieverInput.LuceneDocument), retrieverInput.State);
-                                    _loadedDocumentIds.Add(fieldValue.ToString());
+                                    
+                                     if (fieldValue != null)
+                                        _loadedDocumentIds.Add(fieldValue.ToString());
                                 }
                             }
                             break;
@@ -881,7 +883,8 @@ namespace Raven.Server.Documents.Queries.Results
                                 }
                                 else
                                 {
-                                    _loadedDocumentIds.Add(fieldValue?.ToString());
+                                    if (fieldValue != null)
+                                        _loadedDocumentIds.Add(fieldValue.ToString());
                                 }
                             }
                             break;
@@ -994,6 +997,13 @@ namespace Raven.Server.Documents.Queries.Results
             }
         }
 
+        public void ClearCache()
+        {
+            _loadedDocuments?.Clear();
+            _loadedDocumentsByAliasName?.Clear();
+            _timeSeriesRetriever?.ClearCache();
+        }
+        
         private sealed class QueryKey : ScriptRunnerCache.Key
         {
             private readonly Dictionary<string, DeclaredFunction> _functions;
