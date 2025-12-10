@@ -1,11 +1,10 @@
 using System;
 using System.Collections.Generic;
-using Sparrow.Json;
 using Sparrow.Json.Parsing;
 
 namespace Raven.Client.Documents.Operations.AI;
 
-public class ChunkingOptions : IDynamicJsonValueConvertible
+public class ChunkingOptions : IDynamicJson
 {
     public ChunkingMethod ChunkingMethod { get; set; }
 
@@ -25,22 +24,51 @@ public class ChunkingOptions : IDynamicJsonValueConvertible
         };
     }
 
-    public bool Validate(string path, List<string> errors)
+    internal void Validate(string source, List<string> errors)
     {
         if (MaxTokensPerChunk <= 0)
-            errors.Add($"Path '{path}': {nameof(MaxTokensPerChunk)} value has to be greater than 0.");
+            errors.Add($"'{source}': {nameof(MaxTokensPerChunk)} value has to be greater than 0.");
         
         if (OverlapTokens < 0)
-            errors.Add($"Path '{path}': {nameof(OverlapTokens)} value cannot be negative.");
+            errors.Add($"'{source}': {nameof(OverlapTokens)} value cannot be negative.");
         
         if (OverlapTokens > MaxTokensPerChunk)
-            errors.Add($"Path '{path}': {nameof(OverlapTokens)} cannot be greater than {nameof(MaxTokensPerChunk)}.");
+            errors.Add($"'{source}': {nameof(OverlapTokens)} cannot be greater than {nameof(MaxTokensPerChunk)}.");
         
         if (OverlapTokens > 0 &&
             MethodsSupportingOverlapTokens.Contains(ChunkingMethod) == false)
-            errors.Add($"Path '{path}': {nameof(OverlapTokens)} option is only supported for the following chunking methods: {string.Join(", ", MethodsSupportingOverlapTokens)}.");
+            errors.Add($"'{source}': {nameof(OverlapTokens)} option is only supported for the following chunking methods: {string.Join(", ", MethodsSupportingOverlapTokens)}.");
+    }
+
+    internal static bool AreEqual(ChunkingOptions left, ChunkingOptions right)
+    {
+        if (left == null && right == null)
+            return true;
         
-        return true;
+        if (left == null || right == null)
+            return false;
+        
+        return left.Equals(right);
+    }
+
+    private bool Equals(ChunkingOptions other)
+    {
+        return ChunkingMethod == other.ChunkingMethod && 
+               MaxTokensPerChunk == other.MaxTokensPerChunk && 
+               OverlapTokens == other.OverlapTokens;
+    }
+
+    public override bool Equals(object obj)
+    {
+        if (obj is null) return false;
+        if (ReferenceEquals(this, obj)) return true;
+        if (obj.GetType() != GetType()) return false;
+        return Equals((ChunkingOptions)obj);
+    }
+
+    public override int GetHashCode()
+    {
+        return HashCode.Combine((int)ChunkingMethod, MaxTokensPerChunk, OverlapTokens);
     }
 }
 

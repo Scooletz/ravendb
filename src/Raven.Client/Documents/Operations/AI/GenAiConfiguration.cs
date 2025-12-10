@@ -34,9 +34,15 @@ public class GenAiConfiguration : AbstractAiIntegrationConfiguration
 
     public List<AiAgentToolQuery> Queries { get; set; } = [];
 
+    public bool EnableTracing { get; set; }
+
+    public int? ExpirationInSec { get; set; }
+
     private List<Transformation> _transforms;
 
     private const int DefaultMaxConcurrency = 4;
+
+    internal readonly string TransformationName = "GenAi-transform-script";
 
     [JsonDeserializationIgnore]
     [JsonIgnore]
@@ -51,7 +57,7 @@ public class GenAiConfiguration : AbstractAiIntegrationConfiguration
             [
                 new Transformation
                 {
-                    Name = "GenAi-transform-script",
+                    Name = TransformationName,
                     Collections = [Collection],
                     Script = GenAiTransformation?.Script
                 }
@@ -99,8 +105,17 @@ public class GenAiConfiguration : AbstractAiIntegrationConfiguration
         else if (GenAiTransformation.ValidateScript(out var error) == false)
             errors.Add(error);
 
-        if (TestMode == false && string.IsNullOrEmpty(UpdateScript))
-            errors.Add("You must provide an update function");
+        if (TestMode == false)
+        {
+            if (string.IsNullOrEmpty(Prompt))
+                errors.Add($"{nameof(Prompt)} must be provided");
+
+            if (string.IsNullOrEmpty(JsonSchema) && string.IsNullOrEmpty(SampleObject))
+                errors.Add("You must provide either a JSON schema or a sample object");
+
+            if (string.IsNullOrEmpty(UpdateScript))
+                errors.Add("You must provide an update function");
+        }
 
         return errors.Count == 0;
     }
@@ -111,7 +126,6 @@ public class GenAiConfiguration : AbstractAiIntegrationConfiguration
 
         json[nameof(Identifier)] = Identifier;
         json[nameof(AiConnectorType)] = AiConnectorType;
-        json[nameof(Identifier)] = Identifier;
         json[nameof(Collection)] = Collection;
         json[nameof(Prompt)] = Prompt;
         json[nameof(SampleObject)] = SampleObject;
@@ -119,8 +133,9 @@ public class GenAiConfiguration : AbstractAiIntegrationConfiguration
         json[nameof(UpdateScript)] = UpdateScript;
         json[nameof(GenAiTransformation)] = GenAiTransformation.ToJson();
         json[nameof(MaxConcurrency)] = MaxConcurrency;
-        json[nameof(MaxConcurrency)] = MaxConcurrency;
         json[nameof(Queries)] = Queries != null ? new DynamicJsonArray(Queries) : null;
+        json[nameof(EnableTracing)] = EnableTracing;
+        json[nameof(ExpirationInSec)] = ExpirationInSec;
 
         return json;
     }
@@ -135,7 +150,8 @@ public class GenAiConfiguration : AbstractAiIntegrationConfiguration
             UpdateScript != other.UpdateScript ||
             JsonSchema != other.JsonSchema ||
             SampleObject != other.SampleObject ||
-            MaxConcurrency != other.MaxConcurrency)
+            MaxConcurrency != other.MaxConcurrency ||
+            ExpirationInSec != other.ExpirationInSec)
             differences |= EtlConfigurationCompareDifferences.Other;
 
         return differences;

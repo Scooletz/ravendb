@@ -762,6 +762,7 @@ interface confirmationDialogOptions {
     defaultOption?: string;
     html?: boolean;
     wideDialog?: boolean;
+    isCancelHidden?: boolean;
 }
 
 type IndexEntriesFieldType = "Static" | "Dynamic";
@@ -1028,7 +1029,7 @@ interface ReactLocationProps {
 
 interface ReactInKnockoutOptions<T> {
     component: T;
-    props?: Parameters<typeof T>[0];
+    props?: Parameters<T>[0];
     dirtyFlag?: ReactDirtyFlag;
 }
 

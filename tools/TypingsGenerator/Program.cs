@@ -63,6 +63,7 @@ using Raven.Server.Config;
 using Raven.Server.Dashboard;
 using Raven.Server.Dashboard.Cluster;
 using Raven.Server.Dashboard.Cluster.Notifications;
+using Raven.Server.Dashboard.Cluster.Notifications.DatabaseNotifications;
 using Raven.Server.Documents;
 using Raven.Server.Documents.Commands.Replication;
 using Raven.Server.Documents.ETL;
@@ -424,6 +425,8 @@ namespace TypingsGenerator
             scripter.AddType(typeof(DatabaseOverviewPayload));
             scripter.AddType(typeof(OngoingTasksPayload));
             scripter.AddType(typeof(ClusterOverviewPayload));
+            scripter.AddType(typeof(DatabaseNotificationsSummaryPayload));
+            scripter.AddType(typeof(DatabaseNotificationsSummaryRequestConfig));
 
             // data archival
             scripter.AddType(typeof(DataArchivalConfiguration));
@@ -608,6 +611,7 @@ namespace TypingsGenerator
 
             // AI
             scripter.AddType(typeof(AiModelsRequest));
+            scripter.AddType(typeof(ConversationDocument));
 
             // AI Agent
             scripter.AddType(typeof(AiAgentConfiguration));

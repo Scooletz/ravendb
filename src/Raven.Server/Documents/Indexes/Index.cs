@@ -774,9 +774,8 @@ namespace Raven.Server.Documents.Indexes
                     var configurationTree = tx.ReadTree(IndexStorage.IndexSchema.ConfigurationTree);
                     if (configurationTree != null)
                     {
-                        var result = configurationTree.Read(IndexStorage.IndexSchema.SearchEngineType);
-                        if (result != null)
-                            if (Enum.TryParse(result.Reader.ToStringValue(), out searchEngineTypeFromSchema) == false)
+                        if (configurationTree.TryRead(IndexStorage.IndexSchema.SearchEngineType, out var reader))
+                            if (Enum.TryParse(reader.ToStringValue(), out searchEngineTypeFromSchema) == false)
                                 searchEngineTypeFromSchema = SearchEngineType.None;
                     }
 
@@ -1211,7 +1210,7 @@ namespace Raven.Server.Documents.Indexes
                     _logger.Error($"Unexpected error in '{Name}' index. This should never happen.", e);
 
                 DocumentDatabase.NotificationCenter.Add(AlertRaised.Create(DocumentDatabase.Name, $"Unexpected error in '{Name}' index",
-                    "Unexpected error in indexing thread. See details.", AlertType.Indexing_UnexpectedIndexingThreadError, NotificationSeverity.Error,
+                    "Unexpected error in indexing thread. See details.", AlertReason.Indexing_UnexpectedIndexingThreadError, NotificationSeverity.Error,
                     key: Name,
                     details: new ExceptionDetails(e)));
             }
@@ -3520,9 +3519,13 @@ namespace Raven.Server.Documents.Indexes
                                     {
                                         var originalEnumerator = enumerator;
 
-                                        enumerator = new PulsedTransactionEnumerator<IndexReadOperationBase.QueryResult, QueryResultsIterationState>(queryContext.Documents,
+                                        var pulsedEnumerator = new PulsedTransactionEnumerator<IndexReadOperationBase.QueryResult, QueryResultsIterationState>(queryContext.Documents,
                                             state => originalEnumerator,
                                             new QueryResultsIterationState(queryContext.Documents, DocumentDatabase.Configuration.Databases.PulseReadTransactionLimit));
+
+                                        pulsedEnumerator.OnPulse += retriever.ClearCache; // we have to clear cached blittables because they are no longer valid after cloning the transaction
+
+                                        enumerator = pulsedEnumerator;
                                     }
 
                                     using (enumerator)
@@ -4451,7 +4454,7 @@ namespace Raven.Server.Documents.Indexes
                 DocumentDatabase.Name,
                 $"Index '{Name}' is including the origin document in output.",
                 $"Putting the whole document as one of the fields of the index entry isn't usually intentional. Especially when it is a fanout index because the document is included multiple times. Please verify your index definition for better indexing performance.",
-                PerformanceHintType.Indexing,
+                PerformanceHintReason.Indexing,
                 NotificationSeverity.Warning,
                 nameof(Index)));
 
@@ -5231,7 +5234,7 @@ namespace Raven.Server.Documents.Indexes
                     {
                         for (int i = 0; i < read; i++)
                         {
-                            Container.Get(llt, buffer[i], out var item);
+                            Container.Get(llt, new ContainerEntryId(buffer[i]), out var item);
                             var state = (PostingListState*)item.Address;
                             report.BranchPages += state->BranchPages;
                             report.LeafPages += state->LeafPages;

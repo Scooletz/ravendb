@@ -15,8 +15,10 @@ using Raven.Client;
 using Raven.Client.Documents.Conventions;
 using Raven.Client.Documents.Indexes;
 using Raven.Client.Documents.Operations.AI;
+using Raven.Client.Documents.Operations.AI.Agents;
 using Raven.Client.Documents.Operations.Backups;
 using Raven.Client.Documents.Operations.ETL;
+using Raven.Client.Documents.Operations.ETL.Snowflake;
 using Raven.Client.Documents.Operations.ETL.SQL;
 using Raven.Client.Documents.Operations.Replication;
 using Raven.Client.Documents.Operations.TimeSeries;
@@ -271,7 +273,7 @@ namespace Raven.Server.Commercial
                      null,
                     "License manager initialization error",
                     "Could not initialize the license manager",
-                    AlertType.LicenseManager_InitializationError,
+                    AlertReason.LicenseManager_InitializationError,
                     NotificationSeverity.Warning,
                     details: new ExceptionDetails(e));
 
@@ -291,7 +293,7 @@ namespace Raven.Server.Commercial
                 null,
                 "Your server is running without a license",
                 null,
-                AlertType.LicenseManager_AGPL3,
+                AlertReason.LicenseManager_AGPL3,
                 NotificationSeverity.Warning);
 
             _serverStore.NotificationCenter.Add(alert);
@@ -299,7 +301,7 @@ namespace Raven.Server.Commercial
 
         private void RemoveAgplAlert()
         {
-            var id = AlertRaised.GetKey(AlertType.LicenseManager_AGPL3, null);
+            var id = AlertRaised.GetKey(AlertReason.LicenseManager_AGPL3, null);
             if (_serverStore.NotificationCenter.Exists(id) == false)
                 return;
 
@@ -789,7 +791,7 @@ namespace Raven.Server.Commercial
                         null,
                         leasedLicense.Title,
                         leasedLicense.Message,
-                        AlertType.LicenseManager_LicenseUpdateMessage,
+                        AlertReason.LicenseManager_LicenseUpdateMessage,
                         severity);
 
                     _serverStore.NotificationCenter.Add(alert);
@@ -915,7 +917,7 @@ namespace Raven.Server.Commercial
                     null,
                     "License was updated",
                     "Successfully leased license",
-                    AlertType.LicenseManager_LeaseLicenseSuccess,
+                    AlertReason.LicenseManager_LeaseLicenseSuccess,
                     NotificationSeverity.Info);
 
                 _serverStore.NotificationCenter.Add(alert);
@@ -986,7 +988,7 @@ namespace Raven.Server.Commercial
                 null,
                 title,
                 "Could not lease license",
-                AlertType.LicenseManager_LeaseLicenseError,
+                AlertReason.LicenseManager_LeaseLicenseError,
                 NotificationSeverity.Warning,
                 details: new ExceptionDetails(
                     new InvalidOperationException(errorMessage, exception)));
@@ -1008,7 +1010,7 @@ namespace Raven.Server.Commercial
 
                 if (cores == ProcessorInfo.ProcessorCount)
                 {
-                    _serverStore.NotificationCenter.Dismiss(PerformanceHint.GetKey(PerformanceHintType.UnusedCapacity, nameof(LicenseManager)));
+                    _serverStore.NotificationCenter.Dismiss(PerformanceHint.GetKey(PerformanceHintReason.UnusedCapacity, nameof(LicenseManager)));
                     _lastPerformanceHint = null;
                     return;
                 }
@@ -1027,7 +1029,7 @@ namespace Raven.Server.Commercial
                     "Your database can be faster - not all cores are used",
                     $"Your server is currently using only {cores} core{Pluralize(cores)} " +
                     $"out of the {Environment.ProcessorCount} that it has available",
-                    PerformanceHintType.UnusedCapacity,
+                    PerformanceHintReason.UnusedCapacity,
                     NotificationSeverity.Info,
                     nameof(LicenseManager)));
             }
@@ -1429,7 +1431,7 @@ namespace Raven.Server.Commercial
 
             foreach (var kvp in indexes)
             {
-                if (HasAdditionalAssembliesFromNuGet(kvp.Value))
+                if (HasAdditionalAssembliesFromNuGet(kvp.Value) && kvp.Value.State != IndexState.Disabled)
                     return true;
             }
 
@@ -1690,14 +1692,17 @@ namespace Raven.Server.Commercial
             throw GenerateLicenseLimit(LimitType.QueueEtl, message);
         }
         
-        public void AssertCanAddSnowflakeEtl()
+        public void AssertCanAddSnowflakeEtl(SnowflakeEtlConfiguration configuration)
         {
             if (IsValid(out var licenseLimit) == false)
                 throw licenseLimit;
 
             if (LicenseStatus.HasSnowflakeEtl)
                 return;
-            
+
+            if (configuration.Disabled)
+                return;
+
             const string message = "Your current license doesn't include the Snowflake ETL feature";
             throw GenerateLicenseLimit(LimitType.SnowflakeEtl, message);
         }
@@ -1717,7 +1722,7 @@ namespace Raven.Server.Commercial
             throw GenerateLicenseLimit(LimitType.EmbeddingsGeneration, message);
         }
 
-        public void AssertCanAddGenAiTask()
+        public void AssertCanAddGenAiTask(GenAiConfiguration genAiConfiguration)
         {
             if (IsValid(out var licenseLimit) == false)
                 throw licenseLimit;
@@ -1725,16 +1730,22 @@ namespace Raven.Server.Commercial
             if (LicenseStatus.HasGenAi)
                 return;
 
+            if (genAiConfiguration.Disabled)
+                return;
+
             const string message = "Your current license doesn't include the Gen AI feature";
             throw GenerateLicenseLimit(LimitType.GenAi, message);
         }
 
-        public void AssertCanAddAiAgentTask()
+        public void AssertCanAddAiAgentTask(AiAgentConfiguration  aiAgentConfiguration)
         {
             if (IsValid(out var licenseLimit) == false)
                 throw licenseLimit;
 
             if (LicenseStatus.HasAiAgent)
+                return;
+
+            if (aiAgentConfiguration.Disabled)
                 return;
 
             const string message = "Your current license doesn't include the AI Agent feature";
@@ -1915,7 +1926,7 @@ namespace Raven.Server.Commercial
                 null,
                 $@"You've reached a license limit ({EnumHelper.GetDescription(LimitType.HighlyAvailableTasks)})",
                 message,
-                AlertType.LicenseManager_HighlyAvailableTasks,
+                AlertReason.LicenseManager_HighlyAvailableTasks,
                 NotificationSeverity.Warning,
                 key: message,
                 details: new MessageDetails

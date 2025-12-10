@@ -446,7 +446,7 @@ namespace Raven.Server.Documents.Replication.Outgoing
                 _databaseName,
                 "Replication delay due to a missing attachments loop",
                 msg + $"{Environment.NewLine}Please try to delete the missing attachment from '{_databaseName}' on node {_server.NodeTag} (see additional information regarding the document and attachment below)",
-                AlertType.Replication,
+                AlertReason.Replication,
                 NotificationSeverity.Error,
                 details: new ExceptionDetails { Exception = exceptionDetails }));
 
@@ -829,7 +829,7 @@ namespace Raven.Server.Documents.Replication.Outgoing
         public virtual void Dispose()
         {
             // There are multiple invocations of dispose, this happens sometimes during tests, causing failures.
-            if (!_disposed.Raise())
+            if (_disposed.Raise() == false)
                 return;
 
             var timeout = _server.Engine.TcpConnectionTimeout;

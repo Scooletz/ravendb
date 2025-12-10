@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
@@ -82,6 +83,7 @@ namespace Raven.Server.Documents.Replication
             public Action<Exception> OnIncomingReplicationHandlerFailure;
             public Action OnIncomingReplicationHandlerStart;
             public Action BeforeDisposingIncomingReplicationHandlers;
+            public Func<Stream, Stream> WrapIncomingReplicationStream;
         }
 
         public int GetNextReplicationStatsId() => Interlocked.Increment(ref _replicationStatsId);
@@ -103,7 +105,7 @@ namespace Raven.Server.Documents.Replication
                     _databaseName,
                     "Connection string name is empty",
                     msg,
-                    AlertType.Replication,
+                    AlertReason.Replication,
                     NotificationSeverity.Error));
                 return false;
             }
@@ -122,7 +124,7 @@ namespace Raven.Server.Documents.Replication
                     _databaseName,
                     "Connection string not found",
                     msg,
-                    AlertType.Replication,
+                    AlertReason.Replication,
                     NotificationSeverity.Error));
 
                 return false;

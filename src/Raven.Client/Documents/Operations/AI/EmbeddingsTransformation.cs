@@ -1,4 +1,6 @@
-﻿using System.Text.RegularExpressions;
+﻿using System;
+using System.Collections.Generic;
+using System.Text.RegularExpressions;
 
 namespace Raven.Client.Documents.Operations.AI;
 
@@ -12,10 +14,48 @@ public class EmbeddingsTransformation
 
     public ChunkingOptions ChunkingOptions { get; set; } = new() { ChunkingMethod = ChunkingMethod.PlainTextSplit, MaxTokensPerChunk = 256 };
 
-    public bool ValidateScript()
+    internal void Validate(List<string> errors)
+    {
+        ValidateScript(errors);
+        
+        ChunkingOptions.Validate(GenerateEmbeddingsFunctionName, errors);
+    }
+
+    private void ValidateScript(List<string> errors)
     {
         var match = EmbeddingsGenerateRegex.Match(Script);
+        
+        if (match.Length == 0)
+            errors.Add($"Transformation script must use {GenerateEmbeddingsFunctionName} method.");
+    }
 
-        return match.Length > 0;
+    internal static bool AreEqual(EmbeddingsTransformation left, EmbeddingsTransformation right)
+    {
+        if (left == null && right == null)
+            return true;
+        
+        if (left == null || right == null)
+            return false;
+
+        return left.Equals(right);
+    }
+
+    private bool Equals(EmbeddingsTransformation other)
+    {
+        return Script == other.Script && 
+               ChunkingOptions.AreEqual(ChunkingOptions, other.ChunkingOptions);
+    }
+
+    public override bool Equals(object obj)
+    {
+        if (obj is null) return false;
+        if (ReferenceEquals(this, obj)) return true;
+        if (obj.GetType() != GetType()) return false;
+        return Equals((EmbeddingsTransformation)obj);
+    }
+
+    public override int GetHashCode()
+    {
+        return HashCode.Combine(Script, ChunkingOptions);
     }
 }

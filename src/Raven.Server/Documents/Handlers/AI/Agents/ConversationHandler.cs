@@ -163,6 +163,8 @@ internal class ConversationHandler(ServerStore server, DocumentDatabase database
         List<BlittableJsonReaderObject> historyDocs = default;
         bool shouldContinueConversation = true;
         var sw = Stopwatch.StartNew();
+
+        var pendingAlertsDetails = new List<ExceededTokenThresholdDetails>();
         while (shouldContinueConversation)
         {
             using var request = talker.CreateCompletionRequest(_request.Attachments);
@@ -178,13 +180,14 @@ internal class ConversationHandler(ServerStore server, DocumentDatabase database
             {
                 if (_document.TryGetDetailsOfRecentToolCall(_configuration, out var toolCalls))
                 {
-                    ExceededTokenThresholdDetails.Add(
-                        database.NotificationCenter,
-                        _configuration.Name,
-                        _conversationId,
-                        currentTurnUsage.PromptTokens,
-                        database.Configuration.Ai.ToolsTokenUsageThreshold,
-                        toolCalls
+                    pendingAlertsDetails.Add(ExceededTokenThresholdDetails.Add(
+                            database.NotificationCenter,
+                            _configuration.Name,
+                            _conversationId,
+                            currentTurnUsage.PromptTokens,
+                            database.Configuration.Ai.ToolsTokenUsageThreshold,
+                            toolCalls
+                        )
                     );
                 }
             }
@@ -217,6 +220,12 @@ internal class ConversationHandler(ServerStore server, DocumentDatabase database
         _elapsed = sw.Elapsed;
         _conversationId = await TryPersistAsync(context, historyDocs);
 
+        foreach (ExceededTokenThresholdDetails pendingAlertDetails in pendingAlertsDetails)
+        {
+            pendingAlertDetails.ConversationId = _conversationId;
+            database.NotificationCenter.Add(
+                ExceededTokenThresholdDetails.CreateAlert(pendingAlertDetails, database.Name));
+        }
         return (r.Result, talker.AiUsage);
     }
 
@@ -414,7 +423,6 @@ internal class ConversationHandler(ServerStore server, DocumentDatabase database
         using (var reqsBlittable = context.ReadObject(new DynamicJsonValue { ["Requests"] = reqs }, "ai-agent/multi-query"))
         using (var handler = new MultiGetHandlerProcessorForPost(multiGetHandler))
         using (var memoryStream = RecyclableMemoryStreamFactory.GetRecyclableStream())
-        using (database.DocumentsStorage.ContextPool.AllocateOperationContext(out JsonOperationContext clone))
         {
             await handler.ExecuteMultiGetAsync(context, reqsBlittable, memoryStream);
             memoryStream.Position = 0;
@@ -443,7 +451,7 @@ internal class ConversationHandler(ServerStore server, DocumentDatabase database
                     {
                         ["tool_call_id"] = toolCallsIds[i],
                         ["role"] = "tool",
-                        ["content"] = queryResult.Clone(clone).ToString()
+                        ["content"] = queryResult.Clone().ToString()
                     }, "tool-call/response"), usage: null);
             }
         }
@@ -487,8 +495,9 @@ internal class ConversationHandler(ServerStore server, DocumentDatabase database
 
     private async Task<bool> TryHandleActionResponses(JsonOperationContext context)
     {
-        var hasActionResponse = _request.ActionResponses is { Length: > 0 };
-        var hasUserPrompt = RequestBody.HasUserPrompt(_request.Content);
+        var hasActionResponse = _request.ActionResponses is { Length: > 0 } ;
+        var hasUserPrompt = RequestBody.HasUserPrompt(_request.Content) || 
+                            _request.ArtificialActions is { Length: > 0 }; // equivalent to user prompt, since it is both tool & response in one shot
 
         if (hasActionResponse && hasUserPrompt)
             throw new InvalidOperationException($"Cannot have a conversation '{_conversationId}' with open action calls and user prompt.");
@@ -501,14 +510,20 @@ internal class ConversationHandler(ServerStore server, DocumentDatabase database
                 if (_document.OpenActionCalls.Remove(t.ToolId) == false)
                     throw new InvalidOperationException($"{t.ToolId} is an unknown action ID for conversation '{_conversationId}'");
 
-                _document.AddMessage(context, context.ReadObject(
-                    new DynamicJsonValue
-                    {
-                        ["tool_call_id"] = t.ToolId,
-                        ["role"] = "tool",
-                        ["content"] = t.Content
-                    },
-                    "user/tool"), usage: null);
+                _document.AddToolResponse(context, t.ToolId, t.Content);
+            }
+        }
+
+        if (_request.ArtificialActions != null)
+        {
+            foreach (BlittableJsonReaderObject tool in _request.ArtificialActions)
+            {
+                var t = JsonDeserializationClient.AiAgentArtificialAction(tool);
+                t.Validate();
+
+                string id = Guid.NewGuid().ToString("N");
+                _document.AddArtificialToolCall(context, [new AiToolCall(id, t.ToolId, "{}")]);
+                _document.AddToolResponse(context, id, t.Content);
             }
         }
 
@@ -547,13 +562,6 @@ internal class ConversationHandler(ServerStore server, DocumentDatabase database
             return default;
 
         return await TalkAsync(context, token: token);
-    }
-
-    public async Task<(string, AiUsage Usage)> HandleRequest(CancellationToken token)
-    {
-        using var _ = database.DocumentsStorage.ContextPool.AllocateOperationContext(out DocumentsOperationContext context);
-        var r = await HandleRequest(context, token);
-        return (r.Response.ToString(), r.Usage);
     }
 
     public async Task<(BlittableJsonReaderObject Response, AiUsage Usage)> HandleStreamingRequest(
