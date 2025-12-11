@@ -58,7 +58,7 @@ public static class SetupWizardUtils
                     parameters.CertificateValidationKeyUsages,
                     parameters.Progress);
 
-                if(parameters.SetupInfo.ZipOnly == false)
+                if (parameters.SetupInfo.ZipOnly == false)
                 {
                     foreach (var node in parameters.SetupInfo.NodeSetupInfos)
                     {
@@ -67,8 +67,7 @@ public static class SetupWizardUtils
 
                         parameters.Progress?.AddInfo($"Adding node '{node.Key}' to the cluster.");
                         parameters.OnProgress?.Invoke(parameters.Progress);
-
-
+                        
                         parameters.SetupInfo.NodeSetupInfos[node.Key].PublicServerUrl = CertificateUtils.GetServerUrlFromCertificate(serverCert,
                             parameters.SetupInfo, node.Key,
                             node.Value.Port,

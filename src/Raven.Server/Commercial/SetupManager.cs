@@ -1197,61 +1197,61 @@ namespace Raven.Server.Commercial
                            ?? Path.Combine(AppContext.BaseDirectory, certificateFileName);
                 },
                 OnPutServerWideStudioConfigurationValues = async studioEnvironment =>
-                    {
-                        var res = await serverStore.PutValueInClusterAsync(new PutServerWideStudioConfigurationCommand(
+                {
+                    var res = await serverStore.PutValueInClusterAsync(new PutServerWideStudioConfigurationCommand(
                         new ServerWideStudioConfiguration { Disabled = false, Environment = studioEnvironment }, RaftIdGenerator.DontCareId));
 
-                        await serverStore.Cluster.WaitForIndexNotification(res.Index);
-                    },
+                    await serverStore.Cluster.WaitForIndexNotification(res.Index);
+                },
                 OnBeforeAddingNodesToCluster = async (publicServerUrl, localNodeTag) =>
-                        {
-                            try
-                            {
-                        serverStore.Engine.SetNewState(RachisState.Passive, null, serverStore.Engine.CurrentTerm,
-                            "During setup wizard, " + "making sure there is no cluster from previous installation.");
-                            }
-                            catch (Exception e)
-                            {
-                                throw new InvalidOperationException("Failed to delete previous cluster topology during setup.", e);
-                            }
-
-                            await serverStore.EnsureNotPassiveAsync(publicServerUrl, setupInfo.LocalNodeTag);
-
-                            await DeleteAllExistingCertificates(serverStore);
-
-                            if (setupMode == SetupMode.LetsEncrypt)
-                            {
-                                await serverStore.EnsureNotPassiveAsync(skipLicenseActivation: true);
-                                await serverStore.LicenseManager.ActivateAsync(setupInfo.License, RaftIdGenerator.DontCareId);
-                            }
-
-                            serverStore.HasFixedPort = setupInfo.NodeSetupInfos[localNodeTag].Port != 0;
-                        },
-                PutCertificateInCluster = async (selfSignedCertificate, newCertDef) =>
-                            {
-                                try
-                                {
-                        var res = await serverStore.PutValueInClusterAsync(new PutCertificateCommand(selfSignedCertificate.Thumbprint, newCertDef,
-                            RaftIdGenerator.DontCareId));
-                                    await serverStore.Cluster.WaitForIndexNotification(res.Index);
-                                }
-                                catch (Exception e)
-                                {
-                        throw new InvalidOperationException(
-                            $"Failed to to put certificate in cluster. self signed certificate thumbprint'{selfSignedCertificate.Thumbprint}'.", e);
-                                }
-                            },
-                AddNodeToCluster = async nodeTag =>
-                        {
+                {
                     try
                     {
-                                await serverStore.AddNodeToClusterAsync(setupInfo.NodeSetupInfos[nodeTag].PublicServerUrl, nodeTag, validateNotInTopology: false, token: token);
+                        serverStore.Engine.SetNewState(RachisState.Passive, null, serverStore.Engine.CurrentTerm,
+                            "During setup wizard, " + "making sure there is no cluster from previous installation.");
                     }
                     catch (Exception e)
                     {
-                                throw new InvalidOperationException($"Failed to add node '{nodeTag}' to the cluster.", e);
+                        throw new InvalidOperationException("Failed to delete previous cluster topology during setup.", e);
                     }
-                        },
+
+                    await serverStore.EnsureNotPassiveAsync(publicServerUrl, setupInfo.LocalNodeTag);
+
+                    await DeleteAllExistingCertificates(serverStore);
+
+                    if (setupMode == SetupMode.LetsEncrypt)
+                    {
+                        await serverStore.EnsureNotPassiveAsync(skipLicenseActivation: true);
+                        await serverStore.LicenseManager.ActivateAsync(setupInfo.License, RaftIdGenerator.DontCareId);
+                    }
+
+                    serverStore.HasFixedPort = setupInfo.NodeSetupInfos[localNodeTag].Port != 0;
+                },
+                PutCertificateInCluster = async (selfSignedCertificate, newCertDef) =>
+                {
+                    try
+                    {
+                        var res = await serverStore.PutValueInClusterAsync(new PutCertificateCommand(selfSignedCertificate.Thumbprint, newCertDef,
+                            RaftIdGenerator.DontCareId));
+                        await serverStore.Cluster.WaitForIndexNotification(res.Index);
+                    }
+                    catch (Exception e)
+                    {
+                        throw new InvalidOperationException(
+                            $"Failed to to put certificate in cluster. self signed certificate thumbprint'{selfSignedCertificate.Thumbprint}'.", e);
+                    }
+                },
+                AddNodeToCluster = async nodeTag =>
+                {
+                    try
+                    {
+                        await serverStore.AddNodeToClusterAsync(setupInfo.NodeSetupInfos[nodeTag].PublicServerUrl, nodeTag, validateNotInTopology: false, token: token);
+                    }
+                    catch (Exception e)
+                    {
+                        throw new InvalidOperationException($"Failed to add node '{nodeTag}' to the cluster.", e);
+                    }
+                },
                 RegisterClientCertInOs = (onProgressCopy, progressCopy, clientCert) => CertificateUtils.RegisterClientCertInOs(onProgressCopy, progressCopy, clientCert)
             });
         }

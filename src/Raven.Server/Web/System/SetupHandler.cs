@@ -807,10 +807,60 @@ namespace Raven.Server.Web.System
                 // get a valid response from the server before we reset
                 await Task.Delay(250);
 
+                Program.ServerRestarted += OnServerRestarted;
+                
                 Program.RestartServer();
             });
 
             return NoContent();
+        }
+
+        private static void OnServerRestarted(object sender, Program.OnServerRestartedEventArgs e)
+        {
+            var oldDataPath = AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            var newDataPath = e.DataDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            
+            try
+            {
+                if (newDataPath != oldDataPath)
+                {
+                    var systemPath = Path.Join(oldDataPath, ServerStore.SystemDirectoryName);
+                    var newSystemPath = Path.Join(newDataPath, ServerStore.SystemDirectoryName);
+
+                    CopyDirectory(systemPath, newSystemPath, recursive: true);
+                }
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException($"Unable to copy {ServerStore.SystemDirectoryName} directory from {oldDataPath} to {newDataPath}.", ex);
+            }
+        }
+        
+        private static void CopyDirectory(string sourceDir, string destinationDir, bool recursive)
+        {
+            var sourceDirectoryInfo = new DirectoryInfo(sourceDir);
+            
+            if (sourceDirectoryInfo.Exists == false)
+                throw new DirectoryNotFoundException($"Source directory not found: {sourceDirectoryInfo.FullName}");
+            
+            var sourceSubdirectories = sourceDirectoryInfo.GetDirectories();
+            
+            Directory.CreateDirectory(destinationDir);
+            
+            foreach (var file in sourceDirectoryInfo.GetFiles())
+            {
+                var targetFilePath = Path.Combine(destinationDir, file.Name);
+                file.CopyTo(targetFilePath, overwrite: true);
+            }
+            
+            if (recursive)
+            {
+                foreach (var subDirectory in sourceSubdirectories)
+                {
+                    var newDestinationDir = Path.Combine(destinationDir, subDirectory.Name);
+                    CopyDirectory(subDirectory.FullName, newDestinationDir, recursive: true);
+                }
+            }
         }
 
         private void AssertOnlyInSetupMode()

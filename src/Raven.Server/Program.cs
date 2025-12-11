@@ -235,6 +235,11 @@ namespace Raven.Server
 
                 try
                 {
+                    ServerRestarted?.Invoke(null, new OnServerRestartedEventArgs()
+                    {
+                        DataDirectory = configuration.Core.DataDirectory.FullPath
+                    });
+                    
                     using (var server = new RavenServer(configuration))
                     {
                         try
@@ -419,8 +424,7 @@ namespace Raven.Server
 
             if ((configuration.Server.ThreadPoolMinWorkerThreads != null || configuration.Server.ThreadPoolMinCompletionPortThreads != null) && Logger.IsInfoEnabled)
                 Logger.Info($"Thread Pool configuration was modified by calling {nameof(ThreadPool.SetMinThreads)}. Current values: workerThreads - {effectiveMinWorkerThreads}, completionPortThreads - {effectiveMinCompletionPortThreads}.");
-
-
+            
             if (configuration.Server.ThreadPoolMaxWorkerThreads != null || configuration.Server.ThreadPoolMaxCompletionPortThreads != null)
             {
                 ThreadPool.GetMaxThreads(out workerThreads, out completionPortThreads);
@@ -440,6 +444,12 @@ namespace Raven.Server
         public static ManualResetEvent RestartServerMre = new ManualResetEvent(false);
         public static ManualResetEvent ShutdownCompleteMre = new ManualResetEvent(false);
         public static Action RestartServer;
+        public static event EventHandler<OnServerRestartedEventArgs> ServerRestarted;
+        
+        public class OnServerRestartedEventArgs : EventArgs
+        {
+            public string DataDirectory { get; set; }
+        } 
 
         public static bool IsRunningNonInteractive;
 
