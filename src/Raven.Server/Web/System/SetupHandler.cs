@@ -27,7 +27,9 @@ using Raven.Server.Routing;
 using Raven.Server.ServerWide;
 using Raven.Server.ServerWide.Context;
 using Raven.Server.Utils;
+using Sparrow;
 using Sparrow.Json;
+using Sparrow.Logging;
 
 namespace Raven.Server.Web.System
 {
@@ -808,17 +810,28 @@ namespace Raven.Server.Web.System
                 await Task.Delay(250);
 
                 Program.ServerRestarted += OnServerRestarted;
+                Program.ServerInitialized += OnServerInitialized;
                 
                 Program.RestartServer();
             });
+            
+            Program.ServerRestarted -= OnServerRestarted;
+            Program.ServerInitialized -= OnServerInitialized;
 
             return NoContent();
         }
 
-        private static void OnServerRestarted(object sender, Program.OnServerRestartedEventArgs e)
+        private static void OnServerInitialized(object sender, EventArgs eventArgs)
+        {
+            var server = (RavenServer)sender;
+            
+            LoggingSource.Instance.SetupLogMode(server.Configuration.Logs.Mode, server.Configuration.Logs.Path.FullPath, server.Configuration.Logs.RetentionTime?.AsTimeSpan, server.Configuration.Logs.RetentionSize?.GetValue(SizeUnit.Bytes), server.Configuration.Logs.Compress);
+        }
+
+        private static void OnServerRestarted(object sender, Program.OnServerRestartedEventArgs eventArgs)
         {
             var oldDataPath = AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-            var newDataPath = e.DataDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            var newDataPath = eventArgs.DataDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
             
             try
             {

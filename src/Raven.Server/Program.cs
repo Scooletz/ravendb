@@ -256,6 +256,7 @@ namespace Raven.Server
                             }
 
                             server.Initialize();
+                            ServerInitialized?.Invoke(server, null);
 
                             configuration.UpdateLicenseType(server.ServerStore.LicenseManager.LicenseStatus.Type);
 
@@ -445,6 +446,7 @@ namespace Raven.Server
         public static ManualResetEvent ShutdownCompleteMre = new ManualResetEvent(false);
         public static Action RestartServer;
         public static event EventHandler<OnServerRestartedEventArgs> ServerRestarted;
+        public static event EventHandler ServerInitialized;
         
         public class OnServerRestartedEventArgs : EventArgs
         {
