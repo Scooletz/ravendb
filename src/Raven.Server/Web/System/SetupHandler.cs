@@ -802,27 +802,26 @@ namespace Raven.Server.Web.System
         public Task SetupFinish()
         {
             AssertOnlyInSetupMode();
+            
+            Program.ServerRestarted += OnServerRestarted;
+            Program.ServerInitialized += OnServerInitialized;
 
             Task.Run(async () =>
             {
                 // we want to give the studio enough time to actually
                 // get a valid response from the server before we reset
                 await Task.Delay(250);
-
-                Program.ServerRestarted += OnServerRestarted;
-                Program.ServerInitialized += OnServerInitialized;
                 
                 Program.RestartServer();
             });
-            
-            Program.ServerRestarted -= OnServerRestarted;
-            Program.ServerInitialized -= OnServerInitialized;
 
             return NoContent();
         }
 
         private static void OnServerInitialized(object sender, EventArgs eventArgs)
         {
+            Program.ServerInitialized -= OnServerInitialized;
+            
             var server = (RavenServer)sender;
             
             LoggingSource.Instance.SetupLogMode(server.Configuration.Logs.Mode, server.Configuration.Logs.Path.FullPath, server.Configuration.Logs.RetentionTime?.AsTimeSpan, server.Configuration.Logs.RetentionSize?.GetValue(SizeUnit.Bytes), server.Configuration.Logs.Compress);
@@ -830,6 +829,8 @@ namespace Raven.Server.Web.System
 
         private static void OnServerRestarted(object sender, Program.OnServerRestartedEventArgs eventArgs)
         {
+            Program.ServerRestarted -= OnServerRestarted;
+            
             var oldDataPath = AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
             var newDataPath = eventArgs.DataDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
             
