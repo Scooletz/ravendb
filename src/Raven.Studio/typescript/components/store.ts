@@ -21,6 +21,7 @@ import { editGenAiTaskSlice } from "./pages/database/tasks/ongoingTasks/editTask
 import { editAiAgentSlice } from "./pages/database/aiHub/aiAgents/edit/store/editAiAgentSlice";
 import { chatAiAgentSlice } from "./pages/database/aiHub/aiAgents/chat/store/chatAiAgentSlice";
 import { chatAiAgentUpdateUrlMiddleware } from "./pages/database/aiHub/aiAgents/chat/store/chatAiAgentMiddleware";
+import { remoteAttachmentsSlice } from "./pages/database/settings/remoteAttachments/store/remoteAttachmentsSlice";
 import { aiAssistantSlice } from "./common/shell/aiAssistantSlice";
 import { chatbotSlice } from "./shell/chatbot/store/chatbotSlice";
 import { chatbotMiddleware } from "./shell/chatbot/store/chatbotMiddleware";
@@ -48,6 +49,7 @@ export function createStoreConfiguration() {
             editGenAiTask: editGenAiTaskSlice.reducer,
             editAiAgent: editAiAgentSlice.reducer,
             chatAiAgent: chatAiAgentSlice.reducer,
+            remoteAttachments: remoteAttachmentsSlice.reducer,
             aiAssistant: aiAssistantSlice.reducer,
             chatbot: chatbotSlice.reducer,
         },
