@@ -121,9 +121,9 @@ namespace Raven.Server.Commercial
             _licenseHelper = new LicenseHelper(serverStore);
             _skipLeasingErrorsLogging = serverStore.Configuration.Licensing.SkipLeasingErrorsLogging;
         }
-
+        
         public bool IsEulaAccepted => _eulaAcceptedButHasPendingRestart || _serverStore.Configuration.Licensing.EulaAccepted;
-
+        
         public void Initialize(StorageEnvironment environment, TransactionContextPool contextPool)
         {
             try
@@ -1750,6 +1750,18 @@ namespace Raven.Server.Commercial
 
             const string message = "Your current license doesn't include the AI Agent feature";
             throw GenerateLicenseLimit(LimitType.AiAgent, message);
+        }
+
+        public void AssertCanUseAiAssistant()
+        {
+            if (IsValid(out var licenseLimit) == false)
+                throw licenseLimit;
+
+            if (LicenseStatus.HasAiAssistant)
+                return;
+
+            const string message = "Your current license doesn't include the AI Assistant feature";
+            throw GenerateLicenseLimit(LimitType.AiAssistant, message);
         }
 
         public void AssertCanAddConcurrentDataSubscriptions()
