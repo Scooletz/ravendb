@@ -17,6 +17,53 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Remove="Data\RavenDB_16328\MyAnalyzer.cs" />
+    <Compile Remove="Data\RavenDB_14939\MyAnalyzer.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Remove="Data\Attachments\RavenDB_24543\Northwind.zip" />
+    <None Remove="Data\legacy-counters.4.1.5.ravendbdump" />
+    <None Remove="Data\RavenDB_24644\Hibernating.pdf" />
+    <None Remove="Data\RavenDB_24644\Raven.pdf" />
+    <None Remove="Data\RavenDB_24648\heart.png" />
+    <None Remove="Data\RavenDB_24648\star.png" />
+    <None Remove="Data\RavenDB_24648\banana.png" />
+    <None Remove="Data\RavenDB_11488\ravendb-11488-artificial-docs-not-included.ravendbdump" />
+    <None Remove="Data\RavenDB-12785.ravendbdump" />
+    <None Remove="Data\RavenDB_11488\ravendb-11488.ravendb-snapshot" />
+    <None Remove="Data\RavenDB_13291\collection-with-counter-word-4.1.5-nightly.ravendb-snapshot" />
+    <None Remove="Data\RavenDB_13468\counters-snapshot-document.json" />
+    <None Remove="Data\RavenDB_13468\counters.test.4.1.6.ravendb-snapshot" />
+    <None Remove="Data\RavenDB-13937.ravendbdump" />
+    <None Remove="Data\RavenDB_13759\Auto_Orders_ByOrderedAt.zip" />
+    <None Remove="Data\RavenDB_13759\Orders_ByOrderBy.zip" />
+    <None Remove="Data\RavenDB_13940\storage-with-reused-journal-and-synced-data-2.zip" />
+    <None Remove="Data\RavenDB_13940\storage-with-reused-journal-and-synced-data.zip" />
+    <None Remove="Data\RavenDB_15223\counters.4.2.103.ravendb-snapshot" />
+    <None Remove="Data\RavenDB_15223\manycounters.4.2.103.ravendb-snapshot" />
+    <None Remove="Data\RavenDB_15700\BewerberStatus.csv" />
+    <None Remove="Data\RavenDB_15700\Bewerbung.csv" />
+    <None Remove="Data\RavenDB_15700\Vakanz.csv" />
+    <None Remove="Data\RavenDB_15753\cat.jpg" />
+    <None Remove="Data\RavenDB_15898\1.ravendbdump" />
+    <None Remove="Data\RavenDB_16378\RavenDB-16401-NRE.ravendb-snapshot" />
+    <None Remove="Data\RavenDB_18381\2022-03-27-12-38-05-8912792.ravendb-snapshot" />
+    <None Remove="Data\RavenDB_21957\js_index_with_dates_601.ravendb-snapshot" />
+    <None Remove="Data\RavenDB_22498\AutoIndexes.FastTests.json.gz" />
+    <None Remove="Data\RavenDB_22498\AutoIndexes.SlowTests.json.gz" />
+    <None Remove="Data\RavenDB_22534\RavenDB_22534.ravendb-snapshot" />
+    <None Remove="Data\RavenDB_23100\2024-11-18-17-16-52-7843589.ravendb-snapshot" />
+    <None Remove="Data\RavenDB_23100\2024-11-19-08-30-34-7519596.ravendb-snapshot" />
+    <None Remove="Data\RavenDB_23100\2024-11-19-10-39-25-6242058.ravendb-snapshot" />
+    <None Remove="Data\RavenDB_23100\2024-11-19-10-43-34-8245899.ravendb-snapshot" />
+    <None Remove="Data\RavenDB_24002\TimeseriesWithConflictedRevisions_new.ravendbdump" />
+    <None Remove="Data\RavenDB_24415\Can_push_via_filtered_replication_2.0-5.zip" />
+    <None Remove="Data\RavenDB_24645\heart.GIF" />
+    <None Remove="Data\RavenDB_24645\heart.png" />
+    <None Remove="Data\RavenDB_24645\heart.webp" />
+    <None Remove="Data\RavenDB_24645\heart.jpeg" />
+    <None Remove="Data\RavenDB_24797\24797_counters_test.ravendb-snapshot" />
+    <None Remove="Smuggler\Data\DocumentWithRevisions.ravendbdump" />
+    <None Remove="Smuggler\Data\RevisionsWithoutADocument.ravendbdump" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="..\Tests.Infrastructure\CommonTestsAssemblyInfo.cs" Link="Properties\CommonTestsAssemblyInfo.cs" />
@@ -31,6 +78,8 @@
     </Content>
     <EmbeddedResource Include="Corax\Bugs\repro-2.log.gz" />
     <EmbeddedResource Include="Corax\Bugs\repro-4.log.gz" />
+    <EmbeddedResource Include="Data\Attachments\RavenDB_24543\DumpofNorthwind.ravendbdump" />
+    <EmbeddedResource Include="Data\Attachments\RavenDB_24543\Northwind.zip" />
     <EmbeddedResource Include="Data\legacy-counters.4.1.5.ravendbdump" />
     <EmbeddedResource Include="Data\npgsql.basic.create.sql" />
     <EmbeddedResource Include="Data\npgsql.basic.insert.sql" />
