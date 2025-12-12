@@ -61,6 +61,9 @@ namespace Raven.Client.Exceptions.Commercial
         [Description("AI Agent")]
         AiAgent,
 
+        [Description("AI Assistant")]
+        AiAssistant,
+
         [Description("Cores Limit")]
         Cores,
 
@@ -159,6 +162,9 @@ namespace Raven.Client.Exceptions.Commercial
 
         [Description("Custom Analyzers")]
         CustomAnalyzers,
+
+        [Description("Remote Attachments")]
+        RemoteAttachments,
 
         [Description("Schema Validation")]
         SchemaValidation,

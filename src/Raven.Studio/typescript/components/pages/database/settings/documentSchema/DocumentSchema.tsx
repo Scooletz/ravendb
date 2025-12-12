@@ -503,7 +503,7 @@ function ScriptSyntaxHelp() {
             <div>
                 Sample schema for a document in the <code>Employees</code> collection:
             </div>
-            <Code code={employeeSchema} language="javascript" elementToCopy={employeeSchema} />
+            <Code code={employeeSchema} language="json" />
         </div>
     );
 }

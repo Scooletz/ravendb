@@ -15,9 +15,9 @@ namespace Raven.Server.Documents.Handlers.Processors.Revisions
 
         protected override Task RevertDocumentsAsync(Dictionary<string, string> idToChangeVector, OperationCancelToken token)
         {
-            if(RequestHandler.Database.SchemaValidatorCache.Disabled == false)
+            if (RequestHandler.Database.SchemaValidatorCache is { Disabled: false })
                 throw new InvalidOperationException("Reverting documents to revisions is not allowed when Schema Validation is enabled. Please disable Schema Validation and try again.");
-                
+
             return RequestHandler.Database.DocumentsStorage.RevisionsStorage.RevertDocumentsToRevisionsAsync(idToChangeVector, token);
         }
     }

@@ -73,4 +73,6 @@ public enum LicenseAttribute
     GenAi,
     AiAgent,
     SchemaValidation,
+    RemoteAttachments,
+    AiAssistant,
 }
