@@ -43,12 +43,12 @@ namespace Corax.Indexing
         private readonly HashSet<Slice> _indexedEntries = new(SliceComparer.Instance);
         private readonly IndexFieldsMapping _fieldsMapping;
         private readonly SupportedFeatures _supportedFeatures;
-        
+
         // Structures used for document boosting. BoostedDocs is an in-memory cache for all documents that have been boosted during indexing.
         // DocumentBoost is a fixed tree that contains persisted boost values.
         private FixedSizeTree _documentBoost;
         private List<(DocumentEntryId EntryId, float Boost)> _boostedDocs;
-        
+
         private Tree _indexMetadata;
         private long _numberOfTermModifications;
 
@@ -67,7 +67,7 @@ namespace Corax.Indexing
 
         // For testing purposes only. 
         private bool _ownsTransaction;
-        
+
         private JsonOperationContext _jsonOperationContext;
         private readonly Transaction _transaction;
 
@@ -87,18 +87,18 @@ namespace Corax.Indexing
 
         private long _compactTreeDictionaryId = Constants.IndexSearcher.InvalidId;
         private EntriesToTermsTracker _entriesToTermsTracker;
-        
+
         //Number of entries persisted on the disk on index writer initialization.
         private long _initialNumberOfEntries;
-        
+
         private readonly IndexOperationsDumper _indexDebugDumper;
 
         // Encoder for the posting list.
         private FastPForEncoder _pForEncoder;
-        
+
         // The last entry id (with the highest ID) that was added to the index.
         private long _lastEntryId;
-        
+
         private ContextBoundNativeList<long> _tempListBuffer;
 
         // This is used for keeping track terms per document. The value is an entry ID of an indexed document, where the index is a reference to the actual list of terms.
@@ -108,17 +108,17 @@ namespace Corax.Indexing
         // _termsPerEntryId: [0: [(id(): "Doc1"), (Field1: "Term1")], ...]
         private NativeList<DocumentEntryId> _termsPerEntryIds;
         private NativeList<NativeList<RecordedTerm>> _termsPerEntryId;
-        
+
         // Private context used by the index writer to store temporary data during an indexing process. We do not want to grow transaction's allocator too much for temporary data.
         private ByteStringContext _entriesAllocator;
-        
+
         // Tree that contains mapping Field -> LookupTree
         private Tree _fieldsTree;
-        
+
         // Used to keep track of ids of documents that have null value under certain field.
         // Mapping: [Field] -> [List of ids that have null under a field]
         private Tree _nullEntriesPostingListsTree;
-        
+
         // Used to keep track of ids of documents that have no-value under certain field.
         // Mapping: [Field] -> [List of ids that have no-value under a field]
         private Tree _nonExistingEntriesPostingListsTree;
@@ -147,15 +147,15 @@ namespace Corax.Indexing
         private HashSet<long> _nullTermsMarkers;
         private HashSet<long> _nonExistingTermsMarkers;
         private Dictionary<long, IndexedField> _fieldsByRootPage;
-        
+
         /// <summary>
         /// Context used by analyzers during indexing.
         /// </summary>
         private readonly AnalyzersContext _analyzersContext;
-        
+
         internal EntryIdPaginationSupportStatus PaginationBasedOnEntryIdSupportStatus { get; private set; }
-        
-        
+
+
         private FieldBuffers<Slice, CompactTree.CompactKeyLookup> _textualFieldBuffers;
         private FieldBuffers<long, Int64LookupKey> _longFieldBuffers;
         private FieldBuffers<double, DoubleLookupKey> _doubleFieldBuffers;
@@ -235,7 +235,7 @@ namespace Corax.Indexing
 
             _indexMetadata = _transaction.CreateTree(Constants.IndexMetadataSlice);
             Debug.Assert(_indexMetadata is not null);
-            
+
             _initialNumberOfEntries = _indexMetadata.ReadInt64(Constants.IndexWriter.NumberOfEntriesSlice) ?? 0;
             var paginationBasedOnEntryIdSupportStatus = _indexMetadata.ReadInt64(Constants.IndexWriter.PaginationBasedOnEntryIdSupportStatus);
             if (paginationBasedOnEntryIdSupportStatus.HasValue == false)
@@ -300,7 +300,7 @@ namespace Corax.Indexing
                 field.TermsVectorFieldRootPage = _fieldsCache.GetFieldRootPage(storedName, _fieldsTree);
             }
         }
-        
+
         public IndexEntryBuilder Update(ReadOnlySpan<byte> key)
         {
             // We do not dispose because we will be storing the slice in the hash set.
@@ -314,7 +314,7 @@ namespace Corax.Indexing
             {
                 entryId = InitBuilder();
             }
-            
+
 
 
             _indexedEntries.Add(keySlice); // Register entry by key.
@@ -460,7 +460,7 @@ namespace Corax.Indexing
                 return field;
             }
         }
-        
+
         private void AddSuggestions(IndexedField field, Slice slice)
         {
             _hasSuggestions = true;
@@ -602,7 +602,7 @@ namespace Corax.Indexing
                     PortableExceptions.ThrowIfNot<InvalidOperationException>(exists, "Tried to remove vector but couldn't find the associated indexed field.");
                     var vectorIndexer = field!.GetVectorIndexer(_transaction.LowLevelTransaction);
                     Debug.Assert(vectorIndexer != null && reader.StoredField is { Length: 32 });
-                    vectorIndexer.Remove(entryToDelete, reader.StoredField.Value.ToSpan());
+                    vectorIndexer.Remove((long)entryToDelete, reader.StoredField.Value.ToSpan());
                 }
 
                 Container.Delete(llt, _storedFieldsContainerId, new ContainerEntryId(reader.TermId));
@@ -1306,7 +1306,7 @@ namespace Corax.Indexing
             // existing: [ 10 .. 20 ], removals: [], additions: [ 30 .. 40 ], so result should be [ 10 .. 40 ]
             // In all other scenarios, we have to sort and remove duplicates & removals
             var needSorting = entries.Removals.Count > 0 || // any removal force sorting
-                              // here we test if the first new addition is smaller than the largest existing, requiring sorting  
+                                                            // here we test if the first new addition is smaller than the largest existing, requiring sorting  
                               (entries.Additions.Count > 0 && additions[0] <= _smallPostingListWorkingBuffer.RawItems[_smallPostingListWorkingBuffer.Count - 1]);
 
             _smallPostingListWorkingBuffer.AddRange(new ReadOnlySpan<long>(additions, entries.Additions.Count));
@@ -1422,7 +1422,7 @@ namespace Corax.Indexing
                 if (isIncluded == false)
                 {
                     // We are not processing recorded terms for this document because it already exists on the disk. We do not have to know the actual term type.
-                    entries.Addition(_entriesAllocator, existingEntryId, -1, existingFrequency, InserterMode.Ignore); 
+                    entries.Addition(_entriesAllocator, existingEntryId, -1, existingFrequency, InserterMode.Ignore);
                 }
             }
 
@@ -1437,7 +1437,7 @@ namespace Corax.Indexing
         /// <param name="Operation">Operation to perform.</param>
         /// <param name="TermId">Encoded location of the posting list / single document.</param>
         private record struct LookupTreeOperationJob(AddEntriesToTermResult Operation, long TermId);
-        
+
         private AddEntriesToTermResult AddEntriesToTermResultViaLargePostingList(ref EntriesModifications entries, out long termId, bool isNullTerm, long id)
         {
             var containerId = EntryIdEncodings.GetContainerId(id);
