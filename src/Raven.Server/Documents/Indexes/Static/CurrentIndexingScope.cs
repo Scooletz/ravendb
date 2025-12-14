@@ -299,8 +299,8 @@ namespace Raven.Server.Documents.Indexes.Static
             var validators = Current.Index._schemaValidators;
             if (validators == null)
             {
-                var validatorCache = QueryContext.Documents.DocumentDatabase.SchemaValidatorCache;
-                return validatorCache.Validate(collection, doc, errorBuilder);
+                var schemaValidatorCache = QueryContext.Documents.DocumentDatabase.SchemaValidatorCache;
+                return schemaValidatorCache.Validate(collection, doc, errorBuilder);
             }
             
             return validators.TryGet(collection, out var validator) == false

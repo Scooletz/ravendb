@@ -74,6 +74,8 @@ import deleteRevisionsForDocumentsCommand = require("commands/database/documents
 import getRevisionsIdsCommand from "commands/database/documents/getRevisionsIdsCommand";
 import getDocumentWithMetadataCommand = require("commands/database/documents/getDocumentWithMetadataCommand");
 import getDocumentsByIDPrefixCommand = require("commands/database/documents/getDocumentsByIDPrefixCommand");
+import getRemoteAttachmentsConfigurationCommand from "commands/database/settings/getRemoteAttachmentsConfigurationCommand";
+import saveRemoteAttachmentsConfigurationCommand from "commands/database/settings/saveRemoteAttachmentsConfigurationCommand";
 import getSchemaValidationCommand from "commands/database/settings/getSchemaValidationCommand";
 import saveSchemaValidationCommand from "commands/database/settings/saveSchemaValidationCommand";
 import validateSchemaCommand from "commands/database/settings/validateSchemaCommand";
@@ -357,6 +359,18 @@ export default class DatabasesService {
 
     async getDocumentWithMetadata(...args: ConstructorParameters<typeof getDocumentWithMetadataCommand>) {
         return new getDocumentWithMetadataCommand(...args).execute();
+    }
+
+    async getRemoteAttachmentsConfiguration(
+        ...args: ConstructorParameters<typeof getRemoteAttachmentsConfigurationCommand>
+    ) {
+        return new getRemoteAttachmentsConfigurationCommand(...args).execute();
+    }
+
+    async saveRemoteAttachmentsConfiguration(
+        ...args: ConstructorParameters<typeof saveRemoteAttachmentsConfigurationCommand>
+    ) {
+        return new saveRemoteAttachmentsConfigurationCommand(...args).execute();
     }
 
     async getSchemaValidation(...args: ConstructorParameters<typeof getSchemaValidationCommand>) {

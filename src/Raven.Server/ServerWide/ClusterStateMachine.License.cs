@@ -69,6 +69,7 @@ public sealed partial class ClusterStateMachine
         nameof(AddGenAiCommand),
         nameof(AddOrUpdateAiAgentCommand),
         nameof(AddSnowflakeEtlCommand),
+        nameof(EditRemoteAttachmentsCommand),
         nameof(EditSchemaValidationConfigurationCommand),
     };
 
@@ -194,6 +195,9 @@ public sealed partial class ClusterStateMachine
                 if (AssertClientConfiguration(serverStore.LicenseManager.LicenseStatus, context) == false)
                     throw new LicenseLimitException(LimitType.ClientConfiguration, "Your license doesn't support adding the client configuration.");
                 break;
+            case nameof(EditRemoteAttachmentsCommand):
+                AssertRemoteAttachmentsConfiguration(databaseRecord, serverStore.LicenseManager.LicenseStatus, context);
+                break;
             case nameof(EditSchemaValidationConfigurationCommand):
                 AssertSchemaValidationConfiguration(databaseRecord, serverStore.LicenseManager.LicenseStatus, context);
                 break;
@@ -263,6 +267,7 @@ public sealed partial class ClusterStateMachine
             AssertGenAi(databaseRecord, newLicenseLimits, context);
             AssertAiAgent(databaseRecord, newLicenseLimits, context);
             AssertDocumentsCompressionLicenseLimits(databaseRecord, newLicenseLimits, context);
+            AssertRemoteAttachmentsConfiguration(databaseRecord, newLicenseLimits, context);
             AssertSchemaValidationConfiguration(databaseRecord, newLicenseLimits, context);
         }
     }
@@ -1225,6 +1230,17 @@ public sealed partial class ClusterStateMachine
 
         if (licenseStatus.HasSnmpMonitoring == false)
             throw new LicenseLimitException(LimitType.Snmp, message);
+    }
+
+    private void AssertRemoteAttachmentsConfiguration(DatabaseRecord databaseRecord, LicenseStatus licenseStatus, ClusterOperationContext context)
+    {
+        if (licenseStatus.HasRemoteAttachments)
+            return;
+
+        if (databaseRecord.RemoteAttachments == null || databaseRecord.RemoteAttachments.HasDestination())
+            return;
+
+        throw new LicenseLimitException(LimitType.RemoteAttachments, "Your license doesn't support adding the remote attachments configuration.");
     }
 
     private void AssertSchemaValidationConfiguration(DatabaseRecord databaseRecord, LicenseStatus licenseStatus, ClusterOperationContext context)
