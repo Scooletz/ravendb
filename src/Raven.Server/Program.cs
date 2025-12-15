@@ -50,6 +50,17 @@ namespace Raven.Server
 
         public static unsafe int Main(string[] args)
         {
+            using var termSignalRegistration =
+                PosixSignalRegistration.Create(
+                    PosixSignal.SIGTERM,
+                    (_) => Environment.Exit(0));
+
+            // Replicates the previous behavior on Windows
+            using var sigHupSignalRegistration =
+                PosixSignalRegistration.Create(
+                    PosixSignal.SIGHUP,
+                    (_) => Environment.Exit(0));
+
             bool useLegacyHttpClientFactory = false;
             var useLegacyHttpClientFactoryAsString = Environment.GetEnvironmentVariable("RAVEN_HTTP_USELEGACYHTTPCLIENTFACTORY");
             if (useLegacyHttpClientFactoryAsString != null && bool.TryParse(useLegacyHttpClientFactoryAsString, out useLegacyHttpClientFactory) == false)
@@ -326,7 +337,7 @@ namespace Raven.Server
                                     $"1) Change the ServerUrl property in setting.json file.{Environment.NewLine}" +
                                     $"2) Run the server from the command line with --ServerUrl option.{Environment.NewLine}" +
                                     $"3) Add RAVEN_ServerUrl to the Environment Variables.{Environment.NewLine}" +
-                                    "For more information go to https://ravendb.net/l/EJS81M/7.1";
+                                    "For more information go to https://ravendb.net/l/EJS81M/7.2";
                             }
                             else if (e is SocketException && PlatformDetails.RunningOnPosix)
                             {

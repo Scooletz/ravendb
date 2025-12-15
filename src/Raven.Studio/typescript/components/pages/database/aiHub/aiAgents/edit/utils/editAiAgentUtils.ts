@@ -8,6 +8,7 @@ function mapFromDto(
         return {
             name: "",
             identifier: "",
+            state: "Enabled",
             connectionStringName: "",
             systemPrompt: "",
             sampleObject: "",
@@ -33,6 +34,7 @@ function mapFromDto(
     return {
         name: isClone ? "" : dto.Name,
         identifier: isClone ? "" : dto.Identifier,
+        state: dto.Disabled ? "Disabled" : "Enabled",
         connectionStringName: dto.ConnectionStringName,
         systemPrompt: dto.SystemPrompt,
         sampleObject: dto.SampleObject,
@@ -101,6 +103,7 @@ function mapToDto(formData: EditAiAgentFormData): Raven.Client.Documents.Operati
         Identifier: formData.identifier,
         ConnectionStringName: formData.connectionStringName,
         SystemPrompt: formData.systemPrompt,
+        Disabled: formData.state === "Disabled",
         OutputSchema: formData.outputSchema,
         SampleObject: formData.sampleObject,
         Parameters:
