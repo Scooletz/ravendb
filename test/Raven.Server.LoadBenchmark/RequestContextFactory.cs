@@ -41,7 +41,7 @@ namespace Raven.Server.LoadBenchmark
             };
 
             httpContext.Request.Headers.Host = httpContext.Request.Host.Value;
-            
+
             // Use a memory stream for response body to absorb output
             var responseStream = new MemoryStream();
             httpContext.Response.Body = responseStream;

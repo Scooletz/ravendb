@@ -39,7 +39,7 @@ namespace Raven.Server.LoadBenchmark
         public void IncrementInFlight()
         {
             var current = Interlocked.Increment(ref _currentInFlight);
-            
+
             // Update max
             long max;
             do
@@ -68,7 +68,7 @@ namespace Raven.Server.LoadBenchmark
             {
                 var sortedLatencies = _latenciesMs.OrderBy(x => x).ToArray();
                 var totalRequests = _successCount + _failureCount;
-                
+
                 return new MetricsSummary
                 {
                     TotalRequests = totalRequests,

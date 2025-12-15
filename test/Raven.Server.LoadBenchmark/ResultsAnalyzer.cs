@@ -70,7 +70,7 @@ namespace Raven.Server.LoadBenchmark
             {
                 var summary = results[level];
                 var kneeMarker = kneePoints.Contains(level) ? " <- KNEE" : "";
-                
+
                 Console.WriteLine(
                     $"{level,-12} " +
                     $"{summary.P50,-10:F2} " +
@@ -108,7 +108,7 @@ namespace Raven.Server.LoadBenchmark
         private static void ExportToCsv(BenchmarkMode mode, Dictionary<int, MetricsSummary> results, string filePath)
         {
             using var writer = new System.IO.StreamWriter(filePath);
-            
+
             // Header
             writer.WriteLine("LoadLevel,P50,P90,P95,P99,Max,ErrorRate,AchievedRps,AvgInFlight,MaxInFlight");
 

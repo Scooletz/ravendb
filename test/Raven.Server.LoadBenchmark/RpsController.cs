@@ -75,15 +75,15 @@ namespace Raven.Server.LoadBenchmark
             while (!cancellationToken.IsCancellationRequested)
             {
                 var now = sw.Elapsed.TotalMilliseconds;
-                
+
                 if (now >= nextRequestTime)
                 {
                     // Launch a new request
                     var task = ExecuteRequestAsync(metrics);
                     activeTasks.Add(task);
-                    
+
                     nextRequestTime += intervalMs;
-                    
+
                     // Clean up completed tasks periodically
                     if (activeTasks.Count > 1000)
                     {

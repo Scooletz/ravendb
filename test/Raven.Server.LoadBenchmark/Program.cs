@@ -133,7 +133,7 @@ namespace Raven.Server.LoadBenchmark
             configuration.Logs.Mode = LogMode.None;
             configuration.Core.RunInMemory = false;
             configuration.Core.ServerUrls = ["http://127.0.0.1:0"];
-            
+
             _pathToServer = NewDataPath("LoadBenchmark", 0, true);
             configuration.Core.DataDirectory = new PathSetting(_pathToServer);
 
@@ -174,7 +174,7 @@ namespace Raven.Server.LoadBenchmark
         private static async Task<DocumentDatabase> GetDatabaseAsync(RavenServer ravenServer, string databaseName)
         {
             var database = await ravenServer.ServerStore.DatabasesLandlord.TryGetOrCreateResourceStore(databaseName).ConfigureAwait(false);
-            if (database != null) 
+            if (database != null)
                 return database;
 
             throw new InvalidOperationException($"Failed to get or create database: {databaseName}");
@@ -195,7 +195,7 @@ namespace Raven.Server.LoadBenchmark
         private static void Cleanup()
         {
             Console.WriteLine("Cleaning up...");
-            
+
             try
             {
                 _store?.Dispose();
