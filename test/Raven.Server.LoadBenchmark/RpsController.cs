@@ -118,17 +118,17 @@ namespace Raven.Server.LoadBenchmark
                 metrics.IncrementInFlight();
 
             var ctx = _contextFactory.CreateContext();
-            var sw = Stopwatch.StartNew();
+            long startTimestamp = Stopwatch.GetTimestamp();
             try
             {
                 await _router.HandlePath(ctx);
-                sw.Stop();
-                metrics?.RecordSuccess(sw.Elapsed);
+                long elapsed = Stopwatch.GetTimestamp() - startTimestamp;
+                metrics?.RecordSuccess(elapsed);
             }
             catch (Exception e)
             {
-                sw.Stop();
-                metrics?.RecordFailure(e, sw.Elapsed);
+                long elapsed = Stopwatch.GetTimestamp() - startTimestamp;
+                metrics?.RecordFailure(e, elapsed);
             }
             finally
             {

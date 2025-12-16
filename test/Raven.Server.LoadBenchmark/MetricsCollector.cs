@@ -1,14 +1,15 @@
 using System;
-using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
+using HdrHistogram;
 
 namespace Raven.Server.LoadBenchmark
 {
     public sealed class MetricsCollector
     {
-        private readonly List<double> _latenciesMs = new();
-        private readonly object _lock = new();
+        private readonly ThreadLocal<LongHistogram> _threadLocalHistograms;
+        private readonly double _ticksToMicrosecondsRatio;
         private long _successCount;
         private long _failureCount;
         private long _currentInFlight;
@@ -16,24 +17,30 @@ namespace Raven.Server.LoadBenchmark
         private long _totalInFlightSamples;
         private long _inFlightSampleCount;
 
-        public void RecordSuccess(TimeSpan elapsed)
+        public MetricsCollector()
         {
-            var latencyMs = elapsed.TotalMilliseconds;
-            lock (_lock)
-            {
-                _latenciesMs.Add(latencyMs);
-                Interlocked.Increment(ref _successCount);
-            }
+            // Initialize thread-local histograms
+            // Track latencies from 1 microsecond to 1 minute with 3 significant digits
+            _threadLocalHistograms = new ThreadLocal<LongHistogram>(
+                () => new LongHistogram(1, 60_000_000, 3),
+                trackAllValues: true);
+
+            // Calculate the conversion ratio from ticks to microseconds
+            _ticksToMicrosecondsRatio = 1_000_000.0 / Stopwatch.Frequency;
         }
 
-        public void RecordFailure(Exception ex, TimeSpan elapsed)
+        public void RecordSuccess(long elapsedTicks)
         {
-            var latencyMs = elapsed.TotalMilliseconds;
-            lock (_lock)
-            {
-                _latenciesMs.Add(latencyMs);
-                Interlocked.Increment(ref _failureCount);
-            }
+            var latencyMicroseconds = (long)(elapsedTicks * _ticksToMicrosecondsRatio);
+            _threadLocalHistograms.Value.RecordValue(Math.Max(1, latencyMicroseconds));
+            Interlocked.Increment(ref _successCount);
+        }
+
+        public void RecordFailure(Exception ex, long elapsedTicks)
+        {
+            var latencyMicroseconds = (long)(elapsedTicks * _ticksToMicrosecondsRatio);
+            _threadLocalHistograms.Value.RecordValue(Math.Max(1, latencyMicroseconds));
+            Interlocked.Increment(ref _failureCount);
         }
 
         public void IncrementInFlight()
@@ -64,37 +71,30 @@ namespace Raven.Server.LoadBenchmark
 
         public MetricsSummary GetSummary(TimeSpan measurementDuration)
         {
-            lock (_lock)
+            // Merge all thread-local histograms
+            var mergedHistogram = new LongHistogram(1, 60_000_000, 3);
+            foreach (var histogram in _threadLocalHistograms.Values)
             {
-                var sortedLatencies = _latenciesMs.OrderBy(x => x).ToArray();
-                var totalRequests = _successCount + _failureCount;
-
-                return new MetricsSummary
-                {
-                    TotalRequests = totalRequests,
-                    SuccessCount = _successCount,
-                    FailureCount = _failureCount,
-                    ErrorRate = totalRequests > 0 ? (double)_failureCount / totalRequests : 0,
-                    AchievedRps = totalRequests / measurementDuration.TotalSeconds,
-                    P50 = GetPercentile(sortedLatencies, 0.50),
-                    P90 = GetPercentile(sortedLatencies, 0.90),
-                    P95 = GetPercentile(sortedLatencies, 0.95),
-                    P99 = GetPercentile(sortedLatencies, 0.99),
-                    Max = sortedLatencies.Length > 0 ? sortedLatencies[^1] : 0,
-                    AvgInFlight = _inFlightSampleCount > 0 ? (double)_totalInFlightSamples / _inFlightSampleCount : 0,
-                    MaxInFlight = _maxInFlight
-                };
+                mergedHistogram.Add(histogram);
             }
-        }
 
-        private static double GetPercentile(double[] sortedValues, double percentile)
-        {
-            if (sortedValues.Length == 0)
-                return 0;
+            var totalRequests = _successCount + _failureCount;
 
-            var index = (int)Math.Ceiling(percentile * sortedValues.Length) - 1;
-            index = Math.Max(0, Math.Min(index, sortedValues.Length - 1));
-            return sortedValues[index];
+            return new MetricsSummary
+            {
+                TotalRequests = totalRequests,
+                SuccessCount = _successCount,
+                FailureCount = _failureCount,
+                ErrorRate = totalRequests > 0 ? (double)_failureCount / totalRequests : 0,
+                AchievedRps = totalRequests / measurementDuration.TotalSeconds,
+                P50 = mergedHistogram.GetValueAtPercentile(50) / 1000.0, // Convert to milliseconds
+                P90 = mergedHistogram.GetValueAtPercentile(90) / 1000.0,
+                P95 = mergedHistogram.GetValueAtPercentile(95) / 1000.0,
+                P99 = mergedHistogram.GetValueAtPercentile(99) / 1000.0,
+                Max = mergedHistogram.GetMaxValue() / 1000.0,
+                AvgInFlight = _inFlightSampleCount > 0 ? (double)_totalInFlightSamples / _inFlightSampleCount : 0,
+                MaxInFlight = _maxInFlight
+            };
         }
     }
 

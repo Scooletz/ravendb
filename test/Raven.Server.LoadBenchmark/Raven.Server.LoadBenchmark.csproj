@@ -26,6 +26,10 @@
   </ItemGroup>
   
   <ItemGroup>
+    <PackageReference Include="HdrHistogram" />
+  </ItemGroup>
+  
+  <ItemGroup>
     <ProjectReference Include="..\..\src\Raven.Server\Raven.Server.csproj" />
     <ProjectReference Include="..\..\src\Raven.Client\Raven.Client.csproj" />
     <ProjectReference Include="..\..\src\Sparrow\Sparrow.csproj" />

@@ -9,7 +9,9 @@ This is an in-process load benchmark tool for testing `RequestRouter.HandlePath`
   - **RPS Mode**: Targets a specific requests-per-second rate
 
 - **Comprehensive Metrics Collection:**
-  - Latency percentiles (P50, P90, P95, P99, Max)
+  - Latency percentiles (P50, P90, P95, P99, Max) using HdrHistogram for accurate measurements
+  - High-resolution timing with `Stopwatch.GetTimestamp()`
+  - Thread-local histograms for lock-free recording
   - Error rates
   - Achieved throughput (RPS)
   - In-flight request tracking
@@ -127,7 +129,7 @@ This helps identify the "sweet spot" where increasing load starts to degrade per
 
 ### Key Components
 
-- **`MetricsCollector`**: Tracks per-request latencies, errors, and in-flight counts
+- **`MetricsCollector`**: Tracks per-request latencies using HdrHistogram with thread-local instances for lock-free recording, errors, and in-flight counts
 - **`ConcurrencyController`**: Maintains fixed concurrent request count
 - **`RpsController`**: Schedules requests at target RPS rate
 - **`RequestContextFactory`**: Creates synthetic `HttpContext` and `RequestHandlerContext`
@@ -143,12 +145,12 @@ This helps identify the "sweet spot" where increasing load starts to degrade per
 2. The controller calls `RequestRouter.HandlePath(context)` directly
 
 3. Metrics are collected for each request:
-   - Start time
+   - Start timestamp using `Stopwatch.GetTimestamp()`
    - Success or failure
-   - Elapsed time
+   - Elapsed time in ticks, converted to microseconds and recorded in thread-local HdrHistogram
    - Current in-flight count
 
-4. After all load levels complete, results are analyzed and printed
+4. After all load levels complete, thread-local histograms are merged and results are analyzed and printed
 
 ## Notes
 
