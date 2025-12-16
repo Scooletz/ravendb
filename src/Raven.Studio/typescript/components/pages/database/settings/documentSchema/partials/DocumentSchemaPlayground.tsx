@@ -77,7 +77,8 @@ function DocumentSchemaPlaygroundBody() {
             })
         );
         open({
-            component: <ValidationSchemaViewSheetPanel validators={validators} />,
+            component: <ValidationSchemaViewSheetPanel isPlayground validators={validators} />,
+            initialWidth: "40%",
         });
     };
 
