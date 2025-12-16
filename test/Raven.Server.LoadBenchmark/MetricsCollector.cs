@@ -9,9 +9,9 @@ namespace Raven.Server.LoadBenchmark
     public sealed class MetricsCollector
     {
         // Histogram configuration: track latencies from 1 microsecond to 1 minute with 3 significant digits
-        private const long HistogramLowestDiscernibleValue = 1;
-        private const long HistogramHighestTrackableValue = 60_000_000;
-        private const int HistogramNumberOfSignificantValueDigits = 3;
+        private const long LowestDiscernibleValue = 1;
+        private const long HighestTrackableValue = 60_000_000;
+        private const int NumberOfSignificantValueDigits = 3;
 
         // Conversion factor from microseconds to milliseconds
         private const double MicrosecondsToMilliseconds = 1000.0;
@@ -29,7 +29,7 @@ namespace Raven.Server.LoadBenchmark
         public MetricsCollector()
         {
             _threadLocalHistograms = new ThreadLocal<LongHistogram>(
-                () => new LongHistogram(HistogramLowestDiscernibleValue, HistogramHighestTrackableValue, HistogramNumberOfSignificantValueDigits),
+                () => new LongHistogram(LowestDiscernibleValue, HighestTrackableValue, NumberOfSignificantValueDigits),
                 trackAllValues: true);
         }
 
@@ -76,7 +76,7 @@ namespace Raven.Server.LoadBenchmark
         public MetricsSummary GetSummary(TimeSpan measurementDuration)
         {
             // Merge all thread-local histograms
-            var mergedHistogram = new LongHistogram(HistogramLowestDiscernibleValue, HistogramHighestTrackableValue, HistogramNumberOfSignificantValueDigits);
+            var mergedHistogram = new LongHistogram(LowestDiscernibleValue, HighestTrackableValue, NumberOfSignificantValueDigits);
             foreach (var histogram in _threadLocalHistograms.Values)
             {
                 mergedHistogram.Add(histogram);
