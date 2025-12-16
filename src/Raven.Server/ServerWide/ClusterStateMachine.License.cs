@@ -62,9 +62,14 @@ public sealed partial class ClusterStateMachine
         nameof(AddElasticSearchEtlCommand),
         nameof(AddQueueSinkCommand),
         nameof(UpdateQueueSinkCommand),
-        nameof(EditDataArchivalCommand),
         nameof(AddEmbeddingsGenerationCommand),
-        nameof(UpdateEmbeddingsGenerationCommand)
+        nameof(UpdateEmbeddingsGenerationCommand),
+        nameof(EditDataArchivalCommand),
+        nameof(UpdateGenAiCommand),
+        nameof(AddGenAiCommand),
+        nameof(AddOrUpdateAiAgentCommand),
+        nameof(AddSnowflakeEtlCommand),
+        nameof(EditRemoteAttachmentsCommand),
     };
 
     private void AssertLicenseLimits(string type, ServerStore serverStore, DatabaseRecord databaseRecord, Table items, ClusterOperationContext context, UpdateDatabaseCommand updateDatabaseCommand = null)
@@ -179,6 +184,7 @@ public sealed partial class ClusterStateMachine
                 AssertEmbeddingsGeneration(databaseRecord, serverStore.LicenseManager.LicenseStatus, context);
                 break;
             case nameof(AddGenAiCommand):
+            case nameof(UpdateGenAiCommand):
                 AssertGenAi(databaseRecord, serverStore.LicenseManager.LicenseStatus, context);
                 break;
             case nameof(AddOrUpdateAiAgentCommand):
@@ -187,6 +193,9 @@ public sealed partial class ClusterStateMachine
             case nameof(PutClientConfigurationCommand):
                 if (AssertClientConfiguration(serverStore.LicenseManager.LicenseStatus, context) == false)
                     throw new LicenseLimitException(LimitType.ClientConfiguration, "Your license doesn't support adding the client configuration.");
+                break;
+            case nameof(EditRemoteAttachmentsCommand):
+                AssertRemoteAttachmentsConfiguration(databaseRecord, serverStore.LicenseManager.LicenseStatus, context);
                 break;
         }
     }
@@ -251,9 +260,10 @@ public sealed partial class ClusterStateMachine
             AssertOlapEtlLicenseLimits(databaseRecord, newLicenseLimits, context);
             AssertSnowflakeEtl(databaseRecord, newLicenseLimits, context);
             AssertEmbeddingsGeneration(databaseRecord, newLicenseLimits, context);
-            AssertDocumentsCompressionLicenseLimits(databaseRecord, newLicenseLimits, context);
             AssertGenAi(databaseRecord, newLicenseLimits, context);
             AssertAiAgent(databaseRecord, newLicenseLimits, context);
+            AssertDocumentsCompressionLicenseLimits(databaseRecord, newLicenseLimits, context);
+            AssertRemoteAttachmentsConfiguration(databaseRecord, newLicenseLimits, context);
         }
     }
 
@@ -1036,6 +1046,9 @@ public sealed partial class ClusterStateMachine
         if (databaseRecord.SnowflakeEtls.Count == 0)
             return;
 
+        if (databaseRecord.SnowflakeEtls.All(x => x.Disabled))
+            return;
+
         throw new LicenseLimitException(LimitType.SnowflakeEtl, "Your license doesn't support using the Snowflake ETL feature.");
     }
 
@@ -1077,6 +1090,9 @@ public sealed partial class ClusterStateMachine
         if (databaseRecord.GenAis.Count == 0)
             return;
 
+        if (databaseRecord.GenAis.All(x => x.Disabled))
+            return;
+
         throw new LicenseLimitException(LimitType.GenAi, "Your license doesn't support using the AI Generation feature.");
     }
 
@@ -1088,7 +1104,10 @@ public sealed partial class ClusterStateMachine
         if (licenseStatus.HasAiAgent)
             return;
 
-        if (databaseRecord.AiAgents.Count == 0)
+        if (databaseRecord.AiAgents.All(x => x.Disabled))
+            return;
+
+        if (databaseRecord.AiAgents.All(x => false))
             return;
 
         throw new LicenseLimitException(LimitType.AiAgent, "Your license doesn't support using the AI Agent feature.");
@@ -1205,6 +1224,17 @@ public sealed partial class ClusterStateMachine
 
         if (licenseStatus.HasSnmpMonitoring == false)
             throw new LicenseLimitException(LimitType.Snmp, message);
+    }
+
+    private void AssertRemoteAttachmentsConfiguration(DatabaseRecord databaseRecord, LicenseStatus licenseStatus, ClusterOperationContext context)
+    {
+        if (licenseStatus.HasRemoteAttachments)
+            return;
+
+        if (databaseRecord.RemoteAttachments == null || databaseRecord.RemoteAttachments.HasDestination())
+            return;
+
+        throw new LicenseLimitException(LimitType.RemoteAttachments, "Your license doesn't support adding the remote attachments configuration.");
     }
 
     private enum DatabaseRecordElementType

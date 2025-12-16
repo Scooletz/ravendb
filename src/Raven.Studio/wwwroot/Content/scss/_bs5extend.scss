@@ -1,5 +1,4 @@
 @use "sass:color";
-
 @use "Content/scss/variables";
 
 // TODO replace all panels widh cards -> remove css
@@ -349,6 +348,11 @@ select {
     }
 }
 
+// Ensure dropdown menus are not clipped by sibling items in virtualized lists
+.virtual-item:has(.dropdown.show) {
+    z-index: 1;
+}
+
 // remove padding top from modal footer
 .modal-footer {
     padding-top: 0;
@@ -690,4 +694,11 @@ $filtering-input-bg: $toggle-bg !default;
         opacity: 1;
         transition: none;
     }
+}
+
+.ai-gradient::before {
+    background: var(--ai-gradient);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
 }

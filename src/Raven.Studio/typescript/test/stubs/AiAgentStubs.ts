@@ -60,6 +60,7 @@ export class AiAgentStubs {
                     ChatTrimming: null,
                     MaxModelIterationsPerCall: null,
                     SubAgents: [],
+                    Disabled: false,
                 },
             ],
         };

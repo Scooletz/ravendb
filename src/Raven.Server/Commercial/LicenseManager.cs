@@ -15,8 +15,10 @@ using Raven.Client;
 using Raven.Client.Documents.Conventions;
 using Raven.Client.Documents.Indexes;
 using Raven.Client.Documents.Operations.AI;
+using Raven.Client.Documents.Operations.AI.Agents;
 using Raven.Client.Documents.Operations.Backups;
 using Raven.Client.Documents.Operations.ETL;
+using Raven.Client.Documents.Operations.ETL.Snowflake;
 using Raven.Client.Documents.Operations.ETL.SQL;
 using Raven.Client.Documents.Operations.Replication;
 using Raven.Client.Documents.Operations.TimeSeries;
@@ -119,9 +121,9 @@ namespace Raven.Server.Commercial
             _licenseHelper = new LicenseHelper(serverStore);
             _skipLeasingErrorsLogging = serverStore.Configuration.Licensing.SkipLeasingErrorsLogging;
         }
-
+        
         public bool IsEulaAccepted => _eulaAcceptedButHasPendingRestart || _serverStore.Configuration.Licensing.EulaAccepted;
-
+        
         public void Initialize(StorageEnvironment environment, TransactionContextPool contextPool)
         {
             try
@@ -1150,6 +1152,7 @@ namespace Raven.Server.Commercial
             var dynamicNodesDistributionCount = 0;
             var additionalAssembliesFromNuGetCount = 0;
             var revisionCompressionCount = 0;
+            var remoteAttachmentsCount = 0;
 
             using (_serverStore.ContextPool.AllocateOperationContext(out TransactionOperationContext context))
             using (context.OpenReadTransaction())
@@ -1228,6 +1231,10 @@ namespace Raven.Server.Commercial
                     if (databaseRecord.AiAgents != null &&
                         databaseRecord.AiAgents.Count > 0)
                         aiAgentCount++;
+
+                    if (databaseRecord.RemoteAttachments != null &&
+                        databaseRecord.RemoteAttachments.HasDestination())
+                        remoteAttachmentsCount++;
 
                     var backupTypes = GetBackupTypes(databaseRecord.PeriodicBackups);
                     if (backupTypes.HasSnapshotBackup)
@@ -1371,6 +1378,12 @@ namespace Raven.Server.Commercial
             {
                 var message = GenerateDetails(revisionCompressionCount, "Revision compression");
                 throw GenerateLicenseLimit(LimitType.DocumentsCompression, message);
+            }
+
+            if (remoteAttachmentsCount > 0 && newLicenseStatus.HasRemoteAttachments == false)
+            {
+                var  message = GenerateDetails(remoteAttachmentsCount, "Remote attachments");
+                throw GenerateLicenseLimit(LimitType.RemoteAttachments, message);
             }
         }
 
@@ -1690,14 +1703,17 @@ namespace Raven.Server.Commercial
             throw GenerateLicenseLimit(LimitType.QueueEtl, message);
         }
         
-        public void AssertCanAddSnowflakeEtl()
+        public void AssertCanAddSnowflakeEtl(SnowflakeEtlConfiguration configuration)
         {
             if (IsValid(out var licenseLimit) == false)
                 throw licenseLimit;
 
             if (LicenseStatus.HasSnowflakeEtl)
                 return;
-            
+
+            if (configuration.Disabled)
+                return;
+
             const string message = "Your current license doesn't include the Snowflake ETL feature";
             throw GenerateLicenseLimit(LimitType.SnowflakeEtl, message);
         }
@@ -1717,7 +1733,7 @@ namespace Raven.Server.Commercial
             throw GenerateLicenseLimit(LimitType.EmbeddingsGeneration, message);
         }
 
-        public void AssertCanAddGenAiTask()
+        public void AssertCanAddGenAiTask(GenAiConfiguration genAiConfiguration)
         {
             if (IsValid(out var licenseLimit) == false)
                 throw licenseLimit;
@@ -1725,11 +1741,14 @@ namespace Raven.Server.Commercial
             if (LicenseStatus.HasGenAi)
                 return;
 
+            if (genAiConfiguration.Disabled)
+                return;
+
             const string message = "Your current license doesn't include the Gen AI feature";
             throw GenerateLicenseLimit(LimitType.GenAi, message);
         }
 
-        public void AssertCanAddAiAgentTask()
+        public void AssertCanAddAiAgentTask(AiAgentConfiguration  aiAgentConfiguration)
         {
             if (IsValid(out var licenseLimit) == false)
                 throw licenseLimit;
@@ -1737,8 +1756,23 @@ namespace Raven.Server.Commercial
             if (LicenseStatus.HasAiAgent)
                 return;
 
+            if (aiAgentConfiguration.Disabled)
+                return;
+
             const string message = "Your current license doesn't include the AI Agent feature";
             throw GenerateLicenseLimit(LimitType.AiAgent, message);
+        }
+
+        public void AssertCanUseAiAssistant()
+        {
+            if (IsValid(out var licenseLimit) == false)
+                throw licenseLimit;
+
+            if (LicenseStatus.HasAiAssistant)
+                return;
+
+            const string message = "Your current license doesn't include the AI Assistant feature";
+            throw GenerateLicenseLimit(LimitType.AiAssistant, message);
         }
 
         public void AssertCanAddConcurrentDataSubscriptions()
@@ -1791,6 +1825,18 @@ namespace Raven.Server.Commercial
 
             const string details = "Your current license doesn't include the read-only certificates feature";
             throw GenerateLicenseLimit(LimitType.ReadOnlyCertificates, details);
+        }
+
+        public void AssertCanAddRemoteAttachments()
+        {
+            if (IsValid(out var licenseLimit) == false)
+                throw licenseLimit;
+
+            if (LicenseStatus.HasRemoteAttachments)
+                return;
+
+            const string details = "Your current license doesn't include the remote attachments feature";
+            throw GenerateLicenseLimit(LimitType.RemoteAttachments, details);
         }
 
         public bool CanUseOpenTelemetryMonitoring(bool withNotification, bool metersRegistered)

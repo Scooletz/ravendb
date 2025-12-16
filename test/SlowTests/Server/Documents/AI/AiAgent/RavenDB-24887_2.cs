@@ -280,7 +280,7 @@ public class RavenDB_24887_2(ITestOutputHelper output) : RavenTestBase(output)
         var chat = store.AI.Conversation(identifier, "chats/1",
             new AiConversationCreationOptions().AddParameter("userId", "Users/1"));
         chat.SetUserPrompt("Whats my name and my favorite genres?");
-        var e = await Assert.ThrowsAsync<RavenException>(() => chat.RunAsync<MoviesSampleObject>());
+        var e = await Assert.ThrowsAsync<AiException>(() => chat.RunAsync<MoviesSampleObject>());
         Assert.Contains("Failed to 'talk' with the agent 'movies-agent'", e.Message);
         Assert.True(e.Message.Contains("Failed to 'talk' with the agent 'user-info-agent'") ||
                     e.Message.Contains("Failed to 'talk' with the agent 'recommendation-agent'"), e.Message);
@@ -1129,7 +1129,7 @@ public class RavenDB_24887_2(ITestOutputHelper output) : RavenTestBase(output)
         // error
         throwEx = true;
         chat.SetUserPrompt("Whats my name and my favorite genres?");
-        var e = await Assert.ThrowsAsync<RavenException>(() => chat.RunAsync<MoviesSampleObject>());
+        var e = await Assert.ThrowsAsync<AiException>(() => chat.RunAsync<MoviesSampleObject>());
         Assert.Contains("Failed to 'talk' with the agent 'movies-agent'", e.Message);
         Assert.True(e.Message.Contains("Failed to 'talk' with the agent 'user-info-agent'") ||
                     e.Message.Contains("Failed to 'talk' with the agent 'recommendation-agent'"), e.Message);
