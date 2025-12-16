@@ -158,7 +158,7 @@ namespace SlowTests.Server.Documents.AI.AiAgent
 
             var chat = store.AI.Conversation(agentId, "chats/", new AiConversationCreationOptions());
             chat.AddUserPrompt(Array.Empty<string>());
-            var e = await Assert.ThrowsAsync<RavenException>(() => chat.RunAsync<OutputSchema>());
+            var e = await Assert.ThrowsAsync<AiException>(() => chat.RunAsync<OutputSchema>());
             Assert.Contains("without a user prompt.", e.Message);
         }
 
@@ -206,7 +206,7 @@ namespace SlowTests.Server.Documents.AI.AiAgent
 
             var chat = store.AI.Conversation(agentId, "chats/", new AiConversationCreationOptions());
             chat.AddUserPrompt(new List<string>());
-            var e = await Assert.ThrowsAsync<RavenException>(() => chat.RunAsync<OutputSchema>());
+            var e = await Assert.ThrowsAsync<AiException>(() => chat.RunAsync<OutputSchema>());
             Assert.Contains("without a user prompt.", e.Message);
         }
 

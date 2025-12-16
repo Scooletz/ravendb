@@ -631,7 +631,7 @@ public class RavenDB_24887_3(ITestOutputHelper output) : RavenTestBase(output)
         // error
         throwEx = true;
         chat.SetUserPrompt("Whats my name and my favorite genres?");
-        var e = await Assert.ThrowsAsync<RavenException>(() => chat.RunAsync<MoviesSampleObject>());
+        var e = await Assert.ThrowsAsync<AiException>(() => chat.RunAsync<MoviesSampleObject>());
         Assert.Contains($"Failed to 'talk' with the agent '{userAgentId}'", e.Message);
 
         // Resume execution after an error
