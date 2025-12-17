@@ -79,6 +79,7 @@ namespace Raven.Server.Commercial
                 try
                 {
                     unsecuredSetupInfo.ValidateInfo(new CreateSetupPackageParameters { UnsecuredSetupInfo = unsecuredSetupInfo });
+                    ValidateUnsecuredServerCanRunWithSuppliedSettings(unsecuredSetupInfo);
                 }
                 catch (Exception e)
                 {
@@ -86,8 +87,6 @@ namespace Raven.Server.Commercial
                     
                     throw new AggregateException(e);
                 }
-
-                await ValidateUnsecuredServerCanRunWithSuppliedSettings(unsecuredSetupInfo, serverStore, token);
 
                 progress.Processed++;
                 progress.AddInfo("Validation is successful.");
@@ -554,8 +553,11 @@ namespace Raven.Server.Commercial
             throw new InvalidOperationException(msg, e);
         }
 
-        internal static Task ValidateUnsecuredServerCanRunWithSuppliedSettings(UnsecuredSetupInfo unsecuredSetupInfo, ServerStore serverStore, CancellationToken token)
+        private static void ValidateUnsecuredServerCanRunWithSuppliedSettings(UnsecuredSetupInfo unsecuredSetupInfo)
         {
+            if (unsecuredSetupInfo.ZipOnly)
+                return;
+            
             var localServerIp = unsecuredSetupInfo.NodeSetupInfos.Values.First();
             var nodes = unsecuredSetupInfo.NodeSetupInfos.Values.Where(x => x != localServerIp);
             try
@@ -582,8 +584,6 @@ namespace Raven.Server.Commercial
             {
                 throw new InvalidOperationException("Failed to validate running the server with the supplied settings: ", ex);
             }
-
-            return Task.CompletedTask;
         }
 
         internal static async Task ValidateServerCanRunWithSuppliedSettings(SetupInfo setupInfo, ServerStore serverStore, SetupMode setupMode, CancellationToken token)
