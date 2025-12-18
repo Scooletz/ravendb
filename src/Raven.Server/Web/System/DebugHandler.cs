@@ -10,6 +10,36 @@ namespace Raven.Server.Web.System
 {
     public sealed class DebugHandler : ServerRequestHandler
     {
+        private const string HtmlTemplate = @"<!DOCTYPE html>
+<html lang=""en"">
+<head>
+    <meta charset=""UTF-8"">
+    <meta name=""viewport"" content=""width=device-width, initial-scale=1.0"">
+    <title>RavenDB Debug Routes</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; background: #f5f5f5; padding: 20px; }
+        .container { max-width: 1000px; margin: 0 auto; }
+        h1 { color: #333; margin-bottom: 30px; font-size: 28px; }
+        h2 { color: #555; margin: 30px 0 15px 0; font-size: 20px; border-bottom: 2px solid #ddd; padding-bottom: 8px; }
+        .routes-container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .route-link { display: block; padding: 10px 15px; margin: 5px 0; background: #f9f9f9; border: 1px solid #e0e0e0; border-radius: 4px; color: #0066cc; text-decoration: none; transition: all 0.2s; }
+        .route-link:hover { background: #e8f4f8; border-color: #0066cc; transform: translateX(5px); }
+        .databases-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 15px; margin-top: 20px; }
+        .database-card { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .database-card h3 { color: #0066cc; font-size: 16px; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid #e0e0e0; word-break: break-word; }
+        .database-card .route-link { font-size: 13px; padding: 8px 12px; }
+        @media (max-width: 768px) {
+            .databases-grid { grid-template-columns: 1fr; }
+            .container { padding: 10px; }
+            h1 { font-size: 24px; }
+        }
+    </style>
+</head>
+<body>
+    <div class=""container"">
+        <h1>RavenDB Debug Routes (GET only)</h1>";
+
         [RavenAction("/debug/routes", "GET", AuthorizationStatus.ValidUser, EndpointType.Read)]
         public async Task Routes()
         {
@@ -113,36 +143,7 @@ namespace Raven.Server.Web.System
         private string GenerateRoutesHtml(List<RouteInformation> nonDatabaseRoutes, List<RouteInformation> databaseRoutes, List<string> databases)
         {
             var sb = new StringBuilder();
-            
-            sb.AppendLine("<!DOCTYPE html>");
-            sb.AppendLine("<html lang=\"en\">");
-            sb.AppendLine("<head>");
-            sb.AppendLine("    <meta charset=\"UTF-8\">");
-            sb.AppendLine("    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">");
-            sb.AppendLine("    <title>RavenDB Debug Routes</title>");
-            sb.AppendLine("    <style>");
-            sb.AppendLine("        * { margin: 0; padding: 0; box-sizing: border-box; }");
-            sb.AppendLine("        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; background: #f5f5f5; padding: 20px; }");
-            sb.AppendLine("        .container { max-width: 1000px; margin: 0 auto; }");
-            sb.AppendLine("        h1 { color: #333; margin-bottom: 30px; font-size: 28px; }");
-            sb.AppendLine("        h2 { color: #555; margin: 30px 0 15px 0; font-size: 20px; border-bottom: 2px solid #ddd; padding-bottom: 8px; }");
-            sb.AppendLine("        .routes-container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }");
-            sb.AppendLine("        .route-link { display: block; padding: 10px 15px; margin: 5px 0; background: #f9f9f9; border: 1px solid #e0e0e0; border-radius: 4px; color: #0066cc; text-decoration: none; transition: all 0.2s; }");
-            sb.AppendLine("        .route-link:hover { background: #e8f4f8; border-color: #0066cc; transform: translateX(5px); }");
-            sb.AppendLine("        .databases-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 15px; margin-top: 20px; }");
-            sb.AppendLine("        .database-card { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }");
-            sb.AppendLine("        .database-card h3 { color: #0066cc; font-size: 16px; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid #e0e0e0; word-break: break-word; }");
-            sb.AppendLine("        .database-card .route-link { font-size: 13px; padding: 8px 12px; }");
-            sb.AppendLine("        @media (max-width: 768px) {");
-            sb.AppendLine("            .databases-grid { grid-template-columns: 1fr; }");
-            sb.AppendLine("            .container { padding: 10px; }");
-            sb.AppendLine("            h1 { font-size: 24px; }");
-            sb.AppendLine("        }");
-            sb.AppendLine("    </style>");
-            sb.AppendLine("</head>");
-            sb.AppendLine("<body>");
-            sb.AppendLine("    <div class=\"container\">");
-            sb.AppendLine("        <h1>RavenDB Debug Routes (GET only)</h1>");
+            sb.Append(HtmlTemplate);
             
             // Non-database routes section
             sb.AppendLine("        <h2>Server Routes (No Database Required)</h2>");
