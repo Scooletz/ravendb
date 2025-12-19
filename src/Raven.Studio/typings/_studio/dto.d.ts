@@ -1129,7 +1129,7 @@ interface GetAiAgentResultDto {
     AiAgents: Raven.Client.Documents.Operations.AI.Agents.AiAgentConfiguration[];
 }
 
-type AiAssistantResponseStatus = "Success" | "InvalidCredentials" | "InvalidData" | "ConsentRequired" | "OutOfTokens" | "RequestTooLarge";
+type AiAssistantResponseStatus = "Success" | "InvalidCredentials" | "InvalidData" | "ConsentRequired" | "OutOfTokens" | "RequestTooLarge" | "Aborted" | "InternalError";
 
 interface ValidateSchemaRequestDto {
     SchemaDefinition: string;
