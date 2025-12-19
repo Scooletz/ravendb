@@ -129,7 +129,7 @@ function map(name, lambda) {
 
                 var referencedCollections = mapReferencedCollections[i].ReferencedCollections;
                 
-                if (mapReferencedCollections[i].HasLoadVector)
+                if (mapReferencedCollections[i].HasLoadVector && mapReferencedCollections[i].LoadVectorIsUsingDefaultCollection)
                     referencedCollections.Add(new(EmbeddingsHelper.GetEmbeddingDocumentCollectionName(mapCollection)));
 
                 if (referencedCollections.Count > 0)
@@ -401,6 +401,7 @@ function map(name, lambda) {
                 ReferencedCollections = loadVisitor.ReferencedCollection,
                 HasCompareExchangeReferences = loadVisitor.HasCompareExchangeReferences,
                 HasLoadVector = loadVisitor.HasLoadVector,
+                LoadVectorIsUsingDefaultCollection = loadVisitor.LoadVectorIsUsingDefaultCollection,
                 HasCreateVector = loadVisitor.HasCreateVector,
             };
         }
@@ -625,8 +626,12 @@ function createVector(value) {
     return { $vector: { $value: value } }
 }
 
-function loadVector(pathToEmbedding, aiTaskIdentifier) {
-    return { $loadvector: { $name: aiTaskIdentifier, $value: pathToEmbedding } }
+function loadVector(pathToEmbedding, aiTaskIdentifier, embeddingSourceDocumentId, embeddingSourceDocumentCollectionName) {
+    if (arguments.length == 2) {
+        return { $loadvector: { $name: aiTaskIdentifier, $value: pathToEmbedding } }
+    }
+    
+    return { $loadvector: { $name: aiTaskIdentifier, $value: pathToEmbedding, $embeddingSourceDocumentId: embeddingSourceDocumentId, $embeddingSourceDocumentCollectionName: embeddingSourceDocumentCollectionName } }
 }
 ";
 
@@ -655,6 +660,8 @@ function loadVector(pathToEmbedding, aiTaskIdentifier) {
             public bool HasLoadVector;
             
             public bool HasCreateVector;
+            
+            public bool LoadVectorIsUsingDefaultCollection;
         }
     }
 }
