@@ -1124,6 +1124,8 @@ export function SetupWizardNodeAddressStepFooter() {
                             <li>TCP port: {firstNode.tcpPort}</li>
                             <li>HTTPS port: {firstNode.httpPort}</li>
                         </ul>
+                        If you plan to deploy these nodes on a single machine, it will cause port conflict. 
+                        <br/>
                         Please confirm that these settings are correct before proceeding to the next step.
                     </>
                 ),
