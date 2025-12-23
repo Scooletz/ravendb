@@ -163,22 +163,18 @@ function ServerEnvironmentSection({
                     <div>Studio environment</div>
                     <PopoverWithHoverWrapper
                         message={
-                            <SetupWizardInfoPopover
-                                description={
-                                    <>
-                                        <img
-                                            src={studioEnvironmentImage}
-                                            alt="studio-environment-image"
-                                            className="mb-2 w-100"
-                                        />
-                                        <span>
-                                            Studio environment allows you to add a visual identifier to the UI, making
-                                            it easier to distinguish between multiple environments when working
-                                            simultaneously.
-                                        </span>
-                                    </>
-                                }
-                            />
+                            <>
+                                <img
+                                    src={studioEnvironmentImage}
+                                    alt="studio-environment-image"
+                                    className="mb-2 w-100"
+                                />
+                                <span>
+                                    Studio environment allows you to add a visual identifier to the UI, making
+                                    it easier to distinguish between multiple environments when working
+                                    simultaneously.
+                                </span>
+                            </>
                         }
                         placement="right"
                     >
@@ -212,7 +208,9 @@ function CertificateExpirationSection({ control }: { control: Control<SetupWizar
                 Admin client certificate expiration time
                 <PopoverWithHoverWrapper
                     message={
-                        <SetupWizardInfoPopover description="This allows you to define how long the admin client certificate should be valid. By default, this value is set to 60 months." />
+                        <>
+                            This allows you to define how long the admin client certificate should be valid. By default, this value is set to 60 months.
+                        </>
                     }
                     placement="right"
                 >
@@ -261,7 +259,7 @@ function PostgreSqlIntegrationToggle({ control }: { control: Control<SetupWizard
                         PostgreSQL integration
                         <PopoverWithHoverWrapper
                             message={
-                                <SetupWizardInfoPopover description="Enabling this feature allows you to use RavenDB as a PostgreSQL server. You will also need a license that contains PostgreSQL Protocol." />
+                                <SetupWizardInfoPopover description="Enabling this feature allows you to use RavenDB as a PostgreSQL server. You will also need a license that contains PostgreSQL Protocol." ravenLinkHash="ZYZ5BL"/>
                             }
                             placement="right"
                         >
@@ -353,7 +351,7 @@ function AdvancedSettingsContent({ control, isVisible }: AdvancedSettingsContent
                         conditions={{
                             isActive: isVisible,
                             message: (
-                                <SetupWizardInfoPopover description="Defines the path to the RavenDB data directory." />
+                                <SetupWizardInfoPopover description="Defines the path to the RavenDB data directory." ravenLinkHash="ERWCII" />
                             ),
                         }}
                         popoverPlacement="right"
@@ -385,7 +383,7 @@ function AdvancedSettingsContent({ control, isVisible }: AdvancedSettingsContent
                                 conditions={{
                                     isActive: isVisible,
                                     message: (
-                                        <SetupWizardInfoPopover description="Indicates where the server certificate will be saved on your system. Make sure the location is accessible and has the required write permissions" />
+                                        <SetupWizardInfoPopover description="Indicates where the server certificate will be saved on your system. Make sure the location is accessible and has the required write permissions" ravenLinkHash="MX49FC" />
                                     ),
                                 }}
                                 popoverPlacement="right"
@@ -415,7 +413,7 @@ function AdvancedSettingsContent({ control, isVisible }: AdvancedSettingsContent
                     <ConditionalPopover
                         conditions={{
                             isActive: isVisible,
-                            message: <SetupWizardInfoPopover description="Defines the path to the logs directory." />,
+                            message: <SetupWizardInfoPopover description="Defines the path to the logs directory." ravenLinkHash="X5KT91" />,
                         }}
                         popoverPlacement="right"
                     >
@@ -444,7 +442,7 @@ function AdvancedSettingsContent({ control, isVisible }: AdvancedSettingsContent
                         conditions={{
                             isActive: isVisible,
                             message: (
-                                <SetupWizardInfoPopover description="Defines the indexing engine used for auto indexes in RavenDB." />
+                                <SetupWizardInfoPopover description="Defines the indexing engine used for auto indexes in RavenDB." ravenLinkHash="APN6ZH" />
                             ),
                         }}
                         popoverPlacement="right"
@@ -466,7 +464,7 @@ function AdvancedSettingsContent({ control, isVisible }: AdvancedSettingsContent
                         conditions={{
                             isActive: isVisible,
                             message: (
-                                <SetupWizardInfoPopover description="Defines the indexing engine used for static indexes in RavenDB." />
+                                <SetupWizardInfoPopover description="Defines the indexing engine used for static indexes in RavenDB." ravenLinkHash="APN6ZH" />
                             ),
                         }}
                         popoverPlacement="right"

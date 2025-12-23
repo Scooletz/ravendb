@@ -160,7 +160,7 @@ export function SetupWizardUsePackageStep() {
                             <div>Node tag</div>
                             <PopoverWithHoverWrapper
                                 message={
-                                    <SetupWizardInfoPopover description="Select which node of the predefined cluster would you like to set up now." />
+                                    <SetupWizardInfoPopover description="Select which node of the predefined cluster would you like to set up now." ravenLinkHash="TB36VS" />
                                 }
                             >
                                 <Icon icon="info-new" />

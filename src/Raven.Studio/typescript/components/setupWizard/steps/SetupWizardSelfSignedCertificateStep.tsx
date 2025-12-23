@@ -143,7 +143,7 @@ export function SetupWizardSelfSignedCertificateStep() {
                         Passphrase
                         <PopoverWithHoverWrapper
                             message={
-                                <SetupWizardInfoPopover description="Enter the passphrase used to encrypt your private key. This is required to unlock and use your certificate." />
+                                <SetupWizardInfoPopover description="Enter the passphrase used to encrypt your private key. This is required to unlock and use your certificate." ravenLinkHash="QQALA1" />
                             }
                         >
                             <Icon icon="info-new" />
@@ -165,7 +165,7 @@ export function SetupWizardSelfSignedCertificateStep() {
                         CN Names
                         <PopoverWithHoverWrapper
                             message={
-                                <SetupWizardInfoPopover description="The common name (CN) of the certificate. This is the name that will be displayed in the browser when you access the server." />
+                                <SetupWizardInfoPopover description="The common name (CN) of the certificate. This is the name that will be displayed in the browser when you access the server." ravenLinkHash="LRUM13" />
                             }
                         >
                             <Icon icon="info-new" />

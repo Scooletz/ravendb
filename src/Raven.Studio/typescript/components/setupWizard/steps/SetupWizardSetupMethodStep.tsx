@@ -149,6 +149,7 @@ export function SetupWizardSetupMethodStepFooter() {
                                 </SetupWizardStepItem>
                             </NumberedList>
                         }
+                        ravenLinkHash="SZN1PM"
                     />
                 }
             >
