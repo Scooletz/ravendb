@@ -453,10 +453,10 @@ function CompletedSummary() {
                         </Col>
                     </Row>
                     <hr />
-                    <h5>How to setup the other nodes?</h5>
+                    <h5>How to setup the cluster nodes?</h5>
                     <NumberedList>
                         <NumberedListItem stepKey={1}>
-                            The next step is to download a new RavenDB server for each of the other nodes.
+                            The next step is to download a new RavenDB server for each of the cluster nodes.
                         </NumberedListItem>
                         <NumberedListItem stepKey={2}>
                             When you enter the Setup Wizard on a new node, please choose &apos;
