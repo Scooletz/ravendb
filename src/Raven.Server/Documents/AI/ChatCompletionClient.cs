@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
@@ -626,9 +627,17 @@ internal class ChatCompletionClient : IDisposable
             await responseStream.CopyToAsync(ms, token);
             var contentLength = (int)ms.Position;
             ms.Position = 0;
+
             try
             {
                 return await context.ReadForMemoryAsync(ms, "response/object").ConfigureAwait(false);
+            }
+            catch (InvalidDataException ide) when (ide.Message.Contains("Cannot have a '<' in this position at  (1,2) around:")) // likely HTML response
+            {
+                ms.Position = 0;
+                string content = Encoding.UTF8.GetString(ms.GetMemory().Span[..contentLength]);
+
+                throw UnexpectedResponseException.Create(message: "Received an unrecognized response from the server", response, content);
             }
             catch (Exception e)
             {
