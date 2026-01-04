@@ -166,7 +166,7 @@ namespace Raven.Server.Smuggler.Documents
             return new DatabaseRecordActions(_writer, _context);
         }
 
-        public IDocumentActions Documents(bool throwOnDuplicateCollection)
+        public IDocumentActions Documents(bool throwOnDuplicateCollection, BackupKind? backupKind = null)
         {
             return new StreamDocumentActions(this, _writer, _context, _source, _options, _filterMetadataProperty, "Docs");
         }
@@ -389,6 +389,13 @@ namespace Raven.Server.Smuggler.Documents
                     WriteShardingConfiguration(databaseRecord.Sharding);
                 }
 
+                if (databaseRecord.SchemaValidation != null)
+                {
+                    _writer.WriteComma();
+                    _writer.WritePropertyName(nameof(databaseRecord.SchemaValidation));
+                    _context.Write(_writer, databaseRecord.SchemaValidation.ToJson());
+                }
+                
                 switch (authorizationStatus)
                 {
                     case AuthorizationStatus.DatabaseAdmin:
