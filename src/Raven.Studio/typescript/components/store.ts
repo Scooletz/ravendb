@@ -25,6 +25,7 @@ import { remoteAttachmentsSlice } from "./pages/database/settings/remoteAttachme
 import { aiAssistantSlice } from "./common/shell/aiAssistantSlice";
 import { chatbotSlice } from "./shell/chatbot/store/chatbotSlice";
 import { chatbotMiddleware } from "./shell/chatbot/store/chatbotMiddleware";
+import { documentSchemaSlice } from "components/pages/database/settings/documentSchema/store/documentSchemaSlice";
 
 const listenerMiddleware = createListenerMiddleware({
     extra: () => services,
@@ -52,6 +53,7 @@ export function createStoreConfiguration() {
             remoteAttachments: remoteAttachmentsSlice.reducer,
             aiAssistant: aiAssistantSlice.reducer,
             chatbot: chatbotSlice.reducer,
+            documentSchema: documentSchemaSlice.reducer,
         },
         middleware: (getDefaultMiddleware) =>
             getDefaultMiddleware({

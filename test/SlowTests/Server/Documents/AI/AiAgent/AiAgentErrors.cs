@@ -279,7 +279,7 @@ public class AiAgentErrors : RavenTestBase
         var e = await Assert.ThrowsAsync<AiException>(() => chat.RunAsync<CustomerOutputSchema>(CancellationToken.None));
         Assert.Contains("Cannot have a '<' in this position at", e.Message);
 
-        Assert.Contains("Cannot have a '<' in this position at", e.Message);
+        RavenTestHelper.AssertContainsRespectingNewLines("Received an unrecognized response from the server.\r\nStatus Code: NotFound\r\nResponse:\r\nStatusCode: 404, ReasonPhrase: 'Not Found'", e.Message);
     }
 
 
