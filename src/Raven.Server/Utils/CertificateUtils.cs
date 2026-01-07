@@ -192,7 +192,7 @@ namespace Raven.Server.Utils
                 $"{commonNameValue} CA",
                 out var caSubjectName,
                 log);
-            
+
             CreateSelfSignedCertificateBasedOnPrivateKey(
                 commonNameValue: commonNameValue,
                 issuerCN: caSubjectName,
@@ -206,6 +206,7 @@ namespace Raven.Server.Utils
                 with2Eku: with2Eku);
 
             var selfSignedCertificateBasedOnPrivateKey = CertificateLoaderUtil.CreateCertificate(certBytes);
+            GC.KeepAlive(selfSignedCertificateBasedOnPrivateKey); // https://github.com/dotnet/runtime/issues/122642#issuecomment-3720461147
             selfSignedCertificateBasedOnPrivateKey.Verify();
 
             // We had a problem where we didn't cleanup the user store in Linux (~/.dotnet/corefx/cryptography/x509stores/ca)
@@ -354,6 +355,7 @@ namespace Raven.Server.Utils
                 commonNameBuilder.AddCommonName(commonNameValue);
                 subjectName = commonNameBuilder.Build();
             }
+
             log?.AppendLine($"subjectDN = {subjectName}");
             log?.AppendLine($"issuerDN = {issuerCN}");
 
