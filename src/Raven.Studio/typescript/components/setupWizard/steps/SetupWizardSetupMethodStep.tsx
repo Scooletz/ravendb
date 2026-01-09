@@ -149,7 +149,7 @@ export function SetupWizardSetupMethodStepFooter() {
                                 </SetupWizardStepItem>
                             </NumberedList>
                         }
-                        ravenLinkHash="SZN1PM"
+                        docsLink="https://docs.ravendb.net/start/installation/manual"
                     />
                 }
             >

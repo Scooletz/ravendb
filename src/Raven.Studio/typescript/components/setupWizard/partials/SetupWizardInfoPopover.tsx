@@ -5,12 +5,10 @@ import { Icon } from "components/common/Icon";
 interface PopoverMessageProps {
     description: string | React.ReactNode;
     alert?: React.ReactNode;
-    ravenLinkHash?: string;
+    docsLink?: string;
 }
 
-export function SetupWizardInfoPopover({ description, ravenLinkHash = "37GM2Z", alert }: PopoverMessageProps) {
-    const docsLink = useRavenLink({ hash: ravenLinkHash });
-
+export function SetupWizardInfoPopover({ description, docsLink, alert }: PopoverMessageProps) {
     return (
         <>
             <p className="mb-0">{description}</p>

@@ -384,7 +384,7 @@ function NodeDetailsPanelView({ index, control }: { index: number; control: Cont
                         <span className="md-label mb-0">Node URL</span>
                         <PopoverWithHoverWrapper
                             message={
-                                <SetupWizardInfoPopover description="Defines the address under which specific node will be available." ravenLinkHash="QBBGEO" />
+                                <SetupWizardInfoPopover description="Defines the address under which specific node will be available." docsLink="https://docs.ravendb.net/server/configuration/core-configuration#serverurl" />
                             }
                         >
                             <Icon icon="info-new" />
@@ -403,7 +403,7 @@ function NodeDetailsPanelView({ index, control }: { index: number; control: Cont
                             <span className="md-label mb-0">DNS Name</span>
                             <PopoverWithHoverWrapper
                                 message={
-                                    <SetupWizardInfoPopover description="Defines the address under which specific node will be available." ravenLinkHash="QBBGEO" />
+                                    <SetupWizardInfoPopover description="Defines the address under which specific node will be available." docsLink="https://docs.ravendb.net/server/configuration/core-configuration#serverurl" />
                                 }
                             >
                                 <Icon icon="info-new" />
@@ -425,7 +425,7 @@ function NodeDetailsPanelView({ index, control }: { index: number; control: Cont
                                 <SetupWizardInfoPopover
                                     description="Defines the private communication endpoint for clients and browsers. By default,
                                         this value is set to 8080."
-                                    ravenLinkHash="QBBGEO"
+                                    docsLink="https://docs.ravendb.net/server/configuration/core-configuration#serverurl"
                                 />
                             }
                         >
@@ -448,7 +448,7 @@ function NodeDetailsPanelView({ index, control }: { index: number; control: Cont
                                 <SetupWizardInfoPopover
                                     description="Defines the privately accessible TCP endpoint for cluster nodes to communicate
                                         with each other. By default, this value is set to 38888."
-                                    ravenLinkHash="EUKP7H"
+                                    docsLink="https://docs.ravendb.net/server/configuration/core-configuration#serverurltcp"
                                 />
                             }
                         >
@@ -468,7 +468,7 @@ function NodeDetailsPanelView({ index, control }: { index: number; control: Cont
                         <span className="md-label mb-0">IP address/Hostname</span>
                         <PopoverWithHoverWrapper
                             message={
-                                <SetupWizardInfoPopover description="Defines the private network endpoint where the server is accessible." ravenLinkHash="SH4SYQ" />
+                                <SetupWizardInfoPopover description="Defines the private network endpoint where the server is accessible." docsLink="https://docs.ravendb.net/server/configuration/core-configuration#serverurl" />
                             }
                         >
                             <Icon icon="info-new" />
@@ -535,7 +535,7 @@ function NodeDetailsPanelEdit({
                                 Start node as Passive, not part of a cluster
                                 <PopoverWithHoverWrapper
                                     message={
-                                        <SetupWizardInfoPopover description="When enabled, the node remains passive and does not join any cluster. This is useful when the node is meant for monitoring, initialization, or handling setup tasks without actively participating in cluster operations. It can also be used to isolate the node for testing or debugging purposes." ravenLinkHash="18WXKN" />
+                                        <SetupWizardInfoPopover description="When enabled, the node remains passive and does not join any cluster. This is useful when the node is meant for monitoring, initialization, or handling setup tasks without actively participating in cluster operations. It can also be used to isolate the node for testing or debugging purposes." docsLink="https://docs.ravendb.net/server/clustering/rachis/cluster-topology#state" />
                                     }
                                 >
                                     <Icon icon="info-new" />
@@ -558,7 +558,7 @@ function NodeDetailsPanelEdit({
                                                     Node tag can contain maximum of 4 uppercase letters (A-Z).
                                                 </RichAlert>
                                             }
-                                            ravenLinkHash="TB36VS"
+                                            docsLink="https://docs.ravendb.net/glossary/node-tag"
                                         />
                                     }
                                 >
@@ -617,7 +617,7 @@ function NodeDetailsPanelEdit({
                                         <SetupWizardInfoPopover
                                             description="Defines the private communication endpoint for clients and browsers.
                                                     By default, this value is set to 443."
-                                            ravenLinkHash="QBBGEO"
+                                            docsLink="https://docs.ravendb.net/server/configuration/core-configuration#serverurl"
                                         />
                                     }
                                 >
@@ -641,7 +641,7 @@ function NodeDetailsPanelEdit({
                                         <SetupWizardInfoPopover
                                             description="Defines the privately accessible TCP endpoint for cluster nodes to
                                                     communicate with each other. By default, this value is set to 38888."
-                                            ravenLinkHash="EUKP7H"
+                                            docsLink="https://docs.ravendb.net/server/configuration/core-configuration#serverurltcp"
                                         />
                                     }
                                 >
@@ -700,7 +700,7 @@ function NodeDetailsPanelEdit({
                                     <SetupWizardInfoPopover
                                         description="External overrides allow you to specify an alternative IP address, hostname, or
                                         HTTPS port that clients should use instead of the default settings."
-                                        ravenLinkHash="Y6L72P"
+                                        docsLink="https://docs.ravendb.net/server/configuration/core-configuration#publicserverurl"
                                     />
                                 }
                             >
@@ -744,7 +744,7 @@ function EditFormExternalAddressInputs({
                                     <SetupWizardInfoPopover
                                         description="Defines the public network endpoint from which the requests will be
                                             forwarded to the private IP address (which RavenDB listens on)."
-                                        ravenLinkHash="Y6L72P"
+                                        docsLink="https://docs.ravendb.net/server/configuration/core-configuration#publicserverurl"
                                     />
                                 }
                             >
@@ -771,7 +771,7 @@ function EditFormExternalAddressInputs({
                                         <SetupWizardInfoPopover
                                             description="Defines the public HTTPS endpoint that clients and browsers should use
                                                 instead of default binding."
-                                            ravenLinkHash="Y6L72P"
+                                            docsLink="https://docs.ravendb.net/server/configuration/core-configuration#publicserverurl"
                                         />
                                     }
                                 >
@@ -800,7 +800,7 @@ function EditFormExternalAddressInputs({
                                         <SetupWizardInfoPopover
                                             description="Defines the publicly accessible TCP endpoint for inter-node communication
                                                 and client connections."
-                                            ravenLinkHash="Y6L72P"
+                                            docsLink="https://docs.ravendb.net/server/configuration/core-configuration#publicserverurl"
                                         />
                                     }
                                 >
@@ -1008,7 +1008,7 @@ function IpAddressList({
                         IP address/Hostname
                         <PopoverWithHoverWrapper
                             message={
-                                <SetupWizardInfoPopover description="Defines the private network endpoint where the server is accessible." ravenLinkHash="SH4SYQ" />
+                                <SetupWizardInfoPopover description="Defines the private network endpoint where the server is accessible." docsLink="https://docs.ravendb.net/server/configuration/core-configuration#serverurl" />
                             }
                         >
                             <Icon icon="info-new" />
