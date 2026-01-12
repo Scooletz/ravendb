@@ -1,6 +1,4 @@
-import { withForceRerender } from "test/storybookTestUtils";
-import { withBootstrap5 } from "test/storybookTestUtils";
-import { withStorybookContexts } from "test/storybookTestUtils";
+import { withForceRerender, withBootstrap5, withStorybookContexts_DisabledSplitView } from "test/storybookTestUtils";
 import SetupWizard from "./SetupWizard";
 import { mockServices } from "test/mocks/services/MockServices";
 import { Canvas } from "storybook/internal/types";
@@ -38,7 +36,7 @@ const getSetupMethodLabel = (option: SetupWizardSetupMethod): string => {
 
 export default {
     title: "Setup Wizard",
-    decorators: [withStorybookContexts, withBootstrap5, withForceRerender],
+    decorators: [withStorybookContexts_DisabledSplitView, withBootstrap5, withForceRerender],
     argTypes: {
         licenseType: {
             control: {
@@ -107,11 +105,7 @@ export const Eula: StoryObj = {
         resourcesService.withFolderPathOptions_ServerLocal();
         licenseService.withVerifyLicense();
 
-        return (
-            <div style={{ height: 1000 }}>
-                <SetupWizard />
-            </div>
-        );
+        return <SetupWizard />;
     },
 };
 

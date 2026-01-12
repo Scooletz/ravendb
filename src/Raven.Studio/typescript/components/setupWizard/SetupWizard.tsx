@@ -196,7 +196,7 @@ export default function SetupWizard() {
                                     <Icon icon="lifebuoy" className="fs-3" margin="m-0" />
                                     <div className="vstack gap-1">
                                         <h4 className="mb-0">Having trouble?</h4>
-                                        <p className="text-muted mb-0">
+                                        <p className="text-muted mb-0" style={{ lineHeight: 1.3 }}>
                                             Our documentation will guide you through the configuration process step by
                                             step
                                         </p>
