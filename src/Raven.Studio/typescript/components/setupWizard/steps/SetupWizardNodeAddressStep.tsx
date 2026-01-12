@@ -43,6 +43,8 @@ import { setupWizardConstants, setupWizardGA4Prefixes } from "components/setupWi
 import useBoolean from "hooks/useBoolean";
 import { SetupWizardInfoPopover } from "components/setupWizard/partials/SetupWizardInfoPopover";
 import { setupWizardFormDefaultValues } from "components/setupWizard/utils/setupWizardFormDefaultValues";
+import { components, OptionProps, SingleValueProps } from "react-select";
+import Badge from "react-bootstrap/Badge";
 
 export function SetupWizardNodeAddressStep() {
     const { control } = useFormContext<SetupWizardFormData>();
@@ -384,7 +386,10 @@ function NodeDetailsPanelView({ index, control }: { index: number; control: Cont
                         <span className="md-label mb-0">Node URL</span>
                         <PopoverWithHoverWrapper
                             message={
-                                <SetupWizardInfoPopover description="Defines the address under which specific node will be available." docsLink="https://docs.ravendb.net/server/configuration/core-configuration#serverurl" />
+                                <SetupWizardInfoPopover
+                                    description="Defines the address under which specific node will be available."
+                                    docsLink="https://docs.ravendb.net/server/configuration/core-configuration#serverurl"
+                                />
                             }
                         >
                             <Icon icon="info-new" />
@@ -403,7 +408,10 @@ function NodeDetailsPanelView({ index, control }: { index: number; control: Cont
                             <span className="md-label mb-0">DNS Name</span>
                             <PopoverWithHoverWrapper
                                 message={
-                                    <SetupWizardInfoPopover description="Defines the address under which specific node will be available." docsLink="https://docs.ravendb.net/server/configuration/core-configuration#serverurl" />
+                                    <SetupWizardInfoPopover
+                                        description="Defines the address under which specific node will be available."
+                                        docsLink="https://docs.ravendb.net/server/configuration/core-configuration#serverurl"
+                                    />
                                 }
                             >
                                 <Icon icon="info-new" />
@@ -468,7 +476,10 @@ function NodeDetailsPanelView({ index, control }: { index: number; control: Cont
                         <span className="md-label mb-0">IP address/Hostname</span>
                         <PopoverWithHoverWrapper
                             message={
-                                <SetupWizardInfoPopover description="Defines the private network endpoint where the server is accessible." docsLink="https://docs.ravendb.net/server/configuration/core-configuration#serverurl" />
+                                <SetupWizardInfoPopover
+                                    description="Defines the private network endpoint where the server is accessible."
+                                    docsLink="https://docs.ravendb.net/server/configuration/core-configuration#serverurl"
+                                />
                             }
                         >
                             <Icon icon="info-new" />
@@ -507,10 +518,6 @@ function NodeDetailsPanelEdit({
         control: parentControl,
     });
 
-    const isLoopbackOnly = useMemo(() => {
-        return nodeData.ipAddress.every((ip) => genUtils.isLocalhostIpAddress(ip.ipAddress));
-    }, [nodeData.ipAddress]);
-
     const { isExternalRequired } = useHostnameDetectionSideEffects({ editNodeForm, parentControl });
 
     const isDNSVisible = securityOption === "ownCertificate" && !isWildcardCertificate;
@@ -535,7 +542,10 @@ function NodeDetailsPanelEdit({
                                 Start node as Passive, not part of a cluster
                                 <PopoverWithHoverWrapper
                                     message={
-                                        <SetupWizardInfoPopover description="When enabled, the node remains passive and does not join any cluster. This is useful when the node is meant for monitoring, initialization, or handling setup tasks without actively participating in cluster operations. It can also be used to isolate the node for testing or debugging purposes." docsLink="https://docs.ravendb.net/server/clustering/rachis/cluster-topology#state" />
+                                        <SetupWizardInfoPopover
+                                            description="When enabled, the node remains passive and does not join any cluster. This is useful when the node is meant for monitoring, initialization, or handling setup tasks without actively participating in cluster operations. It can also be used to isolate the node for testing or debugging purposes."
+                                            docsLink="https://docs.ravendb.net/server/clustering/rachis/cluster-topology#state"
+                                        />
                                     }
                                 >
                                     <Icon icon="info-new" />
@@ -654,11 +664,6 @@ function NodeDetailsPanelEdit({
                 </Row>
                 <IpAddressList parentControl={parentControl} control={control} />
                 <div className="d-flex flex-column gap-1">
-                    {isLoopbackOnly && (
-                        <RichAlert variant="warning" icon="warning">
-                            This node won&#39;t be reachable from outside this machine.
-                        </RichAlert>
-                    )}
                     {securityOption === "letsEncrypt" && nodeData.ipAddress.length > 0 && (
                         <RichAlert variant="info" icon="info">
                             RavenDB will update the DNS record for{" "}
@@ -1008,7 +1013,10 @@ function IpAddressList({
                         IP address/Hostname
                         <PopoverWithHoverWrapper
                             message={
-                                <SetupWizardInfoPopover description="Defines the private network endpoint where the server is accessible." docsLink="https://docs.ravendb.net/server/configuration/core-configuration#serverurl" />
+                                <SetupWizardInfoPopover
+                                    description="Defines the private network endpoint where the server is accessible."
+                                    docsLink="https://docs.ravendb.net/server/configuration/core-configuration#serverurl"
+                                />
                             }
                         >
                             <Icon icon="info-new" />
@@ -1037,6 +1045,10 @@ function IpAddressList({
                             isLoading={asyncGetSetupLocalNodeIps.loading}
                             name={`ipAddress.${ipIndex}.ipAddress`}
                             options={ipAddressesOptions}
+                            components={{
+                                Option: IpAddressOptionComponent,
+                                SingleValue: IpAddressSingleValueComponent,
+                            }}
                         />
                         {ipIndex > 0 && (
                             <Button
@@ -1054,6 +1066,40 @@ function IpAddressList({
                 ))}
             </div>
         </FormGroup>
+    );
+}
+
+function IpAddressOptionComponent(props: OptionProps<SelectOption>) {
+    const { data } = props;
+
+    return (
+        <components.Option {...props} className={classNames(props.className, "hstack")}>
+            {data.label}
+            <NoRemoteAccessBadge ipAddress={data.value} />
+        </components.Option>
+    );
+}
+
+function IpAddressSingleValueComponent({ children, ...props }: SingleValueProps<SelectOption>) {
+    return (
+        <components.SingleValue {...props} className={classNames(props.className, "hstack")}>
+            {children}
+            <NoRemoteAccessBadge ipAddress={props.data.value} />
+        </components.SingleValue>
+    );
+}
+
+function NoRemoteAccessBadge({ ipAddress }: { ipAddress: string }) {
+    const isLocalhostIpAddress = genUtils.isLocalhostIpAddress(ipAddress);
+
+    if (!isLocalhostIpAddress) {
+        return null;
+    }
+
+    return (
+        <Badge bg="secondary" className="ms-1" pill>
+            No remote access
+        </Badge>
     );
 }
 
@@ -1124,8 +1170,8 @@ export function SetupWizardNodeAddressStepFooter() {
                             <li>TCP port: {firstNode.tcpPort}</li>
                             <li>HTTPS port: {firstNode.httpPort}</li>
                         </ul>
-                        If you plan to deploy these nodes on a single machine, it will cause port conflict. 
-                        <br/>
+                        If you plan to deploy these nodes on a single machine, it will cause port conflict.
+                        <br />
                         Please confirm that these settings are correct before proceeding to the next step.
                     </>
                 ),
