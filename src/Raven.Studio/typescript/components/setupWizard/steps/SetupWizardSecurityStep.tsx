@@ -29,6 +29,9 @@ export function SetupWizardSecurityStep() {
         if (isSecureDisabled) {
             setValue("securityStep.securityOption", "none");
         }
+        if (isSecureRecommended) {
+            setValue("securityStep.securityOption", "letsEncrypt");
+        }
     }, []);
 
     const isSecureDisabled = !key;

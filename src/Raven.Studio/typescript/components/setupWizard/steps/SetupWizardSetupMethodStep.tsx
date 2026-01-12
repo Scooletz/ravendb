@@ -144,7 +144,8 @@ export function SetupWizardSetupMethodStepFooter() {
                                 </SetupWizardStepItem>
                                 <SetupWizardStepItem stepIndicator={2}>
                                     <span>
-                                        Change the setup mode to None, e.g. <code>&#34;Setup.Mode: &#34;None&#34;</code>
+                                        Change the setup mode to None, e.g.{" "}
+                                        <code>&#34;Setup.Mode&#34;: &#34;None&#34;</code>
                                     </span>
                                 </SetupWizardStepItem>
                             </NumberedList>
