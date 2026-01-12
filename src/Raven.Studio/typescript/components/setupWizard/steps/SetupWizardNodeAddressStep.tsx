@@ -63,8 +63,19 @@ export function SetupWizardNodeAddressStep() {
         securityStep: { securityOption },
     } = useWatch({ control });
 
-    const hasDomainStep = domainStep?.domain && domainStep?.rootDomain;
     const fullDomain = `a.${domainStep.domain.toLocaleLowerCase()}.${domainStep.rootDomain}`;
+
+    const handleDefaultNodeUrlConfiguration = () => {
+        if (securityOption === "letsEncrypt") {
+            return fullDomain;
+        }
+
+        if (securityOption === "ownCertificate") {
+            return cns[0];
+        }
+
+        return null;
+    };
 
     const addNewNode = () => {
         const existingTags = fields.map((field) => field.nodeTag);
@@ -100,7 +111,7 @@ export function SetupWizardNodeAddressStep() {
                 isEditing: true, // the first node should be added with default values and in editing mode
                 isNewlyAdded: false,
                 isPassive: false,
-                nodeUrl: hasDomainStep && securityOption !== "none" ? fullDomain : undefined,
+                nodeUrl: handleDefaultNodeUrlConfiguration(),
                 httpPort: securityOption === "none" ? 8080 : 443,
                 tcpPort: 38888,
                 hasExternalConfig: false,
@@ -257,12 +268,26 @@ function NodeDetailsPanelHeader({ control, index, onRemove, editNodeForm }: Node
         }
     };
 
+    const handleNodeUrl = () => {
+        if (securityOption === "letsEncrypt") {
+            return `${nodeData.nodeTag.toLowerCase()}.${domainStep.domain.toLocaleLowerCase()}.${domainStep.rootDomain}`;
+        }
+
+        if (securityOption === "ownCertificate") {
+            let nodeUrl = nodeData.dnsName;
+
+            if (nodeData.httpPort !== 443 && nodeData.httpPort != null) {
+                nodeUrl += ":" + nodeData.httpPort;
+            }
+            return nodeUrl;
+        }
+
+        return null;
+    };
+
     const handleSaveEdit = handleSubmit(async (formData: NodeEditFormData) => {
         setValue(`nodeAddressStep.nodes.${index}`, {
-            nodeUrl:
-                securityOption !== "none"
-                    ? `${formData.nodeTag.toLowerCase()}.${domainStep.domain.toLocaleLowerCase()}.${domainStep.rootDomain}`
-                    : undefined,
+            nodeUrl: handleNodeUrl(),
             ...formData,
             httpPort: formData.httpPort == null ? (securityOption === "none" ? 8080 : 443) : formData.httpPort,
             nodeTag: formData.isPassive ? undefined : formData.nodeTag,
@@ -1164,7 +1189,7 @@ export function SetupWizardNodeAddressStepFooter() {
                 title: "Identical node configurations",
                 message: (
                     <>
-                        All nodes in the cluster are configured with the same settings:
+                        <span>All nodes in the cluster are configured with the same settings:</span>
                         <ul>
                             <li>IP address: {firstNode.ipAddress[0]?.ipAddress}</li>
                             <li>TCP port: {firstNode.tcpPort}</li>
