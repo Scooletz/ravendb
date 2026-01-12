@@ -38,7 +38,7 @@ export default function SetupWizard() {
                             <div className="mt-4 mb-2">
                                 <img src={ravenLogo} alt="RavenDB Logo" width="120" />
                             </div>
-                            <div>{steps[currentStepIdx].component}</div>
+                            {steps[currentStepIdx].component}
                         </div>
                     </div>
                     <div className="setup-wizard-footer">

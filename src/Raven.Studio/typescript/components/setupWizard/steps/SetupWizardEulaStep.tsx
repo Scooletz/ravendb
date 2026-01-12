@@ -5,58 +5,55 @@ import { useAsync } from "react-async-hook";
 import Button from "react-bootstrap/Button";
 import { useFormContext } from "react-hook-form";
 import { SetupWizardFormData } from "../setupWizardValidation";
-import useBoolean from "components/hooks/useBoolean";
 import genUtils from "common/generalUtils";
 import { ConditionalPopover } from "components/common/ConditionalPopover";
 import { LazyLoad } from "components/common/LazyLoad";
+import SizeGetter from "components/common/SizeGetter";
+import { useDispatch } from "react-redux";
+import { setupWizardActions, setupWizardSelectors } from "../store/setupWizardSlice";
+import { useAppSelector } from "components/store";
+import { useCallback } from "react";
 
-export function SetupWizardEulaStep({ eulaRef }: { eulaRef: React.RefObject<HTMLDivElement> }) {
+export function SetupWizardEulaStep() {
+    const dispatch = useDispatch();
     const { setupWizardService } = useServices();
 
     const asyncGetEula = useAsync(setupWizardService.getEula, []);
 
-    // TODO enable Continue button when EULA is scrolled to the bottom
+    const handleScroll = useCallback(
+        (node: React.UIEvent<HTMLDivElement, UIEvent>) => {
+            if (genUtils.isScrolledToBottom(node.target as HTMLElement)) {
+                dispatch(setupWizardActions.isEulaScrolledToBottomSet(true));
+            }
+        },
+        [dispatch]
+    );
 
     return (
-        <div>
+        <div className="vstack flex-grow">
             <h2>Read the EULA (End-User License Agreement)</h2>
             <p>The following license agreement must be accepted in order to use this software.</p>
-            <div ref={eulaRef} className="overflow-y-auto" style={{ height: 300 }} data-testid="eula">
-                <LazyLoad active={asyncGetEula.loading}>
-                    <Code language="plaintext" code={asyncGetEula.result ?? "Loading"} />
-                </LazyLoad>
-                <div data-testid="eula-bottom" />
+            <div className="flex-grow">
+                <SizeGetter
+                    isHeighRequired
+                    render={({ height }) => (
+                        <div style={{ height }} className="overflow-y-auto" onScroll={handleScroll}>
+                            <LazyLoad active={asyncGetEula.loading}>
+                                <Code language="plaintext" code={asyncGetEula.result ?? "Loading"} />
+                                <div data-testid="eula-bottom" />
+                            </LazyLoad>
+                        </div>
+                    )}
+                />
             </div>
         </div>
     );
 }
 
-export function SetupWizardEulaStepFooter({ eulaRef }: { eulaRef: React.RefObject<HTMLDivElement> }) {
+export function SetupWizardEulaStepFooter() {
     const { setValue } = useFormContext<SetupWizardFormData>();
 
-    const { value: isScrolledToBottom, setValue: setIsScrolledToBottom } = useBoolean(false);
-
-    const { useEffect } = require("react");
-
-    // Set isScrolledToBottom when the user scrolls to the bottom of the EULA
-    useEffect(() => {
-        const element = eulaRef?.current;
-        if (!element) {
-            return;
-        }
-
-        const handleScroll = () => {
-            if (genUtils.isScrolledToBottom(eulaRef.current)) {
-                setIsScrolledToBottom(true);
-            }
-        };
-
-        element.addEventListener("scroll", handleScroll);
-
-        return () => {
-            element.removeEventListener("scroll", handleScroll);
-        };
-    }, [eulaRef, isScrolledToBottom, setIsScrolledToBottom]);
+    const isScrolledToBottom = useAppSelector(setupWizardSelectors.isEulaScrolledToBottom);
 
     const handleContinue = () => {
         setValue("currentStep", "Setup method");

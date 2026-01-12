@@ -1,4 +1,3 @@
-import { useRef } from "react";
 import { SetupWizardStepId, SetupWizardSetupMethod, SetupWizardSecurityOption } from "../setupWizardValidation";
 import {
     SetupWizardAdditionalSettingsStep,
@@ -39,16 +38,14 @@ export function useSetupWizardSteps({
     setupMethod,
     securityOption,
 }: SetupWizardStepsProps): SetupWizardStep[] {
-    const eulaRef = useRef<HTMLDivElement>(null);
-
     const getIsNotInStepIds = (stepIds: SetupWizardStepId[]) => !stepIds.some((x) => currentStep === x);
 
     const steps: SetupWizardStep[] = [
         {
             title: "Eula",
             description: "RavenDB Studio Eula",
-            component: <SetupWizardEulaStep eulaRef={eulaRef} />,
-            footer: <SetupWizardEulaStepFooter eulaRef={eulaRef} />,
+            component: <SetupWizardEulaStep />,
+            footer: <SetupWizardEulaStepFooter />,
             isCurrent: currentStep === "Eula",
             isAvailable: true,
             isVisible: false,

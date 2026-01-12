@@ -4,7 +4,7 @@ import { Meta, StoryObj } from "@storybook/react";
 import { withStorybookContexts } from "test/storybookTestUtils";
 import SetupWizard from "./SetupWizard";
 import { mockServices } from "test/mocks/services/MockServices";
-import { userEvent, waitFor, waitForElementToBeRemoved, expect } from "@storybook/test";
+import { userEvent, waitFor, expect } from "@storybook/test";
 import { Canvas } from "storybook/internal/types";
 
 export default {
@@ -168,9 +168,7 @@ export const Finish: StoryObj<SetupWizardStoryArgs> = {
 };
 
 async function goToSetupStep(canvas: Canvas) {
-    await waitForElementToBeRemoved(canvas.getByTestId("loader"));
-
-    const eula = canvas.getByTestId("eula-bottom");
+    const eula = await canvas.findByTestId("eula-bottom");
     await waitFor(() => expect(eula).toBeInTheDocument());
     eula.scrollIntoView({ behavior: "instant" });
 
