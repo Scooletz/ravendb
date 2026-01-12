@@ -170,9 +170,8 @@ function ServerEnvironmentSection({
                                     className="mb-2 w-100"
                                 />
                                 <span>
-                                    Studio environment allows you to add a visual identifier to the UI, making
-                                    it easier to distinguish between multiple environments when working
-                                    simultaneously.
+                                    Studio environment allows you to add a visual identifier to the UI, making it easier
+                                    to distinguish between multiple environments when working simultaneously.
                                 </span>
                             </>
                         }
@@ -209,7 +208,8 @@ function CertificateExpirationSection({ control }: { control: Control<SetupWizar
                 <PopoverWithHoverWrapper
                     message={
                         <>
-                            This allows you to define how long the admin client certificate should be valid. By default, this value is set to 60 months.
+                            This allows you to define how long the admin client certificate should be valid. By default,
+                            this value is set to 60 months.
                         </>
                     }
                     placement="right"
@@ -259,7 +259,10 @@ function PostgreSqlIntegrationToggle({ control }: { control: Control<SetupWizard
                         PostgreSQL integration
                         <PopoverWithHoverWrapper
                             message={
-                                <SetupWizardInfoPopover description="Enabling this feature allows you to use RavenDB as a PostgreSQL server. You will also need a license that contains PostgreSQL Protocol." docsLink="https://docs.ravendb.net/integrations/postgresql-protocol/overview/"/>
+                                <SetupWizardInfoPopover
+                                    description="Enabling this feature allows you to use RavenDB as a PostgreSQL server. You will also need a license that contains PostgreSQL Protocol."
+                                    docsLink="https://docs.ravendb.net/integrations/postgresql-protocol/overview/"
+                                />
                             }
                             placement="right"
                         >
@@ -351,7 +354,10 @@ function AdvancedSettingsContent({ control, isVisible }: AdvancedSettingsContent
                         conditions={{
                             isActive: isVisible,
                             message: (
-                                <SetupWizardInfoPopover description="Defines the path to the RavenDB data directory." docsLink="https://docs.ravendb.net/server/storage/customizing-raven-data-files-locations" />
+                                <SetupWizardInfoPopover
+                                    description="Defines the path to the RavenDB data directory."
+                                    docsLink="https://docs.ravendb.net/server/storage/customizing-raven-data-files-locations"
+                                />
                             ),
                         }}
                         popoverPlacement="right"
@@ -383,7 +389,10 @@ function AdvancedSettingsContent({ control, isVisible }: AdvancedSettingsContent
                                 conditions={{
                                     isActive: isVisible,
                                     message: (
-                                        <SetupWizardInfoPopover description="Indicates where the server certificate will be saved on your system. Make sure the location is accessible and has the required write permissions" docsLink="https://docs.ravendb.net/server/configuration/security-configuration#securitycertificatepath" />
+                                        <SetupWizardInfoPopover
+                                            description="Indicates where the server certificate will be saved on your system. Make sure the location is accessible and has the required write permissions"
+                                            docsLink="https://docs.ravendb.net/server/configuration/security-configuration#securitycertificatepath"
+                                        />
                                     ),
                                 }}
                                 popoverPlacement="right"
@@ -413,7 +422,12 @@ function AdvancedSettingsContent({ control, isVisible }: AdvancedSettingsContent
                     <ConditionalPopover
                         conditions={{
                             isActive: isVisible,
-                            message: <SetupWizardInfoPopover description="Defines the path to the logs directory." docsLink="https://docs.ravendb.net/server/troubleshooting/logging" />,
+                            message: (
+                                <SetupWizardInfoPopover
+                                    description="Defines the path to the logs directory."
+                                    docsLink="https://docs.ravendb.net/server/troubleshooting/logging"
+                                />
+                            ),
                         }}
                         popoverPlacement="right"
                     >
@@ -442,7 +456,10 @@ function AdvancedSettingsContent({ control, isVisible }: AdvancedSettingsContent
                         conditions={{
                             isActive: isVisible,
                             message: (
-                                <SetupWizardInfoPopover description="Defines the indexing engine used for auto indexes in RavenDB." docsLink="https://docs.ravendb.net/indexes/search-engine/corax" />
+                                <SetupWizardInfoPopover
+                                    description="Defines the indexing engine used for auto indexes in RavenDB."
+                                    docsLink="https://docs.ravendb.net/indexes/search-engine/corax"
+                                />
                             ),
                         }}
                         popoverPlacement="right"
@@ -464,7 +481,10 @@ function AdvancedSettingsContent({ control, isVisible }: AdvancedSettingsContent
                         conditions={{
                             isActive: isVisible,
                             message: (
-                                <SetupWizardInfoPopover description="Defines the indexing engine used for static indexes in RavenDB." docsLink="https://docs.ravendb.net/indexes/search-engine/corax" />
+                                <SetupWizardInfoPopover
+                                    description="Defines the indexing engine used for static indexes in RavenDB."
+                                    docsLink="https://docs.ravendb.net/indexes/search-engine/corax"
+                                />
                             ),
                         }}
                         popoverPlacement="right"
