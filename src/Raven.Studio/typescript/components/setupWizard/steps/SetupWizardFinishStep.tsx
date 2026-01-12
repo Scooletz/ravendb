@@ -409,6 +409,7 @@ function CompletedSummary() {
 
     const {
         nodeAddressStep,
+        securityStep: { securityOption },
         usePackageStep: { nodeTag },
         setupMethodStep: { method },
     } = useWatch({ control });
@@ -417,10 +418,12 @@ function CompletedSummary() {
 
     const isSettingCluster = nodeAddressStep.nodes.length > 1;
     const localNodeTag = nodeAddressStep.nodes?.[0]?.nodeTag ?? nodeTag;
-
+    const isSetupUnsecured = securityOption === "none";
+    const isSetupPackage = method === "createPackage";
+    const showInfoAboutInstalledCertificate = !isSetupUnsecured && !isSetupPackage;
     const studioUrl = getStudioUrl();
 
-    if (method === "createPackage") {
+    if (isSetupPackage) {
         return (
             <div className="summary-tab-container mb-6">
                 <Nav className="mb-2">
@@ -502,7 +505,7 @@ function CompletedSummary() {
                     <Tab.Pane eventKey="connectToServer">
                         <Row>
                             <Col
-                                md={4}
+                                md={showInfoAboutInstalledCertificate ? 4 : 6}
                                 className="border-secondary border-end vstack gap-2 text-center justify-content-center"
                             >
                                 <Icon icon="server" color="primary" size="lg" />
@@ -514,8 +517,13 @@ function CompletedSummary() {
                                 </span>
                             </Col>
                             <Col
-                                md={4}
-                                className="border-secondary border-end vstack gap-2 text-center justify-content-center"
+                                md={showInfoAboutInstalledCertificate ? 4 : 6}
+                                className={classNames(
+                                    "border-secondary vstack gap-2 text-center justify-content-center",
+                                    {
+                                        "border-end": showInfoAboutInstalledCertificate,
+                                    }
+                                )}
                             >
                                 <Icon icon="node" color="node" size="lg" />
                                 <span>
@@ -523,10 +531,12 @@ function CompletedSummary() {
                                     already been configured and requires no further action on your part.
                                 </span>
                             </Col>
-                            <Col md={4} className="vstack gap-2 text-center justify-content-center">
-                                <Icon icon="certificate" size="lg" />
-                                <span>An administrator client certificate has been installed on this machine.</span>
-                            </Col>
+                            {showInfoAboutInstalledCertificate && (
+                                <Col md={4} className="vstack gap-2 text-center justify-content-center">
+                                    <Icon icon="certificate" size="lg" />
+                                    <span>An administrator client certificate has been installed on this machine.</span>
+                                </Col>
+                            )}
                         </Row>
                         <RichAlert variant="info" className="mt-3">
                             You&apos;ll need to restart the server before you can access RavenDB Studio.
