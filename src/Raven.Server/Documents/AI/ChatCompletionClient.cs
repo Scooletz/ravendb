@@ -249,7 +249,7 @@ internal class ChatCompletionClient : IDisposable
             var choice = (BlittableJsonReaderObject)choices[0];
             if (choice.TryGet(Constants.ResponseFields.Delta, out BlittableJsonReaderObject delta))
             {
-                if (delta.TryGet(Constants.ResponseFields.Content, out LazyStringValue content) && content?.Length > 0)
+                if (TryGetDeltaContent(delta, out LazyStringValue content))
                 {
                     toolCallState.AddAndReset();
 
@@ -276,7 +276,8 @@ internal class ChatCompletionClient : IDisposable
             }
         }
 
-        if (toolCallState.AllToolCalls?.Count >= 0)
+        // Some OpenAI-like APIs return an empty array instead of omitting the field when no tool calls are made
+        if (toolCallState.AllToolCalls?.Count > 0)
         {
             DynamicJsonArray toolCalls = new();
             foreach (var call in toolCallState.AllToolCalls)
@@ -314,6 +315,22 @@ internal class ChatCompletionClient : IDisposable
             }, "persisted/streamed/message"),
             Result = message,
         };
+    }
+
+    private static bool TryGetDeltaContent(BlittableJsonReaderObject delta, out LazyStringValue content)
+    {
+        // Try content, then reasoning_content, then reasoning (for LM Studio and other reasoning model compatibility)
+        if (delta.TryGet(Constants.ResponseFields.Content, out content) && content?.Length > 0)
+            return true;
+
+        if (delta.TryGet(Constants.ResponseFields.ReasoningContent, out content) && content?.Length > 0)
+            return true;
+
+        if (delta.TryGet(Constants.ResponseFields.Reasoning, out content) && content?.Length > 0)
+            return true;
+
+        content = null;
+        return false;
     }
 
     public async Task<(string Result, string Message)> TestCompleteAsync(string systemPrompt, string userPrompt, string schema, CancellationToken token)
@@ -390,7 +407,7 @@ internal class ChatCompletionClient : IDisposable
 
         public bool TryParseToolCalls(out List<AiToolCall> toolCalls)
         {
-            if (Message.TryGet(Constants.ResponseFields.ToolCalls, out BlittableJsonReaderArray calls) is false)
+            if (Message.TryGet(Constants.ResponseFields.ToolCalls, out BlittableJsonReaderArray calls) is false || calls.Length == 0)
             {
                 toolCalls = null;
                 return false;
@@ -412,7 +429,8 @@ internal class ChatCompletionClient : IDisposable
 
         public BlittableJsonReaderObject GetContent(JsonOperationContext context)
         {
-            if (Message.TryGet(Constants.ResponseFields.Content, out string content) == false || string.IsNullOrEmpty(content))
+            // Try content, then reasoning_content, then reasoning (for LM Studio and other OpenAI-like APIs that still use the older mechanism)
+            if (TryGetDeltaContent(Message, out var content) == false)
             {
                 _choice0.TryGet(Constants.ResponseFields.FinishReason, out string finishReason);
                 var refusal = client.GetRefusal(_choice0, Message);
@@ -428,6 +446,7 @@ internal class ChatCompletionClient : IDisposable
 
             return result;
         }
+
     }
 
     protected virtual Task<HttpResponseMessage> SendRequestAsync(HttpRequestMessage request, CancellationToken token) => _client.SendAsync(request, token);
@@ -950,6 +969,8 @@ internal class ChatCompletionClient : IDisposable
             public const string Choices = "choices";
             public const string Message = "message";
             public const string Content = "content";
+            public const string ReasoningContent = "reasoning_content";
+            public const string Reasoning = "reasoning";
             public const string FinishReason = "finish_reason";
             public const string ToolCalls = "tool_calls";
             public const string Refusal = "refusal";
