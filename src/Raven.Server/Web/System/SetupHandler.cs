@@ -831,8 +831,8 @@ namespace Raven.Server.Web.System
         {
             Program.ServerRestarted -= OnServerRestarted;
             
-            var oldDataPath = AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-            var newDataPath = eventArgs.DataDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            var oldDataPath = eventArgs.OldDataDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            var newDataPath = eventArgs.NewDataDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
             
             try
             {

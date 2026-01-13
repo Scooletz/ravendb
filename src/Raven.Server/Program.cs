@@ -215,6 +215,8 @@ namespace Raven.Server
             RavenConfiguration configBeforeRestart = configuration;
             do
             {
+                var oldDataDirectory = configBeforeRestart.Core.DataDirectory.FullPath;
+            
                 if (rerun)
                 {
                     Console.WriteLine("\nRestarting Server...");
@@ -237,7 +239,8 @@ namespace Raven.Server
                 {
                     ServerRestarted?.Invoke(null, new OnServerRestartedEventArgs()
                     {
-                        DataDirectory = configuration.Core.DataDirectory.FullPath
+                        OldDataDirectory = oldDataDirectory,
+                        NewDataDirectory = configuration.Core.DataDirectory.FullPath
                     });
                     
                     using (var server = new RavenServer(configuration))
@@ -450,7 +453,8 @@ namespace Raven.Server
         
         public class OnServerRestartedEventArgs : EventArgs
         {
-            public string DataDirectory { get; set; }
+            public string OldDataDirectory { get; set; }
+            public string NewDataDirectory { get; set; }
         } 
 
         public static bool IsRunningNonInteractive;
