@@ -380,18 +380,19 @@ export function FormSelectAutocomplete<
     };
 
     const inputValue = props.isDisabled ? "" : (value ?? "");
+    const components = props.components ? { ...props.components, Input: InputNotHidden } : { Input: InputNotHidden };
 
     return (
         <FormSelectCreatable<Option, IsMulti, Group, TFieldValues, TName>
             inputValue={inputValue}
             onInputChange={handleInputChange}
-            components={{ Input: InputNotHidden }}
             tabSelectsValue
             controlShouldRenderValue={!!props.isDisabled}
             filterOption={handleFilterOption}
             onFocus={handleFocus}
             blurInputOnSelect
             {...props}
+            components={components} // Override to ensure Input is not hidden
         />
     );
 }

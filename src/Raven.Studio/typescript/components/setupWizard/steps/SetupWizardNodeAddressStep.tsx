@@ -19,7 +19,7 @@ import {
     FormInput,
     FormLabel,
     FormSelect,
-    FormSelectCreatable,
+    FormSelectAutocomplete,
     FormSwitch,
     OptionalLabel,
 } from "components/common/Form";
@@ -1064,7 +1064,7 @@ function IpAddressList({
             <div className="vstack gap-2">
                 {fields.map((field, ipIndex) => (
                     <InputGroup key={field.id}>
-                        <FormSelectCreatable
+                        <FormSelectAutocomplete
                             control={control}
                             placeholder="Enter Server IP A address/hostname"
                             isLoading={asyncGetSetupLocalNodeIps.loading}
