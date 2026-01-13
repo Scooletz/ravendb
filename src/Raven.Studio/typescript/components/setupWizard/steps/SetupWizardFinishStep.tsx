@@ -1031,7 +1031,8 @@ export function SetupWizardFinishStepFooter() {
         }
     });
 
-    const finishStepIsDisabled = finishStep.finishingStatus === "InProgress" || finishStep.finishingStatus === "Faulted";
+    const finishStepIsDisabled =
+        finishStep.finishingStatus === "InProgress" || finishStep.finishingStatus === "Faulted";
 
     const handleNewSetupPackage = () => {
         const defaultValues: SetupWizardFormData = {
