@@ -71,7 +71,7 @@ namespace Raven.Server.Documents.Replication.Outgoing
         protected InterruptibleRead<TContextPool, TOperationContext> _interruptibleRead;
         protected OutgoingReplicationStatsAggregator _lastStats;
         protected RavenLogger Logger;
-        private bool _endOfStreamExceptionLogged;
+        private readonly EndOfStreamExceptionLogger _endOfStreamExceptionLogger = new EndOfStreamExceptionLogger();
 
         public ServerStore Server => _server;
         public long LastSentDocumentEtag => _lastSentDocumentEtag;
@@ -770,20 +770,11 @@ namespace Raven.Server.Documents.Replication.Outgoing
 
             void HandleEndOfStreamException(EndOfStreamException e)
             {
-                // Log first occurrence at WARN level, subsequent occurrences at DEBUG level
-                if (_endOfStreamExceptionLogged == false)
-                {
-                    _endOfStreamExceptionLogged = true;
-                    if (Logger.IsWarnEnabled)
-                        Logger.Warn($"Unexpected exception occurred on replication thread ({FromToString}). " +
-                                    $"Replication stopped (will be retried later).", e);
-                }
-                else
-                {
-                    if (Logger.IsDebugEnabled)
-                        Logger.Debug($"EndOfStreamException occurred on replication thread ({FromToString}). " +
-                                     $"Replication stopped (will be retried later).", e);
-                }
+                _endOfStreamExceptionLogger.Log(
+                    e,
+                    Logger,
+                    $"Unexpected exception occurred on replication thread ({FromToString}). Replication stopped (will be retried later).",
+                    EndOfStreamExceptionLogger.LogLevel.Warn);
                 OnFailed(e);
             }
 

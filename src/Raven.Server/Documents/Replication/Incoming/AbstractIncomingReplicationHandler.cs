@@ -60,7 +60,7 @@ namespace Raven.Server.Documents.Replication.Incoming
         protected long _lastDocumentEtag;
         protected readonly AsyncManualResetEvent _replicationFromAnotherSource;
         protected RavenLogger Logger;
-        private bool _endOfStreamExceptionLogged;
+        private readonly EndOfStreamExceptionLogger _endOfStreamExceptionLogger = new EndOfStreamExceptionLogger();
 
         public long LastDocumentEtag => _lastDocumentEtag;
 
@@ -334,20 +334,11 @@ namespace Raven.Server.Documents.Replication.Incoming
             }
             catch (EndOfStreamException e)
             {
-                // Log first occurrence at Info level, subsequent occurrences at DEBUG level
-                if (_endOfStreamExceptionLogged == false)
-                {
-                    _endOfStreamExceptionLogged = true;
-                    if (Logger.IsInfoEnabled)
-                        Logger.Info("Received unexpected end of stream while receiving replication batches. " +
-                                  "This might indicate an issue with network.", e);
-                }
-                else
-                {
-                    if (Logger.IsDebugEnabled)
-                        Logger.Debug("EndOfStreamException while receiving replication batches. " +
-                                   "This might indicate an issue with network.", e);
-                }
+                _endOfStreamExceptionLogger.Log(
+                    e,
+                    Logger,
+                    "Received unexpected end of stream while receiving replication batches. This might indicate an issue with network.",
+                    EndOfStreamExceptionLogger.LogLevel.Info);
                 throw;
             }
             catch (Exception e)
