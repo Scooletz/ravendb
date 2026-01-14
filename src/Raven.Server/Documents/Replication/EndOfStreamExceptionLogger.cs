@@ -10,6 +10,7 @@ namespace Raven.Server.Documents.Replication
     /// </summary>
     public sealed class EndOfStreamExceptionLogger
     {
+        // Tracks whether the first EndOfStreamException has been logged for this connection instance
         private bool _logged;
 
         /// <summary>
@@ -35,7 +36,8 @@ namespace Raven.Server.Documents.Replication
                             logger.Info(message, exception);
                         break;
                     default:
-                        throw new ArgumentOutOfRangeException(nameof(firstOccurrenceLevel), "Only WARN or INFO levels are supported for first occurrence");
+                        throw new ArgumentOutOfRangeException(nameof(firstOccurrenceLevel), firstOccurrenceLevel, 
+                            $"Only WARN or INFO levels are supported for first occurrence, received: {firstOccurrenceLevel}");
                 }
             }
             else
