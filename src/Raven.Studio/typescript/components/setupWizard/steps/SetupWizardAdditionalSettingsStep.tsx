@@ -316,7 +316,7 @@ function AdvancedSettingsContent({ control, isVisible }: AdvancedSettingsContent
 
     const {
         securityStep: { securityOption },
-        additionalSettingsStep: { dataDirectory, logsPath },
+        additionalSettingsStep: { dataDirectory, logsPath, setupCertificatePath },
         selfSignedCertificateStep,
         domainStep,
     } = useWatch({
@@ -414,6 +414,12 @@ function AdvancedSettingsContent({ control, isVisible }: AdvancedSettingsContent
                         getPathsProvider={(path: string) => getLocalFolderPathsProvider(path)}
                         getPathDependencies={(path: string) => [path]}
                     />
+                    {isVisible && !!setupCertificatePath && (
+                        <RichAlert variant="warning" className="mt-2">
+                            This path must exist; the certificate will be saved here. After setup, ensure it is present
+                            at the same path on every node; otherwise, cluster setup may fail.
+                        </RichAlert>
+                    )}
                 </FormGroup>
             )}
             <FormGroup>
