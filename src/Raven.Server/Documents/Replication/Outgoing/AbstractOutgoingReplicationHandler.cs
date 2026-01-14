@@ -71,6 +71,7 @@ namespace Raven.Server.Documents.Replication.Outgoing
         protected InterruptibleRead<TContextPool, TOperationContext> _interruptibleRead;
         protected OutgoingReplicationStatsAggregator _lastStats;
         protected RavenLogger Logger;
+        private bool _endOfStreamExceptionLogged;
 
         public ServerStore Server => _server;
         public long LastSentDocumentEtag => _lastSentDocumentEtag;
@@ -700,6 +701,12 @@ namespace Raven.Server.Documents.Replication.Outgoing
                     {
                         HandleIOException(ioe);
                     }
+
+                    if (e.InnerException is EndOfStreamException eose)
+                    {
+                        HandleEndOfStreamException(eose);
+                        return;
+                    }
                 }
 
                 HandleException(e);
@@ -719,6 +726,10 @@ namespace Raven.Server.Documents.Replication.Outgoing
             catch (LegacyReplicationViolationException e)
             {
                 HandleLegacyReplicationViolationException(e);
+            }
+            catch (EndOfStreamException e)
+            {
+                HandleEndOfStreamException(e);
             }
             catch (Exception e)
             {
@@ -754,6 +765,25 @@ namespace Raven.Server.Documents.Replication.Outgoing
                 if (Logger.IsWarnEnabled)
                     Logger.Warn($"LegacyReplicationViolationException occurred on replication thread ({FromToString}). " +
                                 "Replication is stopped and will not continue until the violation is resolved. ", e);
+                OnFailed(e);
+            }
+
+            void HandleEndOfStreamException(EndOfStreamException e)
+            {
+                // Log first occurrence at WARN level, subsequent occurrences at DEBUG level
+                if (_endOfStreamExceptionLogged == false)
+                {
+                    _endOfStreamExceptionLogged = true;
+                    if (Logger.IsWarnEnabled)
+                        Logger.Warn($"Unexpected exception occurred on replication thread ({FromToString}). " +
+                                    $"Replication stopped (will be retried later).", e);
+                }
+                else
+                {
+                    if (Logger.IsDebugEnabled)
+                        Logger.Debug($"EndOfStreamException occurred on replication thread ({FromToString}). " +
+                                     $"Replication stopped (will be retried later).", e);
+                }
                 OnFailed(e);
             }
 
