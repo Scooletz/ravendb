@@ -59,11 +59,24 @@ export function SetupWizardNodeAddressStep() {
 
     const {
         domainStep,
-        selfSignedCertificateStep: { cns },
+        selfSignedCertificateStep: { cns, isWildcardCertificate },
         securityStep: { securityOption },
     } = useWatch({ control });
 
     const fullDomain = `a.${domainStep.domain.toLocaleLowerCase()}.${domainStep.rootDomain}`;
+
+    const getDomainForWildcard = (tag: string | null): string => {
+        if (cns.length === 0) {
+            return "";
+        }
+
+        const cn = cns[0];
+
+        if (!tag) {
+            return cn.replace("*.", "");
+        }
+        return cn.replace("*", tag);
+    };
 
     const handleDefaultNodeUrlConfiguration = () => {
         if (securityOption === "letsEncrypt") {
@@ -71,7 +84,11 @@ export function SetupWizardNodeAddressStep() {
         }
 
         if (securityOption === "ownCertificate") {
-            return cns[0];
+            if (isWildcardCertificate) {
+                return getDomainForWildcard(null);
+            } else {
+                return cns[0];
+            }
         }
 
         return null;
@@ -91,7 +108,7 @@ export function SetupWizardNodeAddressStep() {
                     ipAddress: asyncGetSetupParameters.result?.IsDocker ? "" : "127.0.0.1",
                 },
             ],
-            dnsName: securityOption === "ownCertificate" ? cns[0] : undefined,
+            dnsName: securityOption === "ownCertificate" && !isWildcardCertificate ? cns[0] : undefined,
             isEditing: true,
             isNewlyAdded: true,
         });
@@ -107,7 +124,7 @@ export function SetupWizardNodeAddressStep() {
                         ipAddress: asyncGetSetupParameters.result?.IsDocker ? "" : "127.0.0.1",
                     },
                 ],
-                dnsName: securityOption === "ownCertificate" ? cns[0] : undefined,
+                dnsName: securityOption === "ownCertificate" && !isWildcardCertificate ? cns[0] : undefined,
                 isEditing: true, // the first node should be added with default values and in editing mode
                 isNewlyAdded: false,
                 isPassive: false,
@@ -190,6 +207,7 @@ function NodeDetailsPanel({ control, index, onRemove }: NodeDetailsPanelProps) {
 
     const {
         securityStep: { securityOption },
+        selfSignedCertificateStep: { cns, isWildcardCertificate },
     } = useWatch({
         control,
     });
@@ -208,6 +226,8 @@ function NodeDetailsPanel({ control, index, onRemove }: NodeDetailsPanelProps) {
             securityOption,
             currentIndex: index,
             isDocker: asyncGetSetupParameters.result?.IsDocker,
+            cns,
+            isWildcardCertificate,
         },
     });
 
@@ -240,6 +260,7 @@ function NodeDetailsPanelHeader({ control, index, onRemove, editNodeForm }: Node
 
     const {
         domainStep,
+        selfSignedCertificateStep: { isWildcardCertificate, cns },
         setupMethodStep: { method },
         nodeAddressStep: { nodes },
         securityStep: { securityOption },
@@ -274,7 +295,20 @@ function NodeDetailsPanelHeader({ control, index, onRemove, editNodeForm }: Node
         }
 
         if (securityOption === "ownCertificate") {
-            let nodeUrl = nodeData.dnsName;
+            let nodeUrl: string;
+
+            if (isWildcardCertificate) {
+                // For wildcard certificates, construct domain from CN and node tag
+                if (cns.length > 0 && cns[0].includes("*")) {
+                    nodeUrl = cns[0].replace("*", nodeData.nodeTag.toLowerCase());
+                } else {
+                    // Fallback to dnsName if available
+                    nodeUrl = nodeData.dnsName || "";
+                }
+            } else {
+                // For non-wildcard certificates, use the selected dnsName
+                nodeUrl = nodeData.dnsName || "";
+            }
 
             if (nodeData.httpPort !== 443 && nodeData.httpPort != null) {
                 nodeUrl += ":" + nodeData.httpPort;
@@ -287,8 +321,8 @@ function NodeDetailsPanelHeader({ control, index, onRemove, editNodeForm }: Node
 
     const handleSaveEdit = handleSubmit(async (formData: NodeEditFormData) => {
         setValue(`nodeAddressStep.nodes.${index}`, {
-            nodeUrl: handleNodeUrl(),
             ...formData,
+            nodeUrl: handleNodeUrl(),
             httpPort: formData.httpPort == null ? (securityOption === "none" ? 8080 : 443) : formData.httpPort,
             nodeTag: formData.isPassive ? undefined : formData.nodeTag,
             isEditing: false,
@@ -1345,11 +1379,35 @@ export const nodeEditFormSchema = yup.object({
                 }),
         otherwise: (schema) => schema,
     }),
-    dnsName: yup.string().when("$securityOption", {
-        is: "ownCertificate",
-        then: (schema) => schema.required("DNS name is required"),
-        otherwise: (schema) => schema,
-    }),
+    dnsName: yup
+        .string()
+        .nullable()
+        .test("required-for-non-wildcard", "DNS name is required", function (value) {
+            const { securityOption, isWildcardCertificate } = this.options.context as {
+                securityOption: SetupWizardSecurityOption;
+                isWildcardCertificate: boolean;
+                cns: string[];
+            };
+
+            if (securityOption === "ownCertificate" && !isWildcardCertificate) {
+                return !!value;
+            }
+
+            return true;
+        })
+        .test("valid-cn", "DNS name must be from the certificate", function (value) {
+            const { securityOption, isWildcardCertificate, cns } = this.options.context as {
+                securityOption: SetupWizardSecurityOption;
+                isWildcardCertificate: boolean;
+                cns: string[];
+            };
+
+            if (securityOption === "ownCertificate" && !isWildcardCertificate && value) {
+                return cns.includes(value);
+            }
+
+            return true;
+        }),
     httpPort: yup
         .number()
         .nullable()
