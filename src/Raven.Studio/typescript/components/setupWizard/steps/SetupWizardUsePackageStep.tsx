@@ -191,7 +191,7 @@ export function SetupWizardUsePackageStepFooter() {
     const { reportEvent } = useEventsCollector();
 
     const {
-        usePackageStep: { isZipValid, fileZip },
+        usePackageStep: { isZipValid, fileZip, nodeTag },
     } = useWatch({ control });
 
     const handleContinue = () => {
@@ -213,7 +213,7 @@ export function SetupWizardUsePackageStepFooter() {
                 variant="primary"
                 className="rounded-pill"
                 onClick={handleContinue}
-                disabled={!isZipValid || !fileZip}
+                disabled={!isZipValid || !fileZip || !nodeTag}
             >
                 Continue <Icon icon="arrow-right" margin="m-0" />
             </Button>
