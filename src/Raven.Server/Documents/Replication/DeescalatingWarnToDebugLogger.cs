@@ -52,16 +52,19 @@ namespace Raven.Server.Documents.Replication
                 switch (_firstOccurrenceLevel)
                 {
                     case LogLevel.Warn:
-                        _logger.Warn(message, exception);
+                        if (_logger.IsWarnEnabled)
+                            _logger.Warn(message, exception);
                         break;
                     case LogLevel.Info:
-                        _logger.Info(message, exception);
+                        if (_logger.IsInfoEnabled)
+                            _logger.Info(message, exception);
                         break;
                 }
             }
             else
             {
-                _logger.Debug(message, exception);
+                if (_logger.IsDebugEnabled)
+                    _logger.Debug(message, exception);
             }
         }
 
