@@ -112,7 +112,7 @@ namespace Raven.Server.Documents.Replication.Outgoing
             _connectionDisposed = new AsyncManualResetEvent(token);
 
             Logger = RavenLogManager.Instance.GetLoggerForDatabase(GetType(), _databaseName);
-            _endOfStreamExceptionLogger = new DeescalatingWarnToDebugLogger(Logger, DeescalatingWarnToDebugLogger.LogLevel.Warn);
+            _endOfStreamExceptionLogger = new DeescalatingWarnToDebugLogger(Logger);
             Destination = node;
             Metrics = new ReplicationMetricsCountersManager();
         }

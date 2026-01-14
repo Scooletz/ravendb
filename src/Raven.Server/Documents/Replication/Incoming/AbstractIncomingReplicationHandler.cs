@@ -90,7 +90,7 @@ namespace Raven.Server.Documents.Replication.Incoming
             _contextPool = _parent.ContextPool;
 
             Logger = RavenLogManager.Instance.GetLoggerForDatabase(GetType(), _databaseName);
-            _endOfStreamExceptionLogger = new DeescalatingWarnToDebugLogger(Logger, DeescalatingWarnToDebugLogger.LogLevel.Info);
+            _endOfStreamExceptionLogger = new DeescalatingWarnToDebugLogger(Logger);
 
             ConnectionInfo = IncomingConnectionInfo.FromGetLatestEtag(replicatedLastEtag);
             SupportedFeatures = TcpConnectionHeaderMessage.GetSupportedFeaturesFor(tcpConnectionOptions.Operation, tcpConnectionOptions.ProtocolVersion);
