@@ -1338,12 +1338,8 @@ namespace SlowTests.Client.Attachments
                     {
                         store2.Operations.Send(new PutAttachmentOperation("users/1", "a1", a2, "a1/png"));
                     }
-<<<<<<< HEAD
-                    await store2.Operations.SendAsync(new DeleteAttachmentOperation("users/1", "a1"));
-=======
 
-                    store2.Operations.Send(new DeleteAttachmentOperation("users/1", "a1"));
->>>>>>> 49a18b554f1 (RavenDB-24202 sharded break and mend)
+                    await store2.Operations.SendAsync(new DeleteAttachmentOperation("users/1", "a1"));
 
                     await session.StoreAsync(new User { Name = "Marker 2" }, "marker 2");
                     await session.SaveChangesAsync();

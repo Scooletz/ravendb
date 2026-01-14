@@ -81,10 +81,11 @@ namespace Tests.Infrastructure
         {
             DevelopmentHelper.ShardingToDo(DevelopmentHelper.TeamMember.Stav, DevelopmentHelper.Severity.Normal, "Make this func private when legacy BreakReplication() is removed");
             ReplicationInstance replication = new(await server.ServerStore.DatabasesLandlord.TryGetOrCreateResourceStore(databaseName), databaseName, options);
-            
-            // TODO: break on start is not possible atm. Needs reworking.
-            // if (options.BreakReplicationOnStart)
-            //     await replication.BreakAsync();
+
+            if (options.BreakReplicationOnStart)
+            {
+                replication._breakpoint.BreakNowNoWait();
+            }
             
             return replication;
         }

@@ -46,6 +46,21 @@ public sealed class AsyncBreakpoint
     }
 
     /// <summary>
+    /// Breaks this instance, without waiting for another thread breaking because of this call..
+    /// </summary>
+    public void BreakNowNoWait()
+    {
+        lock (_locker)
+        {
+            Debug.Assert(_break == null, $"{nameof(BreakAsync)} was already called. Ensure that you call it only once.");
+            Debug.Assert(_continue == null);
+
+            _break = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            _continue = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        }
+    }
+
+    /// <summary>
     /// Continues the execution of the thread that waits with <see cref="Wait"/> after previously being stopped with <see cref="BreakAsync"/>.
     /// </summary>
     /// <param name="continueCountDown">The number of <see cref="Wait"/> to execute before making this method completed.</param>
@@ -105,7 +120,6 @@ public sealed class AsyncBreakpoint
                     _continue = null;
                     _continuing = 0;
                 }
-                
             }
         }
     }
@@ -116,7 +130,7 @@ public sealed class AsyncBreakpoint
     {
         lock (_locker)
         {
-            _count = _count;
+            _count = replicationLoaderDependentHandlerCount;
         }
     }
 }
