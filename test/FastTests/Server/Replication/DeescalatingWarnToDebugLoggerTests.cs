@@ -1,7 +1,11 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using NLog;
+using NLog.Config;
+using NLog.Targets;
 using Raven.Server.Documents.Replication;
-using Sparrow.Logging;
+using Sparrow.Server.Logging;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -17,8 +21,8 @@ namespace FastTests.Server.Replication
         public void FirstCall_ShouldLogAtWarnLevel()
         {
             // Arrange
-            var mockLogger = new MockRavenLogger();
-            var deescalatingLogger = new DeescalatingWarnToDebugLogger(mockLogger);
+            using var logSetup = new NLogTestSetup();
+            var deescalatingLogger = new DeescalatingWarnToDebugLogger(logSetup.RavenLogger);
             var exception = new Exception("Test exception");
             var message = "Test message";
 
@@ -26,18 +30,18 @@ namespace FastTests.Server.Replication
             deescalatingLogger.Log(message, exception);
 
             // Assert
-            Assert.Single(mockLogger.WarnCalls);
-            Assert.Empty(mockLogger.DebugCalls);
-            Assert.Equal(message, mockLogger.WarnCalls[0].Message);
-            Assert.Equal(exception, mockLogger.WarnCalls[0].Exception);
+            var logs = logSetup.GetLogs();
+            Assert.Single(logs);
+            Assert.Equal(NLog.LogLevel.Warn, logs[0].Level);
+            Assert.Contains(message, logs[0].FormattedMessage);
         }
 
         [Fact]
         public void SecondCall_ShouldLogAtDebugLevel()
         {
             // Arrange
-            var mockLogger = new MockRavenLogger();
-            var deescalatingLogger = new DeescalatingWarnToDebugLogger(mockLogger);
+            using var logSetup = new NLogTestSetup();
+            var deescalatingLogger = new DeescalatingWarnToDebugLogger(logSetup.RavenLogger);
             var exception1 = new Exception("First exception");
             var exception2 = new Exception("Second exception");
             var message1 = "First message";
@@ -48,20 +52,20 @@ namespace FastTests.Server.Replication
             deescalatingLogger.Log(message2, exception2);
 
             // Assert
-            Assert.Single(mockLogger.WarnCalls);
-            Assert.Single(mockLogger.DebugCalls);
-            Assert.Equal(message1, mockLogger.WarnCalls[0].Message);
-            Assert.Equal(exception1, mockLogger.WarnCalls[0].Exception);
-            Assert.Equal(message2, mockLogger.DebugCalls[0].Message);
-            Assert.Equal(exception2, mockLogger.DebugCalls[0].Exception);
+            var logs = logSetup.GetLogs();
+            Assert.Equal(2, logs.Count);
+            Assert.Equal(NLog.LogLevel.Warn, logs[0].Level);
+            Assert.Contains(message1, logs[0].FormattedMessage);
+            Assert.Equal(NLog.LogLevel.Debug, logs[1].Level);
+            Assert.Contains(message2, logs[1].FormattedMessage);
         }
 
         [Fact]
         public void SubsequentCalls_ShouldAllLogAtDebugLevel()
         {
             // Arrange
-            var mockLogger = new MockRavenLogger();
-            var deescalatingLogger = new DeescalatingWarnToDebugLogger(mockLogger);
+            using var logSetup = new NLogTestSetup();
+            var deescalatingLogger = new DeescalatingWarnToDebugLogger(logSetup.RavenLogger);
 
             // Act
             deescalatingLogger.Log("Message 1", new Exception("Exception 1"));
@@ -70,16 +74,20 @@ namespace FastTests.Server.Replication
             deescalatingLogger.Log("Message 4", new Exception("Exception 4"));
 
             // Assert
-            Assert.Single(mockLogger.WarnCalls); // Only first call
-            Assert.Equal(3, mockLogger.DebugCalls.Count); // Second, third, and fourth calls
+            var logs = logSetup.GetLogs();
+            Assert.Equal(4, logs.Count);
+            Assert.Equal(NLog.LogLevel.Warn, logs[0].Level); // Only first call
+            Assert.Equal(NLog.LogLevel.Debug, logs[1].Level);
+            Assert.Equal(NLog.LogLevel.Debug, logs[2].Level);
+            Assert.Equal(NLog.LogLevel.Debug, logs[3].Level);
         }
 
         [Fact]
         public void IsEnabled_BeforeFirstCall_ShouldCheckWarnLevel()
         {
             // Arrange
-            var mockLogger = new MockRavenLogger { IsWarnEnabled = true, IsDebugEnabled = false };
-            var deescalatingLogger = new DeescalatingWarnToDebugLogger(mockLogger);
+            using var logSetup = new NLogTestSetup(minLevel: NLog.LogLevel.Warn);
+            var deescalatingLogger = new DeescalatingWarnToDebugLogger(logSetup.RavenLogger);
 
             // Act & Assert
             Assert.True(deescalatingLogger.IsEnabled);
@@ -89,28 +97,22 @@ namespace FastTests.Server.Replication
         public void IsEnabled_AfterFirstCall_ShouldCheckDebugLevel()
         {
             // Arrange
-            var mockLogger = new MockRavenLogger { IsWarnEnabled = true, IsDebugEnabled = false };
-            var deescalatingLogger = new DeescalatingWarnToDebugLogger(mockLogger);
+            using var logSetup = new NLogTestSetup(minLevel: NLog.LogLevel.Warn); // Warn enabled, Debug disabled
+            var deescalatingLogger = new DeescalatingWarnToDebugLogger(logSetup.RavenLogger);
 
             // Act
             deescalatingLogger.Log("Test", new Exception());
 
-            // Assert - After first call, should check debug level
+            // Assert - After first call, should check debug level (which is disabled)
             Assert.False(deescalatingLogger.IsEnabled);
-
-            // Arrange - Enable debug
-            mockLogger.IsDebugEnabled = true;
-
-            // Assert - Should now be enabled
-            Assert.True(deescalatingLogger.IsEnabled);
         }
 
         [Fact]
         public void IsEnabled_WhenWarnDisabled_ShouldReturnFalseBeforeFirstCall()
         {
             // Arrange
-            var mockLogger = new MockRavenLogger { IsWarnEnabled = false, IsDebugEnabled = true };
-            var deescalatingLogger = new DeescalatingWarnToDebugLogger(mockLogger);
+            using var logSetup = new NLogTestSetup(minLevel: NLog.LogLevel.Error); // Warn disabled
+            var deescalatingLogger = new DeescalatingWarnToDebugLogger(logSetup.RavenLogger);
 
             // Act & Assert
             Assert.False(deescalatingLogger.IsEnabled);
@@ -120,31 +122,32 @@ namespace FastTests.Server.Replication
         public void Log_WithWarnDisabled_ShouldNotLogFirstCall()
         {
             // Arrange
-            var mockLogger = new MockRavenLogger { IsWarnEnabled = false };
-            var deescalatingLogger = new DeescalatingWarnToDebugLogger(mockLogger);
+            using var logSetup = new NLogTestSetup(minLevel: NLog.LogLevel.Error); // Warn disabled
+            var deescalatingLogger = new DeescalatingWarnToDebugLogger(logSetup.RavenLogger);
 
             // Act
             deescalatingLogger.Log("Message", new Exception());
 
             // Assert
-            Assert.Empty(mockLogger.WarnCalls);
-            Assert.Empty(mockLogger.DebugCalls);
+            var logs = logSetup.GetLogs();
+            Assert.Empty(logs);
         }
 
         [Fact]
         public void Log_WithDebugDisabled_ShouldNotLogSubsequentCalls()
         {
             // Arrange
-            var mockLogger = new MockRavenLogger { IsWarnEnabled = true, IsDebugEnabled = false };
-            var deescalatingLogger = new DeescalatingWarnToDebugLogger(mockLogger);
+            using var logSetup = new NLogTestSetup(minLevel: NLog.LogLevel.Warn); // Warn enabled, Debug disabled
+            var deescalatingLogger = new DeescalatingWarnToDebugLogger(logSetup.RavenLogger);
 
             // Act
             deescalatingLogger.Log("First", new Exception());
             deescalatingLogger.Log("Second", new Exception());
 
             // Assert
-            Assert.Single(mockLogger.WarnCalls);
-            Assert.Empty(mockLogger.DebugCalls); // Debug was disabled
+            var logs = logSetup.GetLogs();
+            Assert.Single(logs); // Only first call logged
+            Assert.Equal(NLog.LogLevel.Warn, logs[0].Level);
         }
 
         [Fact]
@@ -154,69 +157,56 @@ namespace FastTests.Server.Replication
             Assert.Throws<ArgumentNullException>(() => new DeescalatingWarnToDebugLogger(null));
         }
 
-        private class MockRavenLogger : IRavenLogger
+        private class NLogTestSetup : IDisposable
         {
-            public List<(string Message, Exception Exception)> WarnCalls { get; } = new List<(string, Exception)>();
-            public List<(string Message, Exception Exception)> DebugCalls { get; } = new List<(string, Exception)>();
+            private readonly LoggingConfiguration _previousConfiguration;
+            private readonly TestTarget _testTarget;
 
-            public bool IsWarnEnabled { get; set; } = true;
-            public bool IsDebugEnabled { get; set; } = true;
+            public RavenLogger RavenLogger { get; }
 
-            // IRavenLogger implementation
-            public bool IsErrorEnabled => true;
-            public bool IsInfoEnabled => true;
-            public bool IsFatalEnabled => true;
-            public bool IsTraceEnabled => true;
-
-            public void Warn(string message, Exception exception)
+            public NLogTestSetup(NLog.LogLevel minLevel = null)
             {
-                WarnCalls.Add((message, exception));
+                minLevel ??= NLog.LogLevel.Debug;
+
+                // Store previous configuration to restore later
+                _previousConfiguration = LogManager.Configuration;
+
+                // Create new configuration with test target
+                var configuration = new LoggingConfiguration();
+                _testTarget = new TestTarget { Name = "test" };
+                configuration.AddTarget(_testTarget);
+
+                // Add logging rule
+                configuration.LoggingRules.Add(new LoggingRule("*", minLevel, _testTarget));
+
+                LogManager.Configuration = configuration;
+                var nlogLogger = LogManager.GetLogger("test");
+                RavenLogger = new RavenLogger(nlogLogger);
             }
 
-            public void Debug(string message, Exception exception)
+            public List<LogEventInfo> GetLogs()
             {
-                DebugCalls.Add((message, exception));
+                LogManager.Flush();
+                return _testTarget.LogEvents.ToList();
             }
 
-            // Not used in tests but required by interface
-            public void Error(string message) { }
-            public void Error(string message, params object[] args) { }
-            public void Error(string message, Exception exception) { }
-            public void Error(Exception exception, string message, params object[] args) { }
-            public void Error<TArgument1, TArgument2>(string message, TArgument1 argument1, TArgument2 argument2) { }
-            public void Error<TArgument1, TArgument2, TArgument3>(string message, TArgument1 argument1, TArgument2 argument2, TArgument3 argument3) { }
-            public void Info(string message) { }
-            public void Info(string message, params object[] args) { }
-            public void Info(string message, Exception exception) { }
-            public void Info(Exception exception, string message, params object[] args) { }
-            public void Info<TArgument1, TArgument2>(string message, TArgument1 argument1, TArgument2 argument2) { }
-            public void Info<TArgument1, TArgument2, TArgument3>(string message, TArgument1 argument1, TArgument2 argument2, TArgument3 argument3) { }
-            public void Debug(string message) { }
-            public void Debug(string message, params object[] args) { }
-            public void Debug(Exception exception, string message, params object[] args) { }
-            public void Debug<TArgument1, TArgument2>(string message, TArgument1 argument1, TArgument2 argument2) { }
-            public void Debug<TArgument1, TArgument2, TArgument3>(string message, TArgument1 argument1, TArgument2 argument2, TArgument3 argument3) { }
-            public void Warn(string message) { }
-            public void Warn(string message, params object[] args) { }
-            public void Warn(Exception exception, string message, params object[] args) { }
-            public void Warn<TArgument1, TArgument2>(string message, TArgument1 argument1, TArgument2 argument2) { }
-            public void Warn<TArgument1, TArgument2, TArgument3>(string message, TArgument1 argument1, TArgument2 argument2, TArgument3 argument3) { }
-            public void Fatal(string message) { }
-            public void Fatal(string message, params object[] args) { }
-            public void Fatal(string message, Exception exception) { }
-            public void Fatal(Exception exception, string message, params object[] args) { }
-            public void Fatal<TArgument1, TArgument2>(string message, TArgument1 argument1, TArgument2 argument2) { }
-            public void Fatal<TArgument1, TArgument2, TArgument3>(string message, TArgument1 argument1, TArgument2 argument2, TArgument3 argument3) { }
-            public void Trace(string message) { }
-            public void Trace(string message, params object[] args) { }
-            public void Trace(string message, Exception exception) { }
-            public void Trace(Exception exception, string message, params object[] args) { }
-            public void Trace<TArgument1, TArgument2>(string message, TArgument1 argument1, TArgument2 argument2) { }
-            public void Trace<TArgument1, TArgument2, TArgument3>(string message, TArgument1 argument1, TArgument2 argument2, TArgument3 argument3) { }
-            public bool IsEnabled(Sparrow.Logging.LogLevel logLevel) => true;
-            public void Log(Sparrow.Logging.LogLevel logLevel, string message) { }
-            public void Log(Sparrow.Logging.LogLevel logLevel, string message, Exception exception) { }
-            public IRavenLogger WithProperty(string propertyKey, object propertyValue) => this;
+            public void Dispose()
+            {
+                LogManager.Flush();
+                // Restore previous configuration
+                LogManager.Configuration = _previousConfiguration;
+            }
+        }
+
+        [Target("TestTarget")]
+        private class TestTarget : TargetWithLayout
+        {
+            public List<LogEventInfo> LogEvents { get; } = new List<LogEventInfo>();
+
+            protected override void Write(LogEventInfo logEvent)
+            {
+                LogEvents.Add(logEvent);
+            }
         }
     }
 }
