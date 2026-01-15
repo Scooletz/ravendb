@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using System.Text.RegularExpressions;
@@ -9,6 +10,7 @@ using Raven.Client.Util;
 using Raven.Server.Commercial.LetsEncrypt;
 using Raven.Server.ServerWide;
 using Raven.Server.Utils;
+using Sparrow.Utils;
 
 namespace Raven.Server.Commercial.SetupWizard;
 
@@ -23,6 +25,7 @@ public static class SetupWizardUtils
 
             byte[] serverCertBytes;
             X509Certificate2 serverCert;
+            string domain;
             string domainFromCert;
             string publicServerUrl;
             CertificateUtils.CertificateHolder serverCertificateHolder;
@@ -46,6 +49,10 @@ public static class SetupWizardUtils
                     parameters.SetupInfo.NodeSetupInfos[localNodeTag].TcpPort,
                     out _,
                     out domainFromCert);
+                
+                domain = (parameters.SetupMode == SetupMode.Secured)
+                    ? domainFromCert.ToLower()
+                    : parameters.SetupInfo.Domain.ToLower();
 
                 if (parameters.OnBeforeAddingNodesToCluster != null && parameters.SetupInfo.ZipOnly == false)
                         await parameters.OnBeforeAddingNodesToCluster(publicServerUrl, localNodeTag);
@@ -60,6 +67,19 @@ public static class SetupWizardUtils
 
                 if (parameters.SetupInfo.ZipOnly == false)
                 {
+                    var certificateFileName = $"cluster.server.certificate.{domain}.pfx";
+                    string certPath = parameters.OnGetCertificatePath?.Invoke(certificateFileName);
+                    if (certPath != null)
+                    {
+                        await using (var certFile = SafeFileStream.Create(certPath, FileMode.Create))
+                        {
+                            await certFile.WriteAsync(serverCertBytes, parameters.Token);
+                        }
+                        
+                        if (File.Exists(certPath))
+                            File.Delete(certPath);
+                    }
+                    
                     foreach (var node in parameters.SetupInfo.NodeSetupInfos)
                     {
                         if (node.Key == parameters.SetupInfo.LocalNodeTag)
@@ -89,10 +109,6 @@ public static class SetupWizardUtils
             parameters.OnProgress?.Invoke(parameters.Progress);
 
             X509Certificate2 clientCert;
-
-            var domain = (parameters.SetupMode == SetupMode.Secured)
-                ? domainFromCert.ToLower()
-                : parameters.SetupInfo.Domain.ToLower();
 
             byte[] certBytes;
             CertificateDefinition certificateDefinition;
