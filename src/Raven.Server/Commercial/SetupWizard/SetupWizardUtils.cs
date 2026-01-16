@@ -67,18 +67,7 @@ public static class SetupWizardUtils
 
                 if (parameters.SetupInfo.ZipOnly == false)
                 {
-                    var certificateFileName = $"cluster.server.certificate.{domain}.pfx";
-                    string certPath = parameters.OnGetCertificatePath?.Invoke(certificateFileName);
-                    if (certPath != null)
-                    {
-                        await using (var certFile = SafeFileStream.Create(certPath, FileMode.Create))
-                        {
-                            await certFile.WriteAsync(serverCertBytes, parameters.Token);
-                        }
-                        
-                        if (File.Exists(certPath))
-                            File.Delete(certPath);
-                    }
+                    await ValidateCertificateFileWriteAccess();
                     
                     foreach (var node in parameters.SetupInfo.NodeSetupInfos)
                     {
@@ -152,6 +141,17 @@ public static class SetupWizardUtils
         catch (Exception e)
         {
             throw new InvalidOperationException("Failed to create settings file(s).", e);
+        }
+
+        async Task ValidateCertificateFileWriteAccess()
+        {
+            var certificateFileName = Guid.NewGuid().ToString();
+            string certPath = parameters.OnGetCertificatePath?.Invoke(certificateFileName);
+            if (certPath != null)
+            {
+                await File.WriteAllTextAsync(certPath, string.Empty);
+                File.Delete(certPath);
+            }
         }
     }
 
