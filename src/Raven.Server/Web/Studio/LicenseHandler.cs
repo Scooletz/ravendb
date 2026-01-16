@@ -12,6 +12,7 @@ using Raven.Server.Routing;
 using Raven.Server.ServerWide;
 using Raven.Server.ServerWide.Context;
 using Raven.Server.Utils;
+using Raven.Server.Web.System;
 using Sparrow.Json;
 using Sparrow.Json.Parsing;
 using Sparrow.Logging;
@@ -220,6 +221,8 @@ namespace Raven.Server.Web.Studio
         [RavenAction("/license/free/send-verification-code", "POST", AuthorizationStatus.ValidUser, EndpointType.Read)]
         public async Task SendFreeLicenseVerificationCode()
         {
+            SetupHandler.AssertOnlyInSetupMode(ServerStore);
+            
             using (ServerStore.ContextPool.AllocateOperationContext(out JsonOperationContext context))
             {
                 var json = await context.ReadForMemoryAsync(RequestBodyStream(), "SendFreeLicenseVerificationCodeRequest");
@@ -261,6 +264,8 @@ namespace Raven.Server.Web.Studio
         [RavenAction("/license/free/download", "POST", AuthorizationStatus.ValidUser, EndpointType.Read)]
         public async Task DownloadFreeLicense()
         {
+            SetupHandler.AssertOnlyInSetupMode(ServerStore);
+            
             using (ServerStore.ContextPool.AllocateOperationContext(out JsonOperationContext context))
             await using (var writer = new AsyncBlittableJsonTextWriter(context, ResponseBodyStream()))
             {

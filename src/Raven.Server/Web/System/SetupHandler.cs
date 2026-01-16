@@ -44,7 +44,7 @@ namespace Raven.Server.Web.System
         [RavenAction("/setup/dns-n-cert", "POST", AuthorizationStatus.UnauthenticatedClients)]
         public async Task DnsCertBridge()
         {
-            AssertOnlyInSetupMode();
+            AssertOnlyInSetupMode(ServerStore);
             var action = GetQueryStringValueAndAssertIfSingleAndNotEmpty("action"); // Action can be: claim | user-domains | check-availability
 
             using (var reader = new StreamReader(RequestBodyStream()))
@@ -124,7 +124,7 @@ namespace Raven.Server.Web.System
         [RavenAction("/setup/user-domains", "POST", AuthorizationStatus.UnauthenticatedClients)]
         public async Task UserDomains()
         {
-            AssertOnlyInSetupMode();
+            AssertOnlyInSetupMode(ServerStore);
 
             using (ServerStore.ContextPool.AllocateOperationContext(out JsonOperationContext context))
             {
@@ -255,7 +255,7 @@ namespace Raven.Server.Web.System
         [RavenAction("/setup/populate-ips", "POST", AuthorizationStatus.UnauthenticatedClients)]
         public async Task PopulateIps()
         {
-            AssertOnlyInSetupMode();
+            AssertOnlyInSetupMode(ServerStore);
             var rootDomain = GetQueryStringValueAndAssertIfSingleAndNotEmpty("rootDomain");
 
             using (ServerStore.ContextPool.AllocateOperationContext(out JsonOperationContext context))
@@ -289,7 +289,7 @@ namespace Raven.Server.Web.System
         [RavenAction("/setup/parameters", "GET", AuthorizationStatus.UnauthenticatedClients)]
         public async Task GetSetupParameters()
         {
-            AssertOnlyInSetupMode();
+            AssertOnlyInSetupMode(ServerStore);
             var setupParameters = await SetupParameters.Get(ServerStore);
             using (ServerStore.ContextPool.AllocateOperationContext(out TransactionOperationContext context))
             await using (var writer = new AsyncBlittableJsonTextWriter(context, ResponseBodyStream()))
@@ -334,7 +334,7 @@ namespace Raven.Server.Web.System
         [RavenAction("/setup/ips", "GET", AuthorizationStatus.UnauthenticatedClients)]
         public async Task GetIps()
         {
-            AssertOnlyInSetupMode();
+            AssertOnlyInSetupMode(ServerStore);
 
             NetworkInterface[] netInterfaces = null;
             try
@@ -428,7 +428,7 @@ namespace Raven.Server.Web.System
         [RavenAction("/setup/hosts", "POST", AuthorizationStatus.UnauthenticatedClients)]
         public async Task GetHosts()
         {
-            AssertOnlyInSetupMode();
+            AssertOnlyInSetupMode(ServerStore);
 
             using (ServerStore.ContextPool.AllocateOperationContext(out JsonOperationContext context))
             using (var certificateJson = await context.ReadForMemoryAsync(RequestBodyStream(), "setup-certificate"))
@@ -497,7 +497,7 @@ namespace Raven.Server.Web.System
         [RavenAction("/setup/unsecured/package", "POST", AuthorizationStatus.UnauthenticatedClients)]
         public async Task SetupUnsecuredPackage()
         {
-            AssertOnlyInSetupMode();
+            AssertOnlyInSetupMode(ServerStore);
 
             var stream = TryGetRequestFromStream("Options") ?? RequestBodyStream();
             var operationCancelToken = CreateHttpRequestBoundOperationToken();
@@ -554,7 +554,7 @@ namespace Raven.Server.Web.System
         [RavenAction("/setup/secured", "POST", AuthorizationStatus.UnauthenticatedClients)]
         public async Task SetupSecured()
         {
-            AssertOnlyInSetupMode();
+            AssertOnlyInSetupMode(ServerStore);
 
             var stream = TryGetRequestFromStream("Options") ?? RequestBodyStream();
             var operationCancelToken = CreateHttpRequestBoundOperationToken();
@@ -596,7 +596,7 @@ namespace Raven.Server.Web.System
         [RavenAction("/setup/letsencrypt/agreement", "GET", AuthorizationStatus.UnauthenticatedClients)]
         public async Task SetupAgreement()
         {
-            AssertOnlyInSetupMode();
+            AssertOnlyInSetupMode(ServerStore);
 
             var email = GetQueryStringValueAndAssertIfSingleAndNotEmpty("email");
 
@@ -618,7 +618,7 @@ namespace Raven.Server.Web.System
         [RavenAction("/setup/letsencrypt", "POST", AuthorizationStatus.UnauthenticatedClients)]
         public async Task SetupLetsEncrypt()
         {
-            AssertOnlyInSetupMode();
+            AssertOnlyInSetupMode(ServerStore);
 
             var stream = TryGetRequestFromStream("Options") ?? RequestBodyStream();
 
@@ -657,7 +657,7 @@ namespace Raven.Server.Web.System
         [RavenAction("/setup/continue/extract", "POST", AuthorizationStatus.UnauthenticatedClients)]
         public async Task ExtractInfoFromZip()
         {
-            AssertOnlyInSetupMode();
+            AssertOnlyInSetupMode(ServerStore);
 
             using (ServerStore.ContextPool.AllocateOperationContext(out JsonOperationContext context))
             using (var continueSetupInfoJson = await context.ReadForMemoryAsync(RequestBodyStream(), "continue-setup-info"))
@@ -742,7 +742,7 @@ namespace Raven.Server.Web.System
         [RavenAction("/setup/continue/unsecured", "POST", AuthorizationStatus.UnauthenticatedClients)]
         public async Task ContinueUnsecuredClusterSetup()
         {
-            AssertOnlyInSetupMode();
+            AssertOnlyInSetupMode(ServerStore);
 
             var operationCancelToken = CreateHttpRequestBoundOperationToken();
             var operationId = GetLongQueryString("operationId", false);
@@ -772,7 +772,7 @@ namespace Raven.Server.Web.System
         [RavenAction("/setup/continue", "POST", AuthorizationStatus.UnauthenticatedClients)]
         public async Task ContinueClusterSetup()
         {
-            AssertOnlyInSetupMode();
+            AssertOnlyInSetupMode(ServerStore);
 
             var operationCancelToken = CreateHttpRequestBoundOperationToken();
             var operationId = GetLongQueryString("operationId", false);
@@ -801,7 +801,7 @@ namespace Raven.Server.Web.System
         [RavenAction("/setup/finish", "POST", AuthorizationStatus.UnauthenticatedClients)]
         public Task SetupFinish()
         {
-            AssertOnlyInSetupMode();
+            AssertOnlyInSetupMode(ServerStore);
             
             Program.ServerRestarted += OnServerRestarted;
             Program.ServerInitialized += OnServerInitialized;
@@ -877,9 +877,9 @@ namespace Raven.Server.Web.System
             }
         }
 
-        private void AssertOnlyInSetupMode()
+        internal static void AssertOnlyInSetupMode(ServerStore serverStore)
         {
-            if (ServerStore.Configuration.Core.SetupMode == SetupMode.Initial)
+            if (serverStore.Configuration.Core.SetupMode == SetupMode.Initial)
                 return;
 
             throw new AuthorizationException("RavenDB has already been setup. Cannot use the /setup endpoints any longer.");
