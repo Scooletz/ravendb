@@ -22,6 +22,7 @@ using Raven.Client.Util;
 using Raven.Server.Commercial;
 using Raven.Server.Documents.Operations;
 using Raven.Server.Json;
+using Raven.Server.Logging;
 using Raven.Server.Rachis.Commands;
 using Raven.Server.Routing;
 using Raven.Server.ServerWide;
@@ -823,8 +824,8 @@ namespace Raven.Server.Web.System
             Program.ServerInitialized -= OnServerInitialized;
             
             var server = (RavenServer)sender;
-            
-            LoggingSource.Instance.SetupLogMode(server.Configuration.Logs.Mode, server.Configuration.Logs.Path.FullPath, server.Configuration.Logs.RetentionTime?.AsTimeSpan, server.Configuration.Logs.RetentionSize?.GetValue(SizeUnit.Bytes), server.Configuration.Logs.Compress);
+
+            RavenLogManager.Instance.ConfigureLogging(server.Configuration);
         }
 
         private static void OnServerRestarted(object sender, Program.OnServerRestartedEventArgs eventArgs)
