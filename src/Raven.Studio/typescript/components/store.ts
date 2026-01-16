@@ -16,6 +16,7 @@ import { connectionStringsUpdateUrlMiddleware } from "./pages/database/settings/
 import { certificatesSlice } from "components/pages/resources/manageServer/certificates/store/certificatesSlice";
 import { splitViewSlice } from "./common/splitView/store/splitViewSlice";
 import { databaseMiddleware } from "components/common/shell/databaseMiddleware";
+import { setupWizardSlice } from "./setupWizard/store/setupWizardSlice";
 
 const listenerMiddleware = createListenerMiddleware({
     extra: () => services,
@@ -36,6 +37,7 @@ export function createStoreConfiguration() {
             connectionStrings: connectionStringsSlice.reducer,
             certificates: certificatesSlice.reducer,
             splitView: splitViewSlice.reducer,
+            setupWizard: setupWizardSlice.reducer,
         },
         middleware: (getDefaultMiddleware) =>
             getDefaultMiddleware({
