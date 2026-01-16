@@ -106,6 +106,8 @@ $token-deleted: $color-1;
 $token-important: $color-2-2;
 
 $developer: #c7ff6b;
+$community: #2e9ef4;
+$experimental: #525fff;
 
 $twofactor: #5537c4;
 
@@ -452,8 +454,10 @@ $theme-colors: (
     "enterprise": $enterprise,
     "enterprise-ai": $brand-ai,
     "developer": $developer,
+    "community": $community,
     "cloud": $brand-cloud,
     "2fa": $twofactor,
+    "experimental": $experimental,
 ) !default;
 
 // scss-docs-end theme-colors-map
