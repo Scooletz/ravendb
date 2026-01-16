@@ -795,11 +795,6 @@ interface FormGroupProps extends ReactBootstrapFormGroupsProps {
 }
 
 export function FormGroup({ marginClass = "mb-3", ...props }: FormGroupProps) {
-interface FormGroupProps extends ReactBootstrapFormGroupsProps {
-    marginClass?: string;
-}
-
-export function FormGroup({ marginClass = "mb-3", ...props }: FormGroupProps) {
     const uniqueId = useUniqueId("form-group-");
 
     return (

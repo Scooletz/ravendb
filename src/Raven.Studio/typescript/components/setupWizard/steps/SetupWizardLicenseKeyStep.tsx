@@ -12,7 +12,7 @@ import {
     FormVerificationCodeInput,
     OptionalLabel,
 } from "components/common/Form";
-import { HStack } from "components/common/HStack";
+import { HStack } from "components/common/utilities/HStack";
 import { setupWizardConstants } from "../utils/setupWizardConstants";
 import Row from "react-bootstrap/Row";
 import { useServices } from "components/hooks/useServices";
