@@ -5,6 +5,7 @@ import MockTasksService from "./MockTasksService";
 import MockManageServerService from "./MockManageServerService";
 import MockLicenseService from "./MockLicenseService";
 import MockResourcesService from "test/mocks/services/MockResourcesService";
+import MockSetupWizardService from "./MockSetupWizardService";
 import MockAiAgentService from "./MockAiAgentService";
 
 class MockServicesContainer {
@@ -14,6 +15,7 @@ class MockServicesContainer {
     manageServerService = new MockManageServerService();
     licenseService = new MockLicenseService();
     resourcesService = new MockResourcesService();
+    setupWizardService = new MockSetupWizardService();
     aiAgentService = new MockAiAgentService();
 
     get context(): ServicesContextDto {
@@ -24,6 +26,7 @@ class MockServicesContainer {
             manageServerService: this.manageServerService.mock,
             licenseService: this.licenseService.mock,
             resourcesService: this.resourcesService.mock,
+            setupWizardService: this.setupWizardService.mock,
             aiAgentService: this.aiAgentService.mock,
         };
     }
