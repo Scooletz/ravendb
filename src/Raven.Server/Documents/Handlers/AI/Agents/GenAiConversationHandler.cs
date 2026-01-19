@@ -20,7 +20,6 @@ internal class GenAiConversationHandler(ServerStore server, DocumentDatabase dat
         {
             Response = response.Response.ToString(), 
             Usage = response.Usage, 
-            DeferredAttachmentsTimeInMs = response.DeferredAttachmentsTime.TotalMilliseconds
         };
 
         if (configuration.TestMode)
@@ -43,8 +42,6 @@ public class GenAiHandlerResult
     public string Response;
 
     public AiUsage Usage;
-
-    public double DeferredAttachmentsTimeInMs;
 
     public string ConversationDocument;
 }

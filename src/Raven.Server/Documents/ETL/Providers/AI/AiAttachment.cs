@@ -15,7 +15,8 @@ public class AiAttachment
     /// For <see cref="AiAttachmentSource.Deferred"/>, the storage to retrieve from.
     /// </summary>
     public string RemoteStorageId { get; set; }
-
+    public long DownloadDurationInMs { get; set; }
+    
     public AiAttachment()
     {
         // for deserialization
@@ -43,7 +44,8 @@ public class AiAttachment
             [nameof(Type)] = Type,
             [nameof(Source)] = Source,
             [nameof(Data)] = Data,
-            [nameof(RemoteStorageId)] = RemoteStorageId
+            [nameof(RemoteStorageId)] = RemoteStorageId,
+            [nameof(DownloadDurationInMs)] = DownloadDurationInMs
         };
 
         return json;

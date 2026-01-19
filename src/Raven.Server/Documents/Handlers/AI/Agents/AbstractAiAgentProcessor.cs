@@ -52,7 +52,7 @@ namespace Raven.Server.Documents.Handlers.AI.Agents
             bool streaming, OperationCancelToken token)
         {
             handler.Initialize(configuration, conversationId, body, changeVector, RequestHandler.GetRaftRequestIdFromQuery());
-            (BlittableJsonReaderObject Response, AiUsage Usage, TimeSpan DeferredAttachmentsTime) r;
+            (BlittableJsonReaderObject Response, AiUsage Usage) r;
 
             if (streaming)
             {

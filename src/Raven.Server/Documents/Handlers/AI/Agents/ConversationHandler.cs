@@ -194,6 +194,9 @@ internal class ConversationHandler(ServerStore server, DocumentDatabase database
     {
         talker.Init();
 
+        // Resolve deferred attachments before talking to the model
+        await ResolveDeferredAttachmentsAsync(_request.Attachments, token);
+
         AiResponse r = default;
         List<BlittableJsonReaderObject> historyDocs = default;
         bool shouldContinueConversation = true;
@@ -673,7 +676,7 @@ internal class ConversationHandler(ServerStore server, DocumentDatabase database
         return true;
     }
 
-    public async Task<(BlittableJsonReaderObject Response, AiUsage Usage, TimeSpan DeferredAttachmentsTime)> HandleRequest(
+    public async Task<(BlittableJsonReaderObject Response, AiUsage Usage)> HandleRequest(
         DocumentsOperationContext context,
         CancellationToken token)
     {
@@ -682,15 +685,10 @@ internal class ConversationHandler(ServerStore server, DocumentDatabase database
         if (await TryHandleActionResponses(context) is false)
             return default;
 
-        // Resolve deferred attachments before talking to the model
-        TimeSpan deferredAttachmentsTime = await ResolveDeferredAttachmentsAsync(_request.Attachments, token);
-
-        (BlittableJsonReaderObject response, AiUsage usage) = await TalkAsync(context, token: token);
-        return (response, usage, deferredAttachmentsTime);
+        return await TalkAsync(context, token: token);
     }
 
-    public async Task<(BlittableJsonReaderObject Response, AiUsage Usage, TimeSpan DeferredAttachmentsTime)> HandleStreamingRequest(
-        DocumentsOperationContext context,
+    public async Task<(BlittableJsonReaderObject Response, AiUsage Usage)> HandleStreamingRequest(DocumentsOperationContext context,
         Stream outputStream,
         string streamPropertyPath,
         CancellationToken token)
@@ -700,44 +698,34 @@ internal class ConversationHandler(ServerStore server, DocumentDatabase database
         if (await TryHandleActionResponses(context) is false)
             return default;
 
-        // Resolve deferred attachments before talking to the model
-        TimeSpan deferredAttachmentsTime = await ResolveDeferredAttachmentsAsync(_request.Attachments, token);
-
         await using var writer = new AsyncBlittableJsonTextWriter(context, outputStream);
-        (BlittableJsonReaderObject response, AiUsage usage) = await StreamingTalkAsync(context, streamPropertyPath, async (data) =>
+        return await StreamingTalkAsync(context, streamPropertyPath, async (data) =>
         {
             using LazyStringValue s = context.GetLazyString(data.Span, longLived: false);
             writer.WriteString(s);
             writer.WriteRawString("\r\n"u8);
             await writer.FlushAsync(token);
         }, token: token);
-        return (response, usage, deferredAttachmentsTime);
     }
 
-    private async Task<TimeSpan> ResolveDeferredAttachmentsAsync(List<AiAttachment> attachments, CancellationToken token)
+    private async Task ResolveDeferredAttachmentsAsync(List<AiAttachment> attachments, CancellationToken token)
     {
         if (attachments == null)
-            return TimeSpan.Zero;
+            return;
 
         var remote = database.DocumentsStorage.AttachmentsStorage.RemoteAttachmentsStorage;
 
-        Stopwatch sw = new();
         foreach (var attachment in attachments)
         {
             if (attachment.Source == AiAttachmentSource.Deferred)
             {
-                sw.Start();
-
+                var sw = Stopwatch.StartNew();
                 // Resolve the attachment data asynchronously
                 attachment.Data = await remote.GetAttachmentDataAsBase64Async(attachment.RemoteStorageId, attachment.Data, attachment.Type, token);
-
-                sw.Stop();
-
+                attachment.DownloadDurationInMs = sw.ElapsedMilliseconds;
                 attachment.Source = AiAttachmentSource.FromAttachment;
             }
         }
-
-        return sw.Elapsed;
     }
 
     private static readonly string SummarizationOutputSchema = ChatCompletionClient.GetSchemaFromSampleObject(JsonConvert.SerializeObject(new SummarizationSampleObject()));

@@ -284,7 +284,7 @@ public sealed class GenAiTask : EtlProcess<GenAiItem, GenAiScriptResult, GenAiCo
     {
         List<Exception> exceptions = null;
 
-        double deferredAttachmentsTimeInMs = 0;
+        var resolvedAttachmentDurationInMs = 0L;
         for (int index = 0; index < tasks.Count; index++)
         {
             var task = tasks[index];
@@ -315,8 +315,9 @@ public sealed class GenAiTask : EtlProcess<GenAiItem, GenAiScriptResult, GenAiCo
             statsScope.Usage.PromptTokens += result.Usage.PromptTokens;
             statsScope.Usage.TotalTokens += result.Usage.TotalTokens;
 
+            var currentResolvedAttachmentDurationInMs = item.ContextOutput.Attachments?.Sum(a => a.DownloadDurationInMs) ?? 0;
             // Max aggregation is used. The tasks are run in parallel so we pick the longest of all of them.
-            deferredAttachmentsTimeInMs = Math.Max(deferredAttachmentsTimeInMs, result.DeferredAttachmentsTimeInMs);
+            resolvedAttachmentDurationInMs = Math.Max(resolvedAttachmentDurationInMs, currentResolvedAttachmentDurationInMs);
 
             if (Configuration.TestMode)
             {
@@ -325,12 +326,12 @@ public sealed class GenAiTask : EtlProcess<GenAiItem, GenAiScriptResult, GenAiCo
             }
         }
 
-        if (deferredAttachmentsTimeInMs > 0)
+        if (resolvedAttachmentDurationInMs > 0)
         {
             using (var scope = statsScope.For(GenAiOperations.LoadToModelRemoteAttachments))
             {
                 // Use explicit set for the duration, that overrides the scoped time measurement.
-                scope.Duration = TimeSpan.FromMilliseconds(deferredAttachmentsTimeInMs);
+                scope.Duration = TimeSpan.FromMilliseconds(resolvedAttachmentDurationInMs);
             }
         }
 
