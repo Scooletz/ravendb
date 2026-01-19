@@ -1187,6 +1187,7 @@ namespace Raven.Server.Smuggler.Documents
                 case BuildVersionType.V5:
                 case BuildVersionType.V6:
                 case BuildVersionType.V7:
+                case BuildVersionType.V72:
                 case BuildVersionType.GreaterThanCurrent:
                     {
                         if (_options.OperateOnTypes.HasFlag(DatabaseItemType.RevisionDocuments) == false)

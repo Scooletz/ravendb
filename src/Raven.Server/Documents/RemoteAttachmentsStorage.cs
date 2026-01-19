@@ -224,7 +224,7 @@ public class RemoteAttachmentsStorage : AbstractBackgroundWorkStorage<DocumentEx
         return downloader.StreamForDownloadDestination(Database, folderName, objKeyName);
     }
 
-    public long TryUpdateRemoteAttachment(DocumentsOperationContext context, DateTime? newRemoteAtDt, long currentDt, string newIdentifier, string currentIdentifier, Slice keySlice)
+    public long TryUpdateRemoteAttachment(DocumentsOperationContext context, string documentId, string name, DateTime? newRemoteAtDt, long currentDt, string newIdentifier, string currentIdentifier, Slice keySlice)
     {
         // Handle case where there's no current upload date
         if (currentDt == -1L)
@@ -244,10 +244,18 @@ public class RemoteAttachmentsStorage : AbstractBackgroundWorkStorage<DocumentEx
         var remoteAtChanged = newRemoteAtDt.Value.Ticks != currentDt;
         var identifierChanged = HasIdentifierChanged(currentIdentifier, newIdentifier);
 
-        if (remoteAtChanged == false && identifierChanged == false)
+        if (_logger.IsDebugEnabled)
         {
-            // No changes needed
-            return currentDt;
+            var curDt = new DateTime(currentDt);
+            if (remoteAtChanged == false && identifierChanged == false)
+            {
+                // The attachment was re added, lets update the background work tree even if its the same identifier and at
+                _logger.Debug("Updated remote parameters for attachment '{0}' of document '{1}' with unchanged remote parameters (identifier '{2}', at: '{3}'). Updating background work tree entry.", name, documentId, currentIdentifier, curDt.GetDefaultRavenFormat());
+            }
+            else
+            {
+                _logger.Debug("Updated remote parameters for attachment '{0}' of document '{1}' with new remote parameters (identifier '{2}' -> '{3}', at: '{4}' -> '{5}'). Updating background work tree entry.", name, documentId, currentIdentifier, newIdentifier, curDt.GetDefaultRavenFormat(), newRemoteAtDt.Value.GetDefaultRavenFormat());
+            }
         }
 
         // Something changed - remove the old entry and add the new one
@@ -351,13 +359,12 @@ public class RemoteAttachmentsStorage : AbstractBackgroundWorkStorage<DocumentEx
         }
     }
 
-    public int ProcessRemoteAttachments(DocumentsOperationContext context, DateTime currentTime, Dictionary<string, List<Slice>> seenDocs, Dictionary<string, Dictionary<string, AttachmentRemoteInfo>> attachmentsToUploadByIdentifier)
+    public int ProcessRemoteAttachments(DocumentsOperationContext context, DateTime currentTime, Dictionary<Slice, List<Slice>> seenDocs, Dictionary<string, Dictionary<string, AttachmentRemoteInfo>> attachmentsToUploadByIdentifier)
     {
         var processedCount = 0;
         var docsTree = context.Transaction.InnerTransaction.ReadTree(_treeName);
-        foreach (var (docId, allTicks) in seenDocs)
+        foreach (var (lowerId, allTicks) in seenDocs)
         {
-            using (DocumentIdWorker.GetLoweredIdSliceFromId(context, docId, out var lowerId))
             using (var doc = Database.DocumentsStorage.Get(context, lowerId, DocumentFields.Data | DocumentFields.Id, throwOnConflict: true))
             {
                 // remove all entries for processed document
@@ -401,18 +408,25 @@ public class RemoteAttachmentsStorage : AbstractBackgroundWorkStorage<DocumentEx
                         switch (info.Status)
                         {
                             case BackgroundWorkInfoStatus.Retry:
-                                // this upload errored lets add back to the tree
-                                remoteParamsObject.TryGet(nameof(RemoteAttachmentParameters.At), out LazyStringValue dateFromMetadata);
-                                base.Put(context, lowerId, dateFromMetadata);
+                                // this upload errored lets add back to the tree with recalculated ticks
+                                var newTicks = CalculateRetryTicks(currentTime, info.RetryCount);
 
-                                break;
-                            case BackgroundWorkInfoStatus.Skip:
-                                // this upload errored max retries, we are skipping it
-                                // we already alerted on this item, when we iterated on it in RemoteAttachmentsSender._batchExceptionsByIdentifier so nothing to do here
+                                if (_logger.IsDebugEnabled)
+                                {
+                                    remoteParamsObject.TryGet(nameof(RemoteAttachmentParameters.At), out LazyStringValue dateFromMetadata);
+                                    var dt = ProcessDateUniversalTime(Database, lowerId, dateFromMetadata);
+                                    var nextRetryTime = new DateTime(newTicks);
+                                    var deltaTicks = currentTime.Ticks - dt.Ticks;
+                                    var deltaTimeSpan = new TimeSpan(deltaTicks);
+                                    _logger.Debug($"Scheduling retry #{info.RetryCount + 1} for attachment '{name}' (hash: '{hash}', identifier: '{identifierFromMetadata}') in document '{doc.Id}'. " +
+                                                  $"Time elapsed since original: {deltaTimeSpan}, Next attempt: {nextRetryTime.GetDefaultRavenFormat()}, original time: {dt.GetDefaultRavenFormat()}.");
+                                }
+
+                                PutTicksDirectly(context, lowerId, newTicks);
                                 break;
                             case BackgroundWorkInfoStatus.Process:
                                 // we uploaded this, we can mark the attachment as remote and delete its stream
-                                Database.DocumentsStorage.AttachmentsStorage.MarkAsRemoteAttachment(context, lowerId, docId, name, contentType, hash, sizeInBytes);
+                                Database.DocumentsStorage.AttachmentsStorage.MarkAsRemoteAttachment(context, lowerId, doc.Id, name, contentType, hash, sizeInBytes);
                                 processedCount++;
                                 break;
                             default:
@@ -423,11 +437,51 @@ public class RemoteAttachmentsStorage : AbstractBackgroundWorkStorage<DocumentEx
 
                 if (processedCount > 0)
                 {
-                    Database.DocumentsStorage.AttachmentsStorage.UpdateDocumentAfterAttachmentChange(context, docId);
+                    Database.DocumentsStorage.AttachmentsStorage.UpdateDocumentAfterAttachmentChangeInternal(context, lowerId, doc.Id);
                 }
             }
         }
 
         return processedCount;
+    }
+
+    private static readonly long TicksPer15Minutes = 15 * TimeSpan.TicksPerMinute;
+    private static readonly long TicksPer1Hour = TimeSpan.TicksPerHour;
+    private static readonly long TicksPer3Hours = 3 * TimeSpan.TicksPerHour;
+    private static readonly long TicksPer12Hours = 12 * TimeSpan.TicksPerHour;
+    private static readonly long TicksPer24Hours = 24 * TimeSpan.TicksPerHour;
+
+    private static long CalculateRetryTicks(DateTime currentTime, long retryCount)
+    {
+        long delay;
+
+        // Simple tiered delays based on retry count
+        if (retryCount < 4)
+        {
+            // First 3 retries: every 15 minutes (likely transient issues)
+            delay = TicksPer15Minutes;
+        }
+        else if (retryCount < 12)
+        {
+            // Retries 4-11: every 1 hour (persistent issue, slow down)
+            delay = TicksPer1Hour;
+        }
+        else if (retryCount < 24)
+        {
+            // Retries 12-23: every 3 hours (long-term issue)
+            delay = TicksPer3Hours;
+        }
+        else if (retryCount < 48)
+        {
+            // Retries 24-47: every 12 hours (very persistent)
+            delay = TicksPer12Hours;
+        }
+        else
+        {
+            // Retry 48+: once per day (maximum backoff)
+            delay = TicksPer24Hours;
+        }
+
+        return currentTime.Ticks + delay;
     }
 }
