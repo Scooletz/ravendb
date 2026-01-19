@@ -1182,7 +1182,11 @@ public sealed partial class ClusterStateMachine
 
     private void AssertDynamicNodesDistribution(DatabaseRecord databaseRecord, LicenseStatus licenseStatus, ClusterOperationContext context)
     {
-        if (databaseRecord.Topology.DynamicNodesDistribution == false)
+        var usingDynamicNodesDistribution = databaseRecord.IsSharded
+            ? databaseRecord.Sharding.Orchestrator.Topology.DynamicNodesDistribution
+            : databaseRecord.Topology.DynamicNodesDistribution;
+
+        if (usingDynamicNodesDistribution == false)
             return;
 
         if (CanAssertLicenseLimits(context, minBuildVersion: MinBuildVersion60000) == false)
@@ -1237,7 +1241,7 @@ public sealed partial class ClusterStateMachine
         if (licenseStatus.HasRemoteAttachments)
             return;
 
-        if (databaseRecord.RemoteAttachments == null || databaseRecord.RemoteAttachments.HasDestination())
+        if (databaseRecord.RemoteAttachments == null || databaseRecord.RemoteAttachments.HasDestination() == false)
             return;
 
         throw new LicenseLimitException(LimitType.RemoteAttachments, "Your license doesn't support adding the remote attachments configuration.");

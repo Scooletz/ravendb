@@ -319,7 +319,7 @@ namespace Raven.Server.Documents
                         }
 
                         size = TableValueToLong((int)AttachmentsTable.Size, ref oldValue);
-                        remoteAt = RemoteAttachmentsStorage.TryUpdateRemoteAttachment(context, remoteAtDt, TableValueToLong((int)AttachmentsTable.RemoteAt, ref oldValue), identifier, TableValueToString(context, (int)AttachmentsTable.Identifier, ref oldValue), keySlice);
+                        remoteAt = RemoteAttachmentsStorage.TryUpdateRemoteAttachment(context, documentId, name, remoteAtDt, TableValueToLong((int)AttachmentsTable.RemoteAt, ref oldValue), identifier, TableValueToString(context, (int)AttachmentsTable.Identifier, ref oldValue), keySlice);
 
                         using (SetTableValue(out TableValueBuilder tvb))
                         {
@@ -403,7 +403,7 @@ namespace Raven.Server.Documents
                             else
                             {
                                 Debug.Assert(flags == RemoteAttachmentFlags.None, "flags == AttachmentFlags.None");
-                                remoteAt = RemoteAttachmentsStorage.TryUpdateRemoteAttachment(context, remoteAtDt, currentDt: -1L, identifier, currentIdentifier: null, keySlice);
+                                remoteAt = RemoteAttachmentsStorage.TryUpdateRemoteAttachment(context, documentId, name, remoteAtDt, currentDt: -1L, identifier, currentIdentifier: null, keySlice);
                             }
                         }
                         else
@@ -561,7 +561,8 @@ namespace Raven.Server.Documents
                 using (data = context.ReadObject(data, documentId, BlittableJsonDocumentBuilder.UsageMode.ToDisk))
                 {
                     collectionName = extractCollectionName ? _documentsStorage.ExtractCollectionName(context, data) : default;
-                    return _documentsStorage.Put(context, documentId, null, data, null, null, null, flags, NonPersistentDocumentFlags.ByAttachmentUpdate).ChangeVector;
+                    const NonPersistentDocumentFlags nonPersistentDocumentFlags = NonPersistentDocumentFlags.ByAttachmentUpdate | NonPersistentDocumentFlags.SkipSchemaValidation;
+                    return _documentsStorage.Put(context, documentId, null, data, null, null, null, flags, nonPersistentDocumentFlags).ChangeVector;
                 }
             }
             finally
@@ -574,11 +575,16 @@ namespace Raven.Server.Documents
         {
             using (DocumentIdWorker.GetLoweredIdSliceFromId(context, documentId, out Slice lowerDocumentId))
             {
-                var exists = _documentsStorage.GetTableValueReaderForDocument(context, lowerDocumentId, throwOnConflict: true, tvr: out TableValueReader tvr);
-                if (exists == false)
-                    return null;
-                return UpdateDocumentAfterAttachmentChange(context, lowerDocumentId, documentId, tvr, null, extractCollectionName: false, out var _);
+                return UpdateDocumentAfterAttachmentChangeInternal(context, lowerDocumentId, documentId);
             }
+        }
+
+        internal string UpdateDocumentAfterAttachmentChangeInternal(DocumentsOperationContext context, Slice lowerDocumentId, string documentId)
+        {
+            var exists = _documentsStorage.GetTableValueReaderForDocument(context, lowerDocumentId, throwOnConflict: true, tvr: out TableValueReader tvr);
+            if (exists == false)
+                return null;
+            return UpdateDocumentAfterAttachmentChange(context, lowerDocumentId, documentId, tvr, null, extractCollectionName: false, out var _);
         }
 
         public void DeleteAttachmentBeforeRevert(DocumentsOperationContext context, LazyStringValue lowerDocId)

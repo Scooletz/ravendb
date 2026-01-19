@@ -3,7 +3,7 @@
     <Description>Raven.Server is the database server for RavenDB</Description>
     <Authors>RavenDB</Authors>
     <TargetFramework>net10.0</TargetFramework>
-    <RuntimeFrameworkVersion>10.0.1</RuntimeFrameworkVersion>
+    <RuntimeFrameworkVersion>10.0.2</RuntimeFrameworkVersion>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <AssemblyName>Raven.Server</AssemblyName>
     <OutputType>Exe</OutputType>
@@ -232,11 +232,13 @@
     <ServerGarbageCollection>true</ServerGarbageCollection>
     <ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>
     <RetainVMGarbageCollection>true</RetainVMGarbageCollection>
+    <GarbageCollectionAdaptationMode>false</GarbageCollectionAdaptationMode>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Platform)' == 'x86'">
     <ServerGarbageCollection>false</ServerGarbageCollection>
     <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
     <RetainVMGarbageCollection>false</RetainVMGarbageCollection>
+    <GarbageCollectionAdaptationMode>false</GarbageCollectionAdaptationMode>
   </PropertyGroup>
   <PropertyGroup Condition="'$(RAVEN_BuildOptions)' != ''">
     <DefineConstants>$(DefineConstants);$(RAVEN_BuildOptions)</DefineConstants>

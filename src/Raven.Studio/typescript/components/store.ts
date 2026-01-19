@@ -17,6 +17,8 @@ import { adminLogsMiddleware } from "components/pages/resources/manageServer/adm
 import { adminLogsSlice } from "components/pages/resources/manageServer/adminLogs/store/adminLogsSlice";
 import { certificatesSlice } from "components/pages/resources/manageServer/certificates/store/certificatesSlice";
 import { splitViewSlice } from "./common/splitView/store/splitViewSlice";
+import { databaseMiddleware } from "components/common/shell/databaseMiddleware";
+import { setupWizardSlice } from "./setupWizard/store/setupWizardSlice";
 import { editGenAiTaskSlice } from "./pages/database/tasks/ongoingTasks/editTasks/editGenAiTask/store/editGenAiTaskSlice";
 import { editAiAgentSlice } from "./pages/database/aiHub/aiAgents/edit/store/editAiAgentSlice";
 import { chatAiAgentSlice } from "./pages/database/aiHub/aiAgents/chat/store/chatAiAgentSlice";
@@ -47,6 +49,7 @@ export function createStoreConfiguration() {
             adminLogs: adminLogsSlice.reducer,
             certificates: certificatesSlice.reducer,
             splitView: splitViewSlice.reducer,
+            setupWizard: setupWizardSlice.reducer,
             editGenAiTask: editGenAiTaskSlice.reducer,
             editAiAgent: editAiAgentSlice.reducer,
             chatAiAgent: chatAiAgentSlice.reducer,
@@ -63,6 +66,7 @@ export function createStoreConfiguration() {
             })
                 .prepend(listenerMiddleware.middleware)
                 .prepend(connectionStringsUpdateUrlMiddleware.middleware)
+                .prepend(databaseMiddleware.middleware)
                 .prepend(adminLogsMiddleware.middleware)
                 .prepend(chatAiAgentUpdateUrlMiddleware.middleware)
                 .prepend(chatbotMiddleware.middleware),
