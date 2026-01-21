@@ -11,10 +11,12 @@ using Raven.Client.Documents.Operations;
 using Raven.Client.Documents.Operations.Counters;
 using Raven.Client.Documents.Smuggler;
 using Raven.Client.Exceptions.Commercial;
+using Raven.Client.Exceptions.SchemaValidation;
 using Raven.Client.Extensions;
 using Raven.Client.ServerWide;
 using Raven.Client.Util;
 using Raven.Server.Documents;
+using Raven.Server.Documents.BackgroundWork;
 using Raven.Server.Documents.Indexes.Auto;
 using Raven.Server.Documents.Indexes.MapReduce.Auto;
 using Raven.Server.Documents.PeriodicBackup;
@@ -402,7 +404,7 @@ namespace Raven.Server.Smuggler.Documents
 
             var throwOnCollectionMismatchError = _options.OperateOnTypes.HasFlag(DatabaseItemType.Tombstones) == false;
 
-            await using (var documentActions = _destination.Documents(throwOnCollectionMismatchError))
+            await using (var documentActions = _destination.Documents(throwOnCollectionMismatchError, backupKind: BackupKind))
             await using (var compareExchangeActions = _destination.CompareExchange(_databaseName, _context, BackupKind, withDocuments: true))
             {
                 List<LazyStringValue> legacyIdsToDelete = null;
@@ -451,7 +453,7 @@ namespace Raven.Server.Smuggler.Documents
                     if (_options.IncludeExpired == false)
                     {
                         if (item.Document.Data.TryGetMetadata(out var metadata) &&
-                            AbstractBackgroundWorkStorage.HasPassed(metadata, _time.GetUtcNow(), Constants.Documents.Metadata.Expires))
+                            AbstractBackgroundWorkStorageBase.HasPassed(metadata, _time.GetUtcNow(), Constants.Documents.Metadata.Expires))
                         {
                             SkipDocument(item, counts);
                             continue;
@@ -499,7 +501,15 @@ namespace Raven.Server.Smuggler.Documents
                         continue;
                     }
 
-                    await documentActions.WriteDocumentAsync(item, counts, beforeFlush);
+                    try
+                    {
+                        await documentActions.WriteDocumentAsync(item, counts, beforeFlush);
+                    }
+                    catch (SchemaValidationException e)
+                    {
+                        result.Documents.ErroredCount++;
+                        result.AddError($"Could not write document '{item.Document.Id}' due to invalid schema: {e.Message}");
+                    }
                 }
 
                 await TryHandleLegacyDocumentTombstonesAsync(legacyIdsToDelete, documentActions, result);
@@ -1177,6 +1187,7 @@ namespace Raven.Server.Smuggler.Documents
                 case BuildVersionType.V5:
                 case BuildVersionType.V6:
                 case BuildVersionType.V7:
+                case BuildVersionType.V72:
                 case BuildVersionType.GreaterThanCurrent:
                     {
                         if (_options.OperateOnTypes.HasFlag(DatabaseItemType.RevisionDocuments) == false)
@@ -1340,8 +1351,8 @@ namespace Raven.Server.Smuggler.Documents
                     {
                         counts.Attachments.ReadCount++;
                         counts.Attachments.SizeInBytes += attachment.Stream.Length;
-                    }
-                }
+    }
+}
             }
 
             if (item.Document == null)

@@ -37,7 +37,9 @@ public class RavenDB_19148 : DisableParallelTestBase
         using (var store = new DocumentStore
         {
             Urls = new[] { result.Leader.WebUrl },
+#pragma warning disable SYSLIB0057
             Certificate = new X509Certificate2(certBytes),
+#pragma warning restore SYSLIB0057
             Conventions =
             {
                 DisposeCertificate = false

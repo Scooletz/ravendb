@@ -257,8 +257,10 @@ namespace SlowTests.Issues
                 ModifyDatabaseName = s => dbNameA
             });
             long[] ids = new long[3];
+#pragma warning disable SYSLIB0057
             var pullCert = new X509Certificate2(await File.ReadAllBytesAsync(certificates.ClientCertificate2Path), (string)null,
                 X509KeyStorageFlags.Exportable);
+#pragma warning restore SYSLIB0057
             for (int i = 0; i < 3; i++)
             {
                 var op = await storeA.Maintenance.SendAsync(new PutPullReplicationAsHubOperation(new PullReplicationDefinition
@@ -366,8 +368,10 @@ namespace SlowTests.Issues
                 await s.LoadAsync<object>("users/ayende");
             }
 
+#pragma warning disable SYSLIB0057
             var pullCert = new X509Certificate2(await File.ReadAllBytesAsync(certificates.ClientCertificate2Path), (string)null,
                 X509KeyStorageFlags.Exportable);
+#pragma warning restore SYSLIB0057
             await storeA.Maintenance.SendAsync(new PutPullReplicationAsHubOperation(new PullReplicationDefinition
             {
                 Name = "pull",
@@ -516,8 +520,10 @@ namespace SlowTests.Issues
                 await s.LoadAsync<object>("users/ayende");
             }
 
+#pragma warning disable SYSLIB0057
             var pullCert = new X509Certificate2(await File.ReadAllBytesAsync(certificates.ClientCertificate2Path), (string)null,
                 X509KeyStorageFlags.Exportable);
+#pragma warning restore SYSLIB0057
 
             await storeB.Maintenance.SendAsync(new PutPullReplicationAsHubOperation(new PullReplicationDefinition
             {
@@ -642,8 +648,10 @@ namespace SlowTests.Issues
                 await s.SaveChangesAsync();
             }
 
+#pragma warning disable SYSLIB0057
             var pullCert = new X509Certificate2(await File.ReadAllBytesAsync(certificates.ClientCertificate2Path), (string)null,
                 X509KeyStorageFlags.Exportable);
+#pragma warning restore SYSLIB0057
 
             await storeA.Maintenance.SendAsync(new PutPullReplicationAsHubOperation(new PullReplicationDefinition
             {
@@ -740,8 +748,10 @@ namespace SlowTests.Issues
                 ClientCertificate = adminCert,
             });
 
+#pragma warning disable SYSLIB0057
             var pullCert = new X509Certificate2(await File.ReadAllBytesAsync(certificates.ClientCertificate2Path), (string)null,
                 X509KeyStorageFlags.Exportable);
+#pragma warning restore SYSLIB0057
 
             var result = await hubStore.Maintenance.SendAsync(new PutPullReplicationAsHubOperation(new PullReplicationDefinition
             {
@@ -824,8 +834,10 @@ namespace SlowTests.Issues
                 ClientCertificate = adminCert,
             });
 
+#pragma warning disable SYSLIB0057
             var pullCert = new X509Certificate2(await File.ReadAllBytesAsync(certificates.ClientCertificate2Path), (string)null,
                 X509KeyStorageFlags.Exportable);
+#pragma warning restore SYSLIB0057
 
             await hubStore.Maintenance.SendAsync(new PutPullReplicationAsHubOperation(new PullReplicationDefinition
             {
@@ -967,8 +979,10 @@ namespace SlowTests.Issues
                 ClientCertificate = adminCert,
             });
 
+#pragma warning disable SYSLIB0057
             var pullCert = new X509Certificate2(await File.ReadAllBytesAsync(certificates.ClientCertificate2Path), (string)null,
                 X509KeyStorageFlags.Exportable);
+#pragma warning restore SYSLIB0057
 
             await hubStore.Maintenance.SendAsync(new PutPullReplicationAsHubOperation(new PullReplicationDefinition
             {
@@ -1137,11 +1151,15 @@ namespace SlowTests.Issues
                 ClientCertificate = adminCert,
             });
 
+#pragma warning disable SYSLIB0057
             var fooCert = new X509Certificate2(await File.ReadAllBytesAsync(certificates.ClientCertificate2Path), (string)null,
                 X509KeyStorageFlags.Exportable);
+#pragma warning restore SYSLIB0057
 
+#pragma warning disable SYSLIB0057
             var barCert = new X509Certificate2(await File.ReadAllBytesAsync(certificates.ClientCertificate3Path), (string)null,
                 X509KeyStorageFlags.Exportable);
+#pragma warning restore SYSLIB0057
 
             await hubStore.Maintenance.SendAsync(new PutPullReplicationAsHubOperation(new PullReplicationDefinition
             {
@@ -1388,8 +1406,10 @@ namespace SlowTests.Issues
                 await s.SaveChangesAsync();
             }
 
+#pragma warning disable SYSLIB0057
             var pullCert = new X509Certificate2(await File.ReadAllBytesAsync(certificates.ClientCertificate2Path), (string)null,
                 X509KeyStorageFlags.Exportable);
+#pragma warning restore SYSLIB0057
 
             await storeA.Maintenance.SendAsync(new PutPullReplicationAsHubOperation(new PullReplicationDefinition
             {
@@ -1536,8 +1556,10 @@ namespace SlowTests.Issues
                 Assert.True(changeVector.Contains(sinkDatabaseId));
     }
 
+#pragma warning disable SYSLIB0057
             var pullCert = new X509Certificate2(await File.ReadAllBytesAsync(hubCertificates.ClientCertificate2Path), (string)null,
                 X509KeyStorageFlags.Exportable);
+#pragma warning restore SYSLIB0057
 
             await hub.Maintenance.SendAsync(new PutPullReplicationAsHubOperation(new PullReplicationDefinition
             {
@@ -1662,8 +1684,10 @@ namespace SlowTests.Issues
                 Assert.True(changeVector.Contains(sinkClusterId));
             }
 
+#pragma warning disable SYSLIB0057
             var pullCert = new X509Certificate2(await File.ReadAllBytesAsync(hubCertificates.ClientCertificate2Path), (string)null,
                 X509KeyStorageFlags.Exportable);
+#pragma warning restore SYSLIB0057
 
             await hub.Maintenance.SendAsync(new PutPullReplicationAsHubOperation(new PullReplicationDefinition
             {
@@ -1805,8 +1829,10 @@ namespace SlowTests.Issues
                 Assert.True(hubDatabaseIds.Any(id => changeVector.Contains(id)));
             }
 
+#pragma warning disable SYSLIB0057
             var pullCert = new X509Certificate2(await File.ReadAllBytesAsync(hubCertificates.ClientCertificate2Path), (string)null,
                 X509KeyStorageFlags.Exportable);
+#pragma warning restore SYSLIB0057
 
             await hub.Maintenance.SendAsync(new PutPullReplicationAsHubOperation(new PullReplicationDefinition
             {
@@ -1931,8 +1957,10 @@ namespace SlowTests.Issues
                 Assert.True(changeVector.Contains(hubClusterId));
             }
 
+#pragma warning disable SYSLIB0057
             var pullCert = new X509Certificate2(await File.ReadAllBytesAsync(hubCertificates.ClientCertificate2Path), (string)null,
                 X509KeyStorageFlags.Exportable);
+#pragma warning restore SYSLIB0057
 
             await hub.Maintenance.SendAsync(new PutPullReplicationAsHubOperation(new PullReplicationDefinition
             {

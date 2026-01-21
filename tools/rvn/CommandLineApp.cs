@@ -345,12 +345,15 @@ namespace rvn
                     }
 
                     
+#pragma warning disable SYSLIB0057
                     X509Certificate2 clientCertificate = new(clientCertificatePathArg.Value);
                     var serverCertForCommunication = CertificateLoaderUtil.CreateCertificate(serverCertificatePathArg.Value, null, CertificateLoaderUtil.FlagsForExport);
                     if (SecretProtection.HasCertificateClientAuthEnhancedKeyUsage(serverCertForCommunication) == false)
                     {
                         serverCertForCommunication = CertificateUtils.CreateClientCertificateFromServerCertificate(serverCertForCommunication, out _);
                     }
+#pragma warning restore SYSLIB0057
+
                     var name = Path.GetFileNameWithoutExtension(clientCertificatePathArg.Value);
                     try
                     {

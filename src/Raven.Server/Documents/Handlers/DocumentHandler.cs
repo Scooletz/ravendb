@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Net.Http;
-using System.Runtime.ExceptionServices;
 using System.Threading.Tasks;
 using Raven.Client.Documents.Operations.Attachments;
 using Raven.Server.Documents.Handlers.Processors.Documents;
@@ -8,7 +7,6 @@ using Raven.Server.Documents.TransactionMerger.Commands;
 using Raven.Server.Routing;
 using Raven.Server.ServerWide.Context;
 using Sparrow.Json;
-using Sparrow.Server;
 using Voron;
 using Constants = Raven.Client.Constants;
 
@@ -148,7 +146,7 @@ namespace Raven.Server.Documents.Handlers
                 }
                 using (Slice.From(context.Allocator, hash, out var hashSlice))
                 {
-                    if (_database.DocumentsStorage.AttachmentsStorage.GetCountOfAttachmentsForHash(context, hashSlice) < 1)
+                    if (_database.DocumentsStorage.AttachmentsStorage.GetCountOfAttachmentsForHash(context, hashSlice).LocalAttachmentsCount < 1)
                     {
                         throw new InvalidOperationException($"Can not put document (id={id}) because it contains an attachment with hash={hash} but no such attachment is stored.");
                     }

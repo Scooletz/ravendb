@@ -15,52 +15,27 @@ export function LanguageVariants() {
 
             <div>
                 <h3>JavaScript</h3>
-                <Code
-                    code={sampleCode.javascript}
-                    language="javascript"
-                    elementToCopy={sampleCode.javascript}
-                    className="border border-secondary rounded"
-                />
+                <Code code={sampleCode.javascript} language="javascript" className="border border-secondary rounded" />
             </div>
 
             <div>
                 <h3>C#</h3>
-                <Code
-                    className="border border-secondary rounded"
-                    code={sampleCode.csharp}
-                    language="csharp"
-                    elementToCopy={sampleCode.csharp}
-                />
+                <Code className="border border-secondary rounded" code={sampleCode.csharp} language="csharp" />
             </div>
 
             <div>
                 <h3>JSON</h3>
-                <Code
-                    code={sampleCode.json}
-                    language="json"
-                    elementToCopy={sampleCode.json}
-                    className="border border-secondary rounded"
-                />
+                <Code code={sampleCode.json} language="json" className="border border-secondary rounded" />
             </div>
 
             <div>
                 <h3>HTML</h3>
-                <Code
-                    code={sampleCode.html}
-                    language="html"
-                    elementToCopy={sampleCode.html}
-                    className="border border-secondary rounded"
-                />
+                <Code code={sampleCode.html} language="html" className="border border-secondary rounded" />
             </div>
 
             <div>
                 <h3>CSS</h3>
-                <Code
-                    code={sampleCode.css}
-                    language="css"
-                    elementToCopy={sampleCode.css}
-                    className="border border-secondary rounded"
-                />
+                <Code code={sampleCode.css} language="css" className="border border-secondary rounded" />
             </div>
         </div>
     );
@@ -73,12 +48,7 @@ export function WithAndWithoutCopyButton() {
 
             <div>
                 <h3>With Copy Button</h3>
-                <Code
-                    code={sampleCode.javascript}
-                    language="javascript"
-                    elementToCopy={sampleCode.javascript}
-                    className="border border-secondary rounded"
-                />
+                <Code code={sampleCode.javascript} language="javascript" className="border border-secondary rounded" />
             </div>
 
             <div>
@@ -96,22 +66,12 @@ export function WithCustomClassName() {
 
             <div>
                 <h3>Default</h3>
-                <Code
-                    code={sampleCode.json}
-                    language="json"
-                    elementToCopy={sampleCode.json}
-                    className="border border-secondary rounded"
-                />
+                <Code code={sampleCode.json} language="json" className="border border-secondary rounded" />
             </div>
 
             <div>
                 <h3>With Custom Class</h3>
-                <Code
-                    code={sampleCode.json}
-                    language="json"
-                    elementToCopy={sampleCode.json}
-                    className="border border-primary rounded"
-                />
+                <Code code={sampleCode.json} language="json" className="border border-primary rounded" />
             </div>
         </div>
     );
@@ -121,12 +81,7 @@ export function PlainTextExample() {
     return (
         <div className="vstack gap-4">
             <h2>Plain Text</h2>
-            <Code
-                code={sampleCode.plainText}
-                language="plaintext"
-                elementToCopy={sampleCode.plainText}
-                className="border border-secondary rounded"
-            />
+            <Code code={sampleCode.plainText} language="plaintext" className="border border-secondary rounded" />
         </div>
     );
 }
@@ -138,7 +93,6 @@ export function LargeCodeExample() {
             <Code
                 code={sampleCode.largeCode.trim()}
                 language="javascript"
-                elementToCopy={sampleCode.largeCode.trim()}
                 className="border border-secondary rounded"
             />
         </div>

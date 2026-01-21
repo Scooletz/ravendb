@@ -6,4 +6,5 @@ export const virtualTableConstants = {
     paddingInPx: 14,
     scrollbarWidthInPx: 12,
     scrollbarHeightInPx: 12,
+    defaultTableHeightInPx: 300,
 };

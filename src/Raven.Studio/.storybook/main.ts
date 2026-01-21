@@ -28,7 +28,8 @@ const config: StorybookConfig = {
     stories: [
         "../typescript/components/common/**/*.stories.tsx",
         "../typescript/components/pages/**/*.stories.tsx",
-        "../typescript/components/setupWizard/**/*.stories.tsx",
+        "../typescript/components/shell/**/*.stories.tsx",
+        "../typescript/components/shell/**/*.stories.tsx",
     ],
     addons: ["@storybook/addon-a11y", "@storybook/addon-designs"],
     docs: {

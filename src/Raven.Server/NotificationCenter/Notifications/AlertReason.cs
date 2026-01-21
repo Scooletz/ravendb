@@ -58,6 +58,7 @@ namespace Raven.Server.NotificationCenter.Notifications
 
         RevisionsConfigurationNotValid,
         ArchivalConfigurationNotValid,
+        RemoteAttachmentsConfigurationNotValid,
 
         ReplicationMissingAttachments,
 
@@ -100,5 +101,9 @@ namespace Raven.Server.NotificationCenter.Notifications
         ConflictRevisionsExceeded,
         
         SqlConnectionString_DeprecatedFactoryReplaced,
+        Attachments_RemoteAttachmentWithoutIdentifier,
+        Attachments_RemoteAttachmentErroredIdentifier,
+        
+        SchemaValidationConfiguration_Error,
     }
 }

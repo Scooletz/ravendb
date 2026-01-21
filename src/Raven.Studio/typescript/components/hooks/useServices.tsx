@@ -7,6 +7,7 @@ import LicenseService from "components/services/LicenseService";
 import ResourcesService from "components/services/ResourcesService";
 import SetupWizardService from "components/services/SetupWizardService";
 import AiAgentService from "components/services/AiAgentService";
+import AiAssistantService from "components/services/AiAssistantService";
 
 export interface ServicesContextDto {
     indexesService: IndexesService;
@@ -17,6 +18,7 @@ export interface ServicesContextDto {
     resourcesService: ResourcesService;
     setupWizardService: SetupWizardService;
     aiAgentService: AiAgentService;
+    aiAssistantService: AiAssistantService;
 }
 
 export let services = {
@@ -28,6 +30,7 @@ export let services = {
     resourcesService: new ResourcesService(),
     setupWizardService: new SetupWizardService(),
     aiAgentService: new AiAgentService(),
+    aiAssistantService: new AiAssistantService(),
 };
 
 export function configureMockServices(overloads: typeof services) {

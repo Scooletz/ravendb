@@ -20,6 +20,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.IdentityModel.Tokens;
 using Raven.Client.Documents.Conventions;
 using Raven.Client.Documents.Operations.AI;
+using Raven.Client.Exceptions;
 using Raven.Client.Http;
 using Raven.Client.Json;
 using Raven.Server.Documents.AI.Settings;
@@ -310,7 +311,7 @@ internal class ChatCompletionClient : IDisposable
             Message = streamingContext.ReadObject(new DynamicJsonValue
             {
                 [Constants.ResponseFields.Role] = Constants.RequestFields.RoleAssistantValue,
-                [Constants.ResponseFields.Content] = message!.ToString(),
+                [Constants.ResponseFields.Content] = message,
             }, "persisted/streamed/message"),
             Result = message,
         };
@@ -367,6 +368,7 @@ internal class ChatCompletionClient : IDisposable
         }
 
         var result = responseParser.GetContent(context);
+
         return new AiResponse(AiResponseType.Result) { Result = result, Message = responseParser.Message };
     }
 
@@ -400,7 +402,6 @@ internal class ChatCompletionClient : IDisposable
 
             if (responseContent.TryGet(Constants.ResponseFields.Usage, out BlittableJsonReaderObject usageJson) == false)
                 throw UnexpectedResponseException.Create(message: "No usage in response content", response, responseContent);
-
             usage.UpdateFrom(usageJson);
         }
 
@@ -439,7 +440,11 @@ internal class ChatCompletionClient : IDisposable
                 RefusedToAnswerException.Throw(refusal, responseContent.ToString(), finishReason, GetRequestId(response.Headers));
             }
 
-            return context.Sync.ReadForMemory(content, "ai/output");
+            var result = context.Sync.ReadForMemory(content, "ai/output");
+            Message.Modifications ??= new DynamicJsonValue(Message);
+            Message.Modifications[Constants.ResponseFields.Content] = result;
+
+            return result;
         }
 
     }
@@ -723,7 +728,7 @@ internal class ChatCompletionClient : IDisposable
                 RefusedToAnswerException.Throw(message, content.ToString(), null, reqId);
                 break;
             default:
-                UnsuccessfulRequestException.Throw(content.ToString(), response.StatusCode, reqId);
+                UnsuccessfulAiRequestException.Throw(content.ToString(), response.StatusCode, reqId);
                 break;
         }
     }
@@ -1082,6 +1087,21 @@ public static class ChatCompletionClientExtensions
     {
         foreach (var message in messages)
         {
+            if (message.TryGet(ChatCompletionClient.Constants.RequestFields.Content, out object content))
+            {
+                // we need to stringify the content before sending to the model
+                if (content is BlittableJsonReaderObject blittableJson)
+                {
+                    // clone once, not to change the original, since we are going to persist it
+                    var msg = message.CloneOnTheSameContext();
+                    var modifications = msg.Modifications ??= new DynamicJsonValue(msg);
+                    modifications[ChatCompletionClient.Constants.RequestFields.Content] = blittableJson.ToString();
+                    // clone twice, so the changes will take effect
+                    yield return msg.CloneOnTheSameContext();
+                    continue;
+                }
+            }
+
             yield return message;
         }
 

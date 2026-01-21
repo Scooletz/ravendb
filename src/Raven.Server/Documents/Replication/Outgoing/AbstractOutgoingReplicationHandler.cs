@@ -22,7 +22,7 @@ using Raven.Server.Documents.Replication.Senders;
 using Raven.Server.Documents.Replication.Stats;
 using Raven.Server.Documents.Sharding.Handlers;
 using Raven.Server.Documents.TcpHandlers;
-using Raven.Server.Exceptions;
+using Raven.Server.Exceptions.Attachments;
 using Raven.Server.Json;
 using Raven.Server.Logging;
 using Raven.Server.NotificationCenter;
@@ -217,7 +217,7 @@ namespace Raven.Server.Documents.Replication.Outgoing
                     DestinationNodeTag = GetNode(),
                     DestinationUrl = Destination.Url,
                     ReadResponseAndGetVersionCallback = ReadHeaderResponseAndThrowIfUnAuthorized,
-                    Version = TcpConnectionHeaderMessage.ReplicationTcpVersion,
+                    Version = GetReplicationTcpVersion(),
                     AuthorizeInfo = authorizationInfo,
                     DestinationServerId = info?.ServerId,
                     LicensedFeatures = new LicensedFeatures
@@ -848,6 +848,10 @@ namespace Raven.Server.Documents.Replication.Outgoing
 
         protected abstract void OnBeforeDispose();
 
+        protected virtual int GetReplicationTcpVersion()
+        {
+            return TcpConnectionHeaderMessage.ReplicationTcpVersion;
+        }
 
         private readonly SingleUseFlag _disposed = new SingleUseFlag();
 

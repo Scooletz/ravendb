@@ -13,6 +13,7 @@ using Raven.Client.Documents.Operations.ETL.SQL;
 using Raven.Client.Documents.Operations.Expiration;
 using Raven.Client.Documents.Operations.Indexes;
 using Raven.Client.Documents.Operations.Revisions;
+using Raven.Client.Documents.Operations.SchemaValidation;
 using Raven.Client.Documents.Operations.TimeSeries;
 using Raven.Client.Documents.Operations.TransactionsRecording;
 using Raven.Client.Documents.Queries.Facets;
@@ -400,6 +401,7 @@ namespace Raven.Server.Json
             public static readonly Func<BlittableJsonReaderObject, EnforceRevisionsConfigurationOperation.Parameters> EnforceRevisionsConfigurationOperationParameters = GenerateJsonDeserializationRoutine<EnforceRevisionsConfigurationOperation.Parameters>();
 
             public static readonly Func<BlittableJsonReaderObject, AdoptOrphanedRevisionsOperation.Parameters> AdoptOrphanedRevisionsConfigurationOperationParameters = GenerateJsonDeserializationRoutine<AdoptOrphanedRevisionsOperation.Parameters>();
+            public static readonly Func<BlittableJsonReaderObject, StartSchemaValidationOperation.Parameters> ValidateSchemaOperationParameters = GenerateJsonDeserializationRoutine<StartSchemaValidationOperation.Parameters>();
         }
     }
 }
