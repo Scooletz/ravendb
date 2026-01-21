@@ -192,7 +192,7 @@ namespace Raven.Server.Utils
                 $"{commonNameValue} CA",
                 out var caSubjectName,
                 log);
-            
+
             CreateSelfSignedCertificateBasedOnPrivateKey(
                 commonNameValue: commonNameValue,
                 issuerCN: caSubjectName,
@@ -207,6 +207,7 @@ namespace Raven.Server.Utils
 
             var selfSignedCertificateBasedOnPrivateKey = CertificateLoaderUtil.CreateCertificate(certBytes);
             selfSignedCertificateBasedOnPrivateKey.Verify();
+            GC.KeepAlive(selfSignedCertificateBasedOnPrivateKey); // https://github.com/dotnet/runtime/issues/122642#issuecomment-3720461147
 
             // We had a problem where we didn't cleanup the user store in Linux (~/.dotnet/corefx/cryptography/x509stores/ca)
             // and it exploded with thousands of certificates. This caused ssl handshakes to fail on that machine, because it would timeout when
@@ -354,6 +355,7 @@ namespace Raven.Server.Utils
                 commonNameBuilder.AddCommonName(commonNameValue);
                 subjectName = commonNameBuilder.Build();
             }
+
             log?.AppendLine($"subjectDN = {subjectName}");
             log?.AppendLine($"issuerDN = {issuerCN}");
 
@@ -490,7 +492,7 @@ namespace Raven.Server.Utils
 
             // Create the self-signed certificate.
             // The CreateSelfSigned method automatically adds AuthorityKeyIdentifier and SubjectKeyIdentifier.
-            var notBefore = DateTimeOffset.UtcNow.Date;
+            var notBefore = DateTimeOffset.UtcNow.Date.AddDays(-7);
             var notAfter = notBefore.AddYears(2);
             var cert = request.CreateSelfSigned(notBefore, notAfter);
             log?.AppendLine($"Certificate created. NotBefore: {cert.NotBefore}, NotAfter: {cert.NotAfter}");

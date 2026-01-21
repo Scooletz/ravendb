@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
@@ -247,7 +248,7 @@ internal class ChatCompletionClient : IDisposable
             var choice = (BlittableJsonReaderObject)choices[0];
             if (choice.TryGet(Constants.ResponseFields.Delta, out BlittableJsonReaderObject delta))
             {
-                if (delta.TryGet(Constants.ResponseFields.Content, out LazyStringValue content) && content?.Length > 0)
+                if (TryGetDeltaContent(delta, out LazyStringValue content))
                 {
                     toolCallState.AddAndReset();
 
@@ -274,7 +275,8 @@ internal class ChatCompletionClient : IDisposable
             }
         }
 
-        if (toolCallState.AllToolCalls?.Count >= 0)
+        // Some OpenAI-like APIs return an empty array instead of omitting the field when no tool calls are made
+        if (toolCallState.AllToolCalls?.Count > 0)
         {
             DynamicJsonArray toolCalls = new();
             foreach (var call in toolCallState.AllToolCalls)
@@ -312,6 +314,22 @@ internal class ChatCompletionClient : IDisposable
             }, "persisted/streamed/message"),
             Result = message,
         };
+    }
+
+    private static bool TryGetDeltaContent(BlittableJsonReaderObject delta, out LazyStringValue content)
+    {
+        // Try content, then reasoning_content, then reasoning (for LM Studio and other reasoning model compatibility)
+        if (delta.TryGet(Constants.ResponseFields.Content, out content) && content?.Length > 0)
+            return true;
+
+        if (delta.TryGet(Constants.ResponseFields.ReasoningContent, out content) && content?.Length > 0)
+            return true;
+
+        if (delta.TryGet(Constants.ResponseFields.Reasoning, out content) && content?.Length > 0)
+            return true;
+
+        content = null;
+        return false;
     }
 
     public async Task<(string Result, string Message)> TestCompleteAsync(string systemPrompt, string userPrompt, string schema, CancellationToken token)
@@ -355,7 +373,6 @@ internal class ChatCompletionClient : IDisposable
     private struct AiResponseParser(ChatCompletionClient client, HttpResponseMessage response, BlittableJsonReaderObject responseContent)
     {
         public BlittableJsonReaderObject Message;
-        private string _content;
         private BlittableJsonReaderObject _choice0;
 
         public void EnsureSuccessfulResponse()
@@ -376,10 +393,9 @@ internal class ChatCompletionClient : IDisposable
 
             _choice0 = (BlittableJsonReaderObject)choices[0];
 
-            if (_choice0.TryGet(Constants.ResponseFields.Message, out Message) == false ||
-                Message.TryGet(Constants.ResponseFields.Content, out _content) == false)
+            if (_choice0.TryGet(Constants.ResponseFields.Message, out Message) == false)
             {
-                throw UnexpectedResponseException.Create(message: "No message/content property in choice", response, responseContent);
+                throw UnexpectedResponseException.Create(message: "No message property in choice", response, responseContent);
             }
 
             if (responseContent.TryGet(Constants.ResponseFields.Usage, out BlittableJsonReaderObject usageJson) == false)
@@ -390,7 +406,7 @@ internal class ChatCompletionClient : IDisposable
 
         public bool TryParseToolCalls(out List<AiToolCall> toolCalls)
         {
-            if (Message.TryGet(Constants.ResponseFields.ToolCalls, out BlittableJsonReaderArray calls) is false)
+            if (Message.TryGet(Constants.ResponseFields.ToolCalls, out BlittableJsonReaderArray calls) is false || calls.Length == 0)
             {
                 toolCalls = null;
                 return false;
@@ -412,16 +428,20 @@ internal class ChatCompletionClient : IDisposable
 
         public BlittableJsonReaderObject GetContent(JsonOperationContext context)
         {
-            if (string.IsNullOrEmpty(_content))
+            // Try content, then reasoning_content, then reasoning (for LM Studio and other OpenAI-like APIs that still use the older mechanism)
+            if (TryGetDeltaContent(Message, out var content) == false)
             {
                 _choice0.TryGet(Constants.ResponseFields.FinishReason, out string finishReason);
-                _ = _choice0.TryGet(Constants.ResponseFields.Refusal, out string refusal) || Message.TryGet(Constants.ResponseFields.Refusal, out refusal);
+                var refusal = client.GetRefusal(_choice0, Message);
+                if (string.IsNullOrEmpty(refusal))
+                    throw UnexpectedResponseException.Create(message: "No response content", response, responseContent);
 
                 RefusedToAnswerException.Throw(refusal, responseContent.ToString(), finishReason, GetRequestId(response.Headers));
             }
 
-            return context.Sync.ReadForMemory(_content, "ai/output");
+            return context.Sync.ReadForMemory(content, "ai/output");
         }
+
     }
 
     protected virtual Task<HttpResponseMessage> SendRequestAsync(HttpRequestMessage request, CancellationToken token) => _client.SendAsync(request, token);
@@ -625,9 +645,17 @@ internal class ChatCompletionClient : IDisposable
             await responseStream.CopyToAsync(ms, token);
             var contentLength = (int)ms.Position;
             ms.Position = 0;
+
             try
             {
                 return await context.ReadForMemoryAsync(ms, "response/object").ConfigureAwait(false);
+            }
+            catch (InvalidDataException ide) when (ide.Message.Contains("Cannot have a '<' in this position at  (1,2) around:")) // likely HTML response
+            {
+                ms.Position = 0;
+                string content = Encoding.UTF8.GetString(ms.GetMemory().Span[..contentLength]);
+
+                throw UnexpectedResponseException.Create(message: "Received an unrecognized response from the server", response, content);
             }
             catch (Exception e)
             {
@@ -699,6 +727,8 @@ internal class ChatCompletionClient : IDisposable
                 break;
         }
     }
+
+    private string GetRefusal(BlittableJsonReaderObject choice0, BlittableJsonReaderObject message) => _settings.GetRefusal(choice0, message);
 
     internal static string GetRequestId(HttpResponseHeaders headers)
     {
@@ -934,6 +964,8 @@ internal class ChatCompletionClient : IDisposable
             public const string Choices = "choices";
             public const string Message = "message";
             public const string Content = "content";
+            public const string ReasoningContent = "reasoning_content";
+            public const string Reasoning = "reasoning";
             public const string FinishReason = "finish_reason";
             public const string ToolCalls = "tool_calls";
             public const string Refusal = "refusal";
