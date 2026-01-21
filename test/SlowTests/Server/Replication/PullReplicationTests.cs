@@ -1047,7 +1047,12 @@ namespace SlowTests.Server.Replication
                     }))
                     {
                         // Registering certificate with ClusterAdmin permissions
-                        Certificates.RegisterClientCertificate(certificates.ServerCertificate.Value, certificates.ClientCertificate2.Value, permissions: new Dictionary<string, DatabaseAccess>(), SecurityClearance.ClusterAdmin, server: hubServer);
+                        Certificates.RegisterClientCertificate(
+                            certificates.ServerCertificate.Value, 
+                            certificates.ClientCertificate2.Value, 
+                            permissions: new Dictionary<string, DatabaseAccess>(), 
+                            SecurityClearance.ClusterAdmin, 
+                            server: hubServer);
 
                         await hubStore.Maintenance.ForDatabase(hubStore.Database).SendAsync(new PutPullReplicationAsHubOperation(new PullReplicationDefinition("pull-replication-task")
                         {
