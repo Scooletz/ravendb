@@ -3020,6 +3020,42 @@ namespace Raven.Server
 
                 case AuthenticationStatus.ClusterAdmin:
                 case AuthenticationStatus.Operator:
+                    // For PushReplication (SinkToHub mode), we need to set ReplicationHubAccess
+                    if (header.AuthorizeInfo?.AuthorizeAs == TcpConnectionHeaderMessage.AuthorizationInfo.AuthorizeMethod.PushReplication)
+                    {
+                        using (ServerStore.Engine.ContextPool.AllocateOperationContext(out ClusterOperationContext ctx))
+                        using (ctx.OpenReadTransaction())
+                        {
+                            if (ServerStore.Cluster.TryReadPullReplicationDefinition(header.DatabaseName, header.AuthorizeInfo.AuthorizationFor, ctx, out var pullReplication))
+                            {
+                                if ((pullReplication.Mode & PullReplicationMode.SinkToHub) != PullReplicationMode.SinkToHub)
+                                {
+                                    msg = "The expected replication mode does not match the replication mode on the replication hub";
+                                    return false;
+                                }
+                                
+                                // Create a ReplicationHubAccess that allows full access for admin
+                                header.ReplicationHubAccess = new DetailedReplicationHubAccess
+                                {
+                                    Name = "ClusterAdmin",
+                                    Thumbprint = certificate.Thumbprint,
+                                    Certificate = Convert.ToBase64String(certificate.Export(X509ContentType.Cert)),
+                                    NotBefore = certificate.NotBefore,
+                                    NotAfter = certificate.NotAfter,
+                                    Subject = certificate.Subject,
+                                    Issuer = certificate.Issuer,
+                                    AllowedHubToSinkPaths = null, // null means all paths allowed
+                                    AllowedSinkToHubPaths = null  // null means all paths allowed
+                                };
+                            }
+                            else
+                            {
+                                msg = $"The pull replication hub '{header.AuthorizeInfo.AuthorizationFor}' does not exist in database '{header.DatabaseName}'";
+                                return false;
+                            }
+                        }
+                    }
+                    
                     msg = "Admin can do it all";
                     return true;
 

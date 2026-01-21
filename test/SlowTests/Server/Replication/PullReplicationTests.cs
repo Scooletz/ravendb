@@ -1005,5 +1005,87 @@ namespace SlowTests.Server.Replication
             }
             return resList;
         }
+
+        [RavenFact(RavenTestCategory.Replication)]
+        public async Task SinkToHubWithClusterAdminCertificateShouldWork()
+        {
+            var settings = new Dictionary<string, string>();
+            var certificates = Certificates.SetupServerAuthentication(settings);
+            var hubServer = GetNewServer(new ServerCreationOptions { CustomSettings = settings });
+
+            Certificates.RegisterClientCertificate(
+                certificates.ServerCertificate.Value,
+                certificates.ClientCertificate1.Value,
+                new Dictionary<string, DatabaseAccess>(),
+                SecurityClearance.ClusterAdmin,
+                server: hubServer);
+
+            var hubStore = GetDocumentStore(new Options
+            {
+                Server = hubServer,
+                ModifyDatabaseName = s => $"HubDB_{s}",
+                ClientCertificate = certificates.ServerCertificate.Value,
+                AdminCertificate = certificates.ClientCertificate1.Value,
+            });
+
+            var sinkServer = GetNewServer(new ServerCreationOptions { CustomSettings = settings });
+
+            Certificates.RegisterClientCertificate(
+                certificates.ServerCertificate.Value,
+                certificates.ClientCertificate1.Value,
+                new Dictionary<string, DatabaseAccess>(),
+                SecurityClearance.ClusterAdmin,
+                server: sinkServer);
+
+            var sinkStore = GetDocumentStore(new Options
+            {
+                Server = sinkServer,
+                CreateDatabase = true,
+                ModifyDatabaseName = s => $"SinkDB_{s}",
+                ClientCertificate = certificates.ServerCertificate.Value,
+                AdminCertificate = certificates.ClientCertificate1.Value,
+            });
+
+            // Registering certificate with ClusterAdmin permissions
+            Certificates.RegisterClientCertificate(certificates.ServerCertificate.Value, certificates.ClientCertificate2.Value, permissions: new Dictionary<string, DatabaseAccess>(), SecurityClearance.ClusterAdmin, server: hubServer);
+
+            await hubStore.Maintenance.ForDatabase(hubStore.Database).SendAsync(new PutPullReplicationAsHubOperation(new PullReplicationDefinition("pull-replication-task")
+            {
+                Mode = PullReplicationMode.SinkToHub
+            }));
+
+            await hubStore.Maintenance.SendAsync(new RegisterReplicationHubAccessOperation("pull-replication-task", new ReplicationHubAccess
+            {
+                Name = "SinkUser",
+                CertificateBase64 = Convert.ToBase64String(certificates.ClientCertificate2.Value.Export(X509ContentType.Cert))
+            }));
+
+            const string connectionStringName = "ConnectToHub";
+            await sinkStore.Maintenance.SendAsync(new PutConnectionStringOperation<RavenConnectionString>(new RavenConnectionString
+            {
+                Name = connectionStringName,
+                Database = hubStore.Database,
+                TopologyDiscoveryUrls = hubStore.Urls
+            }));
+
+            await sinkStore.Maintenance.SendAsync(new UpdatePullReplicationAsSinkOperation(new PullReplicationAsSink
+            {
+                ConnectionStringName = connectionStringName,
+                HubName = "pull-replication-task",
+                Mode = PullReplicationMode.SinkToHub,
+                CertificateWithPrivateKey = Convert.ToBase64String(certificates.ClientCertificate2.Value.Export(X509ContentType.Pfx))
+            }));
+
+            // Add a document to sink and wait for it to replicate to hub
+            using (var session = sinkStore.OpenSession())
+            {
+                session.Store(new User { Name = "Test User" }, "users/1");
+                session.SaveChanges();
+            }
+
+            // Wait for the document to replicate to hub
+            var timeout = 10000;
+            Assert.True(WaitForDocument(hubStore, "users/1", timeout), hubStore.Identifier);
+        }
     }
 }
