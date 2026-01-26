@@ -362,6 +362,8 @@ namespace Raven.Server.Documents.Patch
                 ScriptEngine.SetClrFunc("Raven_Min", Raven_Min);
                 ScriptEngine.SetClrFunc("Raven_Max", Raven_Max);
 
+                ScriptEngine.SetClrFunc("uuid", GenerateUuid);
+
                 ScriptEngine.SetClrFunc("convertJsTimeToTimeSpanString", ConvertJsTimeToTimeSpanString);
                 ScriptEngine.SetClrFunc("convertToTimeSpanString", ConvertToTimeSpanString);
                 ScriptEngine.SetClrFunc("compareDates", CompareDates);
@@ -879,6 +881,16 @@ namespace Raven.Server.Documents.Patch
             {
                 GenericSortTwoElementArray(args);
                 return args[0];
+            }
+
+            private JsValue GenerateUuid(JsValue self, JsValue[] args)
+            {
+                if (args.Length != 0)
+                {
+                    throw new ArgumentException("uuid() must be called without arguments");
+                }
+
+                return JsValue.FromObject(ScriptEngine, Guid.NewGuid().ToString());
             }
 
             private JsValue ArchiveAt(JsValue self, JsValue[] args)
