@@ -885,12 +885,15 @@ namespace Raven.Server.Documents.Patch
 
             private JsValue GenerateUuid(JsValue self, JsValue[] args)
             {
+                // In the future, we might accept seed parameter(s) to provide stable identifier generation
+                // based on content, but for now we only support parameterless calls
                 if (args.Length != 0)
                 {
-                    throw new ArgumentException("uuid() must be called without arguments");
+                    throw new InvalidOperationException("uuid() must be called without arguments");
                 }
 
-                return JsValue.FromObject(ScriptEngine, Guid.NewGuid().ToString());
+                // Explicitly specify the format to ensure stability even if .ToString() default changes
+                return JsValue.FromObject(ScriptEngine, Guid.NewGuid().ToString("D"));
             }
 
             private JsValue ArchiveAt(JsValue self, JsValue[] args)
@@ -2161,6 +2164,14 @@ namespace Raven.Server.Documents.Patch
                     //ScriptRunnerResult is in charge of disposing of the disposable but it is not created (the clones did)
                     JavaScriptUtils.Clear();
                     throw CreateFullError(documentId, e);
+                }
+                catch (InvalidOperationException ioe)
+                {
+                    //When a CLR function called from JavaScript throws an InvalidOperationException, 
+                    //we need to convert it to a JavaScriptException so the client receives the proper exception type
+                    JavaScriptUtils.Clear();
+                    var msg = $"Script failed for document ID '{documentId}'. {ioe.Message}";
+                    throw new Client.Exceptions.Documents.Patching.JavaScriptException(msg, ioe);
                 }
                 catch (Exception)
                 {
