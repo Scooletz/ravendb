@@ -264,6 +264,5 @@
       <ResolvedFileToPublish ExcludeFromSingleFile="true" Condition="'%(ResolvedFileToPublish.Identity)' == '$(ProjectRuntimeConfigFilePath)'" />
     </ItemGroup>
   </Target>
-  <!-- Temporarily disabled to bypass embeddings download failure -->
-  <!-- <Import Project="../DownloadEmbeddings.targets" /> -->
+  <Import Project="../DownloadEmbeddings.targets" />
 </Project>
