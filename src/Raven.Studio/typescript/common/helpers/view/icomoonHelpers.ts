@@ -18,7 +18,7 @@ class icomoonHelpers {
             console.log("Invalid code point for: " + iconName + ", value: " + codePointHex);
             return icomoonHelpers.getCodePointForCanvas("placeholder");
         }
-
+        
         return "&#x" + codePoint.toString(16) + ";";
     }
 }
