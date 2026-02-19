@@ -222,7 +222,18 @@ var ai = new AI();
                             }
                             else
                             {
-                                data = DocumentScript.DebugMode ? GetAttachmentPreview(attachment, type) : GetAttachmentDataAsBase64(attachment, type);
+                                // Check if this is a remote attachment that should be deferred
+                                if (attachment.RemoteParameters != null)
+                                {
+                                    // Defer resolution for remote attachments
+                                    source = AiAttachmentSource.Deferred;
+                                    data = string.Empty; // Will be resolved later
+                                }
+                                else
+                                {
+                                    // Materialize immediately for non-remote attachments
+                                    data = DocumentScript.DebugMode ? GetAttachmentPreview(attachment, type) : GetAttachmentDataAsBase64(attachment, type);
+                                }
                             }
                         }
                         else
@@ -234,7 +245,7 @@ var ai = new AI();
                                 throw new InvalidOperationException($"Attachment must be loaded or base64 string (on type {type})");
                         }
 
-                        result.Attachments.Add(new AiAttachment(filename, type, source, data));
+                        result.Attachments.Add(new AiAttachment(filename, type, source, data, Current.DocumentId));
                     }
                 }
                 _currentRun.Add(result);

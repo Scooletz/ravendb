@@ -22,6 +22,7 @@ using Raven.Server.Documents.ETL.Providers.AI.GenAi.Test;
 using Raven.Server.Documents.ETL.Stats;
 using Raven.Server.Documents.ETL.Test;
 using Raven.Server.Documents.Handlers.AI.Agents;
+using Raven.Server.Documents.Handlers.Processors.Attachments.Strategies;
 using Raven.Server.Documents.Patch;
 using Raven.Server.Documents.Replication.ReplicationItems;
 using Raven.Server.Documents.TimeSeries;
@@ -218,7 +219,7 @@ public sealed class GenAiTask : EtlProcess<GenAiItem, GenAiScriptResult, GenAiCo
                     },
                     UserPrompt = json,
                     Attachments = item.ContextOutput.Attachments
-                }, changeVector: null);
+                }, changeVector: null, raftId: null, asyncAttachmentResolver: CreateAsyncAttachmentResolver());
 
                 handler.SetClient(_chatCompletionClient);
                 try
@@ -621,6 +622,34 @@ public sealed class GenAiTask : EtlProcess<GenAiItem, GenAiScriptResult, GenAiCo
         }
 
         return results;
+    }
+
+    private Func<string, string, Task<string>> CreateAsyncAttachmentResolver()
+    {
+        return async (documentId, attachmentName) =>
+        {
+            using (Database.DocumentsStorage.ContextPool.AllocateOperationContext(out DocumentsOperationContext resolveContext))
+            using (var tx = resolveContext.OpenReadTransaction())
+            {
+                var attachment = Database.DocumentsStorage.AttachmentsStorage.GetAttachment(
+                    resolveContext, documentId, attachmentName, AttachmentType.Document, changeVector: null);
+                
+                if (attachment == null)
+                    throw new InvalidOperationException($"The document '{documentId}' has no attachment with name '{attachmentName}' anymore");
+
+                // Get the stream from storage (local or remote) using the shared method
+                var stream = await RemoteGetAttachmentStrategyProcessor.GetAttachmentStreamFromStorage(
+                    Database, resolveContext, tx, attachment, CancellationToken);
+
+                // Determine the type based on content type or default to application/octet-stream
+                var type = attachment.ContentType?.ToString() ?? "application/octet-stream";
+                
+                // Set the stream on the attachment so GetAttachmentDataAsBase64 can use it
+                attachment.Stream = stream;
+                
+                return GenAiScriptTransformer.GetAttachmentDataAsBase64(attachment, type);
+            }
+        };
     }
 
     internal ChatCompletionClient GetChatCompletionClient() => _chatCompletionClient;
