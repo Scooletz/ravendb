@@ -1,4 +1,5 @@
-﻿using System.Threading.Tasks;
+﻿using System.IO;
+using System.Threading.Tasks;
 using JetBrains.Annotations;
 using Raven.Client.Documents.Operations.Attachments;
 using Raven.Server.ServerWide;
@@ -19,6 +20,16 @@ namespace Raven.Server.Documents.Handlers.Processors.Attachments.Strategies
 
         public override async Task WriteResponseStream(DocumentsOperationContext context, DocumentsTransaction tx, Attachment attachment, OperationCancelToken token)
         {
+            var stream = await GetAttachmentStreamFromStorage(context, tx, attachment, token);
+
+            await using (stream)
+            {
+                await stream.CopyToAsync(RequestHandler.ResponseBodyStream(), token.Token);
+            }
+        }
+
+        private async Task<Stream> GetAttachmentStreamFromStorage(DocumentsOperationContext context, DocumentsTransaction tx, Attachment attachment, OperationCancelToken token)
+        {
             var stream = RequestHandler.Database.DocumentsStorage.AttachmentsStorage.GetAttachmentStream(context, attachment.Base64Hash);
             if (stream == null)
             {
@@ -27,10 +38,7 @@ namespace Raven.Server.Documents.Handlers.Processors.Attachments.Strategies
                 stream = await RequestHandler.Database.DocumentsStorage.AttachmentsStorage.RemoteAttachmentsStorage.StreamForDownloadDestinationInternal(downloader, attachment.Base64Hash.ToString());
             }
 
-            await using (stream)
-            {
-                await stream.CopyToAsync(RequestHandler.ResponseBodyStream(), token.Token);
-            }
+            return stream;
         }
     }
 }
