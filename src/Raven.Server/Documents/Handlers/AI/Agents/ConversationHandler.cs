@@ -17,6 +17,7 @@ using Raven.Client.Documents.Queries;
 using Raven.Client.Exceptions;
 using Raven.Client.Json.Serialization;
 using Raven.Server.Documents.AI;
+using Raven.Server.Documents.ETL.Providers.AI;
 using Raven.Server.Documents.Handlers.Processors.MultiGet;
 using Raven.Server.NotificationCenter.Notifications.Details;
 using Raven.Server.ServerWide;
@@ -43,9 +44,11 @@ internal class ConversationHandler(ServerStore server, DocumentDatabase database
     private string _changeVector;
     private string _raftId;
     private int _maxModelIterationsPerCall;
+    private Func<string, string, Task<string>> _asyncAttachmentResolver;
 
     public required RavenServer.AuthenticateConnection Authentication;
-    public void Initialize(AiAgentConfiguration configuration, string conversationId, RequestBody body, string changeVector, string raftId = null)
+    
+    public void Initialize(AiAgentConfiguration configuration, string conversationId, RequestBody body, string changeVector, string raftId = null, Func<string, string, Task<string>> asyncAttachmentResolver = null)
     {
         _conversationId = conversationId;
         _request = body;
@@ -53,6 +56,7 @@ internal class ConversationHandler(ServerStore server, DocumentDatabase database
         _changeVector = changeVector;
         _raftId = raftId;
         _maxModelIterationsPerCall = configuration.MaxModelIterationsPerCall ?? DefaultMaxModelIterationsPerCall;
+        _asyncAttachmentResolver = asyncAttachmentResolver;
     }
 
     protected virtual async Task InitializeDocument(DocumentsOperationContext context)
@@ -566,6 +570,9 @@ internal class ConversationHandler(ServerStore server, DocumentDatabase database
         if (await TryHandleActionResponses(context) is false)
             return default;
 
+        // Resolve deferred attachments before talking to the model
+        await ResolveDeferredAttachmentsAsync(_request.Attachments, token);
+
         return await TalkAsync(context, token: token);
     }
 
@@ -580,6 +587,9 @@ internal class ConversationHandler(ServerStore server, DocumentDatabase database
         if (await TryHandleActionResponses(context) is false)
             return default;
 
+        // Resolve deferred attachments before talking to the model
+        await ResolveDeferredAttachmentsAsync(_request.Attachments, token);
+
         await using var writer = new AsyncBlittableJsonTextWriter(context, outputStream);
         return await StreamingTalkAsync(context, streamPropertyPath, async (data) =>
         {
@@ -588,6 +598,22 @@ internal class ConversationHandler(ServerStore server, DocumentDatabase database
             writer.WriteRawString("\r\n"u8);
             await writer.FlushAsync(token);
         }, token: token);
+    }
+
+    private async Task ResolveDeferredAttachmentsAsync(List<AiAttachment> attachments, CancellationToken token)
+    {
+        if (attachments == null || _asyncAttachmentResolver == null)
+            return;
+
+        foreach (var attachment in attachments)
+        {
+            if (attachment.Source == AiAttachmentSource.Deferred)
+            {
+                // Resolve the attachment data asynchronously
+                attachment.Data = await _asyncAttachmentResolver(attachment.DocumentId, attachment.Name);
+                attachment.Source = AiAttachmentSource.FromAttachment;
+            }
+        }
     }
 
     private static readonly string SummarizationOutputSchema = ChatCompletionClient.GetSchemaFromSampleObject(JsonConvert.SerializeObject(new SummarizationSampleObject()));

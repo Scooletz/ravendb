@@ -218,7 +218,7 @@ public sealed class GenAiTask : EtlProcess<GenAiItem, GenAiScriptResult, GenAiCo
                     },
                     UserPrompt = json,
                     Attachments = item.ContextOutput.Attachments
-                }, changeVector: null);
+                }, changeVector: null, raftId: null, asyncAttachmentResolver: CreateAsyncAttachmentResolver(context));
 
                 handler.SetClient(_chatCompletionClient);
                 try
@@ -621,6 +621,27 @@ public sealed class GenAiTask : EtlProcess<GenAiItem, GenAiScriptResult, GenAiCo
         }
 
         return results;
+    }
+
+    private Func<string, string, Task<string>> CreateAsyncAttachmentResolver(DocumentsOperationContext context)
+    {
+        return async (documentId, attachmentName) =>
+        {
+            using (Database.DocumentsStorage.ContextPool.AllocateOperationContext(out DocumentsOperationContext resolveContext))
+            using (resolveContext.OpenReadTransaction())
+            {
+                var attachment = Database.DocumentsStorage.AttachmentsStorage.GetAttachment(
+                    resolveContext, documentId, attachmentName, AttachmentType.Document, changeVector: null);
+                
+                if (attachment == null)
+                    throw new InvalidOperationException($"The document '{documentId}' has no attachment with name '{attachmentName}' anymore");
+
+                // Determine the type based on content type or default to application/octet-stream
+                var type = attachment.ContentType?.ToString() ?? "application/octet-stream";
+                
+                return GenAiScriptTransformer.GetAttachmentDataAsBase64(attachment, type);
+            }
+        };
     }
 
     internal ChatCompletionClient GetChatCompletionClient() => _chatCompletionClient;
