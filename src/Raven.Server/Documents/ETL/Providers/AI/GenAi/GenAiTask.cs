@@ -22,6 +22,7 @@ using Raven.Server.Documents.ETL.Providers.AI.GenAi.Test;
 using Raven.Server.Documents.ETL.Stats;
 using Raven.Server.Documents.ETL.Test;
 using Raven.Server.Documents.Handlers.AI.Agents;
+using Raven.Server.Documents.Handlers.Processors.Attachments.Strategies;
 using Raven.Server.Documents.Patch;
 using Raven.Server.Documents.Replication.ReplicationItems;
 using Raven.Server.Documents.TimeSeries;
@@ -636,15 +637,9 @@ public sealed class GenAiTask : EtlProcess<GenAiItem, GenAiScriptResult, GenAiCo
                 if (attachment == null)
                     throw new InvalidOperationException($"The document '{documentId}' has no attachment with name '{attachmentName}' anymore");
 
-                // Get the stream from storage (local or remote)
-                var stream = Database.DocumentsStorage.AttachmentsStorage.GetAttachmentStream(resolveContext, attachment.Base64Hash);
-                if (stream == null)
-                {
-                    // Stream not in local storage, download from remote
-                    tx.Dispose(); // we are reading from remote, we can dispose the transaction
-                    using var downloader = Database.DocumentsStorage.AttachmentsStorage.RemoteAttachmentsStorage.GetDownloader(attachment, CancellationToken);
-                    stream = await Database.DocumentsStorage.AttachmentsStorage.RemoteAttachmentsStorage.StreamForDownloadDestinationInternal(downloader, attachment.Base64Hash.ToString());
-                }
+                // Get the stream from storage (local or remote) using the shared method
+                var stream = await RemoteGetAttachmentStrategyProcessor.GetAttachmentStreamFromStorage(
+                    Database, resolveContext, tx, attachment, CancellationToken);
 
                 // Determine the type based on content type or default to application/octet-stream
                 var type = attachment.ContentType?.ToString() ?? "application/octet-stream";
