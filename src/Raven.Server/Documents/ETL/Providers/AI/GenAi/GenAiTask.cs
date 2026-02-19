@@ -628,7 +628,7 @@ public sealed class GenAiTask : EtlProcess<GenAiItem, GenAiScriptResult, GenAiCo
         return async (documentId, attachmentName) =>
         {
             using (Database.DocumentsStorage.ContextPool.AllocateOperationContext(out DocumentsOperationContext resolveContext))
-            using (resolveContext.OpenReadTransaction())
+            using (var tx = resolveContext.OpenReadTransaction())
             {
                 var attachment = Database.DocumentsStorage.AttachmentsStorage.GetAttachment(
                     resolveContext, documentId, attachmentName, AttachmentType.Document, changeVector: null);
@@ -636,8 +636,21 @@ public sealed class GenAiTask : EtlProcess<GenAiItem, GenAiScriptResult, GenAiCo
                 if (attachment == null)
                     throw new InvalidOperationException($"The document '{documentId}' has no attachment with name '{attachmentName}' anymore");
 
+                // Get the stream from storage (local or remote)
+                var stream = Database.DocumentsStorage.AttachmentsStorage.GetAttachmentStream(resolveContext, attachment.Base64Hash);
+                if (stream == null)
+                {
+                    // Stream not in local storage, download from remote
+                    tx.Dispose(); // we are reading from remote, we can dispose the transaction
+                    using var downloader = Database.DocumentsStorage.AttachmentsStorage.RemoteAttachmentsStorage.GetDownloader(attachment, CancellationToken);
+                    stream = await Database.DocumentsStorage.AttachmentsStorage.RemoteAttachmentsStorage.StreamForDownloadDestinationInternal(downloader, attachment.Base64Hash.ToString());
+                }
+
                 // Determine the type based on content type or default to application/octet-stream
                 var type = attachment.ContentType?.ToString() ?? "application/octet-stream";
+                
+                // Set the stream on the attachment so GetAttachmentDataAsBase64 can use it
+                attachment.Stream = stream;
                 
                 return GenAiScriptTransformer.GetAttachmentDataAsBase64(attachment, type);
             }
