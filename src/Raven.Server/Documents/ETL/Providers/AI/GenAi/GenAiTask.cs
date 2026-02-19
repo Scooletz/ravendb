@@ -218,7 +218,7 @@ public sealed class GenAiTask : EtlProcess<GenAiItem, GenAiScriptResult, GenAiCo
                     },
                     UserPrompt = json,
                     Attachments = item.ContextOutput.Attachments
-                }, changeVector: null, raftId: null, asyncAttachmentResolver: CreateAsyncAttachmentResolver(context));
+                }, changeVector: null, raftId: null, asyncAttachmentResolver: CreateAsyncAttachmentResolver());
 
                 handler.SetClient(_chatCompletionClient);
                 try
@@ -623,7 +623,7 @@ public sealed class GenAiTask : EtlProcess<GenAiItem, GenAiScriptResult, GenAiCo
         return results;
     }
 
-    private Func<string, string, Task<string>> CreateAsyncAttachmentResolver(DocumentsOperationContext context)
+    private Func<string, string, Task<string>> CreateAsyncAttachmentResolver()
     {
         return async (documentId, attachmentName) =>
         {
