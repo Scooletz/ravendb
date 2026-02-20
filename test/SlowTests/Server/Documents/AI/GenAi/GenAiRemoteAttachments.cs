@@ -46,6 +46,8 @@ public class GenAiRemoteAttachments(ITestOutputHelper output) : RemoteAttachment
                 // Set the data
                 var marker = "None" + Guid.NewGuid();
 
+                const string postId = "Post/1";
+
                 using (var session = store.OpenAsyncSession())
                 {
                     var p1 = new Post("Hello World!",
@@ -55,7 +57,7 @@ public class GenAiRemoteAttachments(ITestOutputHelper output) : RemoteAttachment
                         new Comment(Id: "Comment3", Author: "Aviv Rachmany", AuthorDescription: marker, Content: "Hello", ProfileImage: "none.png")
                     ]);
                     
-                    await session.StoreAsync(p1, "Post/1");
+                    await session.StoreAsync(p1, postId);
 
                     using var heart = new MemoryStream(Convert.FromBase64String(Data.HeartPngBase64));
                     using var star = new MemoryStream(Convert.FromBase64String(Data.StarPngBase64));
@@ -64,8 +66,8 @@ public class GenAiRemoteAttachments(ITestOutputHelper output) : RemoteAttachment
 
                     RemoteAttachmentParameters remote = new(remoteId, DateTime.UtcNow.AddMinutes(1));
 
-                    attachments.Store("Post/1", new StoreAttachmentParameters("heart.png", heart) { RemoteParameters = remote });
-                    attachments.Store("Post/1", new StoreAttachmentParameters("star.png", star) { RemoteParameters = remote });
+                    attachments.Store(postId, new StoreAttachmentParameters("heart.png", heart) { RemoteParameters = remote });
+                    attachments.Store(postId, new StoreAttachmentParameters("star.png", star) { RemoteParameters = remote });
 
                     await session.SaveChangesAsync();
                 }
@@ -77,7 +79,7 @@ public class GenAiRemoteAttachments(ITestOutputHelper output) : RemoteAttachment
                 database.Time.UtcDateTime = () => DateTime.UtcNow.AddMinutes(10);
                 await database.RemoteAttachmentsSender.ProcessRemoteAttachments(int.MaxValue, int.MaxValue);
 
-                var cloudObjects = await GetBlobsFromCloudAndAssertForCount(Settings, 2, 15_000);                
+                await GetBlobsFromCloudAndAssertForCount(Settings, 2, 15_000);
                 
 // Configure AI
                 config.Prompt = "Describe the following images." + NonEmptyAnswerHint;
@@ -104,6 +106,15 @@ for(const comment of this.Comments)
 
                 await store.Maintenance.SendAsync(new AddGenAiOperation(config));
 
+                // Bump the document so that it's reprocessed
+                using (IAsyncDocumentSession session = store.OpenAsyncSession())
+                {
+                    var post = await session.LoadAsync<Post>(postId);
+                    var metadata = session.Advanced.GetMetadataFor(post);
+                    metadata["@Custom"] = "just to update";
+                    await session.SaveChangesAsync();
+                }
+
                 var etl = Etl.WaitForEtlToComplete(store);
 
                 // Wait for etl to complete
@@ -112,14 +123,14 @@ for(const comment of this.Comments)
                 // Load it
                 using (var session = store.OpenAsyncSession())
                 {
-                    var p1 = await session.LoadAsync<Post>("Post/1");
+                    var p1 = await session.LoadAsync<Post>(postId);
                     var comments = p1.Comments;
                     Assert.NotEqual(marker, comments[0].AuthorDescription);
                     Assert.NotEqual(marker, comments[1].AuthorDescription);
                     Assert.Equal(marker, comments[2].AuthorDescription);
                 }
 
-                var hashes = (await GetHashes<Post>(store, "Post/1")).ToList();
+                var hashes = (await GetHashes<Post>(store, postId)).ToList();
                 Assert.Equal(2, hashes.Count);
             }
         }
