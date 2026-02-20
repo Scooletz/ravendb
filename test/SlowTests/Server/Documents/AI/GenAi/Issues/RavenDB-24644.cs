@@ -48,9 +48,9 @@ ai.genContext({}).withPdf(pdf);
 
         [RavenTheory(RavenTestCategory.Ai)]
         [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi, DatabaseMode = RavenDatabaseMode.Single,
-            Data = new object[] { true })]
+            Data = [true])]
         [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi, DatabaseMode = RavenDatabaseMode.Single,
-            Data = new object[] { false })]
+            Data = [false])]
 
         public async Task SelectivePdfDescriptionTransformWhenSomeAttachmentsAreMissing(Options options, GenAiConfiguration config, bool withNullAttachments)
         {

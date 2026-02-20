@@ -5,7 +5,7 @@ using Raven.Client.Documents.Operations.Backups;
 using xRetry;
 
 namespace Tests.Infrastructure
-{
+{                                                                                                                                                                                                                                                                                                   
     public class AmazonS3RetryFactAttribute : RetryFactAttribute
     {
         private const string S3CredentialEnvironmentVariable = "S3_CREDENTIAL";

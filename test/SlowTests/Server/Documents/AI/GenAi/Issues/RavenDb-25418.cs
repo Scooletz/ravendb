@@ -20,12 +20,8 @@ using Xunit.Abstractions;
 
 namespace SlowTests.Server.Documents.AI.GenAi.Issues
 {
-    public class RavenDb_25418 : RavenTestBase
+    public class RavenDb_25418(ITestOutputHelper output) : RavenTestBase(output)
     {
-        public RavenDb_25418(ITestOutputHelper output) : base(output)
-        {
-        }
-
         [RavenTheory(RavenTestCategory.Ai)]
         [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi, DatabaseMode = RavenDatabaseMode.Single)]
         public async Task CanTestContextGenerationWhenPromptAndSchemaAreMissing(Options options, GenAiConfiguration config)

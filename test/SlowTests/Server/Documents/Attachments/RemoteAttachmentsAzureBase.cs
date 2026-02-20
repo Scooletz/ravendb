@@ -43,18 +43,18 @@ public abstract class RemoteAttachmentsAzureBase : RemoteAttachmentsHolder<Remot
 
     public override async Task<string> PutRemoteAttachmentsConfiguration(IDocumentStore store, RemoteAttachmentsAzureSettings settings, List<string> collections = null, string database = null, string id = null)
     {
-        if (collections == null)
-            collections = new List<string> { "Orders" };
+        collections ??= ["Orders"];
+
         if (string.IsNullOrEmpty(database))
             database = store.Database;
         
         id ??= "conf-identifier-azure";
-        var config = new RemoteAttachmentsConfiguration()
+        var config = new RemoteAttachmentsConfiguration
         {
             Destinations = new Dictionary<string, RemoteAttachmentsDestinationConfiguration>
             {
                 {
-                    id, new RemoteAttachmentsDestinationConfiguration()
+                    id, new RemoteAttachmentsDestinationConfiguration
                     {
                         AzureSettings = settings,
                         Disabled = false,
@@ -63,6 +63,7 @@ public abstract class RemoteAttachmentsAzureBase : RemoteAttachmentsHolder<Remot
             },
             CheckFrequencyInSec = 1000
         };
+
         ModifyRemoteAttachmentsConfig?.Invoke(config);
         await store.Maintenance.ForDatabase(database).SendAsync(new ConfigureRemoteAttachmentsOperation(config));
 
