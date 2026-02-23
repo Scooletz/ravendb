@@ -53,5 +53,9 @@ public enum AiAttachmentSource
     FromAttachment, 
     FromScript, 
     NotFound,
-    Deferred // For attachments to be resolved later (e.g., remote attachments)
+
+    /// <summary>
+    /// For attachments to be resolved later (e.g., remote attachments)
+    /// </summary>
+    Deferred
 }

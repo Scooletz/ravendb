@@ -629,7 +629,7 @@ public sealed class GenAiTask : EtlProcess<GenAiItem, GenAiScriptResult, GenAiCo
         return async (documentId, attachmentName) =>
         {
             using (Database.DocumentsStorage.ContextPool.AllocateOperationContext(out DocumentsOperationContext resolveContext))
-            using (var tx = resolveContext.OpenReadTransaction())
+            using (resolveContext.OpenReadTransaction())
             {
                 var attachment = Database.DocumentsStorage.AttachmentsStorage.GetAttachment(
                     resolveContext, documentId, attachmentName, AttachmentType.Document, changeVector: null);
@@ -638,8 +638,8 @@ public sealed class GenAiTask : EtlProcess<GenAiItem, GenAiScriptResult, GenAiCo
                     throw new InvalidOperationException($"The document '{documentId}' has no attachment with name '{attachmentName}' anymore");
 
                 // Get the stream from storage (local or remote) using the shared method
-                var stream = await RemoteGetAttachmentStrategyProcessor.GetAttachmentStreamFromStorage(
-                    Database, resolveContext, tx, attachment, CancellationToken);
+                var stream = await RemoteGetAttachmentStrategyProcessor.DownloadRemoteAttachmentStream(
+                    Database.DocumentsStorage.AttachmentsStorage.RemoteAttachmentsStorage, attachment, OperationCancelToken.None);
 
                 // Determine the type based on content type or default to application/octet-stream
                 var type = attachment.ContentType?.ToString() ?? "application/octet-stream";

@@ -220,20 +220,17 @@ var ai = new AI();
                             {
                                 source = AiAttachmentSource.NotFound;
                             }
+                            // Check if this is a remote attachment that should be deferred
+                            else if (attachment.RemoteParameters != null)
+                            {
+                                // Defer resolution for remote attachments
+                                source = AiAttachmentSource.Deferred;
+                                data = string.Empty; // Will be resolved later
+                            }
                             else
                             {
-                                // Check if this is a remote attachment that should be deferred
-                                if (attachment.RemoteParameters != null)
-                                {
-                                    // Defer resolution for remote attachments
-                                    source = AiAttachmentSource.Deferred;
-                                    data = string.Empty; // Will be resolved later
-                                }
-                                else
-                                {
-                                    // Materialize immediately for non-remote attachments
-                                    data = DocumentScript.DebugMode ? GetAttachmentPreview(attachment, type) : GetAttachmentDataAsBase64(attachment, type);
-                                }
+                                // Materialize immediately for non-remote attachments
+                                data = DocumentScript.DebugMode ? GetAttachmentPreview(attachment, type) : GetAttachmentDataAsBase64(attachment, type);
                             }
                         }
                         else
