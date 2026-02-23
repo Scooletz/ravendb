@@ -3,10 +3,12 @@ using System.Buffers.Text;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using System.Text;
+using System.Threading.Tasks;
 using Jint;
 using Jint.Native;
 using Jint.Native.Function;
@@ -14,10 +16,12 @@ using Jint.Native.Object;
 using Raven.Client;
 using Raven.Client.Documents.Operations.AI;
 using Raven.Client.Documents.Operations.ETL;
+using Raven.Client.Extensions;
 using Raven.Server.Documents.ETL.Providers.AI.GenAi.Stats;
 using Raven.Server.Documents.ETL.Stats;
 using Raven.Server.Documents.Patch;
 using Raven.Server.Documents.TimeSeries;
+using Raven.Server.ServerWide;
 using Raven.Server.ServerWide.Context;
 using Sparrow;
 using Sparrow.Json;
@@ -220,6 +224,22 @@ var ai = new AI();
                             {
                                 source = AiAttachmentSource.NotFound;
                             }
+                            else if (attachment.RemoteParameters?.IsRemoteStorageAttachment() == true)
+                            {
+                                // For remote attachments, defer loading until later.
+                                // Store metadata (identifier + hash) instead of loading the data now.
+                                // This allows us to retrieve the attachment later without needing the document ID.
+                                var aiAttachment = new AiAttachment(filename, type, source, string.Empty)
+                                {
+                                    RemoteMetadata = new RemoteAttachmentMetadata
+                                    {
+                                        Identifier = attachment.RemoteParameters.Identifier,
+                                        Hash = attachment.Base64Hash.ToString()
+                                    }
+                                };
+                                result.Attachments.Add(aiAttachment);
+                                continue; // Skip the normal add at the end
+                            }
                             else
                             {
                                 data = DocumentScript.DebugMode ? GetAttachmentPreview(attachment, type) : GetAttachmentDataAsBase64(attachment, type);
@@ -268,6 +288,9 @@ var ai = new AI();
 
     public static string GetAttachmentDataAsBase64(Attachment attachment, string type)
     {
+        if (attachment.Stream == null)
+            throw new InvalidOperationException($"Attachment stream is null. For remote attachments, use GetAttachmentDataAsBase64Async instead.");
+
         using var memoryStream = RecyclableMemoryStreamFactory.GetRecyclableStream();
         if (type == AttachmentsRequestConstants.MediaTypeTextPlain)
         {
@@ -282,6 +305,40 @@ var ai = new AI();
 
         Span<byte> readOnlySpan = memoryStream.GetBuffer();
         return Encoding.UTF8.GetString(readOnlySpan[..(int)memoryStream.Length]);
+    }
+
+    /// <summary>
+    /// Gets attachment data as Base64 string from a remote attachment.
+    /// This method directly downloads the attachment stream from remote storage using only the attachment's hash and identifier,
+    /// without requiring the document ID.
+    /// </summary>
+    public static async Task<string> GetAttachmentDataAsBase64Async(RemoteAttachmentsStorage remoteStorage, Attachment attachment, string type, OperationCancelToken token)
+    {
+        if (attachment.RemoteParameters?.IsRemoteStorageAttachment() != true)
+            throw new InvalidOperationException($"Attachment is not a remote attachment. Use GetAttachmentDataAsBase64 instead.");
+
+        // Use the downloader to get the stream directly from remote storage
+        // We only need the attachment.RemoteParameters.Identifier and attachment.Base64Hash - no document ID required
+        using var downloader = remoteStorage.GetDownloader(attachment, token);
+        var stream = await remoteStorage.StreamForDownloadDestinationInternal(downloader, attachment.Base64Hash.ToString());
+
+        await using (stream)
+        {
+            using var memoryStream = RecyclableMemoryStreamFactory.GetRecyclableStream();
+            if (type == AttachmentsRequestConstants.MediaTypeTextPlain)
+            {
+                await stream.CopyToAsync(memoryStream, token.Token);
+            }
+            else // anything but text is using BASE64
+            {
+                using var transform = new ToBase64Transform();
+                using var cryptoStream = new CryptoStream(stream, transform, CryptoStreamMode.Read);
+                await cryptoStream.CopyToAsync(memoryStream, token.Token);
+            }
+
+            Span<byte> readOnlySpan = memoryStream.GetBuffer();
+            return Encoding.UTF8.GetString(readOnlySpan[..(int)memoryStream.Length]);
+        }
     }
 
     private static bool IsBase64(string data) => string.IsNullOrEmpty(data) == false && Base64.IsValid(data);

@@ -32,6 +32,7 @@ using Raven.Server.Utils;
 using Sparrow.Json;
 using Sparrow.Json.Parsing;
 using Sparrow.Server.Json.Sync;
+using Voron;
 using PatchRequest = Raven.Server.Documents.Patch.PatchRequest;
 
 #pragma warning disable SKEXP0001
@@ -178,6 +179,10 @@ public sealed class GenAiTask : EtlProcess<GenAiItem, GenAiScriptResult, GenAiCo
     {
         using (var statsScope = scope.For(GenAiOperations.LoadToModel))
         {
+            // Load remote attachment data before sending to model
+            // This uses only the identifier and hash stored in RemoteMetadata, no document ID needed
+            LoadRemoteAttachmentsDataAsync(context, items, batchToken).GetAwaiter().GetResult();
+            
             context.CloseTransaction();
 
             List<Task<GenAiHandlerResult>> tasks = [];
@@ -560,12 +565,81 @@ public sealed class GenAiTask : EtlProcess<GenAiItem, GenAiScriptResult, GenAiCo
 
             foreach (var genAtt in item.ContextOutput.Attachments.Where(a => a.Source == AiAttachmentSource.FromAttachment))
             {
-                // try to reload again every loaded/not-found attachment
-                var attachment = Database.DocumentsStorage.AttachmentsStorage.GetAttachment(context, item.DocumentId, genAtt.Name, AttachmentType.Document, changeVector: null);
-                if (attachment == null)
-                    throw new InvalidOperationException($"The document '{item.DocumentId}' has no attachment with name '{genAtt.Name}' from type '{genAtt.Type}' anymore");
-                
-                genAtt.Data = GenAiScriptTransformer.GetAttachmentDataAsBase64(attachment, genAtt.Type);
+                // For remote attachments with metadata, load using the deferred approach
+                if (genAtt.RemoteMetadata != null)
+                {
+                    var remoteStorage = Database.DocumentsStorage.AttachmentsStorage.RemoteAttachmentsStorage;
+                    var operationToken = new OperationCancelToken(CancellationToken, Database.DatabaseShutdown);
+                    
+                    // Create minimal Attachment object with just identifier and hash
+                    using (Slice.From(context.Allocator, genAtt.RemoteMetadata.Hash, out var hashSlice))
+                    {
+                        var attachment = new Attachment
+                        {
+                            RemoteParameters = new Client.Documents.Operations.Attachments.RemoteAttachmentParameters
+                            {
+                                Identifier = genAtt.RemoteMetadata.Identifier
+                            },
+                            Base64Hash = hashSlice
+                        };
+
+                        genAtt.Data = GenAiScriptTransformer.GetAttachmentDataAsBase64Async(
+                            remoteStorage, 
+                            attachment, 
+                            genAtt.Type, 
+                            operationToken).GetAwaiter().GetResult();
+                    }
+                }
+                else
+                {
+                    // For local attachments, use the traditional approach with document ID
+                    var attachment = Database.DocumentsStorage.AttachmentsStorage.GetAttachment(context, item.DocumentId, genAtt.Name, AttachmentType.Document, changeVector: null);
+                    if (attachment == null)
+                        throw new InvalidOperationException($"The document '{item.DocumentId}' has no attachment with name '{genAtt.Name}' from type '{genAtt.Type}' anymore");
+                    
+                    genAtt.Data = GenAiScriptTransformer.GetAttachmentDataAsBase64(attachment, genAtt.Type);
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Loads remote attachment data for all attachments that have RemoteMetadata.
+    /// This method retrieves the attachment streams from remote storage using only the 
+    /// identifier and hash, without requiring the document ID.
+    /// </summary>
+    private async Task LoadRemoteAttachmentsDataAsync(DocumentsOperationContext context, List<GenAiResultItem> items, CancellationToken token)
+    {
+        var remoteStorage = Database.DocumentsStorage.AttachmentsStorage.RemoteAttachmentsStorage;
+        var operationToken = new OperationCancelToken(token, Database.DatabaseShutdown);
+
+        foreach (var item in items)
+        {
+            if (item.ContextOutput.Attachments.IsNullOrEmpty())
+                continue;
+
+            foreach (var aiAttachment in item.ContextOutput.Attachments.Where(a => a.RemoteMetadata != null))
+            {
+                // Create a minimal Attachment object with just the information we need
+                // to call GetDownloader: RemoteParameters (with Identifier) and Base64Hash
+                using (Slice.From(context.Allocator, aiAttachment.RemoteMetadata.Hash, out var hashSlice))
+                {
+                    var attachment = new Attachment
+                    {
+                        RemoteParameters = new Client.Documents.Operations.Attachments.RemoteAttachmentParameters
+                        {
+                            Identifier = aiAttachment.RemoteMetadata.Identifier
+                        },
+                        Base64Hash = hashSlice
+                    };
+
+                    // Load the attachment data from remote storage
+                    aiAttachment.Data = await GenAiScriptTransformer.GetAttachmentDataAsBase64Async(
+                        remoteStorage, 
+                        attachment, 
+                        aiAttachment.Type, 
+                        operationToken);
+                }
             }
         }
     }
