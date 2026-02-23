@@ -3,6 +3,7 @@ using System.Buffers.Text;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
@@ -207,6 +208,7 @@ var ai = new AI();
                         var attachmentObj = current.AsObject();
                         var reference = attachmentObj.GetOwnProperty("data").Value;
                         var data = string.Empty;
+                        string remoteStorageId = null;
                         string type = attachmentObj.GetOwnProperty(AttachmentsRequestConstants.Type).Value.AsString();
                         string filename = "unknown.name";
                         var source = AiAttachmentSource.FromAttachment;
@@ -225,7 +227,8 @@ var ai = new AI();
                             {
                                 // Defer resolution for remote attachments
                                 source = AiAttachmentSource.Deferred;
-                                data = string.Empty; // Will be resolved later
+                                data = attachment.Base64Hash.ToString(); // Will be resolved later
+                                remoteStorageId = attachment.RemoteParameters.Identifier;
                             }
                             else
                             {
@@ -242,7 +245,7 @@ var ai = new AI();
                                 throw new InvalidOperationException($"Attachment must be loaded or base64 string (on type {type})");
                         }
 
-                        result.Attachments.Add(new AiAttachment(filename, type, source, data, Current.DocumentId));
+                        result.Attachments.Add(new AiAttachment(filename, type, source, data, remoteStorageId));
                     }
                 }
                 _currentRun.Add(result);
@@ -274,17 +277,19 @@ var ai = new AI();
         return $"[Hash:'{attachment.Base64Hash}']";
     }
 
-    public static string GetAttachmentDataAsBase64(Attachment attachment, string type)
+    public static string GetAttachmentDataAsBase64(Attachment attachment, string type) => GetAttachmentDataAsBase64(attachment.Stream, type);
+
+    public static string GetAttachmentDataAsBase64(Stream attachmentStream, string type)
     {
         using var memoryStream = RecyclableMemoryStreamFactory.GetRecyclableStream();
         if (type == AttachmentsRequestConstants.MediaTypeTextPlain)
         {
-            attachment.Stream.CopyTo(memoryStream);
+            attachmentStream.CopyTo(memoryStream);
         }
         else // anything but text is using BASE64
         {
             using var transform = new ToBase64Transform();
-            using var cryptoStream = new CryptoStream(attachment.Stream, transform, CryptoStreamMode.Read);
+            using var cryptoStream = new CryptoStream(attachmentStream, transform, CryptoStreamMode.Read);
             cryptoStream.CopyTo(memoryStream);
         }
 

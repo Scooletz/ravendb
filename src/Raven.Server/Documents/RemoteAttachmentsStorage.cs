@@ -217,10 +217,26 @@ public class RemoteAttachmentsStorage : AbstractBackgroundWorkStorage<DocumentEx
         return new DirectFileDownloader(settings, token);
     }
 
+    public DirectFileDownloader GetDownloader(string remoteId, OperationCancelToken token)
+    {
+        if (Configuration == null)
+            throw new InvalidOperationException($"Cannot get the remote attachment downloader for '{remoteId}' because {nameof(RemoteAttachmentsConfiguration)} is not configured on {Database.Name}.");
+
+        if (Configuration.Disabled)
+            throw new InvalidOperationException($"Cannot get the remote attachment downloader for '{remoteId}' because {nameof(RemoteAttachmentsConfiguration)} is disabled.");
+
+        if (Configuration.Destinations == null || Configuration.Destinations.TryGetValue(remoteId, out var destination) == false)
+            throw new InvalidOperationException($"Cannot get the remote attachment downloader for '{remoteId}' because it doesn't exist.");
+        if (destination.Disabled)
+            throw new InvalidOperationException($"Cannot get the remote attachment downloader for '{remoteId}' because it is disabled.");
+
+        var settings = UploaderSettings.GenerateDirectUploaderSettingsForAttachments(Database, nameof(AttachmentHandlerProcessorForGetAttachment), destination.S3Settings, destination.AzureSettings);
+        return new DirectFileDownloader(settings, token);
+    }
+
     public Task<Stream> StreamForDownloadDestinationInternal(DirectFileDownloader downloader, string objKeyName)
     {
         var folderName = string.Empty;
-
         return downloader.StreamForDownloadDestination(Database, folderName, objKeyName);
     }
 

@@ -624,31 +624,16 @@ public sealed class GenAiTask : EtlProcess<GenAiItem, GenAiScriptResult, GenAiCo
         return results;
     }
 
-    private Func<string, string, Task<string>> CreateAsyncAttachmentResolver()
+    private Func<string, string, string, Task<string>> CreateAsyncAttachmentResolver()
     {
-        return async (documentId, attachmentName) =>
+        return async (remoteStorageId, hash, type) =>
         {
-            using (Database.DocumentsStorage.ContextPool.AllocateOperationContext(out DocumentsOperationContext resolveContext))
-            using (resolveContext.OpenReadTransaction())
-            {
-                var attachment = Database.DocumentsStorage.AttachmentsStorage.GetAttachment(
-                    resolveContext, documentId, attachmentName, AttachmentType.Document, changeVector: null);
-                
-                if (attachment == null)
-                    throw new InvalidOperationException($"The document '{documentId}' has no attachment with name '{attachmentName}' anymore");
+            RemoteAttachmentsStorage remote = Database.DocumentsStorage.AttachmentsStorage.RemoteAttachmentsStorage;
+            using var downloader = remote.GetDownloader(remoteStorageId, OperationCancelToken.None);
+            await using var stream = await remote.StreamForDownloadDestinationInternal(downloader, hash);
 
-                // Get the stream from storage (local or remote) using the shared method
-                var stream = await RemoteGetAttachmentStrategyProcessor.DownloadRemoteAttachmentStream(
-                    Database.DocumentsStorage.AttachmentsStorage.RemoteAttachmentsStorage, attachment, OperationCancelToken.None);
-
-                // Determine the type based on content type or default to application/octet-stream
-                var type = attachment.ContentType?.ToString() ?? "application/octet-stream";
-                
-                // Set the stream on the attachment so GetAttachmentDataAsBase64 can use it
-                attachment.Stream = stream;
-                
-                return GenAiScriptTransformer.GetAttachmentDataAsBase64(attachment, type);
-            }
+            // Determine the type based on content type or default to application/octet-stream
+            return GenAiScriptTransformer.GetAttachmentDataAsBase64(stream, type ?? "application/octet-stream");
         };
     }
 

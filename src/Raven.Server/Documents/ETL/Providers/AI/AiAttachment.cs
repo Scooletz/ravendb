@@ -11,15 +11,17 @@ public class AiAttachment
     public AiAttachmentSource Source { get; set; }
     public string Data { get; set; }
     
-    // For deferred resolution: document ID for fetching attachment later
-    public string DocumentId { get; set; }
+    /// <summary>
+    /// For <see cref="AiAttachmentSource.Deferred"/>, the storage to retrieve from.
+    /// </summary>
+    public string RemoteStorageId { get; set; }
 
     public AiAttachment()
     {
         // for deserialization
     }
 
-    public AiAttachment(string name, string type, AiAttachmentSource source, string dataAsBase64, string documentId = null)
+    public AiAttachment(string name, string type, AiAttachmentSource source, string dataAsBase64, string remoteStorageId = null)
     {
         ValidationMethods.AssertNotNullOrEmpty(name, nameof(Name));
         ValidationMethods.AssertNotNullOrEmpty(type, nameof(Type));
@@ -30,7 +32,7 @@ public class AiAttachment
         Type = type;
         Source = source;
         Data = dataAsBase64;
-        DocumentId = documentId;
+        RemoteStorageId = remoteStorageId;
     }
 
     public DynamicJsonValue ToJson()
@@ -41,7 +43,7 @@ public class AiAttachment
             [nameof(Type)] = Type,
             [nameof(Source)] = Source,
             [nameof(Data)] = Data,
-            [nameof(DocumentId)] = DocumentId
+            [nameof(RemoteStorageId)] = RemoteStorageId
         };
 
         return json;
