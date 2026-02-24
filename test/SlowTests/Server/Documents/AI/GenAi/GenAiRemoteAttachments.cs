@@ -12,6 +12,8 @@ using Raven.Client.Documents.Operations.Attachments;
 using Raven.Client.Documents.Operations.ConnectionStrings;
 using Raven.Client.Documents.Session;
 using Raven.Client.Json;
+using Raven.Server.Documents.ETL.Providers.AI.GenAi;
+using Raven.Server.Documents.ETL.Providers.AI.GenAi.Stats;
 using SlowTests.Server.Documents.Attachments;
 using Tests.Infrastructure;
 using Xunit;
@@ -176,7 +178,17 @@ public class GenAiRemoteAttachments(ITestOutputHelper output) : RemoteAttachment
                 // Wait for ETL to rerun
                 Assert.True(await etl.WaitAsync(TimeSpan.FromSeconds(Debugger.IsAttached ? 1200 : 120)));
 
-                // TODO: ensure that the cached result is used and no actual calls to the LLM were made
+                var genAi = database.EtlLoader.Processes.OfType<GenAiTask>().Single();
+                var stats = genAi.GetPerformanceStats()
+                    .Where(x => x.NumberOfLoadedItems > 0)
+                    .ToArray();
+                
+                var last = stats[^1].Details.Operations[^1].Operations
+                    .FirstOrDefault(x => x.Name == GenAiOperations.LoadToModel) as GenAiPerformanceOperation;
+                
+                Assert.Equal(1, last.NumberOfContextObjects);
+                Assert.Equal(1, last.TotalCachedContexts);
+                Assert.Equal(0, last.TotalSentToModel);
             }
         }
     }
