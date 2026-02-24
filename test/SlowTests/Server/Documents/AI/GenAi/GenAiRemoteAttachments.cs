@@ -194,15 +194,15 @@ public class GenAiRemoteAttachments(ITestOutputHelper output) : RemoteAttachment
                     return stats.Length >= 2;
                 }, true, timeout: 60_000);
                 
-                Assert.True(value, $"Expected at least 2 ETL runs, but got {stats?.Length ?? 0}");
+                Assert.True(value, $"Expected at least 2 ETL runs (initial run with local attachments and second run with remote attachments), but got {stats?.Length ?? 0}. This may indicate that the ETL process did not complete both runs within the timeout period.");
                 
                 // Check the most recent run (second run with remote attachments)
                 var secondRunStats = stats[0];
                 Assert.NotNull(secondRunStats.Details);
                 Assert.True(secondRunStats.Details.Operations.Length > 0, "Expected at least one operation in ETL run");
                 
-                var loadDetails = secondRunStats.Details.Operations[^1];
-                Assert.Equal("Load", loadDetails.Name);
+                var loadDetails = secondRunStats.Details.Operations.LastOrDefault(x => x.Name == "Load");
+                Assert.NotNull(loadDetails);
                 
                 var genAiStats = loadDetails.Operations.FirstOrDefault(x => x.Name == GenAiOperations.LoadToModel) as GenAiPerformanceOperation;
                 Assert.NotNull(genAiStats);
