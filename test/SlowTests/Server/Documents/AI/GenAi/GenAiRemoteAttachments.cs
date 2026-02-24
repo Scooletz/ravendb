@@ -31,7 +31,7 @@ public class GenAiRemoteAttachments(ITestOutputHelper output) : RemoteAttachment
 
     [RavenTheory(RavenTestCategory.Ai | RavenTestCategory.Attachments)]
     [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi, DatabaseMode = RavenDatabaseMode.Single)]
-    public async Task GenAiRemoteAttachmentsWork(Options options, GenAiConfiguration config)
+    public async Task ShouldBeAbleToUseRemoteAttachments(Options options, GenAiConfiguration config)
     {
         await using (CreateCloudSettings())
         {
@@ -81,30 +81,7 @@ public class GenAiRemoteAttachments(ITestOutputHelper output) : RemoteAttachment
 
                 await GetBlobsFromCloudAndAssertForCount(Settings, 2, 15_000);
                 
-// Configure AI
-                config.Prompt = "Describe the following images." + NonEmptyAnswerHint;
-                config.Collection = "Posts";
-                config.SampleObject = JsonConvert.SerializeObject(
-                    new { PhotoDescription = "Description of the photo" });
-
-                config.UpdateScript = @"    
-const comment = this.Comments.find(c => c.Id == $input.Id);
-comment.AuthorDescription = $output.PhotoDescription;
-";
-
-                config.GenAiTransformation = new GenAiTransformation
-                {
-                    Script = @"
-for(const comment of this.Comments)
-{
-    let img = loadAttachment(comment.ProfileImage);
-    if(!img)
-        continue;
-    ai.genContext({Id: comment.Id}).withPng(img);
-}"
-                };
-
-                await store.Maintenance.SendAsync(new AddGenAiOperation(config));
+                await AddGenAiTask(config, store);
 
                 // Bump the document so that it's reprocessed
                 using (IAsyncDocumentSession session = store.OpenAsyncSession())
@@ -134,6 +111,102 @@ for(const comment of this.Comments)
                 Assert.Equal(2, hashes.Count);
             }
         }
+    }
+    
+    [RavenTheory(RavenTestCategory.Ai | RavenTestCategory.Attachments)]
+    [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi, DatabaseMode = RavenDatabaseMode.Single)]
+    public async Task ShouldUseCachedResultGenAiResultWhenAttachmentsBecomeRemote(Options options, GenAiConfiguration config)
+    {
+        await using (CreateCloudSettings())
+        {
+            using (var store = GetDocumentStore())
+            {
+                // Configure attachments as remote
+                string remoteId = await PutRemoteAttachmentsConfiguration(store, Settings);
+
+                // Set the AI connection string
+                await store.Maintenance.SendAsync(new PutConnectionStringOperation<AiConnectionString>(config.Connection));
+
+                // Enable GenAi task before storing docs
+                await AddGenAiTask(config, store);
+                
+                // Set the data
+                var marker = "None" + Guid.NewGuid();
+
+                const string postId = "Post/1";
+
+                using (var session = store.OpenAsyncSession())
+                {
+                    var p1 = new Post("Hello World!",
+                    [
+                        new Comment(Id: "Comment1", Author: "Shahar Heart", AuthorDescription: marker, Content: "Hey!", ProfileImage: "heart.png"),
+                        new Comment(Id: "Comment2", Author: "Omer Star", AuthorDescription: marker, Content: "Hello!", ProfileImage: "star.png"),
+                        new Comment(Id: "Comment3", Author: "Aviv Rachmany", AuthorDescription: marker, Content: "Hello", ProfileImage: "none.png")
+                    ]);
+                    
+                    await session.StoreAsync(p1, postId);
+
+                    using var heart = new MemoryStream(Convert.FromBase64String(Data.HeartPngBase64));
+                    using var star = new MemoryStream(Convert.FromBase64String(Data.StarPngBase64));
+
+                    var attachments = session.Advanced.Attachments;
+
+                    RemoteAttachmentParameters remote = new(remoteId, DateTime.UtcNow.AddMinutes(1));
+
+                    attachments.Store(postId, new StoreAttachmentParameters("heart.png", heart) { RemoteParameters = remote });
+                    attachments.Store(postId, new StoreAttachmentParameters("star.png", star) { RemoteParameters = remote });
+
+                    await session.SaveChangesAsync();
+                }
+                
+                var etl = Etl.WaitForEtlToComplete(store);
+
+                // Wait for etl to complete
+                Assert.True(await etl.WaitAsync(TimeSpan.FromSeconds(Debugger.IsAttached ? 1200 : 120)));
+                
+                // Force upload
+                var database = await Databases.GetDocumentDatabaseInstanceFor(Server, store);
+                
+                // Move in time & start remote
+                database.Time.UtcDateTime = () => DateTime.UtcNow.AddMinutes(10);
+                await database.RemoteAttachmentsSender.ProcessRemoteAttachments(int.MaxValue, int.MaxValue);
+
+                await GetBlobsFromCloudAndAssertForCount(Settings, 2, 15_000);
+                
+                // Wait for ETL to rerun
+                Assert.True(await etl.WaitAsync(TimeSpan.FromSeconds(Debugger.IsAttached ? 1200 : 120)));
+
+                // TODO: ensure that the cached result is used and no actual calls to the LLM were made
+            }
+        }
+    }
+
+    private static async Task AddGenAiTask(GenAiConfiguration config, DocumentStore store)
+    {
+        // Configure AI
+        config.Prompt = "Describe the following images." + NonEmptyAnswerHint;
+        config.Collection = "Posts";
+        config.SampleObject = JsonConvert.SerializeObject(
+            new { PhotoDescription = "Description of the photo" });
+
+        config.UpdateScript = @"    
+const comment = this.Comments.find(c => c.Id == $input.Id);
+comment.AuthorDescription = $output.PhotoDescription;
+";
+
+        config.GenAiTransformation = new GenAiTransformation
+        {
+            Script = @"
+for(const comment of this.Comments)
+{
+    let img = loadAttachment(comment.ProfileImage);
+    if(!img)
+        continue;
+    ai.genContext({Id: comment.Id}).withPng(img);
+}"
+        };
+
+        await store.Maintenance.SendAsync(new AddGenAiOperation(config));
     }
 
     private static async Task<IEnumerable<string>> GetHashes<T>(DocumentStore store, string id)
