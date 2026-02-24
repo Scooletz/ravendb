@@ -154,6 +154,7 @@ export function useEditGenAiTaskTests() {
         return attachments.map((x) => ({
             Data: x.Data,
             Name: x.Name,
+            RemoteStorageId: x.RemoteStorageId,
             Source: x.Source,
             Type: x.Type,
         }));

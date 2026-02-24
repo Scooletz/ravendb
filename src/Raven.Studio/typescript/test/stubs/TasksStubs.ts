@@ -832,12 +832,14 @@ namespace Orders
                             {
                                 Name: "heart.png",
                                 Type: "image/png",
+                                RemoteStorageId: undefined,
                                 Source: "FromAttachment",
                                 Data: "[Hash:'FLNK25A3VOpVPIiusBEZMwUU5mWqSZR7T2OqYF4nBfA=']",
                             },
                             {
                                 Name: "transactions.csv",
                                 Type: "text/plain",
+                                RemoteStorageId: undefined,
                                 Source: "FromAttachment",
                                 Data: "Date,Description,Category,Amount\r\n2025-01-01,Grocery Store,food,45.32\r\n2025-01-02,Utility Bill,Ut...",
                             },
@@ -859,12 +861,14 @@ namespace Orders
                             {
                                 Name: "heart.png",
                                 Type: "image/png",
+                                RemoteStorageId: undefined,
                                 Source: "FromAttachment",
                                 Data: "[Hash:'FLNK25A3VOpVPIiusBEZMwUU5mWqSZR7T2OqYF4nBfA=']",
                             },
                             {
                                 Name: "transactions.csv",
                                 Type: "text/plain",
+                                RemoteStorageId: undefined,
                                 Source: "FromAttachment",
                                 Data: "Date,Description,Category,Amount\r\n2025-01-01,Grocery Store,food,45.32\r\n2025-01-02,Utility Bill,Ut...",
                             },
