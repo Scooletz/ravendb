@@ -198,6 +198,9 @@ public class GenAiRemoteAttachments(ITestOutputHelper output) : RemoteAttachment
                 
                 // Check the most recent run (second run with remote attachments)
                 var secondRunStats = stats[0];
+                Assert.NotNull(secondRunStats.Details);
+                Assert.True(secondRunStats.Details.Operations.Length > 0, "Expected at least one operation in ETL run");
+                
                 var loadDetails = secondRunStats.Details.Operations[^1];
                 Assert.Equal("Load", loadDetails.Name);
                 
@@ -205,8 +208,10 @@ public class GenAiRemoteAttachments(ITestOutputHelper output) : RemoteAttachment
                 Assert.NotNull(genAiStats);
                 
                 // Verify that cached results were used and no new LLM calls were made
-                Assert.Equal(2, genAiStats.NumberOfContextObjects); // Still 2 context objects (heart.png and star.png)
-                Assert.Equal(2, genAiStats.TotalCachedContexts); // All contexts should be cached
+                // Expected: 2 context objects (heart.png and star.png)
+                const int expectedContextCount = 2;
+                Assert.Equal(expectedContextCount, genAiStats.NumberOfContextObjects);
+                Assert.Equal(expectedContextCount, genAiStats.TotalCachedContexts); // All contexts should be cached
                 Assert.Equal(0, genAiStats.TotalSentToModel); // No new calls to the model
             }
         }
