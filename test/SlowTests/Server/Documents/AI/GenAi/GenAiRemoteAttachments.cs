@@ -179,18 +179,22 @@ public class GenAiRemoteAttachments(ITestOutputHelper output) : RemoteAttachment
                 // Wait for ETL to rerun
                 Assert.True(await etl.WaitAsync(TimeSpan.FromSeconds(Debugger.IsAttached ? 1200 : 120)));
 
-                // TODO: ensure that the cached result is used and no actual calls to the LLM were made
                 var etlProcess = database.EtlLoader.Processes.FirstOrDefault() as GenAiTask;
                 Assert.NotNull(etlProcess);
                 
-                // Get statistics from the second run (after attachments became remote)
-                var stats = etlProcess.GetPerformanceStats()
-                    .Where(x => x.NumberOfLoadedItems > 0)
-                    .OrderByDescending(x => x.LastLoadedEtag)
-                    .ToArray();
+                // Wait for stats from the second run to be available
+                EtlPerformanceStats[] stats = null;
+                var value = await WaitForValueAsync(() =>
+                {
+                    stats = etlProcess.GetPerformanceStats()
+                        .Where(x => x.NumberOfLoadedItems > 0)
+                        .OrderByDescending(x => x.LastLoadedEtag)
+                        .ToArray();
+                    // Ensure we have at least 2 runs
+                    return stats.Length >= 2;
+                }, true, timeout: 60_000);
                 
-                // There should be at least 2 runs: first with local attachments, second with remote attachments
-                Assert.True(stats.Length >= 2, $"Expected at least 2 ETL runs, but got {stats.Length}");
+                Assert.True(value, $"Expected at least 2 ETL runs, but got {stats?.Length ?? 0}");
                 
                 // Check the most recent run (second run with remote attachments)
                 var secondRunStats = stats[0];
