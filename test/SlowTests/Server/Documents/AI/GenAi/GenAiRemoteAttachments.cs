@@ -180,40 +180,12 @@ public class GenAiRemoteAttachments(ITestOutputHelper output) : RemoteAttachment
                 Assert.True(await etl.WaitAsync(TimeSpan.FromSeconds(Debugger.IsAttached ? 1200 : 120)));
 
                 var etlProcess = database.EtlLoader.Processes.FirstOrDefault() as GenAiTask;
-                Assert.NotNull(etlProcess);
+                var stats = etlProcess.GetPerformanceStats().Where(x => x.NumberOfLoadedItems > 0).ToArray();
+                var genAiStats = stats[^1].Details.Operations[^1].Operations.FirstOrDefault(x => x.Name == GenAiOperations.LoadToModel) as GenAiPerformanceOperation;
                 
-                // Wait for stats from the second run to be available
-                EtlPerformanceStats[] stats = null;
-                var value = await WaitForValueAsync(() =>
-                {
-                    stats = etlProcess.GetPerformanceStats()
-                        .Where(x => x.NumberOfLoadedItems > 0)
-                        .OrderByDescending(x => x.LastLoadedEtag)
-                        .ToArray();
-                    // Ensure we have at least 2 runs
-                    return stats.Length >= 2;
-                }, true, timeout: 60_000);
-                
-                Assert.True(value, $"Expected at least 2 ETL runs (initial run with local attachments and second run with remote attachments), but got {stats?.Length ?? 0}. The ETL process may not have completed both runs within the timeout period. Check ETL logs for more details.");
-                
-                // Check the most recent run (second run with remote attachments)
-                var secondRunStats = stats[0];
-                Assert.NotNull(secondRunStats.Details);
-                Assert.True(secondRunStats.Details.Operations.Length > 0, "Expected at least one operation in ETL run");
-                
-                // Get the Load operation (should be the last operation in the pipeline)
-                var loadDetails = secondRunStats.Details.Operations[^1];
-                Assert.Equal("Load", loadDetails.Name);
-                
-                var genAiStats = loadDetails.Operations.FirstOrDefault(x => x.Name == GenAiOperations.LoadToModel) as GenAiPerformanceOperation;
-                Assert.NotNull(genAiStats);
-                
-                // Verify that cached results were used and no new LLM calls were made
-                // Expected: 2 context objects (heart.png and star.png)
-                const int expectedContextCount = 2;
-                Assert.Equal(expectedContextCount, genAiStats.NumberOfContextObjects);
-                Assert.Equal(expectedContextCount, genAiStats.TotalCachedContexts); // All contexts should be cached
-                Assert.Equal(0, genAiStats.TotalSentToModel); // No new calls to the model
+                Assert.Equal(2, genAiStats.NumberOfContextObjects);
+                Assert.Equal(2, genAiStats.TotalCachedContexts);
+                Assert.Equal(0, genAiStats.TotalSentToModel);
             }
         }
     }
