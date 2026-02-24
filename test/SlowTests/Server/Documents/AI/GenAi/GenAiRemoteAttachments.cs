@@ -12,6 +12,9 @@ using Raven.Client.Documents.Operations.Attachments;
 using Raven.Client.Documents.Operations.ConnectionStrings;
 using Raven.Client.Documents.Session;
 using Raven.Client.Json;
+using Raven.Server.Documents.ETL;
+using Raven.Server.Documents.ETL.Providers.AI.GenAi;
+using Raven.Server.Documents.ETL.Providers.AI.GenAi.Stats;
 using SlowTests.Server.Documents.Attachments;
 using Tests.Infrastructure;
 using Xunit;
@@ -177,6 +180,30 @@ public class GenAiRemoteAttachments(ITestOutputHelper output) : RemoteAttachment
                 Assert.True(await etl.WaitAsync(TimeSpan.FromSeconds(Debugger.IsAttached ? 1200 : 120)));
 
                 // TODO: ensure that the cached result is used and no actual calls to the LLM were made
+                var etlProcess = database.EtlLoader.Processes.FirstOrDefault() as GenAiTask;
+                Assert.NotNull(etlProcess);
+                
+                // Get statistics from the second run (after attachments became remote)
+                var stats = etlProcess.GetPerformanceStats()
+                    .Where(x => x.NumberOfLoadedItems > 0)
+                    .OrderByDescending(x => x.LastLoadedEtag)
+                    .ToArray();
+                
+                // There should be at least 2 runs: first with local attachments, second with remote attachments
+                Assert.True(stats.Length >= 2, $"Expected at least 2 ETL runs, but got {stats.Length}");
+                
+                // Check the most recent run (second run with remote attachments)
+                var secondRunStats = stats[0];
+                var loadDetails = secondRunStats.Details.Operations[^1];
+                Assert.Equal("Load", loadDetails.Name);
+                
+                var genAiStats = loadDetails.Operations.FirstOrDefault(x => x.Name == GenAiOperations.LoadToModel) as GenAiPerformanceOperation;
+                Assert.NotNull(genAiStats);
+                
+                // Verify that cached results were used and no new LLM calls were made
+                Assert.Equal(2, genAiStats.NumberOfContextObjects); // Still 2 context objects (heart.png and star.png)
+                Assert.Equal(2, genAiStats.TotalCachedContexts); // All contexts should be cached
+                Assert.Equal(0, genAiStats.TotalSentToModel); // No new calls to the model
             }
         }
     }
