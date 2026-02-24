@@ -144,6 +144,6 @@ const getAttachmentsColumns = (availableWidthInPx: number): ColumnDef<GenAiAiAtt
             accessorKey: "RemoteStorageId",
             cell: CellValueWrapper,
             size: getSize(10),
-        }
+        },
     ];
 };
