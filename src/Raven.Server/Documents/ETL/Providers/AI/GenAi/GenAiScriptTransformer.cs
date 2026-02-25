@@ -222,18 +222,17 @@ var ai = new AI();
                             {
                                 source = AiAttachmentSource.NotFound;
                             }
-                            // Check if this is a remote attachment that should be deferred
+                            else if (attachment.Stream != null)
+                            {
+                                // The stream is there. Materialize it as.
+                                data = DocumentScript.DebugMode ? GetAttachmentPreview(attachment, type) : GetAttachmentDataAsBase64(attachment, type);
+                            }
+                            // The last resort, check for the remote parameters and process as deferred.
                             else if (attachment.RemoteParameters != null)
                             {
-                                // Defer resolution for remote attachments
                                 source = AiAttachmentSource.Deferred;
                                 data = attachment.Base64Hash.ToString(); // Will be resolved later
                                 remoteStorageId = attachment.RemoteParameters.Identifier;
-                            }
-                            else
-                            {
-                                // Materialize immediately for non-remote attachments
-                                data = DocumentScript.DebugMode ? GetAttachmentPreview(attachment, type) : GetAttachmentDataAsBase64(attachment, type);
                             }
                         }
                         else

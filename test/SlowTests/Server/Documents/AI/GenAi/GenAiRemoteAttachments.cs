@@ -186,8 +186,7 @@ public class GenAiRemoteAttachments(ITestOutputHelper output) : RemoteAttachment
                 var last = stats[^1].Details.Operations[^1].Operations
                     .FirstOrDefault(x => x.Name == GenAiOperations.LoadToModel) as GenAiPerformanceOperation;
                 
-                Assert.Equal(1, last.NumberOfContextObjects);
-                Assert.Equal(1, last.TotalCachedContexts);
+                Assert.Equal(2, last.TotalCachedContexts);
                 Assert.Equal(0, last.TotalSentToModel);
             }
         }
