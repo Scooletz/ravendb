@@ -75,7 +75,7 @@ namespace Raven.Client.Documents.Operations.CompareExchange
             public override HttpRequestMessage CreateRequest(JsonOperationContext ctx, ServerNode node, out string url)
             {
                 url = $"{node.Url}/databases/{node.Database}/cmpxchg?key={Uri.EscapeDataString(_key)}&index={_index}";
-                var djv = new DynamicJsonValue(0)
+                var djv = new DynamicJsonValue(1)
                 {
                     [Constants.CompareExchange.ObjectFieldName] = CompareExchangeValueBlittableJsonConverter.ConvertToBlittable(_value, _conventions, ctx)
                 };

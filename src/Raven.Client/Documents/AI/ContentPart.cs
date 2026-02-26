@@ -18,7 +18,7 @@ namespace Raven.Client.Documents.AI
         }
         public override DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue(0)
+            return new DynamicJsonValue(2)
             {
                 [AiMessagePromptFields.Type] = this.Type,
                 [AiMessagePromptFields.Text] = this.Text
