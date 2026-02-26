@@ -81,14 +81,14 @@ namespace Raven.Server.Web.Studio.Processors
                             throw new ArgumentOutOfRangeException();
                     }
 
-                    result = new DynamicJsonValue
+                    result = new DynamicJsonValue(1)
                     {
                         [nameof(NodeConnectionTestResult.Success)] = true,
                     };
                 }
                 catch (Exception e)
                 {
-                    result = new DynamicJsonValue
+                    result = new DynamicJsonValue(2)
                     {
                         [nameof(NodeConnectionTestResult.Success)] = false,
                         [nameof(NodeConnectionTestResult.Error)] = e.ToString()

@@ -66,7 +66,7 @@ public sealed class ShardedSingleNodeBatchCommand : RavenCommand<BlittableJsonRe
             {
                 if (shardNumber.HasValue)
                 {
-                    blittable.Modifications = new DynamicJsonValue
+                    blittable.Modifications = new DynamicJsonValue(0)
                     {
                         [Constants.Documents.Metadata.Sharding.ShardNumber] = shardNumber.Value
                     };

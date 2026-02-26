@@ -95,7 +95,7 @@ internal abstract class AbstractHandlerProcessorForUpdateDatabaseConfiguration<T
 
         RequestHandler.HttpContext.Response.StatusCode = (int)GetResponseStatusCode();
 
-        var json = new DynamicJsonValue
+        var json = new DynamicJsonValue(1)
         {
             ["RaftCommandIndex"] = Index
         };

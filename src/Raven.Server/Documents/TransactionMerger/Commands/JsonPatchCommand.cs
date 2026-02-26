@@ -121,7 +121,7 @@ namespace Raven.Server.Documents.TransactionMerger.Commands
             if (_patchResult.Collection != null)
                 modifiedCollections?.Add(_patchResult.Collection);
 
-            var patchReply = new DynamicJsonValue
+            var patchReply = new DynamicJsonValue(6)
             {
                 [nameof(BatchRequestParser.CommandData.Id)] = _id,
                 [nameof(BatchRequestParser.CommandData.ChangeVector)] = _patchResult.ChangeVector,

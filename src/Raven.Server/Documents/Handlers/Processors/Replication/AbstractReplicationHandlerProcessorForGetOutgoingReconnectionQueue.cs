@@ -31,7 +31,7 @@ namespace Raven.Server.Documents.Handlers.Processors.Replication
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(0)
             {
                 ["Queue-Info"] = new DynamicJsonArray(QueueInfo.Select(o => o.ToJson()))
             };

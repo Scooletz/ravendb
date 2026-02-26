@@ -32,7 +32,7 @@ namespace Raven.Client.Documents.Operations.Counters
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(1)
             {
                 [nameof(Counters)] = new DynamicJsonArray(Counters.Select(x => x?.ToJson()))
             };
@@ -93,7 +93,7 @@ namespace Raven.Client.Documents.Operations.Counters
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(4)
             {
                 [nameof(DocumentId)] = DocumentId,
                 [nameof(CounterName)] = CounterName,
@@ -139,7 +139,7 @@ namespace Raven.Client.Documents.Operations.Counters
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(4)
             {
                 [nameof(DocumentId)] = DocumentId,
                 [nameof(ChangeVector)] = ChangeVector,

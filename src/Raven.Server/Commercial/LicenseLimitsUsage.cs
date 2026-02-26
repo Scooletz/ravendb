@@ -18,7 +18,7 @@ namespace Raven.Server.Commercial
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(5)
             {
                 [nameof(NumberOfStaticIndexes)] = NumberOfStaticIndexes,
                 [nameof(NumberOfAutoIndexes)] = NumberOfAutoIndexes,
@@ -66,7 +66,7 @@ namespace Raven.Server.Commercial
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(5)
             {
                 [nameof(NumberOfStaticIndexesInCluster)] = NumberOfStaticIndexesInCluster,
                 [nameof(NumberOfAutoIndexesInCluster)] = NumberOfAutoIndexesInCluster,

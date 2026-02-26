@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Sparrow.Json.Parsing;
 
 namespace Raven.Server.Documents.Sharding;
@@ -15,7 +15,7 @@ public class BucketStats : IDynamicJson
 
     public virtual DynamicJsonValue ToJson()
     {
-        return new DynamicJsonValue()
+        return new DynamicJsonValue(4)
         {
             [nameof(Bucket)] = Bucket,
             [nameof(Size)] = Size,

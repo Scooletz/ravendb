@@ -43,7 +43,7 @@ namespace Raven.Server.Documents.Handlers.Processors.Replication
                     if (maxEtag < conflict.Etag)
                         maxEtag = conflict.Etag;
 
-                    array.Add(new DynamicJsonValue
+                    array.Add(new DynamicJsonValue(3)
                     {
                         [nameof(GetConflictsResult.Conflict.ChangeVector)] = conflict.ChangeVector,
                         [nameof(GetConflictsResult.Conflict.Doc)] = conflict.Doc,
@@ -51,7 +51,7 @@ namespace Raven.Server.Documents.Handlers.Processors.Replication
                     });
                 }
 
-                context.Write(writer, new DynamicJsonValue
+                context.Write(writer, new DynamicJsonValue(3)
                 {
                     [nameof(GetConflictsResult.Id)] = documentId,
                     [nameof(GetConflictsResult.LargestEtag)] = maxEtag,

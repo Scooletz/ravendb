@@ -39,7 +39,7 @@ namespace Raven.Server.Documents.TimeSeries
                 values.Add(scale * t);
             }
 
-            return new DynamicJsonValue
+            return new DynamicJsonValue(4)
             {
                 [nameof(TimeSeriesEntry.Tag)] = Tag?.ToString(),
                 [nameof(TimeSeriesEntry.Timestamp)] = Timestamp,

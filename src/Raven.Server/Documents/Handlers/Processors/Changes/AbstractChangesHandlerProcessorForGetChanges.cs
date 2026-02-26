@@ -66,7 +66,7 @@ internal abstract class AbstractChangesHandlerProcessorForGetChanges<TRequestHan
                         {
                             await using (var writer = new AsyncBlittableJsonTextWriter(context, ms))
                             {
-                                context.Write(writer, new DynamicJsonValue
+                                context.Write(writer, new DynamicJsonValue(2)
                                 {
                                     ["Type"] = "Error",
                                     ["Exception"] = ex.ToString()

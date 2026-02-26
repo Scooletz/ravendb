@@ -55,7 +55,7 @@ namespace Raven.Server.Dashboard.Cluster
 
                     if (filteredJson != null)
                     {
-                        _watcher.Enqueue(new DynamicJsonValue
+                        _watcher.Enqueue(new DynamicJsonValue(2)
                         {
                             [nameof(WidgetMessage.Id)] = _widgetId,
                             [nameof(WidgetMessage.Data)] = filteredJson
@@ -66,7 +66,7 @@ namespace Raven.Server.Dashboard.Cluster
                 {
                     // serialize to avoid race conditions
                     // please notice we call ToJson inside a loop since DynamicJsonValue is not thread-safe
-                    _watcher.Enqueue(new DynamicJsonValue
+                    _watcher.Enqueue(new DynamicJsonValue(2)
                     {
                         [nameof(WidgetMessage.Id)] = _widgetId,
                         [nameof(WidgetMessage.Data)] = notification.ToJson()

@@ -498,7 +498,7 @@ namespace Raven.Client.Documents.Session
 
                 BlittableJsonReaderObject ConvertEntity(string key, object entity, BlittableJsonReaderObject metadata = null)
                 {
-                    var djv = new DynamicJsonValue
+                    var djv = new DynamicJsonValue(0)
                     {
                         [Constants.CompareExchange.ObjectFieldName] = entity
                     };

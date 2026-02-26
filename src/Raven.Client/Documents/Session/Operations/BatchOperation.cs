@@ -332,7 +332,7 @@ namespace Raven.Client.Documents.Session.Operations
                 documentInfo.Metadata.Modifications[Constants.Documents.Metadata.Attachments] = attachments;
             }
 
-            attachments.Add(new DynamicJsonValue
+            attachments.Add(new DynamicJsonValue(5)
             {
                 [nameof(AttachmentDetails.ChangeVector)] = GetLazyStringField(batchResult, type, nameof(AttachmentDetails.ChangeVector)),
                 [nameof(AttachmentDetails.ContentType)] = GetLazyStringField(batchResult, type, nameof(AttachmentDetails.ContentType)),

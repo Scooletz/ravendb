@@ -23,7 +23,7 @@ namespace Raven.Server.Documents.Handlers
             using (Server.ServerStore.ContextPool.AllocateOperationContext(out TransactionOperationContext ctx))
             using (ctx.OpenReadTransaction())
             {
-                var djv = new DynamicJsonValue
+                var djv = new DynamicJsonValue(1)
                 {
                     ["Keys"] = new DynamicJsonArray(Server.ServerStore.GetSecretKeysNames(ctx))
                 };

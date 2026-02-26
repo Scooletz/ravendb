@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net.NetworkInformation;
 using System.Threading.Tasks;
@@ -19,7 +19,7 @@ namespace Raven.Server.Web.System
             var ipv4Stats = properties.GetTcpIPv4StatisticsSafely();
             var ipv6Stats = properties.GetTcpIPv6StatisticsSafely();
 
-            var djv = new DynamicJsonValue
+            var djv = new DynamicJsonValue(2)
             {
                 ["IPv4"] = ToDynamic(ipv4Stats),
                 ["IPv6"] = ToDynamic(ipv6Stats)
@@ -36,7 +36,7 @@ namespace Raven.Server.Web.System
                 if (stats == null)
                     return null;
 
-                var result = new DynamicJsonValue();
+                var result = new DynamicJsonValue(0);
                 result[nameof(stats.ConnectionsAccepted)] = stats.GetConnectionsAcceptedSafely();
                 result[nameof(stats.ConnectionsInitiated)] = stats.GetConnectionsInitiatedSafely();
                 result[nameof(stats.CumulativeConnections)] = stats.GetCumulativeConnectionsSafely();
@@ -62,7 +62,7 @@ namespace Raven.Server.Web.System
             var properties = TcpExtensions.GetIPGlobalPropertiesSafely();
             var connections = properties.GetActiveTcpConnectionsSafely();
 
-            var djv = new DynamicJsonValue
+            var djv = new DynamicJsonValue(2)
             {
                 [nameof(ActiveConnectionsResult.TotalConnections)] = connections?.Length ?? 0,
                 [nameof(ActiveConnectionsResult.Connections)] = ToDynamic(connections)
@@ -79,7 +79,7 @@ namespace Raven.Server.Web.System
                 if (connections == null || connections.Length == 0)
                     return null;
 
-                var result = new DynamicJsonValue();
+                var result = new DynamicJsonValue(0);
 
                 foreach (var g in connections.GroupBy(x => x.State))
                     result[g.Key.ToString()] = ToDynamicArray(g);
@@ -95,7 +95,7 @@ namespace Raven.Server.Web.System
 
                 foreach (var connection in connections)
                 {
-                    array.Add(new DynamicJsonValue
+                    array.Add(new DynamicJsonValue(2)
                     {
                         [nameof(connection.LocalEndPoint)] = connection.LocalEndPoint.ToString(),
                         [nameof(connection.RemoteEndPoint)] = connection.RemoteEndPoint.ToString()

@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Text;
 using Raven.Server.ServerWide.Context;
 using Sparrow.Json;
@@ -36,11 +36,11 @@ namespace Raven.Server.Documents.ETL.Providers.ElasticSearch
 
             using (var context = JsonOperationContext.ShortTermSingleUse())
             {
-                var result = new DynamicJsonValue()
+                var result = new DynamicJsonValue(1)
                 {
-                    ["query"] = new DynamicJsonValue()
+                    ["query"] = new DynamicJsonValue(1)
                     {
-                        ["terms"] = new DynamicJsonValue()
+                        ["terms"] = new DynamicJsonValue(0)
                         {
                             [idField] = new DynamicJsonArray(idsToDelete)
                         }

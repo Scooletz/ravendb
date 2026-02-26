@@ -20,7 +20,7 @@ public class CpuUsageAnalysisInfo : IDynamicJson
     public int? NumberOfCores { get; set; }
     public DynamicJsonValue ToJson()
     {
-        return new DynamicJsonValue
+        return new DynamicJsonValue(12)
         {
             [nameof(UtilizedCores)] = UtilizedCores,
             [nameof(NumberOfCores)] = NumberOfCores,

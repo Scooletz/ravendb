@@ -291,7 +291,7 @@ namespace Raven.Server.Documents.Replication
         protected virtual DynamicJsonValue GetInitialRequestMessage(ReplicationLatestEtagRequest replicationLatestEtagRequest,
             ReplicationLoader.PullReplicationParams replParams = null)
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(5)
             {
                 [nameof(ReplicationMessageReply.Type)] = nameof(ReplicationMessageReply.ReplyType.Ok),
                 [nameof(ReplicationMessageReply.MessageType)] = ReplicationMessageType.Heartbeat,

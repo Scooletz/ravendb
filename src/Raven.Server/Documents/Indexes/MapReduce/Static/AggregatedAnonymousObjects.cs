@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Sparrow.Json;
 using System.Collections.Generic;
 using Raven.Server.Documents.Indexes.Persistence.Lucene.Documents;
@@ -37,7 +37,7 @@ namespace Raven.Server.Documents.Indexes.MapReduce.Static
         {
             foreach (var output in _outputs)
             {
-                var djv = new DynamicJsonValue();
+                var djv = new DynamicJsonValue(0);
 
                 foreach (var property in _propertyAccessor.GetProperties(output))
                 {

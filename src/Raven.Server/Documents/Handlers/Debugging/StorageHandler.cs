@@ -1,4 +1,4 @@
-﻿﻿using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -344,7 +344,7 @@ namespace Raven.Server.Documents.Handlers.Debugging
                 var freeSpaceHandling = storage.Environment.FreeSpaceHandling;
                 await using (var write = new AsyncBlittableJsonTextWriterForDebug(context, ServerStore, ResponseBodyStream()))
                 {
-                    context.Write(write, new DynamicJsonValue()
+                    context.Write(write, new DynamicJsonValue(1)
                     {
                         ["FreePages"] = freeSpaceHandling.FreeSpaceSnapshot(context.Transaction.InnerTransaction.LowLevelTransaction, hex)
                     });

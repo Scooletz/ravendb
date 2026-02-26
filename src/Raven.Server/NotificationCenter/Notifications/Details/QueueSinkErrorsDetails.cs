@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using Sparrow.Json.Parsing;
 
 namespace Raven.Server.NotificationCenter.Notifications.Details
@@ -47,7 +47,7 @@ namespace Raven.Server.NotificationCenter.Notifications.Details
 
         public DynamicJsonValue ToJson()
         {
-            var result = new DynamicJsonValue();
+            var result = new DynamicJsonValue(0);
 
             var errors = new DynamicJsonArray();
 

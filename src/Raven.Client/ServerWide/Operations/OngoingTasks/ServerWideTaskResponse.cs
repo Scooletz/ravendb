@@ -10,7 +10,7 @@ namespace Raven.Client.ServerWide.Operations.OngoingTasks
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(2)
             {
                 [nameof(Name)] = Name,
                 [nameof(RaftCommandIndex)] = RaftCommandIndex

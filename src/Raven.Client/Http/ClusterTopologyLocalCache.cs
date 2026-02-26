@@ -80,7 +80,7 @@ namespace Raven.Client.Http
                 using (var stream = SafeFileStream.Create(path, FileMode.Create, FileAccess.Write, FileShare.Read))
                 await using (var writer = new AsyncBlittableJsonTextWriter(context, stream))
                 {
-                    var json = new DynamicJsonValue
+                    var json = new DynamicJsonValue(6)
                     {
                         [nameof(clusterTopology.Topology)] = clusterTopology.Topology.ToJson(),
                         [nameof(clusterTopology.Leader)] = clusterTopology.Leader,

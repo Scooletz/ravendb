@@ -20,7 +20,7 @@ public class ReasonCounts
 
     public DynamicJsonValue ToJson()
     {
-        var json = new DynamicJsonValue()
+        var json = new DynamicJsonValue(1)
         {
             [nameof(TotalCount)] = TotalCount
         };

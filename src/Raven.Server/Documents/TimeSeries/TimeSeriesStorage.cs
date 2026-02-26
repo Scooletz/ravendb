@@ -880,7 +880,7 @@ namespace Raven.Server.Documents.TimeSeries
 
             public DynamicJsonValue ToJson()
             {
-                var json = new DynamicJsonValue
+                var json = new DynamicJsonValue(6)
                 {
                     [nameof(DocumentId)] = DocumentId,
                     [nameof(Name)] = Name,
@@ -2276,7 +2276,7 @@ namespace Raven.Server.Documents.TimeSeries
                 {
                     data.Modifications = new DynamicJsonValue(data)
                     {
-                        [Constants.Documents.Metadata.Key] = new DynamicJsonValue
+                        [Constants.Documents.Metadata.Key] = new DynamicJsonValue(0)
                         {
                             [Constants.Documents.Metadata.TimeSeries] = new[] { tsName }
                         }

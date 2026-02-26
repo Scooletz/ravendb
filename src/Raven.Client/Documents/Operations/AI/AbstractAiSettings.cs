@@ -12,7 +12,7 @@ public abstract class AbstractAiSettings : IDynamicJson
 
     public virtual DynamicJsonValue ToJson()
     {
-        return new DynamicJsonValue
+        return new DynamicJsonValue(1)
         {
             [nameof(EmbeddingsMaxConcurrentBatches)] = EmbeddingsMaxConcurrentBatches,
         };

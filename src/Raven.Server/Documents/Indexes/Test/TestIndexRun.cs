@@ -126,7 +126,7 @@ public sealed class TestIndexRun
         
     private BlittableJsonReaderObject ConvertToBlittable(object result)
     {
-        var djv = new DynamicJsonValue();
+        var djv = new DynamicJsonValue(0);
         IPropertyAccessor propertyAccessor = PropertyAccessor.Create(result.GetType(), result);
 
         foreach (var property in propertyAccessor.GetProperties(result))

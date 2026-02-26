@@ -41,10 +41,10 @@ namespace Raven.Server.Documents.Handlers.Debugging
             await using (var write = new AsyncBlittableJsonTextWriterForDebug(context, ServerStore, ResponseBodyStream()))
             {
                 context.Write(write,
-                    new DynamicJsonValue
+                    new DynamicJsonValue(0)
                     {
                         ["Remote-Connections"] = new DynamicJsonArray(RemoteConnection.RemoteConnectionsList
-                            .Select(connection => new DynamicJsonValue
+                            .Select(connection => new DynamicJsonValue(6)
                             {
                                 [nameof(RemoteConnection.RemoteConnectionInfo.Caller)] = connection.Caller,
                                 [nameof(RemoteConnection.RemoteConnectionInfo.Term)] = connection.Term,
@@ -169,7 +169,7 @@ namespace Raven.Server.Documents.Handlers.Debugging
 
             public DynamicJsonValue ToJson()
             {
-                var djv = new DynamicJsonValue
+                var djv = new DynamicJsonValue(3)
                 {
                     [nameof(Url)] = Url,
                     [nameof(SetupAlive)] = SetupAlive.ToJson(),
@@ -192,7 +192,7 @@ namespace Raven.Server.Documents.Handlers.Debugging
 
             public DynamicJsonValue ToJson()
             {
-                var djv = new DynamicJsonValue
+                var djv = new DynamicJsonValue(2)
                 {
                     [nameof(Time)] = Time,
                     [nameof(Error)] = Error
@@ -211,7 +211,7 @@ namespace Raven.Server.Documents.Handlers.Debugging
 
             public DynamicJsonValue ToJson()
             {
-                var djv = new DynamicJsonValue
+                var djv = new DynamicJsonValue(4)
                 {
                     [nameof(TcpInfoTime)] = TcpInfoTime,
                     [nameof(SendTime)] = SendTime,
@@ -262,7 +262,7 @@ namespace Raven.Server.Documents.Handlers.Debugging
                         async Task<TcpConnectionHeaderMessage.SupportedFeatures> NegotiationCallback(string curUrl, TcpConnectionInfo tcpInfo, Stream stream,
                             JsonOperationContext ctx, List<string> logs = null)
                         {
-                            var msg = new DynamicJsonValue
+                            var msg = new DynamicJsonValue(4)
                             {
                                 [nameof(TcpConnectionHeaderMessage.DatabaseName)] = null,
                                 [nameof(TcpConnectionHeaderMessage.Operation)] = TcpConnectionHeaderMessage.OperationTypes.Ping,

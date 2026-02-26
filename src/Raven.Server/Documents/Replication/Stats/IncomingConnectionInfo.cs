@@ -79,7 +79,7 @@ namespace Raven.Server.Documents.Replication.Stats
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(5)
             {
                 [nameof(SourceDatabaseName)] = SourceDatabaseName,
                 [nameof(SourceUrl)] = SourceUrl,

@@ -59,7 +59,7 @@ internal abstract class AbstractCompareExchangeHandlerProcessorForGetCompareExch
                 {
                     numberOfResults++;
                     totalDocumentsSizeInBytes += item.Value?.Size ?? 0;
-                    operationContext.Write(textWriter, new DynamicJsonValue
+                    operationContext.Write(textWriter, new DynamicJsonValue(3)
                     {
                         [nameof(CompareExchangeHandlerProcessorForGetCompareExchangeValues.CompareExchangeListItem.Key)] = item.Key.Key,
                         [nameof(CompareExchangeHandlerProcessorForGetCompareExchangeValues.CompareExchangeListItem.Value)] = item.Value,
@@ -103,7 +103,7 @@ internal abstract class AbstractCompareExchangeHandlerProcessorForGetCompareExch
                     numberOfResults++;
                     totalDocumentsSizeInBytes += item.Value?.Size ?? 0;
 
-                    operationContext.Write(textWriter, new DynamicJsonValue
+                    operationContext.Write(textWriter, new DynamicJsonValue(3)
                     {
                         [nameof(CompareExchangeHandlerProcessorForGetCompareExchangeValues.CompareExchangeListItem.Key)] = item.Key,
                         [nameof(CompareExchangeHandlerProcessorForGetCompareExchangeValues.CompareExchangeListItem.Value)] = item.Value,

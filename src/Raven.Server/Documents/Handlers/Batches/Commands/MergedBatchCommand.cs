@@ -182,7 +182,7 @@ public sealed class MergedBatchCommand : TransactionMergedCommand
                     var attachmentPutResult = Database.DocumentsStorage.AttachmentsStorage.PutAttachment(context, docId, cmd.Name, cmd.ContentType, cmd.Hash, cmd.SizeInBytes.Value, cmd.RemoteParameters, cmd.ChangeVector, stream, updateDocument: false, extractCollectionName: ModifiedCollections is not null, fromEtl: cmd.FromEtl);
                     LastChangeVector = attachmentPutResult.ChangeVector;
 
-                    var apReply = new DynamicJsonValue
+                    var apReply = new DynamicJsonValue(7)
                     {
                         [nameof(BatchRequestParser.CommandData.Id)] = attachmentPutResult.DocumentId,
                         [nameof(BatchRequestParser.CommandData.Type)] = nameof(CommandType.AttachmentPUT),
@@ -216,7 +216,7 @@ public sealed class MergedBatchCommand : TransactionMergedCommand
                     if (collectionName != null)
                         ModifiedCollections?.Add(collectionName.Name);
 
-                    var adReply = new DynamicJsonValue
+                    var adReply = new DynamicJsonValue(2)
                     {
                         ["Type"] = nameof(CommandType.AttachmentDELETE),
                         [Constants.Documents.Metadata.Id] = cmd.Id,
@@ -248,7 +248,7 @@ public sealed class MergedBatchCommand : TransactionMergedCommand
 
                     LastChangeVector = attachmentMoveResult.ChangeVector;
 
-                    var amReply = new DynamicJsonValue
+                    var amReply = new DynamicJsonValue(9)
                     {
                         [nameof(BatchRequestParser.CommandData.Id)] = cmd.Id,
                         [nameof(BatchRequestParser.CommandData.Type)] = nameof(CommandType.AttachmentMOVE),
@@ -292,7 +292,7 @@ public sealed class MergedBatchCommand : TransactionMergedCommand
 
                     LastChangeVector = attachmentCopyResult.ChangeVector;
 
-                    var acReply = new DynamicJsonValue
+                    var acReply = new DynamicJsonValue(7)
                     {
                         [nameof(BatchRequestParser.CommandData.Id)] = attachmentCopyResult.DocumentId,
                         [nameof(BatchRequestParser.CommandData.Type)] = nameof(CommandType.AttachmentCOPY),
@@ -332,7 +332,7 @@ public sealed class MergedBatchCommand : TransactionMergedCommand
                     if (IncludeReply == false)
                         break;
 
-                    Reply.Add(new DynamicJsonValue
+                    Reply.Add(new DynamicJsonValue(4)
                     {
                         [nameof(BatchRequestParser.CommandData.Id)] = cmd.Id,
                         [nameof(BatchRequestParser.CommandData.ChangeVector)] = tsCmd.LastChangeVector,
@@ -364,7 +364,7 @@ public sealed class MergedBatchCommand : TransactionMergedCommand
                     if (IncludeReply == false)
                         break;
 
-                    Reply.Add(new DynamicJsonValue
+                    Reply.Add(new DynamicJsonValue(3)
                     {
                         [nameof(BatchRequestParser.CommandData.Id)] = cmd.DestinationId,
                         [nameof(BatchRequestParser.CommandData.ChangeVector)] = cv,
@@ -396,7 +396,7 @@ public sealed class MergedBatchCommand : TransactionMergedCommand
                     if (IncludeReply == false)
                         break;
 
-                    Reply.Add(new DynamicJsonValue
+                    Reply.Add(new DynamicJsonValue(5)
                     {
                         [nameof(BatchRequestParser.CommandData.Id)] = cmd.Id,
                         [nameof(BatchRequestParser.CommandData.ChangeVector)] = counterBatchCmd.LastChangeVector,
@@ -454,7 +454,7 @@ public sealed class MergedBatchCommand : TransactionMergedCommand
                             break;
 
                         // Reply with new revision data
-                        Reply.Add(new DynamicJsonValue
+                        Reply.Add(new DynamicJsonValue(2)
                         {
                             ["RevisionCreated"] = true,
                             ["Type"] = nameof(CommandType.ForceRevisionCreation),
@@ -470,7 +470,7 @@ public sealed class MergedBatchCommand : TransactionMergedCommand
                             break;
 
                         // No revision was created
-                        Reply.Add(new DynamicJsonValue
+                        Reply.Add(new DynamicJsonValue(2)
                         {
                             ["RevisionCreated"] = false,
                             ["Type"] = nameof(CommandType.ForceRevisionCreation)

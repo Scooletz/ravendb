@@ -36,7 +36,7 @@ namespace Raven.Server.ServerWide.Commands
 
             public DynamicJsonValue ToJson()
             {
-                return new DynamicJsonValue
+                return new DynamicJsonValue(3)
                 {
                     [nameof(Type)] = Type,
                     [nameof(DatabaseNames)] = TypeConverter.ToBlittableSupportedType(DatabaseNames),

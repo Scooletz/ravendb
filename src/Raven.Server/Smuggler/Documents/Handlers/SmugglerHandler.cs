@@ -453,7 +453,7 @@ namespace Raven.Server.Smuggler.Documents.Handlers
                     HttpContext.Response.StatusCode = (int)HttpStatusCode.BadRequest;
                     await using (var writer = new AsyncBlittableJsonTextWriter(context, ResponseBodyStream()))
                     {
-                        context.Write(writer, new DynamicJsonValue
+                        context.Write(writer, new DynamicJsonValue(2)
                         {
                             ["Type"] = "Error",
                             ["Error"] = "Import from csv requires form content type"

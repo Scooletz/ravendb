@@ -7,7 +7,7 @@ namespace Raven.Server.Commercial
         public LeaseStatus Status { get; set; }
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(1)
             {
                 [nameof(Status)] = Status
             };

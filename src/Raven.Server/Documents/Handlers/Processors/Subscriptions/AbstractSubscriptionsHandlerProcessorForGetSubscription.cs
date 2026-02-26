@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -94,7 +94,7 @@ namespace Raven.Server.Documents.Handlers.Processors.Subscriptions
 
         protected virtual DynamicJsonValue SubscriptionStateAsJson(TState state)
         {
-            var json = new DynamicJsonValue
+            var json = new DynamicJsonValue(11)
             {
                 [nameof(SubscriptionState.SubscriptionId)] = state.SubscriptionId,
                 [nameof(SubscriptionState.SubscriptionName)] = state.SubscriptionName,
@@ -115,9 +115,9 @@ namespace Raven.Server.Documents.Handlers.Processors.Subscriptions
         protected static DynamicJsonValue GetSubscriptionConnectionJson<T>(SubscriptionConnectionBase<T> x) where T : AbstractIncludesCommand
         {
             if (x == null)
-                return new DynamicJsonValue();
+                return new DynamicJsonValue(0);
 
-            return new DynamicJsonValue()
+            return new DynamicJsonValue(6)
             {
                 [nameof(SubscriptionConnection.ClientUri)] = x.ClientUri,
                 [nameof(SubscriptionConnection.Strategy)] = x.Strategy,
@@ -130,7 +130,7 @@ namespace Raven.Server.Documents.Handlers.Processors.Subscriptions
 
         private static DynamicJsonValue GetConnectionStatsJson(SubscriptionStatsCollector x)
         {
-            return new DynamicJsonValue()
+            return new DynamicJsonValue(6)
             {
                 [nameof(SubscriptionStatsCollector.Metrics.AckRate)] = x.Metrics.AckRate?.CreateMeterData(),
                 [nameof(SubscriptionStatsCollector.Metrics.BytesRate)] = x.Metrics.BytesRate?.CreateMeterData(),

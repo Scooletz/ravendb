@@ -93,7 +93,7 @@ namespace Raven.Server.Web.System
                 // Return Raft Index
                 await using (var writer = new AsyncBlittableJsonTextWriter(context, ResponseBodyStream()))
                 {
-                    context.Write(writer, new DynamicJsonValue
+                    context.Write(writer, new DynamicJsonValue(1)
                     {
                         [nameof(ModifyDatabaseTopologyResult.RaftCommandIndex)] = newIndex
                     });
@@ -131,7 +131,7 @@ namespace Raven.Server.Web.System
                         await using (var writer = new AsyncBlittableJsonTextWriter(context, ResponseBodyStream()))
                         {
                             context.Write(writer,
-                                new DynamicJsonValue { ["Type"] = "Error", ["Message"] = "Database " + name + " wasn't found" });
+                                new DynamicJsonValue(0) { ["Type"] = "Error", ["Message"] = "Database " + name + " wasn't found" });
                         }
 
                         return;
@@ -153,7 +153,7 @@ namespace Raven.Server.Web.System
                         HttpContext.Response.Headers[Constants.Headers.DatabaseMissing] = Uri.EscapeDataString(name);
                         await using (var writer = new AsyncBlittableJsonTextWriter(context, HttpContext.Response.Body))
                         {
-                            context.Write(writer, new DynamicJsonValue { ["Type"] = "Error", ["Message"] = "Database " + name + " was deleted" });
+                            context.Write(writer, new DynamicJsonValue(0) { ["Type"] = "Error", ["Message"] = "Database " + name + " was deleted" });
                         }
 
                         return;
@@ -185,7 +185,7 @@ namespace Raven.Server.Web.System
                             promotables = GetNodes(topology.Promotables, ServerNode.Role.Promotable);
 
                         context.Write(writer,
-                            new DynamicJsonValue
+                            new DynamicJsonValue(3)
                             {
                                 [nameof(Topology.Promotables)] = new DynamicJsonArray(promotables ?? new List<DynamicJsonValue>()),
                                 [nameof(Topology.Nodes)] = new DynamicJsonArray(dbNodes),
@@ -216,7 +216,7 @@ namespace Raven.Server.Web.System
 
         private DynamicJsonValue TopologyNodeToJson(string tag, string url, string name, ServerNode.Role role, DetailsPerNode details)
         {
-            var json = new DynamicJsonValue
+            var json = new DynamicJsonValue(4)
             {
                 [nameof(ServerNode.Url)] = url,
                 [nameof(ServerNode.ClusterTag)] = tag,
@@ -286,7 +286,7 @@ namespace Raven.Server.Web.System
             {
                 await using (var writer = new AsyncBlittableJsonTextWriter(context, ResponseBodyStream()))
                 {
-                    context.Write(writer, new DynamicJsonValue
+                    context.Write(writer, new DynamicJsonValue(2)
                     {
                         [nameof(IsDatabaseLoadedCommand.CommandResult.DatabaseName)] = name,
                         [nameof(IsDatabaseLoadedCommand.CommandResult.IsLoaded)] = isLoaded
@@ -325,7 +325,7 @@ namespace Raven.Server.Web.System
             using (ServerStore.ContextPool.AllocateOperationContext(out TransactionOperationContext context))
             await using (var writer = new AsyncBlittableJsonTextWriter(context, ResponseBodyStream()))
             {
-                var json = new DynamicJsonValue
+                var json = new DynamicJsonValue(8)
                 {
                     [nameof(BuildInfoWithResourceNames.BuildVersion)] = buildInfo.BuildVersion,
                     [nameof(BuildInfoWithResourceNames.ProductVersion)] = buildInfo.ProductVersion,

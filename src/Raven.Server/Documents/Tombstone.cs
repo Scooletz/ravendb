@@ -35,7 +35,7 @@ namespace Raven.Server.Documents
 
         public DynamicJsonValue ToJson()
         {
-            var json = new DynamicJsonValue
+            var json = new DynamicJsonValue(6)
             {
                 ["Id"] = LowerId.ToString(),
                 [nameof(Etag)] = Etag,

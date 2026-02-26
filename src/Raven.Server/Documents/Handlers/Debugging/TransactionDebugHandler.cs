@@ -43,7 +43,7 @@ namespace Raven.Server.Documents.Handlers.Debugging
             using (ContextPool.AllocateOperationContext(out JsonOperationContext context))
             await using (var writer = new AsyncBlittableJsonTextWriterForDebug(context, ServerStore, ResponseBodyStream()))
             {
-                context.Write(writer, new DynamicJsonValue
+                context.Write(writer, new DynamicJsonValue(0)
                 {
                     ["tx-info"] = ToJson(results)
                 });
@@ -86,7 +86,7 @@ namespace Raven.Server.Documents.Handlers.Debugging
 
         private static DynamicJsonValue ToJson(TransactionInfo txinfo)
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(2)
             {
                 [nameof(StorageEnvironmentOptions.BasePath)] = txinfo.Path,
                 [nameof(TransactionInfo.Information)] = new DynamicJsonArray(txinfo.Information.Select(ToJson))
@@ -95,7 +95,7 @@ namespace Raven.Server.Documents.Handlers.Debugging
 
         private static DynamicJsonValue ToJson(TxInfoResult txInfo)
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(15)
             {
                 [nameof(TxInfoResult.TransactionId)] = txInfo.TransactionId,
                 [nameof(TxInfoResult.ThreadId)] = txInfo.ThreadId,

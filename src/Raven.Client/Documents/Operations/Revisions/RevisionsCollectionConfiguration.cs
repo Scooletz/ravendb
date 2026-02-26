@@ -47,7 +47,7 @@ namespace Raven.Client.Documents.Operations.Revisions
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(5)
             {
                 [nameof(Disabled)] = Disabled,
                 [nameof(MinimumRevisionsToKeep)] = MinimumRevisionsToKeep,

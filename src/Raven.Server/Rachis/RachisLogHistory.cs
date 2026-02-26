@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
 using Raven.Client.Util;
@@ -237,7 +237,7 @@ namespace Raven.Server.Rachis
                     BlittableJsonReaderObject blittableResult = null;
                     if (result != null)
                     {
-                        blittableResult = context.ReadObject(new DynamicJsonValue
+                        blittableResult = context.ReadObject(new DynamicJsonValue(1)
                         {
                             ["Result"] = result
                         }, "set-history-result");
@@ -263,7 +263,7 @@ namespace Raven.Server.Rachis
                 }
                 else
                 {
-                    var blittableResult = context.ReadObject(new DynamicJsonValue { ["Result"] = result }, "set-history-result");
+                    var blittableResult = context.ReadObject(new DynamicJsonValue(1) { ["Result"] = result }, "set-history-result");
                     tvb.Add(blittableResult.BasePointer, blittableResult.Size);
                 }
 
@@ -406,7 +406,7 @@ namespace Raven.Server.Rachis
 
         private static unsafe DynamicJsonValue ReadHistoryLog(ClusterOperationContext context, Table.TableValueHolder entryHolder)
         {
-            var djv = new DynamicJsonValue();
+            var djv = new DynamicJsonValue(0);
 
             djv["Date"] = ReadCreateAt(entryHolder);
 

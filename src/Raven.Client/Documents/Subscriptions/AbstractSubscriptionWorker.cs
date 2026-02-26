@@ -370,7 +370,7 @@ namespace Raven.Client.Documents.Subscriptions
 
         private async ValueTask SendDropMessageAsync(JsonOperationContext context, AsyncBlittableJsonTextWriter writer, TcpConnectionHeaderResponse reply)
         {
-            context.Write(writer, new DynamicJsonValue
+            context.Write(writer, new DynamicJsonValue(4)
             {
                 [nameof(TcpConnectionHeaderMessage.DatabaseName)] = _dbName,
                 [nameof(TcpConnectionHeaderMessage.Operation)] = TcpConnectionHeaderMessage.OperationTypes.Drop.ToString(),

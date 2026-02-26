@@ -33,7 +33,7 @@ public class GcRunInfo : IDynamicJson
 
     public DynamicJsonValue ToJson()
     {
-        return new DynamicJsonValue
+        return new DynamicJsonValue(23)
         {
             [nameof(Compacted)] = Compacted,
             [nameof(Concurrent)] = Concurrent,

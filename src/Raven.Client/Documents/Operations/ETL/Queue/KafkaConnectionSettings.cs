@@ -14,7 +14,7 @@ public sealed class KafkaConnectionSettings
     
     public DynamicJsonValue ToJson()
     {
-        var json = new DynamicJsonValue
+        var json = new DynamicJsonValue(2)
         {
             [nameof(BootstrapServers)] = BootstrapServers,
             [nameof(UseRavenCertificate)] = UseRavenCertificate
@@ -30,7 +30,7 @@ public sealed class KafkaConnectionSettings
     
     public DynamicJsonValue ToAuditJson()
     {
-        var json = new DynamicJsonValue
+        var json = new DynamicJsonValue(2)
         {
             [nameof(BootstrapServers)] = BootstrapServers,
             [nameof(UseRavenCertificate)] = UseRavenCertificate

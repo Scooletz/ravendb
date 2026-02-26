@@ -112,7 +112,7 @@ public abstract class AbstractOperation
 
     public DynamicJsonValue ToJson()
     {
-        return new DynamicJsonValue
+        return new DynamicJsonValue(4)
         {
             [nameof(Id)] = Id,
             [nameof(Description)] = Description.ToJson(),

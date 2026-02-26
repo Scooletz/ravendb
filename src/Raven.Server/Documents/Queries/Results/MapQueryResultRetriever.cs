@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using Corax.Querying;
@@ -84,7 +84,7 @@ namespace Raven.Server.Documents.Queries.Results
 
         protected override DynamicJsonValue GetCounterRaw(string docId, string name)
         {
-            var djv = new DynamicJsonValue();
+            var djv = new DynamicJsonValue(0);
 
             foreach (var partialValue in DocumentsStorage.CountersStorage.GetCounterPartialValues(_context, docId, name))
             {

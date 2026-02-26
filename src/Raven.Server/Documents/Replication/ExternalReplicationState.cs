@@ -24,7 +24,7 @@ namespace Raven.Server.Documents.Replication
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(6)
             {
                 [nameof(TaskId)] = TaskId,
                 [nameof(NodeTag)] = NodeTag,

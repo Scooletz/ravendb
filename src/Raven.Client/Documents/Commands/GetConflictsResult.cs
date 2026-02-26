@@ -47,7 +47,7 @@ namespace Raven.Client.Documents.Commands
 
             public DynamicJsonValue ToJson()
             {
-                return new DynamicJsonValue
+                return new DynamicJsonValue(4)
                 {
                     [nameof(Id)] = Id,
                     [nameof(LastModified)] = LastModified,

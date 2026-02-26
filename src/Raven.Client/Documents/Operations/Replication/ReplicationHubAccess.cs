@@ -29,7 +29,7 @@ namespace Raven.Client.Documents.Operations.Replication
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(4)
             {
                 [nameof(Name)] = Name,
                 [nameof(AllowedHubToSinkPaths)] = AllowedHubToSinkPaths,

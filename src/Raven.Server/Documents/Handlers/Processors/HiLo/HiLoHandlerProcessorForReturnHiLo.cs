@@ -51,7 +51,7 @@ internal sealed class HiLoHandlerProcessorForReturnHiLo : AbstractHiLoHandlerPro
             if (oldMax != End || Last > oldMax)
                 return 1;
 
-            document.Data.Modifications = new DynamicJsonValue
+            document.Data.Modifications = new DynamicJsonValue(1)
             {
                 [nameof(HiloDocument.Max)] = Last
             };

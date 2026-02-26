@@ -46,7 +46,7 @@ public class AiAgentParameter : IDynamicJson
     public string Description { get; set; }
     public DynamicJsonValue ToJson()
     {
-        return new DynamicJsonValue
+        return new DynamicJsonValue(3)
         {
             [nameof(Name)] = Name,
             [nameof(Description)] = Description,

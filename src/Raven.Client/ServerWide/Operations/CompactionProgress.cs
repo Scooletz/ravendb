@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Raven.Client.Documents.Operations;
@@ -34,7 +34,7 @@ namespace Raven.Client.ServerWide.Operations
             
             if (IndexesResults.Count != 0)
             {
-                var indexes = new DynamicJsonValue();
+                var indexes = new DynamicJsonValue(0);
                 foreach (var index in IndexesResults)
                 {
                     indexes[index.Key] = index.Value.ToJson();

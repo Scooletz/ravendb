@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
@@ -162,7 +162,7 @@ namespace Raven.Server.Documents.Queries.Results
                     return GetProjectionFromDocumentInternal(doc, ref retrieverInput, _context, token);
                 }
 
-                var result = new DynamicJsonValue();
+                var result = new DynamicJsonValue(0);
 
                 Dictionary<string, FieldsToFetch.FieldToFetch> fields = null;
 
@@ -333,7 +333,7 @@ namespace Raven.Server.Documents.Queries.Results
 
         private (Document Document, List<Document> List) GetProjectionFromDocumentInternal(Document doc, ref RetrieverInput retrieverInput, JsonOperationContext context, CancellationToken token)
         {
-            var result = new DynamicJsonValue();
+            var result = new DynamicJsonValue(0);
 
             foreach (var fieldToFetch in FieldsToFetch.Fields.Values)
             {
@@ -1131,7 +1131,7 @@ namespace Raven.Server.Documents.Queries.Results
             }
             else
             {
-                var component = new DynamicJsonValue();
+                var component = new DynamicJsonValue(0);
 
                 foreach (var componentField in field.Components)
                 {

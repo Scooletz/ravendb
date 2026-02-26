@@ -70,7 +70,7 @@ namespace Raven.Client.Documents.Commands.Batches
 
         public DynamicJsonValue ToJson(DocumentConventions conventions, JsonOperationContext context)
         {
-            var result = new DynamicJsonValue
+            var result = new DynamicJsonValue(3)
             {
                 [nameof(Id)] = Id,
                 [nameof(Counters)] = Counters.ToJson(),

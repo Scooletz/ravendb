@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using Sparrow.Json.Parsing;
 
 namespace Raven.Client.Documents.Operations;
@@ -10,13 +10,13 @@ public class CollectionRevisionsStatistics
 
     public DynamicJsonValue ToJson()
     {
-        DynamicJsonValue collections = new DynamicJsonValue();
+        DynamicJsonValue collections = new DynamicJsonValue(0);
         foreach (var collection in Collections)
         {
             collections[collection.Key] = collection.Value;
         }
 
-        return new DynamicJsonValue()
+        return new DynamicJsonValue(2)
         {
             [nameof(CountOfRevisions)] = CountOfRevisions,
             [nameof(Collections)] = collections

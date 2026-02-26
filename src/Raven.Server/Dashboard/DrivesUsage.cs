@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Linq;
 using Raven.Client.ServerWide.Operations;
 using Sparrow.Json.Parsing;
@@ -42,7 +42,7 @@ namespace Raven.Server.Dashboard
 
         private DynamicJsonValue ToJsonInternal()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(6)
             {
                 [nameof(MountPoint)] = MountPoint,
                 [nameof(VolumeLabel)] = VolumeLabel,
@@ -103,7 +103,7 @@ namespace Raven.Server.Dashboard
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue()
+            return new DynamicJsonValue(3)
             {
                 [nameof(Database)] = Database,
                 [nameof(Size)] = Size,

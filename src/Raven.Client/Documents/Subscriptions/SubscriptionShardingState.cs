@@ -28,7 +28,7 @@ public sealed class SubscriptionShardingState : IDynamicJson
 
     public DynamicJsonValue ToJson()
     {
-        return new DynamicJsonValue
+        return new DynamicJsonValue(4)
         {
             [nameof(ChangeVectorForNextBatchStartingPointPerShard)] = ChangeVectorForNextBatchStartingPointPerShard?.ToJson(),
             [nameof(ProcessedChangeVectorPerBucket)] = ProcessedChangeVectorPerBucket?.ToJsonWithPrimitiveKey(),

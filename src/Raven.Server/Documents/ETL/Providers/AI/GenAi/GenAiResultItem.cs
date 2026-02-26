@@ -18,7 +18,7 @@ public class GenAiResultItem
 
     public DynamicJsonValue ToJson()
     {
-        return new DynamicJsonValue
+        return new DynamicJsonValue(3)
         {
             [nameof(ContextOutput)] = ContextOutput?.ToJson(),
             [nameof(ModelOutput)] = ModelOutput?.ToJson(),
@@ -51,7 +51,7 @@ public class ContextOutput
 
     public DynamicJsonValue ToJson()
     {
-        var json = new DynamicJsonValue
+        var json = new DynamicJsonValue(3)
         {
             [nameof(Context)] = Context, 
             [nameof(IsCached)] = IsCached, 

@@ -15,9 +15,9 @@ namespace Raven.Server.NotificationCenter.Notifications.Details
 
         public DynamicJsonValue ToJson()
         {
-            var djv = new DynamicJsonValue();
+            var djv = new DynamicJsonValue(0);
             
-            var dict = new DynamicJsonValue();
+            var dict = new DynamicJsonValue(0);
             djv[nameof(Writes)] = dict;
             
             foreach (var key in Writes.Keys)
@@ -65,7 +65,7 @@ namespace Raven.Server.NotificationCenter.Notifications.Details
 
             public DynamicJsonValue ToJson()
             {
-                return new DynamicJsonValue
+                return new DynamicJsonValue(6)
                 {
                     [nameof(Path)] = Path,
                     [nameof(DataWrittenInMb)] = DataWrittenInMb,

@@ -612,7 +612,7 @@ namespace Raven.Server.ServerWide.Maintenance
             {
                 await using (var writer = new AsyncBlittableJsonTextWriter(context, stream))
                 {
-                    context.Write(writer, new DynamicJsonValue
+                    context.Write(writer, new DynamicJsonValue(2)
                     {
                         [nameof(ClusterMaintenanceConnectionHeader.LeaderClusterTag)] = _parent._leaderClusterTag,
                         [nameof(ClusterMaintenanceConnectionHeader.Term)] = _parent._term

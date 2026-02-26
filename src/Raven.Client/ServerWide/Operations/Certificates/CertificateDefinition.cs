@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using Sparrow.Json.Parsing;
 
@@ -34,13 +34,13 @@ namespace Raven.Client.ServerWide.Operations.Certificates
 
         public DynamicJsonValue ToJson()
         {
-            var permissions = new DynamicJsonValue();
+            var permissions = new DynamicJsonValue(0);
         
             if (Permissions != null)
                 foreach (var kvp in Permissions)
                     permissions[kvp.Key] = kvp.Value.ToString();
 
-            var jsonValue = new DynamicJsonValue
+            var jsonValue = new DynamicJsonValue(9)
             {
                 [nameof(Name)] = Name,
                 [nameof(Thumbprint)] = Thumbprint,

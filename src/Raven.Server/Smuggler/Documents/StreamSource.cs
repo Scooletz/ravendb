@@ -1705,7 +1705,7 @@ namespace Raven.Server.Smuggler.Documents
 
         public static BlittableJsonReaderObject WriteDummyDocumentForAttachment(JsonOperationContext context, LegacyAttachmentDetails details)
         {
-            var attachment = new DynamicJsonValue
+            var attachment = new DynamicJsonValue(4)
             {
                 ["Name"] = details.Key,
                 ["Hash"] = details.Hash,
@@ -1714,13 +1714,13 @@ namespace Raven.Server.Smuggler.Documents
             };
             var attachments = new DynamicJsonArray();
             attachments.Add(attachment);
-            var metadata = new DynamicJsonValue
+            var metadata = new DynamicJsonValue(0)
             {
                 [Constants.Documents.Metadata.Collection] = "@files",
                 [Constants.Documents.Metadata.Attachments] = attachments,
                 [Constants.Documents.Metadata.LegacyAttachmentsMetadata] = details.Metadata
             };
-            var djv = new DynamicJsonValue
+            var djv = new DynamicJsonValue(0)
             {
                 [Constants.Documents.Metadata.Key] = metadata,
             };
@@ -1817,9 +1817,9 @@ namespace Raven.Server.Smuggler.Documents
                     {
                         if (modifier.Id.Contains(HiLoHandler.RavenHiloIdPrefix))
                         {
-                            data.Modifications = new DynamicJsonValue
+                            data.Modifications = new DynamicJsonValue(0)
                             {
-                                [Constants.Documents.Metadata.Key] = new DynamicJsonValue
+                                [Constants.Documents.Metadata.Key] = new DynamicJsonValue(0)
                                 {
                                     [Constants.Documents.Metadata.Collection] = CollectionName.HiLoCollection
                                 }

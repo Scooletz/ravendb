@@ -31,7 +31,7 @@ public class AiAttachment
 
     public DynamicJsonValue ToJson()
     {
-        var json = new DynamicJsonValue
+        var json = new DynamicJsonValue(4)
         {
             [nameof(Name)] = Name,
             [nameof(Type)] = Type,

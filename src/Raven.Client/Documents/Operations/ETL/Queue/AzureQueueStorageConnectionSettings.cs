@@ -110,12 +110,12 @@ public sealed class AzureQueueStorageConnectionSettings
 
     public DynamicJsonValue ToJson()
     {
-        var json = new DynamicJsonValue
+        var json = new DynamicJsonValue(4)
         {
             [nameof(ConnectionString)] = ConnectionString,
             [nameof(EntraId)] = EntraId == null
                 ? null
-                : new DynamicJsonValue
+                : new DynamicJsonValue(4)
                 {
                     [nameof(EntraId.StorageAccountName)] = EntraId?.StorageAccountName,
                     [nameof(EntraId.TenantId)] = EntraId?.TenantId,
@@ -124,7 +124,7 @@ public sealed class AzureQueueStorageConnectionSettings
                 },
             [nameof(Passwordless)] = Passwordless == null
                 ? null
-                : new DynamicJsonValue { [nameof(Passwordless.StorageAccountName)] = Passwordless?.StorageAccountName }
+                : new DynamicJsonValue(1) { [nameof(Passwordless.StorageAccountName)] = Passwordless?.StorageAccountName }
         };
 
         return json;

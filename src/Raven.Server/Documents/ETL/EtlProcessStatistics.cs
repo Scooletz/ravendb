@@ -202,7 +202,7 @@ namespace Raven.Server.Documents.ETL
 
         public DynamicJsonValue ToJson()
         {
-            var json = new DynamicJsonValue
+            var json = new DynamicJsonValue(8)
             {
                 [nameof(LastAlert)] = LastAlert?.ToJson(),
                 [nameof(LastTransformationErrorTime)] = LastTransformationErrorTime,

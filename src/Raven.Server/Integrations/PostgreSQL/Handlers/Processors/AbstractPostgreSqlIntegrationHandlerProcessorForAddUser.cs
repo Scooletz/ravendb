@@ -44,14 +44,14 @@ internal abstract class AbstractPostgreSqlIntegrationHandlerProcessorForAddUser<
         if (string.IsNullOrEmpty(dto.Username))
         {
             HttpContext.Response.StatusCode = (int)HttpStatusCode.BadRequest;
-            context.Write(writer, new DynamicJsonValue { ["Error"] = "Username is null or empty." });
+            context.Write(writer, new DynamicJsonValue(0) { ["Error"] = "Username is null or empty." });
             return null; // handled
         }
 
         if (string.IsNullOrEmpty(dto.Password))
         {
             HttpContext.Response.StatusCode = (int)HttpStatusCode.BadRequest;
-            context.Write(writer, new DynamicJsonValue { ["Error"] = "Password is null or empty." });
+            context.Write(writer, new DynamicJsonValue(0) { ["Error"] = "Password is null or empty." });
             return null; // handled
         }
 
@@ -84,7 +84,7 @@ internal abstract class AbstractPostgreSqlIntegrationHandlerProcessorForAddUser<
         if (users.Any(x => x.Username.Equals(dto.Username, StringComparison.OrdinalIgnoreCase)))
         {
             HttpContext.Response.StatusCode = (int)HttpStatusCode.BadRequest;
-            context.Write(writer, new DynamicJsonValue { ["Error"] = $"{dto.Username} username already exists." });
+            context.Write(writer, new DynamicJsonValue(0) { ["Error"] = $"{dto.Username} username already exists." });
             return null;
         }
 

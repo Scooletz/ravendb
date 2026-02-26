@@ -84,7 +84,7 @@ namespace Raven.Client.Documents.Operations.AI.Agents
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(3)
             {
                 [nameof(Tokens)] = Tokens?.ToJson(),
                 [nameof(Truncate)] = Truncate?.ToJson(),
@@ -156,7 +156,7 @@ namespace Raven.Client.Documents.Operations.AI.Agents
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(5)
             {
                 [nameof(SummarizationTaskBeginningPrompt)] = SummarizationTaskBeginningPrompt,
                 [nameof(SummarizationTaskEndPrompt)] = SummarizationTaskEndPrompt,
@@ -190,7 +190,7 @@ namespace Raven.Client.Documents.Operations.AI.Agents
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(2)
             {
                 [nameof(MessagesLengthBeforeTruncate)] = MessagesLengthBeforeTruncate,
                 [nameof(MessagesLengthAfterTruncate)] = MessagesLengthAfterTruncate
@@ -236,7 +236,7 @@ namespace Raven.Client.Documents.Operations.AI.Agents
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(1)
             {
                 [nameof(HistoryExpirationInSec)] = HistoryExpirationInSec
             };

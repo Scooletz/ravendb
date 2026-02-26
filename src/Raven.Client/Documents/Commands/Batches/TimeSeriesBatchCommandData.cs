@@ -82,7 +82,7 @@ namespace Raven.Client.Documents.Commands.Batches
 
         public DynamicJsonValue ToJson()
         {
-            var result = new DynamicJsonValue
+            var result = new DynamicJsonValue(3)
             {
                 [nameof(Id)] = Id,
                 [nameof(TimeSeries)] = TimeSeries.ToJson(),

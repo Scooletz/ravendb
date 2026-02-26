@@ -13,7 +13,7 @@ namespace Raven.Client.Documents.Operations.Replication
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(2)
             {
                 [nameof(Definition)] = Definition.ToJson(),
                 [nameof(OngoingTasks)] = new DynamicJsonArray(OngoingTasks.Select(x => x.ToJson()))

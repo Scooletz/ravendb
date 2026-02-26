@@ -161,7 +161,7 @@ namespace Raven.Client.ServerWide.Operations.Migration
         }
         
         public DynamicJsonValue ToAuditJson() =>
-            new()
+            new(11)
             {
                 [nameof(DataDirectory)] = DataDirectory,
                 [nameof(OutputFilePath)] = OutputFilePath,

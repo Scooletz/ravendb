@@ -189,7 +189,7 @@ namespace Raven.Server.Documents.Handlers
         {
             await using (var writer = new AsyncBlittableJsonTextWriter(context, ResponseBodyStream()))
             {
-                context.Write(writer, new DynamicJsonValue
+                context.Write(writer, new DynamicJsonValue(2)
                 {
                     ["Results"] = new DynamicJsonArray(debugItems),
                     ["DatabaseChangeVector"] = DocumentsStorage.GetFullDatabaseChangeVector(context)

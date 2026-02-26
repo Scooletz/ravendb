@@ -310,7 +310,7 @@ namespace Raven.Server.Commercial
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(48)
             {
                 [nameof(Id)] = Id?.ToString(),
                 [nameof(LicensedTo)] = LicensedTo,

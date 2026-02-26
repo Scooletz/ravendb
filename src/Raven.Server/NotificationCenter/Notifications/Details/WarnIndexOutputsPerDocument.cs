@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Sparrow.Json.Parsing;
 using System.Collections.Generic;
 
@@ -26,7 +26,7 @@ namespace Raven.Server.NotificationCenter.Notifications.Details
         
         public DynamicJsonValue ToJson()
         {
-            var djv = new DynamicJsonValue();
+            var djv = new DynamicJsonValue(0);
             foreach (var key in Warnings.Keys)
             {
                 var queue = Warnings[key];
@@ -36,7 +36,7 @@ namespace Raven.Server.NotificationCenter.Notifications.Details
                 var list = new DynamicJsonArray();
                 foreach (var details in queue)
                 {
-                    list.Add(new DynamicJsonValue
+                    list.Add(new DynamicJsonValue(5)
                     {
                         [nameof(WarningDetails.NumberOfExceedingDocuments)] = details.NumberOfExceedingDocuments,
                         [nameof(WarningDetails.SampleDocumentId)] = details.SampleDocumentId,

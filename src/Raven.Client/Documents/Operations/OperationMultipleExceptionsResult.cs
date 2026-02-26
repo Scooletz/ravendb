@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Linq;
 using Sparrow.Json.Parsing;
 
@@ -22,7 +22,7 @@ public sealed class OperationMultipleExceptionsResult : IOperationResult
 
     public DynamicJsonValue ToJson()
     {
-        return new DynamicJsonValue()
+        return new DynamicJsonValue(2)
         {
             [nameof(Message)] = Message,
             [nameof(Exceptions)] = new DynamicJsonArray(Exceptions.Select(x => x.ToJson()))

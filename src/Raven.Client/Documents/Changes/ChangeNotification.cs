@@ -17,7 +17,7 @@ namespace Raven.Client.Documents.Changes
             Debug.Assert(string.IsNullOrEmpty(Url) == false, "string.IsNullOrEmpty(Url) == false");
             Debug.Assert(string.IsNullOrEmpty(Database) == false, "string.IsNullOrEmpty(Database) == false");
 
-            return new DynamicJsonValue
+            return new DynamicJsonValue(2)
             {
                 [nameof(Url)] = Url,
                 [nameof(Database)] = Database
@@ -86,7 +86,7 @@ namespace Raven.Client.Documents.Changes
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(4)
             {
                 [nameof(Type)] = Type.ToString(),
                 [nameof(Id)] = Id,
@@ -200,7 +200,7 @@ namespace Raven.Client.Documents.Changes
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(6)
             {
                 [nameof(Name)] = Name,
                 [nameof(Value)] = Value,
@@ -290,7 +290,7 @@ namespace Raven.Client.Documents.Changes
             if (To != DateTime.MaxValue)
                 to = To;
 
-            return new DynamicJsonValue
+            return new DynamicJsonValue(7)
             {
                 [nameof(Name)] = Name,
                 [nameof(From)] = from,
@@ -344,7 +344,7 @@ namespace Raven.Client.Documents.Changes
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(2)
             {
                 [nameof(Name)] = Name,
                 [nameof(Type)] = Type.ToString()
@@ -382,7 +382,7 @@ namespace Raven.Client.Documents.Changes
 
         public virtual DynamicJsonValue ToJson()
         {
-            var json = new DynamicJsonValue
+            var json = new DynamicJsonValue(6)
             {
                 [nameof(TrafficWatchType)] = TrafficWatchType,
                 [nameof(TimeStamp)] = TimeStamp,

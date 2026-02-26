@@ -118,7 +118,7 @@ namespace Raven.Client.Documents.Operations.TimeSeries
 
             public DynamicJsonValue ToJson()
             {
-                return new DynamicJsonValue
+                return new DynamicJsonValue(4)
                 {
                     [nameof(Collection)] = Collection,
                     [nameof(TimeSeries)] = TimeSeries,

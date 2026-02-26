@@ -10,7 +10,7 @@ public sealed class ShardBucketRange
 
     public DynamicJsonValue ToJson()
     {
-        return new DynamicJsonValue
+        return new DynamicJsonValue(2)
         {
             [nameof(BucketRangeStart)] = BucketRangeStart, 
             [nameof(ShardNumber)] = ShardNumber

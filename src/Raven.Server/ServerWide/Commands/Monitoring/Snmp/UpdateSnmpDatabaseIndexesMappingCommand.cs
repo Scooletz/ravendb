@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using Raven.Client.ServerWide;
 using Raven.Server.ServerWide.Context;
 using Sparrow.Json;
@@ -46,7 +46,7 @@ namespace Raven.Server.ServerWide.Commands.Monitoring.Snmp
             if (previousValue != null)
             {
                 if (previousValue.Modifications == null)
-                    previousValue.Modifications = new DynamicJsonValue();
+                    previousValue.Modifications = new DynamicJsonValue(0);
 
                 AddIndexesIfNecessary(previousValue.Modifications, previousValue, Indexes);
 
@@ -58,7 +58,7 @@ namespace Raven.Server.ServerWide.Commands.Monitoring.Snmp
                 return new UpdatedValue(UpdatedValueActionType.Update, context.ReadObject(previousValue, GetItemId()));
             }
 
-            var djv = new DynamicJsonValue();
+            var djv = new DynamicJsonValue(0);
             AddIndexesIfNecessary(djv, null, Indexes);
 
             return new UpdatedValue(UpdatedValueActionType.Update, context.ReadObject(djv, GetItemId()));

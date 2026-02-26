@@ -41,7 +41,7 @@ public abstract class TransactionMergedCommand : DocumentMergedTransactionComman
             return;
         
         // Make sure all the metadata fields are always been add
-        var putReply = new DynamicJsonValue
+        var putReply = new DynamicJsonValue(1)
         {
             ["Type"] = nameof(CommandType.PUT),
             [Constants.Documents.Metadata.Id] = putResult.Id,
@@ -69,7 +69,7 @@ public abstract class TransactionMergedCommand : DocumentMergedTransactionComman
         if (IncludeReply == false) 
             return;
 
-        var reply = new DynamicJsonValue
+        var reply = new DynamicJsonValue(3)
         {
             [nameof(BatchRequestParser.CommandData.Id)] = id,
             [nameof(BatchRequestParser.CommandData.Type)] = nameof(CommandType.DELETE),
@@ -99,7 +99,7 @@ public abstract class TransactionMergedCommand : DocumentMergedTransactionComman
         if (IncludeReply == false)
             return;
 
-        Reply.Add(new DynamicJsonValue
+        Reply.Add(new DynamicJsonValue(3)
         {
             [nameof(BatchRequestParser.CommandData.Id)] = id,
             [nameof(BatchRequestParser.CommandData.Type)] = nameof(CommandType.DELETE),

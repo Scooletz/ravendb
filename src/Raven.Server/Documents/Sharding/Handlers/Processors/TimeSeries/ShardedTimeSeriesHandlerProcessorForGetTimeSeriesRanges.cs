@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -83,7 +83,7 @@ namespace Raven.Server.Documents.Sharding.Handlers.Processors.TimeSeries
 
                 foreach (var (rangeResult, includesHs) in rangeResultToIncludes)
                 {
-                    rangeResult.Includes ??= context.ReadObject(new DynamicJsonValue(), includesDocId);
+                    rangeResult.Includes ??= context.ReadObject(new DynamicJsonValue(0), includesDocId);
                     var mods = new DynamicJsonValue(rangeResult.Includes);
                     rangeResult.MissingIncludes = null;
 

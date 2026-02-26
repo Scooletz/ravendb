@@ -218,7 +218,7 @@ namespace Raven.Client.Documents.Operations.TimeSeries
 
         public DynamicJsonValue ToJson()
         {
-            var config = new DynamicJsonValue
+            var config = new DynamicJsonValue(2)
             {
                 [nameof(RawPolicy)] = RawPolicy?.ToJson(),
                 [nameof(Disabled)] = Disabled
@@ -310,7 +310,7 @@ namespace Raven.Client.Documents.Operations.TimeSeries
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(3)
             {
                 [nameof(Name)] = Name,
                 [nameof(RetentionTime)] = RetentionTime,

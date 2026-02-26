@@ -71,7 +71,7 @@ public class ValidateDocumentResult : IDynamicJson
 
     public DynamicJsonValue ToJson()
     {
-        return new DynamicJsonValue
+        return new DynamicJsonValue(2)
         {
             [nameof(Status)] = Status.ToString(),
             [nameof(ErrorMessages)] = ErrorMessages

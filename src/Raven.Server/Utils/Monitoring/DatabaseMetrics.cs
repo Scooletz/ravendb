@@ -18,7 +18,7 @@ namespace Raven.Server.Utils.Monitoring
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(8)
             {
                 [nameof(DatabaseName)] = DatabaseName,
                 [nameof(DatabaseId)] = DatabaseId,
@@ -44,7 +44,7 @@ namespace Raven.Server.Utils.Monitoring
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(7)
             {
                 [nameof(DocPutsPerSec)] = DocPutsPerSec,
                 [nameof(MapIndexIndexesPerSec)] = MapIndexIndexesPerSec,
@@ -70,7 +70,7 @@ namespace Raven.Server.Utils.Monitoring
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(8)
             {
                 [nameof(Documents)] = Documents,
                 [nameof(Revisions)] = Revisions,
@@ -97,7 +97,7 @@ namespace Raven.Server.Utils.Monitoring
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(8)
             {
                 [nameof(Count)] = Count,
                 [nameof(StaleCount)] = StaleCount,
@@ -127,7 +127,7 @@ namespace Raven.Server.Utils.Monitoring
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(11)
             {
                 [nameof(DocumentsAllocatedDataFileInMb)] = DocumentsAllocatedDataFileInMb,
                 [nameof(DocumentsUsedDataFileInMb)] = DocumentsUsedDataFileInMb,
@@ -153,7 +153,7 @@ namespace Raven.Server.Utils.Monitoring
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(3)
             {
                 [nameof(PublicServerUrl)] = PublicServerUrl,
                 [nameof(NodeTag)] = NodeTag,

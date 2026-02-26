@@ -41,7 +41,7 @@ public sealed class DelayBackupCommand : UpdateValueForDatabaseCommand
     {
         if (existingValue != null)
         {
-            existingValue.Modifications = new DynamicJsonValue
+            existingValue.Modifications = new DynamicJsonValue(2)
             {
                 [nameof(DelayUntil)] = DelayUntil,
                 [nameof(OriginalBackupTime)] = OriginalBackupTime

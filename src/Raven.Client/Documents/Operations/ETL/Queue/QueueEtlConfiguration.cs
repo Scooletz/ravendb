@@ -92,7 +92,7 @@ namespace Raven.Client.Documents.Operations.ETL.Queue
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(2)
             {
                 [nameof(Name)] = Name,
                 [nameof(DeleteProcessedDocuments)] = DeleteProcessedDocuments

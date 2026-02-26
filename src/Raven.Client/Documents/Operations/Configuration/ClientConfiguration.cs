@@ -59,7 +59,7 @@ namespace Raven.Client.Documents.Operations.Configuration
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(7)
             {
                 [nameof(Disabled)] = Disabled,
                 [nameof(Etag)] = Etag,

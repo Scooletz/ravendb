@@ -81,7 +81,7 @@ namespace Raven.Server.Monitoring.Snmp
             {
                 await using (var writer = new AsyncBlittableJsonTextWriter(context, ResponseBodyStream()))
                 {
-                    var djv = new DynamicJsonValue
+                    var djv = new DynamicJsonValue(3)
                     {
                         [nameof(SnmpOids.Server)] = SnmpOids.Server.ToJson(),
                         [nameof(SnmpOids.Cluster)] = SnmpOids.Cluster.ToJson(),

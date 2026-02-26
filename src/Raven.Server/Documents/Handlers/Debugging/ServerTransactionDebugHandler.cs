@@ -28,7 +28,7 @@ namespace Raven.Server.Documents.Handlers.Debugging
             using (Server.ServerStore.ContextPool.AllocateOperationContext(out JsonOperationContext context))
             await using (var writer = new AsyncBlittableJsonTextWriterForDebug(context, ServerStore, ResponseBodyStream()))
             {
-                context.Write(writer, new DynamicJsonValue
+                context.Write(writer, new DynamicJsonValue(0)
                 {
                     ["tx-info"] = TransactionDebugHandler.ToJson(results)
                 });

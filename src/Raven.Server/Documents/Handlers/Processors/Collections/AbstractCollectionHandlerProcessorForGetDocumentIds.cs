@@ -37,7 +37,7 @@ namespace Raven.Server.Documents.Handlers.Processors.Collections
                 var ids = await GetCollectionIdsAsync(name, start, pageSize, token.Token);
                 using (ContextPool.AllocateOperationContext(out JsonOperationContext context))
                 {
-                    var results = context.ReadObject(new DynamicJsonValue
+                    var results = context.ReadObject(new DynamicJsonValue(1)
                     {
                         ["Results"] = ids
                     },"get-ids");

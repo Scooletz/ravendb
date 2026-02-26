@@ -13,7 +13,7 @@ public class QueueSinkProcessState : IDatabaseTaskStatus
     
     public DynamicJsonValue ToJson()
     {
-        var json = new DynamicJsonValue
+        var json = new DynamicJsonValue(3)
         {
             [nameof(ConfigurationName)] = ConfigurationName,
             [nameof(ScriptName)] = ScriptName,

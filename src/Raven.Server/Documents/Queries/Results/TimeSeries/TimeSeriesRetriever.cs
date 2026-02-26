@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -899,7 +899,7 @@ namespace Raven.Server.Documents.Queries.Results.TimeSeries
                 results.Add(value);
                 count += GetCount(type, value);
             }
-            var result = new DynamicJsonValue
+            var result = new DynamicJsonValue(2)
             {
                 [nameof(TimeSeriesQueryResult.Count)] = count,
                 [nameof(TimeSeriesAggregationResult.Results)] = results
@@ -907,7 +907,7 @@ namespace Raven.Server.Documents.Queries.Results.TimeSeries
 
             if (addProjectionToResult)
             {
-                result[Constants.Documents.Metadata.Key] = new DynamicJsonValue
+                result[Constants.Documents.Metadata.Key] = new DynamicJsonValue(0)
                 {
                     [Constants.Documents.Metadata.Projection] = true
                 };

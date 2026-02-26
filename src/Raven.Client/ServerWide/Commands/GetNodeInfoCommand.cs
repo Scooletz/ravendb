@@ -27,7 +27,7 @@ namespace Raven.Client.ServerWide.Commands
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(14)
             {
                 [nameof(NodeTag)] = NodeTag,
                 [nameof(TopologyId)] = TopologyId,

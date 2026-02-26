@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Raven.Client.Extensions;
@@ -120,7 +120,7 @@ namespace Raven.Client.Documents.Attachments
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(5)
             {
                 [nameof(Destinations)] = Destinations.ToJson(),
                 [nameof(CheckFrequencyInSec)] = CheckFrequencyInSec,
@@ -136,14 +136,14 @@ namespace Raven.Client.Documents.Attachments
 
             if (Destinations != null)
             {
-                destinations = new DynamicJsonValue();
+                destinations = new DynamicJsonValue(0);
                 foreach (var kvp in Destinations)
                 {
                     destinations[kvp.Key] = kvp.Value?.ToStudioJson();
                 }
             }
 
-            return new DynamicJsonValue
+            return new DynamicJsonValue(2)
             {
                 [nameof(Disabled)] = Disabled,
                 [nameof(Destinations)] = destinations

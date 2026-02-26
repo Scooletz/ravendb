@@ -107,7 +107,7 @@ namespace Raven.Server.Documents.Queries
                 return _asJson;
             }
 
-            var djv = new DynamicJsonValue
+            var djv = new DynamicJsonValue(1)
             {
                 [nameof(Query)] = Query
             };

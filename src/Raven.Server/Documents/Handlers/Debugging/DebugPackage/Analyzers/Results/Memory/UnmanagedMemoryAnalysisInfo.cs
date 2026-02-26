@@ -16,7 +16,7 @@ public class UnmanagedMemoryAnalysisInfo : IDynamicJson
     public List<ThreadAllocations> ThreadAllocations { get; set; }
     public DynamicJsonValue ToJson()
     {
-        return new DynamicJsonValue
+        return new DynamicJsonValue(7)
         {
             [nameof(UnmanagedAllocations)] = UnmanagedAllocations,
             [nameof(LuceneUnmanagedAllocationsForTermCache)] = LuceneUnmanagedAllocationsForTermCache,

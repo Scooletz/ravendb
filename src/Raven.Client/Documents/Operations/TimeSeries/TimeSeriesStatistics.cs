@@ -18,7 +18,7 @@ namespace Raven.Client.Documents.Operations.TimeSeries
         
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(2)
             {
                 [nameof(DocumentId)] = DocumentId,
                 [nameof(TimeSeries)] = new DynamicJsonArray(TimeSeries.Select(x => x.ToJson()))
@@ -35,7 +35,7 @@ namespace Raven.Client.Documents.Operations.TimeSeries
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(4)
             {
                 [nameof(Name)] = Name,
                 [nameof(NumberOfEntries)] = NumberOfEntries,

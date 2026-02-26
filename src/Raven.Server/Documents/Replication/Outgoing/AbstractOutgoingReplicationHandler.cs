@@ -298,7 +298,7 @@ namespace Raven.Server.Documents.Replication.Outgoing
 
         private void SendDropMessage(JsonOperationContext context, BlittableJsonTextWriter writer, TcpConnectionHeaderResponse headerResponse)
         {
-            context.Write(writer, new DynamicJsonValue
+            context.Write(writer, new DynamicJsonValue(5)
             {
                 [nameof(TcpConnectionHeaderMessage.DatabaseName)] = Destination.Database,
                 [nameof(TcpConnectionHeaderMessage.Operation)] = TcpConnectionHeaderMessage.OperationTypes.Drop.ToString(),
@@ -457,7 +457,7 @@ namespace Raven.Server.Documents.Replication.Outgoing
 
         protected virtual DynamicJsonValue GetInitialHandshakeRequest()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(6)
             {
                 ["Type"] = "GetLastEtag",
                 [nameof(ReplicationLatestEtagRequest.SourceDatabaseName)] = _databaseName,
@@ -556,7 +556,7 @@ namespace Raven.Server.Documents.Replication.Outgoing
             {
                 try
                 {
-                    var heartbeat = new DynamicJsonValue
+                    var heartbeat = new DynamicJsonValue(3)
                     {
                         [nameof(ReplicationMessageHeader.Type)] = ReplicationMessageType.Heartbeat,
                         [nameof(ReplicationMessageHeader.LastDocumentEtag)] = _lastSentDocumentEtag,
@@ -793,7 +793,7 @@ namespace Raven.Server.Documents.Replication.Outgoing
 
         protected virtual DynamicJsonValue GetSendPreliminaryDataRequest()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(1)
             {
                 ["Type"] = nameof(ReplicationInitialRequest)
             };

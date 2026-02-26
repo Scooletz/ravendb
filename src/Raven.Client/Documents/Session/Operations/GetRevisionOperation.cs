@@ -222,7 +222,7 @@ namespace Raven.Client.Documents.Session.Operations
 
             public DynamicJsonValue ToJson()
             {
-                return new DynamicJsonValue
+                return new DynamicJsonValue(1)
                 {
                     [nameof(RevisionsCount)] = RevisionsCount
                 };

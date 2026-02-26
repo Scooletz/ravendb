@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
@@ -26,7 +26,7 @@ namespace Raven.Server.Commercial
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(8)
             {
                 [nameof(PublicServerUrl)] = PublicServerUrl,
                 [nameof(PublicTcpServerUrl)] = PublicTcpServerUrl,
@@ -225,7 +225,7 @@ namespace Raven.Server.Commercial
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(3)
             {
                 [nameof(NodeTag)] = NodeTag,
                 [nameof(RegisterClientCert)] = RegisterClientCert,
@@ -241,7 +241,7 @@ namespace Raven.Server.Commercial
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(2)
             {
                 [nameof(License)] = License.ToJson(),
                 [nameof(Domain)] = Domain
@@ -259,7 +259,7 @@ namespace Raven.Server.Commercial
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(5)
             {
                 [nameof(License)] = License.ToJson(),
                 [nameof(Domain)] = Domain,
@@ -277,7 +277,7 @@ namespace Raven.Server.Commercial
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(2)
             {
                 [nameof(Ips)] = new DynamicJsonArray(Ips),
                 [nameof(SubDomain)] = SubDomain,
@@ -297,7 +297,7 @@ namespace Raven.Server.Commercial
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(2)
             {
                 [nameof(SubDomain)] = SubDomain,
                 [nameof(Ips)] = new DynamicJsonArray(Ips)
@@ -313,7 +313,7 @@ namespace Raven.Server.Commercial
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(3)
             {
                 [nameof(UserDomainsWithIps)] = UserDomainsWithIps.ToJson(),
                 [nameof(MaxClusterSize)] = MaxClusterSize,
@@ -330,7 +330,7 @@ namespace Raven.Server.Commercial
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(3)
             {
                 [nameof(Emails)] = Emails,
                 [nameof(RootDomains)] = RootDomains,
@@ -347,7 +347,7 @@ namespace Raven.Server.Commercial
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(3)
             {
                 [nameof(Emails)] = Emails,
                 [nameof(RootDomains)] = RootDomains,
@@ -362,7 +362,7 @@ namespace Raven.Server.Commercial
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(1)
             {
                 [nameof(Status)] = Status
             };
@@ -438,7 +438,7 @@ namespace Raven.Server.Commercial
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue()
+            return new DynamicJsonValue(4)
             {
                 [nameof(State)] = State,
                 [nameof(ErrorType)] = ErrorType,
@@ -500,14 +500,14 @@ namespace Raven.Server.Commercial
 
         public DynamicJsonValue ToJson()
         {
-            var configurationStepsDjv = new DynamicJsonValue();
+            var configurationStepsDjv = new DynamicJsonValue(0);
 
             foreach (var kvp in StepsByConfigurationStepType)
             {
                 configurationStepsDjv[kvp.Key.ToString()] = kvp.Value.ToJson();
             }
             
-            return new DynamicJsonValue()
+            return new DynamicJsonValue(1)
             {
                 [nameof(StepsByConfigurationStepType)] = configurationStepsDjv
             };
@@ -604,7 +604,7 @@ namespace Raven.Server.Commercial
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(1)
             {
                 [nameof(Nodes)] = Nodes != null
                     ? new DynamicJsonArray(Nodes.Select(x => x.ToJson()))
@@ -618,7 +618,7 @@ namespace Raven.Server.Commercial
 
             public DynamicJsonValue ToJson()
             {
-                return new DynamicJsonValue
+                return new DynamicJsonValue(1)
                 {
                     [nameof(Tag)] = Tag
                 };

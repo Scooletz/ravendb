@@ -34,7 +34,7 @@ namespace Raven.Server.Utils.Monitoring
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(6)
             {
                 [nameof(CollectionName)] = CollectionName,
                 [nameof(DocumentsCount)] = DocumentsCount,
@@ -54,7 +54,7 @@ namespace Raven.Server.Utils.Monitoring
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(3)
             {
                 [nameof(PublicServerUrl)] = PublicServerUrl,
                 [nameof(NodeTag)] = NodeTag,
@@ -70,7 +70,7 @@ namespace Raven.Server.Utils.Monitoring
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(2)
             {
                 [nameof(DatabaseName)] = DatabaseName,
                 [nameof(Collections)] = Collections.Select(x => x.ToJson()).ToList()

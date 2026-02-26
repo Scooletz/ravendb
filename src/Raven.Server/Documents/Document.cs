@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using Raven.Client;
 using Raven.Server.ServerWide.Context;
@@ -81,7 +81,7 @@ namespace Raven.Server.Documents
             }
             Data.Modifications = new DynamicJsonValue(Data)
             {
-                [Constants.Documents.Metadata.Key] = (object)metadata ?? (mutatedMetadata = new DynamicJsonValue())
+                [Constants.Documents.Metadata.Key] = (object)metadata ?? (mutatedMetadata = new DynamicJsonValue(0))
             };
             mutatedMetadata[Constants.Documents.Metadata.Id] = Id;
             _hash = null;
@@ -104,7 +104,7 @@ namespace Raven.Server.Documents
 
             Data.Modifications = new DynamicJsonValue(Data)
             {
-                [Constants.Documents.Metadata.Key] = (object)metadata ?? (mutatedMetadata = new DynamicJsonValue())
+                [Constants.Documents.Metadata.Key] = (object)metadata ?? (mutatedMetadata = new DynamicJsonValue(0))
             };
 
             mutatedMetadata[Constants.Documents.Metadata.Id] = Id;
@@ -217,7 +217,7 @@ namespace Raven.Server.Documents
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(3)
             {
                 [nameof(Distance)] = Distance,
                 [nameof(Latitude)] = Latitude,

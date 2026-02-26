@@ -28,7 +28,7 @@ public sealed class LogFilter : IDynamicJson
 
     public DynamicJsonValue ToJson()
     {
-        return new DynamicJsonValue
+        return new DynamicJsonValue(4)
         {
             [nameof(MinLevel)] = MinLevel,
             [nameof(MaxLevel)] = MaxLevel,

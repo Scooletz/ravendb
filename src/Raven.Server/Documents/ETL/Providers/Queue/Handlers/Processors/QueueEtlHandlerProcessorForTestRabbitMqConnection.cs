@@ -49,7 +49,7 @@ namespace Raven.Server.Documents.ETL.Providers.Queue.Handlers.Processors
                     await using (var writer = new AsyncBlittableJsonTextWriter(context, RequestHandler.ResponseBodyStream()))
                     {
                         context.Write(writer,
-                            new DynamicJsonValue
+                            new DynamicJsonValue(2)
                             {
                                 [nameof(NodeConnectionTestResult.Success)] = false,
                                 [nameof(NodeConnectionTestResult.Error)] = ex.ToString()

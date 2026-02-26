@@ -46,7 +46,7 @@ namespace Raven.Client.ServerWide.Operations
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(5)
             {
                 [nameof(ProductVersion)] = ProductVersion,
                 [nameof(BuildVersion)] = BuildVersion,

@@ -104,7 +104,7 @@ namespace Raven.Server.Documents.Replication.ReplicationItems
 
         public virtual DynamicJsonValue ToDebugJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(6)
             {
                 [nameof(Type)] = Type,
                 [nameof(Size)] = Size,

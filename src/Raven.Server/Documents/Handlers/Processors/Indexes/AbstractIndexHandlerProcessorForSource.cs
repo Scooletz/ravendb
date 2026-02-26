@@ -42,7 +42,7 @@ internal abstract class AbstractIndexHandlerProcessorForSource<TRequestHandler, 
         using (ContextPool.AllocateOperationContext(out JsonOperationContext context))
         await using (var writer = new AsyncBlittableJsonTextWriter(context, RequestHandler.ResponseBodyStream()))
         {
-            context.Write(writer, new DynamicJsonValue
+            context.Write(writer, new DynamicJsonValue(2)
             {
                 ["Index"] = index.Name,
                 ["Source"] = source

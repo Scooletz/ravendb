@@ -14,7 +14,7 @@ namespace Raven.Client.ServerWide
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(4)
             {
                 [nameof(DatabaseName)] = DatabaseName,
                 [nameof(Documents)] = Documents,

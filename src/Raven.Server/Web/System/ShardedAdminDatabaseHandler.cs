@@ -92,7 +92,7 @@ namespace Raven.Server.Web.System
 
                 await using (var writer = new AsyncBlittableJsonTextWriter(context, ResponseBodyStream()))
                 {
-                    context.Write(writer, new DynamicJsonValue
+                    context.Write(writer, new DynamicJsonValue(3)
                     {
                         [nameof(ModifyOrchestratorTopologyResult.Name)] = name,
                         [nameof(ModifyOrchestratorTopologyResult.OrchestratorTopology)] = topology.ToJson(),
@@ -180,7 +180,7 @@ namespace Raven.Server.Web.System
 
                 await using (var writer = new AsyncBlittableJsonTextWriter(context, ResponseBodyStream()))
                 {
-                    context.Write(writer, new DynamicJsonValue
+                    context.Write(writer, new DynamicJsonValue(3)
                     {
                         [nameof(ModifyOrchestratorTopologyResult.Name)] = name,
                         [nameof(ModifyOrchestratorTopologyResult.OrchestratorTopology)] = topology.ToJson(),
@@ -336,7 +336,7 @@ namespace Raven.Server.Web.System
 
                 await using (var writer = new AsyncBlittableJsonTextWriter(context, ResponseBodyStream()))
                 {
-                    context.Write(writer, new DynamicJsonValue
+                    context.Write(writer, new DynamicJsonValue(4)
                     {
                         [nameof(AddDatabaseShardResult.Name)] = database,
                         [nameof(AddDatabaseShardResult.ShardNumber)] = newChosenShardNumber,

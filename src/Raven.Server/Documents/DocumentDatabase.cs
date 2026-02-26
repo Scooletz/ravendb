@@ -1299,7 +1299,7 @@ namespace Raven.Server.Documents
             ForTestingPurposes?.DisposeLog?.Invoke(Name, "Generating offline database info: indexesStatus.");
             var indexesStatus = IndexStore.Status.ToString();
 
-            var databaseInfo = new DynamicJsonValue
+            var databaseInfo = new DynamicJsonValue(21)
             {
                 [nameof(ExtendedDatabaseInfo.HasRevisionsConfiguration)] = DocumentsStorage.RevisionsStorage.Configuration != null,
                 [nameof(ExtendedDatabaseInfo.HasExpirationConfiguration)] = (ExpiredDocumentsCleaner?.ExpirationConfiguration?.Disabled ?? true) == false,
@@ -1309,12 +1309,12 @@ namespace Raven.Server.Documents
                 [nameof(ExtendedDatabaseInfo.IsEncrypted)] = DocumentsStorage.Environment.Options.Encryption.IsEnabled,
                 [nameof(ExtendedDatabaseInfo.Name)] = Name,
                 [nameof(ExtendedDatabaseInfo.Disabled)] = false, //TODO: this value should be overwritten by the studio since it is cached
-                [nameof(ExtendedDatabaseInfo.TotalSize)] = new DynamicJsonValue
+                [nameof(ExtendedDatabaseInfo.TotalSize)] = new DynamicJsonValue(2)
                 {
                     [nameof(Size.HumaneSize)] = sizeOnDisk.Data.HumaneSize,
                     [nameof(Size.SizeInBytes)] = sizeOnDisk.Data.SizeInBytes
                 },
-                [nameof(ExtendedDatabaseInfo.TempBuffersSize)] = new DynamicJsonValue
+                [nameof(ExtendedDatabaseInfo.TempBuffersSize)] = new DynamicJsonValue(2)
                 {
                     [nameof(Size.HumaneSize)] = "0 Bytes",
                     [nameof(Size.SizeInBytes)] = 0

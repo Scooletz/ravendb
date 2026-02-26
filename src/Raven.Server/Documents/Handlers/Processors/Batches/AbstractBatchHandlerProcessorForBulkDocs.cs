@@ -105,7 +105,7 @@ internal abstract class AbstractBatchHandlerProcessorForBulkDocs<TBatchCommand, 
 
                     await using (var writer = new AsyncBlittableJsonTextWriter(context, RequestHandler.ResponseBodyStream(), token.Token))
                     {
-                        context.Write(writer, new DynamicJsonValue
+                        context.Write(writer, new DynamicJsonValue(2)
                         {
                             [nameof(BatchCommandResult.Results)] = result.Results,
                             [nameof(BatchCommandResult.TransactionIndex)] = result.Index
@@ -137,7 +137,7 @@ internal abstract class AbstractBatchHandlerProcessorForBulkDocs<TBatchCommand, 
 
                 await using (var writer = new AsyncBlittableJsonTextWriter(context, RequestHandler.ResponseBodyStream(), token.Token))
                 {
-                    context.Write(writer, new DynamicJsonValue
+                    context.Write(writer, new DynamicJsonValue(1)
                     {
                         [nameof(BatchCommandResult.Results)] = results
                     });

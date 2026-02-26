@@ -8,7 +8,7 @@ namespace Raven.Client.ServerWide.Tcp
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(1)
             {
                 [nameof(DataCompression)] = DataCompression
             };

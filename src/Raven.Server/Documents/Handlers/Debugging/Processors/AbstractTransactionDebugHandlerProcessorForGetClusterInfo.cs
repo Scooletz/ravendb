@@ -26,7 +26,7 @@ namespace Raven.Server.Documents.Handlers.Debugging.Processors
             using (context.OpenReadTransaction())
             await using (var writer = new AsyncBlittableJsonTextWriterForDebug(context, ServerStore, RequestHandler.ResponseBodyStream()))
             {
-                context.Write(writer, new DynamicJsonValue
+                context.Write(writer, new DynamicJsonValue(1)
                 {
                     ["Results"] = new DynamicJsonArray(ClusterTransactionCommand.ReadCommandsBatch(context, RequestHandler.DatabaseName, fromCount: from, take: take))
                 });

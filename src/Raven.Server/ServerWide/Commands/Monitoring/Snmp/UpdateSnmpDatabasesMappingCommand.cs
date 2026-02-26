@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using Raven.Client;
 using Sparrow.Json;
 using Sparrow.Json.Parsing;
@@ -31,7 +31,7 @@ namespace Raven.Server.ServerWide.Commands.Monitoring.Snmp
             if (previousValue != null)
             {
                 if (previousValue.Modifications == null)
-                    previousValue.Modifications = new DynamicJsonValue();
+                    previousValue.Modifications = new DynamicJsonValue(0);
 
                 AddDatabasesIfNecessary(previousValue.Modifications, previousValue, Value);
 
@@ -41,7 +41,7 @@ namespace Raven.Server.ServerWide.Commands.Monitoring.Snmp
                 return context.ReadObject(previousValue, Name);
             }
 
-            var djv = new DynamicJsonValue();
+            var djv = new DynamicJsonValue(0);
 
             AddDatabasesIfNecessary(djv, null, Value);
 

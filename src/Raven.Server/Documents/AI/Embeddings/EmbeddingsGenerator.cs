@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
@@ -656,10 +656,10 @@ public class EmbeddingsGenerator(DocumentDatabase database, RavenLogger logger, 
         
         private DynamicJsonValue CreateEmbeddingCacheDocumentJson(DateTime expireAt, string val)
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(1)
             {
                 ["Value"] = val,
-                [Constants.Documents.Metadata.Key] = new DynamicJsonValue
+                [Constants.Documents.Metadata.Key] = new DynamicJsonValue(0)
                 {
                     [Constants.Documents.Metadata.Collection] = Constants.Documents.Collections.EmbeddingsCacheCollection,
                     [Constants.Documents.Metadata.Expires] = expireAt
@@ -903,16 +903,16 @@ public class EmbeddingsGenerator(DocumentDatabase database, RavenLogger logger, 
                 }
                 else
                 {
-                    modifications = new DynamicJsonValue
+                    modifications = new DynamicJsonValue(0)
                     {
-                        [Constants.Documents.Metadata.Key] = new DynamicJsonValue()
+                        [Constants.Documents.Metadata.Key] = new DynamicJsonValue(0)
                         {
                             [Constants.Documents.Metadata.Collection] = EmbeddingsHelper.GetEmbeddingDocumentCollectionName(pde.Collection),
                         }
                     };
                 }
 
-                var djv = new DynamicJsonValue
+                var djv = new DynamicJsonValue(0)
                 {
                     [Constants.Documents.Metadata.Quantization] = pde.Quantization
                 };

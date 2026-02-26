@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using Newtonsoft.Json;
 using Raven.Client.Documents.Conventions;
 using Sparrow.Json;
@@ -80,7 +80,7 @@ namespace Raven.Client.Documents.Queries.Timings
 
         public DynamicJsonValue ToJson()
         {
-            DynamicJsonValue djv = new DynamicJsonValue
+            DynamicJsonValue djv = new DynamicJsonValue(2)
             {
                 [nameof(DurationInMs)] = DurationInMs,
                 [nameof(Timings)] = InnerToJson(Timings)
@@ -90,12 +90,12 @@ namespace Raven.Client.Documents.Queries.Timings
 
             DynamicJsonValue InnerToJson(IDictionary<string, QueryTimings> queryTimings)
             {
-                DynamicJsonValue json = new DynamicJsonValue();
+                DynamicJsonValue json = new DynamicJsonValue(0);
                 if (queryTimings == null)
                     return null;
                 foreach (var kvp in queryTimings)
                 {
-                    DynamicJsonValue innerJson = new DynamicJsonValue()
+                    DynamicJsonValue innerJson = new DynamicJsonValue(1)
                     {
                         [nameof(DurationInMs)] = kvp.Value.DurationInMs
                     };

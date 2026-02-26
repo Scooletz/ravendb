@@ -271,7 +271,7 @@ namespace Raven.Server.Web.Studio
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(7)
             {
                 [nameof(NodeTag)] = NodeTag,
                 [nameof(FullPath)] = FullPath,
@@ -295,7 +295,7 @@ namespace Raven.Server.Web.Studio
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(1)
             {
                 [nameof(List)] = TypeConverter.ToBlittableSupportedType(List)
             };

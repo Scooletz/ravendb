@@ -14,7 +14,7 @@ public sealed class OperationDescription
 
     public DynamicJsonValue ToJson()
     {
-        return new DynamicJsonValue
+        return new DynamicJsonValue(5)
         {
             [nameof(Description)] = Description,
             [nameof(TaskType)] = TaskType.ToString(),

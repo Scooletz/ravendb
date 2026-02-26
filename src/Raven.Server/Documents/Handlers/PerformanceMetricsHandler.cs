@@ -22,7 +22,7 @@ namespace Raven.Server.Documents.Handlers
 
             public DynamicJsonValue ToJson()
             {
-                return new DynamicJsonValue
+                return new DynamicJsonValue(1)
                 {
                     [nameof(PerfMetrics)] = new DynamicJsonArray(PerfMetrics.Select(x => x.ToJson()))
                 };

@@ -23,7 +23,7 @@ namespace Raven.Server.Web.System
             foreach (var database in GetEntriesForDebug().GroupBy(x => x.Query.Database))
             {
                 var indexesJson = new DynamicJsonArray();
-                entries.Add(new DynamicJsonValue { ["Database"] = database.Key, ["Indexes"] = indexesJson });
+                entries.Add(new DynamicJsonValue(0) { ["Database"] = database.Key, ["Indexes"] = indexesJson });
                 foreach (var index in database.GroupBy(x => x.Query.Index))
                 {
                     long totalIndexItems = 0, totalIndexSize = 0;
@@ -41,7 +41,7 @@ namespace Raven.Server.Web.System
                         totalIndexItems += queryItems;
                         totalIndexSize += querySize;
 
-                        queriesJson.Add(new DynamicJsonValue
+                        queriesJson.Add(new DynamicJsonValue(4)
                         {
                             ["Query"] = query.Key, 
                             ["Size"] = querySize, 
@@ -51,7 +51,7 @@ namespace Raven.Server.Web.System
                     }
 
 
-                    indexesJson.Add(new DynamicJsonValue
+                    indexesJson.Add(new DynamicJsonValue(5)
                     {
                         ["Index"] = index.Key,
                         ["Queries"] = queriesJson,
@@ -65,7 +65,7 @@ namespace Raven.Server.Web.System
                 }
             }
 
-            var result = new DynamicJsonValue { ["Summary"] = new DynamicJsonValue
+            var result = new DynamicJsonValue(0) { ["Summary"] = new DynamicJsonValue(0)
             {
                 ["Size"] = totalSize,
                 ["HumaneSize"] = new Size(totalSize, SizeUnit.Bytes).ToString(),

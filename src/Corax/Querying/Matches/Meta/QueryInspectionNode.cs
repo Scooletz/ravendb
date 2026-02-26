@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using Sparrow.Json.Parsing;
 
@@ -28,7 +28,7 @@ namespace Corax.Querying.Matches.Meta
                     children.Add(child.ToJson());
                 }
             }
-            var parameters = new DynamicJsonValue();
+            var parameters = new DynamicJsonValue(0);
             if (Parameters != null)
             {
                 foreach (var (k,v) in Parameters)
@@ -36,7 +36,7 @@ namespace Corax.Querying.Matches.Meta
                     parameters[k] = v;
                 }
             }
-            return new DynamicJsonValue
+            return new DynamicJsonValue(3)
             {
                 [nameof(Operation)] = Operation,
                 [nameof(Children)] = children,

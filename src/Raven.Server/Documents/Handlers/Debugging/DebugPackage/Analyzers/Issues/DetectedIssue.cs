@@ -28,7 +28,7 @@ public class DetectedIssue : IDynamicJson
     public string RecommendedAction { get; set; }
     public DynamicJsonValue ToJson()
     {
-        return new DynamicJsonValue
+        return new DynamicJsonValue(5)
         {
             [nameof(Title)] = Title,
             [nameof(Description)] = Description,

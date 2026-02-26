@@ -26,7 +26,7 @@ namespace Raven.Server.Web.Studio.Processors
 
                 await using (var writer = new AsyncBlittableJsonTextWriter(context, RequestHandler.ResponseBodyStream()))
                 {
-                    context.Write(writer, new DynamicJsonValue
+                    context.Write(writer, new DynamicJsonValue(2)
                     {
                         [nameof(ConflictResolverAdvisor.MergeResult.Document)] = resolved.Document,
                         [nameof(ConflictResolverAdvisor.MergeResult.Metadata)] = resolved.Metadata

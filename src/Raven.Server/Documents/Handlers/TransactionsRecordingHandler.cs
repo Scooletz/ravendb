@@ -33,7 +33,7 @@ namespace Raven.Server.Documents.Handlers
                     HttpContext.Response.StatusCode = (int)HttpStatusCode.BadRequest;
                     await using (var writer = new AsyncBlittableJsonTextWriter(context, ResponseBodyStream()))
                     {
-                        context.Write(writer, new DynamicJsonValue
+                        context.Write(writer, new DynamicJsonValue(2)
                         {
                             ["Type"] = "Error",
                             ["Error"] = "Transactions replay requires form content type"
@@ -213,7 +213,7 @@ namespace Raven.Server.Documents.Handlers
 
             public DynamicJsonValue ToJson()
             {
-                return new DynamicJsonValue
+                return new DynamicJsonValue(2)
                 {
                     [nameof(DatabaseName)] = DatabaseName,
                     [nameof(FilePath)] = FilePath

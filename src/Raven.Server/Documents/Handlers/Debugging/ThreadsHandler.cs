@@ -86,7 +86,7 @@ namespace Raven.Server.Documents.Handlers.Debugging
                         if (samplesCount == 1)
                         {
                             context.Write(writer,
-                                new DynamicJsonValue
+                                new DynamicJsonValue(0)
                                 {
                                     ["Runaway Threads"] = threadsInfos.First().ToJson()
                                 });
@@ -110,7 +110,7 @@ namespace Raven.Server.Documents.Handlers.Debugging
                     catch (Exception e)
                     {
                         context.Write(writer,
-                            new DynamicJsonValue
+                            new DynamicJsonValue(1)
                             {
                                 ["Error"] = e.ToString()
                             });

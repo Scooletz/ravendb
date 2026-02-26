@@ -74,7 +74,7 @@ namespace Raven.Server.ServerWide.Commands
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(1)
             {
                 [nameof(Urls)] = DynamicJsonValue.Convert(Urls)
             };
@@ -111,7 +111,7 @@ namespace Raven.Server.ServerWide.Commands
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(3)
             {
                 [nameof(PublicUrl)] = PublicUrl,
                 [nameof(PrivateUrl)] = PrivateUrl,

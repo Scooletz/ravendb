@@ -423,7 +423,7 @@ namespace Raven.Client.Documents.Operations.ETL
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(6)
             {
                 [nameof(Name)] = Name,
                 [nameof(Script)] = Script,

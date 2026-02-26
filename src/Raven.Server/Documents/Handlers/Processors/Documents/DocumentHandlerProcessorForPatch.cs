@@ -112,7 +112,7 @@ internal sealed class DocumentHandlerProcessorForPatch : AbstractDocumentHandler
 
                 writer.WritePropertyName(nameof(command.PatchResult.Debug));
 
-                context.Write(writer, new DynamicJsonValue
+                context.Write(writer, new DynamicJsonValue(2)
                 {
                     ["Info"] = new DynamicJsonArray(command.DebugOutput),
                     ["Actions"] = command.DebugActions

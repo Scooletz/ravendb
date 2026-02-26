@@ -372,7 +372,7 @@ namespace Raven.Server.Documents.Handlers
                         var timeFields = x._indexStorage.ReadIndexTimeFields();
                         var hasTimeFields = timeFields.Count > 0;
 
-                        return new DynamicJsonValue
+                        return new DynamicJsonValue(12)
                         {
                             [nameof(x.Name)] = x.Name,
                             [nameof(x.Definition.Version)] = x.Definition.Version,

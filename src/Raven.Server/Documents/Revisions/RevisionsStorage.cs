@@ -446,7 +446,7 @@ namespace Raven.Server.Documents.Revisions
 
             if (metadata.TryGet(Constants.Documents.Metadata.Counters, out BlittableJsonReaderArray counterNames))
             {
-                var djv = new DynamicJsonValue();
+                var djv = new DynamicJsonValue(0);
                 for (var i = 0; i < counterNames.Length; i++)
                 {
                     var counter = counterNames[i].ToString();
@@ -466,14 +466,14 @@ namespace Raven.Server.Documents.Revisions
 
             if (metadata.TryGet(Constants.Documents.Metadata.TimeSeries, out BlittableJsonReaderArray timeSeriesNames))
             {
-                var djv = new DynamicJsonValue();
+                var djv = new DynamicJsonValue(0);
                 for (var i = 0; i < timeSeriesNames.Length; i++)
                 {
                     var name = timeSeriesNames[i].ToString();
                     var (count, start, end) = _documentsStorage.TimeSeriesStorage.Stats.GetStats(context, id, name);
                     Debug.Assert(start == default || start.Kind == DateTimeKind.Utc);
 
-                    djv[name] = new DynamicJsonValue
+                    djv[name] = new DynamicJsonValue(3)
                     {
                         ["Count"] = count,
                         ["Start"] = start,
@@ -1522,9 +1522,9 @@ namespace Raven.Server.Documents.Revisions
         {
             using (DocumentIdWorker.GetStringPreserveCase(context, id, out Slice idPtr))
             {
-                var deleteRevisionDocument = context.ReadObject(new DynamicJsonValue
+                var deleteRevisionDocument = context.ReadObject(new DynamicJsonValue(0)
                 {
-                    [Constants.Documents.Metadata.Key] = new DynamicJsonValue
+                    [Constants.Documents.Metadata.Key] = new DynamicJsonValue(0)
                     {
                         [Constants.Documents.Metadata.Collection] = collectionName.Name
                     }
@@ -2279,9 +2279,9 @@ namespace Raven.Server.Documents.Revisions
         private unsafe void CreateDeletedRevision(DocumentsOperationContext context, Table table, string id, CollectionName collectionName,
             long lastModifiedTicks, DocumentFlags flags)
         {
-            var deleteRevisionDocument = context.ReadObject(new DynamicJsonValue
+            var deleteRevisionDocument = context.ReadObject(new DynamicJsonValue(0)
             {
-                [Constants.Documents.Metadata.Key] = new DynamicJsonValue
+                [Constants.Documents.Metadata.Key] = new DynamicJsonValue(0)
                 {
                     [Constants.Documents.Metadata.Collection] = collectionName.Name
                 }

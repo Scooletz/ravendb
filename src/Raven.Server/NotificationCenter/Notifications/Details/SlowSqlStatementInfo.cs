@@ -12,7 +12,7 @@ namespace Raven.Server.NotificationCenter.Notifications.Details
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(3)
             {
                 [nameof(Duration)] = Duration,
                 [nameof(Date)] = Date,

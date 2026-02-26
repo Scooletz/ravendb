@@ -483,7 +483,7 @@ namespace Raven.Server.Documents
 
                 public DynamicJsonValue ToJson()
                 {
-                    return new DynamicJsonValue { [nameof(Documents)] = Documents, [nameof(TimeSeries)] = TimeSeries, [nameof(Counters)] = Counters };
+                    return new DynamicJsonValue(0) { [nameof(Documents)] = Documents, [nameof(TimeSeries)] = TimeSeries, [nameof(Counters)] = Counters };
                 }
             }
 

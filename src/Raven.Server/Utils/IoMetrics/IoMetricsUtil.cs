@@ -143,7 +143,7 @@ namespace Raven.Server.Utils.IoMetrics
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(15)
             {
                 [nameof(Start)] = Start,
                 [nameof(End)] = End,
@@ -192,7 +192,7 @@ namespace Raven.Server.Utils.IoMetrics
             switch (Type)
             {
                 case Sparrow.Server.Meters.IoMetrics.MeterType.Compression:
-                    return new DynamicJsonValue
+                    return new DynamicJsonValue(9)
                     {
                         [nameof(Start)] = Start,
                         [nameof(IOMetricsRecentStatsAdditionalTypes.OriginalSize)] = Size,
@@ -205,7 +205,7 @@ namespace Raven.Server.Utils.IoMetrics
                         [nameof(Type)] = Type
                     };
                 default:
-                    return new DynamicJsonValue
+                    return new DynamicJsonValue(7)
                     {
                         [nameof(Start)] = Start,
                         [nameof(Size)] = Size,
@@ -240,7 +240,7 @@ namespace Raven.Server.Utils.IoMetrics
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(4)
             {
                 [nameof(File)] = File,
                 [nameof(Status)] = Status,
@@ -263,7 +263,7 @@ namespace Raven.Server.Utils.IoMetrics
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(3)
             {
                 [nameof(Path)] = Path,
                 [nameof(Type)] = Type,
@@ -285,7 +285,7 @@ namespace Raven.Server.Utils.IoMetrics
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(2)
             {
                 [nameof(Environments)] = new DynamicJsonArray(Environments.Select(x => x.ToJson())),
                 [nameof(Performances)] = new DynamicJsonArray(Performances.Select(x => x.ToJson()))

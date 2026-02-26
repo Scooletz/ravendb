@@ -53,7 +53,7 @@ namespace Raven.Client.ServerWide
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(3)
             {
                 [nameof(Index)] = Index,
                 [nameof(Term)] = Term,
@@ -421,7 +421,7 @@ namespace Raven.Client.ServerWide
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(12)
             {
                 [nameof(Members)] = new DynamicJsonArray(Members),
                 [nameof(Promotables)] = new DynamicJsonArray(Promotables),

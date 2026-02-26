@@ -221,20 +221,20 @@ namespace Raven.Server.Documents.Indexes.Debugging
                     for (int j = 0; j < node.EdgesByLevel[i].Length; j++)
                     {
                         (long NodeId, float Distance) = node.EdgesByLevel[i][j];
-                        lists.Add(new DynamicJsonValue
+                        lists.Add(new DynamicJsonValue(2)
                         {
                             [nameof(NodeId)] = NodeId,
                             [nameof(Distance)] = Distance
                         });
                     }
-                    edges.Add(new DynamicJsonValue
+                    edges.Add(new DynamicJsonValue(2)
                     {
                         ["Level"] = i,
                         ["Links"] = lists
                     });
                 }
 
-                var djv = new DynamicJsonValue
+                var djv = new DynamicJsonValue(3)
                 {
                     [nameof(node.NodeId)] = node.NodeId,
                     [nameof(node.Entries)] = node.Entries.Select(indexReader.GetDocumentIdFor),
@@ -424,7 +424,7 @@ namespace Raven.Server.Documents.Indexes.Debugging
                 var numberOfResults = *(int*)tvr.Read(ReduceMapResultsOfStaticIndex.NumberOfResultsPosition, out int _);
 
                 if (numberOfResults == 0)
-                    return context.ReadObject(new DynamicJsonValue(), "debug-reduce-result");
+                    return context.ReadObject(new DynamicJsonValue(0), "debug-reduce-result");
 
                 return new BlittableJsonReaderObject(tvr.Read(3, out int size), size, context);
             }
@@ -472,7 +472,7 @@ namespace Raven.Server.Documents.Indexes.Debugging
             using (index.DocumentDatabase.DocumentsStorage.ContextPool.AllocateOperationContext(out DocumentsOperationContext ctx))
             using (ctx.OpenReadTransaction())
             {
-                var queryParameters = context.ReadObject(new DynamicJsonValue
+                var queryParameters = context.ReadObject(new DynamicJsonValue(1)
                 {
                     ["p0"] = reduceKeyHash.ToString()
                 }, "query/parameters");
@@ -486,11 +486,11 @@ namespace Raven.Server.Documents.Indexes.Debugging
                     .ToList();
 
                 if (result.Count == 0)
-                    return context.ReadObject(new DynamicJsonValue(), "debug-reduce-result");
+                    return context.ReadObject(new DynamicJsonValue(0), "debug-reduce-result");
 
                 if (result.Count > 1)
                 {
-                    var dvj = new DynamicJsonValue
+                    var dvj = new DynamicJsonValue(3)
                     {
                         ["MergedResults"] = true,
                         ["TotalNumberOfResults"] = result.Count,

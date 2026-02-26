@@ -13,7 +13,7 @@ public class ServerLimitsDetails : INotificationDetails
 
     public DynamicJsonValue ToJson()
     {
-        var djv = new DynamicJsonValue();
+        var djv = new DynamicJsonValue(0);
 
         var dict = new DynamicJsonArray();
         djv[nameof(Limits)] = dict;
@@ -49,7 +49,7 @@ public class ServerLimitsDetails : INotificationDetails
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(5)
             {
                 [nameof(Value)] = Value,
                 [nameof(Max)] = Max,

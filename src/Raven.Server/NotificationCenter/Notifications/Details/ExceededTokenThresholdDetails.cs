@@ -96,7 +96,7 @@ namespace Raven.Server.NotificationCenter.Notifications.Details
 
             public DynamicJsonValue ToJson()
             {
-                var djv = new DynamicJsonValue
+                var djv = new DynamicJsonValue(4)
                 {
                     [nameof(Id)] = Id,
                     [nameof(Name)] = Name,

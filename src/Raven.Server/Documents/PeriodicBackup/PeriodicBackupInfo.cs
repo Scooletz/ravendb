@@ -25,7 +25,7 @@ internal sealed class PeriodicBackupInfo
 
     public DynamicJsonValue ToJson()
     {
-        return new DynamicJsonValue
+        return new DynamicJsonValue(8)
         {
             [nameof(Database)] = Database,
             [nameof(Name)] = Name,

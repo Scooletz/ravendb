@@ -18,7 +18,7 @@ namespace Raven.Server.SqlMigration.Schema
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(3)
             {
                 [nameof(Table)] = Table,
                 [nameof(Schema)] = Schema,

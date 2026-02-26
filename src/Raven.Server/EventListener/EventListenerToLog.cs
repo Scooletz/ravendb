@@ -100,7 +100,7 @@ public class EventListenerToLog : IDynamicJson
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(5)
             {
                 [nameof(EventListenerMode)] = Instance._configuration.EventListenerMode,
                 [nameof(EventTypes)] = Instance._configuration.EventTypes == null ? null : new DynamicJsonArray(Instance._configuration.EventTypes),

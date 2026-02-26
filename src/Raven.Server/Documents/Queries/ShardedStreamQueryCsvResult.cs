@@ -28,7 +28,7 @@ public sealed class ShardedStreamQueryCsvResult : StreamQueryResult<BlittableJso
             {
                 if (result.TryGet(_timeSeries, out BlittableJsonReaderArray arr))
                 {
-                    var djv = new DynamicJsonValue
+                    var djv = new DynamicJsonValue(0)
                     {
                         [Constants.Documents.Metadata.Id] = result.GetMetadata().GetId()
                     };

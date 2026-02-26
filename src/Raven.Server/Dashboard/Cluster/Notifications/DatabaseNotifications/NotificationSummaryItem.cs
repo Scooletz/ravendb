@@ -12,7 +12,7 @@ public class NotificationSummaryItem
     
     public DynamicJsonValue ToJson()
     {
-        return new DynamicJsonValue
+        return new DynamicJsonValue(3)
         {
             [nameof(Reason)] = Reason,
             [nameof(PrettifiedReason)] = PrettifiedReason,

@@ -155,10 +155,10 @@ public sealed class EmbeddingsGenerationConfiguration : AbstractAiIntegrationCon
         json[nameof(Identifier)] = Identifier;
         json[nameof(Collection)] = Collection;
         json[nameof(EmbeddingsPathConfigurations)] = new DynamicJsonArray(EmbeddingsPathConfigurations);
-        json[nameof(EmbeddingsTransformation)] = EmbeddingsTransformation != null ? new DynamicJsonValue
+        json[nameof(EmbeddingsTransformation)] = EmbeddingsTransformation != null ? new DynamicJsonValue(2)
         {
             [nameof(EmbeddingsTransformation.Script)] = EmbeddingsTransformation.Script,
-            [nameof(EmbeddingsTransformation.ChunkingOptions)] = new DynamicJsonValue()
+            [nameof(EmbeddingsTransformation.ChunkingOptions)] = new DynamicJsonValue(3)
             {
                 [nameof(ChunkingOptionsForQuerying.ChunkingMethod)] = EmbeddingsTransformation.ChunkingOptions.ChunkingMethod,
                 [nameof(ChunkingOptionsForQuerying.MaxTokensPerChunk)] = EmbeddingsTransformation.ChunkingOptions.MaxTokensPerChunk,

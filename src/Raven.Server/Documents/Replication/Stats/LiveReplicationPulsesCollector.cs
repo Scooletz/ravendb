@@ -76,7 +76,7 @@ namespace Raven.Server.Documents.Replication.Stats
 
             public DynamicJsonValue ToJson()
             {
-                return new DynamicJsonValue
+                return new DynamicJsonValue(6)
                 {
                     [nameof(OccurredAt)] = OccurredAt,
                     [nameof(Direction)] = Direction.ToString(),

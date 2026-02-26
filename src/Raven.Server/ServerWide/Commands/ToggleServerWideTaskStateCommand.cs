@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Raven.Client.Documents.Operations.OngoingTasks;
 using Raven.Client.ServerWide.Operations.Configuration;
 using Raven.Client.ServerWide.Operations.OngoingTasks;
@@ -35,9 +35,9 @@ namespace Raven.Server.ServerWide.Commands
                 throw new RachisApplyException($"Cannot find server wide task of type '{Value.Type}' with name '{Value.TaskName}'");
 
             if (task.Modifications == null)
-                task.Modifications = new DynamicJsonValue();
+                task.Modifications = new DynamicJsonValue(0);
 
-            task.Modifications = new DynamicJsonValue
+            task.Modifications = new DynamicJsonValue(0)
             {
                 [GetDisabledPropertyName()] = Value.Disable
             };
@@ -68,7 +68,7 @@ namespace Raven.Server.ServerWide.Commands
 
             public DynamicJsonValue ToJson()
             {
-                return new DynamicJsonValue
+                return new DynamicJsonValue(3)
                 {
                     [nameof(Type)] = Type,
                     [nameof(TaskName)] = TaskName,

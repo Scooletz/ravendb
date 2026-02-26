@@ -46,11 +46,11 @@ public sealed class AmazonSqsConnectionSettings
 
     public DynamicJsonValue ToJson()
     {
-        var json = new DynamicJsonValue
+        var json = new DynamicJsonValue(2)
         {
             [nameof(Basic)] = Basic == null
                 ? null
-                : new DynamicJsonValue
+                : new DynamicJsonValue(3)
                 {
                     [nameof(Basic.AccessKey)] = Basic?.AccessKey,
                     [nameof(Basic.SecretKey)] = Basic?.SecretKey,

@@ -397,7 +397,7 @@ namespace Raven.Server.NotificationCenter
 
             var typeEnumValue = (NotificationType)Bits.SwapBytes(type);
             
-            json.Modifications = new DynamicJsonValue
+            json.Modifications = new DynamicJsonValue(1)
             {
                 [nameof(Notification.Type)] = typeEnumValue
             };

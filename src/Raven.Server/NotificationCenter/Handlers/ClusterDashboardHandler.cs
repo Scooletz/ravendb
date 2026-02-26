@@ -153,7 +153,7 @@ namespace Raven.Server.NotificationCenter.Handlers
                 {
                     using (var writer = new BlittableJsonTextWriter(context, ms))
                     {
-                        context.Write(writer, new DynamicJsonValue { ["Type"] = "Error", ["Exception"] = ex.ToString() });
+                        context.Write(writer, new DynamicJsonValue(0) { ["Type"] = "Error", ["Exception"] = ex.ToString() });
                     }
 
                     ms.TryGetBuffer(out ArraySegment<byte> bytes);

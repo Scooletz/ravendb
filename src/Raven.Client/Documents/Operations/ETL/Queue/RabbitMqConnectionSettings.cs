@@ -1,4 +1,4 @@
-﻿using Sparrow.Json.Parsing;
+using Sparrow.Json.Parsing;
 
 namespace Raven.Client.Documents.Operations.ETL.Queue;
 
@@ -8,7 +8,7 @@ public sealed class RabbitMqConnectionSettings
     
     public DynamicJsonValue ToJson()
     {
-        var json = new DynamicJsonValue
+        var json = new DynamicJsonValue(1)
         {
             [nameof(ConnectionString)] = ConnectionString,
         };
@@ -18,7 +18,7 @@ public sealed class RabbitMqConnectionSettings
 
     public DynamicJsonValue ToAuditJson()
     {
-        return new DynamicJsonValue();
+        return new DynamicJsonValue(0);
     }
 
     private bool Equals(RabbitMqConnectionSettings other)

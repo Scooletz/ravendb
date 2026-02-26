@@ -71,7 +71,7 @@ namespace Raven.Client.ServerWide.Operations.Logs
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(9)
             {
                 [nameof(Path)] = Path,
                 [nameof(CurrentMinLevel)] = CurrentMinLevel,
@@ -102,7 +102,7 @@ namespace Raven.Client.ServerWide.Operations.Logs
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(6)
             {
                 [nameof(Path)] = Path,
                 [nameof(Level)] = Level,
@@ -122,7 +122,7 @@ namespace Raven.Client.ServerWide.Operations.Logs
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(2)
             {
                 [nameof(CurrentMinLevel)] = CurrentMinLevel,
                 [nameof(MinLevel)] = MinLevel
@@ -140,7 +140,7 @@ namespace Raven.Client.ServerWide.Operations.Logs
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(3)
             {
                 [nameof(CurrentMinLevel)] = CurrentMinLevel,
                 [nameof(CurrentFilters)] = new DynamicJsonArray(CurrentFilters.Select(x => x.ToJson())),

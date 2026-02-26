@@ -171,7 +171,7 @@ namespace Raven.Server.Documents.Sharding.Handlers
 
             public DynamicJsonValue ToJson()
             {
-                return new DynamicJsonValue
+                return new DynamicJsonValue(1)
                 {
                     [nameof(Message)] = Message
                 };

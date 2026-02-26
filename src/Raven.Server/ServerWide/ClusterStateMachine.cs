@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -856,7 +856,7 @@ namespace Raven.Server.ServerWide
                 if (databaseRecordJson == null)
                     return;
 
-                databaseRecordJson.Modifications = new DynamicJsonValue { [nameof(DatabaseRecord.EtagForBackup)] = index };
+                databaseRecordJson.Modifications = new DynamicJsonValue(1) { [nameof(DatabaseRecord.EtagForBackup)] = index };
 
                 using (var old = databaseRecordJson)
                 {
@@ -984,7 +984,7 @@ namespace Raven.Server.ServerWide
                             continue;
 
                         var databaseRecordJson = databaseRecord.Raw;
-                        databaseRecordJson.Modifications = new DynamicJsonValue
+                        databaseRecordJson.Modifications = new DynamicJsonValue(1)
                         {
                             [nameof(DatabaseRecord.TruncatedClusterTransactionCommandsCount)] = tuple.Value
                         };
@@ -1080,7 +1080,7 @@ namespace Raven.Server.ServerWide
                 using (Slice.From(context.Allocator, dbKey, out var valueName))
                 using (Slice.From(context.Allocator, dbKey.ToLowerInvariant(), out var valueNameLowered))
                 {
-                    databaseRecordJson.Modifications = new DynamicJsonValue
+                    databaseRecordJson.Modifications = new DynamicJsonValue(1)
                     {
                         [nameof(DatabaseRecord.Topology)] = topology.ToJson()
                     };
@@ -1172,7 +1172,7 @@ namespace Raven.Server.ServerWide
                 // we assume that this is valid, and we don't check dates, since that would introduce external factor to the state machine, which is not allowed
                 using (Slice.From(context.Allocator, CertificateReplacement.CertificateReplacementDoc, out var key))
                 {
-                    var djv = new DynamicJsonValue
+                    var djv = new DynamicJsonValue(6)
                     {
                         [nameof(CertificateReplacement.Certificate)] = cert,
                         [nameof(CertificateReplacement.Thumbprint)] = x509Certificate.Thumbprint,
@@ -3043,7 +3043,7 @@ namespace Raven.Server.ServerWide
             }
 
             var items = context.Transaction.InnerTransaction.OpenTable(ItemsSchema, Items);
-            var cmd = new DynamicJsonValue
+            var cmd = new DynamicJsonValue(1)
             {
                 ["Type"] = "Switch to single leader"
             };
@@ -3967,7 +3967,7 @@ namespace Raven.Server.ServerWide
                             };
                         }
                         //Kindly request the server to drop the connection
-                        ctx.Write(writer, new DynamicJsonValue
+                        ctx.Write(writer, new DynamicJsonValue(4)
                         {
                             [nameof(TcpConnectionHeaderMessage.DatabaseName)] = null,
                             [nameof(TcpConnectionHeaderMessage.Operation)] = TcpConnectionHeaderMessage.OperationTypes.Drop,
@@ -4496,8 +4496,8 @@ namespace Raven.Server.ServerWide
 
                         if (hasConnectionStrings)
                         {
-                            ravenConnectionStrings.Modifications ??= new DynamicJsonValue();
-                            ravenConnectionStrings.Modifications = new DynamicJsonValue
+                            ravenConnectionStrings.Modifications ??= new DynamicJsonValue(0);
+                            ravenConnectionStrings.Modifications = new DynamicJsonValue(0)
                             {
                                 [ravenConnectionString.Name] = ravenConnectionString.ToJson()
                             };
@@ -4506,7 +4506,7 @@ namespace Raven.Server.ServerWide
                         }
                         else
                         {
-                            var djv = new DynamicJsonValue
+                            var djv = new DynamicJsonValue(0)
                             {
                                 [ravenConnectionString.Name] = ravenConnectionString.ToJson()
                             };
@@ -4520,7 +4520,7 @@ namespace Raven.Server.ServerWide
                         var propertyIndex = ravenConnectionStrings.GetPropertyIndex(ravenConnectionString.Name);
                         if (propertyIndex != -1)
                         {
-                            ravenConnectionStrings.Modifications ??= new DynamicJsonValue();
+                            ravenConnectionStrings.Modifications ??= new DynamicJsonValue(0);
                             ravenConnectionStrings.Modifications.Removals = new HashSet<int>
                             {
                                 propertyIndex
@@ -4531,7 +4531,7 @@ namespace Raven.Server.ServerWide
                     }
                     else
                     {
-                        ravenConnectionStrings = context.ReadObject(new DynamicJsonValue(), nameof(DatabaseRecord.RavenConnectionStrings));
+                        ravenConnectionStrings = context.ReadObject(new DynamicJsonValue(0), nameof(DatabaseRecord.RavenConnectionStrings));
                     }
 
                     using (oldDatabaseRecord)
@@ -4642,7 +4642,7 @@ namespace Raven.Server.ServerWide
                                 var propertyIndex = ravenConnectionStrings.GetPropertyIndex(connectionStringName);
                                 if (propertyIndex != -1)
                                 {
-                                    ravenConnectionStrings.Modifications ??= new DynamicJsonValue();
+                                    ravenConnectionStrings.Modifications ??= new DynamicJsonValue(0);
                                     ravenConnectionStrings.Modifications.Removals = new HashSet<int>
                                     {
                                         propertyIndex
@@ -4653,7 +4653,7 @@ namespace Raven.Server.ServerWide
                             }
                             else
                             {
-                                ravenConnectionStrings = context.ReadObject(new DynamicJsonValue(), nameof(DatabaseRecord.RavenConnectionStrings));
+                                ravenConnectionStrings = context.ReadObject(new DynamicJsonValue(0), nameof(DatabaseRecord.RavenConnectionStrings));
                             }
 
                             oldDatabaseRecord.Modifications = new DynamicJsonValue(oldDatabaseRecord)

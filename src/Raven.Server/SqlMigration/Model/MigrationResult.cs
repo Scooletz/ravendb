@@ -131,7 +131,7 @@ namespace Raven.Server.SqlMigration.Model
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(4)
             {
                 [nameof(Processed)] = Processed,
                 [nameof(ReadCount)] = ReadCount,

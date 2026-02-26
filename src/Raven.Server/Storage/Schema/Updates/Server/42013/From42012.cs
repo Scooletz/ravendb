@@ -122,7 +122,7 @@ namespace Raven.Server.Storage.Schema.Updates.Server
                                 LastEtag = 0L
                             };
 
-                            singleBackupStatus.Modifications = new DynamicJsonValue
+                            singleBackupStatus.Modifications = new DynamicJsonValue(1)
                             {
                                 [nameof(PeriodicBackupStatus.LastRaftIndex)] = myLastRaftIndex.ToJson()
                             };

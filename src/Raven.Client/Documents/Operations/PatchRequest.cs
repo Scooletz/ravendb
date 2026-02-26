@@ -52,7 +52,7 @@ namespace Raven.Client.Documents.Operations
 
         public DynamicJsonValue ToJson(DocumentConventions conventions, JsonOperationContext context)
         {
-            var json = new DynamicJsonValue
+            var json = new DynamicJsonValue(1)
             {
                 [nameof(Script)] = Script
             };

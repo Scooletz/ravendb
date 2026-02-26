@@ -27,7 +27,7 @@ namespace Raven.Server.Web.System
             {
                 using (var writer = new BlittableJsonTextWriter(context, stream))
                 {
-                    context.Write(writer, new DynamicJsonValue
+                    context.Write(writer, new DynamicJsonValue(4)
                     {
                         [nameof(BuildNumber.BuildVersion)] = ServerVersion.Build,
                         [nameof(BuildNumber.ProductVersion)] = ServerVersion.Version,
@@ -86,7 +86,7 @@ namespace Raven.Server.Web.System
             {
                 await using (var writer = new AsyncBlittableJsonTextWriter(context, ResponseBodyStream()))
                 {
-                    context.Write(writer, new DynamicJsonValue
+                    context.Write(writer, new DynamicJsonValue(3)
                     {
                         [nameof(LatestVersionCheck.VersionInfo.Version)] = versionUpdatesInfo?.Version,
                         [nameof(LatestVersionCheck.VersionInfo.PublishedAt)] = versionUpdatesInfo?.PublishedAt,

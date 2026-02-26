@@ -10,7 +10,7 @@ namespace Raven.Client.Documents.Operations.Backups.Sharding
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(1)
             {
                 [nameof(Shards)] = Shards != null ? DynamicJsonValue.Convert(Shards) : null
             };
@@ -54,7 +54,7 @@ namespace Raven.Client.Documents.Operations.Backups.Sharding
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(4)
             {
                 [nameof(ShardNumber)] = ShardNumber,
                 [nameof(NodeTag)] = NodeTag,

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Sparrow.Json.Parsing;
 
 namespace Raven.Client.Exceptions
@@ -61,7 +61,7 @@ namespace Raven.Client.Exceptions
 
             public DynamicJsonValue ToJson()
             {
-                return new DynamicJsonValue()
+                return new DynamicJsonValue(4)
                 {
                     [nameof(Type)] = Type,
                     [nameof(Id)] = Id,

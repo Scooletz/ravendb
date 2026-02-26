@@ -124,12 +124,12 @@ public sealed class RemoteAttachmentsAzureSettings : IRemoteAttachmentsSettings,
 
     internal bool HasSettings()
     {
-        // Minimal enabling condition – container must be set.
+        // Minimal enabling condition ï¿½ container must be set.
         return string.IsNullOrWhiteSpace(StorageContainer) == false;
     }
     public DynamicJsonValue ToJson()
     {
-        return new DynamicJsonValue
+        return new DynamicJsonValue(5)
         {
             [nameof(StorageContainer)] = StorageContainer,
             [nameof(RemoteFolderName)] = RemoteFolderName,

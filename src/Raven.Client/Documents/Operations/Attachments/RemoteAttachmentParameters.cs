@@ -70,7 +70,7 @@ public class RemoteAttachmentParameters : IDynamicJson
     /// <returns>A <see cref="DynamicJsonValue"/> representing this instance.</returns>
     public DynamicJsonValue ToJson()
     {
-        return new DynamicJsonValue
+        return new DynamicJsonValue(3)
         {
             [nameof(At)] = At,
             [nameof(Identifier)] = Identifier,

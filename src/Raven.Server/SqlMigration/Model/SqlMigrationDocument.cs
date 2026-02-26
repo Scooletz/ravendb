@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using Raven.Client;
 using Sparrow.Json;
@@ -16,13 +16,13 @@ namespace Raven.Server.SqlMigration.Model
 
         public SqlMigrationDocument()
         {
-            SpecialColumnsValues = new DynamicJsonValue();
-            Object = new DynamicJsonValue();
+            SpecialColumnsValues = new DynamicJsonValue(0);
+            Object = new DynamicJsonValue(0);
         }
 
         public void SetCollectionAndId(string collectionName, string id)
         {
-            Object[Constants.Documents.Metadata.Key] = new DynamicJsonValue
+            Object[Constants.Documents.Metadata.Key] = new DynamicJsonValue(1)
             {
                 [Constants.Documents.Metadata.Collection] = collectionName,
                 ["@sql-keys"] = SpecialColumnsValues

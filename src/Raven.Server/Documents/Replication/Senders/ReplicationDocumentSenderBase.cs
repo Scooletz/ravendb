@@ -644,7 +644,7 @@ namespace Raven.Server.Documents.Replication.Senders
             }
 
             var sw = Stopwatch.StartNew();
-            var headerJson = new DynamicJsonValue
+            var headerJson = new DynamicJsonValue(4)
             {
                 [nameof(ReplicationMessageHeader.Type)] = ReplicationMessageType.Documents,
                 [nameof(ReplicationMessageHeader.LastDocumentEtag)] = _lastEtag,

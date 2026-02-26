@@ -20,7 +20,7 @@ namespace Raven.Server.Rachis
         public IEnumerable<RachisDebugLogEntry> Logs { get; set; }
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(10)
             {
                 [nameof(LastAppendedTime)] = LastAppendedTime,
                 [nameof(LastCommitedTime)] = LastCommitedTime,

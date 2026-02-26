@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Raven.Client.Documents.Operations.TimeSeries;
@@ -35,7 +35,7 @@ namespace Raven.Server.Documents.Includes
         public void InitializeNewRangeResult(byte* state)
         {
             _state = state;
-            _includes = new DynamicJsonValue();
+            _includes = new DynamicJsonValue(0);
             _missingIncludes?.Clear();
 
             if (_includeDoc == false)

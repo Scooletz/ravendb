@@ -39,7 +39,7 @@ namespace Raven.Client.Documents.Operations.Backups
 
         public virtual DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(5)
             {
                 [nameof(LastFullBackup)] = LastFullBackup,
                 [nameof(LastIncrementalBackup)] = LastIncrementalBackup,
@@ -57,7 +57,7 @@ namespace Raven.Client.Documents.Operations.Backups
         public long? LastFullBackupEtag { get; set; }
 
         public DynamicJsonValue ToJson() =>
-            new()
+            new(2)
             {
                 [nameof(LastEtag)] = LastEtag,
                 [nameof(LastFullBackupEtag)] = LastFullBackupEtag

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
@@ -440,7 +440,7 @@ namespace Raven.Server.Documents.Handlers
                     return;
                 
                 BlittableJsonReaderObject.PropertyDetails prop = default;
-                var originalNames = new DynamicJsonValue();
+                var originalNames = new DynamicJsonValue(0);
                 var counterNamesFromDocument = TryGetCounterNamesFromDocument(doc);
                 
                 for (int i = 0; i < counterValues.Count; i++)
@@ -562,7 +562,7 @@ namespace Raven.Server.Documents.Handlers
                 data.Modifications = new DynamicJsonValue(data);
                 if (metadata == null)
                 {
-                    data.Modifications[Constants.Documents.Metadata.Key] = new DynamicJsonValue
+                    data.Modifications[Constants.Documents.Metadata.Key] = new DynamicJsonValue(0)
                     {
                         [Constants.Documents.Metadata.Counters] = counterNames
                     };
@@ -589,7 +589,7 @@ namespace Raven.Server.Documents.Handlers
             {
                 lastCv = null;
                 var dbIds = new Dictionary<string, int>();
-                var counters = new DynamicJsonValue();
+                var counters = new DynamicJsonValue(0);
                 var counterModificationScopes = new List<ByteStringContext<ByteStringMemoryCache>.InternalScope>();
 
                 try
@@ -622,7 +622,7 @@ namespace Raven.Server.Documents.Handlers
                         counters[name] = new BlittableJsonReaderObject.RawBlob(newVal.Ptr, CountersStorage.SizeOfCounterValues * kvp.Value.Count);
                     }
 
-                    var values = context.ReadObject(new DynamicJsonValue
+                    var values = context.ReadObject(new DynamicJsonValue(0)
                     {
                         [CountersStorage.DbIds] = dbIds.Keys,
                         [CountersStorage.Values] = counters

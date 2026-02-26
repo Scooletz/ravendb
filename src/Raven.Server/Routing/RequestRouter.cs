@@ -298,7 +298,7 @@ namespace Raven.Server.Routing
                     await using (var writer = new AsyncBlittableJsonTextWriter(ctx, context.Response.Body))
                     {
                         ctx.Write(writer,
-                            new DynamicJsonValue
+                            new DynamicJsonValue(2)
                             {
                                 ["Type"] = "Error",
                                 ["Message"] = $"There is no handler for {context.Request.Method} {context.Request.Path}"
@@ -464,7 +464,7 @@ namespace Raven.Server.Routing
             await using (var writer = new AsyncBlittableJsonTextWriter(ctx, context.Response.Body))
             {
                 ctx.Write(writer,
-                    new DynamicJsonValue
+                    new DynamicJsonValue(2)
                     {
                         ["Type"] = "Error",
                         ["Message"] = $"The request has been rejected because the CPU credits balance on this instance has been exhausted. See /debug/cpu-credits endpoint for details."
@@ -496,7 +496,7 @@ namespace Raven.Server.Routing
 
                 context.Response.StatusCode = (int)statusCode;
 
-                ctx.Write(writer, new DynamicJsonValue
+                ctx.Write(writer, new DynamicJsonValue(2)
                 {
                     ["Type"] = "InvalidAuth",
                     ["Message"] = message

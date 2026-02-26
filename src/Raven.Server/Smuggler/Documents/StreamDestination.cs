@@ -1565,7 +1565,7 @@ namespace Raven.Server.Smuggler.Documents
                     {
                         using (var escapedId = _context.GetLazyString(tombstone.LowerId.Buffer, tombstone.LowerId.Size))
                         {
-                            _context.Write(Writer, new DynamicJsonValue
+                            _context.Write(Writer, new DynamicJsonValue(8)
                             {
                                 ["Key"] = escapedId,
                                 [nameof(Tombstone.Type)] = tombstone.Type.ToString(),
@@ -1593,7 +1593,7 @@ namespace Raven.Server.Smuggler.Documents
 
                 using (conflict)
                 {
-                    _context.Write(Writer, new DynamicJsonValue
+                    _context.Write(Writer, new DynamicJsonValue(7)
                     {
                         [nameof(DocumentConflict.Id)] = conflict.Id,
                         [nameof(DocumentConflict.Collection)] = conflict.Collection,

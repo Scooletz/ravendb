@@ -498,7 +498,7 @@ namespace Raven.Server.Documents.TcpHandlers
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(2)
             {
                 [nameof(Results)] = new DynamicJsonArray(Results.Select(d => d.ToJson())),
                 [nameof(SubscriptionMode)] = SubscriptionMode
@@ -514,7 +514,7 @@ namespace Raven.Server.Documents.TcpHandlers
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(3)
             {
                 [nameof(ClientUri)] = ClientUri,
                 [nameof(WorkerId)] = WorkerId,

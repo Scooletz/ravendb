@@ -111,7 +111,7 @@ internal class AiIntegrationHandlerProcessorForTestAiConnection<TRequestHandler,
                         throw new ArgumentOutOfRangeException("Invalid model type: " + aiConnectionString.ModelType);
                     }
 
-                var result = new DynamicJsonValue { [nameof(NodeConnectionTestResult.Success)] = true };
+                var result = new DynamicJsonValue(0) { [nameof(NodeConnectionTestResult.Success)] = true };
 
                 await using (var writer = new AsyncBlittableJsonTextWriter(context, RequestHandler.ResponseBodyStream()))
                 {
@@ -121,7 +121,7 @@ internal class AiIntegrationHandlerProcessorForTestAiConnection<TRequestHandler,
         }
         catch (Exception e)
         {
-            var result = new DynamicJsonValue
+            var result = new DynamicJsonValue(2)
             {
                 [nameof(NodeConnectionTestResult.Success)] = false,
                 [nameof(NodeConnectionTestResult.Error)] = e.ToString()

@@ -495,7 +495,7 @@ public sealed class GenAiTask : EtlProcess<GenAiItem, GenAiScriptResult, GenAiCo
                         if (item.ModelOutput is null)
                             continue;
 
-                        var dvj = new DynamicJsonValue
+                        var dvj = new DynamicJsonValue(2)
                         {
                             ["output"] = item.ModelOutput.Output,
                             ["input"] = item.ContextOutput.Context

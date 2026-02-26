@@ -15,7 +15,7 @@ namespace Raven.Server.Commercial
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(3)
             {
                 [nameof(Id)] = Id.ToString(),
                 [nameof(Name)] = Name,

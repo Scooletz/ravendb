@@ -48,7 +48,7 @@ namespace Raven.Server.Rachis.Commands
                 }
             }
 
-            var noopCmd = new DynamicJsonValue
+            var noopCmd = new DynamicJsonValue(2)
             {
                 ["Type"] = $"Noop for {_tag} in term {term}",
                 ["Command"] = "noop"
