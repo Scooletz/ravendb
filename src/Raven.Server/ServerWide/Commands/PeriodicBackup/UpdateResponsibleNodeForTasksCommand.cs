@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using Sparrow.Json;
 using Sparrow.Json.Parsing;
@@ -36,7 +36,7 @@ public class UpdateResponsibleNodeForTasksCommand : UpdateValueCommand<UpdateRes
 
         public DynamicJsonValue ToJson()
         {
-            var djv = new DynamicJsonValue();
+            var djv = new DynamicJsonValue(0);
 
             foreach (var keyValue in ResponsibleNodePerDatabase)
             {
@@ -49,7 +49,7 @@ public class UpdateResponsibleNodeForTasksCommand : UpdateValueCommand<UpdateRes
                 djv[keyValue.Key] = list;
             }
 
-            return new DynamicJsonValue
+            return new DynamicJsonValue(1)
             {
                 [nameof(ResponsibleNodePerDatabase)] = djv
             };
@@ -77,7 +77,7 @@ public class ResponsibleNodeInfo : IDynamicJson
 
     public DynamicJsonValue ToJson()
     {
-        return new DynamicJsonValue
+        return new DynamicJsonValue(3)
         {
             [nameof(TaskId)] = TaskId,
             [nameof(ResponsibleNode)] = ResponsibleNode,

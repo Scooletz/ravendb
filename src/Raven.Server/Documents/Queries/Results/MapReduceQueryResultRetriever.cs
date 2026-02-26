@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using Corax.Querying;
@@ -68,7 +68,7 @@ namespace Raven.Server.Documents.Queries.Results
             if (DocumentsStorage == null || !(_context is DocumentsOperationContext ctx))
                 return null;
 
-            var djv = new DynamicJsonValue();
+            var djv = new DynamicJsonValue(0);
 
             foreach (var partialValue in DocumentsStorage.CountersStorage.GetCounterPartialValues(ctx, docId, name))
             {

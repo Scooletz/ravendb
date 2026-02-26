@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Diagnostics;
 using System.Linq;
 using Raven.Client.Documents.Operations.ETL;
@@ -59,13 +59,13 @@ namespace Raven.Server.ServerWide.Commands
                         }
                     }
                 }
-                previousValue.Modifications ??= new DynamicJsonValue();
+                previousValue.Modifications ??= new DynamicJsonValue(0);
                 previousValue.Modifications[Value.Name] = Value.ToJson();
                 
                 return context.ReadObject(previousValue, Name);
             }
 
-            var djv = new DynamicJsonValue
+            var djv = new DynamicJsonValue(0)
             {
                 [Value.Name] = Value.ToJson()
             };

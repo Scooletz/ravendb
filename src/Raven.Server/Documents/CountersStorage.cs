@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
@@ -393,7 +393,7 @@ namespace Raven.Server.Documents
                             if (existingCounter == null)
                             {
                                 // new counter
-                                originalNames.Modifications = new DynamicJsonValue { [lowerName] = name };
+                                originalNames.Modifications = new DynamicJsonValue(0) { [lowerName] = name };
                             }
                         }
 
@@ -879,7 +879,7 @@ namespace Raven.Server.Documents
                             var propDetails = new BlittableJsonReaderObject.PropertyDetails();
                             sourceCounters.Modifications = new DynamicJsonValue(sourceCounters);
 
-                            var originalNames = new DynamicJsonValue();
+                            var originalNames = new DynamicJsonValue(0);
 
                             for (int i = 0; i < sourceCounters.Count; i++)
                             {
@@ -2231,7 +2231,7 @@ namespace Raven.Server.Documents
                 data.Modifications = new DynamicJsonValue(data);
                 if (metadata == null)
                 {
-                    data.Modifications[Constants.Documents.Metadata.Key] = new DynamicJsonValue { [Constants.Documents.Metadata.Counters] = new DynamicJsonArray(counters) };
+                    data.Modifications[Constants.Documents.Metadata.Key] = new DynamicJsonValue(0) { [Constants.Documents.Metadata.Counters] = new DynamicJsonArray(counters) };
                 }
                 else
                 {

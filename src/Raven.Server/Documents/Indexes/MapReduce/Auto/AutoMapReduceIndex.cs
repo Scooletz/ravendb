@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -131,7 +131,7 @@ namespace Raven.Server.Documents.Indexes.MapReduce.Auto
                         if (_isFanout == false)
                         {
                             if (singleResult == null)
-                                singleResult = new DynamicJsonValue();
+                                singleResult = new DynamicJsonValue(0);
 
                             singleResult[groupByField.Name] = result;
                             _reduceKeyProcessor.Process(indexContext.Allocator, result);
@@ -161,7 +161,7 @@ namespace Raven.Server.Documents.Indexes.MapReduce.Auto
                     {
                         for (var i = 0; i < _output.MaxGroupByFieldsCount; i++)
                         {
-                            var json = new DynamicJsonValue();
+                            var json = new DynamicJsonValue(0);
 
                             foreach (var groupBy in _output.GroupByFields)
                             {

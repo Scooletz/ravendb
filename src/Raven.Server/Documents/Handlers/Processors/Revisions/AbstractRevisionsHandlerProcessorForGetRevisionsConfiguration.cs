@@ -1,4 +1,4 @@
-﻿using System.Net;
+using System.Net;
 using System.Threading.Tasks;
 using JetBrains.Annotations;
 using Raven.Client.Documents.Operations.Revisions;
@@ -25,7 +25,7 @@ namespace Raven.Server.Documents.Handlers.Processors.Revisions
 
             if (revisionsConfig != null)
             {
-                var revisionsCollection = new DynamicJsonValue();
+                var revisionsCollection = new DynamicJsonValue(0);
                 foreach (var collection in revisionsConfig.Collections)
                 {
                     revisionsCollection[collection.Key] = collection.Value.ToJson();
@@ -34,7 +34,7 @@ namespace Raven.Server.Documents.Handlers.Processors.Revisions
                 using (ClusterContextPool.AllocateOperationContext(out JsonOperationContext context))
                 await using (var writer = new AsyncBlittableJsonTextWriter(context, RequestHandler.ResponseBodyStream()))
                 {
-                    context.Write(writer, new DynamicJsonValue
+                    context.Write(writer, new DynamicJsonValue(2)
                     {
                         [nameof(revisionsConfig.Default)] = revisionsConfig.Default?.ToJson(),
                         [nameof(revisionsConfig.Collections)] = revisionsCollection

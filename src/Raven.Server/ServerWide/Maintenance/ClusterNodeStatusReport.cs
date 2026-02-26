@@ -27,7 +27,7 @@ namespace Raven.Server.ServerWide.Maintenance
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(2)
             {
                 [nameof(ServerReport)] = ServerReport,
                 [nameof(DatabasesReport)] = DynamicJsonValue.Convert(DatabasesReport)
@@ -47,7 +47,7 @@ namespace Raven.Server.ServerWide.Maintenance
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(4)
             {
                 [nameof(OutOfCpuCredits)] = OutOfCpuCredits,
                 [nameof(EarlyOutOfMemory)] = EarlyOutOfMemory,
@@ -153,7 +153,7 @@ namespace Raven.Server.ServerWide.Maintenance
 
         public DynamicJsonValue ToJson()
         {
-            var dynamicJsonValue = new DynamicJsonValue
+            var dynamicJsonValue = new DynamicJsonValue(15)
             {
                 [nameof(Name)] = Name,
                 [nameof(NodeName)] = NodeName,
@@ -171,10 +171,10 @@ namespace Raven.Server.ServerWide.Maintenance
                 [nameof(LastCompareExchangeIndex)] = LastCompareExchangeIndex,
                 [nameof(LastClusterWideTransactionRaftIndex)] = LastClusterWideTransactionRaftIndex
             };
-            var indexStats = new DynamicJsonValue();
+            var indexStats = new DynamicJsonValue(0);
             foreach (var stat in LastIndexStats)
             {
-                indexStats[stat.Key] = new DynamicJsonValue
+                indexStats[stat.Key] = new DynamicJsonValue(7)
                 {
                     [nameof(stat.Value.LastIndexedEtag)] = stat.Value.LastIndexedEtag,
                     [nameof(stat.Value.LastIndexedCompareExchangeReferenceEtag)] = stat.Value.LastIndexedCompareExchangeReferenceEtag,
@@ -272,7 +272,7 @@ namespace Raven.Server.ServerWide.Maintenance
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(6)
             {
                 [nameof(Report)] = DynamicJsonValue.Convert(Report),
                 [nameof(LastGoodDatabaseStatus)] = DynamicJsonValue.Convert(LastGoodDatabaseStatus),

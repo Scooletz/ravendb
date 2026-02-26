@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -108,7 +108,7 @@ internal sealed class StudioDatabasesHandlerForGetDatabases : AbstractDatabasesH
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(14)
             {
                 [nameof(Name)] = Name,
                 [nameof(IsSharded)] = IsSharded,
@@ -180,11 +180,11 @@ internal sealed class StudioDatabasesHandlerForGetDatabases : AbstractDatabasesH
 
             public DynamicJsonValue ToJson()
             {
-                var shards = new DynamicJsonValue();
+                var shards = new DynamicJsonValue(0);
                 foreach (var kvp in Shards)
                     shards[kvp.Key.ToString()] = kvp.Value?.ToJson();
 
-                var result = new DynamicJsonValue
+                var result = new DynamicJsonValue(2)
                 {
                     [nameof(Orchestrator)] = Orchestrator.ToJson(),
                     [nameof(Shards)] = shards
@@ -233,7 +233,7 @@ internal sealed class StudioDatabasesHandlerForGetDatabases : AbstractDatabasesH
 
                 public DynamicJsonValue ToJson()
                 {
-                    return new DynamicJsonValue
+                    return new DynamicJsonValue(1)
                     {
                         [nameof(NodesTopology)] = NodesTopology?.ToJson()
                     };

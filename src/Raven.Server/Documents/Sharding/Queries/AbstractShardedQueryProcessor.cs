@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -365,7 +365,7 @@ public abstract class AbstractShardedQueryProcessor<TCommand, TResult, TCombined
             }
             else
             {
-                modifications[nameof(IndexQuery.QueryParameters)] = modifiedArgs = new DynamicJsonValue();
+                modifications[nameof(IndexQuery.QueryParameters)] = modifiedArgs = new DynamicJsonValue(0);
             }
 
             var limit = ((Query.Limit ?? 0) + (Query.Offset ?? 0));
@@ -706,7 +706,7 @@ public abstract class AbstractShardedQueryProcessor<TCommand, TResult, TCombined
         {
             DevelopmentHelper.ShardingToDo(DevelopmentHelper.TeamMember.Grisha, DevelopmentHelper.Severity.Normal, "RavenDB-19084 have a way to turn the _query into a json file and then we'll modify that, instead of building it manually");
 
-            var q = new DynamicJsonValue
+            var q = new DynamicJsonValue(2)
             {
                 [nameof(IndexQuery.QueryParameters)] = GetParameters(),
                 [nameof(IndexQuery.Query)] = queryText
@@ -716,7 +716,7 @@ public abstract class AbstractShardedQueryProcessor<TCommand, TResult, TCombined
 
             DynamicJsonValue GetParameters()
             {
-                var djv = new DynamicJsonValue
+                var djv = new DynamicJsonValue(0)
                 {
                     [listParameterName] = GetIds()
                 };

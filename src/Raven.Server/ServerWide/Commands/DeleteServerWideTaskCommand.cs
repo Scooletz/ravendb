@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using Raven.Client.Documents.Operations.OngoingTasks;
 using Raven.Server.Rachis;
@@ -53,7 +53,7 @@ namespace Raven.Server.ServerWide.Commands
                            $"raftIndex {index}, previousValue {previousValue}, configuration {context.ReadObject(Value.ToJson(), "")}");
 
             if (previousValue.Modifications == null)
-                previousValue.Modifications = new DynamicJsonValue();
+                previousValue.Modifications = new DynamicJsonValue(0);
 
             previousValue.Modifications.Removals = new HashSet<int> { propertyIndex };
             return context.ReadObject(previousValue, Name);
@@ -72,7 +72,7 @@ namespace Raven.Server.ServerWide.Commands
 
             public DynamicJsonValue ToJson()
             {
-                return new DynamicJsonValue
+                return new DynamicJsonValue(2)
                 {
                     [nameof(Type)] = Type,
                     [nameof(TaskName)] = TaskName

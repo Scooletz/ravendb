@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -66,7 +66,7 @@ namespace Raven.Server.Documents.Sharding.Handlers.Processors.TimeSeries
                     result = await RequestHandler.ShardExecutor.ExecuteParallelForShardsAsync(idsByShards.Keys.ToArray(), fetchDocsOp, token.Token);
 
                 var includesDocId = $"TimeSeriesRangeIncludes/{docId}";
-                rangeResult.Includes ??= context.ReadObject(new DynamicJsonValue(), includesDocId);
+                rangeResult.Includes ??= context.ReadObject(new DynamicJsonValue(0), includesDocId);
                 rangeResult.MissingIncludes = null;
                 var mods = new DynamicJsonValue(rangeResult.Includes);
 

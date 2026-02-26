@@ -376,7 +376,7 @@ namespace Raven.Server.ServerWide.Commands.Subscriptions
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue()
+            return new DynamicJsonValue(2)
             {
                 [nameof(DocumentId)] = DocumentId,
                 [nameof(ChangeVector)] = ChangeVector
@@ -391,7 +391,7 @@ namespace Raven.Server.ServerWide.Commands.Subscriptions
         public string Current;
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue()
+            return new DynamicJsonValue(3)
             {
                 [nameof(DocumentId)] = DocumentId,
                 [nameof(Previous)] = Previous,

@@ -60,7 +60,7 @@ public sealed unsafe class CoraxIndexedEntriesReader : IDisposable
                 doc.Remove(fieldName, out var geo); // move the geo-hashes to the side
                 doc[fieldName+" [geo hashes]"] = geo;
             }
-            SetValue(fieldName, new DynamicJsonValue
+            SetValue(fieldName, new DynamicJsonValue(2)
             {
                 [nameof(entryReader.Latitude)] = entryReader.Latitude,
                 [nameof(entryReader.Longitude)] = entryReader.Longitude,
@@ -122,7 +122,7 @@ public sealed unsafe class CoraxIndexedEntriesReader : IDisposable
 
         DynamicJsonValue ToJson()
         {
-            var json = new DynamicJsonValue();
+            var json = new DynamicJsonValue(0);
             foreach (var (k,v) in doc)
             {
                 json[k] = v;

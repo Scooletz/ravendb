@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Microsoft.Extensions.Configuration;
@@ -20,7 +20,7 @@ namespace Raven.Server.Config
         
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(1)
             {
                 [nameof(Settings)] = new DynamicJsonArray(Settings.Select(x => x.ToJson()))
             };
@@ -43,7 +43,7 @@ namespace Raven.Server.Config
 
         public virtual DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(1)
             {
                 [nameof(Metadata)] = Metadata.ToJson()
             };
@@ -79,7 +79,7 @@ namespace Raven.Server.Config
         {
             var djv = base.ToJson();
 
-            var serverValues = new DynamicJsonValue();
+            var serverValues = new DynamicJsonValue(0);
             foreach (var kvp in ServerValues)
                 serverValues[kvp.Key] = kvp.Value.ToJson();
 
@@ -167,7 +167,7 @@ namespace Raven.Server.Config
             DynamicJsonValue databaseValues = null;
             if (DatabaseValues != null)
             {
-                databaseValues = new DynamicJsonValue();
+                databaseValues = new DynamicJsonValue(0);
                 foreach (var kvp in DatabaseValues)
                     databaseValues[kvp.Key] = kvp.Value.ToJson();
             }
@@ -187,7 +187,7 @@ namespace Raven.Server.Config
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(4)
             {
                 [nameof(Value)] = Value,
                 [nameof(HasValue)] = HasValue,
@@ -205,7 +205,7 @@ namespace Raven.Server.Config
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(3)
             {
                 [nameof(Value)] = Value,
                 [nameof(HasValue)] = HasValue,

@@ -1,4 +1,4 @@
-﻿using System.Net;
+using System.Net;
 using System.Threading.Tasks;
 using JetBrains.Annotations;
 using Raven.Client.ServerWide;
@@ -31,13 +31,13 @@ internal abstract class AbstractReplicationHandlerProcessorForGetConflictSolver<
                 return;
             }
 
-            var resolveByCollection = new DynamicJsonValue();
+            var resolveByCollection = new DynamicJsonValue(0);
             foreach (var collection in solverConfig.ResolveByCollection)
                 resolveByCollection[collection.Key] = collection.Value.ToJson();
 
             await using (var writer = new AsyncBlittableJsonTextWriter(context, RequestHandler.ResponseBodyStream()))
             {
-                context.Write(writer, new DynamicJsonValue
+                context.Write(writer, new DynamicJsonValue(2)
                 {
                     [nameof(solverConfig.ResolveToLatest)] = solverConfig.ResolveToLatest,
                     [nameof(solverConfig.ResolveByCollection)] = resolveByCollection

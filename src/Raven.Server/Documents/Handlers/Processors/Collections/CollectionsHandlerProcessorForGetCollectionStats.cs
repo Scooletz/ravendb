@@ -1,4 +1,4 @@
-﻿using System.Threading.Tasks;
+using System.Threading.Tasks;
 using JetBrains.Annotations;
 using Raven.Client.Documents.Operations;
 using Raven.Server.ServerWide.Context;
@@ -22,9 +22,9 @@ namespace Raven.Server.Documents.Handlers.Processors.Collections
 
         private DynamicJsonValue GetCollectionStats(DocumentsOperationContext context, bool detailed = false)
         {
-            DynamicJsonValue collections = new DynamicJsonValue();
+            DynamicJsonValue collections = new DynamicJsonValue(0);
 
-            DynamicJsonValue stats = new DynamicJsonValue()
+            DynamicJsonValue stats = new DynamicJsonValue(10)
             {
                 [nameof(CollectionStatistics.CountOfDocuments)] = RequestHandler.Database.DocumentsStorage.GetNumberOfDocuments(context),
                 [nameof(CollectionStatistics.CountOfDocumentsConflicts)] = RequestHandler.Database.DocumentsStorage.ConflictsStorage.GetNumberOfDocumentsConflicts(context),

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -268,7 +268,7 @@ public class CountersRepairTask
                     if (corruptedNames)
                     {
                         BlittableJsonReaderObject.PropertyDetails prop = default;
-                        var originalNames = new DynamicJsonValue();
+                        var originalNames = new DynamicJsonValue(0);
 
                         for (int i = 0; i < counterValues.Count; i++)
                         {

@@ -73,7 +73,7 @@ public abstract partial class RachisConsensus
 
         public DynamicJsonValue ToJson()
         {
-            var timingTracking = new DynamicJsonValue();
+            var timingTracking = new DynamicJsonValue(0);
             foreach (var tuple in TimingTracking.ForceEnumerateInThreadSafeManner().OrderBy(x => x.Key))
             {
                 var key = tuple.Key;
@@ -87,7 +87,7 @@ public abstract partial class RachisConsensus
 
             var stateTracking = new DynamicJsonArray(StateChangeTracking);
 
-            return new DynamicJsonValue
+            return new DynamicJsonValue(2)
             {
                 [nameof(TimingTracking)] = timingTracking,
                 [nameof(StateChangeTracking)] = stateTracking
@@ -223,7 +223,7 @@ public abstract partial class RachisConsensus
         public string Exception;
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(5)
             {
                 [nameof(Id)] = Id,
                 [nameof(Title)] = Title,
@@ -246,7 +246,7 @@ public abstract partial class RachisConsensus
         public RachisEntryFlags Flags { get; set; }
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(7)
             {
                 [nameof(Term)] = Term,
                 [nameof(Index)] = Index,
@@ -318,7 +318,7 @@ public abstract class RaftDebugView : IDynamicJson
         
         public virtual DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(3)
             {
                 [nameof(Status)] = Status,
                 [nameof(Destination)] = Destination,
@@ -357,7 +357,7 @@ public abstract class RaftDebugView : IDynamicJson
             var json = base.ToJson();
             json[nameof(Version)] = Version;
             json[nameof(Compression)] = Compression;
-            json[nameof(Features)] = new DynamicJsonValue
+            json[nameof(Features)] = new DynamicJsonValue(2)
             {
                 [nameof(Features.BaseLine)] = Features.BaseLine, 
                 [nameof(Features.MultiTree)] = Features.MultiTree
@@ -375,7 +375,7 @@ public abstract class RaftDebugView : IDynamicJson
         public int Local;
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(2)
             {
                 [nameof(Cluster)] = Cluster,
                 [nameof(Local)] = Local,
@@ -385,7 +385,7 @@ public abstract class RaftDebugView : IDynamicJson
 
     public virtual DynamicJsonValue ToJson()
     {
-        return new DynamicJsonValue
+        return new DynamicJsonValue(5)
         {
             [nameof(Role)] = Role,
             [nameof(Term)] = Term,
@@ -465,7 +465,7 @@ public class RachisDebugMessage : IDynamicJson
 
     public DynamicJsonValue ToJson()
     {
-        return new DynamicJsonValue
+        return new DynamicJsonValue(3)
         {
             [nameof(At)] = At,
             [nameof(MsFromCycleStart)] = MsFromCycleStart,

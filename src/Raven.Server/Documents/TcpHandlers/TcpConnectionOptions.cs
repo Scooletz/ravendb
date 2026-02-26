@@ -203,7 +203,7 @@ namespace Raven.Server.Documents.TcpHandlers
                 clientUri = "N/A";
             }
 
-            var stats = new DynamicJsonValue
+            var stats = new DynamicJsonValue(7)
             {
                 ["Id"] = Id,
                 ["Operation"] = Operation.ToString(),
@@ -223,7 +223,7 @@ namespace Raven.Server.Documents.TcpHandlers
 
             if (Stream is ReadWriteCompressedStream rwcs)
             {
-                var compressionInfo = new DynamicJsonValue();
+                var compressionInfo = new DynamicJsonValue(0);
 
                 var totalBytes = rwcs.GetTotalBytesSent();
                 compressionInfo["TotalCompressedBytesSent"] = totalBytes.Compressed;

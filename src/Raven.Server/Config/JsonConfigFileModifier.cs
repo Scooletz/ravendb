@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -62,7 +62,7 @@ public class JsonConfigFileModifier : IDisposable
     
     private BlittableJsonReaderObject ReadBlittableFromFile(JsonOperationContext context)
     {
-        var jsonConfig = new DynamicJsonValue();
+        var jsonConfig = new DynamicJsonValue(0);
         if (_overwriteWholeFile == false)
             FillJsonFromFile(jsonConfig);
 

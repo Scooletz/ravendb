@@ -1,4 +1,4 @@
-﻿using Sparrow.Json.Parsing;
+using Sparrow.Json.Parsing;
 
 namespace Raven.Client.ServerWide.Operations.Integrations.PostgreSQL
 {
@@ -14,7 +14,7 @@ namespace Raven.Client.ServerWide.Operations.Integrations.PostgreSQL
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue()
+            return new DynamicJsonValue(1)
             {
                 [nameof(Authentication)] = Authentication.ToJson()
             };

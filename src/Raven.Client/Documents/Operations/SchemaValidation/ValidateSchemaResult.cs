@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using Sparrow.Json.Parsing;
 
 namespace Raven.Client.Documents.Operations.SchemaValidation;
@@ -45,7 +45,7 @@ public sealed class ValidateSchemaResult : ValidateSchemaProgress, IOperationRes
     
     public override DynamicJsonValue ToJson()
     {
-        var errors = new DynamicJsonValue();
+        var errors = new DynamicJsonValue(0);
         foreach (var keyValue in Errors)
         {
             errors[keyValue.Key] = keyValue.Value;

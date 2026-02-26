@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Sparrow.Json.Parsing;
@@ -33,14 +33,14 @@ public sealed class SchemaValidationConfiguration
         DynamicJsonValue validatorsPerCollection = null;
         if (ValidatorsPerCollection != null)
         {
-            validatorsPerCollection = new DynamicJsonValue();
+            validatorsPerCollection = new DynamicJsonValue(0);
             foreach (var validator in ValidatorsPerCollection)
             {
                 validatorsPerCollection[validator.Key] = validator.Value.ToJson();
             }
         }
 
-        return new DynamicJsonValue
+        return new DynamicJsonValue(2)
         {
             [nameof(Disabled)] = Disabled,
             [nameof(ValidatorsPerCollection)] = validatorsPerCollection

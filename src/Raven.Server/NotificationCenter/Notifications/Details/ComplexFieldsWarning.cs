@@ -31,7 +31,7 @@ public sealed class ComplexFieldsWarning : INotificationDetails
     public DynamicJsonValue ToJson()
     {
         var djv = new DynamicJsonValue(GetType());
-        var listOfFields = new DynamicJsonValue();
+        var listOfFields = new DynamicJsonValue(0);
 
         foreach (var (indexName, indexComplexFields) in Fields)
         {

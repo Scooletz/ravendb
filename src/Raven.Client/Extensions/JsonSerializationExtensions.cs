@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using Sparrow;
 using Sparrow.Json.Parsing;
@@ -9,7 +9,7 @@ namespace Raven.Client.Extensions
     {
         public static DynamicJsonValue ToJsonWithPrimitiveKey<TKey, TValue>(this IDictionary<TKey, TValue> dic)
         {
-            var jsonMap = new DynamicJsonValue();
+            var jsonMap = new DynamicJsonValue(0);
             if (dic == null) //precaution, prevent NRE
                 return null;
 
@@ -28,7 +28,7 @@ namespace Raven.Client.Extensions
 
         public static DynamicJsonValue ToJson<TValue>(this Dictionary<string, TValue> dic)     
         {
-            var jsonMap = new DynamicJsonValue();
+            var jsonMap = new DynamicJsonValue(0);
             if (dic == null) //precaution, prevent NRE
                 return null;
 
@@ -43,7 +43,7 @@ namespace Raven.Client.Extensions
 
         public static DynamicJsonValue ToJson<TValue>(this Dictionary<StringSegment, TValue> dic)
         {
-            var jsonMap = new DynamicJsonValue();
+            var jsonMap = new DynamicJsonValue(0);
             if (dic == null) //precaution, prevent NRE
                 return null;
 

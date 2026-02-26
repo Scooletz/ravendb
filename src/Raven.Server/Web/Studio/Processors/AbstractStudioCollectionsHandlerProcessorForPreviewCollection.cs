@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -141,8 +141,8 @@ public abstract class AbstractStudioCollectionsHandlerProcessorForPreviewCollect
         public long TotalResults;
         public List<string> AvailableColumns;
 
-        public DynamicJsonValue ArrayStubsJson = new DynamicJsonValue();
-        public DynamicJsonValue ObjectStubsJson = new DynamicJsonValue();
+        public DynamicJsonValue ArrayStubsJson = new DynamicJsonValue(0);
+        public DynamicJsonValue ObjectStubsJson = new DynamicJsonValue(0);
         public HashSet<LazyStringValue> TrimmedValue = new HashSet<LazyStringValue>();
 
         public virtual DynamicJsonValue CreateMetadata(BlittableJsonReaderObject current)

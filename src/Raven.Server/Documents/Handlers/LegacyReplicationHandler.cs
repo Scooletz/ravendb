@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
@@ -130,7 +130,7 @@ namespace Raven.Server.Documents.Handlers
                         continue;
                     }
 
-                    var djv = new DynamicJsonValue();
+                    var djv = new DynamicJsonValue(0);
                     foreach (var keyValue in metadata)
                     {
                         var key = keyValue.Key;

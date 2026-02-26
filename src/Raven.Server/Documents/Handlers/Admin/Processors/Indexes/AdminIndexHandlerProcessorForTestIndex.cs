@@ -70,7 +70,7 @@ internal sealed class AdminIndexHandlerProcessorForTestIndex : AbstractAdminInde
 
             RequestHandler.Database.IndexStore.Create.ValidateTestStaticIndex(testIndexDefinition);
             
-            var djv = new DynamicJsonValue() { [nameof(IndexQueryServerSide.Query)] = query, [nameof(IndexQueryServerSide.QueryParameters)] = queryParameters };
+            var djv = new DynamicJsonValue(2) { [nameof(IndexQueryServerSide.Query)] = query, [nameof(IndexQueryServerSide.QueryParameters)] = queryParameters };
 
             var queryAsBlittable = context.ReadObject(djv, "test-index-query");
 

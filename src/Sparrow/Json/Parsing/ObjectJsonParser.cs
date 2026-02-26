@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -132,7 +132,7 @@ namespace Sparrow.Json.Parsing
             if (dictionary == null)
                 return null;
 
-            var djv = new DynamicJsonValue();
+            var djv = new DynamicJsonValue(0);
             foreach (var kvp in dictionary)
             {
                 var json = kvp.Value as IDynamicJson;
@@ -153,7 +153,7 @@ namespace Sparrow.Json.Parsing
                     throw new InvalidOperationException($"{typeof(TK).FullName} must override 'ToString'");
             }
 
-            var djv = new DynamicJsonValue();
+            var djv = new DynamicJsonValue(0);
             foreach (var kvp in dictionary)
             {
                 var json = kvp.Value as IDynamicJson;

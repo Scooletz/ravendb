@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Raven.Client.Documents.Operations.ConnectionStrings;
@@ -64,20 +64,20 @@ namespace Raven.Client.Documents.Operations.ETL.ElasticSearch
 #pragma warning disable CS0618 // Type or member is obsolete
             json[nameof(EnableCompatibilityMode)] = EnableCompatibilityMode;
 #pragma warning restore CS0618 // Type or member is obsolete
-            json[nameof(Authentication)] = Authentication == null ? null : new DynamicJsonValue()
+            json[nameof(Authentication)] = Authentication == null ? null : new DynamicJsonValue(3)
             {
-                [nameof(Authentication.Basic)] = Authentication.Basic == null ? null : new DynamicJsonValue()
+                [nameof(Authentication.Basic)] = Authentication.Basic == null ? null : new DynamicJsonValue(2)
                 {
                     [nameof(Authentication.Basic.Username)] = Authentication?.Basic?.Username,
                     [nameof(Authentication.Basic.Password)] = Authentication?.Basic?.Password
                 },
-                [nameof(Authentication.ApiKey)] = Authentication.ApiKey == null ? null : new DynamicJsonValue()
+                [nameof(Authentication.ApiKey)] = Authentication.ApiKey == null ? null : new DynamicJsonValue(3)
                 {
                     [nameof(Authentication.ApiKey.ApiKeyId)] = Authentication?.ApiKey?.ApiKeyId,
                     [nameof(Authentication.ApiKey.ApiKey)] = Authentication?.ApiKey?.ApiKey,
                     [nameof(Authentication.ApiKey.EncodedApiKey)] = Authentication?.ApiKey?.EncodedApiKey
                 },
-                [nameof(Authentication.Certificate)] = Authentication.Certificate == null ? null : new DynamicJsonValue()
+                [nameof(Authentication.Certificate)] = Authentication.Certificate == null ? null : new DynamicJsonValue(1)
                 {
                     [nameof(Authentication.Certificate.CertificatesBase64)] = new DynamicJsonArray(Authentication?.Certificate?.CertificatesBase64)
                 },

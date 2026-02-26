@@ -104,7 +104,7 @@ namespace Raven.Server.Utils.Metrics
 
         public DynamicJsonValue CreateMeterData(bool allResults = false, bool filterEmpty = true)
         {
-            var result = new DynamicJsonValue
+            var result = new DynamicJsonValue(6)
             {
                 ["Current"] = Math.Round(OneSecondRate, 1),
                 ["Count"] = Count,
@@ -142,7 +142,7 @@ namespace Raven.Server.Utils.Metrics
             buckets.Sort((a, b) => a.Start.CompareTo(b.Start));
 
             // Emit raw 100ms samples so diagnostics can plot the exact workload shape (no smoothing).
-            var raw = new DynamicJsonValue();
+            var raw = new DynamicJsonValue(0);
             foreach (var (start, rate) in buckets)
             {
                 var ageSeconds = (nowNs - start) / (double)Clock.NanosecondsInSecond;

@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -183,7 +183,7 @@ namespace Raven.Server.Storage.Schema.Updates.Documents
                     {
                         doc.Flags |= DocumentFlags.HasCounters;
 
-                        var dvj = new DynamicJsonValue
+                        var dvj = new DynamicJsonValue(0)
                         {
                             [Constants.Documents.Metadata.Counters] = counterNames
                         };
@@ -494,7 +494,7 @@ namespace Raven.Server.Storage.Schema.Updates.Documents
                 var propDetails = new BlittableJsonReaderObject.PropertyDetails();
                 sourceCounters.Modifications = new DynamicJsonValue(sourceCounters);
 
-                var originalNames = new DynamicJsonValue();
+                var originalNames = new DynamicJsonValue(0);
 
                 for (int i = 0; i < sourceCounters.Count; i++)
                 {

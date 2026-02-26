@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
@@ -54,7 +54,7 @@ namespace Raven.Server.Documents.Handlers.Debugging
             using (var proc = Process.GetCurrentProcess())
             {
                 var djaCpu = new DynamicJsonArray();
-                var djvCpu = new DynamicJsonValue
+                var djvCpu = new DynamicJsonValue(5)
                 {
                     [nameof(Stats.ProcessName)] = proc.ProcessName,
 #pragma warning disable CA1416 // Validate platform compatibility
@@ -68,7 +68,7 @@ namespace Raven.Server.Documents.Handlers.Debugging
                 djaCpu.Add(djvCpu);
 
                 var djaThreadpool = new DynamicJsonArray();
-                var djvThreadpool = new DynamicJsonValue();
+                var djvThreadpool = new DynamicJsonValue(0);
 
                 ThreadPool.GetAvailableThreads(out var workerThreads, out var completionPortThreads);
                 djvThreadpool["AvailableThreadPoolWorkerThreads"] = workerThreads;
@@ -82,7 +82,7 @@ namespace Raven.Server.Documents.Handlers.Debugging
 
                 djaThreadpool.Add(djvThreadpool);
 
-                return new DynamicJsonValue
+                return new DynamicJsonValue(2)
                 {
                     ["CpuStats"] = djaCpu,
                     ["ThreadPoolStats"] = djaThreadpool
@@ -95,7 +95,7 @@ namespace Raven.Server.Documents.Handlers.Debugging
             using (var proc = Process.GetCurrentProcess())
             {
                 var dja = new DynamicJsonArray();
-                var djv = new DynamicJsonValue();
+                var djv = new DynamicJsonValue(0);
 
                 AddValue(djv, "Id", () => proc.Id);
                 AddValue(djv, "Handle", () => proc.Handle.ToInt64());
@@ -145,7 +145,7 @@ namespace Raven.Server.Documents.Handlers.Debugging
 
                 dja.Add(djv);
 
-                return new DynamicJsonValue
+                return new DynamicJsonValue(1)
                 {
                     ["ProcStats"] = dja
                 };
@@ -160,7 +160,7 @@ namespace Raven.Server.Documents.Handlers.Debugging
             for (var idx = 0; idx < collection.Count; idx++)
             {
                 var i = idx;
-                var djv = new DynamicJsonValue();
+                var djv = new DynamicJsonValue(0);
 
                 AddValue(djv, "Id", () => collection[i].Id);
                 AddValue(djv, "BasePriority", () => collection[i].BasePriority);
@@ -194,7 +194,7 @@ namespace Raven.Server.Documents.Handlers.Debugging
             for (var idx = 0; idx < collection.Count; idx++)
             {
                 var i = idx;
-                var djv = new DynamicJsonValue();
+                var djv = new DynamicJsonValue(0);
 
                 AddValue(djv, "ModuleName", () => collection[i].ModuleName);
                 AddValue(djv, "FileName", () => collection[i].FileName);

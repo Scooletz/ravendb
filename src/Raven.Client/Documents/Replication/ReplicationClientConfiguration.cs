@@ -1,4 +1,4 @@
-﻿using Sparrow.Json.Parsing;
+using Sparrow.Json.Parsing;
 
 namespace Raven.Client.Documents.Replication
 {
@@ -6,7 +6,7 @@ namespace Raven.Client.Documents.Replication
     {
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue();
+            return new DynamicJsonValue(0);
         }
     }
 }

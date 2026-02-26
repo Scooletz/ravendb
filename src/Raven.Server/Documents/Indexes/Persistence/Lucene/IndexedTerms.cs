@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
@@ -138,7 +138,7 @@ namespace Raven.Server.Documents.Indexes.Persistence.Lucene
             var final = new BlittableJsonReaderObject[results.Length];
             for (int i = 0; i < results.Length; i++)
             {
-                var doc = new DynamicJsonValue();
+                var doc = new DynamicJsonValue(0);
                 var dictionary = results[i];
                 if (dictionary == null)
                     continue;

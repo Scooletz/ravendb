@@ -38,7 +38,7 @@ public sealed class MismatchedReferencesLoadWarning : INotificationDetails
     {
         var djv = new DynamicJsonValue(GetType());
 
-        var listOfWarnings = new DynamicJsonValue();
+        var listOfWarnings = new DynamicJsonValue(0);
 
         foreach (var warning in Warnings)
         {
@@ -46,7 +46,7 @@ public sealed class MismatchedReferencesLoadWarning : INotificationDetails
             
             foreach (var details in warning.Value)
             {
-                warningsForDocument.Add( new DynamicJsonValue
+                warningsForDocument.Add( new DynamicJsonValue(4)
                 {
                     [nameof(WarningDetails.ReferenceId)] = details.ReferenceId,
                     [nameof(WarningDetails.SourceId)] = details.SourceId,

@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using JetBrains.Annotations;
@@ -39,7 +39,7 @@ internal abstract class AbstractQueriesDebugHandlerProcessorForQueriesCacheList<
             {
                 if (item != null)
                 {
-                    var curDjvItem = new DynamicJsonValue();
+                    var curDjvItem = new DynamicJsonValue(0);
                     queriesList.Add(curDjvItem);
 
                     curDjvItem[nameof(QueryMetadata.CreatedAt)] = item.CreatedAt;

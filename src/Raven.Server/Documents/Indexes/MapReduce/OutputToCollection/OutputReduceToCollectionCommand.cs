@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
@@ -136,7 +136,7 @@ namespace Raven.Server.Documents.Indexes.MapReduce.OutputToCollection
 
         private BlittableJsonReaderObject GenerateReduceOutput(object reduceObject, IndexingStatsScope stats, out string referenceDocumentId)
         {
-            var djv = new DynamicJsonValue();
+            var djv = new DynamicJsonValue(0);
 
             referenceDocumentId = null;
 
@@ -181,7 +181,7 @@ namespace Raven.Server.Documents.Indexes.MapReduce.OutputToCollection
                 }
             }
 
-            djv[Constants.Documents.Metadata.Key] = new DynamicJsonValue
+            djv[Constants.Documents.Metadata.Key] = new DynamicJsonValue(0)
             {
                 [Constants.Documents.Metadata.Collection] = _outputReduceToCollection
             };
@@ -575,10 +575,10 @@ namespace Raven.Server.Documents.Indexes.MapReduce.OutputToCollection
                             }
                         }
 
-                        var referenceDoc = new DynamicJsonValue
+                        var referenceDoc = new DynamicJsonValue(1)
                         {
                             [nameof(OutputReduceToCollectionReference.ReduceOutputs)] = new DynamicJsonArray(uniqueIds),
-                            [Constants.Documents.Metadata.Key] = new DynamicJsonValue
+                            [Constants.Documents.Metadata.Key] = new DynamicJsonValue(0)
                             {
                                 [Constants.Documents.Metadata.Collection] = _referencesCollectionName ?? $"{_outputReduceToCollection}/References"
                             }

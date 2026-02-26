@@ -64,7 +64,7 @@ namespace Raven.Client.Documents.Operations.Backups
 
         public DynamicJsonValue ToJson()
         {
-            var json = new DynamicJsonValue();
+            var json = new DynamicJsonValue(0);
             UpdateJson(json);
             return json;
         }
@@ -112,7 +112,7 @@ namespace Raven.Client.Documents.Operations.Backups
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(2)
             {
                 [nameof(Exception)] = Exception,
                 [nameof(At)] = At

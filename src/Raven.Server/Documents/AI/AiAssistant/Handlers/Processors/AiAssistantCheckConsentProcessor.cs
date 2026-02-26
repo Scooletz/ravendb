@@ -1,4 +1,4 @@
-﻿using System.Diagnostics.CodeAnalysis;
+using System.Diagnostics.CodeAnalysis;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
@@ -17,7 +17,7 @@ internal class AiAssistantCheckConsentProcessor([NotNull] RequestHandler request
         using (ServerStore.ContextPool.AllocateOperationContext(out TransactionOperationContext context))
         using (var token = RequestHandler.CreateHttpRequestBoundOperationToken())
         {
-            var request = new DynamicJsonValue();
+            var request = new DynamicJsonValue(0);
             FulfillRequestMetadata(request);
             
             var response = await ApiHttpClient.PostAsync(

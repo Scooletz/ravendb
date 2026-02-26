@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Sparrow.Json.Parsing;
@@ -39,13 +39,13 @@ namespace Raven.Client.ServerWide
             DynamicJsonValue resolveByCollection = null;
             if (ResolveByCollection != null)
             {
-                resolveByCollection = new DynamicJsonValue();
+                resolveByCollection = new DynamicJsonValue(0);
                 foreach (var scriptResolver in ResolveByCollection)
                 {
                     resolveByCollection[scriptResolver.Key] = scriptResolver.Value.ToJson();
                 }
             }
-            return new DynamicJsonValue
+            return new DynamicJsonValue(2)
             {
                 [nameof(ResolveToLatest)] = ResolveToLatest,
                 [nameof(ResolveByCollection)] = resolveByCollection
@@ -60,7 +60,7 @@ namespace Raven.Client.ServerWide
 
         public object ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(2)
             {
                 [nameof(Script)] = Script,
                 [nameof(LastModifiedTime)] = LastModifiedTime

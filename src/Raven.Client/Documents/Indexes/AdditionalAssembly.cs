@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using Sparrow.Json;
 using Sparrow.Json.Parsing;
@@ -138,7 +138,7 @@ namespace Raven.Client.Documents.Indexes
 
         public DynamicJsonValue ToJson()
         {
-            var djv = new DynamicJsonValue();
+            var djv = new DynamicJsonValue(0);
             if (AssemblyName != null)
                 djv[nameof(AssemblyName)] = AssemblyName;
 

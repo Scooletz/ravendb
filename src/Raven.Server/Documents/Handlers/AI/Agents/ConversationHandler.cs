@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -291,7 +291,7 @@ internal class ConversationHandler(ServerStore server, DocumentDatabase database
         var messages = new List<BlittableJsonReaderObject>()
         {
             context.ReadObject(
-                new DynamicJsonValue
+                new DynamicJsonValue(0)
                 {
                     [ChatCompletionClient.Constants.RequestFields.Role] = ChatCompletionClient.Constants.RequestFields.RoleSystemValue,
                     [ChatCompletionClient.Constants.RequestFields.Content] = beginningPrompt,
@@ -304,7 +304,7 @@ internal class ConversationHandler(ServerStore server, DocumentDatabase database
             : summarization.SummarizationTaskEndPrompt;
 
         messages.Add(context.ReadObject(
-            new DynamicJsonValue
+            new DynamicJsonValue(0)
             {
                 [ChatCompletionClient.Constants.RequestFields.Role] = ChatCompletionClient.Constants.RequestFields.RoleUserValue,
                 [ChatCompletionClient.Constants.RequestFields.Content] = endPrompt,
@@ -325,7 +325,7 @@ internal class ConversationHandler(ServerStore server, DocumentDatabase database
 
         oldChat.AddMessage(context,
             context.ReadObject(
-                new DynamicJsonValue
+                new DynamicJsonValue(0)
                 {
                     [ChatCompletionClient.Constants.RequestFields.Role] = ChatCompletionClient.Constants.RequestFields.RoleAssistantValue,
                     [ChatCompletionClient.Constants.RequestFields.Content] = summarization.ResultPrefix + messagesSummary
@@ -356,7 +356,7 @@ internal class ConversationHandler(ServerStore server, DocumentDatabase database
         if (parameters is null)
             return args;
 
-        args.Modifications = new DynamicJsonValue();
+        args.Modifications = new DynamicJsonValue(0);
         BlittableJsonReaderObject.PropertyDetails prop = default;
         for (int i = 0; i < parameters.Count; i++)
         {
@@ -395,12 +395,12 @@ internal class ConversationHandler(ServerStore server, DocumentDatabase database
                 continue;
 
             toolCallsIds.Add(call.Id);
-            reqs.Add(new DynamicJsonValue
+            reqs.Add(new DynamicJsonValue(4)
             {
                 [nameof(GetRequest.Url)] = queryUrl,
                 [nameof(GetRequest.Query)] = null,
                 [nameof(GetRequest.Method)] = "POST",
-                [nameof(GetRequest.Content)] = new DynamicJsonValue
+                [nameof(GetRequest.Content)] = new DynamicJsonValue(2)
                 {
                     [nameof(IndexQuery.Query)] = q.Query,
                     [nameof(IndexQuery.QueryParameters)] = CreateParameters(context, call, _document.Parameters)
@@ -421,7 +421,7 @@ internal class ConversationHandler(ServerStore server, DocumentDatabase database
 
         multiGetHandler.HttpContext.Features.Set<IHttpAuthenticationFeature>(Authentication);
 
-        using (var reqsBlittable = context.ReadObject(new DynamicJsonValue { ["Requests"] = reqs }, "ai-agent/multi-query"))
+        using (var reqsBlittable = context.ReadObject(new DynamicJsonValue(1) { ["Requests"] = reqs }, "ai-agent/multi-query"))
         using (var handler = new MultiGetHandlerProcessorForPost(multiGetHandler))
         using (var memoryStream = RecyclableMemoryStreamFactory.GetRecyclableStream())
         {
@@ -452,7 +452,7 @@ internal class ConversationHandler(ServerStore server, DocumentDatabase database
                 RemoveNonEssentialFieldsFromMetadata(queryResult);
 
                 _document.AddMessage(context, context.ReadObject(
-                    new DynamicJsonValue
+                    new DynamicJsonValue(3)
                     {
                         ["tool_call_id"] = toolCallsIds[i],
                         ["role"] = "tool",
@@ -547,7 +547,7 @@ internal class ConversationHandler(ServerStore server, DocumentDatabase database
 
         if (RequestBody.HasUserPrompt(_request.Content))
         {
-            _document.AddMessage(context, context.ReadObject(new DynamicJsonValue
+            _document.AddMessage(context, context.ReadObject(new DynamicJsonValue(2)
             {
                 ["role"] = "user",
                 ["content"] = _request.Content
@@ -599,7 +599,7 @@ internal class ConversationHandler(ServerStore server, DocumentDatabase database
 
     public virtual DynamicJsonValue GetConversationResponse(JsonOperationContext context, BlittableJsonReaderObject response)
     {
-        return new DynamicJsonValue
+        return new DynamicJsonValue(7)
         {
             [nameof(ConversationResult<object>.ConversationId)] = _conversationId,
             [nameof(ConversationResult<object>.ChangeVector)] = _document.ChangeVector,

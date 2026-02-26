@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
@@ -101,7 +101,7 @@ namespace Raven.Client.Json
                     }
                 case BlittableSupportedReturnType.Dictionary:
                     {
-                        var @object = new DynamicJsonValue();
+                        var @object = new DynamicJsonValue(0);
 
                         var dictionary = (IDictionary)value;
                         foreach (var key in dictionary.Keys)
@@ -114,7 +114,7 @@ namespace Raven.Client.Json
                     }
                 case BlittableSupportedReturnType.GenericDictionary:
                     {
-                        var @object = new DynamicJsonValue();
+                        var @object = new DynamicJsonValue(0);
 
                         var dDictionary = (IDictionary<object, object>)value;
                         foreach (var key in dDictionary.Keys)

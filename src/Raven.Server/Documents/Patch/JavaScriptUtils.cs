@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
@@ -90,7 +90,7 @@ namespace Raven.Server.Documents.Patch
 
             else
             {
-                var res = new DynamicJsonValue();
+                var res = new DynamicJsonValue(0);
 
                 foreach (var field in groupByFields)
                 {
@@ -145,7 +145,7 @@ namespace Raven.Server.Documents.Patch
             if (boi.Metadata != null)
                 return boi.Metadata;
 
-            var modifiedMetadata = new DynamicJsonValue();
+            var modifiedMetadata = new DynamicJsonValue(0);
 
             // we need to set the metadata on the blittable itself, because we are might get the actual blittable here instead of Document
             if (string.IsNullOrEmpty(boi.ChangeVector) == false)
@@ -397,7 +397,7 @@ namespace Raven.Server.Documents.Patch
                 // we are passing a streaming value to the JS engine, so we need
                 // to materialize all the results
                 var results = new DynamicJsonArray(tsrr.Stream);
-                var djv = new DynamicJsonValue
+                var djv = new DynamicJsonValue(2)
                 {
                     [nameof(TimeSeriesAggregationResult.Count)] = results.Count,
                     [nameof(TimeSeriesAggregationResult.Results)] = results

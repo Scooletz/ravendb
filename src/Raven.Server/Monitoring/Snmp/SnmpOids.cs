@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
@@ -817,7 +817,7 @@ namespace Raven.Server.Monitoring.Snmp
                 {
                     var mapping = SnmpDatabase.GetIndexMapping(context, serverStore, record.DatabaseName);
 
-                    var djv = new DynamicJsonValue();
+                    var djv = new DynamicJsonValue(0);
                     if (mapping.Count == 0)
                         return djv;
 
@@ -1079,7 +1079,7 @@ namespace Raven.Server.Monitoring.Snmp
             
             public static DynamicJsonValue ToJson(ServerStore serverStore, TransactionOperationContext context)
             {
-                var djv = new DynamicJsonValue
+                var djv = new DynamicJsonValue(0)
                 {
                     [$"@{nameof(General)}"] = General.ToJson()
                 };
@@ -1101,7 +1101,7 @@ namespace Raven.Server.Monitoring.Snmp
                             array.Add(CreateJsonItem(Root + oid, fieldValue.Description));
                         }
 
-                        djv[kvp.Key] = new DynamicJsonValue
+                        djv[kvp.Key] = new DynamicJsonValue(1)
                         {
                             [$"@{nameof(General)}"] = array,
                             [nameof(Indexes)] = Indexes.ToJson(serverStore, context, record, kvp.Value)
@@ -1128,7 +1128,7 @@ namespace Raven.Server.Monitoring.Snmp
 
         private static DynamicJsonValue CreateJsonItem(string oid, string description)
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(2)
             {
                 ["OID"] = oid,
                 ["Description"] = description

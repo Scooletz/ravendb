@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Dynamic;
 using System.IO;
@@ -726,7 +726,7 @@ more responsive application.
             AssertNoNonUniqueInstance(entity, id);
 
             var collectionName = _requestExecutor.Conventions.GetCollectionName(entity);
-            var metadata = new DynamicJsonValue();
+            var metadata = new DynamicJsonValue(0);
             if (collectionName != null)
                 metadata[Constants.Documents.Metadata.Collection] = collectionName;
 
@@ -919,7 +919,7 @@ more responsive application.
 
             if (metadata.Modifications == null || metadata.Modifications.Properties.Count == 0)
             {
-                metadata.Modifications = new DynamicJsonValue();
+                metadata.Modifications = new DynamicJsonValue(0);
             }
 
             if (metadataDictionary != null)
@@ -939,7 +939,7 @@ more responsive application.
 
         private static object HandleDictionaryObject(IMetadataDictionary md)
         {
-            var djv = new DynamicJsonValue();
+            var djv = new DynamicJsonValue(0);
             foreach (var item in md)
             {
                 var v = item.Value;

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Net;
 using System.Threading.Tasks;
@@ -49,7 +49,7 @@ internal sealed class HiLoHandlerProcessorForGetNextHiLo : AbstractHiLoHandlerPr
 
             await using (var writer = new AsyncBlittableJsonTextWriter(context, RequestHandler.ResponseBodyStream()))
             {
-                context.Write(writer, new DynamicJsonValue
+                context.Write(writer, new DynamicJsonValue(6)
                 {
                     [nameof(HiLoResult.Prefix)] = cmd.Prefix,
                     [nameof(HiLoResult.Low)] = cmd.OldMax + 1,
@@ -116,11 +116,11 @@ internal sealed class HiLoHandlerProcessorForGetNextHiLo : AbstractHiLoHandlerPr
 
                 if (hiloDocReader == null)
                 {
-                    var newDoc = new DynamicJsonValue();
+                    var newDoc = new DynamicJsonValue(0);
 
                     OldMax = LastRangeMax;
                     newDoc[nameof(HiloDocument.Max)] = OldMax + Capacity;
-                    newDoc[Constants.Documents.Metadata.Key] = new DynamicJsonValue
+                    newDoc[Constants.Documents.Metadata.Key] = new DynamicJsonValue(0)
                     {
                         [Constants.Documents.Metadata.Collection] = CollectionName.HiLoCollection
                     };

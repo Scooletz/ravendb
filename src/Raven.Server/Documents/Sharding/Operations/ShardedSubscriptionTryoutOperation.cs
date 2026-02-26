@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Net.Http;
 using Microsoft.AspNetCore.Http;
 using Raven.Client;
@@ -49,7 +49,7 @@ public readonly struct ShardedSubscriptionTryoutOperation : IShardedOperation<Ge
             }
         }
 
-        var bjro = _context.ReadObject(new DynamicJsonValue()
+        var bjro = _context.ReadObject(new DynamicJsonValue(1)
         {
             ["Results"] = objList
         }, "Combine-GetDocumentsResult");

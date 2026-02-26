@@ -82,7 +82,7 @@ namespace Raven.Server.ServerWide.Commands
             
             private DynamicJsonValue ToJsonInternal()
             {
-                var djv = new DynamicJsonValue
+                var djv = new DynamicJsonValue(5)
                 {
                     [nameof(Type)] = Type,
                     [nameof(Id)] = Id,
@@ -110,7 +110,7 @@ namespace Raven.Server.ServerWide.Commands
 
             public DynamicJsonValue ToJson()
             {
-                return new DynamicJsonValue
+                return new DynamicJsonValue(2)
                 {
                     [nameof(Message)] = Message,
                     [nameof(Violation)] = Violation.ToJson()
@@ -136,7 +136,7 @@ namespace Raven.Server.ServerWide.Commands
 
             public DynamicJsonValue ToJson()
             {
-                return new DynamicJsonValue
+                return new DynamicJsonValue(5)
                 {
                     [nameof(TaskId)] = TaskId,
                     [nameof(WaitForIndexesTimeout)] = WaitForIndexesTimeout,
@@ -470,16 +470,16 @@ namespace Raven.Server.ServerWide.Commands
                     case nameof(CommandType.PUT):
                         clusterTransactionDataCommand.Type = CommandType.CompareExchangePUT;
 
-                        var dynamicJsonValue = new DynamicJsonValue
+                        var dynamicJsonValue = new DynamicJsonValue(0)
                         {
-                            [Constants.CompareExchange.ObjectFieldName] = new DynamicJsonValue { ["Id"] = docId }
+                            [Constants.CompareExchange.ObjectFieldName] = new DynamicJsonValue(1) { ["Id"] = docId }
                         };
 
                         if (dbCmd.TryGet(nameof(ClusterTransactionDataCommand.Document), out BlittableJsonReaderObject document)
                             && document.TryGet(Constants.Documents.Metadata.Key, out BlittableJsonReaderObject metadata)
                             && metadata.TryGet(Constants.Documents.Metadata.Expires, out LazyStringValue expires))
                         {
-                            dynamicJsonValue[Constants.Documents.Metadata.Key] = new DynamicJsonValue { [Constants.Documents.Metadata.Expires] = expires };
+                            dynamicJsonValue[Constants.Documents.Metadata.Key] = new DynamicJsonValue(0) { [Constants.Documents.Metadata.Expires] = expires };
                         }
 
                         clusterTransactionDataCommand.Document = context.ReadObject(dynamicJsonValue, "cmp-xchg-content");
@@ -556,7 +556,7 @@ namespace Raven.Server.ServerWide.Commands
                     var shardNumber = commands.Key;
 
                     var cmd = context.ReadObject(
-                        new DynamicJsonValue
+                        new DynamicJsonValue(3)
                         {
                             [nameof(SingleClusterDatabaseCommand.ShardNumber)] = shardNumber,
                             [nameof(DatabaseCommands)] = commands.Value.Select(c => c.Command),
@@ -619,7 +619,7 @@ namespace Raven.Server.ServerWide.Commands
             if (command.TryGet(nameof(ClusterTransactionDataCommand.Type), out string type) == false)
                 throw new InvalidOperationException($"Got command with no type defined: {command}");
 
-            var result = new DynamicJsonValue
+            var result = new DynamicJsonValue(1)
             {
                 [nameof(ICommandData.Type)] = type, 
                 [Constants.Documents.Metadata.LastModified] = DateTime.UtcNow,
@@ -830,7 +830,7 @@ namespace Raven.Server.ServerWide.Commands
 
             public DynamicJsonValue ToJson()
             {
-                return new DynamicJsonValue
+                return new DynamicJsonValue(6)
                 {
                     [nameof(Database)] = Database,
                     [nameof(PreviousCount)] = PreviousCount,
@@ -1008,7 +1008,7 @@ namespace Raven.Server.ServerWide.Commands
 
         private static DynamicJsonValue ToDynamicJsonValue(BlittableJsonReaderObject bjro)
         {
-            var djv = new DynamicJsonValue();
+            var djv = new DynamicJsonValue(0);
 
             if (bjro.TryGet(nameof(ICommandData.Type), out string type) == false)
                 throw new InvalidOperationException("Database cluster transaction command must have a type");
@@ -1094,7 +1094,7 @@ namespace Raven.Server.ServerWide.Commands
             djv[nameof(SerializedDatabaseCommands)] = SerializedDatabaseCommands?.Clone(context);
             if (SerializedDatabaseCommands == null && DatabaseCommands.Count > 0)
             {
-                var databaseCommands = new DynamicJsonValue
+                var databaseCommands = new DynamicJsonValue(2)
                 {
                     [nameof(DatabaseCommands)] = new DynamicJsonArray(DatabaseCommands.Select(x => x.ToJson(context))),
                     [nameof(Options)] = Options.ToJson(),

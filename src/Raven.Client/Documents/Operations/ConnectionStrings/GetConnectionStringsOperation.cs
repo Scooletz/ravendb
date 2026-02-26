@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Net.Http;
 using Raven.Client.Documents.Conventions;
@@ -98,7 +98,7 @@ namespace Raven.Client.Documents.Operations.ConnectionStrings
         
         public DynamicJsonValue ToJson()
         {
-            var result = new DynamicJsonValue();
+            var result = new DynamicJsonValue(0);
 
             AddConnections(RavenConnectionStrings, nameof(RavenConnectionStrings));
             AddConnections(SqlConnectionStrings, nameof(SqlConnectionStrings));
@@ -119,7 +119,7 @@ namespace Raven.Client.Documents.Operations.ConnectionStrings
                     return;
                 }
 
-                var jsonConnections = new DynamicJsonValue();
+                var jsonConnections = new DynamicJsonValue(0);
                 
                 foreach (var kvp in connectionStrings)
                     jsonConnections[kvp.Key] = kvp.Value.ToJson();

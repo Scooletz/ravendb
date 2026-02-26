@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -528,7 +528,7 @@ namespace Raven.Server.Documents.Handlers.Debugging
             if (databaseRecord == null)
                 throw new RavenException($"Couldn't fetch {nameof(DatabaseRecord)} from server for database '{databaseName}'");
 
-            var djv = new DynamicJsonValue();
+            var djv = new DynamicJsonValue(0);
             foreach (string fld in FieldsThatShouldBeExposedForDebug)
             {
                 if (databaseRecord.Raw.TryGetMember(fld, out var obj))

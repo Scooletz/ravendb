@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -82,7 +82,7 @@ namespace Raven.Server.Web.Studio.Processors
 
         public DynamicJsonValue ToJson()
         {
-            var json = new DynamicJsonValue()
+            var json = new DynamicJsonValue(8)
             {
                 [nameof(RangeSizeHumane)] = RangeSizeHumane,
                 [nameof(ShardNumbers)] = new DynamicJsonArray(ShardNumbers),
@@ -106,13 +106,13 @@ namespace Raven.Server.Web.Studio.Processors
 
         public DynamicJsonValue ToJson()
         {
-            var json = new DynamicJsonValue
+            var json = new DynamicJsonValue(2)
             {
                 [nameof(TotalSizeHumane)] = TotalSizeHumane,
                 [nameof(TotalSize)] = TotalSize,
             };
 
-            var ranges = new DynamicJsonValue();
+            var ranges = new DynamicJsonValue(0);
             foreach (var range in BucketRanges)
             {
                 ranges[range.Key.ToString()] = range.Value.ToJson();

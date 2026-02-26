@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -2743,7 +2743,7 @@ namespace Raven.Server.Json
 
         public static DynamicJsonValue GetOrCreateMetadata(DynamicJsonValue result)
         {
-            return (DynamicJsonValue)(result[Constants.Documents.Metadata.Key] ?? (result[Constants.Documents.Metadata.Key] = new DynamicJsonValue()));
+            return (DynamicJsonValue)(result[Constants.Documents.Metadata.Key] ?? (result[Constants.Documents.Metadata.Key] = new DynamicJsonValue(0)));
         }
 
         public static void MergeMetadata(DynamicJsonValue result, DynamicJsonValue metadata)

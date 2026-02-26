@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
@@ -65,7 +65,7 @@ public class AutoMapReduceIndexResultsAggregator
 
     internal virtual DynamicJsonValue BuildResult(KeyValuePair<BlittableJsonReaderObject, Dictionary<string, PropertyResult>> aggregationResult)
     {
-        var djv = new DynamicJsonValue();
+        var djv = new DynamicJsonValue(0);
 
         foreach (var aggregate in aggregationResult.Value)
             djv[aggregate.Key] = aggregate.Value.ResultValue;

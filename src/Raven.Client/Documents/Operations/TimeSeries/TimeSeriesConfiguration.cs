@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.Serialization;
@@ -74,7 +74,7 @@ namespace Raven.Client.Documents.Operations.TimeSeries
 
         public DynamicJsonValue ToJson()
         {
-            var json = new DynamicJsonValue
+            var json = new DynamicJsonValue(2)
             {
                 [nameof(Collections)] = DynamicJsonValue.Convert(Collections),
                 [nameof(PolicyCheckFrequency)] = PolicyCheckFrequency,
@@ -82,7 +82,7 @@ namespace Raven.Client.Documents.Operations.TimeSeries
 
             if (NamedValues != null)
             {
-                var djv = new DynamicJsonValue();
+                var djv = new DynamicJsonValue(0);
                 foreach (var collection in NamedValues)
                 {
                     djv[collection.Key] = DynamicJsonValue.Convert(collection.Value);
