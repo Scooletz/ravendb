@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -43,7 +43,7 @@ namespace Raven.Server.Documents.Handlers.Debugging
             using (ContextPool.AllocateOperationContext(out JsonOperationContext context))
             await using (var writer = new AsyncBlittableJsonTextWriterForDebug(context, ServerStore, ResponseBodyStream()))
             {
-                context.Write(writer, new DynamicJsonValue(0)
+                context.Write(writer, new DynamicJsonValue(1)
                 {
                     ["tx-info"] = ToJson(results)
                 });

@@ -138,7 +138,7 @@ namespace Raven.Client.Documents.Indexes
 
         public DynamicJsonValue ToJson()
         {
-            var djv = new DynamicJsonValue(0);
+            var djv = new DynamicJsonValue();
             if (AssemblyName != null)
                 djv[nameof(AssemblyName)] = AssemblyName;
 

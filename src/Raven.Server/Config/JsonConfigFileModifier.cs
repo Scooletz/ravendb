@@ -62,7 +62,7 @@ public class JsonConfigFileModifier : IDisposable
     
     private BlittableJsonReaderObject ReadBlittableFromFile(JsonOperationContext context)
     {
-        var jsonConfig = new DynamicJsonValue(0);
+        var jsonConfig = new DynamicJsonValue();
         if (_overwriteWholeFile == false)
             FillJsonFromFile(jsonConfig);
 

@@ -122,7 +122,7 @@ public sealed unsafe class CoraxIndexedEntriesReader : IDisposable
 
         DynamicJsonValue ToJson()
         {
-            var json = new DynamicJsonValue(0);
+            var json = new DynamicJsonValue();
             foreach (var (k,v) in doc)
             {
                 json[k] = v;

@@ -23,7 +23,7 @@ namespace Raven.Server.Web.System
             foreach (var database in GetEntriesForDebug().GroupBy(x => x.Query.Database))
             {
                 var indexesJson = new DynamicJsonArray();
-                entries.Add(new DynamicJsonValue(0) { ["Database"] = database.Key, ["Indexes"] = indexesJson });
+                entries.Add(new DynamicJsonValue(2) { ["Database"] = database.Key, ["Indexes"] = indexesJson });
                 foreach (var index in database.GroupBy(x => x.Query.Index))
                 {
                     long totalIndexItems = 0, totalIndexSize = 0;

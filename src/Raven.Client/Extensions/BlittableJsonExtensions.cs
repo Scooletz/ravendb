@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Sparrow.Json;
 using Sparrow.Json.Parsing;
 
@@ -101,7 +101,7 @@ namespace Raven.Client.Extensions
             {
                 item.Modifications = new DynamicJsonValue(item)
                 {
-                    [Constants.Documents.Metadata.Key] = new DynamicJsonValue(0)
+                    [Constants.Documents.Metadata.Key] = new DynamicJsonValue(1)
                     {
                         [key] = value
                     }

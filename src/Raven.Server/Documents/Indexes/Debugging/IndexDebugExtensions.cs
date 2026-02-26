@@ -424,7 +424,7 @@ namespace Raven.Server.Documents.Indexes.Debugging
                 var numberOfResults = *(int*)tvr.Read(ReduceMapResultsOfStaticIndex.NumberOfResultsPosition, out int _);
 
                 if (numberOfResults == 0)
-                    return context.ReadObject(new DynamicJsonValue(0), "debug-reduce-result");
+                    return context.ReadObject(new DynamicJsonValue(), "debug-reduce-result");
 
                 return new BlittableJsonReaderObject(tvr.Read(3, out int size), size, context);
             }

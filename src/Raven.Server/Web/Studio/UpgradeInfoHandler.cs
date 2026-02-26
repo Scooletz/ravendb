@@ -38,7 +38,7 @@ public sealed class UpgradeInfoHandler : ServerRequestHandler
                 HttpContext.Response.StatusCode = (int)HttpStatusCode.BadRequest;
                 
                 context.Write(writer,
-                    new DynamicJsonValue(0) { [ErrorPropertyName] = $"Incorrect values of query string parameters - '{StartParameter}' cannot be negative, '{PageSizeParameter}' has to be greater than zero." });
+                    new DynamicJsonValue(1) { [ErrorPropertyName] = $"Incorrect values of query string parameters - '{StartParameter}' cannot be negative, '{PageSizeParameter}' has to be greater than zero." });
                 return;
             }
             

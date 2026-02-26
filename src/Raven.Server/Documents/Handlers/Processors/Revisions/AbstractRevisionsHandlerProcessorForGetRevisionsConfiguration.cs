@@ -25,7 +25,7 @@ namespace Raven.Server.Documents.Handlers.Processors.Revisions
 
             if (revisionsConfig != null)
             {
-                var revisionsCollection = new DynamicJsonValue(0);
+                var revisionsCollection = new DynamicJsonValue();
                 foreach (var collection in revisionsConfig.Collections)
                 {
                     revisionsCollection[collection.Key] = collection.Value.ToJson();

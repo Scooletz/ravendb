@@ -115,7 +115,7 @@ namespace Raven.Server.Documents.Handlers.Processors.Subscriptions
         protected static DynamicJsonValue GetSubscriptionConnectionJson<T>(SubscriptionConnectionBase<T> x) where T : AbstractIncludesCommand
         {
             if (x == null)
-                return new DynamicJsonValue(0);
+                return new DynamicJsonValue();
 
             return new DynamicJsonValue(6)
             {

@@ -406,7 +406,7 @@ namespace Raven.Server.Rachis
 
         private static unsafe DynamicJsonValue ReadHistoryLog(ClusterOperationContext context, Table.TableValueHolder entryHolder)
         {
-            var djv = new DynamicJsonValue(0);
+            var djv = new DynamicJsonValue();
 
             djv["Date"] = ReadCreateAt(entryHolder);
 

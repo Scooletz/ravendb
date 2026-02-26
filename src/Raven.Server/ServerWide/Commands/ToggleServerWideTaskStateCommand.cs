@@ -35,7 +35,7 @@ namespace Raven.Server.ServerWide.Commands
                 throw new RachisApplyException($"Cannot find server wide task of type '{Value.Type}' with name '{Value.TaskName}'");
 
             if (task.Modifications == null)
-                task.Modifications = new DynamicJsonValue(0);
+                task.Modifications = new DynamicJsonValue(1);
 
             task.Modifications = new DynamicJsonValue(0)
             {

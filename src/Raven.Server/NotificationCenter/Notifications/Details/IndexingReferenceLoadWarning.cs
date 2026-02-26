@@ -33,7 +33,7 @@ namespace Raven.Server.NotificationCenter.Notifications.Details
 
         public DynamicJsonValue ToJson()
         {
-            var djv = new DynamicJsonValue(0);
+            var djv = new DynamicJsonValue(2);
 
             foreach (var key in Warnings.Keys)
             {

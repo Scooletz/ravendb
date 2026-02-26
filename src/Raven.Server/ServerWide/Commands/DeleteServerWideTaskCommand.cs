@@ -53,7 +53,7 @@ namespace Raven.Server.ServerWide.Commands
                            $"raftIndex {index}, previousValue {previousValue}, configuration {context.ReadObject(Value.ToJson(), "")}");
 
             if (previousValue.Modifications == null)
-                previousValue.Modifications = new DynamicJsonValue(0);
+                previousValue.Modifications = new DynamicJsonValue();
 
             previousValue.Modifications.Removals = new HashSet<int> { propertyIndex };
             return context.ReadObject(previousValue, Name);

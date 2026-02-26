@@ -59,7 +59,7 @@ namespace Raven.Server.NotificationCenter.Notifications.Details
 
         public DynamicJsonValue ToJson()
         {
-            var result = new DynamicJsonValue(0);
+            var result = new DynamicJsonValue(1);
 
             var errors = new DynamicJsonArray();
 

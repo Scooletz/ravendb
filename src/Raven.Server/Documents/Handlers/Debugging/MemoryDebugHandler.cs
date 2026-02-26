@@ -479,7 +479,7 @@ namespace Raven.Server.Documents.Handlers.Debugging
                 if (fileMappingByDir.TryGetValue(sizes.Key, out Dictionary<string, ConcurrentDictionary<IntPtr, long>> value) == false)
                     continue;
 
-                var details = new DynamicJsonValue(0);
+                var details = new DynamicJsonValue(4);
 
                 var dir = new DynamicJsonValue(4)
                 {

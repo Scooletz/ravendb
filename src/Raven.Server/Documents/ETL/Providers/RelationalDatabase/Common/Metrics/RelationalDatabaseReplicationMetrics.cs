@@ -1,4 +1,4 @@
-﻿using Raven.Server.Utils.Metrics;
+using Raven.Server.Utils.Metrics;
 using Sparrow.Json.Parsing;
 
 namespace Raven.Server.Documents.ETL.Providers.RelationalDatabase.Common.Metrics;
@@ -11,7 +11,7 @@ namespace Raven.Server.Documents.ETL.Providers.RelationalDatabase.Common.Metrics
 
         public DynamicJsonValue ToRelationalEtlTableMetricsDataDictionary()
         {
-            return new DynamicJsonValue(0)
+            return new DynamicJsonValue(2)
             {
                 ["Delete Actions Meter"] = DeleteActionsMeter.CreateMeterData(),
                 ["Insert Actions Meter"] = InsertActionsMeter.CreateMeterData()

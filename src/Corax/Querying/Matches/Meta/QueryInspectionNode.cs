@@ -28,7 +28,7 @@ namespace Corax.Querying.Matches.Meta
                     children.Add(child.ToJson());
                 }
             }
-            var parameters = new DynamicJsonValue(0);
+            var parameters = new DynamicJsonValue();
             if (Parameters != null)
             {
                 foreach (var (k,v) in Parameters)

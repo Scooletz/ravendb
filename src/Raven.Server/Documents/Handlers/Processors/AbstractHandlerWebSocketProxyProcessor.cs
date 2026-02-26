@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Net.WebSockets;
 using System.Threading.Tasks;
@@ -113,7 +113,7 @@ internal abstract class AbstractHandlerWebSocketProxyProcessor<TRequestHandler, 
             {
                 using (var writer = new BlittableJsonTextWriter(context, ms))
                 {
-                    context.Write(writer, new DynamicJsonValue(0) { ["Type"] = "Error", ["Exception"] = ex.ToString() });
+                    context.Write(writer, new DynamicJsonValue(2) { ["Type"] = "Error", ["Exception"] = ex.ToString() });
                 }
 
                 ms.TryGetBuffer(out ArraySegment<byte> bytes);

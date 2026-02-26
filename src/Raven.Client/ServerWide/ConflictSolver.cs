@@ -39,7 +39,7 @@ namespace Raven.Client.ServerWide
             DynamicJsonValue resolveByCollection = null;
             if (ResolveByCollection != null)
             {
-                resolveByCollection = new DynamicJsonValue(0);
+                resolveByCollection = new DynamicJsonValue();
                 foreach (var scriptResolver in ResolveByCollection)
                 {
                     resolveByCollection[scriptResolver.Key] = scriptResolver.Value.ToJson();

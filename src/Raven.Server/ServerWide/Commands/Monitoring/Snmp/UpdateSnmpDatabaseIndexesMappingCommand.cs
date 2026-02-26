@@ -46,7 +46,7 @@ namespace Raven.Server.ServerWide.Commands.Monitoring.Snmp
             if (previousValue != null)
             {
                 if (previousValue.Modifications == null)
-                    previousValue.Modifications = new DynamicJsonValue(0);
+                    previousValue.Modifications = new DynamicJsonValue();
 
                 AddIndexesIfNecessary(previousValue.Modifications, previousValue, Indexes);
 

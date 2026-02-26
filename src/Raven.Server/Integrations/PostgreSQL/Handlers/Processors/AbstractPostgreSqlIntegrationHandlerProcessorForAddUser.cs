@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -44,7 +44,7 @@ internal abstract class AbstractPostgreSqlIntegrationHandlerProcessorForAddUser<
         if (string.IsNullOrEmpty(dto.Username))
         {
             HttpContext.Response.StatusCode = (int)HttpStatusCode.BadRequest;
-            context.Write(writer, new DynamicJsonValue(0) { ["Error"] = "Username is null or empty." });
+            context.Write(writer, new DynamicJsonValue(1) { ["Error"] = "Username is null or empty." });
             return null; // handled
         }
 

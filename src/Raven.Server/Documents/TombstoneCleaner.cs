@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -483,7 +483,7 @@ namespace Raven.Server.Documents
 
                 public DynamicJsonValue ToJson()
                 {
-                    return new DynamicJsonValue(0) { [nameof(Documents)] = Documents, [nameof(TimeSeries)] = TimeSeries, [nameof(Counters)] = Counters };
+                    return new DynamicJsonValue(3) { [nameof(Documents)] = Documents, [nameof(TimeSeries)] = TimeSeries, [nameof(Counters)] = Counters };
                 }
             }
 

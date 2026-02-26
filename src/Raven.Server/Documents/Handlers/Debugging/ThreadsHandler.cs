@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -86,7 +86,7 @@ namespace Raven.Server.Documents.Handlers.Debugging
                         if (samplesCount == 1)
                         {
                             context.Write(writer,
-                                new DynamicJsonValue(0)
+                                new DynamicJsonValue(1)
                                 {
                                     ["Runaway Threads"] = threadsInfos.First().ToJson()
                                 });

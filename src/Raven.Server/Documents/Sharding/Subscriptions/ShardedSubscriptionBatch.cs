@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Raven.Client;
@@ -109,7 +109,7 @@ public sealed class ShardedSubscriptionBatch : SubscriptionBatchBase<BlittableJs
             }
 
             // we have non-existing included document, need to return null for them to the actual client
-            _result.Includes.Add(Context.ReadObject(new DynamicJsonValue(0)
+            _result.Includes.Add(Context.ReadObject(new DynamicJsonValue(3)
             {
                 [Constants.Documents.Metadata.Key] = new DynamicJsonValue(0)
                 {

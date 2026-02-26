@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
@@ -66,7 +66,7 @@ public sealed class ShardedSingleNodeBatchCommand : RavenCommand<BlittableJsonRe
             {
                 if (shardNumber.HasValue)
                 {
-                    blittable.Modifications = new DynamicJsonValue(0)
+                    blittable.Modifications = new DynamicJsonValue(1)
                     {
                         [Constants.Documents.Metadata.Sharding.ShardNumber] = shardNumber.Value
                     };

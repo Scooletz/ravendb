@@ -64,7 +64,7 @@ namespace Raven.Client.Documents.Operations.Backups
 
         public DynamicJsonValue ToJson()
         {
-            var json = new DynamicJsonValue(0);
+            var json = new DynamicJsonValue();
             UpdateJson(json);
             return json;
         }

@@ -84,7 +84,7 @@ namespace Raven.Server.Documents.Queries.Results
 
         protected override DynamicJsonValue GetCounterRaw(string docId, string name)
         {
-            var djv = new DynamicJsonValue(0);
+            var djv = new DynamicJsonValue();
 
             foreach (var partialValue in DocumentsStorage.CountersStorage.GetCounterPartialValues(_context, docId, name))
             {

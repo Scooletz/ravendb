@@ -112,7 +112,7 @@ namespace Raven.Server.Web.Studio.Processors
                 [nameof(TotalSize)] = TotalSize,
             };
 
-            var ranges = new DynamicJsonValue(0);
+            var ranges = new DynamicJsonValue();
             foreach (var range in BucketRanges)
             {
                 ranges[range.Key.ToString()] = range.Value.ToJson();

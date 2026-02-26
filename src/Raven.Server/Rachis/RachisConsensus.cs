@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -1464,7 +1464,7 @@ namespace Raven.Server.Rachis
             if (guid == RaftIdGenerator.DontCareId)
             {
                 var newGuid = $"DontCare/{term}-{lastIndex}";
-                cmd.Modifications = new DynamicJsonValue(0) { [nameof(CommandBase.UniqueRequestId)] = newGuid };
+                cmd.Modifications = new DynamicJsonValue(1) { [nameof(CommandBase.UniqueRequestId)] = newGuid };
                 using (var old = cmd)
                 {
                     cmd = context.ReadObject(cmd, newGuid);

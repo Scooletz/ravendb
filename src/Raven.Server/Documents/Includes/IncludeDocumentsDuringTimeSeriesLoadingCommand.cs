@@ -35,7 +35,7 @@ namespace Raven.Server.Documents.Includes
         public void InitializeNewRangeResult(byte* state)
         {
             _state = state;
-            _includes = new DynamicJsonValue(0);
+            _includes = new DynamicJsonValue();
             _missingIncludes?.Clear();
 
             if (_includeDoc == false)

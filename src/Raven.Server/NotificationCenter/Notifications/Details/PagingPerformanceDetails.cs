@@ -15,7 +15,7 @@ namespace Raven.Server.NotificationCenter.Notifications.Details
 
         public DynamicJsonValue ToJson()
         {
-            var djv = new DynamicJsonValue(0);
+            var djv = new DynamicJsonValue(7);
             foreach (var key in Actions.Keys)
             {
                 var queue = Actions[key];

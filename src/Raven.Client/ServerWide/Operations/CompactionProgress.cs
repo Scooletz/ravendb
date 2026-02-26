@@ -34,7 +34,7 @@ namespace Raven.Client.ServerWide.Operations
             
             if (IndexesResults.Count != 0)
             {
-                var indexes = new DynamicJsonValue(0);
+                var indexes = new DynamicJsonValue();
                 foreach (var index in IndexesResults)
                 {
                     indexes[index.Key] = index.Value.ToJson();

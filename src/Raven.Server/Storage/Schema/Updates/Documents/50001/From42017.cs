@@ -183,7 +183,7 @@ namespace Raven.Server.Storage.Schema.Updates.Documents
                     {
                         doc.Flags |= DocumentFlags.HasCounters;
 
-                        var dvj = new DynamicJsonValue(0)
+                        var dvj = new DynamicJsonValue(1)
                         {
                             [Constants.Documents.Metadata.Counters] = counterNames
                         };

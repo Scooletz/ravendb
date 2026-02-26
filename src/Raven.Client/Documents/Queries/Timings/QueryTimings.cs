@@ -90,7 +90,7 @@ namespace Raven.Client.Documents.Queries.Timings
 
             DynamicJsonValue InnerToJson(IDictionary<string, QueryTimings> queryTimings)
             {
-                DynamicJsonValue json = new DynamicJsonValue(0);
+                DynamicJsonValue json = new DynamicJsonValue();
                 if (queryTimings == null)
                     return null;
                 foreach (var kvp in queryTimings)

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Linq;
 using Raven.Client.Documents.Operations.Backups;
@@ -46,7 +46,7 @@ namespace Raven.Server.ServerWide.Commands
             string oldName = null;
             if (previousValue != null)
             {
-                previousValue.Modifications ??= new DynamicJsonValue(0);
+                previousValue.Modifications ??= new DynamicJsonValue();
 
                 if (previousValue.TryGet(Value.Name, out BlittableJsonReaderObject previousTask))
                 {

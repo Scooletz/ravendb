@@ -138,7 +138,7 @@ namespace Raven.Server.Documents.Indexes.Persistence.Lucene
             var final = new BlittableJsonReaderObject[results.Length];
             for (int i = 0; i < results.Length; i++)
             {
-                var doc = new DynamicJsonValue(0);
+                var doc = new DynamicJsonValue();
                 var dictionary = results[i];
                 if (dictionary == null)
                     continue;

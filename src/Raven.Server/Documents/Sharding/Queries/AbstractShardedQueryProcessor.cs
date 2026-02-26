@@ -365,7 +365,7 @@ public abstract class AbstractShardedQueryProcessor<TCommand, TResult, TCombined
             }
             else
             {
-                modifications[nameof(IndexQuery.QueryParameters)] = modifiedArgs = new DynamicJsonValue(0);
+                modifications[nameof(IndexQuery.QueryParameters)] = modifiedArgs = new DynamicJsonValue();
             }
 
             var limit = ((Query.Limit ?? 0) + (Query.Offset ?? 0));

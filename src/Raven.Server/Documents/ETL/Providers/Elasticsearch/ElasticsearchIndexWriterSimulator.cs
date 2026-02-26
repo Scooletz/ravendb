@@ -40,7 +40,7 @@ namespace Raven.Server.Documents.ETL.Providers.ElasticSearch
                 {
                     ["query"] = new DynamicJsonValue(1)
                     {
-                        ["terms"] = new DynamicJsonValue(0)
+                        ["terms"] = new DynamicJsonValue(1)
                         {
                             [idField] = new DynamicJsonArray(idsToDelete)
                         }

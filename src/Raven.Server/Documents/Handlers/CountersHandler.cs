@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
@@ -562,7 +562,7 @@ namespace Raven.Server.Documents.Handlers
                 data.Modifications = new DynamicJsonValue(data);
                 if (metadata == null)
                 {
-                    data.Modifications[Constants.Documents.Metadata.Key] = new DynamicJsonValue(0)
+                    data.Modifications[Constants.Documents.Metadata.Key] = new DynamicJsonValue(1)
                     {
                         [Constants.Documents.Metadata.Counters] = counterNames
                     };

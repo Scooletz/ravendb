@@ -90,7 +90,7 @@ namespace Raven.Server.Documents.Patch
 
             else
             {
-                var res = new DynamicJsonValue(0);
+                var res = new DynamicJsonValue(1);
 
                 foreach (var field in groupByFields)
                 {

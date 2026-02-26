@@ -94,7 +94,7 @@ namespace Raven.Server.Web.Operations
 
             static DynamicJsonValue ConvertToJson(Dictionary<OperationType, AbstractOperation> results)
             {
-                var djv = new DynamicJsonValue(0);
+                var djv = new DynamicJsonValue();
                 foreach (var kvp in results)
                 {
                     var operation = kvp.Value;

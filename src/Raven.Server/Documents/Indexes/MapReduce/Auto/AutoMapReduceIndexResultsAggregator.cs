@@ -65,7 +65,7 @@ public class AutoMapReduceIndexResultsAggregator
 
     internal virtual DynamicJsonValue BuildResult(KeyValuePair<BlittableJsonReaderObject, Dictionary<string, PropertyResult>> aggregationResult)
     {
-        var djv = new DynamicJsonValue(0);
+        var djv = new DynamicJsonValue();
 
         foreach (var aggregate in aggregationResult.Value)
             djv[aggregate.Key] = aggregate.Value.ResultValue;

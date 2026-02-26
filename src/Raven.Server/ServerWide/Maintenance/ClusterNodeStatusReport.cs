@@ -171,7 +171,7 @@ namespace Raven.Server.ServerWide.Maintenance
                 [nameof(LastCompareExchangeIndex)] = LastCompareExchangeIndex,
                 [nameof(LastClusterWideTransactionRaftIndex)] = LastClusterWideTransactionRaftIndex
             };
-            var indexStats = new DynamicJsonValue(0);
+            var indexStats = new DynamicJsonValue(7);
             foreach (var stat in LastIndexStats)
             {
                 indexStats[stat.Key] = new DynamicJsonValue(7)

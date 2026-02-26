@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using Raven.Client;
 using Raven.Client.Documents.Indexes;
@@ -76,7 +76,7 @@ namespace Raven.Server.Documents.Indexes.Persistence.Lucene.Documents
             else
                 accessor = TypeConverter.GetPropertyAccessor(documentToProcess);
 
-            var storedValue = _storeValue ? new DynamicJsonValue(0) : null;
+            var storedValue = _storeValue ? new DynamicJsonValue() : null;
 
             foreach (var property in accessor.GetProperties(documentToProcess))
             {

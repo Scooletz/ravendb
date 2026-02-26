@@ -59,7 +59,7 @@ namespace Raven.Server.ServerWide.Commands
                         }
                     }
                 }
-                previousValue.Modifications ??= new DynamicJsonValue(0);
+                previousValue.Modifications ??= new DynamicJsonValue();
                 previousValue.Modifications[Value.Name] = Value.ToJson();
                 
                 return context.ReadObject(previousValue, Name);

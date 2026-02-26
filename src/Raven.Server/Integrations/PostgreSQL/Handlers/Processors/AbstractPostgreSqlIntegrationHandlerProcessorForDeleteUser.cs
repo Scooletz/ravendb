@@ -1,4 +1,4 @@
-﻿using System.Linq;
+using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 using JetBrains.Annotations;
@@ -40,7 +40,7 @@ internal abstract class AbstractPostgreSqlIntegrationHandlerProcessorForDeleteUs
         if (string.IsNullOrEmpty(username))
         {
             HttpContext.Response.StatusCode = (int)HttpStatusCode.BadRequest;
-            context.Write(writer, new DynamicJsonValue(0) { ["Error"] = "Username is null or empty." });
+            context.Write(writer, new DynamicJsonValue(1) { ["Error"] = "Username is null or empty." });
             return ValueTask.FromResult<PostgreSqlConfiguration>(null); // handled
         }
 

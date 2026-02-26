@@ -68,7 +68,7 @@ namespace Raven.Server.Documents.Queries.Results
             if (DocumentsStorage == null || !(_context is DocumentsOperationContext ctx))
                 return null;
 
-            var djv = new DynamicJsonValue(0);
+            var djv = new DynamicJsonValue();
 
             foreach (var partialValue in DocumentsStorage.CountersStorage.GetCounterPartialValues(ctx, docId, name))
             {

@@ -36,7 +36,7 @@ public class UpdateResponsibleNodeForTasksCommand : UpdateValueCommand<UpdateRes
 
         public DynamicJsonValue ToJson()
         {
-            var djv = new DynamicJsonValue(0);
+            var djv = new DynamicJsonValue(1);
 
             foreach (var keyValue in ResponsibleNodePerDatabase)
             {

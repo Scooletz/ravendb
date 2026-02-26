@@ -726,7 +726,7 @@ more responsive application.
             AssertNoNonUniqueInstance(entity, id);
 
             var collectionName = _requestExecutor.Conventions.GetCollectionName(entity);
-            var metadata = new DynamicJsonValue(0);
+            var metadata = new DynamicJsonValue();
             if (collectionName != null)
                 metadata[Constants.Documents.Metadata.Collection] = collectionName;
 

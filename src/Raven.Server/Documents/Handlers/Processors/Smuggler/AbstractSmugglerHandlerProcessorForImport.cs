@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Net;
 using System.Threading.Tasks;
@@ -57,7 +57,7 @@ namespace Raven.Server.Documents.Handlers.Processors.Smuggler
                 HttpContext.Response.StatusCode = (int)HttpStatusCode.BadRequest; // Bad request
                 await using (var writer = new AsyncBlittableJsonTextWriter(context, RequestHandler.ResponseBodyStream()))
                 {
-                    context.Write(writer, new DynamicJsonValue(0) { ["Type"] = "Error", ["Error"] = "This endpoint requires form content type" });
+                    context.Write(writer, new DynamicJsonValue(2) { ["Type"] = "Error", ["Error"] = "This endpoint requires form content type" });
                     return;
                 }
             }

@@ -13,7 +13,7 @@ public class ServerLimitsDetails : INotificationDetails
 
     public DynamicJsonValue ToJson()
     {
-        var djv = new DynamicJsonValue(0);
+        var djv = new DynamicJsonValue(1);
 
         var dict = new DynamicJsonArray();
         djv[nameof(Limits)] = dict;

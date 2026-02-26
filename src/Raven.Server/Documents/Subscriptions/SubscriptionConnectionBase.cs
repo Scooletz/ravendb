@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -373,7 +373,7 @@ namespace Raven.Server.Documents.Subscriptions
 
                 var metadata = result.Document.Data[Client.Constants.Documents.Metadata.Key];
                 writer.WriteValue(BlittableJsonToken.StartObject,
-                    context.ReadObject(new DynamicJsonValue(0) { [Client.Constants.Documents.Metadata.Key] = metadata }, result.Document.Id)
+                    context.ReadObject(new DynamicJsonValue(1) { [Client.Constants.Documents.Metadata.Key] = metadata }, result.Document.Id)
                 );
                 writer.WriteComma();
                 writer.WritePropertyName(context.GetLazyStringForFieldWithCaching(ExceptionSegment));

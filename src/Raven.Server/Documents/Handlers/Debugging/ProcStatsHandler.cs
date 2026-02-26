@@ -68,7 +68,7 @@ namespace Raven.Server.Documents.Handlers.Debugging
                 djaCpu.Add(djvCpu);
 
                 var djaThreadpool = new DynamicJsonArray();
-                var djvThreadpool = new DynamicJsonValue(0);
+                var djvThreadpool = new DynamicJsonValue(1);
 
                 ThreadPool.GetAvailableThreads(out var workerThreads, out var completionPortThreads);
                 djvThreadpool["AvailableThreadPoolWorkerThreads"] = workerThreads;

@@ -20,7 +20,7 @@ namespace Raven.Server.Extensions
             
             if (entry.RollingDeployment != null)
             {
-                var rollingObject = new DynamicJsonValue(0);
+                var rollingObject = new DynamicJsonValue();
                 foreach (var rollingIndexDeployment in entry.RollingDeployment)
                     rollingObject[rollingIndexDeployment.Key] = rollingIndexDeployment.Value.ToJson();
                 result[nameof(IndexHistoryEntry.RollingDeployment)] = rollingObject;

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -1714,7 +1714,7 @@ namespace Raven.Server.Smuggler.Documents
             };
             var attachments = new DynamicJsonArray();
             attachments.Add(attachment);
-            var metadata = new DynamicJsonValue(0)
+            var metadata = new DynamicJsonValue(3)
             {
                 [Constants.Documents.Metadata.Collection] = "@files",
                 [Constants.Documents.Metadata.Attachments] = attachments,

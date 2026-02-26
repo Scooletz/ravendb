@@ -817,7 +817,7 @@ namespace Raven.Server.Monitoring.Snmp
                 {
                     var mapping = SnmpDatabase.GetIndexMapping(context, serverStore, record.DatabaseName);
 
-                    var djv = new DynamicJsonValue(0);
+                    var djv = new DynamicJsonValue();
                     if (mapping.Count == 0)
                         return djv;
 

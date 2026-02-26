@@ -85,7 +85,7 @@ namespace Sparrow.Json
 
             var arrayHolder = IsRoot && Modifications == null
                 ? _parent.Clone(context) 
-                : context.ReadObject(new DynamicJsonValue(0) { [RootArrayHolderPropertyName] = this }, "array holder", usageMode);
+                : context.ReadObject(new DynamicJsonValue(1) { [RootArrayHolderPropertyName] = this }, "array holder", usageMode);
             
             return GetRootArrayFromParent(arrayHolder);
         }

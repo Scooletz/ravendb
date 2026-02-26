@@ -162,7 +162,7 @@ namespace Raven.Server.Documents.Queries.Results
                     return GetProjectionFromDocumentInternal(doc, ref retrieverInput, _context, token);
                 }
 
-                var result = new DynamicJsonValue(0);
+                var result = new DynamicJsonValue();
 
                 Dictionary<string, FieldsToFetch.FieldToFetch> fields = null;
 

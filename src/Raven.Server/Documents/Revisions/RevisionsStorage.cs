@@ -446,7 +446,7 @@ namespace Raven.Server.Documents.Revisions
 
             if (metadata.TryGet(Constants.Documents.Metadata.Counters, out BlittableJsonReaderArray counterNames))
             {
-                var djv = new DynamicJsonValue(0);
+                var djv = new DynamicJsonValue();
                 for (var i = 0; i < counterNames.Length; i++)
                 {
                     var counter = counterNames[i].ToString();

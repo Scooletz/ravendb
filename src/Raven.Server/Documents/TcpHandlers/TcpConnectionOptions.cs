@@ -223,7 +223,7 @@ namespace Raven.Server.Documents.TcpHandlers
 
             if (Stream is ReadWriteCompressedStream rwcs)
             {
-                var compressionInfo = new DynamicJsonValue(0);
+                var compressionInfo = new DynamicJsonValue();
 
                 var totalBytes = rwcs.GetTotalBytesSent();
                 compressionInfo["TotalCompressedBytesSent"] = totalBytes.Compressed;

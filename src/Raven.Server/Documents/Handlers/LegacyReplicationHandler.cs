@@ -130,7 +130,7 @@ namespace Raven.Server.Documents.Handlers
                         continue;
                     }
 
-                    var djv = new DynamicJsonValue(0);
+                    var djv = new DynamicJsonValue();
                     foreach (var keyValue in metadata)
                     {
                         var key = keyValue.Key;

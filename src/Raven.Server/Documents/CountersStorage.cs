@@ -393,7 +393,7 @@ namespace Raven.Server.Documents
                             if (existingCounter == null)
                             {
                                 // new counter
-                                originalNames.Modifications = new DynamicJsonValue(0) { [lowerName] = name };
+                                originalNames.Modifications = new DynamicJsonValue(1) { [lowerName] = name };
                             }
                         }
 

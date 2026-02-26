@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Threading.Tasks;
 using JetBrains.Annotations;
 using Microsoft.Extensions.AI;
@@ -111,7 +111,7 @@ internal class AiIntegrationHandlerProcessorForTestAiConnection<TRequestHandler,
                         throw new ArgumentOutOfRangeException("Invalid model type: " + aiConnectionString.ModelType);
                     }
 
-                var result = new DynamicJsonValue(0) { [nameof(NodeConnectionTestResult.Success)] = true };
+                var result = new DynamicJsonValue(1) { [nameof(NodeConnectionTestResult.Success)] = true };
 
                 await using (var writer = new AsyncBlittableJsonTextWriter(context, RequestHandler.ResponseBodyStream()))
                 {

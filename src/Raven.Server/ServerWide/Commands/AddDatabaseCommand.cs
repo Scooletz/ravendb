@@ -45,7 +45,7 @@ namespace Raven.Server.ServerWide.Commands
             DynamicJsonValue databaseValues = null;
             if (DatabaseValues != null)
             {
-                databaseValues = new DynamicJsonValue(0);
+                databaseValues = new DynamicJsonValue();
                 foreach (var kvp in DatabaseValues)
                     databaseValues[kvp.Key] = kvp.Value?.Clone(context);
             }

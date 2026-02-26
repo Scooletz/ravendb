@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Raven.Server.Routing;
@@ -28,7 +28,7 @@ namespace Raven.Server.Documents.Handlers.Debugging
             using (Server.ServerStore.ContextPool.AllocateOperationContext(out JsonOperationContext context))
             await using (var writer = new AsyncBlittableJsonTextWriterForDebug(context, ServerStore, ResponseBodyStream()))
             {
-                context.Write(writer, new DynamicJsonValue(0)
+                context.Write(writer, new DynamicJsonValue(1)
                 {
                     ["tx-info"] = TransactionDebugHandler.ToJson(results)
                 });

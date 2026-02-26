@@ -73,7 +73,7 @@ public abstract partial class RachisConsensus
 
         public DynamicJsonValue ToJson()
         {
-            var timingTracking = new DynamicJsonValue(0);
+            var timingTracking = new DynamicJsonValue(1);
             foreach (var tuple in TimingTracking.ForceEnumerateInThreadSafeManner().OrderBy(x => x.Key))
             {
                 var key = tuple.Key;

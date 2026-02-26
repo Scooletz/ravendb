@@ -291,7 +291,7 @@ internal class ConversationHandler(ServerStore server, DocumentDatabase database
         var messages = new List<BlittableJsonReaderObject>()
         {
             context.ReadObject(
-                new DynamicJsonValue(0)
+                new DynamicJsonValue(2)
                 {
                     [ChatCompletionClient.Constants.RequestFields.Role] = ChatCompletionClient.Constants.RequestFields.RoleSystemValue,
                     [ChatCompletionClient.Constants.RequestFields.Content] = beginningPrompt,

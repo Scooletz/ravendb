@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
@@ -547,7 +547,7 @@ namespace Raven.Server.Documents
                     if (attachments.Count > 0)
                     {
                         flags |= DocumentFlags.HasAttachments;
-                        data.Modifications[Client.Constants.Documents.Metadata.Key] = new DynamicJsonValue(0)
+                        data.Modifications[Client.Constants.Documents.Metadata.Key] = new DynamicJsonValue(1)
                         {
                             [Client.Constants.Documents.Metadata.Attachments] = attachments
                         };

@@ -198,7 +198,7 @@ namespace Raven.Server.SqlMigration
         private static (DynamicJsonArray Keys, DynamicJsonValue EmbeddedItemsSpecialColumnValues) BuildEmbeddedSqlKeysDictionary(ReferenceInformation refInfo, List<DynamicJsonValue> specialColumnsValues, DynamicJsonValue specialColumns)
         {
             var keys = (DynamicJsonArray)refInfo.EmbeddedReferenceKeyDataProvider.Provide(specialColumns);
-            var embeddedItemsSpecialColumnValues = new DynamicJsonValue(0);
+            var embeddedItemsSpecialColumnValues = new DynamicJsonValue();
             var i = 0;
             foreach (var item in keys)
                 embeddedItemsSpecialColumnValues[item.ToString()] = specialColumnsValues[i++];

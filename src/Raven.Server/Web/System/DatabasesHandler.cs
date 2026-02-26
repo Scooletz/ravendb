@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -131,7 +131,7 @@ namespace Raven.Server.Web.System
                         await using (var writer = new AsyncBlittableJsonTextWriter(context, ResponseBodyStream()))
                         {
                             context.Write(writer,
-                                new DynamicJsonValue(0) { ["Type"] = "Error", ["Message"] = "Database " + name + " wasn't found" });
+                                new DynamicJsonValue(2) { ["Type"] = "Error", ["Message"] = "Database " + name + " wasn't found" });
                         }
 
                         return;

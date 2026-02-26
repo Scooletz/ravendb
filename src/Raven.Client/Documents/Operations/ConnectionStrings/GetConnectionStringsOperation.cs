@@ -98,7 +98,7 @@ namespace Raven.Client.Documents.Operations.ConnectionStrings
         
         public DynamicJsonValue ToJson()
         {
-            var result = new DynamicJsonValue(0);
+            var result = new DynamicJsonValue();
 
             AddConnections(RavenConnectionStrings, nameof(RavenConnectionStrings));
             AddConnections(SqlConnectionStrings, nameof(SqlConnectionStrings));

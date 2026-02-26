@@ -136,7 +136,7 @@ namespace Raven.Client.Documents.Attachments
 
             if (Destinations != null)
             {
-                destinations = new DynamicJsonValue(0);
+                destinations = new DynamicJsonValue();
                 foreach (var kvp in Destinations)
                 {
                     destinations[kvp.Key] = kvp.Value?.ToStudioJson();

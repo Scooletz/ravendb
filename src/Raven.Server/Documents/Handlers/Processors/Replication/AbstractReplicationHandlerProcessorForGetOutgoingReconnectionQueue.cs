@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Linq;
 using JetBrains.Annotations;
 using Raven.Client.Documents.Replication;
@@ -31,7 +31,7 @@ namespace Raven.Server.Documents.Handlers.Processors.Replication
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue(0)
+            return new DynamicJsonValue(1)
             {
                 ["Queue-Info"] = new DynamicJsonArray(QueueInfo.Select(o => o.ToJson()))
             };

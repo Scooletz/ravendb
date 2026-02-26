@@ -4496,7 +4496,7 @@ namespace Raven.Server.ServerWide
 
                         if (hasConnectionStrings)
                         {
-                            ravenConnectionStrings.Modifications ??= new DynamicJsonValue(0);
+                            ravenConnectionStrings.Modifications ??= new DynamicJsonValue(1);
                             ravenConnectionStrings.Modifications = new DynamicJsonValue(0)
                             {
                                 [ravenConnectionString.Name] = ravenConnectionString.ToJson()

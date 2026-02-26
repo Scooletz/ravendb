@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
@@ -282,7 +282,7 @@ internal class ChatCompletionClient : IDisposable
             DynamicJsonArray toolCalls = new();
             foreach (var call in toolCallState.AllToolCalls)
             {
-                toolCalls.Add(new DynamicJsonValue(0)
+                toolCalls.Add(new DynamicJsonValue(5)
                 {
                     [Constants.ResponseFields.Id] = call.Id,
                     [Constants.ResponseFields.Type] = Constants.ResponseFields.Function,

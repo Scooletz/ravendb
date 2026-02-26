@@ -17,7 +17,7 @@ internal class AiAssistantCheckUsageProcessor([NotNull] RequestHandler requestHa
         using (ServerStore.ContextPool.AllocateOperationContext(out TransactionOperationContext context))
         using (var token = RequestHandler.CreateHttpRequestBoundOperationToken())
         {
-            var request = new DynamicJsonValue(0);
+            var request = new DynamicJsonValue();
             FulfillRequestMetadata(request);
             
             var response = await ApiHttpClient.PostAsync(

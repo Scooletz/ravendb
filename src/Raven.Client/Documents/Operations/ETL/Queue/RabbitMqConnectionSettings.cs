@@ -18,7 +18,7 @@ public sealed class RabbitMqConnectionSettings
 
     public DynamicJsonValue ToAuditJson()
     {
-        return new DynamicJsonValue(0);
+        return new DynamicJsonValue();
     }
 
     private bool Equals(RabbitMqConnectionSettings other)

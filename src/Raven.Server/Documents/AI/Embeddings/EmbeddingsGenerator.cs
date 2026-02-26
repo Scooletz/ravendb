@@ -659,7 +659,7 @@ public class EmbeddingsGenerator(DocumentDatabase database, RavenLogger logger, 
             return new DynamicJsonValue(1)
             {
                 ["Value"] = val,
-                [Constants.Documents.Metadata.Key] = new DynamicJsonValue(0)
+                [Constants.Documents.Metadata.Key] = new DynamicJsonValue(2)
                 {
                     [Constants.Documents.Metadata.Collection] = Constants.Documents.Collections.EmbeddingsCacheCollection,
                     [Constants.Documents.Metadata.Expires] = expireAt

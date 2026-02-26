@@ -36,7 +36,7 @@ namespace Raven.Server.Web.System
                 if (stats == null)
                     return null;
 
-                var result = new DynamicJsonValue(0);
+                var result = new DynamicJsonValue();
                 result[nameof(stats.ConnectionsAccepted)] = stats.GetConnectionsAcceptedSafely();
                 result[nameof(stats.ConnectionsInitiated)] = stats.GetConnectionsInitiatedSafely();
                 result[nameof(stats.CumulativeConnections)] = stats.GetCumulativeConnectionsSafely();

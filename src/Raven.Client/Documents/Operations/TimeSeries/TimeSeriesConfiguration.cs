@@ -82,7 +82,7 @@ namespace Raven.Client.Documents.Operations.TimeSeries
 
             if (NamedValues != null)
             {
-                var djv = new DynamicJsonValue(0);
+                var djv = new DynamicJsonValue();
                 foreach (var collection in NamedValues)
                 {
                     djv[collection.Key] = DynamicJsonValue.Convert(collection.Value);

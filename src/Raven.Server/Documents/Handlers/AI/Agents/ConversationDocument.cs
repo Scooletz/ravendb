@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -64,7 +64,7 @@ public class ConversationDocument([NotNull] string agent, BlittableJsonReaderObj
             promptMessage += "\n" + message;
         }
 
-        AddMessage(context, context.ReadObject(new DynamicJsonValue(0)
+        AddMessage(context, context.ReadObject(new DynamicJsonValue(2)
         {
             [ChatCompletionClient.Constants.RequestFields.Role] = ChatCompletionClient.Constants.RequestFields.RoleSystemValue,
             [ChatCompletionClient.Constants.RequestFields.Content] = promptMessage

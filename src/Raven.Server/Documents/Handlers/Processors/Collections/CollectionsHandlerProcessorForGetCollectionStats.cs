@@ -22,7 +22,7 @@ namespace Raven.Server.Documents.Handlers.Processors.Collections
 
         private DynamicJsonValue GetCollectionStats(DocumentsOperationContext context, bool detailed = false)
         {
-            DynamicJsonValue collections = new DynamicJsonValue(0);
+            DynamicJsonValue collections = new DynamicJsonValue(10);
 
             DynamicJsonValue stats = new DynamicJsonValue(10)
             {

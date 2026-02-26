@@ -470,7 +470,7 @@ namespace Raven.Server.ServerWide.Commands
                     case nameof(CommandType.PUT):
                         clusterTransactionDataCommand.Type = CommandType.CompareExchangePUT;
 
-                        var dynamicJsonValue = new DynamicJsonValue(0)
+                        var dynamicJsonValue = new DynamicJsonValue(1)
                         {
                             [Constants.CompareExchange.ObjectFieldName] = new DynamicJsonValue(1) { ["Id"] = docId }
                         };

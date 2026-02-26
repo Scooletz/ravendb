@@ -39,7 +39,7 @@ internal abstract class AbstractQueriesDebugHandlerProcessorForQueriesCacheList<
             {
                 if (item != null)
                 {
-                    var curDjvItem = new DynamicJsonValue(0);
+                    var curDjvItem = new DynamicJsonValue(1);
                     queriesList.Add(curDjvItem);
 
                     curDjvItem[nameof(QueryMetadata.CreatedAt)] = item.CreatedAt;

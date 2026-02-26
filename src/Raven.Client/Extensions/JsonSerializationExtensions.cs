@@ -9,7 +9,7 @@ namespace Raven.Client.Extensions
     {
         public static DynamicJsonValue ToJsonWithPrimitiveKey<TKey, TValue>(this IDictionary<TKey, TValue> dic)
         {
-            var jsonMap = new DynamicJsonValue(0);
+            var jsonMap = new DynamicJsonValue();
             if (dic == null) //precaution, prevent NRE
                 return null;
 

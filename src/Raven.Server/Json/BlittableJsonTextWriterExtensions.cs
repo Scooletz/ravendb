@@ -2743,7 +2743,7 @@ namespace Raven.Server.Json
 
         public static DynamicJsonValue GetOrCreateMetadata(DynamicJsonValue result)
         {
-            return (DynamicJsonValue)(result[Constants.Documents.Metadata.Key] ?? (result[Constants.Documents.Metadata.Key] = new DynamicJsonValue(0)));
+            return (DynamicJsonValue)(result[Constants.Documents.Metadata.Key] ?? (result[Constants.Documents.Metadata.Key] = new DynamicJsonValue()));
         }
 
         public static void MergeMetadata(DynamicJsonValue result, DynamicJsonValue metadata)

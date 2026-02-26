@@ -116,7 +116,7 @@ internal sealed class HiLoHandlerProcessorForGetNextHiLo : AbstractHiLoHandlerPr
 
                 if (hiloDocReader == null)
                 {
-                    var newDoc = new DynamicJsonValue(0);
+                    var newDoc = new DynamicJsonValue(1);
 
                     OldMax = LastRangeMax;
                     newDoc[nameof(HiloDocument.Max)] = OldMax + Capacity;

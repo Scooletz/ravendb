@@ -6,7 +6,7 @@ namespace Raven.Client.Documents.Replication
     {
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue(0);
+            return new DynamicJsonValue();
         }
     }
 }

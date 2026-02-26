@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -28,7 +28,7 @@ public sealed class ShardedStreamQueryCsvResult : StreamQueryResult<BlittableJso
             {
                 if (result.TryGet(_timeSeries, out BlittableJsonReaderArray arr))
                 {
-                    var djv = new DynamicJsonValue(0)
+                    var djv = new DynamicJsonValue(1)
                     {
                         [Constants.Documents.Metadata.Id] = result.GetMetadata().GetId()
                     };

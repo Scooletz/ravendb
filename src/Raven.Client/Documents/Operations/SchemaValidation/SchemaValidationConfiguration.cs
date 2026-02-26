@@ -33,7 +33,7 @@ public sealed class SchemaValidationConfiguration
         DynamicJsonValue validatorsPerCollection = null;
         if (ValidatorsPerCollection != null)
         {
-            validatorsPerCollection = new DynamicJsonValue(0);
+            validatorsPerCollection = new DynamicJsonValue();
             foreach (var validator in ValidatorsPerCollection)
             {
                 validatorsPerCollection[validator.Key] = validator.Value.ToJson();

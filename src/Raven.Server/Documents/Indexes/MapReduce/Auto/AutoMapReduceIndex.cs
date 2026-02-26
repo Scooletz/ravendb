@@ -131,7 +131,7 @@ namespace Raven.Server.Documents.Indexes.MapReduce.Auto
                         if (_isFanout == false)
                         {
                             if (singleResult == null)
-                                singleResult = new DynamicJsonValue(0);
+                                singleResult = new DynamicJsonValue();
 
                             singleResult[groupByField.Name] = result;
                             _reduceKeyProcessor.Process(indexContext.Allocator, result);

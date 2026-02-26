@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Buffers;
 using System.Buffers.Text;
 using System.Collections;
@@ -2276,7 +2276,7 @@ namespace Raven.Server.Documents.TimeSeries
                 {
                     data.Modifications = new DynamicJsonValue(data)
                     {
-                        [Constants.Documents.Metadata.Key] = new DynamicJsonValue(0)
+                        [Constants.Documents.Metadata.Key] = new DynamicJsonValue(1)
                         {
                             [Constants.Documents.Metadata.TimeSeries] = new[] { tsName }
                         }

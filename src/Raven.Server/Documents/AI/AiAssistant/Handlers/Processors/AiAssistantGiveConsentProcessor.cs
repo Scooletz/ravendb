@@ -18,7 +18,7 @@ internal class AiAssistantGiveConsentProcessor([NotNull] RequestHandler requestH
         using (ServerStore.ContextPool.AllocateOperationContext(out TransactionOperationContext context))
         using (var token = RequestHandler.CreateHttpRequestBoundOperationToken())
         {
-            var request = new DynamicJsonValue(0);
+            var request = new DynamicJsonValue();
             FulfillRequestMetadata(request);
 
             if (RavenLogManager.Instance.IsAuditEnabled)

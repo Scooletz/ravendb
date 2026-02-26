@@ -21,7 +21,7 @@ namespace Raven.Server.Documents.Replication
 
         private DynamicJsonValue BuildReplicationStatesJson()
         {
-            var json = new DynamicJsonValue(0);
+            var json = new DynamicJsonValue();
             foreach (var item in ReplicationStates)
             {
                 json[item.Key] = item.Value.ToJson();

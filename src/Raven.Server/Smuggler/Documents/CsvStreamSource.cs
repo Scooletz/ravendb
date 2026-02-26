@@ -242,7 +242,7 @@ namespace Raven.Server.Smuggler.Documents
             try
             {
                 var idStr = _hasId ? csvReaderCurrentRecord[_idIndex] : _hasCollection ? $"{csvReaderCurrentRecord[_collectionIndex]}/" : $"{collection}/";
-                var data = new DynamicJsonValue(0);
+                var data = new DynamicJsonValue();
                 var metadata = new DynamicJsonValue(0);
 
                 for (var i = 0; i < csvReaderFieldHeaders.Length; i++)

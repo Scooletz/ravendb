@@ -136,7 +136,7 @@ namespace Raven.Server.Documents.Indexes.MapReduce.OutputToCollection
 
         private BlittableJsonReaderObject GenerateReduceOutput(object reduceObject, IndexingStatsScope stats, out string referenceDocumentId)
         {
-            var djv = new DynamicJsonValue(0);
+            var djv = new DynamicJsonValue(1);
 
             referenceDocumentId = null;
 

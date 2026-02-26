@@ -907,7 +907,7 @@ namespace Raven.Server.Documents.Queries.Results.TimeSeries
 
             if (addProjectionToResult)
             {
-                result[Constants.Documents.Metadata.Key] = new DynamicJsonValue(0)
+                result[Constants.Documents.Metadata.Key] = new DynamicJsonValue(1)
                 {
                     [Constants.Documents.Metadata.Projection] = true
                 };
