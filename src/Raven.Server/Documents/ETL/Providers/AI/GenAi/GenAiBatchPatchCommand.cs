@@ -144,7 +144,7 @@ internal sealed class GenAiBatchPatchCommand : DocumentMergedTransactionCommand
 
             doc.Modifications = new DynamicJsonValue(doc)
             {
-                [Constants.Documents.Metadata.Key] = new DynamicJsonValue(2)
+                [Constants.Documents.Metadata.Key] = new DynamicJsonValue(1)
                 {
                     [Constants.Documents.Metadata.GenAiHashes] = new DynamicJsonValue()
                     {

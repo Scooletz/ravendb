@@ -109,7 +109,7 @@ public sealed class ShardedSubscriptionBatch : SubscriptionBatchBase<BlittableJs
             }
 
             // we have non-existing included document, need to return null for them to the actual client
-            _result.Includes.Add(Context.ReadObject(new DynamicJsonValue(3)
+            _result.Includes.Add(Context.ReadObject(new DynamicJsonValue(1)
             {
                 [Constants.Documents.Metadata.Key] = new DynamicJsonValue()
                 {
