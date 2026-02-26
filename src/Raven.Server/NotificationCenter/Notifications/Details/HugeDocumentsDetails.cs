@@ -48,7 +48,7 @@ namespace Raven.Server.NotificationCenter.Notifications.Details
         {
             var djv = new DynamicJsonValue(0);
             
-            var dict = new DynamicJsonValue(0);
+            var dict = new DynamicJsonValue();
             djv[nameof(HugeDocuments)] = dict;
             
             foreach (var key in HugeDocuments.Keys)

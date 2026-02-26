@@ -939,7 +939,7 @@ more responsive application.
 
         private static object HandleDictionaryObject(IMetadataDictionary md)
         {
-            var djv = new DynamicJsonValue(0);
+            var djv = new DynamicJsonValue(md.Count);
             foreach (var item in md)
             {
                 var v = item.Value;
@@ -2173,10 +2173,8 @@ more responsive application.
 
             var idPropName = Conventions.FindIdentityPropertyNameFromCollectionName(collectionName);
 
-            result.Modifications = new DynamicJsonValue(0)
-            {
-                [idPropName] = id // this is being read by BlittableJsonReader for additional properties on the object
-            };
+            // this is being read by BlittableJsonReader for additional properties on the object
+            result.Modifications = new DynamicJsonValue(idPropName, id);
         }
 
         private void HandleInternalMetadata(BlittableJsonReaderArray values)

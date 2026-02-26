@@ -95,7 +95,7 @@ namespace Raven.Server.Documents.Handlers.Debugging
             using (var proc = Process.GetCurrentProcess())
             {
                 var dja = new DynamicJsonArray();
-                var djv = new DynamicJsonValue(0);
+                var djv = new DynamicJsonValue(32);
 
                 AddValue(djv, "Id", () => proc.Id);
                 AddValue(djv, "Handle", () => proc.Handle.ToInt64());
@@ -160,7 +160,7 @@ namespace Raven.Server.Documents.Handlers.Debugging
             for (var idx = 0; idx < collection.Count; idx++)
             {
                 var i = idx;
-                var djv = new DynamicJsonValue(0);
+                var djv = new DynamicJsonValue(24);
 
                 AddValue(djv, "Id", () => collection[i].Id);
                 AddValue(djv, "BasePriority", () => collection[i].BasePriority);
@@ -194,7 +194,7 @@ namespace Raven.Server.Documents.Handlers.Debugging
             for (var idx = 0; idx < collection.Count; idx++)
             {
                 var i = idx;
-                var djv = new DynamicJsonValue(0);
+                var djv = new DynamicJsonValue(8);
 
                 AddValue(djv, "ModuleName", () => collection[i].ModuleName);
                 AddValue(djv, "FileName", () => collection[i].FileName);

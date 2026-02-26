@@ -142,7 +142,7 @@ namespace Raven.Server.Utils.Metrics
             buckets.Sort((a, b) => a.Start.CompareTo(b.Start));
 
             // Emit raw 100ms samples so diagnostics can plot the exact workload shape (no smoothing).
-            var raw = new DynamicJsonValue(0);
+            var raw = new DynamicJsonValue(buckets.Count);
             foreach (var (start, rate) in buckets)
             {
                 var ageSeconds = (nowNs - start) / (double)Clock.NanosecondsInSecond;

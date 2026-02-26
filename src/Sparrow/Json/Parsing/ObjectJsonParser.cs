@@ -33,7 +33,6 @@ namespace Sparrow.Json.Parsing
             Properties = new List<(string Name, object Value)>(capacity);
         }
 
-        [Obsolete("Prefer DynamicJsonValue ctor with explicit capacity")]
         public DynamicJsonValue()
         {
             Properties = [];
@@ -132,11 +131,11 @@ namespace Sparrow.Json.Parsing
             if (dictionary == null)
                 return null;
 
-            var djv = new DynamicJsonValue(0);
+            var djv = new DynamicJsonValue(dictionary.Count);
             foreach (var kvp in dictionary)
             {
                 var json = kvp.Value as IDynamicJson;
-                djv[kvp.Key] = json == null ? (object)kvp.Value : json.ToJson();
+                djv[kvp.Key] = json == null ? kvp.Value : json.ToJson();
             }
             return djv;
         }
@@ -153,7 +152,7 @@ namespace Sparrow.Json.Parsing
                     throw new InvalidOperationException($"{typeof(TK).FullName} must override 'ToString'");
             }
 
-            var djv = new DynamicJsonValue(0);
+            var djv = new DynamicJsonValue(dictionary.Count);
             foreach (var kvp in dictionary)
             {
                 var json = kvp.Value as IDynamicJson;

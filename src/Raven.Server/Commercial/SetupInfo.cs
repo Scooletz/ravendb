@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
@@ -500,17 +500,14 @@ namespace Raven.Server.Commercial
 
         public DynamicJsonValue ToJson()
         {
-            var configurationStepsDjv = new DynamicJsonValue(0);
+            var configurationStepsDjv = new DynamicJsonValue(StepsByConfigurationStepType.Count);
 
             foreach (var kvp in StepsByConfigurationStepType)
             {
                 configurationStepsDjv[kvp.Key.ToString()] = kvp.Value.ToJson();
             }
-            
-            return new DynamicJsonValue(1)
-            {
-                [nameof(StepsByConfigurationStepType)] = configurationStepsDjv
-            };
+
+            return new DynamicJsonValue(nameof(StepsByConfigurationStepType), configurationStepsDjv);
         }
     }
 

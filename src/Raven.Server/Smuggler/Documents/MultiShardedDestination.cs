@@ -288,7 +288,7 @@ namespace Raven.Server.Smuggler.Documents
                     var endIndex = document.Id.IndexOf(DatabaseSmuggler.PreV4RevisionsDocumentId, StringComparison.OrdinalIgnoreCase);
                     id = document.Id.Substring(0, endIndex);
 
-                    metadata.Modifications = new DynamicJsonValue(0)
+                    metadata.Modifications = new DynamicJsonValue(2)
                     {
                         ["Raven-Document-Parent-Revision"] = document.Id,
                         ["Raven-Document-Revision-Status"] = "Historical"
@@ -296,7 +296,7 @@ namespace Raven.Server.Smuggler.Documents
                 }
                 else
                 {
-                    metadata.Modifications = new DynamicJsonValue(0)
+                    metadata.Modifications = new DynamicJsonValue(2)
                     {
                         ["Raven-Document-Revision"] = document.Id,
                         ["Raven-Document-Revision-Status"] = "Current"

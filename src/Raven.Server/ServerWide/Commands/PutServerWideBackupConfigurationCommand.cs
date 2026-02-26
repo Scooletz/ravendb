@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Linq;
 using Raven.Client.Documents.Operations.Backups;
@@ -90,11 +90,7 @@ namespace Raven.Server.ServerWide.Commands
                 return blittableJsonReaderObject;
             }
 
-            var djv = new DynamicJsonValue(0)
-            {
-                [Value.Name] = Value.ToJson()
-            };
-
+            var djv = new DynamicJsonValue(Value.Name, Value.ToJson());
             return context.ReadObject(djv, Name);
         }
 

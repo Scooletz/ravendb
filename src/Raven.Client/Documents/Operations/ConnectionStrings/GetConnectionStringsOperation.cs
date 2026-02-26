@@ -119,7 +119,7 @@ namespace Raven.Client.Documents.Operations.ConnectionStrings
                     return;
                 }
 
-                var jsonConnections = new DynamicJsonValue(0);
+                var jsonConnections = new DynamicJsonValue(connectionStrings.Count);
                 
                 foreach (var kvp in connectionStrings)
                     jsonConnections[kvp.Key] = kvp.Value.ToJson();

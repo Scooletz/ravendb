@@ -180,7 +180,7 @@ internal sealed class StudioDatabasesHandlerForGetDatabases : AbstractDatabasesH
 
             public DynamicJsonValue ToJson()
             {
-                var shards = new DynamicJsonValue(0);
+                var shards = new DynamicJsonValue(Shards.Count);
                 foreach (var kvp in Shards)
                     shards[kvp.Key.ToString()] = kvp.Value?.ToJson();
 

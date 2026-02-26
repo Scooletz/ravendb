@@ -41,7 +41,7 @@ namespace Raven.Server.Documents.Handlers.Debugging
             await using (var write = new AsyncBlittableJsonTextWriterForDebug(context, ServerStore, ResponseBodyStream()))
             {
                 context.Write(write,
-                    new DynamicJsonValue(0)
+                    new DynamicJsonValue(1)
                     {
                         ["Remote-Connections"] = new DynamicJsonArray(RemoteConnection.RemoteConnectionsList
                             .Select(connection => new DynamicJsonValue(6)

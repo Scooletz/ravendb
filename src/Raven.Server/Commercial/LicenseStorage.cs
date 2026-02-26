@@ -49,10 +49,7 @@ namespace Raven.Server.Commercial
 
         public unsafe void SetFirstServerStartDate(DateTime date)
         {
-            var firstServerStartDate = new DynamicJsonValue(0)
-            {
-                [FirstServerStartDateKey] = date
-            };
+            var firstServerStartDate = new DynamicJsonValue(FirstServerStartDateKey, date);
 
             using (_contextPool.AllocateOperationContext(out TransactionOperationContext context))
             using (var tx = context.OpenWriteTransaction())

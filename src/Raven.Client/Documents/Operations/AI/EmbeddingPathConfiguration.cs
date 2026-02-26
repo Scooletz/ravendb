@@ -11,9 +11,12 @@ public class EmbeddingPathConfiguration : IDynamicJson
     
     public DynamicJsonValue ToJson()
     {
-        var jsv = new DynamicJsonValue(0);
-        jsv[nameof(Path)] = Path;
-        jsv[nameof(ChunkingOptions)] = ChunkingOptions?.ToJson();
+        var jsv = new DynamicJsonValue(2)
+        {
+            [nameof(Path)] = Path,
+            [nameof(ChunkingOptions)] = ChunkingOptions?.ToJson()
+        };
+
         return jsv;
     }
 

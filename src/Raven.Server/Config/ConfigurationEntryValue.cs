@@ -79,7 +79,7 @@ namespace Raven.Server.Config
         {
             var djv = base.ToJson();
 
-            var serverValues = new DynamicJsonValue(0);
+            var serverValues = new DynamicJsonValue(ServerValues.Count);
             foreach (var kvp in ServerValues)
                 serverValues[kvp.Key] = kvp.Value.ToJson();
 
@@ -167,7 +167,7 @@ namespace Raven.Server.Config
             DynamicJsonValue databaseValues = null;
             if (DatabaseValues != null)
             {
-                databaseValues = new DynamicJsonValue(0);
+                databaseValues = new DynamicJsonValue(DatabaseValues.Count);
                 foreach (var kvp in DatabaseValues)
                     databaseValues[kvp.Key] = kvp.Value.ToJson();
             }

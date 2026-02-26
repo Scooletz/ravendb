@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
@@ -440,7 +440,7 @@ namespace Raven.Server.Documents.Handlers
                     return;
                 
                 BlittableJsonReaderObject.PropertyDetails prop = default;
-                var originalNames = new DynamicJsonValue(0);
+                var originalNames = new DynamicJsonValue(counterValues.Count);
                 var counterNamesFromDocument = TryGetCounterNamesFromDocument(doc);
                 
                 for (int i = 0; i < counterValues.Count; i++)

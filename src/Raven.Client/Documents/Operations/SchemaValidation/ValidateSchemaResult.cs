@@ -45,7 +45,7 @@ public sealed class ValidateSchemaResult : ValidateSchemaProgress, IOperationRes
     
     public override DynamicJsonValue ToJson()
     {
-        var errors = new DynamicJsonValue(0);
+        var errors = new DynamicJsonValue(Errors.Count);
         foreach (var keyValue in Errors)
         {
             errors[keyValue.Key] = keyValue.Value;
