@@ -21,7 +21,7 @@ namespace Raven.Server.Documents.Replication
 
         private DynamicJsonValue BuildReplicationStatesJson()
         {
-            var json = new DynamicJsonValue();
+            var json = new DynamicJsonValue(ReplicationStates.Count);
             foreach (var item in ReplicationStates)
             {
                 json[item.Key] = item.Value.ToJson();
@@ -52,7 +52,7 @@ namespace Raven.Server.Documents.Replication
 
         public DynamicJsonValue BuildDestinationStatesJson()
         {
-            var json = new DynamicJsonValue();
+            var json = new DynamicJsonValue(DestinationStates.Count);
             foreach (var item in DestinationStates)
             {
                 json[item.Key] = item.Value.ToJson();

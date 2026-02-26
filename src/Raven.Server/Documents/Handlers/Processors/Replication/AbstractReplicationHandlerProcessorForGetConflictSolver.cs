@@ -31,7 +31,7 @@ internal abstract class AbstractReplicationHandlerProcessorForGetConflictSolver<
                 return;
             }
 
-            var resolveByCollection = new DynamicJsonValue();
+            var resolveByCollection = new DynamicJsonValue(solverConfig.ResolveByCollection.Count);
             foreach (var collection in solverConfig.ResolveByCollection)
                 resolveByCollection[collection.Key] = collection.Value.ToJson();
 

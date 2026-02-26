@@ -10,7 +10,7 @@ public class CollectionRevisionsStatistics
 
     public DynamicJsonValue ToJson()
     {
-        DynamicJsonValue collections = new DynamicJsonValue();
+        DynamicJsonValue collections = new DynamicJsonValue(Collections.Count);
         foreach (var collection in Collections)
         {
             collections[collection.Key] = collection.Value;

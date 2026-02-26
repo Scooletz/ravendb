@@ -20,7 +20,7 @@ namespace Raven.Server.Extensions
             
             if (entry.RollingDeployment != null)
             {
-                var rollingObject = new DynamicJsonValue();
+                var rollingObject = new DynamicJsonValue(entry.RollingDeployment.Count);
                 foreach (var rollingIndexDeployment in entry.RollingDeployment)
                     rollingObject[rollingIndexDeployment.Key] = rollingIndexDeployment.Value.ToJson();
                 result[nameof(IndexHistoryEntry.RollingDeployment)] = rollingObject;
@@ -56,7 +56,7 @@ namespace Raven.Server.Extensions
                 [nameof(IndexDefinition.ClusterState.LastRollingDeploymentIndex)] = definition.ClusterState?.LastRollingDeploymentIndex ?? 0
             };
 
-            var fields = new DynamicJsonValue();
+            var fields = new DynamicJsonValue(definition.Fields.Count);
             foreach (var kvp in definition.Fields)
             {
                 DynamicJsonValue spatial = null;
@@ -98,20 +98,20 @@ namespace Raven.Server.Extensions
 
             result[nameof(IndexDefinition.Fields)] = fields;
 
-            var settings = new DynamicJsonValue();
+            var settings = new DynamicJsonValue(definition.Configuration.Count);
             foreach (var kvp in definition.Configuration)
                 settings[kvp.Key] = kvp.Value;
             result[nameof(IndexDefinition.Configuration)] = settings;
 
             if (definition.SchemaDefinitions != null)
             {
-                var schemaDefinitions = new DynamicJsonValue();
+                var schemaDefinitions = new DynamicJsonValue(definition.SchemaDefinitions.Count);
                 foreach (var kvp in definition.SchemaDefinitions)
                     schemaDefinitions[kvp.Key] = kvp.Value;
                 result[nameof(IndexDefinition.SchemaDefinitions)] = schemaDefinitions;
             }
             
-            var additionalSources = new DynamicJsonValue();
+            var additionalSources = new DynamicJsonValue(definition.AdditionalSources.Count);
             foreach (var kvp in definition.AdditionalSources)
                 additionalSources[kvp.Key] = kvp.Value;
 

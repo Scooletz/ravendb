@@ -33,7 +33,7 @@ namespace Raven.Server.NotificationCenter.Notifications.Details
 
         public DynamicJsonValue ToJson()
         {
-            var djv = new DynamicJsonValue();
+            var djv = new DynamicJsonValue(Warnings.Count);
 
             foreach (var key in Warnings.Keys)
             {
@@ -41,7 +41,7 @@ namespace Raven.Server.NotificationCenter.Notifications.Details
                 if (details == null)
                     continue;
 
-                var list = new DynamicJsonValue();
+                var list = new DynamicJsonValue(details.Top10LoadedReferences.Count);
 
                 foreach (var reference in details.Top10LoadedReferences)
                 {
