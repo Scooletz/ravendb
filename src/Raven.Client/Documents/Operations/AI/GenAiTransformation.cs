@@ -16,7 +16,7 @@ public class GenAiTransformation
 
     }
 
-    public DynamicJsonValue ToJson() => new()
+    public DynamicJsonValue ToJson() => new(1)
     {
         [nameof(Script)] = Script
     };

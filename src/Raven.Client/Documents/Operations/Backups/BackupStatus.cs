@@ -57,7 +57,7 @@ namespace Raven.Client.Documents.Operations.Backups
         public long? LastFullBackupEtag { get; set; }
 
         public DynamicJsonValue ToJson() =>
-            new()
+            new(2)
             {
                 [nameof(LastEtag)] = LastEtag,
                 [nameof(LastFullBackupEtag)] = LastFullBackupEtag

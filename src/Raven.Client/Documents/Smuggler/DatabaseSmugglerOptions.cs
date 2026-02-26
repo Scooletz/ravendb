@@ -117,7 +117,7 @@ namespace Raven.Client.Documents.Smuggler
         internal bool IsShard { get; set; }
         
         public virtual DynamicJsonValue ToAuditJson() =>
-            new()
+            new(10)
             {
                 [nameof(OperateOnTypes)] = OperateOnTypes.ToString(),
                 [nameof(OperateOnDatabaseRecordTypes)] = OperateOnDatabaseRecordTypes.ToString(),

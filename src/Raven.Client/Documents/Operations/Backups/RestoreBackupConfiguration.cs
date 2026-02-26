@@ -68,7 +68,7 @@ namespace Raven.Client.Documents.Operations.Backups
         }
 
         internal virtual DynamicJsonValue ToAuditJson() =>
-            new()
+            new(8)
             {
                 [nameof(DatabaseName)] = DatabaseName,
                 [nameof(LastFileNameToRestore)] = LastFileNameToRestore,
