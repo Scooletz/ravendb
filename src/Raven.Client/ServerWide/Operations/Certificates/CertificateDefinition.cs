@@ -34,7 +34,7 @@ namespace Raven.Client.ServerWide.Operations.Certificates
 
         public DynamicJsonValue ToJson()
         {
-            var permissions = new DynamicJsonValue(9);
+            var permissions = new DynamicJsonValue();
         
             if (Permissions != null)
                 foreach (var kvp in Permissions)

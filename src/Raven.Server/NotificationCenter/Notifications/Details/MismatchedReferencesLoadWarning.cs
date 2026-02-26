@@ -38,7 +38,7 @@ public sealed class MismatchedReferencesLoadWarning : INotificationDetails
     {
         var djv = new DynamicJsonValue(GetType());
 
-        var listOfWarnings = new DynamicJsonValue(5);
+        var listOfWarnings = new DynamicJsonValue();
 
         foreach (var warning in Warnings)
         {
