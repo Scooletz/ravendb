@@ -37,7 +37,7 @@ namespace Raven.Server.ServerWide.Commands
             if (task.Modifications == null)
                 task.Modifications = new DynamicJsonValue(1);
 
-            task.Modifications = new DynamicJsonValue(0)
+            task.Modifications = new DynamicJsonValue()
             {
                 [GetDisabledPropertyName()] = Value.Disable
             };

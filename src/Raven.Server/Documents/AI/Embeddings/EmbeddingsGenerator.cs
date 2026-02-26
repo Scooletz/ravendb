@@ -903,16 +903,16 @@ public class EmbeddingsGenerator(DocumentDatabase database, RavenLogger logger, 
                 }
                 else
                 {
-                    modifications = new DynamicJsonValue(0)
+                    modifications = new DynamicJsonValue()
                     {
-                        [Constants.Documents.Metadata.Key] = new DynamicJsonValue(0)
+                        [Constants.Documents.Metadata.Key] = new DynamicJsonValue()
                         {
                             [Constants.Documents.Metadata.Collection] = EmbeddingsHelper.GetEmbeddingDocumentCollectionName(pde.Collection),
                         }
                     };
                 }
 
-                var djv = new DynamicJsonValue(0)
+                var djv = new DynamicJsonValue()
                 {
                     [Constants.Documents.Metadata.Quantization] = pde.Quantization
                 };

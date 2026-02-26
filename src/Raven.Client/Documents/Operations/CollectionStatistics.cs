@@ -72,7 +72,7 @@ namespace Raven.Client.Documents.Operations
 
         public DynamicJsonValue ToJson()
         {
-            DynamicJsonValue collections = new DynamicJsonValue(0);
+            DynamicJsonValue collections = new DynamicJsonValue();
 
             DynamicJsonValue stats = new DynamicJsonValue(10)
             {

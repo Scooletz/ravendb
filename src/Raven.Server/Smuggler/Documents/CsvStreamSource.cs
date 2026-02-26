@@ -243,7 +243,7 @@ namespace Raven.Server.Smuggler.Documents
             {
                 var idStr = _hasId ? csvReaderCurrentRecord[_idIndex] : _hasCollection ? $"{csvReaderCurrentRecord[_collectionIndex]}/" : $"{collection}/";
                 var data = new DynamicJsonValue();
-                var metadata = new DynamicJsonValue(0);
+                var metadata = new DynamicJsonValue();
 
                 for (var i = 0; i < csvReaderFieldHeaders.Length; i++)
                 {
@@ -273,7 +273,7 @@ namespace Raven.Server.Smuggler.Documents
                             //Creating the objects along the path if needed e.g. Foo.Bar.Name will create the 'Bar' object if needed
                             if (nestedData[segments[j]] == null)
                             {
-                                var tmpRef = new DynamicJsonValue(0);
+                                var tmpRef = new DynamicJsonValue();
                                 nestedData[segments[j]] = tmpRef;
                                 nestedData = tmpRef;
                             }

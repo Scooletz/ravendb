@@ -65,7 +65,7 @@ namespace Raven.Server.ServerWide.Commands
                 return context.ReadObject(previousValue, Name);
             }
 
-            var djv = new DynamicJsonValue(0)
+            var djv = new DynamicJsonValue()
             {
                 [Value.Name] = Value.ToJson()
             };

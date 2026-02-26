@@ -550,7 +550,7 @@ namespace Raven.Server.Documents
                 {
                     document.Modifications = new DynamicJsonValue(document)
                     {
-                        [Constants.Documents.Metadata.Key] = new DynamicJsonValue(0)
+                        [Constants.Documents.Metadata.Key] = new DynamicJsonValue()
                         {
                             [type.MetadataProperty] = values
                         }

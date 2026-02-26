@@ -304,7 +304,7 @@ internal class ConversationHandler(ServerStore server, DocumentDatabase database
             : summarization.SummarizationTaskEndPrompt;
 
         messages.Add(context.ReadObject(
-            new DynamicJsonValue(0)
+            new DynamicJsonValue()
             {
                 [ChatCompletionClient.Constants.RequestFields.Role] = ChatCompletionClient.Constants.RequestFields.RoleUserValue,
                 [ChatCompletionClient.Constants.RequestFields.Content] = endPrompt,
@@ -325,7 +325,7 @@ internal class ConversationHandler(ServerStore server, DocumentDatabase database
 
         oldChat.AddMessage(context,
             context.ReadObject(
-                new DynamicJsonValue(0)
+                new DynamicJsonValue()
                 {
                     [ChatCompletionClient.Constants.RequestFields.Role] = ChatCompletionClient.Constants.RequestFields.RoleAssistantValue,
                     [ChatCompletionClient.Constants.RequestFields.Content] = summarization.ResultPrefix + messagesSummary
@@ -356,7 +356,7 @@ internal class ConversationHandler(ServerStore server, DocumentDatabase database
         if (parameters is null)
             return args;
 
-        args.Modifications = new DynamicJsonValue(0);
+        args.Modifications = new DynamicJsonValue();
         BlittableJsonReaderObject.PropertyDetails prop = default;
         for (int i = 0; i < parameters.Count; i++)
         {

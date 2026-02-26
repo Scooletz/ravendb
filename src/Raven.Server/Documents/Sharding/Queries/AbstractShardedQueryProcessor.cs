@@ -716,7 +716,7 @@ public abstract class AbstractShardedQueryProcessor<TCommand, TResult, TCombined
 
             DynamicJsonValue GetParameters()
             {
-                var djv = new DynamicJsonValue(0)
+                var djv = new DynamicJsonValue()
                 {
                     [listParameterName] = GetIds()
                 };

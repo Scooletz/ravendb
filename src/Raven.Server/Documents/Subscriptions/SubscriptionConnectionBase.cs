@@ -772,7 +772,7 @@ namespace Raven.Server.Documents.Subscriptions
                                     [nameof(SubscriptionConnectionServerMessage.SubscriptionRedirectData.RegisterConnectionDurationInTicks)] =
                                         subscriptionDoesNotBelongException.RegisterConnectionDurationInTicks,
                                     [nameof(SubscriptionConnectionServerMessage.SubscriptionRedirectData.Reasons)] =
-                                        new DynamicJsonArray(subscriptionDoesNotBelongException.Reasons.Select(item => new DynamicJsonValue(0) { [item.Key] = item.Value }))
+                                        new DynamicJsonArray(subscriptionDoesNotBelongException.Reasons.Select(item => new DynamicJsonValue(1) { [item.Key] = item.Value }))
                                 }
                             });
                             break;

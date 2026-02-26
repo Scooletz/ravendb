@@ -479,7 +479,7 @@ namespace Raven.Server.SqlMigration
 
         protected DynamicJsonValue ExtractFromReader(DbDataReader reader, IEnumerable<string> columnNames)
         {
-            var document = new DynamicJsonValue(0);
+            var document = new DynamicJsonValue();
 
             foreach (string column in columnNames)
             {
@@ -491,7 +491,7 @@ namespace Raven.Server.SqlMigration
 
         protected DynamicJsonValue ExtractFromReader(DbDataReader reader, Dictionary<string, string> columnsMapping)
         {
-            var document = new DynamicJsonValue(0);
+            var document = new DynamicJsonValue();
 
             foreach (var kvp in columnsMapping)
             {

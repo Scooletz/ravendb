@@ -79,7 +79,7 @@ public sealed class UpgradeInfoHandler : ServerRequestHandler
             catch (Exception e)
             {
                 HttpContext.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
-                context.Write(writer, new DynamicJsonValue(0) { [ErrorPropertyName] = e.Message });
+                context.Write(writer, new DynamicJsonValue(1) { [ErrorPropertyName] = e.Message });
             }
         }
     }

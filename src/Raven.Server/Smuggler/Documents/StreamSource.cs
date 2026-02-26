@@ -1720,7 +1720,7 @@ namespace Raven.Server.Smuggler.Documents
                 [Constants.Documents.Metadata.Attachments] = attachments,
                 [Constants.Documents.Metadata.LegacyAttachmentsMetadata] = details.Metadata
             };
-            var djv = new DynamicJsonValue(0)
+            var djv = new DynamicJsonValue()
             {
                 [Constants.Documents.Metadata.Key] = metadata,
             };
@@ -1817,9 +1817,9 @@ namespace Raven.Server.Smuggler.Documents
                     {
                         if (modifier.Id.Contains(HiLoHandler.RavenHiloIdPrefix))
                         {
-                            data.Modifications = new DynamicJsonValue(0)
+                            data.Modifications = new DynamicJsonValue()
                             {
-                                [Constants.Documents.Metadata.Key] = new DynamicJsonValue(0)
+                                [Constants.Documents.Metadata.Key] = new DynamicJsonValue()
                                 {
                                     [Constants.Documents.Metadata.Collection] = CollectionName.HiLoCollection
                                 }

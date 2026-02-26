@@ -31,7 +31,7 @@ namespace Raven.Server.Extensions
         
         public static DynamicJsonValue ToJson(this IndexDefinition definition)
         {
-            var result = new DynamicJsonValue(0);
+            var result = new DynamicJsonValue();
 #if FEATURE_TEST_INDEX
             result[nameof(IndexDefinition.IsTestIndex)] = definition.IsTestIndex;
 #endif
@@ -56,13 +56,13 @@ namespace Raven.Server.Extensions
                 [nameof(IndexDefinition.ClusterState.LastRollingDeploymentIndex)] = definition.ClusterState?.LastRollingDeploymentIndex ?? 0
             };
 
-            var fields = new DynamicJsonValue(0);
+            var fields = new DynamicJsonValue();
             foreach (var kvp in definition.Fields)
             {
                 DynamicJsonValue spatial = null;
                 if (kvp.Value.Spatial != null)
                 {
-                    spatial = new DynamicJsonValue(0);
+                    spatial = new DynamicJsonValue();
                     spatial[nameof(SpatialOptions.MaxTreeLevel)] = kvp.Value.Spatial.MaxTreeLevel;
                     spatial[nameof(SpatialOptions.MaxX)] = kvp.Value.Spatial.MaxX;
                     spatial[nameof(SpatialOptions.MaxY)] = kvp.Value.Spatial.MaxY;
@@ -84,7 +84,7 @@ namespace Raven.Server.Extensions
                     vector[nameof(VectorOptions.NumberOfCandidatesForIndexing)] = kvp.Value.Vector.NumberOfCandidatesForIndexing?.ToString();
                 }
 
-                var field = new DynamicJsonValue(0);
+                var field = new DynamicJsonValue();
                 field[nameof(IndexFieldOptions.Analyzer)] = kvp.Value.Analyzer;
                 field[nameof(IndexFieldOptions.Indexing)] = kvp.Value.Indexing?.ToString();
                 field[nameof(IndexFieldOptions.Spatial)] = spatial;
@@ -98,20 +98,20 @@ namespace Raven.Server.Extensions
 
             result[nameof(IndexDefinition.Fields)] = fields;
 
-            var settings = new DynamicJsonValue(0);
+            var settings = new DynamicJsonValue();
             foreach (var kvp in definition.Configuration)
                 settings[kvp.Key] = kvp.Value;
             result[nameof(IndexDefinition.Configuration)] = settings;
 
             if (definition.SchemaDefinitions != null)
             {
-                var schemaDefinitions = new DynamicJsonValue(0);
+                var schemaDefinitions = new DynamicJsonValue();
                 foreach (var kvp in definition.SchemaDefinitions)
                     schemaDefinitions[kvp.Key] = kvp.Value;
                 result[nameof(IndexDefinition.SchemaDefinitions)] = schemaDefinitions;
             }
             
-            var additionalSources = new DynamicJsonValue(0);
+            var additionalSources = new DynamicJsonValue();
             foreach (var kvp in definition.AdditionalSources)
                 additionalSources[kvp.Key] = kvp.Value;
 

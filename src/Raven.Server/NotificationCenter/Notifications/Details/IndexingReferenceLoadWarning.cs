@@ -41,7 +41,7 @@ namespace Raven.Server.NotificationCenter.Notifications.Details
                 if (details == null)
                     continue;
 
-                var list = new DynamicJsonValue(0);
+                var list = new DynamicJsonValue();
 
                 foreach (var reference in details.Top10LoadedReferences)
                 {

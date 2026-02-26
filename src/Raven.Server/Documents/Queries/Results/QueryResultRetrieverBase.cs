@@ -333,7 +333,7 @@ namespace Raven.Server.Documents.Queries.Results
 
         private (Document Document, List<Document> List) GetProjectionFromDocumentInternal(Document doc, ref RetrieverInput retrieverInput, JsonOperationContext context, CancellationToken token)
         {
-            var result = new DynamicJsonValue(0);
+            var result = new DynamicJsonValue();
 
             foreach (var fieldToFetch in FieldsToFetch.Fields.Values)
             {
@@ -1131,7 +1131,7 @@ namespace Raven.Server.Documents.Queries.Results
             }
             else
             {
-                var component = new DynamicJsonValue(0);
+                var component = new DynamicJsonValue();
 
                 foreach (var componentField in field.Components)
                 {

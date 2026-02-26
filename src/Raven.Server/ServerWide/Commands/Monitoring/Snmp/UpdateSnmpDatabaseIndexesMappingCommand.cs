@@ -58,7 +58,7 @@ namespace Raven.Server.ServerWide.Commands.Monitoring.Snmp
                 return new UpdatedValue(UpdatedValueActionType.Update, context.ReadObject(previousValue, GetItemId()));
             }
 
-            var djv = new DynamicJsonValue(0);
+            var djv = new DynamicJsonValue();
             AddIndexesIfNecessary(djv, null, Indexes);
 
             return new UpdatedValue(UpdatedValueActionType.Update, context.ReadObject(djv, GetItemId()));

@@ -161,7 +161,7 @@ namespace Raven.Server.Documents.Indexes.MapReduce.Auto
                     {
                         for (var i = 0; i < _output.MaxGroupByFieldsCount; i++)
                         {
-                            var json = new DynamicJsonValue(0);
+                            var json = new DynamicJsonValue();
 
                             foreach (var groupBy in _output.GroupByFields)
                             {

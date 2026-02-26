@@ -4497,7 +4497,7 @@ namespace Raven.Server.ServerWide
                         if (hasConnectionStrings)
                         {
                             ravenConnectionStrings.Modifications ??= new DynamicJsonValue(1);
-                            ravenConnectionStrings.Modifications = new DynamicJsonValue(0)
+                            ravenConnectionStrings.Modifications = new DynamicJsonValue()
                             {
                                 [ravenConnectionString.Name] = ravenConnectionString.ToJson()
                             };
@@ -4506,7 +4506,7 @@ namespace Raven.Server.ServerWide
                         }
                         else
                         {
-                            var djv = new DynamicJsonValue(0)
+                            var djv = new DynamicJsonValue()
                             {
                                 [ravenConnectionString.Name] = ravenConnectionString.ToJson()
                             };
@@ -4520,7 +4520,7 @@ namespace Raven.Server.ServerWide
                         var propertyIndex = ravenConnectionStrings.GetPropertyIndex(ravenConnectionString.Name);
                         if (propertyIndex != -1)
                         {
-                            ravenConnectionStrings.Modifications ??= new DynamicJsonValue(0);
+                            ravenConnectionStrings.Modifications ??= new DynamicJsonValue();
                             ravenConnectionStrings.Modifications.Removals = new HashSet<int>
                             {
                                 propertyIndex
@@ -4531,7 +4531,7 @@ namespace Raven.Server.ServerWide
                     }
                     else
                     {
-                        ravenConnectionStrings = context.ReadObject(new DynamicJsonValue(0), nameof(DatabaseRecord.RavenConnectionStrings));
+                        ravenConnectionStrings = context.ReadObject(new DynamicJsonValue(), nameof(DatabaseRecord.RavenConnectionStrings));
                     }
 
                     using (oldDatabaseRecord)
@@ -4642,7 +4642,7 @@ namespace Raven.Server.ServerWide
                                 var propertyIndex = ravenConnectionStrings.GetPropertyIndex(connectionStringName);
                                 if (propertyIndex != -1)
                                 {
-                                    ravenConnectionStrings.Modifications ??= new DynamicJsonValue(0);
+                                    ravenConnectionStrings.Modifications ??= new DynamicJsonValue();
                                     ravenConnectionStrings.Modifications.Removals = new HashSet<int>
                                     {
                                         propertyIndex
@@ -4653,7 +4653,7 @@ namespace Raven.Server.ServerWide
                             }
                             else
                             {
-                                ravenConnectionStrings = context.ReadObject(new DynamicJsonValue(0), nameof(DatabaseRecord.RavenConnectionStrings));
+                                ravenConnectionStrings = context.ReadObject(new DynamicJsonValue(), nameof(DatabaseRecord.RavenConnectionStrings));
                             }
 
                             oldDatabaseRecord.Modifications = new DynamicJsonValue(oldDatabaseRecord)

@@ -479,7 +479,7 @@ namespace Raven.Server.ServerWide.Commands
                             && document.TryGet(Constants.Documents.Metadata.Key, out BlittableJsonReaderObject metadata)
                             && metadata.TryGet(Constants.Documents.Metadata.Expires, out LazyStringValue expires))
                         {
-                            dynamicJsonValue[Constants.Documents.Metadata.Key] = new DynamicJsonValue(0) { [Constants.Documents.Metadata.Expires] = expires };
+                            dynamicJsonValue[Constants.Documents.Metadata.Key] = new DynamicJsonValue(1) { [Constants.Documents.Metadata.Expires] = expires };
                         }
 
                         clusterTransactionDataCommand.Document = context.ReadObject(dynamicJsonValue, "cmp-xchg-content");
@@ -1008,7 +1008,7 @@ namespace Raven.Server.ServerWide.Commands
 
         private static DynamicJsonValue ToDynamicJsonValue(BlittableJsonReaderObject bjro)
         {
-            var djv = new DynamicJsonValue(0);
+            var djv = new DynamicJsonValue();
 
             if (bjro.TryGet(nameof(ICommandData.Type), out string type) == false)
                 throw new InvalidOperationException("Database cluster transaction command must have a type");

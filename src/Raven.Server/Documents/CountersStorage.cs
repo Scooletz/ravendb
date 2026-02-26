@@ -879,7 +879,7 @@ namespace Raven.Server.Documents
                             var propDetails = new BlittableJsonReaderObject.PropertyDetails();
                             sourceCounters.Modifications = new DynamicJsonValue(sourceCounters);
 
-                            var originalNames = new DynamicJsonValue(0);
+                            var originalNames = new DynamicJsonValue();
 
                             for (int i = 0; i < sourceCounters.Count; i++)
                             {
@@ -2231,7 +2231,7 @@ namespace Raven.Server.Documents
                 data.Modifications = new DynamicJsonValue(data);
                 if (metadata == null)
                 {
-                    data.Modifications[Constants.Documents.Metadata.Key] = new DynamicJsonValue(0) { [Constants.Documents.Metadata.Counters] = new DynamicJsonArray(counters) };
+                    data.Modifications[Constants.Documents.Metadata.Key] = new DynamicJsonValue(1) { [Constants.Documents.Metadata.Counters] = new DynamicJsonArray(counters) };
                 }
                 else
                 {

@@ -153,7 +153,7 @@ namespace Raven.Server.Web.System
                         HttpContext.Response.Headers[Constants.Headers.DatabaseMissing] = Uri.EscapeDataString(name);
                         await using (var writer = new AsyncBlittableJsonTextWriter(context, HttpContext.Response.Body))
                         {
-                            context.Write(writer, new DynamicJsonValue(0) { ["Type"] = "Error", ["Message"] = "Database " + name + " was deleted" });
+                            context.Write(writer, new DynamicJsonValue(1) { ["Type"] = "Error", ["Message"] = "Database " + name + " was deleted" });
                         }
 
                         return;

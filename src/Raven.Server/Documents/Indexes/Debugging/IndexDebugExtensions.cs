@@ -486,7 +486,7 @@ namespace Raven.Server.Documents.Indexes.Debugging
                     .ToList();
 
                 if (result.Count == 0)
-                    return context.ReadObject(new DynamicJsonValue(0), "debug-reduce-result");
+                    return context.ReadObject(new DynamicJsonValue(), "debug-reduce-result");
 
                 if (result.Count > 1)
                 {

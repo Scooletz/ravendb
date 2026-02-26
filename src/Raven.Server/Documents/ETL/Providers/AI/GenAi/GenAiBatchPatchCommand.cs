@@ -146,7 +146,7 @@ internal sealed class GenAiBatchPatchCommand : DocumentMergedTransactionCommand
             {
                 [Constants.Documents.Metadata.Key] = new DynamicJsonValue(2)
                 {
-                    [Constants.Documents.Metadata.GenAiHashes] = new DynamicJsonValue(0)
+                    [Constants.Documents.Metadata.GenAiHashes] = new DynamicJsonValue()
                     {
                         [taskIdentifier] = allHashes
                     }
@@ -160,7 +160,7 @@ internal sealed class GenAiBatchPatchCommand : DocumentMergedTransactionCommand
 
             metadata.Modifications = new DynamicJsonValue(metadata)
             {
-                [Constants.Documents.Metadata.GenAiHashes] = new DynamicJsonValue(0)
+                [Constants.Documents.Metadata.GenAiHashes] = new DynamicJsonValue()
                 {
                     [taskIdentifier] = allHashes
                 }

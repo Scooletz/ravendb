@@ -79,7 +79,7 @@ namespace Raven.Server.Web.System
                 if (connections == null || connections.Length == 0)
                     return null;
 
-                var result = new DynamicJsonValue(0);
+                var result = new DynamicJsonValue();
 
                 foreach (var g in connections.GroupBy(x => x.State))
                     result[g.Key.ToString()] = ToDynamicArray(g);

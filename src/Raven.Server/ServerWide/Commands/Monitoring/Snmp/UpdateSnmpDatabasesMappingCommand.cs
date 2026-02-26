@@ -41,7 +41,7 @@ namespace Raven.Server.ServerWide.Commands.Monitoring.Snmp
                 return context.ReadObject(previousValue, Name);
             }
 
-            var djv = new DynamicJsonValue(0);
+            var djv = new DynamicJsonValue();
 
             AddDatabasesIfNecessary(djv, null, Value);
 

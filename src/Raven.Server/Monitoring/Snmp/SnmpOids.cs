@@ -1079,7 +1079,7 @@ namespace Raven.Server.Monitoring.Snmp
             
             public static DynamicJsonValue ToJson(ServerStore serverStore, TransactionOperationContext context)
             {
-                var djv = new DynamicJsonValue(0)
+                var djv = new DynamicJsonValue()
                 {
                     [$"@{nameof(General)}"] = General.ToJson()
                 };

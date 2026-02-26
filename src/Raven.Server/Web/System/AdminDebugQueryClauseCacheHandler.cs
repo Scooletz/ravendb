@@ -65,7 +65,7 @@ namespace Raven.Server.Web.System
                 }
             }
 
-            var result = new DynamicJsonValue(0) { ["Summary"] = new DynamicJsonValue(0)
+            var result = new DynamicJsonValue(1) { ["Summary"] = new DynamicJsonValue()
             {
                 ["Size"] = totalSize,
                 ["HumaneSize"] = new Size(totalSize, SizeUnit.Bytes).ToString(),

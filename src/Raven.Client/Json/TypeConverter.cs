@@ -114,7 +114,7 @@ namespace Raven.Client.Json
                     }
                 case BlittableSupportedReturnType.GenericDictionary:
                     {
-                        var @object = new DynamicJsonValue(0);
+                        var @object = new DynamicJsonValue();
 
                         var dDictionary = (IDictionary<object, object>)value;
                         foreach (var key in dDictionary.Keys)

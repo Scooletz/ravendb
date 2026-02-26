@@ -589,7 +589,7 @@ namespace Raven.Server.Documents.Handlers
             {
                 lastCv = null;
                 var dbIds = new Dictionary<string, int>();
-                var counters = new DynamicJsonValue(0);
+                var counters = new DynamicJsonValue();
                 var counterModificationScopes = new List<ByteStringContext<ByteStringMemoryCache>.InternalScope>();
 
                 try
@@ -622,7 +622,7 @@ namespace Raven.Server.Documents.Handlers
                         counters[name] = new BlittableJsonReaderObject.RawBlob(newVal.Ptr, CountersStorage.SizeOfCounterValues * kvp.Value.Count);
                     }
 
-                    var values = context.ReadObject(new DynamicJsonValue(0)
+                    var values = context.ReadObject(new DynamicJsonValue()
                     {
                         [CountersStorage.DbIds] = dbIds.Keys,
                         [CountersStorage.Values] = counters

@@ -28,7 +28,7 @@ namespace Raven.Client.Extensions
 
         public static DynamicJsonValue ToJson<TValue>(this Dictionary<string, TValue> dic)     
         {
-            var jsonMap = new DynamicJsonValue(0);
+            var jsonMap = new DynamicJsonValue();
             if (dic == null) //precaution, prevent NRE
                 return null;
 
@@ -43,7 +43,7 @@ namespace Raven.Client.Extensions
 
         public static DynamicJsonValue ToJson<TValue>(this Dictionary<StringSegment, TValue> dic)
         {
-            var jsonMap = new DynamicJsonValue(0);
+            var jsonMap = new DynamicJsonValue();
             if (dic == null) //precaution, prevent NRE
                 return null;
 

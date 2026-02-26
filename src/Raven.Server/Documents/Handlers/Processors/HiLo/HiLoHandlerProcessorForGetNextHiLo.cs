@@ -120,7 +120,7 @@ internal sealed class HiLoHandlerProcessorForGetNextHiLo : AbstractHiLoHandlerPr
 
                     OldMax = LastRangeMax;
                     newDoc[nameof(HiloDocument.Max)] = OldMax + Capacity;
-                    newDoc[Constants.Documents.Metadata.Key] = new DynamicJsonValue(0)
+                    newDoc[Constants.Documents.Metadata.Key] = new DynamicJsonValue()
                     {
                         [Constants.Documents.Metadata.Collection] = CollectionName.HiLoCollection
                     };

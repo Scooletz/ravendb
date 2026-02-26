@@ -366,7 +366,7 @@ namespace Raven.Server.Utils
                 }
                 case BlittableSupportedReturnType.GenericDictionary:
                 {
-                    var @object = new DynamicJsonValue(0);
+                    var @object = new DynamicJsonValue();
 
                     var dDictionary = (IDictionary<object, object>)value;
                     foreach (var key in dDictionary.Keys)
@@ -385,7 +385,7 @@ namespace Raven.Server.Utils
             if (value is Guid guid)
                 return guid.ToString("D");
 
-            var inner = new DynamicJsonValue(0);
+            var inner = new DynamicJsonValue();
             var accessor = GetPropertyAccessor(value);
 
             foreach (var property in accessor.GetProperties(value))

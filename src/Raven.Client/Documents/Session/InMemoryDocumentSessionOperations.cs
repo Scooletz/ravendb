@@ -919,7 +919,7 @@ more responsive application.
 
             if (metadata.Modifications == null || metadata.Modifications.Properties.Count == 0)
             {
-                metadata.Modifications = new DynamicJsonValue(0);
+                metadata.Modifications = new DynamicJsonValue();
             }
 
             if (metadataDictionary != null)

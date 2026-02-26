@@ -181,7 +181,7 @@ namespace Raven.Server.Documents.Indexes.MapReduce.OutputToCollection
                 }
             }
 
-            djv[Constants.Documents.Metadata.Key] = new DynamicJsonValue(0)
+            djv[Constants.Documents.Metadata.Key] = new DynamicJsonValue()
             {
                 [Constants.Documents.Metadata.Collection] = _outputReduceToCollection
             };
@@ -578,7 +578,7 @@ namespace Raven.Server.Documents.Indexes.MapReduce.OutputToCollection
                         var referenceDoc = new DynamicJsonValue(1)
                         {
                             [nameof(OutputReduceToCollectionReference.ReduceOutputs)] = new DynamicJsonArray(uniqueIds),
-                            [Constants.Documents.Metadata.Key] = new DynamicJsonValue(0)
+                            [Constants.Documents.Metadata.Key] = new DynamicJsonValue()
                             {
                                 [Constants.Documents.Metadata.Collection] = _referencesCollectionName ?? $"{_outputReduceToCollection}/References"
                             }

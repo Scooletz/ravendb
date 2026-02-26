@@ -17,7 +17,7 @@ namespace Raven.Server.SqlMigration.Model
         public SqlMigrationDocument()
         {
             SpecialColumnsValues = new DynamicJsonValue();
-            Object = new DynamicJsonValue(0);
+            Object = new DynamicJsonValue();
         }
 
         public void SetCollectionAndId(string collectionName, string id)

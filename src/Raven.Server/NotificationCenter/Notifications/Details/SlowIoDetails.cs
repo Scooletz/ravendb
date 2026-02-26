@@ -17,7 +17,7 @@ namespace Raven.Server.NotificationCenter.Notifications.Details
         {
             var djv = new DynamicJsonValue();
             
-            var dict = new DynamicJsonValue(0);
+            var dict = new DynamicJsonValue();
             djv[nameof(Writes)] = dict;
             
             foreach (var key in Writes.Keys)

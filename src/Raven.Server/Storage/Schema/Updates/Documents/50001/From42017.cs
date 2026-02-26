@@ -494,7 +494,7 @@ namespace Raven.Server.Storage.Schema.Updates.Documents
                 var propDetails = new BlittableJsonReaderObject.PropertyDetails();
                 sourceCounters.Modifications = new DynamicJsonValue(sourceCounters);
 
-                var originalNames = new DynamicJsonValue(0);
+                var originalNames = new DynamicJsonValue();
 
                 for (int i = 0; i < sourceCounters.Count; i++)
                 {

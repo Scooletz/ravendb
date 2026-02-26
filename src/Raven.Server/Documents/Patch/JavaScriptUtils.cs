@@ -145,7 +145,7 @@ namespace Raven.Server.Documents.Patch
             if (boi.Metadata != null)
                 return boi.Metadata;
 
-            var modifiedMetadata = new DynamicJsonValue(0);
+            var modifiedMetadata = new DynamicJsonValue();
 
             // we need to set the metadata on the blittable itself, because we are might get the actual blittable here instead of Document
             if (string.IsNullOrEmpty(boi.ChangeVector) == false)

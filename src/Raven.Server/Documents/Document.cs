@@ -104,7 +104,7 @@ namespace Raven.Server.Documents
 
             Data.Modifications = new DynamicJsonValue(Data)
             {
-                [Constants.Documents.Metadata.Key] = (object)metadata ?? (mutatedMetadata = new DynamicJsonValue(0))
+                [Constants.Documents.Metadata.Key] = (object)metadata ?? (mutatedMetadata = new DynamicJsonValue())
             };
 
             mutatedMetadata[Constants.Documents.Metadata.Id] = Id;

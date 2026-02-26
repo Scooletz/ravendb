@@ -142,7 +142,7 @@ public abstract class AbstractStudioCollectionsHandlerProcessorForPreviewCollect
         public List<string> AvailableColumns;
 
         public DynamicJsonValue ArrayStubsJson = new DynamicJsonValue();
-        public DynamicJsonValue ObjectStubsJson = new DynamicJsonValue(0);
+        public DynamicJsonValue ObjectStubsJson = new DynamicJsonValue();
         public HashSet<LazyStringValue> TrimmedValue = new HashSet<LazyStringValue>();
 
         public virtual DynamicJsonValue CreateMetadata(BlittableJsonReaderObject current)

@@ -52,7 +52,7 @@ namespace Raven.Server.Documents.Replication
 
         public DynamicJsonValue BuildDestinationStatesJson()
         {
-            var json = new DynamicJsonValue(0);
+            var json = new DynamicJsonValue();
             foreach (var item in DestinationStates)
             {
                 json[item.Key] = item.Value.ToJson();
