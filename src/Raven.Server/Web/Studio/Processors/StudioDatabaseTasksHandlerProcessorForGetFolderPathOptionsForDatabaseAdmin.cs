@@ -151,7 +151,7 @@ internal class StudioDatabaseTasksHandlerProcessorForGetFolderPathOptionsForData
 
             await using (var writer = new AsyncBlittableJsonTextWriter(context, RequestHandler.ResponseBodyStream()))
             {
-                context.Write(writer, new DynamicJsonValue
+                context.Write(writer, new DynamicJsonValue(1)
                 {
                     [nameof(FolderPathOptions.List)] = TypeConverter.ToBlittableSupportedType(folderPathOptions.List)
                 });

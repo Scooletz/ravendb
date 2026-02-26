@@ -80,7 +80,7 @@ namespace Raven.Server.ServerWide.Tcp.Sync
                 Log.Debug($"Send negotiation for {parameters.Operation} in version {currentVersion}");
             }
 
-            context.Write(writer, new DynamicJsonValue
+            context.Write(writer, new DynamicJsonValue(7)
             {
                 [nameof(TcpConnectionHeaderMessage.DatabaseName)] = parameters.Database,
                 [nameof(TcpConnectionHeaderMessage.Operation)] = parameters.Operation.ToString(),

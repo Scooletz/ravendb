@@ -139,7 +139,7 @@ public sealed class RemoteAttachmentsDestinationConfiguration : IDynamicJson
 
     public DynamicJsonValue ToJson()
     {
-        return new DynamicJsonValue
+        return new DynamicJsonValue(3)
         {
             [nameof(Disabled)] = Disabled,
             [nameof(S3Settings)] = S3Settings?.ToJson(),
@@ -149,7 +149,7 @@ public sealed class RemoteAttachmentsDestinationConfiguration : IDynamicJson
 
     internal DynamicJsonValue ToStudioJson()
     {
-        return new DynamicJsonValue
+        return new DynamicJsonValue(1)
         {
             [nameof(Disabled)] = Disabled
         };

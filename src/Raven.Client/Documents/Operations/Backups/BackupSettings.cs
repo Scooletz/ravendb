@@ -23,7 +23,7 @@ namespace Raven.Client.Documents.Operations.Backups
 
         public virtual DynamicJsonValue ToAuditJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(2)
             {
                 [nameof(Disabled)] = Disabled,
                 [nameof(GetBackupConfigurationScript)] = GetBackupConfigurationScript?.ToAuditJson()
@@ -33,7 +33,7 @@ namespace Raven.Client.Documents.Operations.Backups
 
         public virtual DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(2)
             {
                 [nameof(Disabled)] = Disabled,
                 [nameof(GetBackupConfigurationScript)] = GetBackupConfigurationScript?.ToJson()
@@ -96,7 +96,7 @@ namespace Raven.Client.Documents.Operations.Backups
         public DynamicJsonValue ToAuditJson()
         {
 
-            return new DynamicJsonValue
+            return new DynamicJsonValue(2)
             {
                 [nameof(Exec)] = Exec,
                 [nameof(TimeoutInMs)] = TimeoutInMs
@@ -105,7 +105,7 @@ namespace Raven.Client.Documents.Operations.Backups
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(3)
             {
                 [nameof(Exec)] = Exec,
                 [nameof(Arguments)] = Arguments,

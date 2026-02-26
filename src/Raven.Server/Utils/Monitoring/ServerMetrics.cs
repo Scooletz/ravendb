@@ -24,7 +24,7 @@ namespace Raven.Server.Utils.Monitoring
         
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(14)
             {
                 [nameof(ServerVersion)] = ServerVersion,
                 [nameof(ServerFullVersion)] = ServerFullVersion,
@@ -54,7 +54,7 @@ namespace Raven.Server.Utils.Monitoring
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(4)
             {
                 [nameof(ServerUrls)] = ServerUrls,
                 [nameof(PublicServerUrl)] = PublicServerUrl,
@@ -72,7 +72,7 @@ namespace Raven.Server.Utils.Monitoring
         
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(2)
             {
                 [nameof(CurrentNumberOfRunningBackups)] = CurrentNumberOfRunningBackups,
                 [nameof(MaxNumberOfConcurrentBackups)] = MaxNumberOfConcurrentBackups
@@ -92,7 +92,7 @@ namespace Raven.Server.Utils.Monitoring
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(7)
             {
                 [nameof(ProcessUsage)] = ProcessUsage,
                 [nameof(MachineUsage)] = MachineUsage,
@@ -121,7 +121,7 @@ namespace Raven.Server.Utils.Monitoring
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(11)
             {
                 [nameof(AllocatedMemoryInMb)] = AllocatedMemoryInMb,
                 [nameof(LowMemorySeverity)] = LowMemorySeverity,
@@ -152,7 +152,7 @@ namespace Raven.Server.Utils.Monitoring
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(9)
             {
                 [nameof(SystemStoreUsedDataFileSizeInMb)] = SystemStoreUsedDataFileSizeInMb,
                 [nameof(SystemStoreTotalDataFileSizeInMb)] = SystemStoreTotalDataFileSizeInMb,
@@ -176,7 +176,7 @@ namespace Raven.Server.Utils.Monitoring
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(4)
             {
                 [nameof(Type)] = Type,
                 [nameof(ExpirationLeftInSec)] = ExpirationLeftInSec,
@@ -197,7 +197,7 @@ namespace Raven.Server.Utils.Monitoring
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(6)
             {
                 [nameof(TcpActiveConnections)] = TcpActiveConnections,
                 [nameof(ConcurrentRequestsCount)] = ConcurrentRequestsCount,
@@ -218,7 +218,7 @@ namespace Raven.Server.Utils.Monitoring
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(3)
             {
                 [nameof(ServerCertificateExpirationLeftInSec)] = ServerCertificateExpirationLeftInSec,
                 [nameof(WellKnownAdminCertificates)] = WellKnownAdminCertificates,
@@ -237,7 +237,7 @@ namespace Raven.Server.Utils.Monitoring
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(5)
             {
                 [nameof(NodeTag)] = NodeTag,
                 [nameof(NodeState)] = NodeState,
@@ -255,7 +255,7 @@ namespace Raven.Server.Utils.Monitoring
         
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(2)
             {
                 [nameof(TotalCount)] = TotalCount,
                 [nameof(LoadedCount)] = LoadedCount,

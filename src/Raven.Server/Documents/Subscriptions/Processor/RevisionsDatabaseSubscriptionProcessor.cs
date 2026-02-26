@@ -144,7 +144,7 @@ namespace Raven.Server.Documents.Subscriptions.Processor
             item.Current.EnsureMetadata();
             item.Previous?.EnsureMetadata();
 
-            var transformResult = DocsContext.ReadObject(new DynamicJsonValue
+            var transformResult = DocsContext.ReadObject(new DynamicJsonValue(2)
             {
                 [nameof(RevisionRecord.Current)] = item.Current.Flags.Contain(DocumentFlags.DeleteRevision) ? null : item.Current.Data,
                 [nameof(RevisionRecord.Previous)] = item.Previous?.Data

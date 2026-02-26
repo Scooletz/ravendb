@@ -28,7 +28,7 @@ namespace Sparrow.Server.Meters
 
             public DynamicJsonValue ToJson()
             {
-                return new DynamicJsonValue
+                return new DynamicJsonValue(3)
                 {
                     [nameof(Start)] = Start.GetDefaultRavenFormat(isUtc: true),
                     [nameof(End)] = End.GetDefaultRavenFormat(isUtc: true),
@@ -102,7 +102,7 @@ namespace Sparrow.Server.Meters
 
             public override DynamicJsonValue ToJson()
             {
-                return new DynamicJsonValue
+                return new DynamicJsonValue(6)
                 {
                     [nameof(Start)] = Start,
                     [nameof(Counter)] = Counter,

@@ -11,7 +11,7 @@ namespace Raven.Server.Documents.ETL.Providers.RelationalDatabase.Common.Metrics
 
         public DynamicJsonValue ToRelationalEtlTableMetricsDataDictionary()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(0)
             {
                 ["Delete Actions Meter"] = DeleteActionsMeter.CreateMeterData(),
                 ["Insert Actions Meter"] = InsertActionsMeter.CreateMeterData()

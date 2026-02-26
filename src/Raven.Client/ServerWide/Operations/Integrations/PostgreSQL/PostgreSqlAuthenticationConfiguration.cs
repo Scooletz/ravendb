@@ -10,7 +10,7 @@ namespace Raven.Client.ServerWide.Operations.Integrations.PostgreSQL
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(1)
             {
                 [nameof(Users)] = new DynamicJsonArray(Users.Select(x => x.ToJson()))
             };

@@ -55,7 +55,7 @@ namespace Raven.Client.Documents.Operations.AI.Agents
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(4)
             {
                 [nameof(Name)] = Name,
                 [nameof(Description)] = Description,

@@ -24,7 +24,7 @@ public class DebugPackageAnalyzeErrors : IDynamicJson
 
     public DynamicJsonValue ToJson()
     {
-        return new DynamicJsonValue
+        return new DynamicJsonValue(1)
         {
             [nameof(Errors)] = new DynamicJsonArray(Errors?.Select(error => error.ToJson()))
         };

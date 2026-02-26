@@ -19,7 +19,7 @@ internal sealed class GetPeriodicBackupTimersCommand : RavenCommand<GetPeriodicB
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(2)
             {
                 [nameof(Timers)] = new DynamicJsonArray(Timers.Select(x => x.ToJson())),
                 [nameof(Count)] = Count

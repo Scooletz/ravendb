@@ -32,7 +32,7 @@ namespace Raven.Server.Documents.Handlers.Processors.Replication
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(1)
             {
                 [nameof(Stats)] = new DynamicJsonArray(Stats.Select(IncomingRejectionInfoToJson))
             };
@@ -40,10 +40,10 @@ namespace Raven.Server.Documents.Handlers.Processors.Replication
 
         private DynamicJsonValue IncomingRejectionInfoToJson(KeyValuePair<IncomingConnectionInfo, ConcurrentQueue<ReplicationLoader.IncomingConnectionRejectionInfo>> kvp)
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(2)
             {
                 ["Key"] = kvp.Key.ToJson(),
-                ["Value"] = new DynamicJsonArray(kvp.Value.Select(x => new DynamicJsonValue
+                ["Value"] = new DynamicJsonArray(kvp.Value.Select(x => new DynamicJsonValue(2)
                 {
                     ["Reason"] = x.Reason,
                     ["When"] = x.When

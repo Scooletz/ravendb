@@ -17,7 +17,7 @@ namespace Raven.Client.Documents.Queries.Sorting
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(2)
             {
                 [nameof(Name)] = Name,
                 [nameof(Code)] = Code

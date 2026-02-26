@@ -347,7 +347,7 @@ namespace Sparrow.Server.Platform.Win32
 
             foreach (var result in results)
             {
-                var djv = new DynamicJsonValue
+                var djv = new DynamicJsonValue(12)
                 {
                     ["File"] = result.Key,
                     ["Size"] = result.Value.Size,

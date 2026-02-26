@@ -12,7 +12,7 @@ public sealed class ResendItem : IDynamicJson
 
     public DynamicJsonValue ToJson()
     {
-        return new DynamicJsonValue
+        return new DynamicJsonValue(4)
         {
             [nameof(Id)] = Id,
             [nameof(Batch)] = Batch,

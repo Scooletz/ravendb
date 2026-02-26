@@ -27,7 +27,7 @@ namespace Raven.Client.Documents.Operations.ConnectionStrings
 
         public virtual DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(1)
             {
                 [nameof(Name)] = Name
             };
@@ -35,7 +35,7 @@ namespace Raven.Client.Documents.Operations.ConnectionStrings
 
         public virtual DynamicJsonValue ToAuditJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(1)
             {
                 [nameof(Name)] = Name
             };

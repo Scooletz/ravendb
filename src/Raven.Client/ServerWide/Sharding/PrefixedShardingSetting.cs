@@ -29,7 +29,7 @@ public sealed class PrefixedShardingSetting
 
     public DynamicJsonValue ToJson()
     {
-        return new DynamicJsonValue
+        return new DynamicJsonValue(3)
         {
             [nameof(Prefix)] = Prefix, 
             [nameof(Shards)] = new DynamicJsonArray(Shards), 

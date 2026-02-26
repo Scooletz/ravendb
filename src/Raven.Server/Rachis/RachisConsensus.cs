@@ -749,7 +749,7 @@ namespace Raven.Server.Rachis
 
             if (rachisState == RachisState.LeaderElect)
             {
-                var noopCmd = new DynamicJsonValue
+                var noopCmd = new DynamicJsonValue(3)
                 {
                     ["Type"] = $"Noop for {Tag} in term {expectedTerm}",
                     ["Command"] = "noop",
@@ -1464,7 +1464,7 @@ namespace Raven.Server.Rachis
             if (guid == RaftIdGenerator.DontCareId)
             {
                 var newGuid = $"DontCare/{term}-{lastIndex}";
-                cmd.Modifications = new DynamicJsonValue { [nameof(CommandBase.UniqueRequestId)] = newGuid };
+                cmd.Modifications = new DynamicJsonValue(0) { [nameof(CommandBase.UniqueRequestId)] = newGuid };
                 using (var old = cmd)
                 {
                     cmd = context.ReadObject(cmd, newGuid);
@@ -2284,7 +2284,7 @@ namespace Raven.Server.Rachis
             var dja = new DynamicJsonArray();
             foreach (var entry in _currentLeader.ErrorsList)
             {
-                var djv = new DynamicJsonValue
+                var djv = new DynamicJsonValue(2)
                 {
                     ["Node"] = entry.node,
                     ["Error"] = entry.error.ToJson()

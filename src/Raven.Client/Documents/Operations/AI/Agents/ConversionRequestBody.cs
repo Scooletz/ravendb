@@ -14,7 +14,7 @@ internal class ConversionRequestBody : IDynamicJson
     public AiConversationCreationOptions CreationOptions { get; set; }
     public DynamicJsonValue ToJson()
     {
-        var json = new DynamicJsonValue
+        var json = new DynamicJsonValue(4)
         {
             [nameof(ActionResponses)] = ActionResponses == null ? null : new DynamicJsonArray(ActionResponses.Select(r => r.ToJson())),
             [nameof(ArtificialActions)] = ArtificialActions == null ? null : new DynamicJsonArray(ArtificialActions.Select(r => r.ToJson())),

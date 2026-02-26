@@ -55,7 +55,7 @@ namespace Raven.Server.Dashboard
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(7)
             {
                 [nameof(Date)] = Date,
                 [nameof(CpuUsage)] = CpuUsage,
@@ -92,7 +92,7 @@ namespace Raven.Server.Dashboard
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(12)
             {
                 [nameof(IoSyscallsPerSecLast)] = IoSyscallsPerSecLast,
                 [nameof(ThroughputKbPerSecLast)] = ThroughputKbPerSecLast,
@@ -142,7 +142,7 @@ namespace Raven.Server.Dashboard
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(14)
             {
                 [nameof(Id)] = Id,
                 [nameof(CpuUsage)] = CpuUsage,

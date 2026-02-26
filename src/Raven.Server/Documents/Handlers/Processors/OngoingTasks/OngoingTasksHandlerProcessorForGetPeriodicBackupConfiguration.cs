@@ -21,7 +21,7 @@ namespace Raven.Server.Documents.Handlers.Processors.OngoingTasks
             // FullPath removes the trailing '/' so adding it back for the studio
             var localRootPath = RequestHandler.ServerStore.Configuration.Backup.LocalRootPath;
             var localRootFullPath = localRootPath != null ? localRootPath.FullPath + Path.DirectorySeparatorChar : null;
-            var result = new DynamicJsonValue
+            var result = new DynamicJsonValue(3)
             {
                 [nameof(RequestHandler.ServerStore.Configuration.Backup.LocalRootPath)] = localRootFullPath,
                 [nameof(RequestHandler.ServerStore.Configuration.Backup.AllowedAwsRegions)] = RequestHandler.ServerStore.Configuration.Backup.AllowedAwsRegions,

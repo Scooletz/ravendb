@@ -137,7 +137,7 @@ namespace Raven.Server.Web.System
 
         public DynamicJsonValue ToJson()
         {
-            var djv = new DynamicJsonValue
+            var djv = new DynamicJsonValue(4)
             {
                 [nameof(Success)] = Success,
                 [nameof(HTTPSuccess)] = HTTPSuccess,

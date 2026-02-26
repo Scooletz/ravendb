@@ -53,7 +53,7 @@ namespace Raven.Server.NotificationCenter.Notifications
 
         public virtual DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(8)
             {
                 [nameof(Id)] = Id,
                 [nameof(CreatedAt)] = CreatedAt,

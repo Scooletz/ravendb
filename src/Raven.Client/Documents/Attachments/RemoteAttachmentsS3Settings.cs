@@ -216,13 +216,13 @@ public sealed class RemoteAttachmentsS3Settings : IS3Settings, IRemoteAttachment
 
     internal bool HasSettings()
     {
-        // Minimal enabling condition – bucket must be set.
+        // Minimal enabling condition ï¿½ bucket must be set.
         return string.IsNullOrWhiteSpace(BucketName) == false;
     }
 
     public DynamicJsonValue ToJson()
     {
-        var djv = new DynamicJsonValue
+        var djv = new DynamicJsonValue(8)
         {
             [nameof(AwsAccessKey)] = AwsAccessKey,
             [nameof(AwsSecretKey)] = AwsSecretKey,

@@ -75,7 +75,7 @@ namespace Raven.Server.Documents.Sharding.Handlers
             HttpContext.Response.StatusCode = (int)HttpStatusCode.Created;
             await using (var writer = new AsyncBlittableJsonTextWriter(context, ResponseBodyStream()))
             {
-                context.Write(writer, new DynamicJsonValue
+                context.Write(writer, new DynamicJsonValue(2)
                 {
                     [nameof(CreateSubscriptionResult.Name)] = name,
                     [nameof(CreateSubscriptionResult.RaftCommandIndex)] = index

@@ -43,7 +43,7 @@ namespace Raven.Server.Dashboard
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(11)
             {
                 [nameof(Database)] = Database,
                 [nameof(RequestsPerSecond)] = RequestsPerSecond,

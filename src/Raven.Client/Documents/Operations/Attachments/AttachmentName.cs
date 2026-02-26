@@ -43,7 +43,7 @@ public class AttachmentName
 
     internal virtual DynamicJsonValue ToJson()
     {
-        var json = new DynamicJsonValue
+        var json = new DynamicJsonValue(4)
         {
             [nameof(Name)] = Name,
             [nameof(Hash)] = Hash,

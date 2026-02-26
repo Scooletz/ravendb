@@ -32,7 +32,7 @@ namespace Raven.Server.Documents.Handlers.Processors.Replication
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(1)
             {
                 [nameof(Stats)] = new DynamicJsonArray(Stats.Select(OutgoingFailureInfoToJson))
             };
@@ -40,7 +40,7 @@ namespace Raven.Server.Documents.Handlers.Processors.Replication
 
         private DynamicJsonValue OutgoingFailureInfoToJson(KeyValuePair<ReplicationNode, ConnectionShutdownInfo> kvp)
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(2)
             {
                 ["Key"] = kvp.Key.ToJson(),
                 ["Value"] = kvp.Value.ToJson()

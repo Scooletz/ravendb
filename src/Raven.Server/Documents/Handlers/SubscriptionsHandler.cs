@@ -139,7 +139,7 @@ namespace Raven.Server.Documents.Handlers
 
             await using (var writer = new AsyncBlittableJsonTextWriter(context, ResponseBodyStream()))
             {
-                context.Write(writer, new DynamicJsonValue
+                context.Write(writer, new DynamicJsonValue(2)
                 {
                     [nameof(CreateSubscriptionResult.Name)] = name,
                     [nameof(CreateSubscriptionResult.RaftCommandIndex)] = index
@@ -157,7 +157,7 @@ namespace Raven.Server.Documents.Handlers
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(4)
             {
                 [nameof(Id)] = Id,
                 [nameof(ChangeVector)] = ChangeVector,

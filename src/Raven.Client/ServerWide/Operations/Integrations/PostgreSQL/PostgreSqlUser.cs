@@ -8,7 +8,7 @@ namespace Raven.Client.ServerWide.Operations.Integrations.PostgreSQL
         public string Password { get; set; }
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(2)
             {
                 [nameof(Username)] = Username,
                 [nameof(Password)] = Password

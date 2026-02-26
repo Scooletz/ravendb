@@ -475,7 +475,7 @@ namespace Voron.Impl
 
             public DynamicJsonValue ToJson()
             {
-                return new DynamicJsonValue
+                return new DynamicJsonValue(6)
                 {
                     [nameof(AllocationType)] = AllocationType,
                     [nameof(NumberOfItems)] = NumberOfItems,
@@ -495,7 +495,7 @@ namespace Voron.Impl
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(7)
             {
                 [nameof(Disabled)] = Disabled,
                 [nameof(CurrentlyInUseSize)] = CurrentlyInUseSize,

@@ -93,7 +93,7 @@ namespace Raven.Server.Config
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(14)
             {
                 [nameof(Category)] = Category,
                 [nameof(Keys)] = new DynamicJsonArray(Keys),

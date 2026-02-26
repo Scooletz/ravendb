@@ -11,7 +11,7 @@ namespace Raven.Server.SqlMigration.Schema
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(2)
             {
                 [nameof(CatalogName)] = CatalogName,
                 [nameof(Tables)] = new DynamicJsonArray(Tables.Select(x => x.ToJson()))

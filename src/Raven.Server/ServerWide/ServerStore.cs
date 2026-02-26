@@ -3794,7 +3794,7 @@ namespace Raven.Server.ServerWide
             if (tcpServerUrl.StartsWith("tcp://localhost.fiddler:", StringComparison.OrdinalIgnoreCase))
                 tcpServerUrl = tcpServerUrl.Remove(15, 8);
 
-            var res = new DynamicJsonValue
+            var res = new DynamicJsonValue(4)
             {
                 [nameof(TcpConnectionInfo.Url)] = tcpServerUrl,
                 [nameof(TcpConnectionInfo.Certificate)] = _server.Certificate.ServerCertificateForClients,

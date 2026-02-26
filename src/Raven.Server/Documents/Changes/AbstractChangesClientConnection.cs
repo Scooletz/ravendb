@@ -336,7 +336,7 @@ public abstract class AbstractChangesClientConnection<TOperationContext> : ILowM
     {
         AddToQueue(new SendQueueItem
         {
-            ValueToSend = new DynamicJsonValue
+            ValueToSend = new DynamicJsonValue(2)
             {
                 ["CommandId"] = commandId,
                 ["Type"] = "Confirm"
@@ -349,7 +349,7 @@ public abstract class AbstractChangesClientConnection<TOperationContext> : ILowM
     {
         AddToQueue(new SendQueueItem
         {
-            ValueToSend = new DynamicJsonValue
+            ValueToSend = new DynamicJsonValue(2)
             {
                 [nameof(ChangesSupportedFeatures.TopologyChange)] = true,
                 [nameof(ChangesSupportedFeatures.AggressiveCachingChange)] = true,
@@ -573,7 +573,7 @@ public abstract class AbstractChangesClientConnection<TOperationContext> : ILowM
 
     public virtual DynamicJsonValue GetDebugInfo()
     {
-        return new DynamicJsonValue
+        return new DynamicJsonValue(8)
         {
             ["Id"] = Id,
             ["PendingMessagesCount"] = _sendQueue.Count,
@@ -598,7 +598,7 @@ public abstract class AbstractChangesClientConnection<TOperationContext> : ILowM
 
     protected static DynamicJsonValue CreateValueToSend(string type, DynamicJsonValue value)
     {
-        return new DynamicJsonValue
+        return new DynamicJsonValue(2)
         {
             ["Type"] = type,
             ["Value"] = value
@@ -653,7 +653,7 @@ public abstract class AbstractChangesClientConnection<TOperationContext> : ILowM
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(2)
             {
                 [nameof(DocumentId)] = DocumentId,
                 [nameof(Name)] = Name

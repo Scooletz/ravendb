@@ -10,7 +10,7 @@ public class ThreadId : IDynamicJson
 
     public DynamicJsonValue ToJson()
     {
-        return new DynamicJsonValue
+        return new DynamicJsonValue(2)
         {
             [nameof(Id)] = Id,
             [nameof(ManagedThreadId)] = ManagedThreadId

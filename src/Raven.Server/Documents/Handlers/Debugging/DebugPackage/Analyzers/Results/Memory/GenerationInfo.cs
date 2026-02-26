@@ -15,7 +15,7 @@ public class GenerationInfo : IDynamicJson
     public string SizeBeforeHumane { get; set; }
     public DynamicJsonValue ToJson()
     {
-        return new DynamicJsonValue
+        return new DynamicJsonValue(9)
         {
             [nameof(GenerationName)] = GenerationName,
             [nameof(FragmentationAfterBytes)] = FragmentationAfterBytes,

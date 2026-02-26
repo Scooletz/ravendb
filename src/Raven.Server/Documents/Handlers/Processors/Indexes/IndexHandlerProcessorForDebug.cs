@@ -45,7 +45,7 @@ internal sealed class IndexHandlerProcessorForDebug : AbstractIndexHandlerProces
                 {
                     HttpContext.Response.StatusCode = (int)HttpStatusCode.BadRequest;
 
-                    context.Write(writer, new DynamicJsonValue
+                    context.Write(writer, new DynamicJsonValue(1)
                     {
                         ["Error"] = $"{index.Name} is not map-reduce index"
                     });

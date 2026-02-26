@@ -35,7 +35,7 @@ namespace Raven.Client.ServerWide.Tcp
 
             public DynamicJsonValue ToJson()
             {
-                return new DynamicJsonValue
+                return new DynamicJsonValue(2)
                 {
                     [nameof(AuthorizeAs)] = AuthorizeAs,
                     [nameof(AuthorizationFor)] = AuthorizationFor

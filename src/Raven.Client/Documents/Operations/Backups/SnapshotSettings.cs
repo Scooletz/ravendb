@@ -14,7 +14,7 @@ namespace Raven.Client.Documents.Operations.Backups
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(3)
             {
                 [nameof(CompressionAlgorithm)] = CompressionAlgorithm,
                 [nameof(CompressionLevel)] = CompressionLevel,

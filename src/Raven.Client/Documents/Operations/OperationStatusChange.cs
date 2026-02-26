@@ -13,7 +13,7 @@ namespace Raven.Client.Documents.Operations
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(2)
             {
                 [nameof(OperationId)] = OperationId,
                 [nameof(State)] = State.ToJson()

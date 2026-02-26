@@ -122,7 +122,7 @@ namespace Raven.Client.Documents.Operations.ETL
 
         public virtual DynamicJsonValue ToJson()
         {
-            var result = new DynamicJsonValue
+            var result = new DynamicJsonValue(8)
             {
                 [nameof(Name)] = Name,
                 [nameof(TaskId)] = TaskId,

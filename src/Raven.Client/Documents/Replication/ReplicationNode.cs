@@ -90,7 +90,7 @@ namespace Raven.Client.Documents.Replication
 
         public virtual DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(4)
             {
                 [nameof(Database)] = Database,
                 [nameof(Url)] = Url,

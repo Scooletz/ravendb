@@ -16,7 +16,7 @@ public class ChunkingOptions : IDynamicJson
 
     public DynamicJsonValue ToJson()
     {
-        return new DynamicJsonValue
+        return new DynamicJsonValue(3)
         {
             [nameof(ChunkingMethod)] = ChunkingMethod, 
             [nameof(MaxTokensPerChunk)] = MaxTokensPerChunk,

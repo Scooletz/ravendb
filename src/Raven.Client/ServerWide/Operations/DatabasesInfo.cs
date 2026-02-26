@@ -26,7 +26,7 @@ namespace Raven.Client.ServerWide.Operations
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(4)
             {
                 [nameof(LastBackup)] = LastBackup,
                 [nameof(IntervalUntilNextBackupInSec)] = IntervalUntilNextBackupInSec,
@@ -96,15 +96,15 @@ namespace Raven.Client.ServerWide.Operations
 
         public virtual DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(10)
             {
                 [nameof(Name)] = Name,
-                [nameof(TotalSize)] = TotalSize != null ? new DynamicJsonValue
+                [nameof(TotalSize)] = TotalSize != null ? new DynamicJsonValue(2)
                 {
                     [nameof(Size.HumaneSize)] = TotalSize.HumaneSize,
                     [nameof(Size.SizeInBytes)] = TotalSize.SizeInBytes
                 } : null,
-                [nameof(TempBuffersSize)] = TempBuffersSize != null ? new DynamicJsonValue
+                [nameof(TempBuffersSize)] = TempBuffersSize != null ? new DynamicJsonValue(2)
                 {
                     [nameof(Size.HumaneSize)] = TempBuffersSize.HumaneSize,
                     [nameof(Size.SizeInBytes)] = TempBuffersSize.SizeInBytes
@@ -138,7 +138,7 @@ namespace Raven.Client.ServerWide.Operations
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(6)
             {
                 [nameof(Name)] = Name,
                 [nameof(Type)] = Type,
@@ -162,7 +162,7 @@ namespace Raven.Client.ServerWide.Operations
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(4)
             {
                 [nameof(DriveName)] = DriveName,
                 [nameof(VolumeLabel)] = VolumeLabel,
@@ -186,7 +186,7 @@ namespace Raven.Client.ServerWide.Operations
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(5)
             {
                 [nameof(IoReadOperations)] = IoReadOperations,
                 [nameof(IoWriteOperations)] = IoWriteOperations,
@@ -217,7 +217,7 @@ namespace Raven.Client.ServerWide.Operations
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(6)
             {
                 [nameof(Members)] = new DynamicJsonArray(Members.Select(x => x.ToJson())),
                 [nameof(Promotables)] = new DynamicJsonArray(Promotables.Select(x => x.ToJson())),
@@ -236,7 +236,7 @@ namespace Raven.Client.ServerWide.Operations
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(2)
             {
                 [nameof(LastStatus)] = LastStatus,
                 [nameof(LastError)] = LastError
@@ -252,7 +252,7 @@ namespace Raven.Client.ServerWide.Operations
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(3)
             {
                 [nameof(NodeTag)] = NodeTag,
                 [nameof(NodeUrl)] = NodeUrl,

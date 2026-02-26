@@ -58,7 +58,7 @@ internal static class SourceCodeBeautifier
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(1)
             {
                 [nameof(Expression)] = Expression
             };

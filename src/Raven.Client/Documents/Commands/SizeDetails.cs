@@ -12,7 +12,7 @@ internal class SizeDetails : IDynamicJson
 
     public virtual DynamicJsonValue ToJson()
     {
-        return new DynamicJsonValue
+        return new DynamicJsonValue(5)
         {
             [nameof(ActualSize)] = ActualSize,
             [nameof(HumaneActualSize)] = HumaneActualSize,

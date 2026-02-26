@@ -17,7 +17,7 @@ namespace Raven.Server.NotificationCenter.Notifications.Details
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(2)
             {
                 [nameof(Date)] = Date,
                 [nameof(Error)] = Error

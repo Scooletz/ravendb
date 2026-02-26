@@ -41,7 +41,7 @@ public sealed class CompareExchangeHandlerProcessorForPutCompareExchangeValue : 
                 await _requestHandler.ServerStore.Cluster.WaitForIndexNotification(raftIndex);
 
                 var result = (CompareExchangeCommandBase.CompareExchangeResult)response;
-                context.Write(writer, new DynamicJsonValue
+                context.Write(writer, new DynamicJsonValue(3)
                 {
                     [nameof(CompareExchangeResult<object>.Index)] = result.Index,
                     [nameof(CompareExchangeResult<object>.Value)] = result.Value,

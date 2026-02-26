@@ -319,7 +319,7 @@ namespace Raven.Client.Documents.Operations.TimeSeries
         /// <returns>A <see cref="DynamicJsonValue"/> representing the operation.</returns>
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(4)
             {
                 [nameof(Name)] = Name,
                 [nameof(Appends)] = Appends?.Select(x => x.ToJson()),
@@ -379,7 +379,7 @@ namespace Raven.Client.Documents.Operations.TimeSeries
 
             public DynamicJsonValue ToJson()
             {
-                var djv = new DynamicJsonValue
+                var djv = new DynamicJsonValue(2)
                 {
                     [nameof(Timestamp)] = Timestamp,
                     [nameof(Values)] = new DynamicJsonArray(Values),
@@ -425,7 +425,7 @@ namespace Raven.Client.Documents.Operations.TimeSeries
 
             public DynamicJsonValue ToJson()
             {
-                return new DynamicJsonValue
+                return new DynamicJsonValue(2)
                 {
                     [nameof(From)] = From,
                     [nameof(To)] = To
@@ -477,7 +477,7 @@ namespace Raven.Client.Documents.Operations.TimeSeries
 
             public DynamicJsonValue ToJson()
             {
-                var djv = new DynamicJsonValue
+                var djv = new DynamicJsonValue(2)
                 {
                     [nameof(Timestamp)] = Timestamp,
                     [nameof(Values)] = new DynamicJsonArray(Values)

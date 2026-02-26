@@ -52,7 +52,7 @@ namespace Raven.Client.Documents.Operations.Backups
 
         public virtual DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(10)
             {
                 [nameof(DatabaseName)] = DatabaseName,
                 [nameof(LastFileNameToRestore)] = LastFileNameToRestore,

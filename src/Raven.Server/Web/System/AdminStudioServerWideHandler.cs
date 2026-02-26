@@ -101,7 +101,7 @@ namespace Raven.Server.Web.System
 
             public DynamicJsonValue ToJson()
             {
-                return new DynamicJsonValue
+                return new DynamicJsonValue(1)
                 {
                     [nameof(Tasks)] = new DynamicJsonArray(Tasks.Select(x => x.ToJson()))
                 };

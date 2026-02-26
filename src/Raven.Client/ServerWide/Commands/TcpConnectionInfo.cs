@@ -13,7 +13,7 @@ namespace Raven.Client.ServerWide.Commands
 
         public DynamicJsonValue ToJson()
         {
-            var res =  new DynamicJsonValue
+            var res =  new DynamicJsonValue(5)
             {
                 [nameof(Port)] = Port,
                 [nameof(Url)] = Url,

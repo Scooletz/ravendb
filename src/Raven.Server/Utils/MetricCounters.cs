@@ -78,7 +78,7 @@ namespace Raven.Server.Utils
 
             public DynamicJsonValue ToJson()
             {
-                return new DynamicJsonValue
+                return new DynamicJsonValue(2)
                 {
                     [nameof(PutsPerSec)] = PutsPerSec.CreateMeterData(),
                     [nameof(BytesPutsPerSec)] = BytesPutsPerSec.CreateMeterData()
@@ -120,9 +120,9 @@ namespace Raven.Server.Utils
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(7)
             {
-                [nameof(Requests)] = new DynamicJsonValue
+                [nameof(Requests)] = new DynamicJsonValue(3)
                 {
                     [nameof(Requests.RequestsPerSec)] = Requests.RequestsPerSec.CreateMeterData(),
                     [nameof(Requests.ConcurrentRequestsCount)] = Requests.ConcurrentRequestsCount,
@@ -132,11 +132,11 @@ namespace Raven.Server.Utils
                 [nameof(Attachments)] = Attachments,
                 [nameof(Counters)] = Counters,
                 [nameof(TimeSeries)] = TimeSeries,
-                [nameof(MapIndexes)] = new DynamicJsonValue
+                [nameof(MapIndexes)] = new DynamicJsonValue(1)
                 {
                     [nameof(MapIndexes.IndexedPerSec)] = MapIndexes.IndexedPerSec.CreateMeterData()
                 },
-                [nameof(MapReduceIndexes)] = new DynamicJsonValue
+                [nameof(MapReduceIndexes)] = new DynamicJsonValue(2)
                 {
                     [nameof(MapReduceIndexes.MappedPerSec)] = MapReduceIndexes.MappedPerSec.CreateMeterData(),
                     [nameof(MapReduceIndexes.ReducedPerSec)] = MapReduceIndexes.ReducedPerSec.CreateMeterData()
@@ -146,21 +146,21 @@ namespace Raven.Server.Utils
 
         public DynamicJsonValue ToJsonForGetPuts(bool empty = true)
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(4)
             {
-                [nameof(Docs)] = new DynamicJsonValue
+                [nameof(Docs)] = new DynamicJsonValue(1)
                 {
                     [nameof(Docs.PutsPerSec)] = Docs.PutsPerSec.CreateMeterData(true, empty)
                 },
-                [nameof(Attachments)] = new DynamicJsonValue
+                [nameof(Attachments)] = new DynamicJsonValue(1)
                 {
                     [nameof(Attachments.PutsPerSec)] = Attachments.PutsPerSec.CreateMeterData(true, empty)
                 },
-                [nameof(Counters)] = new DynamicJsonValue
+                [nameof(Counters)] = new DynamicJsonValue(1)
                 {
                     [nameof(Counters.PutsPerSec)] = Counters.PutsPerSec.CreateMeterData(true, empty)
                 },
-                [nameof(TimeSeries)] = new DynamicJsonValue
+                [nameof(TimeSeries)] = new DynamicJsonValue(1)
                 {
                     [nameof(TimeSeries.PutsPerSec)] = TimeSeries.PutsPerSec.CreateMeterData(true, empty)
                 }
@@ -169,21 +169,21 @@ namespace Raven.Server.Utils
 
         public DynamicJsonValue ToJsonForGetBytes(bool empty = true)
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(4)
             {
-                [nameof(Docs)] = new DynamicJsonValue
+                [nameof(Docs)] = new DynamicJsonValue(1)
                 {
                     [nameof(Docs.BytesPutsPerSec)] = Docs.BytesPutsPerSec.CreateMeterData(true, empty)
                 },
-                [nameof(Attachments)] = new DynamicJsonValue
+                [nameof(Attachments)] = new DynamicJsonValue(1)
                 {
                     [nameof(Attachments.BytesPutsPerSec)] = Attachments.BytesPutsPerSec.CreateMeterData(true, empty)
                 },
-                [nameof(Counters)] = new DynamicJsonValue
+                [nameof(Counters)] = new DynamicJsonValue(1)
                 {
                     [nameof(Counters.BytesPutsPerSec)] = Counters.BytesPutsPerSec.CreateMeterData(true, empty)
                 },
-                [nameof(TimeSeries)] = new DynamicJsonValue
+                [nameof(TimeSeries)] = new DynamicJsonValue(1)
                 {
                     [nameof(TimeSeries.BytesPutsPerSec)] = TimeSeries.BytesPutsPerSec.CreateMeterData(true, empty)
                 }

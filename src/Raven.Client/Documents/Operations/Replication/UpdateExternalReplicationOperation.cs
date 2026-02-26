@@ -54,7 +54,7 @@ namespace Raven.Client.Documents.Operations.Replication
                     Method = HttpMethod.Post,
                     Content = new BlittableJsonContent(async stream =>
                     {
-                        var json = new DynamicJsonValue
+                        var json = new DynamicJsonValue(1)
                         {
                             ["Watcher"] = _newWatcher.ToJson()
                         };

@@ -282,11 +282,11 @@ internal class ChatCompletionClient : IDisposable
             DynamicJsonArray toolCalls = new();
             foreach (var call in toolCallState.AllToolCalls)
             {
-                toolCalls.Add(new DynamicJsonValue
+                toolCalls.Add(new DynamicJsonValue(0)
                 {
                     [Constants.ResponseFields.Id] = call.Id,
                     [Constants.ResponseFields.Type] = Constants.ResponseFields.Function,
-                    [Constants.ResponseFields.Function] = new DynamicJsonValue
+                    [Constants.ResponseFields.Function] = new DynamicJsonValue(0)
                     {
                         [Constants.ResponseFields.Name] = call.Name,
                         [Constants.ResponseFields.Arguments] = call.Arguments
@@ -296,7 +296,7 @@ internal class ChatCompletionClient : IDisposable
 
             return new AiResponse(AiResponseType.Tool)
             {
-                Message = streamingContext.ReadObject(new DynamicJsonValue
+                Message = streamingContext.ReadObject(new DynamicJsonValue(0)
                 {
                     [Constants.ResponseFields.Role] = Constants.RequestFields.RoleAssistantValue,
                     [Constants.ResponseFields.Content] = null,
@@ -308,7 +308,7 @@ internal class ChatCompletionClient : IDisposable
 
         return new AiResponse(AiResponseType.Result)
         {
-            Message = streamingContext.ReadObject(new DynamicJsonValue
+            Message = streamingContext.ReadObject(new DynamicJsonValue(0)
             {
                 [Constants.ResponseFields.Role] = Constants.RequestFields.RoleAssistantValue,
                 [Constants.ResponseFields.Content] = message,
@@ -336,13 +336,13 @@ internal class ChatCompletionClient : IDisposable
     public async Task<(string Result, string Message)> TestCompleteAsync(string systemPrompt, string userPrompt, string schema, CancellationToken token)
     {
         using var _ = _contextPool.AllocateOperationContext(out JsonOperationContext context);
-        var prompt = context.ReadObject(new DynamicJsonValue
+        var prompt = context.ReadObject(new DynamicJsonValue(0)
         {
             [Constants.RequestFields.Role] = Constants.RequestFields.RoleSystemValue,
             [Constants.RequestFields.Content] = systemPrompt
         }, "system/msg");
 
-        var user = context.ReadObject(new DynamicJsonValue
+        var user = context.ReadObject(new DynamicJsonValue(0)
         {
             [Constants.RequestFields.Role] = Constants.RequestFields.RoleUserValue,
             [Constants.RequestFields.Content] = userPrompt
@@ -456,7 +456,7 @@ internal class ChatCompletionClient : IDisposable
     public static DynamicJsonValue CreateMessageWithAttachments(IEnumerable<AiAttachment> attachments)
     {
         var content = new DynamicJsonArray();
-        var message = new DynamicJsonValue
+        var message = new DynamicJsonValue(0)
         {
             [Constants.RequestFields.Role] = Constants.RequestFields.RoleUserValue,
             [Constants.RequestFields.Content] = content
@@ -466,7 +466,7 @@ internal class ChatCompletionClient : IDisposable
         {
             if (attachment.Source == AiAttachmentSource.NotFound)
             {
-                content.Add(new DynamicJsonValue
+                content.Add(new DynamicJsonValue(0)
                 {
                     [Constants.AttachmentsRequestFields.Type] = Constants.AttachmentsRequestFields.TypeText,
                     [Constants.AttachmentsRequestFields.TypeText] = $"File '{attachment.Name}' (of type '{attachment.Type}') could not be loaded: attachment not found"
@@ -476,15 +476,15 @@ internal class ChatCompletionClient : IDisposable
 
             content.Add(attachment.Type switch
             {
-                Constants.AttachmentsRequestFields.MediaTypeTextPlain => new DynamicJsonValue
+                Constants.AttachmentsRequestFields.MediaTypeTextPlain => new DynamicJsonValue(0)
                 {
                     [Constants.AttachmentsRequestFields.Type] = Constants.AttachmentsRequestFields.TypeText,
                     [Constants.AttachmentsRequestFields.TypeText] = attachment.Data
                 },
-                Constants.AttachmentsRequestFields.MediaTypeApplicationPdf => new DynamicJsonValue
+                Constants.AttachmentsRequestFields.MediaTypeApplicationPdf => new DynamicJsonValue(0)
                 {
                     [Constants.AttachmentsRequestFields.Type] = Constants.AttachmentsRequestFields.File,
-                    [Constants.AttachmentsRequestFields.File] = new DynamicJsonValue
+                    [Constants.AttachmentsRequestFields.File] = new DynamicJsonValue(0)
                     {
                         [Constants.AttachmentsRequestFields.FileName] = attachment.Name,
                         [Constants.AttachmentsRequestFields.FileData] = "data:application/pdf;base64," + attachment.Data
@@ -493,10 +493,10 @@ internal class ChatCompletionClient : IDisposable
                 Constants.AttachmentsRequestFields.MediaTypeImageJpeg or
                     Constants.AttachmentsRequestFields.MediaTypeImagePng or
                     Constants.AttachmentsRequestFields.MediaTypeImageGif or
-                    Constants.AttachmentsRequestFields.MediaTypeImageWebp => new DynamicJsonValue
+                    Constants.AttachmentsRequestFields.MediaTypeImageWebp => new DynamicJsonValue(0)
                     {
                         [Constants.AttachmentsRequestFields.Type] = Constants.AttachmentsRequestFields.ImageUrl,
-                        [Constants.AttachmentsRequestFields.ImageUrl] = new DynamicJsonValue
+                        [Constants.AttachmentsRequestFields.ImageUrl] = new DynamicJsonValue(0)
                         {
                             [Constants.AttachmentsRequestFields.Url] = "data:" + attachment.Type + ";base64," + attachment.Data
                         }

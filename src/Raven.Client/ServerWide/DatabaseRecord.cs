@@ -739,7 +739,7 @@ namespace Raven.Client.ServerWide
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(3)
             {
                 [nameof(Collections)] = new DynamicJsonArray(Collections),
                 [nameof(CompressAllCollections)] = CompressAllCollections,

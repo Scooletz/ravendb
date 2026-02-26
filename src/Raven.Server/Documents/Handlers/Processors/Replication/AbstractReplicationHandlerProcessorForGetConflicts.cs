@@ -51,7 +51,7 @@ namespace Raven.Server.Documents.Handlers.Processors.Replication
                     array.Add(conflict.ToJson());
                 }
 
-                context.Write(writer, new DynamicJsonValue
+                context.Write(writer, new DynamicJsonValue(4)
                 {
                     [nameof(GetConflictsPreviewResult.TotalResults)] = previewResult.TotalResults,
                     [nameof(GetConflictsPreviewResult.SkippedResults)] = skippedResults,

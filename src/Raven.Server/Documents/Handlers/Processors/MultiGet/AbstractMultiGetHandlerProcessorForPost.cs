@@ -101,7 +101,7 @@ internal abstract class AbstractMultiGetHandlerProcessorForPost<TRequestHandler,
 
     private static void HandleException(JsonOperationContext context, AsyncBlittableJsonTextWriter writer, Exception e, string url, string query)
     {
-        var djv = new DynamicJsonValue
+        var djv = new DynamicJsonValue(4)
         {
             [nameof(ExceptionDispatcher.ExceptionSchema.Url)] = url + query,
             [nameof(ExceptionDispatcher.ExceptionSchema.Type)] = e.GetType().FullName,
@@ -118,7 +118,7 @@ internal abstract class AbstractMultiGetHandlerProcessorForPost<TRequestHandler,
         writer.WritePropertyName(statusProperty);
         writer.WriteInteger((int)HttpStatusCode.BadRequest);
         writer.WritePropertyName(resultProperty);
-        context.Write(writer, new DynamicJsonValue
+        context.Write(writer, new DynamicJsonValue(1)
         {
             ["Error"] = $"There is no handler for path: {method} {url}{query}"
         });

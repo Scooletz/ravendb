@@ -58,7 +58,7 @@ public class GcInfoPayload : AbstractClusterDashboardNotification
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(12)
             {
                 [nameof(Index)] = Index,
                 [nameof(Compacted)] = Compacted,
@@ -86,7 +86,7 @@ public class GcInfoPayload : AbstractClusterDashboardNotification
         
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(4)
             {
                 [nameof(SizeBeforeBytes)] = SizeBeforeBytes,
                 [nameof(SizeAfterBytes)] = SizeAfterBytes,

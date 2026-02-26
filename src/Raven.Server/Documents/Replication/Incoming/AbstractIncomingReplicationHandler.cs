@@ -353,7 +353,7 @@ namespace Raven.Server.Documents.Replication.Incoming
 
                 if (e.ExtractSingleInnerException() is MissingAttachmentException mae)
                 {
-                    returnValue = new DynamicJsonValue
+                    returnValue = new DynamicJsonValue(4)
                     {
                         [nameof(ReplicationMessageReply.Type)] = ReplicationMessageReply.ReplyType.MissingAttachments.ToString(),
                         [nameof(ReplicationMessageReply.MessageType)] = messageType,
@@ -371,7 +371,7 @@ namespace Raven.Server.Documents.Replication.Incoming
                     Logger.Warn($"Failed replicating documents {FromToString}.", e);
 
                 //return negative ack
-                returnValue = new DynamicJsonValue
+                returnValue = new DynamicJsonValue(4)
                 {
                     [nameof(ReplicationMessageReply.Type)] = ReplicationMessageReply.ReplyType.Error.ToString(),
                     [nameof(ReplicationMessageReply.MessageType)] = messageType,
@@ -524,7 +524,7 @@ namespace Raven.Server.Documents.Replication.Incoming
                         //We need a new context here
                         using (_contextPool.AllocateOperationContext(out JsonOperationContext msgContext))
                         using (var writer = new BlittableJsonTextWriter(msgContext, _stream))
-                        using (var msg = msgContext.ReadObject(new DynamicJsonValue
+                        using (var msg = msgContext.ReadObject(new DynamicJsonValue(1)
                         {
                             [nameof(ReplicationMessageReply.MessageType)] = "Processing"
                         }, "heartbeat message"))
@@ -585,7 +585,7 @@ namespace Raven.Server.Documents.Replication.Incoming
 
         protected virtual DynamicJsonValue GetHeartbeatStatusMessage(TOperationContext context, long lastDocumentEtag, string handledMessageType)
         {
-            var heartbeat = new DynamicJsonValue
+            var heartbeat = new DynamicJsonValue(5)
             {
                 [nameof(ReplicationMessageReply.Type)] = "Ok",
                 [nameof(ReplicationMessageReply.MessageType)] = handledMessageType,

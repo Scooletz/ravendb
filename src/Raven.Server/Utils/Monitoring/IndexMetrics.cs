@@ -25,7 +25,7 @@ namespace Raven.Server.Utils.Monitoring
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(13)
             {
                 [nameof(IndexName)] = IndexName,
                 [nameof(Priority)] = Priority,
@@ -54,7 +54,7 @@ namespace Raven.Server.Utils.Monitoring
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(3)
             {
                 [nameof(PublicServerUrl)] = PublicServerUrl,
                 [nameof(NodeTag)] = NodeTag,
@@ -70,7 +70,7 @@ namespace Raven.Server.Utils.Monitoring
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(2)
             {
                 [nameof(DatabaseName)] = DatabaseName,
                 [nameof(Indexes)] = Indexes.Select(x => x.ToJson()).ToList()

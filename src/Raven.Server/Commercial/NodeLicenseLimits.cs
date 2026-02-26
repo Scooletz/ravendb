@@ -17,7 +17,7 @@ namespace Raven.Server.Commercial
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(5)
             {
                 [nameof(NodeTag)] = NodeTag,
                 [nameof(DetailsPerNode)] = DetailsPerNode.ToJson(),

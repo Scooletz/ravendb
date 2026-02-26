@@ -8,7 +8,7 @@ public class AiAgentActionResponse : IDynamicJson
     public string Content;
     public DynamicJsonValue ToJson()
     {
-        return new DynamicJsonValue
+        return new DynamicJsonValue(2)
         {
             [nameof(ToolId)] = ToolId,
             [nameof(Content)] = Content

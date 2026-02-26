@@ -29,7 +29,7 @@ internal class AiAgentProcessorForDeleteAiAgent<TRequestHandler, TOperationConte
         using (ServerStore.ContextPool.AllocateOperationContext(out JsonOperationContext context))
         await using (var writer = new AsyncBlittableJsonTextWriter(context, RequestHandler.ResponseBodyStream(), token.Token))
         {
-            var json = new DynamicJsonValue
+            var json = new DynamicJsonValue(1)
             {
                 [nameof(AiAgentConfigurationResult.RaftCommandIndex)] = r.Index
             };

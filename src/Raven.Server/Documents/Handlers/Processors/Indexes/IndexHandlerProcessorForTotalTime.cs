@@ -63,7 +63,7 @@ internal sealed class IndexHandlerProcessorForTotalTime : AbstractIndexHandlerPr
                     .LastOrDefault(x => x.Completed != null)
                     ?.Completed ?? DateTime.UtcNow;
 
-                dja.Add(new DynamicJsonValue
+                dja.Add(new DynamicJsonValue(3)
                 {
                     [nameof(GetIndexesTotalTimeCommand.IndexTotalTime.Name)] = index.Name,
                     [nameof(GetIndexesTotalTimeCommand.IndexTotalTime.TotalIndexingTime)] = index.TimeSpentIndexing.Elapsed,
@@ -71,7 +71,7 @@ internal sealed class IndexHandlerProcessorForTotalTime : AbstractIndexHandlerPr
                 });
             }
 
-            context.Write(writer, new DynamicJsonValue
+            context.Write(writer, new DynamicJsonValue(1)
             {
                 [nameof(GetIndexesTotalTimeCommand.IndexesTotalTime.Results)] = dja
             });

@@ -56,7 +56,7 @@ namespace Raven.Client.Documents.Operations.Refresh
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(3)
             {
                 [nameof(Disabled)] = Disabled,
                 [nameof(RefreshFrequencyInSec)] = RefreshFrequencyInSec,

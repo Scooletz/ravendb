@@ -30,7 +30,7 @@ namespace Raven.Server.Commercial
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(7)
             {
                 [nameof(UtilizedCores)] = UtilizedCores,
                 [nameof(MaxUtilizedCores)] = MaxUtilizedCores,

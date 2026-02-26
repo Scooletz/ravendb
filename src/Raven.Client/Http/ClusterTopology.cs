@@ -96,7 +96,7 @@ namespace Raven.Client.Http
 
         public DynamicJsonValue ToSortedJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(7)
             {
                 [nameof(TopologyId)] = TopologyId,
                 [nameof(AllNodes)] = DynamicJsonValue.Convert(new SortedDictionary<string, string>(AllNodes)),
@@ -110,7 +110,7 @@ namespace Raven.Client.Http
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(6)
             {
                 [nameof(TopologyId)] = TopologyId,
                 [nameof(Members)] = DynamicJsonValue.Convert(Members),
@@ -265,7 +265,7 @@ namespace Raven.Client.Http
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(7)
             {
                 [nameof(Name)] = Name,
                 [nameof(Connected)] = Connected,

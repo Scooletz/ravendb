@@ -77,7 +77,7 @@ namespace Raven.Server.Documents.ETL.Providers.ElasticSearch
 
             if (result.TryGet(index.DocumentIdProperty, out object _) == false)
             {
-                result.Modifications = new DynamicJsonValue
+                result.Modifications = new DynamicJsonValue(0)
                 {
                     [index.DocumentIdProperty] = ElasticSearchEtl.LowerCaseDocumentIdProperty(Current.Document.Id)
                 };

@@ -478,7 +478,7 @@ namespace Raven.Server.Documents.Changes
         {
             public override DynamicJsonValue CreateJson()
             {
-                return new DynamicJsonValue
+                return new DynamicJsonValue(1)
                 {
                     ["Type"] = nameof(AggressiveCacheChange),
                 };

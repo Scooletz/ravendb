@@ -51,7 +51,7 @@ namespace Raven.Client.Documents.Operations.DataArchival
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(3)
             {
                 [nameof(Disabled)] = Disabled,
                 [nameof(ArchiveFrequencyInSec)] = ArchiveFrequencyInSec,

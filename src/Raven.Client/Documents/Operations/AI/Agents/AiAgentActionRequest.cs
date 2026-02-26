@@ -9,7 +9,7 @@ public class AiAgentActionRequest : IDynamicJson
     public string Arguments;
     public DynamicJsonValue ToJson()
     {
-        return new DynamicJsonValue
+        return new DynamicJsonValue(3)
         {
             [nameof(Name)] = Name,
             [nameof(ToolId)] = ToolId,

@@ -146,7 +146,7 @@ namespace Raven.Client.Documents.Operations.Backups
 
         public virtual DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(11)
             {
                 [nameof(BackupType)] = BackupType,
                 [nameof(BackupUploadMode)] = BackupUploadMode,
@@ -163,7 +163,7 @@ namespace Raven.Client.Documents.Operations.Backups
         }
         public virtual DynamicJsonValue ToAuditJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(10)
             {
                 [nameof(BackupType)] = BackupType,
                 [nameof(SnapshotSettings)] = SnapshotSettings?.ToAuditJson(),

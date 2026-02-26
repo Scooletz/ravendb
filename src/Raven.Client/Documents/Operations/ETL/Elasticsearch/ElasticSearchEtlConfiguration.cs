@@ -65,7 +65,7 @@ namespace Raven.Client.Documents.Operations.ETL.ElasticSearch
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(3)
             {
                 [nameof(IndexName)] = IndexName,
                 [nameof(DocumentIdProperty)] = DocumentIdProperty,

@@ -67,7 +67,7 @@ public sealed class ShardedPagingContinuation : ContinuationToken
 
     public override DynamicJsonValue ToJson()
     {
-        return new DynamicJsonValue
+        return new DynamicJsonValue(2)
         {
             [nameof(Pages)] = DynamicJsonValue.Convert(Pages), 
             [nameof(PageSize)] = PageSize
@@ -81,7 +81,7 @@ public sealed class ShardedPagingContinuation : ContinuationToken
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(2)
             {
                 [nameof(Start)] = Start, 
                 [nameof(ShardNumber)] = ShardNumber

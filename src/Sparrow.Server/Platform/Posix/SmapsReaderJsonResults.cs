@@ -9,7 +9,7 @@ internal struct SmapsReaderJsonResults : ISmapsReaderResultAction
 
     public void Add(SmapsReaderResults results)
     {
-        var djv = new DynamicJsonValue
+        var djv = new DynamicJsonValue(13)
         {
             ["File"] = results.ResultString,
             ["Size"] = Sizes.Humane(results.Size),

@@ -73,7 +73,7 @@ namespace Raven.Client.Documents.Operations.OngoingTasks
 
         public virtual DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(9)
             {
                 [nameof(TaskId)] = TaskId,
                 [nameof(TaskType)] = TaskType,
@@ -530,7 +530,7 @@ namespace Raven.Client.Documents.Operations.OngoingTasks
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(4)
             {
                 [nameof(TimeSpan)] = TimeSpan,
                 [nameof(DateTime)] = DateTime,
@@ -550,7 +550,7 @@ namespace Raven.Client.Documents.Operations.OngoingTasks
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(3)
             {
                 [nameof(StartTime)] = StartTime,
                 [nameof(IsFull)] = IsFull,

@@ -19,7 +19,7 @@ namespace Raven.Server.NotificationCenter.Notifications.Details
             var dja = new DynamicJsonArray();
             foreach (var details in Details)
             {
-                var djv = new DynamicJsonValue
+                var djv = new DynamicJsonValue(4)
                 {
                     [nameof(ActionDetails.Id)] = details.Id,
                     [nameof(ActionDetails.Reason)] = details.Reason,

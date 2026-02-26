@@ -38,7 +38,7 @@ public sealed class UpgradeInfoHandler : ServerRequestHandler
                 HttpContext.Response.StatusCode = (int)HttpStatusCode.BadRequest;
                 
                 context.Write(writer,
-                    new DynamicJsonValue { [ErrorPropertyName] = $"Incorrect values of query string parameters - '{StartParameter}' cannot be negative, '{PageSizeParameter}' has to be greater than zero." });
+                    new DynamicJsonValue(0) { [ErrorPropertyName] = $"Incorrect values of query string parameters - '{StartParameter}' cannot be negative, '{PageSizeParameter}' has to be greater than zero." });
                 return;
             }
             
@@ -79,7 +79,7 @@ public sealed class UpgradeInfoHandler : ServerRequestHandler
             catch (Exception e)
             {
                 HttpContext.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
-                context.Write(writer, new DynamicJsonValue { [ErrorPropertyName] = e.Message });
+                context.Write(writer, new DynamicJsonValue(0) { [ErrorPropertyName] = e.Message });
             }
         }
     }
@@ -103,7 +103,7 @@ public sealed class UpgradeInfoHandler : ServerRequestHandler
         
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(5)
             {
                 [nameof(FullVersion)] = FullVersion,
                 [nameof(CanDowngradeFollowingUpgrade)] = CanDowngradeFollowingUpgrade,
@@ -123,7 +123,7 @@ public sealed class UpgradeInfoHandler : ServerRequestHandler
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(4)
             {
                 [nameof(BuildCompatibilitiesForUserMajorMinor)] = BuildCompatibilitiesForUserMajorMinor,
                 [nameof(BuildCompatibilitiesForLatestMajorMinor)] = BuildCompatibilitiesForLatestMajorMinor,

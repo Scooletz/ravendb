@@ -48,7 +48,7 @@ public class QueueSinkScript
     
     public DynamicJsonValue ToJson()
     {
-        return new DynamicJsonValue
+        return new DynamicJsonValue(3)
         {
             [nameof(Name)] = Name,
             [nameof(Script)] = Script,

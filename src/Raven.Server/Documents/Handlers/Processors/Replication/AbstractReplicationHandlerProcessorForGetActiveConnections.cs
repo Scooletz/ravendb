@@ -32,7 +32,7 @@ namespace Raven.Server.Documents.Handlers.Processors.Replication
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(2)
             {
                 [nameof(IncomingConnections)] = new DynamicJsonArray(IncomingConnections.Select(i => i.ToJson())),
                 [nameof(OutgoingConnections)] = new DynamicJsonArray(OutgoingConnections.Select(o => o.ToJson()))

@@ -195,7 +195,7 @@ namespace Raven.Server.ServerWide.Commands
 
             public DynamicJsonValue ToJson()
             {
-                return new DynamicJsonValue
+                return new DynamicJsonValue(2)
                 {
                     [nameof(Index)] = Index,
                     [nameof(Value)] = Value

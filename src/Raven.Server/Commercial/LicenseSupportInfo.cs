@@ -13,7 +13,7 @@ namespace Raven.Server.Commercial
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(3)
             {
                 [nameof(Status)] = Status,
                 [nameof(EndsAt)] = EndsAt,

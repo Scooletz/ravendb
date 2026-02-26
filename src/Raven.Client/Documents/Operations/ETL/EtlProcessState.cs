@@ -41,7 +41,7 @@ namespace Raven.Client.Documents.Operations.ETL
 
         public DynamicJsonValue ToJson()
         {
-            var json = new DynamicJsonValue
+            var json = new DynamicJsonValue(7)
             {
                 [nameof(ConfigurationName)] = ConfigurationName,
                 [nameof(TransformationName)] = TransformationName,

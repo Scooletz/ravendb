@@ -97,7 +97,7 @@ namespace Raven.Server.ServerWide.Commands
 
         public DynamicJsonValue PrepareForStorage()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(8)
             {
                 [nameof(Name)] = Name,
                 [nameof(HubName)] = HubName,

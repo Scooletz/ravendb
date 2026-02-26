@@ -73,7 +73,7 @@ namespace Raven.Client.Documents.Operations.AI.Agents
         
         public DynamicJsonValue ToJson()
         {
-            var djv = new DynamicJsonValue
+            var djv = new DynamicJsonValue(5)
             {
                 [nameof(Name)] = Name,
                 [nameof(Description)] = Description,

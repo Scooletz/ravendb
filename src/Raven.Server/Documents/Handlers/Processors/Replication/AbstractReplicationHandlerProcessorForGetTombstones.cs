@@ -45,7 +45,7 @@ namespace Raven.Server.Documents.Handlers.Processors.Replication
                     }
                 }
 
-                context.Write(writer, new DynamicJsonValue
+                context.Write(writer, new DynamicJsonValue(2)
                 {
                     [nameof(GetTombstonesPreviewResult.Tombstones)] = array,
                     [nameof(GetTombstonesPreviewResult.ContinuationToken)] = previewResult.ContinuationToken

@@ -28,11 +28,11 @@ namespace Raven.Client.Documents.Commands.Batches
         public DynamicJsonValue ToJson(DocumentConventions conventions, JsonOperationContext context)
         {
             var serializer = DocumentConventions.Default.Serialization.CreateSerializer(new CreateSerializerOptions { TypeNameHandling = TypeNameHandling.None });
-            var json = new DynamicJsonValue
+            var json = new DynamicJsonValue(5)
             {
                 [nameof(Id)] = Id,
                 [nameof(ChangeVector)] = null,
-                [nameof(JsonPatch)] = new DynamicJsonValue
+                [nameof(JsonPatch)] = new DynamicJsonValue(1)
                 {
                     ["Operations"] = 
                         new DynamicJsonArray(

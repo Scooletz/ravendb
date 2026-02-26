@@ -135,7 +135,7 @@ namespace Raven.Server.Documents.Queries.Results.TimeSeries
             if (to == DateTime.MaxValue)
                 to = null;
 
-            var result = new DynamicJsonValue
+            var result = new DynamicJsonValue(3)
             {
                 [nameof(TimeSeriesRangeAggregation.From)] = from, 
                 [nameof(TimeSeriesRangeAggregation.To)] = to, 
@@ -270,7 +270,7 @@ namespace Raven.Server.Documents.Queries.Results.TimeSeries
 
                         while (start < to)
                         {
-                            var gap = new DynamicJsonValue
+                            var gap = new DynamicJsonValue(3)
                             {
                                 [nameof(TimeSeriesRangeAggregation.From)] = start,
                                 [nameof(TimeSeriesRangeAggregation.To)] = end,

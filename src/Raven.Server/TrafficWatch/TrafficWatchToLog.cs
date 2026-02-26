@@ -167,7 +167,7 @@ internal sealed class TrafficWatchToLog : IDynamicJson
 
     public DynamicJsonValue ToJson()
     {
-        return new DynamicJsonValue
+        return new DynamicJsonValue(9)
         {
             [nameof(PutTrafficWatchConfigurationOperation.Parameters.TrafficWatchMode)] = _trafficWatchMode,
             [nameof(PutTrafficWatchConfigurationOperation.Parameters.Databases)] = Instance._databases == null ? null : new DynamicJsonArray(Instance._databases),

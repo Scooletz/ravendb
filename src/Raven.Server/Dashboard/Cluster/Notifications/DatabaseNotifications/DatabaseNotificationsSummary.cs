@@ -14,7 +14,7 @@ public class DatabaseNotificationsSummary
     
     public DynamicJsonValue ToJson()
     {
-        return new DynamicJsonValue
+        return new DynamicJsonValue(5)
         {
             [nameof(DatabaseName)] = DatabaseName,
             [nameof(PerformanceHints)] = new DynamicJsonArray(PerformanceHints.Select(x => x.ToJson())),

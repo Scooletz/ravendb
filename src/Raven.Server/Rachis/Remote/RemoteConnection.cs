@@ -81,7 +81,7 @@ namespace Raven.Server.Rachis.Remote
             if (_log.IsDebugEnabled)
                 _log.Debug($"{helloMsg.DebugSourceIdentifier} says hello to {helloMsg.DebugDestinationIdentifier} with {helloMsg.InitialMessageType}");
 
-            Send(context, new DynamicJsonValue
+            Send(context, new DynamicJsonValue(10)
             {
                 ["Type"] = nameof(RachisHello),
                 [nameof(RachisHello.DebugSourceIdentifier)] = helloMsg.DebugSourceIdentifier,
@@ -121,7 +121,7 @@ namespace Raven.Server.Rachis.Remote
                 _log.Debug($"Voting {rvr.VoteGranted} for term {rvr.Term:#,#;;0} because: {rvr.Message}");
             }
 
-            Send(context, new DynamicJsonValue
+            Send(context, new DynamicJsonValue(6)
             {
                 ["Type"] = nameof(RequestVoteResponse),
                 [nameof(RequestVoteResponse.NotInTopology)] = rvr.NotInTopology,
@@ -137,7 +137,7 @@ namespace Raven.Server.Rachis.Remote
             if (_log.IsDebugEnabled)
                 _log.Debug($"Log length negotiation request with ({lln.PrevLogIndex:#,#;;0} / {lln.PrevLogTerm:#,#;;0}), term: {lln.Term:#,#;;0}, Truncated: {lln.Truncated}");
 
-            Send(context, new DynamicJsonValue
+            Send(context, new DynamicJsonValue(6)
             {
                 ["Type"] = nameof(LogLengthNegotiation),
                 [nameof(LogLengthNegotiation.Term)] = lln.Term,
@@ -153,7 +153,7 @@ namespace Raven.Server.Rachis.Remote
             if (_log.IsDebugEnabled)
                 _log.Debug($"Log length negotiation response with ({lln.MidpointIndex:#,#;;0} / {lln.MidpointTerm:#,#;;0}), MinIndex: {lln.MinIndex:#,#;;0}, MaxIndex: {lln.MaxIndex:#,#;;0}, LastLogIndex: {lln.LastLogIndex:#,#;;0}, Status: {lln.Status}, {lln.Message}");
 
-            Send(context, new DynamicJsonValue
+            Send(context, new DynamicJsonValue(10)
             {
                 ["Type"] = nameof(LogLengthNegotiationResponse),
                 [nameof(LogLengthNegotiationResponse.Status)] = lln.Status,
@@ -175,7 +175,7 @@ namespace Raven.Server.Rachis.Remote
                 _log.Debug(
                     $"{rv.Source} requests vote in {rv.Term:#,#;;0}, trial: {rv.IsTrialElection}, forced: {rv.IsForcedElection}, result: {rv.ElectionResult} with: ({rv.LastLogIndex:#,#;;0} / {rv.LastLogTerm:#,#;;0}).");
             }
-            Send(context, new DynamicJsonValue
+            Send(context, new DynamicJsonValue(9)
             {
                 ["Type"] = nameof(RequestVote),
                 [nameof(RequestVote.Term)] = rv.Term,
@@ -200,7 +200,7 @@ namespace Raven.Server.Rachis.Remote
                 }
             }
 
-            var msg = new DynamicJsonValue
+            var msg = new DynamicJsonValue(10)
             {
                 ["Type"] = nameof(AppendEntries),
                 [nameof(AppendEntries.EntriesCount)] = ae.EntriesCount,
@@ -234,7 +234,7 @@ namespace Raven.Server.Rachis.Remote
             if (_log.IsDebugEnabled)
                 _log.Debug($"Install snapshot on: ({installSnapshot.LastIncludedIndex:#,#;;0} / {installSnapshot.LastIncludedTerm:#,#;;0})");
 
-            Send(context, new DynamicJsonValue
+            Send(context, new DynamicJsonValue(4)
             {
                 ["Type"] = nameof(InstallSnapshot),
                 [nameof(InstallSnapshot.LastIncludedIndex)] = installSnapshot.LastIncludedIndex,
@@ -248,7 +248,7 @@ namespace Raven.Server.Rachis.Remote
             if (_log.IsDebugEnabled)
                 _log.Debug($"Install snapshot response in {installSnapshotResponse.CurrentTerm:#,#;;0}, last log index: {installSnapshotResponse.LastLogIndex:#,#;;0}, Done: {installSnapshotResponse.Done}");
 
-            Send(context, new DynamicJsonValue
+            Send(context, new DynamicJsonValue(4)
             {
                 ["Type"] = nameof(InstallSnapshotResponse),
                 [nameof(InstallSnapshotResponse.CurrentTerm)] = installSnapshotResponse.CurrentTerm,
@@ -264,7 +264,7 @@ namespace Raven.Server.Rachis.Remote
                 _log.Debug("Sending an error (and aborting connection)", e);
             }
 
-            Send(context, new DynamicJsonValue
+            Send(context, new DynamicJsonValue(4)
             {
                 ["Type"] = "Error",
                 ["ExceptionType"] = e.GetType().Name,
@@ -374,7 +374,7 @@ namespace Raven.Server.Rachis.Remote
                 _log.Debug(aer.ToString());
             }
 
-            var msg = new DynamicJsonValue
+            var msg = new DynamicJsonValue(7)
             {
                 ["Type"] = nameof(AppendEntriesResponse),
                 [nameof(AppendEntriesResponse.Success)] = aer.Success,

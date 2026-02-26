@@ -101,7 +101,7 @@ namespace Raven.Client.Extensions
             {
                 item.Modifications = new DynamicJsonValue(item)
                 {
-                    [Constants.Documents.Metadata.Key] = new DynamicJsonValue
+                    [Constants.Documents.Metadata.Key] = new DynamicJsonValue(0)
                     {
                         [key] = value
                     }

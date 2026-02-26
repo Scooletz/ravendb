@@ -2173,7 +2173,7 @@ more responsive application.
 
             var idPropName = Conventions.FindIdentityPropertyNameFromCollectionName(collectionName);
 
-            result.Modifications = new DynamicJsonValue
+            result.Modifications = new DynamicJsonValue(0)
             {
                 [idPropName] = id // this is being read by BlittableJsonReader for additional properties on the object
             };

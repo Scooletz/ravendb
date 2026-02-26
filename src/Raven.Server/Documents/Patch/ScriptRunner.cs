@@ -97,7 +97,7 @@ namespace Raven.Server.Documents.Patch
 
         public DynamicJsonValue GetDebugInfo(bool detailed = false)
         {
-            var djv = new DynamicJsonValue
+            var djv = new DynamicJsonValue(5)
             {
                 ["Type"] = ScriptType,
                 ["CreationTime"] = _creationTime,
@@ -583,7 +583,7 @@ namespace Raven.Server.Documents.Patch
 
                     if (DebugMode)
                     {
-                        DebugActions.AppendTimeSeries.Add(new DynamicJsonValue
+                        DebugActions.AppendTimeSeries.Add(new DynamicJsonValue(5)
                         {
                             ["Name"] = timeSeries,
                             ["Timestamp"] = timestamp,
@@ -664,7 +664,7 @@ namespace Raven.Server.Documents.Patch
 
                     if (DebugMode)
                     {
-                        DebugActions.IncrementTimeSeries.Add(new DynamicJsonValue
+                        DebugActions.IncrementTimeSeries.Add(new DynamicJsonValue(4)
                         {
                             ["Name"] = timeSeries,
                             ["Timestamp"] = timestamp,
@@ -752,7 +752,7 @@ namespace Raven.Server.Documents.Patch
 
                 if (DebugMode)
                 {
-                    DebugActions.DeleteTimeSeries.Add(new DynamicJsonValue
+                    DebugActions.DeleteTimeSeries.Add(new DynamicJsonValue(3)
                     {
                         ["Name"] = timeSeries,
                         ["From"] = from,
@@ -810,7 +810,7 @@ namespace Raven.Server.Documents.Patch
 
                     if (DebugMode)
                     {
-                        DebugActions.GetTimeSeries.Add(new DynamicJsonValue
+                        DebugActions.GetTimeSeries.Add(new DynamicJsonValue(6)
                         {
                             ["Name"] = timeSeries,
                             ["Timestamp"] = singleResult.Timestamp.GetDefaultRavenFormat(isUtc: true),
@@ -824,7 +824,7 @@ namespace Raven.Server.Documents.Patch
 
                 if (DebugMode && entries.Count == 0)
                 {
-                    DebugActions.GetTimeSeries.Add(new DynamicJsonValue
+                    DebugActions.GetTimeSeries.Add(new DynamicJsonValue(2)
                     {
                         ["Name"] = timeSeries,
                         ["Exists"] = false
@@ -872,7 +872,7 @@ namespace Raven.Server.Documents.Patch
 
                 if (DebugMode)
                 {
-                    DebugActions.RemoteAttachments.Add(new DynamicJsonValue
+                    DebugActions.RemoteAttachments.Add(new DynamicJsonValue(5)
                     {
                         ["DocId"] = id,
                         ["DocData"] = doc.ToString(),
@@ -1313,7 +1313,7 @@ namespace Raven.Server.Documents.Patch
 
                     if (DebugMode)
                     {
-                        DebugActions.PutDocument.Add(new DynamicJsonValue
+                        DebugActions.PutDocument.Add(new DynamicJsonValue(2)
                         {
                             ["Id"] = putResult.Id,
                             ["Data"] = reader
@@ -1564,7 +1564,7 @@ namespace Raven.Server.Documents.Patch
 
                     if (DebugMode)
                     {
-                        DebugActions.GetCounter.Add(new DynamicJsonValue
+                        DebugActions.GetCounter.Add(new DynamicJsonValue(3)
                         {
                             ["Name"] = name,
                             ["Value"] = counterValue.ToString(),
@@ -1655,7 +1655,7 @@ namespace Raven.Server.Documents.Patch
                 {
                     var newValue = _database.DocumentsStorage.CountersStorage.GetCounterValue(_docsCtx, id, name)?.Value;
 
-                    DebugActions.IncrementCounter.Add(new DynamicJsonValue
+                    DebugActions.IncrementCounter.Add(new DynamicJsonValue(5)
                     {
                         ["Name"] = name,
                         ["OldValue"] = currentValue,
@@ -2187,7 +2187,7 @@ namespace Raven.Server.Documents.Patch
 
                 if (DebugMode)
                 {
-                    DebugActions.LoadDocument.Add(new DynamicJsonValue
+                    DebugActions.LoadDocument.Add(new DynamicJsonValue(2)
                     {
                         ["Id"] = id,
                         ["Exists"] = document != null

@@ -12,7 +12,7 @@ public class ManagedMemoryAnalysisInfo : IDynamicJson
     public GcInfoPayload.GcMemoryInfo LastGcInfo { get; set; }
     public DynamicJsonValue ToJson()
     {
-        return new DynamicJsonValue
+        return new DynamicJsonValue(2)
         {
             [nameof(ManagedAllocations)] = ManagedAllocations,
             [nameof(LuceneManagedAllocationsForTermCache)] = LuceneManagedAllocationsForTermCache,

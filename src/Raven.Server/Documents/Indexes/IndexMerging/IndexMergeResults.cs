@@ -14,7 +14,7 @@ namespace Raven.Server.Documents.Indexes.IndexMerging
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(3)
             {
                 [nameof(Unmergables)] = DynamicJsonValue.Convert(Unmergables),
                 [nameof(Suggestions)] = new DynamicJsonArray(Suggestions.Select(x=>x.ToJson())),
@@ -41,7 +41,7 @@ namespace Raven.Server.Documents.Indexes.IndexMerging
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(5)
             {
                 [nameof(CanMerge)] = new DynamicJsonArray(CanMerge),
                 [nameof(CanDelete)] = new DynamicJsonArray(CanDelete),
@@ -66,7 +66,7 @@ namespace Raven.Server.Documents.Indexes.IndexMerging
         
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(3)
             {
                 [nameof(IndexName)] = IndexName,
                 [nameof(Message)] = Message,

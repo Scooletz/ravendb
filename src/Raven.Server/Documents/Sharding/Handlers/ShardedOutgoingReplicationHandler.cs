@@ -102,7 +102,7 @@ namespace Raven.Server.Documents.Sharding.Handlers
             }
 
             var sw = Stopwatch.StartNew();
-            var headerJson = new DynamicJsonValue
+            var headerJson = new DynamicJsonValue(4)
             {
                 [nameof(ReplicationMessageHeader.Type)] = ReplicationMessageType.Documents,
                 [nameof(ReplicationMessageHeader.LastDocumentEtag)] = _lastEtag,

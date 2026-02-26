@@ -17,7 +17,7 @@ public class MachineAnalysisInfo : IDynamicJson
 
     public DynamicJsonValue ToJson()
     {
-        return new DynamicJsonValue
+        return new DynamicJsonValue(5)
         {
             [nameof(NumberOfCores)] = NumberOfCores,
             [nameof(UtilizedCores)] = UtilizedCores,

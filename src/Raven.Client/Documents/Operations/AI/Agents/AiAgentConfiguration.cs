@@ -140,7 +140,7 @@ public class AiAgentConfiguration : IDynamicJson
 
     public DynamicJsonValue ToJson()
     {
-        return new DynamicJsonValue
+        return new DynamicJsonValue(12)
         {
             [nameof(Identifier)] = Identifier,
             [nameof(Name)] = Name,

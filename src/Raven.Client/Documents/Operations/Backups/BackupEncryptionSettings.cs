@@ -25,7 +25,7 @@ namespace Raven.Client.Documents.Operations.Backups
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(2)
             {
                 [nameof(Key)] = Key,
                 [nameof(EncryptionMode)] = EncryptionMode
@@ -33,7 +33,7 @@ namespace Raven.Client.Documents.Operations.Backups
         }
         public DynamicJsonValue ToAuditJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(1)
             {
                 [nameof(EncryptionMode)] = EncryptionMode
             };

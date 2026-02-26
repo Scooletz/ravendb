@@ -29,7 +29,7 @@ public class DebugPackageNodeAnalysisSummary : IDynamicJson
     
     public DynamicJsonValue ToJson()
     {
-        return new DynamicJsonValue
+        return new DynamicJsonValue(10)
         {
             [nameof(ClusterNodeInfo)] = ClusterNodeInfo?.ToJson(),
             [nameof(CpuUsageInfo)] = CpuUsageInfo?.ToJson(),

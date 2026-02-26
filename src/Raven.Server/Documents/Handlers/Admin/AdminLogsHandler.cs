@@ -56,7 +56,7 @@ namespace Raven.Server.Documents.Handlers.Admin
                 var microsoftLogsConfiguration = RavenLogManager.Instance.GetMicrosoftLogsConfiguration(Server);
                 var adminLogsConfiguration = RavenLogManager.Instance.GetAdminLogsConfiguration(Server);
 
-                var djv = new DynamicJsonValue
+                var djv = new DynamicJsonValue(4)
                 {
                     [nameof(GetLogsConfigurationResult.Logs)] = logsConfiguration?.ToJson(),
                     [nameof(GetLogsConfigurationResult.AuditLogs)] = auditLogsConfiguration?.ToJson(),

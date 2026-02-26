@@ -24,7 +24,7 @@ public abstract class SetupInfoBase
     
     public virtual DynamicJsonValue ToJson()
     {
-        return new DynamicJsonValue
+        return new DynamicJsonValue(5)
         {
             [nameof(EnableExperimentalFeatures)] = EnableExperimentalFeatures,
             [nameof(Environment)] = Environment,

@@ -16,7 +16,7 @@ public class MemoryAnalysisInfo : IDynamicJson
 
     public DynamicJsonValue ToJson()
     {
-        return new DynamicJsonValue
+        return new DynamicJsonValue(9)
         {
             [nameof(PhysicalMemory)] = PhysicalMemory,
             [nameof(WorkingSet)] = WorkingSet,

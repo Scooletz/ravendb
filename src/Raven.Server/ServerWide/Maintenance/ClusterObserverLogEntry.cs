@@ -17,7 +17,7 @@ namespace Raven.Server.ServerWide.Maintenance
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(4)
                 {
                     [nameof(Date)] = Date,
                     [nameof(Iteration)] = Iteration,

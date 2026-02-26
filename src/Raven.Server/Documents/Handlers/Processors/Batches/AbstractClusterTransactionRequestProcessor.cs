@@ -80,7 +80,7 @@ public abstract class AbstractClusterTransactionRequestProcessor<TRequestHandler
 
             foreach (var clusterCommands in clusterTransactionCommand.ClusterCommands)
             {
-                array.Add(new DynamicJsonValue
+                array.Add(new DynamicJsonValue(3)
                 {
                     [nameof(ICommandData.Type)] = clusterCommands.Type,
                     [nameof(ICompareExchangeValue.Key)] = clusterCommands.Id,

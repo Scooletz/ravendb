@@ -64,7 +64,7 @@ public class ConversationDocument([NotNull] string agent, BlittableJsonReaderObj
             promptMessage += "\n" + message;
         }
 
-        AddMessage(context, context.ReadObject(new DynamicJsonValue
+        AddMessage(context, context.ReadObject(new DynamicJsonValue(0)
         {
             [ChatCompletionClient.Constants.RequestFields.Role] = ChatCompletionClient.Constants.RequestFields.RoleSystemValue,
             [ChatCompletionClient.Constants.RequestFields.Content] = promptMessage
@@ -72,7 +72,7 @@ public class ConversationDocument([NotNull] string agent, BlittableJsonReaderObj
 
         if (relevantParameters.Count > 0)
         {
-            AddMessage(context, context.ReadObject(new DynamicJsonValue
+            AddMessage(context, context.ReadObject(new DynamicJsonValue(0)
             {
                 [ChatCompletionClient.Constants.RequestFields.Role] = ChatCompletionClient.Constants.RequestFields.RoleUserValue,
                 [ChatCompletionClient.Constants.RequestFields.Content] = ParametersToString(relevantParameters)
@@ -119,7 +119,7 @@ public class ConversationDocument([NotNull] string agent, BlittableJsonReaderObj
     public void AddToolResponse(JsonOperationContext context, string toolId, string content)
     {
         AddMessage(context, context.ReadObject(
-            new DynamicJsonValue
+            new DynamicJsonValue(3)
             {
                 ["tool_call_id"] = toolId,
                 ["role"] = "tool",
@@ -133,11 +133,11 @@ public class ConversationDocument([NotNull] string agent, BlittableJsonReaderObj
         var tools = new DynamicJsonArray();
         foreach (AiToolCall call in result)
         {
-            tools.Add(new DynamicJsonValue
+            tools.Add(new DynamicJsonValue(0)
             {
                 [ChatCompletionClient.Constants.ResponseFields.Id] = call.Id,
                 [ChatCompletionClient.Constants.ResponseFields.Type] = ChatCompletionClient.Constants.ResponseFields.Function,
-                [ChatCompletionClient.Constants.ResponseFields.Function] = new DynamicJsonValue
+                [ChatCompletionClient.Constants.ResponseFields.Function] = new DynamicJsonValue(0)
                 {
                     [ChatCompletionClient.Constants.ResponseFields.Name] = call.Name,
                     [ChatCompletionClient.Constants.ResponseFields.Arguments] = call.Arguments
@@ -145,7 +145,7 @@ public class ConversationDocument([NotNull] string agent, BlittableJsonReaderObj
             });
         }
 
-        AddMessage(context, context.ReadObject(new DynamicJsonValue
+        AddMessage(context, context.ReadObject(new DynamicJsonValue(0)
         {
             [ChatCompletionClient.Constants.RequestFields.Role] = ChatCompletionClient.Constants.RequestFields.RoleAssistantValue,
             [ChatCompletionClient.Constants.ResponseFields.ToolCalls] = tools
@@ -172,7 +172,7 @@ public class ConversationDocument([NotNull] string agent, BlittableJsonReaderObj
 
     public BlittableJsonReaderObject ToBlittable(JsonOperationContext context)
     {
-        var metadata = new DynamicJsonValue
+        var metadata = new DynamicJsonValue(0)
         {
             [Constants.Documents.Metadata.Collection] = Constants.Documents.Collections.AiAgentConversationCollection,
         };
@@ -190,7 +190,7 @@ public class ConversationDocument([NotNull] string agent, BlittableJsonReaderObj
 
     public BlittableJsonReaderObject ToHistoryBlittable(JsonOperationContext context, AiAgentConfiguration configuration, TimeSpan? expiration = null)
     {
-        var metadata = new DynamicJsonValue
+        var metadata = new DynamicJsonValue(0)
         {
             [Constants.Documents.Metadata.Collection] = Constants.Documents.Collections.AiAgentConversationHistoryCollection,
         };
@@ -212,7 +212,7 @@ public class ConversationDocument([NotNull] string agent, BlittableJsonReaderObj
 
     public DynamicJsonValue ToJson()
     {
-        return new DynamicJsonValue
+        return new DynamicJsonValue(11)
         {
             [nameof(Agent)] = Agent,
             [nameof(Parameters)] = Parameters,
@@ -301,10 +301,10 @@ public class ConversationDocument([NotNull] string agent, BlittableJsonReaderObj
                 continue;
 
             var paramsSchema = ChatCompletionClient.GetSchemaForTool(q.ParametersSchema, q.ParametersSampleObject);
-            var tool = new DynamicJsonValue
+            var tool = new DynamicJsonValue(3)
             {
                 ["type"] = "function",
-                ["function"] = new DynamicJsonValue
+                ["function"] = new DynamicJsonValue(3)
                 {
                     ["name"] = q.Name,
                     ["description"] = q.Description,
@@ -318,10 +318,10 @@ public class ConversationDocument([NotNull] string agent, BlittableJsonReaderObj
         foreach (var a in configuration.Actions ?? [])
         {
             string paramsSchema = ChatCompletionClient.GetSchemaForTool(a.ParametersSchema, a.ParametersSampleObject);
-            var tool = new DynamicJsonValue
+            var tool = new DynamicJsonValue(3)
             {
                 ["type"] = "function",
-                ["function"] = new DynamicJsonValue
+                ["function"] = new DynamicJsonValue(3)
                 {
                     ["name"] = a.Name,
                     ["description"] = a.Description,

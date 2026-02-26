@@ -171,7 +171,7 @@ internal sealed class StudioDatabasesHandlerForGetDatabasesState : AbstractDatab
         JsonOperationContext context,
         AbstractBlittableJsonTextWriter writer)
     {
-        var doc = new DynamicJsonValue
+        var doc = new DynamicJsonValue(3)
         {
             [nameof(DatabaseInfo.Name)] = databaseName,
             [nameof(DatabaseInfo.LoadError)] = exception.Message,
@@ -186,7 +186,7 @@ internal sealed class StudioDatabasesHandlerForGetDatabasesState : AbstractDatab
         JsonOperationContext context,
         AbstractBlittableJsonTextWriter writer)
     {
-        var doc = new DynamicJsonValue
+        var doc = new DynamicJsonValue(2)
         {
             [nameof(StudioOrchestratorState.Name)] = databaseName,
             [nameof(StudioOrchestratorState.LoadError)] = exception.Message
@@ -275,7 +275,7 @@ internal sealed class StudioDatabasesHandlerForGetDatabasesState : AbstractDatab
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(3)
             {
                 [nameof(Name)] = Name,
                 [nameof(Alerts)] = Alerts,

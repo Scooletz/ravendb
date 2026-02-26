@@ -69,7 +69,7 @@ namespace Raven.Server.NotificationCenter
                 var jsonArray = new DynamicJsonArray();
                 foreach (var tombstoneDetails in BlockingTombstones)
                 {
-                    jsonArray.Add(new DynamicJsonValue
+                    jsonArray.Add(new DynamicJsonValue(6)
                     {
                         [nameof(BlockingTombstoneDetails.Source)] = tombstoneDetails.Source,
                         [nameof(BlockingTombstoneDetails.BlockerType)] = tombstoneDetails.BlockerType,
@@ -80,7 +80,7 @@ namespace Raven.Server.NotificationCenter
                     });
                 }
 
-                return new DynamicJsonValue
+                return new DynamicJsonValue(1)
                 {
                     [nameof(BlockingTombstones)] = jsonArray
                 };

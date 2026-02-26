@@ -31,7 +31,7 @@ namespace Raven.Server.Documents.Handlers.Processors.Replication
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(1)
             {
                 [nameof(Stats)] = new DynamicJsonArray(Stats.Select(IncomingActivityTimeToJson))
             };
@@ -39,7 +39,7 @@ namespace Raven.Server.Documents.Handlers.Processors.Replication
 
         private DynamicJsonValue IncomingActivityTimeToJson(KeyValuePair<IncomingConnectionInfo, DateTime> kvp)
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(2)
             {
                 ["Key"] = kvp.Key.ToJson(),
                 ["Value"] = kvp.Value

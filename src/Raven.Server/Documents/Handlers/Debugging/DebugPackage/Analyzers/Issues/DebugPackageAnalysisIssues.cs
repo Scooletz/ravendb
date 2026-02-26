@@ -14,7 +14,7 @@ public class DebugPackageAnalysisIssues : IDynamicJson
     
     public DynamicJsonValue ToJson()
     {
-        return new DynamicJsonValue
+        return new DynamicJsonValue(3)
         {
             [nameof(ServerIssues)] = new DynamicJsonArray(ServerIssues.Select(issue => issue.ToJson())),
             [nameof(ClusterIssues)] = new DynamicJsonArray(ClusterIssues.Select(issue => issue.ToJson())),

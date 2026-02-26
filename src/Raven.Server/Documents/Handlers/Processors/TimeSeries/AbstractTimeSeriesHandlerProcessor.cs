@@ -44,7 +44,7 @@ namespace Raven.Server.Documents.Handlers.Processors.TimeSeries
         {
             await using (var writer = new AsyncBlittableJsonTextWriter(context, RequestHandler.ResponseBodyStream()))
             {
-                var response = new DynamicJsonValue { ["RaftCommandIndex"] = index, };
+                var response = new DynamicJsonValue(0) { ["RaftCommandIndex"] = index, };
                 context.Write(writer, response);
             }
         }

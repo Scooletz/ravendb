@@ -49,7 +49,7 @@ namespace Raven.Server.Commercial
 
         public unsafe void SetFirstServerStartDate(DateTime date)
         {
-            var firstServerStartDate = new DynamicJsonValue
+            var firstServerStartDate = new DynamicJsonValue(0)
             {
                 [FirstServerStartDateKey] = date
             };

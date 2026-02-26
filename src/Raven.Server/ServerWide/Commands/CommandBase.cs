@@ -13,7 +13,7 @@ namespace Raven.Server.ServerWide.Commands
         public const string Type = nameof(Type);
         public virtual DynamicJsonValue ToJson(JsonOperationContext context)
         {
-            var json = new DynamicJsonValue
+            var json = new DynamicJsonValue(2)
             {
                 [nameof(Type)] = GetType().Name,
                 [nameof(UniqueRequestId)] = UniqueRequestId,

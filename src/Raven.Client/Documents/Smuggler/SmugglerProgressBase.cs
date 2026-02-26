@@ -391,7 +391,7 @@ public abstract class SmugglerProgressBase : IOperationProgress
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(3)
             {
                 [nameof(CurrentFileName)] = CurrentFileName,
                 [nameof(CurrentFile)] = CurrentFile,
@@ -411,7 +411,7 @@ public abstract class SmugglerProgressBase : IOperationProgress
 
         public virtual DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(6)
             {
                 [nameof(StartTime)] = StartTime,
                 [nameof(Processed)] = Processed,

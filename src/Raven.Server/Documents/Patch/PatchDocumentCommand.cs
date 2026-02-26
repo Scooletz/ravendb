@@ -341,7 +341,7 @@ namespace Raven.Server.Documents.Patch
             if (patchResult.Collection != null)
                 modifiedCollections?.Add(patchResult.Collection);
 
-            var patchReply = new DynamicJsonValue
+            var patchReply = new DynamicJsonValue(6)
             {
                 [nameof(BatchRequestParser.CommandData.Id)] = id,
                 [nameof(BatchRequestParser.CommandData.ChangeVector)] = patchResult.ChangeVector,
@@ -425,7 +425,7 @@ namespace Raven.Server.Documents.Patch
 
         public override string HandleReply(DynamicJsonArray reply, HashSet<string> modifiedCollections)
         {
-            reply.Add(new DynamicJsonValue
+            reply.Add(new DynamicJsonValue(1)
             {
                 [nameof(BatchRequestParser.CommandData.Type)] = nameof(CommandType.BatchPATCH)
             });

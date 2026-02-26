@@ -113,7 +113,7 @@ public class QueueSinkConfiguration : IDynamicJson, IDatabaseTask
 
     public DynamicJsonValue ToJson()
     {
-        var result = new DynamicJsonValue
+        var result = new DynamicJsonValue(8)
         {
             [nameof(Name)] = Name,
             [nameof(TaskId)] = TaskId,

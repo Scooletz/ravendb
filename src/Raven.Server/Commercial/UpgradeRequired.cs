@@ -11,7 +11,7 @@ public class UpgradeRequired : IDynamicJson
 
     public DynamicJsonValue ToJson()
     {
-        return new DynamicJsonValue
+        return new DynamicJsonValue(2)
         {
             [nameof(AllowDismiss)] = AllowDismiss,
             [nameof(AllowDismissUntil)] = AllowDismissUntil

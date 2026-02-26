@@ -206,7 +206,7 @@ public partial class ShardedDatabaseContext
 
             public DynamicJsonValue ToJson()
             {
-                return new DynamicJsonValue
+                return new DynamicJsonValue(9)
                 {
                     [nameof(Shard)] = Shard,
                     [nameof(WorkerId)] = WorkerId,

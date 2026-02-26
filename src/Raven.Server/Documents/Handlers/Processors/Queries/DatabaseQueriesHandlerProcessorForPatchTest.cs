@@ -95,7 +95,7 @@ internal sealed class DatabaseQueriesHandlerProcessorForPatchTest : AbstractQuer
 
             writer.WritePropertyName(nameof(command.PatchResult.Debug));
 
-            context.Write(writer, new DynamicJsonValue
+            context.Write(writer, new DynamicJsonValue(2)
             {
                 ["Output"] = new DynamicJsonArray(command.DebugOutput),
                 ["Actions"] = command.DebugActions

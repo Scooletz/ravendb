@@ -13,7 +13,7 @@ public class NetworkAnalysisInfo : IDynamicJson
 
     public DynamicJsonValue ToJson()
     {
-        return new DynamicJsonValue
+        return new DynamicJsonValue(2)
         {
             [nameof(TotalActiveTcpConnections)] = TotalActiveTcpConnections,
             [nameof(TcpConnections)] = new DynamicJsonArray(TcpConnections.Select(x => x.ToJson()))
@@ -30,7 +30,7 @@ public class TcpConnections : IDynamicJson
     public Dictionary<string, int> TopConnectionsInState { get; set; } = [];
     public DynamicJsonValue ToJson()
     {
-        return new DynamicJsonValue
+        return new DynamicJsonValue(3)
         {
             [nameof(TcpState)] = TcpState,
             [nameof(NumberOfConnectionsInState)] = NumberOfConnectionsInState,

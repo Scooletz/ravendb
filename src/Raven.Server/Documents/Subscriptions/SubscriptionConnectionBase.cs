@@ -373,7 +373,7 @@ namespace Raven.Server.Documents.Subscriptions
 
                 var metadata = result.Document.Data[Client.Constants.Documents.Metadata.Key];
                 writer.WriteValue(BlittableJsonToken.StartObject,
-                    context.ReadObject(new DynamicJsonValue { [Client.Constants.Documents.Metadata.Key] = metadata }, result.Document.Id)
+                    context.ReadObject(new DynamicJsonValue(0) { [Client.Constants.Documents.Metadata.Key] = metadata }, result.Document.Id)
                 );
                 writer.WriteComma();
                 writer.WritePropertyName(context.GetLazyStringForFieldWithCaching(ExceptionSegment));
@@ -688,7 +688,7 @@ namespace Raven.Server.Documents.Subscriptions
                 {
                     case SubscriptionDoesNotExistException:
                     case DatabaseDoesNotExistException:
-                        await WriteJsonAsync(new DynamicJsonValue
+                        await WriteJsonAsync(new DynamicJsonValue(4)
                         {
                             [nameof(SubscriptionConnectionServerMessage.Type)] = nameof(SubscriptionConnectionServerMessage.MessageType.ConnectionStatus),
                             [nameof(SubscriptionConnectionServerMessage.Status)] = nameof(SubscriptionConnectionServerMessage.ConnectionStatus.NotFound),
@@ -697,13 +697,13 @@ namespace Raven.Server.Documents.Subscriptions
                         });
                         break;
                     case SubscriptionClosedException sce:
-                        await WriteJsonAsync(new DynamicJsonValue
+                        await WriteJsonAsync(new DynamicJsonValue(5)
                         {
                             [nameof(SubscriptionConnectionServerMessage.Type)] = nameof(SubscriptionConnectionServerMessage.MessageType.ConnectionStatus),
                             [nameof(SubscriptionConnectionServerMessage.Status)] = nameof(SubscriptionConnectionServerMessage.ConnectionStatus.Closed),
                             [nameof(SubscriptionConnectionServerMessage.Message)] = ex.Message,
                             [nameof(SubscriptionConnectionServerMessage.Exception)] = ex.ToString(),
-                            [nameof(SubscriptionConnectionServerMessage.Data)] = new DynamicJsonValue
+                            [nameof(SubscriptionConnectionServerMessage.Data)] = new DynamicJsonValue(2)
                             {
                                 [nameof(SubscriptionClosedException.CanReconnect)] = sce.CanReconnect,
                                 [nameof(SubscriptionClosedException.NoDocsLeft)] = sce.NoDocsLeft
@@ -711,7 +711,7 @@ namespace Raven.Server.Documents.Subscriptions
                         });
                         break;
                     case SubscriptionInvalidStateException:
-                        await WriteJsonAsync(new DynamicJsonValue
+                        await WriteJsonAsync(new DynamicJsonValue(4)
                         {
                             [nameof(SubscriptionConnectionServerMessage.Type)] = nameof(SubscriptionConnectionServerMessage.MessageType.ConnectionStatus),
                             [nameof(SubscriptionConnectionServerMessage.Status)] = nameof(SubscriptionConnectionServerMessage.ConnectionStatus.Invalid),
@@ -720,7 +720,7 @@ namespace Raven.Server.Documents.Subscriptions
                         });
                         break;
                     case SubscriptionInUseException:
-                        await WriteJsonAsync(new DynamicJsonValue
+                        await WriteJsonAsync(new DynamicJsonValue(4)
                         {
                             [nameof(SubscriptionConnectionServerMessage.Type)] = nameof(SubscriptionConnectionServerMessage.MessageType.ConnectionStatus),
                             [nameof(SubscriptionConnectionServerMessage.Status)] = nameof(SubscriptionConnectionServerMessage.ConnectionStatus.InUse),
@@ -759,20 +759,20 @@ namespace Raven.Server.Documents.Subscriptions
                                 _logger.Debug("Subscription does not belong to current node", ex);
                             }
 
-                            await WriteJsonAsync(new DynamicJsonValue
+                            await WriteJsonAsync(new DynamicJsonValue(5)
                             {
                                 [nameof(SubscriptionConnectionServerMessage.Type)] = nameof(SubscriptionConnectionServerMessage.MessageType.ConnectionStatus),
                                 [nameof(SubscriptionConnectionServerMessage.Status)] = nameof(SubscriptionConnectionServerMessage.ConnectionStatus.Redirect),
                                 [nameof(SubscriptionConnectionServerMessage.Message)] = ex.Message,
                                 [nameof(SubscriptionConnectionServerMessage.Exception)] = ex.ToString(),
-                                [nameof(SubscriptionConnectionServerMessage.Data)] = new DynamicJsonValue
+                                [nameof(SubscriptionConnectionServerMessage.Data)] = new DynamicJsonValue(4)
                                 {
                                     [nameof(SubscriptionConnectionServerMessage.SubscriptionRedirectData.RedirectedTag)] = subscriptionDoesNotBelongException.AppropriateNode,
                                     [nameof(SubscriptionConnectionServerMessage.SubscriptionRedirectData.CurrentTag)] = ServerStore.NodeTag,
                                     [nameof(SubscriptionConnectionServerMessage.SubscriptionRedirectData.RegisterConnectionDurationInTicks)] =
                                         subscriptionDoesNotBelongException.RegisterConnectionDurationInTicks,
                                     [nameof(SubscriptionConnectionServerMessage.SubscriptionRedirectData.Reasons)] =
-                                        new DynamicJsonArray(subscriptionDoesNotBelongException.Reasons.Select(item => new DynamicJsonValue { [item.Key] = item.Value }))
+                                        new DynamicJsonArray(subscriptionDoesNotBelongException.Reasons.Select(item => new DynamicJsonValue(0) { [item.Key] = item.Value }))
                                 }
                             });
                             break;
@@ -786,7 +786,7 @@ namespace Raven.Server.Documents.Subscriptions
                                 _logger.Debug("Subscription change vector update concurrency error", ex);
                             }
 
-                            await WriteJsonAsync(new DynamicJsonValue
+                            await WriteJsonAsync(new DynamicJsonValue(4)
                             {
                                 [nameof(SubscriptionConnectionServerMessage.Type)] = nameof(SubscriptionConnectionServerMessage.MessageType.ConnectionStatus),
                                 [nameof(SubscriptionConnectionServerMessage.Status)] = nameof(SubscriptionConnectionServerMessage.ConnectionStatus.ConcurrencyReconnect),
@@ -796,7 +796,7 @@ namespace Raven.Server.Documents.Subscriptions
                             break;
                         }
                     case LicenseLimitException:
-                        await WriteJsonAsync(new DynamicJsonValue
+                        await WriteJsonAsync(new DynamicJsonValue(4)
                         {
                             [nameof(SubscriptionConnectionServerMessage.Type)] = nameof(SubscriptionConnectionServerMessage.MessageType.ConnectionStatus),
                             [nameof(SubscriptionConnectionServerMessage.Status)] = nameof(SubscriptionConnectionServerMessage.ConnectionStatus.Invalid),
@@ -819,7 +819,7 @@ namespace Raven.Server.Documents.Subscriptions
                             }
                         }
 
-                        await WriteJsonAsync(new DynamicJsonValue
+                        await WriteJsonAsync(new DynamicJsonValue(4)
                         {
                             [nameof(SubscriptionConnectionServerMessage.Type)] = nameof(SubscriptionConnectionServerMessage.MessageType.Error),
                             [nameof(SubscriptionConnectionServerMessage.Status)] = nameof(SubscriptionConnectionServerMessage.ConnectionStatus.None),
@@ -937,7 +937,7 @@ namespace Raven.Server.Documents.Subscriptions
 
         protected virtual DynamicJsonValue AcceptMessage()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(2)
             {
                 [nameof(SubscriptionConnectionServerMessage.Type)] = nameof(SubscriptionConnectionServerMessage.MessageType.ConnectionStatus),
                 [nameof(SubscriptionConnectionServerMessage.Status)] = nameof(SubscriptionConnectionServerMessage.ConnectionStatus.Accepted)
@@ -1034,7 +1034,7 @@ namespace Raven.Server.Documents.Subscriptions
         {
             Stats.Metrics.LastAckReceivedAt = time;
             Stats.Metrics.AckRate?.Mark();
-            await WriteJsonAsync(new DynamicJsonValue
+            await WriteJsonAsync(new DynamicJsonValue(1)
             {
                 [nameof(SubscriptionConnectionServerMessage.Type)] = nameof(SubscriptionConnectionServerMessage.MessageType.Confirm)
             });

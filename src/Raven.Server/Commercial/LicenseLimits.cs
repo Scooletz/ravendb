@@ -17,7 +17,7 @@ namespace Raven.Server.Commercial
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(1)
             {
                 [nameof(NodeLicenseDetails)] = DynamicJsonValue.Convert(NodeLicenseDetails)
             };

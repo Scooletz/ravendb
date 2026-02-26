@@ -8,7 +8,7 @@ public class ClusterTransactionResult : IDynamicJson
 
     public DynamicJsonValue ToJson()
     {
-        return new DynamicJsonValue
+        return new DynamicJsonValue(1)
         {
             [nameof(GeneratedResult)] = GeneratedResult,
         };

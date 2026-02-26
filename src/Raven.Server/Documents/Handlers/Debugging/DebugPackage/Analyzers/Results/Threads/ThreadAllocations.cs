@@ -12,7 +12,7 @@ public class ThreadAllocations : IDynamicJson
     public List<ThreadId> ThreadIds { get; set; }
     public DynamicJsonValue ToJson()
     {
-        return new DynamicJsonValue
+        return new DynamicJsonValue(4)
         {
             [nameof(ThreadName)] = ThreadName,
             [nameof(Allocations)] = Allocations,

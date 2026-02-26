@@ -171,7 +171,7 @@ namespace Raven.Server.Web.System
 
                 await using (var writer = new AsyncBlittableJsonTextWriter(context, ResponseBodyStream()))
                 {
-                    context.Write(writer, new DynamicJsonValue
+                    context.Write(writer, new DynamicJsonValue(3)
                     {
                         [nameof(DatabasePutResult.RaftCommandIndex)] = newIndex,
                         [nameof(DatabasePutResult.Name)] = name,
@@ -298,7 +298,7 @@ namespace Raven.Server.Web.System
 
                 await using (var writer = new AsyncBlittableJsonTextWriter(context, ResponseBodyStream()))
                 {
-                    context.Write(writer, new DynamicJsonValue
+                    context.Write(writer, new DynamicJsonValue(5)
                     {
                         [nameof(DatabasePutResult.RaftCommandIndex)] = newIndex,
                         [nameof(DatabasePutResult.Name)] = databaseRecord.DatabaseName,
@@ -330,7 +330,7 @@ namespace Raven.Server.Web.System
 
                 await using (var writer = new AsyncBlittableJsonTextWriter(context, ResponseBodyStream()))
                 {
-                    context.Write(writer, new DynamicJsonValue
+                    context.Write(writer, new DynamicJsonValue(4)
                     {
                         [nameof(DatabasePutResult.RaftCommandIndex)] = command.Result.RaftCommandIndex,
                         [nameof(DatabasePutResult.Name)] = command.Result.Name,
@@ -741,7 +741,7 @@ namespace Raven.Server.Web.System
 
                 await using (var writer = new AsyncBlittableJsonTextWriter(context, ResponseBodyStream()))
                 {
-                    context.Write(writer, new DynamicJsonValue
+                    context.Write(writer, new DynamicJsonValue(2)
                     {
                         // we only send the successful index here, we might fail to delete the index
                         // because a node is down, and we don't want to cause the client to wait on an
@@ -939,7 +939,7 @@ namespace Raven.Server.Web.System
                         var databaseExists = ServerStore.Cluster.DatabaseExists(context, name);
                         if (databaseExists == false)
                         {
-                            resultList.Add(new DynamicJsonValue
+                            resultList.Add(new DynamicJsonValue(3)
                             {
                                 ["Name"] = name,
                                 ["Success"] = false,
@@ -949,7 +949,7 @@ namespace Raven.Server.Web.System
                         }
                     }
 
-                    resultList.Add(new DynamicJsonValue
+                    resultList.Add(new DynamicJsonValue(4)
                     {
                         ["Name"] = name,
                         ["Success"] = true,
@@ -1008,7 +1008,7 @@ namespace Raven.Server.Web.System
 
                 await using (var writer = new AsyncBlittableJsonTextWriter(context, ResponseBodyStream()))
                 {
-                    context.Write(writer, new DynamicJsonValue
+                    context.Write(writer, new DynamicJsonValue(2)
                     {
                         [nameof(DatabasePutResult.Name)] = name,
                         [nameof(DatabasePutResult.RaftCommandIndex)] = index
@@ -1112,7 +1112,7 @@ namespace Raven.Server.Web.System
 
                     await using (var writer = new AsyncBlittableJsonTextWriter(context, ResponseBodyStream()))
                     {
-                        context.Write(writer, new DynamicJsonValue
+                        context.Write(writer, new DynamicJsonValue(3)
                         {
                             ["RaftCommandIndex"] = index,
                             ["Key"] = name,

@@ -68,7 +68,7 @@ namespace Raven.Server.Documents.Handlers.Admin
                     {
                         await using (var writer = new AsyncBlittableJsonTextWriter(context, ms))
                         {
-                            context.Write(writer, new DynamicJsonValue
+                            context.Write(writer, new DynamicJsonValue(2)
                             {
                                 [nameof(PutRaftCommand.PutRaftCommandResult.RaftCommandIndex)] = etag,
                                 [nameof(PutRaftCommand.PutRaftCommandResult.Data)] = result,
@@ -134,7 +134,7 @@ namespace Raven.Server.Documents.Handlers.Admin
                 await using (var writer = new AsyncBlittableJsonTextWriterForDebug(context, ServerStore, ResponseBodyStream()))
                 {
                     var res = ServerStore.Observer.ReadDecisionsForDatabase();
-                    var json = new DynamicJsonValue
+                    var json = new DynamicJsonValue(5)
                     {
                         [nameof(ClusterObserverDecisions.LeaderNode)] = Server.ServerStore.NodeTag,
                         [nameof(ClusterObserverDecisions.Term)] = Server.ServerStore.Engine.CurrentLeader?.Term,
@@ -246,7 +246,7 @@ namespace Raven.Server.Documents.Handlers.Admin
                     var loadLicenseLimits = ServerStore.LoadLicenseLimits();
                     var nodeLicenseDetails = loadLicenseLimits == null ?
                         null : DynamicJsonValue.Convert(loadLicenseLimits.NodeLicenseDetails);
-                    var json = new DynamicJsonValue
+                    var json = new DynamicJsonValue(10)
                     {
                         [nameof(ClusterTopologyResponse.Topology)] = topology.ToSortedJson(),
                         [nameof(ClusterTopologyResponse.Etag)] = topology.Etag,

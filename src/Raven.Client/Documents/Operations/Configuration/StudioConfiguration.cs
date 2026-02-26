@@ -12,7 +12,7 @@ namespace Raven.Client.Documents.Operations.Configuration
 
         public virtual DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(3)
             {
                 [nameof(Disabled)] = Disabled,
                 [nameof(Environment)] = Environment,

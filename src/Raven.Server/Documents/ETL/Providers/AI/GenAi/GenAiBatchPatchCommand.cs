@@ -127,7 +127,7 @@ internal sealed class GenAiBatchPatchCommand : DocumentMergedTransactionCommand
 
     private static BlittableJsonReaderObject CreatePatchArgs(DocumentsOperationContext context, GenAiResultItem item)
     {
-        var djv = new DynamicJsonValue
+        var djv = new DynamicJsonValue(2)
         {
             ["output"] = item.ModelOutput.Output,
             ["input"] = item.ContextOutput.Context
@@ -144,9 +144,9 @@ internal sealed class GenAiBatchPatchCommand : DocumentMergedTransactionCommand
 
             doc.Modifications = new DynamicJsonValue(doc)
             {
-                [Constants.Documents.Metadata.Key] = new DynamicJsonValue
+                [Constants.Documents.Metadata.Key] = new DynamicJsonValue(0)
                 {
-                    [Constants.Documents.Metadata.GenAiHashes] = new DynamicJsonValue
+                    [Constants.Documents.Metadata.GenAiHashes] = new DynamicJsonValue(0)
                     {
                         [taskIdentifier] = allHashes
                     }
@@ -160,7 +160,7 @@ internal sealed class GenAiBatchPatchCommand : DocumentMergedTransactionCommand
 
             metadata.Modifications = new DynamicJsonValue(metadata)
             {
-                [Constants.Documents.Metadata.GenAiHashes] = new DynamicJsonValue
+                [Constants.Documents.Metadata.GenAiHashes] = new DynamicJsonValue(0)
                 {
                     [taskIdentifier] = allHashes
                 }

@@ -26,7 +26,7 @@ namespace Raven.Server.Web.System
             var localRootPath = ServerStore.Configuration.Backup.LocalRootPath;
             var localRootFullPath = localRootPath != null ? localRootPath.FullPath + Path.DirectorySeparatorChar : null;
 
-            var result = new DynamicJsonValue
+            var result = new DynamicJsonValue(3)
             {
                 [nameof(ServerStore.Configuration.Backup.LocalRootPath)] = localRootFullPath,
                 [nameof(ServerStore.Configuration.Backup.AllowedAwsRegions)] = ServerStore.Configuration.Backup.AllowedAwsRegions,
@@ -257,7 +257,7 @@ namespace Raven.Server.Web.System
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(1)
             {
                 [nameof(Results)] = new DynamicJsonArray(Results.Select(x => x.ToJson()))
             };

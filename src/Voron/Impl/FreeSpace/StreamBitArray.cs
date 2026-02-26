@@ -409,7 +409,7 @@ namespace Voron.Impl.FreeSpace
                 ? _inner.Select(x => x.ToString("X"))
                 : _inner;
 
-            return new DynamicJsonValue { 
+            return new DynamicJsonValue(3) { 
                 ["Key"] = key,
                 [nameof(SetCount)] = SetCount, 
                 ["Data"] = new DynamicJsonArray(collection) 

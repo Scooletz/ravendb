@@ -13,7 +13,7 @@ public class SchemaDefinition
 
     public DynamicJsonValue ToJson()
     {
-        return new DynamicJsonValue
+        return new DynamicJsonValue(3)
         {
             [nameof(Disabled)] = Disabled,
             [nameof(Schema)] = Schema,

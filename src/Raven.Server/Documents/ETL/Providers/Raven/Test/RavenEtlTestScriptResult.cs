@@ -14,7 +14,7 @@ namespace Raven.Server.Documents.ETL.Providers.Raven.Test
 
         public override DynamicJsonValue ToJson(JsonOperationContext context)
         {
-            var json = new DynamicJsonValue
+            var json = new DynamicJsonValue(2)
             {
                 [nameof(TransformationErrors)] = new DynamicJsonArray(TransformationErrors.Select(x => x.ToJson())),
                 [nameof(DebugOutput)] = new DynamicJsonArray(DebugOutput)

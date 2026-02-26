@@ -74,7 +74,7 @@ public class SnowflakeEtlTable
 
     public DynamicJsonValue ToJson()
     {
-        return new DynamicJsonValue
+        return new DynamicJsonValue(3)
         {
             [nameof(TableName)] = TableName,
             [nameof(DocumentIdColumn)] = DocumentIdColumn,

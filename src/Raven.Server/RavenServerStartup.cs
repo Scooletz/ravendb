@@ -203,7 +203,7 @@ namespace Raven.Server
 
                     using (_server.ServerStore.ContextPool.AllocateOperationContext(out JsonOperationContext ctx))
                     {
-                        var djv = new DynamicJsonValue
+                        var djv = new DynamicJsonValue(4)
                         {
                             [nameof(ExceptionDispatcher.ExceptionSchema.Url)] = $"{context.Request.Path}{context.Request.QueryString}",
                             [nameof(ExceptionDispatcher.ExceptionSchema.Type)] = e.GetType().FullName,

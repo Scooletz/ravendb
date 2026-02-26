@@ -13,7 +13,7 @@ public class LicenseVersionInformation : IDynamicJson
 
     public DynamicJsonValue ToJson()
     {
-        return new DynamicJsonValue
+        return new DynamicJsonValue(3)
         {
             [nameof(Major)] = Major,
             [nameof(Minor)] = Minor,

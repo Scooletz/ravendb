@@ -54,7 +54,7 @@ namespace Raven.Server.NotificationCenter.Handlers
         {
             var serverTimePayload = new ServerTimePayload();
             var dataJson = serverTimePayload.ToJson();
-            return new DynamicJsonValue
+            return new DynamicJsonValue(2)
             {
                 [nameof(WidgetMessage.Id)] = WelcomeMessageId,
                 [nameof(WidgetMessage.Data)] = dataJson

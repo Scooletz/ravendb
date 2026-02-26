@@ -547,7 +547,7 @@ namespace Raven.Server.Documents
                     if (attachments.Count > 0)
                     {
                         flags |= DocumentFlags.HasAttachments;
-                        data.Modifications[Client.Constants.Documents.Metadata.Key] = new DynamicJsonValue
+                        data.Modifications[Client.Constants.Documents.Metadata.Key] = new DynamicJsonValue(0)
                         {
                             [Client.Constants.Documents.Metadata.Attachments] = attachments
                         };
@@ -826,7 +826,7 @@ namespace Raven.Server.Documents
             {
                 foreach (Attachment attachment in GetAttachmentsForDocument(context, prefixSlice))
                 {
-                    var djv = new DynamicJsonValue
+                    var djv = new DynamicJsonValue(4)
                     {
                         [nameof(AttachmentName.Name)] = attachment.Name,
                         [nameof(AttachmentName.Hash)] = attachment.Base64Hash.ToString(),

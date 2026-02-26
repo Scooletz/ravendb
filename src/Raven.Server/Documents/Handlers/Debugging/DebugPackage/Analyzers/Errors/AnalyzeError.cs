@@ -13,7 +13,7 @@ public class AnalyzeError(string componentName, string errorMessage, AnalyzeErro
     public string Exception { get; set; }
     public DynamicJsonValue ToJson()
     {
-        return new DynamicJsonValue
+        return new DynamicJsonValue(4)
         {
             [nameof(ComponentName)] = ComponentName,
             [nameof(ErrorMessage)] = ErrorMessage,

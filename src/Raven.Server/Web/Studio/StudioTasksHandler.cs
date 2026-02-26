@@ -118,7 +118,7 @@ namespace Raven.Server.Web.Studio
 
                 await using (var writer = new AsyncBlittableJsonTextWriter(context, ResponseBodyStream()))
                 {
-                    context.Write(writer, new DynamicJsonValue
+                    context.Write(writer, new DynamicJsonValue(2)
                         {
                         [nameof(OfflineMigrationValidation.IsValid)] = isValid,
                         [nameof(OfflineMigrationValidation.ErrorMessage)] = errorMessage
@@ -177,7 +177,7 @@ namespace Raven.Server.Web.Studio
 
                 await using (var writer = new AsyncBlittableJsonTextWriter(context, ResponseBodyStream()))
                 {
-                    context.Write(writer, new DynamicJsonValue
+                    context.Write(writer, new DynamicJsonValue(2)
                     {
                         [nameof(NameValidation.IsValid)] = isValid,
                         [nameof(NameValidation.ErrorMessage)] = errorMessage
@@ -194,7 +194,7 @@ namespace Raven.Server.Web.Studio
             {
                 await using (var writer = new AsyncBlittableJsonTextWriter(context, ResponseBodyStream()))
                 {
-                    context.Write(writer, new DynamicJsonValue
+                    context.Write(writer, new DynamicJsonValue(0)
                     {
                         [$"Has{nameof(MigrationConfiguration.MigratorPath)}"] = Server.Configuration.Migration.MigratorPath != null
                     });

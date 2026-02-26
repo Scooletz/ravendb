@@ -69,7 +69,7 @@ namespace Raven.Server.Web.System
                 {
                     output.Add(clusterTopology.GetUrlFromTag(node));
                 }
-                context.Write(writer, new DynamicJsonValue
+                context.Write(writer, new DynamicJsonValue(1)
                 {
                     ["Results"] = output
                 });

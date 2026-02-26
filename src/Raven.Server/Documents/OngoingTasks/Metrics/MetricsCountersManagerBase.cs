@@ -47,7 +47,7 @@ namespace Raven.Server.Documents.OngoingTasks.Metrics
 
         public virtual DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(1)
             {
                 [nameof(BatchSizeMeter)] = BatchSizeMeter.CreateMeterData()
             };

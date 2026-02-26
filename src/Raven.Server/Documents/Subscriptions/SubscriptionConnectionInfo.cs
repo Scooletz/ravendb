@@ -29,7 +29,7 @@ public class SubscriptionConnectionInfo : IDynamicJson
 
     public DynamicJsonValue ToJson()
     {
-        return new DynamicJsonValue
+        return new DynamicJsonValue(9)
         {
             [nameof(ClientUri)] = ClientUri,
             [nameof(Query)] = Query,

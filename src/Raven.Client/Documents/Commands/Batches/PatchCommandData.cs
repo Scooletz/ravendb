@@ -32,7 +32,7 @@ namespace Raven.Client.Documents.Commands.Batches
 
         public DynamicJsonValue ToJson(DocumentConventions conventions, JsonOperationContext context)
         {
-            var json = new DynamicJsonValue
+            var json = new DynamicJsonValue(4)
             {
                 [nameof(Id)] = Id,
                 [nameof(ChangeVector)] = ChangeVector,

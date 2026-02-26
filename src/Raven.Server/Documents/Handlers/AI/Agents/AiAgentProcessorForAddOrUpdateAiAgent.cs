@@ -47,7 +47,7 @@ internal class AiAgentProcessorForAddOrUpdateAiAgent<TRequestHandler, TOperation
 
         await using (var writer = new AsyncBlittableJsonTextWriter(context, RequestHandler.ResponseBodyStream(), token.Token))
         {
-            var json = new DynamicJsonValue
+            var json = new DynamicJsonValue(2)
             {
                 [nameof(AiAgentConfigurationResult.Identifier)] = cfg.Identifier,
                 [nameof(AiAgentConfigurationResult.RaftCommandIndex)] = r.Index

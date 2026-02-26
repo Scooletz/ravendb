@@ -33,7 +33,7 @@ namespace Raven.Client.ServerWide.Operations.OngoingTasks
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(8)
             {
                 [nameof(Disabled)] = Disabled,
                 [nameof(TaskId)] = TaskId,

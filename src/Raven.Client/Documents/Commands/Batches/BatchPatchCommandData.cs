@@ -78,7 +78,7 @@ namespace Raven.Client.Documents.Commands.Batches
             var ids = new DynamicJsonArray();
             foreach (var kvp in _ids)
             {
-                var id = new DynamicJsonValue
+                var id = new DynamicJsonValue(1)
                 {
                     [nameof(kvp.Id)] = kvp.Id
                 };
@@ -89,7 +89,7 @@ namespace Raven.Client.Documents.Commands.Batches
                 ids.Add(id);
             }
 
-            var json = new DynamicJsonValue
+            var json = new DynamicJsonValue(3)
             {
                 [nameof(Ids)] = ids,
                 [nameof(Patch)] = Patch.ToJson(conventions, context),

@@ -18,7 +18,7 @@ namespace Raven.Server.Documents.Indexes.Workers.Cleanup
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(7)
             {
                 [nameof(LowerId)] = LowerId?.ToString(),
                 [nameof(PrefixKey)] = PrefixKey?.ToString(),

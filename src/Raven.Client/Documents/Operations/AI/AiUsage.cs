@@ -39,7 +39,7 @@ public class AiUsage : IDynamicJson
 
     public DynamicJsonValue ToJson()
     {
-        return new DynamicJsonValue
+        return new DynamicJsonValue(5)
         {
             [nameof(PromptTokens)] = PromptTokens,
             [nameof(CompletionTokens)] = CompletionTokens,

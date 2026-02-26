@@ -148,7 +148,7 @@ namespace Raven.Server.ServerWide.Maintenance.Sharding
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(4)
             {
                 [nameof(Size)] = Size,
                 [nameof(NumberOfDocuments)] = NumberOfDocuments,

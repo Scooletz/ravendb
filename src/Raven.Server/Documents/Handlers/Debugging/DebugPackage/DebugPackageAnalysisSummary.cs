@@ -147,7 +147,7 @@ public class DebugPackageAnalysisSummary : IDynamicJson
 
     public DynamicJsonValue ToJson()
     {
-        return new DynamicJsonValue
+        return new DynamicJsonValue(3)
         {
             [nameof(PackageId)] = PackageId,
             [nameof(SummaryPerNode)] = SummaryPerNode != null 

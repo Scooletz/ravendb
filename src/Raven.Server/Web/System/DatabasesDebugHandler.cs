@@ -85,7 +85,7 @@ namespace Raven.Server.Web.System
 
             public DynamicJsonValue ToJson()
             {
-                return new DynamicJsonValue
+                return new DynamicJsonValue(13)
                 {
                     [nameof(Name)] = Name,
                     [nameof(MaxIdleTime)] = MaxIdleTime,

@@ -45,7 +45,7 @@ namespace Raven.Server.Documents.Handlers.Debugging
 
             static DynamicJsonValue ToJson(GCMemoryInfo info)
             {
-                return new DynamicJsonValue
+                return new DynamicJsonValue(23)
                 {
                     [nameof(info.Compacted)] = info.Compacted,
                     [nameof(info.Concurrent)] = info.Concurrent,
@@ -54,7 +54,7 @@ namespace Raven.Server.Documents.Handlers.Debugging
                     ["FragmentedHumane"] = Size.Humane(info.FragmentedBytes),
                     [nameof(info.Generation)] = info.Generation,
                     [nameof(info.GenerationInfo)] = new DynamicJsonArray(
-                        info.GenerationInfo.ToArray().Select((x, index) => new DynamicJsonValue
+                        info.GenerationInfo.ToArray().Select((x, index) => new DynamicJsonValue(9)
                         {
                             ["GenerationName"] = index switch
                             {
@@ -222,10 +222,10 @@ namespace Raven.Server.Documents.Handlers.Debugging
                 {
                     var result = SmapsFactory.CreateSmapsReader(buffers).CalculateMemUsageFromSmaps<SmapsReaderJsonResults>();
                     var procStatus = MemoryInformation.GetMemoryUsageFromProcStatus();
-                    var djv = new DynamicJsonValue
+                    var djv = new DynamicJsonValue(3)
                     {
                         ["Type"] = SmapsFactory.DefaultSmapsReaderType,
-                        ["Totals"] = new DynamicJsonValue
+                        ["Totals"] = new DynamicJsonValue(13)
                         {
                             ["WorkingSet"] = result.Rss,
                             ["SharedClean"] = result.SharedClean,

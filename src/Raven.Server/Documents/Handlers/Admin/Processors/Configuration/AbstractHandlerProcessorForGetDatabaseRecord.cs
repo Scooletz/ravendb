@@ -48,7 +48,7 @@ internal abstract class AbstractHandlerProcessorForGetDatabaseRecord<TRequestHan
                     await using (var writer = new AsyncBlittableJsonTextWriter(context, RequestHandler.ResponseBodyStream()))
                     {
                         context.Write(writer,
-                            new DynamicJsonValue
+                            new DynamicJsonValue(2)
                             {
                                 ["Type"] = "Error",
                                 ["Message"] = "Database " + name + " wasn't found"

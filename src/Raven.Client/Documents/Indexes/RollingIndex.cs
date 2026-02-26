@@ -11,7 +11,7 @@ namespace Raven.Client.Documents.Indexes
         public long RaftCommandIndex;
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(2)
             {
                 [nameof(ActiveDeployments)] = DynamicJsonValue.Convert(ActiveDeployments),
                 [nameof(RaftCommandIndex)] = RaftCommandIndex
@@ -27,7 +27,7 @@ namespace Raven.Client.Documents.Indexes
         public DateTime? FinishedAt { get; set; }
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(4)
             {
                 [nameof(State)] = State, 
                 [nameof(CreatedAt)] = CreatedAt,

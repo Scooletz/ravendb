@@ -64,7 +64,7 @@ namespace Raven.Client.Documents.Subscriptions
 
         public virtual DynamicJsonValue ToJson()
         {
-            var djv = new DynamicJsonValue
+            var djv = new DynamicJsonValue(12)
             {
                 [nameof(Query)] = Query,
                 [nameof(ChangeVectorForNextBatchStartingPoint)] = ChangeVectorForNextBatchStartingPoint,

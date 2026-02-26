@@ -13,7 +13,7 @@ public abstract class Event : IDynamicJson
 
     public virtual DynamicJsonValue ToJson()
     {
-        return new DynamicJsonValue
+        return new DynamicJsonValue(1)
         {
             [nameof(Type)] = Type
         };

@@ -39,7 +39,7 @@ namespace Raven.Client.Documents.Operations.Backups
 
         public virtual DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(5)
             {
                 [nameof(LastFullBackup)] = LastFullBackup,
                 [nameof(LastIncrementalBackup)] = LastIncrementalBackup,

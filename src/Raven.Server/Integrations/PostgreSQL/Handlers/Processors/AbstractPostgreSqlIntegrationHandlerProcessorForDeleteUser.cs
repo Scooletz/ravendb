@@ -40,7 +40,7 @@ internal abstract class AbstractPostgreSqlIntegrationHandlerProcessorForDeleteUs
         if (string.IsNullOrEmpty(username))
         {
             HttpContext.Response.StatusCode = (int)HttpStatusCode.BadRequest;
-            context.Write(writer, new DynamicJsonValue { ["Error"] = "Username is null or empty." });
+            context.Write(writer, new DynamicJsonValue(0) { ["Error"] = "Username is null or empty." });
             return ValueTask.FromResult<PostgreSqlConfiguration>(null); // handled
         }
 
@@ -54,7 +54,7 @@ internal abstract class AbstractPostgreSqlIntegrationHandlerProcessorForDeleteUs
         if (config == null)
         {
             HttpContext.Response.StatusCode = (int)HttpStatusCode.BadRequest;
-            context.Write(writer, new DynamicJsonValue { ["Error"] = "Unable to get usernames from database record" });
+            context.Write(writer, new DynamicJsonValue(0) { ["Error"] = "Unable to get usernames from database record" });
             return ValueTask.FromResult<PostgreSqlConfiguration>(null); // handled
         }
 
@@ -65,7 +65,7 @@ internal abstract class AbstractPostgreSqlIntegrationHandlerProcessorForDeleteUs
         if (userToDelete == null)
         {
             HttpContext.Response.StatusCode = (int)HttpStatusCode.BadRequest;
-            context.Write(writer, new DynamicJsonValue { ["Error"] = $"{username} username does not exist." });
+            context.Write(writer, new DynamicJsonValue(0) { ["Error"] = $"{username} username does not exist." });
             return ValueTask.FromResult<PostgreSqlConfiguration>(null); // handled
         }
 

@@ -10,7 +10,7 @@ namespace Raven.Server.Documents.ETL.Stats
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(2)
             {
                 [nameof(TaskName)] = TaskName,
                 [nameof(Stats)] = new DynamicJsonArray(Stats)
@@ -26,7 +26,7 @@ namespace Raven.Server.Documents.ETL.Stats
 
         public virtual DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(2)
             {
                 [nameof(TransformationName)] = TransformationName,
                 [nameof(Statistics)] = Statistics.ToJson()

@@ -21,7 +21,7 @@ namespace Raven.Server.Documents.Patch
 
         public DynamicJsonValue GetDebugActions()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(12)
             {
                 [nameof(LoadDocument)] = new DynamicJsonArray(LoadDocument.Items),
                 [nameof(PutDocument)] = new DynamicJsonArray(PutDocument.Items),

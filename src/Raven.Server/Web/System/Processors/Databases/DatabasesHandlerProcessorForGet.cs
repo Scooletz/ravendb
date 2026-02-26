@@ -298,7 +298,7 @@ internal sealed class DatabasesHandlerProcessorForGet : AbstractDatabasesHandler
         JsonOperationContext context,
         AbstractBlittableJsonTextWriter writer)
     {
-        var doc = new DynamicJsonValue
+        var doc = new DynamicJsonValue(3)
         {
             [nameof(DatabaseInfo.Name)] = databaseName,
             [nameof(DatabaseInfo.NodesTopology)] = nodesTopology,

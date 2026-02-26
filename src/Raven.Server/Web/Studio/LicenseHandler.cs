@@ -62,7 +62,7 @@ namespace Raven.Server.Web.Studio
             using (ServerStore.ContextPool.AllocateOperationContext(out TransactionOperationContext context))
             await using (var writer = new AsyncBlittableJsonTextWriter(context, ResponseBodyStream()))
             {
-                var djv = new DynamicJsonValue
+                var djv = new DynamicJsonValue(3)
                 {
                     [nameof(LicenseConfiguration.CanRenew)] = ServerStore.Configuration.Licensing.CanRenew,
                     [nameof(LicenseConfiguration.CanActivate)] = ServerStore.Configuration.Licensing.CanActivate,
@@ -183,7 +183,7 @@ namespace Raven.Server.Web.Studio
 
             public DynamicJsonValue ToJson()
             {
-                return new DynamicJsonValue
+                return new DynamicJsonValue(2)
                 {
                     [nameof(StatusCode)] = StatusCode,
                     [nameof(Exception)] = Exception
@@ -314,7 +314,7 @@ namespace Raven.Server.Web.Studio
             
             public DynamicJsonValue ToJson()
             {
-                return new DynamicJsonValue
+                return new DynamicJsonValue(2)
                 {
                     [nameof(License)] = License?.ToJson(),
                     [nameof(LicenseDownloadStatus)] = LicenseDownloadStatus

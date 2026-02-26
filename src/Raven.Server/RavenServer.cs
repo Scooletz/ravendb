@@ -773,7 +773,7 @@ namespace Raven.Server
                     }
                 }
 
-                return new DynamicJsonValue
+                return new DynamicJsonValue(13)
                 {
                     [nameof(Used)] = Used,
                     [nameof(BaseCredits)] = BaseCredits,
@@ -2705,7 +2705,7 @@ namespace Raven.Server
 
         private static async ValueTask RespondToTcpConnection(Stream stream, JsonOperationContext context, string error, TcpConnectionStatus status, int version, LicensedFeatures licensedFeatures = null)
         {
-            var message = new DynamicJsonValue
+            var message = new DynamicJsonValue(3)
             {
                 [nameof(TcpConnectionHeaderResponse.Status)] = status.ToString(),
                 [nameof(TcpConnectionHeaderResponse.Version)] = version,
@@ -2734,7 +2734,7 @@ namespace Raven.Server
                 using (var context = JsonOperationContext.ShortTermSingleUse())
                 await using (var errorWriter = new AsyncBlittableJsonTextWriter(context, tcpStream))
                 {
-                    context.Write(errorWriter, new DynamicJsonValue
+                    context.Write(errorWriter, new DynamicJsonValue(3)
                     {
                         ["Type"] = "Error",
                         ["Exception"] = e.ToString(),

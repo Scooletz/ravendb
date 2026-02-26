@@ -109,9 +109,9 @@ public sealed class ShardedSubscriptionBatch : SubscriptionBatchBase<BlittableJs
             }
 
             // we have non-existing included document, need to return null for them to the actual client
-            _result.Includes.Add(Context.ReadObject(new DynamicJsonValue
+            _result.Includes.Add(Context.ReadObject(new DynamicJsonValue(0)
             {
-                [Constants.Documents.Metadata.Key] = new DynamicJsonValue
+                [Constants.Documents.Metadata.Key] = new DynamicJsonValue(0)
                 {
                     [Constants.Documents.Metadata.Id] = id,
                     [Constants.Documents.Metadata.Sharding.Subscription.NonPersistentFlags] = nameof(NonPersistentDocumentFlags.AllowDataAsNull)

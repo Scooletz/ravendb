@@ -46,7 +46,7 @@ public class AiAssistantHandler : ServerRequestHandler
         using (var token = CreateHttpRequestBoundOperationToken())
         await using (var writer = new AsyncBlittableJsonTextWriter(context, ResponseBodyStream(), token.Token))
         {
-            writer.WriteObject(context.ReadObject(new DynamicJsonValue
+            writer.WriteObject(context.ReadObject(new DynamicJsonValue(2)
             {
                 [nameof(AiConfiguration.DisableAiAssistant)] = aiSettings.DisableAiAssistant,
                 [nameof(AiConfiguration.DisableDataSubmission)] = aiSettings.DisableDataSubmission
