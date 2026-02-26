@@ -124,7 +124,7 @@ public sealed class AzureQueueStorageConnectionSettings
                 },
             [nameof(Passwordless)] = Passwordless == null
                 ? null
-                : new DynamicJsonValue(0) { [nameof(Passwordless.StorageAccountName)] = Passwordless?.StorageAccountName }
+                : new DynamicJsonValue(1) { [nameof(Passwordless.StorageAccountName)] = Passwordless?.StorageAccountName }
         };
 
         return json;
