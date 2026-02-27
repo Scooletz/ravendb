@@ -28,22 +28,22 @@ public sealed class SchemaValidationConfiguration
         return ValidatorsPerCollection.Any(x => x.Value.Disabled == false);
     }
 
-    public DynamicJsonValue ToJson()
-    {
-        DynamicJsonValue validatorsPerCollection = null;
-        if (ValidatorsPerCollection != null)
+        public DynamicJsonValue ToJson()
         {
-            validatorsPerCollection = new DynamicJsonValue();
-            foreach (var validator in ValidatorsPerCollection)
+            DynamicJsonValue validatorsPerCollection = null;
+            if (ValidatorsPerCollection != null)
             {
-                validatorsPerCollection[validator.Key] = validator.Value.ToJson();
+                validatorsPerCollection = new DynamicJsonValue(ValidatorsPerCollection.Count);
+                foreach (var validator in ValidatorsPerCollection)
+                {
+                    validatorsPerCollection[validator.Key] = validator.Value.ToJson();
+                }
             }
-        }
 
-        return new DynamicJsonValue
-        {
-            [nameof(Disabled)] = Disabled,
-            [nameof(ValidatorsPerCollection)] = validatorsPerCollection
-        };
-    }
+            return new DynamicJsonValue(2)
+            {
+                [nameof(Disabled)] = Disabled,
+                [nameof(ValidatorsPerCollection)] = validatorsPerCollection
+            };
+        }
 }

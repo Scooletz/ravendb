@@ -59,14 +59,14 @@ namespace Raven.Client.Exceptions
             /// </summary>
             public long Actual { get; set; }
 
-            public DynamicJsonValue ToJson()
+        public DynamicJsonValue ToJson()
+        {
+            return new DynamicJsonValue(4)
             {
-                return new DynamicJsonValue()
-                {
-                    [nameof(Type)] = Type,
-                    [nameof(Id)] = Id,
-                    [nameof(Expected)] = Expected,
-                    [nameof(Actual)] = Actual
+                [nameof(Type)] = Type,
+                [nameof(Id)] = Id,
+                [nameof(Expected)] = Expected,
+                [nameof(Actual)] = Actual
                 };
             }
         }

@@ -24,7 +24,7 @@ namespace Raven.Server.Documents.Handlers.Processors.Collections
         {
             DynamicJsonValue collections = new DynamicJsonValue();
 
-            DynamicJsonValue stats = new DynamicJsonValue()
+            DynamicJsonValue stats = new DynamicJsonValue(9)
             {
                 [nameof(CollectionStatistics.CountOfDocuments)] = RequestHandler.Database.DocumentsStorage.GetNumberOfDocuments(context),
                 [nameof(CollectionStatistics.CountOfDocumentsConflicts)] = RequestHandler.Database.DocumentsStorage.ConflictsStorage.GetNumberOfDocumentsConflicts(context),

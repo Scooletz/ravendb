@@ -98,7 +98,7 @@ namespace Raven.Client.Documents.Operations.ConnectionStrings
         
         public DynamicJsonValue ToJson()
         {
-            var result = new DynamicJsonValue();
+            var result = new DynamicJsonValue(7);
 
             AddConnections(RavenConnectionStrings, nameof(RavenConnectionStrings));
             AddConnections(SqlConnectionStrings, nameof(SqlConnectionStrings));
@@ -119,7 +119,7 @@ namespace Raven.Client.Documents.Operations.ConnectionStrings
                     return;
                 }
 
-                var jsonConnections = new DynamicJsonValue();
+                var jsonConnections = new DynamicJsonValue(connectionStrings.Count);
                 
                 foreach (var kvp in connectionStrings)
                     jsonConnections[kvp.Key] = kvp.Value.ToJson();

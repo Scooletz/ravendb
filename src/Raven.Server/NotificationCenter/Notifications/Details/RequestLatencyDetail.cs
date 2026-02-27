@@ -41,9 +41,9 @@ namespace Raven.Server.NotificationCenter.Notifications.Details
 
         public DynamicJsonValue ToJson()
         {
-            var djv = new DynamicJsonValue();
+            var djv = new DynamicJsonValue(1);
 
-            var dict = new DynamicJsonValue();
+            var dict = new DynamicJsonValue(RequestLatencies.Count);
             djv[nameof(RequestLatencies)] = dict;
 
             foreach (var key in RequestLatencies.Keys)

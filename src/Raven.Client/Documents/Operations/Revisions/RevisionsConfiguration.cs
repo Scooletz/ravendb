@@ -97,14 +97,14 @@ namespace Raven.Client.Documents.Operations.Revisions
 
         public DynamicJsonValue ToJson()
         {
-            var collections = new DynamicJsonValue();
+            var collections = new DynamicJsonValue(Collections?.Count ?? 0);
 
             foreach (var c in Collections)
             {
                 collections[c.Key] = c.Value.ToJson();
             }
 
-            return new DynamicJsonValue
+            return new DynamicJsonValue(2)
             {
                 [nameof(Default)] = Default?.ToJson(),
                 [nameof(Collections)] = collections

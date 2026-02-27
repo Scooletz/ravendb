@@ -21,7 +21,7 @@ namespace Raven.Server.Documents.Replication
 
         private DynamicJsonValue BuildReplicationStatesJson()
         {
-            var json = new DynamicJsonValue();
+            var json = new DynamicJsonValue(ReplicationStates?.Count ?? 0);
             foreach (var item in ReplicationStates)
             {
                 json[item.Key] = item.Value.ToJson();
@@ -32,7 +32,7 @@ namespace Raven.Server.Documents.Replication
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(4)
             {
                 [nameof(NodeTag)] = NodeTag,
                 [nameof(SourceShardedDatabaseId)] = SourceShardedDatabaseId,
@@ -52,7 +52,7 @@ namespace Raven.Server.Documents.Replication
 
         public DynamicJsonValue BuildDestinationStatesJson()
         {
-            var json = new DynamicJsonValue();
+            var json = new DynamicJsonValue(DestinationStates?.Count ?? 0);
             foreach (var item in DestinationStates)
             {
                 json[item.Key] = item.Value.ToJson();
@@ -63,7 +63,7 @@ namespace Raven.Server.Documents.Replication
 
         public DynamicJsonValue ToJson()
         {
-            return new DynamicJsonValue
+            return new DynamicJsonValue(3)
             {
                 [nameof(LastSourceEtag)] = LastSourceEtag,
                 [nameof(LastSourceChangeVector)] = LastSourceChangeVector,

@@ -29,7 +29,7 @@ namespace Raven.Server.Documents.Handlers.Debugging
         {
             using (ServerStore.ContextPool.AllocateOperationContext(out JsonOperationContext context))
             {
-                var djv = new DynamicJsonValue
+                var djv = new DynamicJsonValue(4)
                 {
                     [nameof(GCKind.Any)] = ToJson(GC.GetGCMemoryInfo(GCKind.Any)),
                     [nameof(GCKind.Background)] = ToJson(GC.GetGCMemoryInfo(GCKind.Background)),
@@ -45,7 +45,7 @@ namespace Raven.Server.Documents.Handlers.Debugging
 
             static DynamicJsonValue ToJson(GCMemoryInfo info)
             {
-                return new DynamicJsonValue
+                return new DynamicJsonValue(23)
                 {
                     [nameof(info.Compacted)] = info.Compacted,
                     [nameof(info.Concurrent)] = info.Concurrent,
@@ -144,7 +144,7 @@ namespace Raven.Server.Documents.Handlers.Debugging
                 if (item == null || item.Reason == LowMemoryNotification.LowMemReason.None)
                     continue;
 
-                var humanSizes = new DynamicJsonValue
+                var humanSizes = new DynamicJsonValue(6)
                 {
                     ["FreeMem"] = Size.Humane(item.FreeMem),
                     ["CurrentCommitCharge"] = Size.Humane(item.CurrentCommitCharge),
@@ -154,7 +154,7 @@ namespace Raven.Server.Documents.Handlers.Debugging
                     ["Threshold"] = Size.Humane(item.LowMemThreshold)
                 };
 
-                var json = new DynamicJsonValue
+                var json = new DynamicJsonValue(8)
                 {
                     ["Event"] = item.Reason,
                     ["FreeMem"] = item.FreeMem,
@@ -169,7 +169,7 @@ namespace Raven.Server.Documents.Handlers.Debugging
                 dja.Add(json);
             }
 
-            var djv = new DynamicJsonValue
+            var djv = new DynamicJsonValue(1)
             {
                 ["Low Memory Events"] = dja
             };

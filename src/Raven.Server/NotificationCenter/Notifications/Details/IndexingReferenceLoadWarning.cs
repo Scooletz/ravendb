@@ -33,7 +33,7 @@ namespace Raven.Server.NotificationCenter.Notifications.Details
 
         public DynamicJsonValue ToJson()
         {
-            var djv = new DynamicJsonValue();
+            var djv = new DynamicJsonValue(Warnings.Count);
 
             foreach (var key in Warnings.Keys)
             {
@@ -41,18 +41,18 @@ namespace Raven.Server.NotificationCenter.Notifications.Details
                 if (details == null)
                     continue;
 
-                var list = new DynamicJsonValue();
+                var list = new DynamicJsonValue(details.Top10LoadedReferences.Count);
 
                 foreach (var reference in details.Top10LoadedReferences)
                 {
-                    list[reference.Key] = new DynamicJsonValue
+                    list[reference.Key] = new DynamicJsonValue(2)
                     {
                         [nameof(LoadedReference.ReferenceId)] = reference.Value.ReferenceId,
                         [nameof(LoadedReference.NumberOfLoads)] = reference.Value.NumberOfLoads
                     };
                 }
 
-                djv[key] = new DynamicJsonValue
+                djv[key] = new DynamicJsonValue(2)
                 {
                     [nameof(WarningDetails.Top10LoadedReferences)] = list,
                     [nameof(WarningDetails.LastWarningTime)] = details.LastWarningTime
