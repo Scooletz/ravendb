@@ -24,26 +24,35 @@ namespace Sparrow.Json.Parsing
         public BlittableJsonReaderObject.InsertionOrderProperties SourceProperties;
 
         public int ModificationsIndex = 0;
-        public readonly List<(string Name, object Value)> Properties = new();
+        public readonly List<(string Name, object Value)> Properties;
         public HashSet<int> Removals;
         internal readonly BlittableJsonReaderObject _source;
 
         public DynamicJsonValue()
         {
+            Properties = [];
+        }
+
+        public DynamicJsonValue(int capacity)
+        {
+            Properties = new List<(string Name, object Value)>(capacity);
         }
 
         public DynamicJsonValue(string key, object value)
         {
+            Properties = new List<(string Name, object Value)>(1);
             Properties.Add((key, value));
         }
 
         public DynamicJsonValue(Type explicitTypeInfo)
         {
+            Properties = [];
             this[TypeFieldName] = explicitTypeInfo.GetTypeNameForSerialization();
         }
 
         public DynamicJsonValue(BlittableJsonReaderObject source)
         {
+            Properties = [];
             _source = source;
 
             if (_source != null)
