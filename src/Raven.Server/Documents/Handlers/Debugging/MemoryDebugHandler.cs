@@ -186,9 +186,9 @@ namespace Raven.Server.Documents.Handlers.Debugging
                 {
                     var sharedClean = MemoryInformation.GetSharedCleanInBytes(out var workingSet, out _);
                     var rc = Win32MemoryMethods.GetMaps();
-                    var djv = new DynamicJsonValue
+                    var djv = new DynamicJsonValue(2)
                     {
-                        ["Totals"] = new DynamicJsonValue
+                        ["Totals"] = new DynamicJsonValue(8)
                         {
                             ["WorkingSet"] = workingSet,
                             ["SharedClean"] = Sizes.Humane(sharedClean),
@@ -222,10 +222,10 @@ namespace Raven.Server.Documents.Handlers.Debugging
                 {
                     var result = SmapsFactory.CreateSmapsReader(buffers).CalculateMemUsageFromSmaps<SmapsReaderJsonResults>();
                     var procStatus = MemoryInformation.GetMemoryUsageFromProcStatus();
-                    var djv = new DynamicJsonValue
+                    var djv = new DynamicJsonValue(3)
                     {
                         ["Type"] = SmapsFactory.DefaultSmapsReaderType,
-                        ["Totals"] = new DynamicJsonValue
+                        ["Totals"] = new DynamicJsonValue(13)
                         {
                             ["WorkingSet"] = result.Rss,
                             ["SharedClean"] = result.SharedClean,
@@ -320,7 +320,7 @@ namespace Raven.Server.Documents.Handlers.Debugging
                 }
             }
 
-            var djv = new DynamicJsonValue
+            var djv = new DynamicJsonValue(17)
             {
                 [nameof(MemoryInfo.PhysicalMemory)] = memInfo.TotalPhysicalMemory.ToString(),
                 [nameof(MemoryInfo.WorkingSet)] = memInfo.WorkingSet.ToString(),
@@ -373,30 +373,30 @@ namespace Raven.Server.Documents.Handlers.Debugging
                 var loh = info.GenerationInfo[3];
                 var poh = info.GenerationInfo[4];
 
-                return new DynamicJsonValue()
+                return new DynamicJsonValue(6)
                 {
                     ["TotalSize"] = Size.Humane(info.HeapSizeBytes),
-                    ["Gen0"] = new DynamicJsonValue()
+                    ["Gen0"] = new DynamicJsonValue(2)
                     {
                         ["Size"] = Size.Humane(gen0.SizeAfterBytes),
                         ["Fragmentation"] = Size.Humane(gen0.FragmentationAfterBytes),
                     },
-                    ["Gen1"] = new DynamicJsonValue()
+                    ["Gen1"] = new DynamicJsonValue(2)
                     {
                         ["Size"] = Size.Humane(gen1.SizeAfterBytes),
                         ["Fragmentation"] = Size.Humane(gen1.FragmentationAfterBytes),
                     },
-                    ["Gen2"] = new DynamicJsonValue()
+                    ["Gen2"] = new DynamicJsonValue(2)
                     {
                         ["Size"] = Size.Humane(gen2.SizeAfterBytes),
                         ["Fragmentation"] = Size.Humane(gen2.FragmentationAfterBytes),
                     },
-                    ["LOH"] = new DynamicJsonValue()
+                    ["LOH"] = new DynamicJsonValue(2)
                     {
                         ["Size"] = Size.Humane(loh.SizeAfterBytes),
                         ["Fragmentation"] = Size.Humane(loh.FragmentationAfterBytes),
                     },
-                    ["POH"] = new DynamicJsonValue()
+                    ["POH"] = new DynamicJsonValue(2)
                     {
                         ["Size"] = Size.Humane(poh.SizeAfterBytes),
                         ["Fragmentation"] = Size.Humane(poh.FragmentationAfterBytes),
@@ -479,9 +479,9 @@ namespace Raven.Server.Documents.Handlers.Debugging
                 if (fileMappingByDir.TryGetValue(sizes.Key, out Dictionary<string, ConcurrentDictionary<IntPtr, long>> value) == false)
                     continue;
 
-                var details = new DynamicJsonValue();
+                var details = new DynamicJsonValue(value.Count);
 
-                var dir = new DynamicJsonValue
+                var dir = new DynamicJsonValue(4)
                 {
                     [nameof(MemoryInfoMappingItem.Directory)] = sizes.Key.Substring(prefixLength),
                     [nameof(MemoryInfoMappingItem.TotalDirectorySize)] = sizes.Value,
@@ -506,7 +506,7 @@ namespace Raven.Server.Documents.Handlers.Debugging
                     }
 
                     var fileSize = GetFileSize(file.Key);
-                    details[Path.GetFileName(file.Key)] = new DynamicJsonValue
+                    details[Path.GetFileName(file.Key)] = new DynamicJsonValue(5)
                     {
                         [nameof(MemoryInfoMappingFileInfo.FileSize)] = fileSize,
                         [nameof(MemoryInfoMappingFileInfo.HumaneFileSize)] = Size.Humane(fileSize),
