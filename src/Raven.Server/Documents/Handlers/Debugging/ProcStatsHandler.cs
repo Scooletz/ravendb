@@ -95,7 +95,8 @@ namespace Raven.Server.Documents.Handlers.Debugging
             using (var proc = Process.GetCurrentProcess())
             {
                 var dja = new DynamicJsonArray();
-                var djv = new DynamicJsonValue(42);
+                const int procStatsPropertyCount = 42;
+                var djv = new DynamicJsonValue(procStatsPropertyCount);
 
                 AddValue(djv, "Id", () => proc.Id);
                 AddValue(djv, "Handle", () => proc.Handle.ToInt64());
@@ -145,7 +146,7 @@ namespace Raven.Server.Documents.Handlers.Debugging
 
                 dja.Add(djv);
 
-                return new DynamicJsonValue
+                return new DynamicJsonValue(1)
                 {
                     ["ProcStats"] = dja
                 };
