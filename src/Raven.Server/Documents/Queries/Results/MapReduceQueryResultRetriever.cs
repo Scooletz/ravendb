@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using Corax.Querying;
 using Raven.Client.Documents.Indexes;
@@ -68,9 +69,10 @@ namespace Raven.Server.Documents.Queries.Results
             if (DocumentsStorage == null || !(_context is DocumentsOperationContext ctx))
                 return null;
 
-            var djv = new DynamicJsonValue();
+            var partialValues = DocumentsStorage.CountersStorage.GetCounterPartialValues(ctx, docId, name).ToList();
+            var djv = new DynamicJsonValue(partialValues.Count);
 
-            foreach (var partialValue in DocumentsStorage.CountersStorage.GetCounterPartialValues(ctx, docId, name))
+            foreach (var partialValue in partialValues)
             {
                 djv[partialValue.ChangeVector] = partialValue.PartialValue;
             }
