@@ -1,4 +1,5 @@
-﻿using System.Threading.Tasks;
+﻿using System.Threading;
+using System.Threading.Tasks;
 using Raven.Server.Documents.ETL.Providers.AI;
 
 namespace Raven.Server.Documents.Handlers.AI.Agents;
@@ -14,6 +15,7 @@ public interface IDeferredAttachmentResolver
     /// <param name="remoteStorageId">The identifier of the remote storage as in <see cref="Raven.Client.Documents.Operations.Attachments.RemoteAttachmentParameters.Identifier"/>.</param>
     /// <param name="hash">The hash of the attachment <see cref="Attachment.Base64Hash"/>.</param>
     /// <param name="type">The type <see cref="Attachment.ContentType"/></param>
+    /// <param name="token"></param>
     /// <returns>The payload of the defined attachment.</returns>
-    ValueTask<string> ResolveAsync(string remoteStorageId, string hash, string type);
+    ValueTask<string> ResolveAsync(string remoteStorageId, string hash, string type, CancellationToken token = default);
 }

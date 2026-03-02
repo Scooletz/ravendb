@@ -624,10 +624,11 @@ public sealed class GenAiTask : EtlProcess<GenAiItem, GenAiScriptResult, GenAiCo
         return results;
     }
 
-    async ValueTask<string> IDeferredAttachmentResolver.ResolveAsync(string remoteStorageId, string hash, string type)
+    async ValueTask<string> IDeferredAttachmentResolver.ResolveAsync(string remoteStorageId, string hash, string type, CancellationToken token = default)
     {
         RemoteAttachmentsStorage remote = Database.DocumentsStorage.AttachmentsStorage.RemoteAttachmentsStorage;
-        using var downloader = remote.GetDownloader(remoteStorageId, OperationCancelToken.None);
+        using OperationCancelToken operationToken = new(token);
+        using var downloader = remote.GetDownloader(remoteStorageId, key: null, operationToken);
         await using var stream = await remote.StreamForDownloadDestinationInternal(downloader, hash);
 
         // Determine the type based on content type or default to application/octet-stream

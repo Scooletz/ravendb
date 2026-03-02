@@ -5,6 +5,7 @@ using System.IO;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
+using JetBrains.Annotations;
 using Raven.Client;
 using Raven.Client.Documents.Attachments;
 using Raven.Client.Documents.Operations.Attachments;
@@ -200,20 +201,20 @@ public class RemoteAttachmentsStorage : AbstractBackgroundWorkStorage<DocumentEx
         return (allHashPassed, id);
     }
 
-    public DirectFileDownloader GetDownloader(Attachment attachment, OperationCancelToken token) => GetDownloader(attachment.RemoteParameters.Identifier, token);
+    public DirectFileDownloader GetDownloader(Attachment attachment, OperationCancelToken token) => GetDownloader(attachment.RemoteParameters.Identifier, attachment.Key, token);
 
-    public DirectFileDownloader GetDownloader(string remoteId, OperationCancelToken token)
+    public DirectFileDownloader GetDownloader(string remoteId, [CanBeNull] LazyStringValue key, OperationCancelToken token)
     {
         if (Configuration == null)
-            throw new InvalidOperationException($"Cannot get the remote attachment downloader for '{remoteId}' because {nameof(RemoteAttachmentsConfiguration)} is not configured on {Database.Name}.");
+            throw new InvalidOperationException($"Cannot get the remote attachment {(key != null  ? $"'{key}'" : "")} downloader for '{remoteId}' because {nameof(RemoteAttachmentsConfiguration)} is not configured on {Database.Name}.");
 
         if (Configuration.Disabled)
-            throw new InvalidOperationException($"Cannot get the remote attachment downloader for '{remoteId}' because {nameof(RemoteAttachmentsConfiguration)} is disabled.");
+            throw new InvalidOperationException($"Cannot get the remote attachment {(key != null  ? $"'{key}'" : "")} downloader for '{remoteId}' because {nameof(RemoteAttachmentsConfiguration)} is disabled.");
 
         if (Configuration.Destinations == null || Configuration.Destinations.TryGetValue(remoteId, out var destination) == false)
-            throw new InvalidOperationException($"Cannot get the remote attachment downloader for '{remoteId}' because it doesn't exist.");
+            throw new InvalidOperationException($"Cannot get the remote attachment {(key != null  ? $"'{key}'" : "")} downloader for '{remoteId}' because it doesn't exist.");
         if (destination.Disabled)
-            throw new InvalidOperationException($"Cannot get the remote attachment downloader for '{remoteId}' because it is disabled.");
+            throw new InvalidOperationException($"Cannot get the remote attachment {(key != null  ? $"'{key}'" : "")} downloader for '{remoteId}' because it is disabled.");
 
         var settings = UploaderSettings.GenerateDirectUploaderSettingsForAttachments(Database, nameof(AttachmentHandlerProcessorForGetAttachment), destination.S3Settings, destination.AzureSettings);
         return new DirectFileDownloader(settings, token);

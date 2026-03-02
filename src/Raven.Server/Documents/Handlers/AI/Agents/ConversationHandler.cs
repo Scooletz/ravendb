@@ -610,7 +610,7 @@ internal class ConversationHandler(ServerStore server, DocumentDatabase database
             if (attachment.Source == AiAttachmentSource.Deferred)
             {
                 // Resolve the attachment data asynchronously
-                attachment.Data = await _attachmentResolver.ResolveAsync(attachment.RemoteStorageId, attachment.Data, attachment.Type);
+                attachment.Data = await _attachmentResolver.ResolveAsync(attachment.RemoteStorageId, attachment.Data, attachment.Type, token);
                 attachment.Source = AiAttachmentSource.FromAttachment;
             }
         }

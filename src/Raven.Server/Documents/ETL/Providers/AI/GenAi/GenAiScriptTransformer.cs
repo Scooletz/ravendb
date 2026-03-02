@@ -15,6 +15,7 @@ using Jint.Native.Object;
 using Raven.Client;
 using Raven.Client.Documents.Operations.AI;
 using Raven.Client.Documents.Operations.ETL;
+using Raven.Client.Extensions;
 using Raven.Server.Documents.ETL.Providers.AI.GenAi.Stats;
 using Raven.Server.Documents.ETL.Stats;
 using Raven.Server.Documents.Patch;
@@ -228,9 +229,10 @@ var ai = new AI();
                                 data = DocumentScript.DebugMode ? GetAttachmentPreview(attachment, type) : GetAttachmentDataAsBase64(attachment, type);
                             }
                             // The last resort, check for the remote parameters and process as deferred.
-                            else if (attachment.RemoteParameters != null)
+                            else if (attachment.RemoteParameters.IsRemoteStorageAttachment())
                             {
-                                source = AiAttachmentSource.Deferred;
+                                // If it's the debug mode, not mark it as a deferred. Just return its cache.
+                                source = DocumentScript.DebugMode ? AiAttachmentSource.FromAttachment : AiAttachmentSource.Deferred;
                                 data = attachment.Base64Hash.ToString(); // Will be resolved later
                                 remoteStorageId = attachment.RemoteParameters.Identifier;
                             }
