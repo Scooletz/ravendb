@@ -40,7 +40,7 @@ using PatchRequest = Raven.Server.Documents.Patch.PatchRequest;
 namespace Raven.Server.Documents.ETL.Providers.AI.GenAi;
 
 public sealed class GenAiTask : EtlProcess<GenAiItem, GenAiScriptResult, GenAiConfiguration, AiConnectionString,
-    GenAiStatsScope, GenAiPerformanceOperation>
+    GenAiStatsScope, GenAiPerformanceOperation>, IDeferredAttachmentResolver
 {
     public const string GenAiTaskTag = "Gen/AI";
 
@@ -219,7 +219,7 @@ public sealed class GenAiTask : EtlProcess<GenAiItem, GenAiScriptResult, GenAiCo
                     },
                     UserPrompt = json,
                     Attachments = item.ContextOutput.Attachments
-                }, changeVector: null, raftId: null, asyncAttachmentResolver: CreateAsyncAttachmentResolver());
+                }, changeVector: null, raftId: null, attachmentResolver: this);
 
                 handler.SetClient(_chatCompletionClient);
                 try
@@ -624,17 +624,14 @@ public sealed class GenAiTask : EtlProcess<GenAiItem, GenAiScriptResult, GenAiCo
         return results;
     }
 
-    private Func<string, string, string, Task<string>> CreateAsyncAttachmentResolver()
+    async ValueTask<string> IDeferredAttachmentResolver.ResolveAsync(string remoteStorageId, string hash, string type)
     {
-        return async (remoteStorageId, hash, type) =>
-        {
-            RemoteAttachmentsStorage remote = Database.DocumentsStorage.AttachmentsStorage.RemoteAttachmentsStorage;
-            using var downloader = remote.GetDownloader(remoteStorageId, OperationCancelToken.None);
-            await using var stream = await remote.StreamForDownloadDestinationInternal(downloader, hash);
+        RemoteAttachmentsStorage remote = Database.DocumentsStorage.AttachmentsStorage.RemoteAttachmentsStorage;
+        using var downloader = remote.GetDownloader(remoteStorageId, OperationCancelToken.None);
+        await using var stream = await remote.StreamForDownloadDestinationInternal(downloader, hash);
 
-            // Determine the type based on content type or default to application/octet-stream
-            return GenAiScriptTransformer.GetAttachmentDataAsBase64(stream, type ?? "application/octet-stream");
-        };
+        // Determine the type based on content type or default to application/octet-stream
+        return GenAiScriptTransformer.GetAttachmentDataAsBase64(stream, type ?? "application/octet-stream");
     }
 
     internal ChatCompletionClient GetChatCompletionClient() => _chatCompletionClient;
