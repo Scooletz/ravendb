@@ -25,19 +25,16 @@ namespace Raven.Server.Documents.Handlers.Processors.Attachments.Strategies
             if (stream == null)
             {
                 tx.Dispose(); // we are reading from remote, we can dispose the transaction
-                stream = await DownloadRemoteAttachmentStream(RequestHandler.Database.DocumentsStorage.AttachmentsStorage.RemoteAttachmentsStorage, attachment, token);
+                using (var downloader = RequestHandler.Database.DocumentsStorage.AttachmentsStorage.RemoteAttachmentsStorage.GetDownloader(attachment, token))
+                {
+                    stream = await RequestHandler.Database.DocumentsStorage.AttachmentsStorage.RemoteAttachmentsStorage.StreamForDownloadDestinationInternal(downloader, attachment.Base64Hash.ToString());
+                }
             }
 
             await using (stream)
             {
                 await stream.CopyToAsync(RequestHandler.ResponseBodyStream(), token.Token);
             }
-        }
-
-        public static async Task<Stream> DownloadRemoteAttachmentStream(RemoteAttachmentsStorage remote, Attachment attachment, OperationCancelToken token)
-        {
-            using var downloader = remote.GetDownloader(attachment, token);
-            return await remote.StreamForDownloadDestinationInternal(downloader, attachment.Base64Hash.ToString());
         }
     }
 }
