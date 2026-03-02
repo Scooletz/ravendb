@@ -145,11 +145,11 @@ public class AmazonSqsEtlTests : AmazonSqsEtlTestBase
                 session.SaveChanges();
             }
 
-            var alert = await AssertWaitForNotNullAsync(() => Etl.TryGetLoadErrorAsync(store.Database, config), timeout: (int)TimeSpan.FromMinutes(1).TotalMilliseconds);
+            var errors = await AssertWaitForNotNullAsync(() => Etl.GetItemLoadErrorsAsync(store.Database, config), timeout: (int)TimeSpan.FromMinutes(1).TotalMilliseconds);
 
             Assert.Contains(
                 "MessageTooLong",
-                alert.Error);
+                errors.First().Error);
         }
     }
 
@@ -177,11 +177,12 @@ public class AmazonSqsEtlTests : AmazonSqsEtlTestBase
                 session.SaveChanges();
             }
 
-            var alert = await AssertWaitForNotNullAsync(() => Etl.TryGetLoadErrorAsync(store.Database, config), timeout: (int)TimeSpan.FromMinutes(1).TotalMilliseconds);
+            var errors = await AssertWaitForNotNullAsync(() => Etl.GetItemLoadErrorsAsync(store.Database, config), timeout: (int)TimeSpan.FromMinutes(1).TotalMilliseconds);
 
+            Assert.NotEmpty(errors);
             Assert.Contains(
                 "QueueDoesNotExist",
-                alert.Error);
+                errors.First().Error);
         }
     }
 
@@ -417,7 +418,7 @@ public class AmazonSqsEtlTests : AmazonSqsEtlTestBase
                 {
                     var result = (QueueEtlTestScriptResult)testResult;
 
-                    Assert.Equal(0, result.TransformationErrors.Count);
+                    Assert.Equal(0, result.ItemTransformationErrors.Count);
 
                     Assert.Equal(1, result.Summary.Count);
 

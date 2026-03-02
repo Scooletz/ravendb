@@ -167,7 +167,7 @@ public abstract class RelationalDatabaseEtlBase<TRelationalEtlConfiguration, TRe
             }
             catch (Exception e)
             {
-                Statistics.RecordPartialLoadError(e.ToString(), documentId: null, count: 1);
+                Statistics.RecordItemLoadError(e.ToString(), documentId: null);
             }
         }
         else
@@ -182,11 +182,13 @@ public abstract class RelationalDatabaseEtlBase<TRelationalEtlConfiguration, TRe
                 summaries.Add(new TableQuerySummary { TableName = records.TableName, Commands = commands });
             }
         }
+        
+        var itemErrors = Statistics.ReadInMemoryItemErrors();
 
         return new RelationalDatabaseEtlTestScriptResult
         {
-            TransformationErrors = Statistics.TransformationErrorsInCurrentBatch.Errors.ToList(),
-            LoadErrors = Statistics.LastLoadErrorsInCurrentBatch.Errors.ToList(),
+            ItemTransformationErrors = itemErrors.Where(x => x.Step == EtlErrorStep.Transformation).ToList(),
+            ItemLoadErrors = itemErrors.Where(x => x.Step == EtlErrorStep.Load).ToList(),
             SlowSqlWarnings = Statistics.LastSlowSqlWarningsInCurrentBatch.Statements.ToList(),
             Summary = summaries
         };

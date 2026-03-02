@@ -46,7 +46,7 @@ namespace SlowTests.Server.Documents.ETL
                         session.SaveChanges();
                     }
 
-                    etlDone.Wait(TimeSpan.FromSeconds(5));
+                    await etlDone.WaitAsync(TimeSpan.FromSeconds(5));
 
                     using (database.EtlErrorsStorage.ReadAllItemErrors(out var itemErrorTableValues))
                     {

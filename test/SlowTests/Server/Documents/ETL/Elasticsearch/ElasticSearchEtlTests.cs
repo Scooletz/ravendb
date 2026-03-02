@@ -185,7 +185,7 @@ namespace SlowTests.Server.Documents.ETL.ElasticSearch
                     await session.SaveChangesAsync();
                 }
                 
-                etlDone.Wait(TimeSpan.FromSeconds(15));
+                await etlDone.WaitAsync(TimeSpan.FromSeconds(15));
                 
                 var database = await GetDatabase(store.Database);
 

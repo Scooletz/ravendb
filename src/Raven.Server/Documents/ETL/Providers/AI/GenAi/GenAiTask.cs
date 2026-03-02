@@ -356,7 +356,7 @@ public sealed class GenAiTask : EtlProcess<GenAiItem, GenAiScriptResult, GenAiCo
                 $"Context was: {item.ContextOutput.Context}{Environment.NewLine}" +
                 $"{singleEx}";
 
-            Statistics.RecordPartialLoadError(msg, item.DocumentId);
+            Statistics.RecordItemLoadError(msg, item.DocumentId);
             if (Logger.IsWarnEnabled)
                 Logger.Warn(msg);
 
@@ -555,6 +555,9 @@ public sealed class GenAiTask : EtlProcess<GenAiItem, GenAiScriptResult, GenAiCo
         }
         var originalDoc = document?.Data;
         var modifiedDoc = outputDocument;
+        
+        var itemErrors = Statistics.ReadInMemoryItemErrors();
+        
         return new GenAiTestScriptResult
         {
             Status = status,
@@ -565,7 +568,7 @@ public sealed class GenAiTask : EtlProcess<GenAiItem, GenAiScriptResult, GenAiCo
             Results = items,
             DebugActions = debugActions,
             DebugOutput = debugOutput,
-            TransformationErrors = Statistics.TransformationErrorsInCurrentBatch.Errors.ToList(),
+            ItemTransformationErrors = itemErrors.Where(x => x.Step == EtlErrorStep.Transformation).ToList(),
         };
     }
 

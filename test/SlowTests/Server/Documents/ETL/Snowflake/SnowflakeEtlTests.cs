@@ -699,8 +699,8 @@ var nameArr = this.StepName.split('.'); loadToOrders({});");
                         }, database, database.ServerStore, context);
                     
                     var result = (RelationalDatabaseEtlTestScriptResult)testResult;
-                    Assert.Equal(0, result.TransformationErrors.Count);
-                    Assert.Equal(0, result.LoadErrors.Count);
+                    Assert.Equal(0, result.ItemTransformationErrors.Count);
+                    Assert.Equal(0, result.ItemLoadErrors.Count);
                     Assert.Equal(0, result.SlowSqlWarnings.Count);
 
                     Assert.Equal(2, result.Summary.Count);
@@ -798,8 +798,8 @@ output(result);
                         }, database, database.ServerStore, context);
                     
                     var result = (RelationalDatabaseEtlTestScriptResult)testResult;
-                    Assert.Equal(0, result.TransformationErrors.Count);
-                    Assert.Equal(0, result.LoadErrors.Count);
+                    Assert.Equal(0, result.ItemTransformationErrors.Count);
+                    Assert.Equal(0, result.ItemLoadErrors.Count);
                     Assert.Equal(0, result.SlowSqlWarnings.Count);
 
                     Assert.Equal(1, result.Summary.Count);
@@ -873,8 +873,8 @@ output(result);
                     
                     var result = (RelationalDatabaseEtlTestScriptResult)testResult;
 
-                    Assert.Equal(0, result.TransformationErrors.Count);
-                    Assert.Equal(0, result.LoadErrors.Count);
+                    Assert.Equal(0, result.ItemTransformationErrors.Count);
+                    Assert.Equal(0, result.ItemLoadErrors.Count);
                     Assert.Equal(0, result.SlowSqlWarnings.Count);
                     Assert.Equal(2, result.Summary.Count);
 

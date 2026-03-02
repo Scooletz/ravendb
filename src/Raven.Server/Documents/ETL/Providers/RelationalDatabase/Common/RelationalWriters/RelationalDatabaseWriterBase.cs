@@ -174,9 +174,8 @@ public abstract class RelationalDatabaseWriterBase<TRelationalConnectionString, 
                                 $"(doc: {itemToReplicate.DocumentId}), will continue trying. {Environment.NewLine}{cmd.CommandText}", e);
                         }
 
-                        _statistics.RecordPartialLoadError(
-                            $"Insert statement:{Environment.NewLine}{cmd.CommandText}{Environment.NewLine}. Error:{Environment.NewLine}{e}",
-                            itemToReplicate.DocumentId);
+                        var errorMessage = $"Insert statement:{Environment.NewLine}{cmd.CommandText}{Environment.NewLine}. Error:{Environment.NewLine}{e}";
+                        _statistics.RecordItemLoadError(errorMessage, itemToReplicate.DocumentId);
                     }
                 }
                 finally
@@ -282,9 +281,8 @@ public abstract class RelationalDatabaseWriterBase<TRelationalConnectionString, 
                             Logger.Info($"Failure to replicate deletions to relational database for: {_etlName}, " +
                                         "will continue trying." + Environment.NewLine + cmd.CommandText, e);
 
-                        _statistics.RecordPartialLoadError(
-                            $"Delete statement:{Environment.NewLine}{cmd.CommandText}{Environment.NewLine}Error:{Environment.NewLine}{e}",
-                            null);
+                        var errorMessage = $"Delete statement:{Environment.NewLine}{cmd.CommandText}{Environment.NewLine}Error:{Environment.NewLine}{e}";
+                        _statistics.RecordItemLoadError(errorMessage, documentId: null);
                     }
                 }
                 finally

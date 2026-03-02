@@ -217,8 +217,10 @@ public sealed class EmbeddingsGenerationTask : EtlProcess<EmbeddingsGenerationIt
         {
             allItems[i].Embeddings = MemoryMarshalEx.Cast<float, byte>(results[i].Vector);
         }
+        
+        var itemErrors = Statistics.ReadInMemoryItemErrors();
 
-        result.TransformationErrors = Statistics.TransformationErrorsInCurrentBatch.Errors.ToList();
+        result.ItemTransformationErrors = itemErrors.Where(x => x.Step == EtlErrorStep.Transformation).ToList();
         return result;
     }
 }

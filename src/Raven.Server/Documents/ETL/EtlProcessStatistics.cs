@@ -139,7 +139,7 @@ namespace Raven.Server.Documents.ETL
             SetHealthStatusToFailed = true;
         }
 
-        public void RecordItemTransformationError(Exception e, LazyStringValue documentId)
+        public void RecordItemTransformationError(Exception e, string documentId)
         {
             var now = SystemTime.UtcNow;
 
@@ -158,7 +158,7 @@ namespace Raven.Server.Documents.ETL
             BatchErrors++;
         }
 
-        public void RecordItemLoadError(string error, LazyStringValue documentId, int count = 1)
+        public void RecordItemLoadError(string error, string documentId, int count = 1)
         {
             var now = SystemTime.UtcNow;
             
