@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using Raven.Server.Config.Attributes;
 using Raven.Server.Config.Settings;
+using Raven.Server.Documents.ETL;
 using Sparrow;
 
 namespace Raven.Server.Config.Categories
@@ -70,5 +71,15 @@ namespace Raven.Server.Config.Categories
         [TimeUnit(TimeUnit.Seconds)]
         [ConfigurationEntry("ETL.Queue.AzureQueueStorage.VisibilityTimeoutInSec", ConfigurationEntryScope.ServerWideOrPerDatabase)]
         public TimeSetting AzureQueueStorageVisibilityTimeout{ get; set; }
+        
+        [Description($"Weighted EWMA ratio threshold of errored items to successfully processed items above which the process health status will be set to '{nameof(EtlProcessHealthStatus.Failed)}'")]
+        [DefaultValue(0.9f)]
+        [ConfigurationEntry("ETL.ProcessHealthStatusFailedThreshold", ConfigurationEntryScope.ServerWideOrPerDatabase)]
+        public float ProcessHealthStatusFailedThreshold { get; set; }
+        
+        [Description($"Weighted ratio threshold of errored items to successfully processed items above which the process health status will be set to '{nameof(EtlProcessHealthStatus.Impaired)}'")]
+        [DefaultValue(0.1f)]
+        [ConfigurationEntry("ETL.ProcessHealthStatusImpairedThreshold", ConfigurationEntryScope.ServerWideOrPerDatabase)]
+        public float ProcessHealthStatusImpairedThreshold { get; set; }
     }
 }

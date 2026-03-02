@@ -7,6 +7,7 @@ using Raven.Client.Documents.Indexes;
 using Raven.Client.Util;
 using Raven.Server.Dashboard.Cluster.Notifications;
 using Raven.Server.Documents;
+using Raven.Server.Documents.ETL;
 using Raven.Server.Documents.Indexes;
 using Raven.Server.ServerWide;
 using Raven.Server.ServerWide.Context;
@@ -57,6 +58,7 @@ public sealed class MetricsProvider
         result.Certificate = GetCertificateMetrics();
         result.Cluster = GetClusterMetrics();
         result.Databases = GetAllDatabasesMetrics();
+        result.Etl = GetServerEtlMetrics();
 
         return result;
     }
@@ -306,6 +308,36 @@ public sealed class MetricsProvider
         return result;
     }
 
+    private ServerEtlMetrics GetServerEtlMetrics()
+    {
+        var result = new ServerEtlMetrics();
+
+        var etlsCount = 0;
+        var errorsCount = 0L;
+        var healthyEtlsCount = 0;
+        var impairedEtlsCount = 0;
+        var failedEtlsCount = 0;
+        
+        foreach (var db in _serverStore.DatabasesLandlord.DatabasesCache)
+        {
+            var dbResult = db.Value.GetAwaiter().GetResult();
+
+            etlsCount += dbResult.EtlLoader.Processes.Length;
+            errorsCount += dbResult.EtlErrorsStorage.ReadErrorsCount();
+            healthyEtlsCount += dbResult.EtlLoader.Processes.Count(x => x.Statistics.HealthStatus == EtlProcessHealthStatus.Healthy);
+            impairedEtlsCount += dbResult.EtlLoader.Processes.Count(x => x.Statistics.HealthStatus == EtlProcessHealthStatus.Impaired);
+            failedEtlsCount += dbResult.EtlLoader.Processes.Count(x => x.Statistics.HealthStatus == EtlProcessHealthStatus.Failed);
+        }
+
+        result.Count = etlsCount;
+        result.ErrorsCount = errorsCount;
+        result.HealthyEtlsCount = healthyEtlsCount;
+        result.ImpairedEtlsCount = impairedEtlsCount;
+        result.FailedEtlsCount = failedEtlsCount;
+
+        return result;
+    }
+
     private AllDatabasesMetrics GetAllDatabasesMetrics()
     {
         var result = new AllDatabasesMetrics();
@@ -339,6 +371,7 @@ public sealed class MetricsProvider
         result.Indexes = GetDatabaseIndexesMetrics(database);
         result.Storage = GetDatabaseStorageMetrics(database);
         result.Statistics = GetDatabaseStatistics(database);
+        result.Etls = GetDatabaseEtlsMetrics(database);
 
         return result;
     }
@@ -461,6 +494,29 @@ public sealed class MetricsProvider
         return result;
     }
 
+    private DatabaseEtlsMetrics GetDatabaseEtlsMetrics(DocumentDatabase database)
+    {
+        var result = new DatabaseEtlsMetrics();
+
+        var etls = database.EtlLoader.Processes;
+
+        result.Count = etls.Length;
+
+        var etlErrorsCount = database.EtlErrorsStorage.ReadErrorsCount();
+        result.ErrorsCount = etlErrorsCount;
+        
+        var healthyEtlsCount = etls.Count(x => x.Statistics.HealthStatus == EtlProcessHealthStatus.Healthy);
+        result.HealthyEtlsCount = healthyEtlsCount;
+        
+        var impairedEtlsCount = etls.Count(x => x.Statistics.HealthStatus == EtlProcessHealthStatus.Impaired);
+        result.ImpairedEtlsCount = impairedEtlsCount;
+        
+        var failedEtlsCount = etls.Count(x => x.Statistics.HealthStatus == EtlProcessHealthStatus.Failed);
+        result.FailedEtlsCount = failedEtlsCount;
+        
+        return result;
+    }
+    
     private DatabaseStatistics GetDatabaseStatistics(DocumentDatabase database)
     {
         var result = new DatabaseStatistics();
@@ -507,6 +563,21 @@ public sealed class MetricsProvider
 
         result.Type = index.Type;
         result.EntriesCount = stats.EntriesCount;
+
+        return result;
+    }
+
+    public EtlMetrics CollectEtlMetrics(EtlProcess etl, EtlErrorsStorage errorsStorage)
+    {
+        var result = new EtlMetrics();
+        
+        result.ProcessName = etl.Name;
+        result.HealthStatus = etl.Statistics.HealthStatus;
+        result.ErrorsCount = errorsStorage.ReadErrorsCountOfEtl(etl.Name);
+        
+        result.LastSuccessfulBatchTimeInSec = etl.Statistics.LastSuccessfulBatchTime.HasValue
+            ? (SystemTime.UtcNow - etl.Statistics.LastSuccessfulBatchTime.Value).TotalSeconds
+            : null;
 
         return result;
     }

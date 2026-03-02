@@ -43,7 +43,6 @@ using Raven.Server.Documents.ETL.Test;
 using Raven.Server.Documents.Replication.ReplicationItems;
 using Raven.Server.Documents.TimeSeries;
 using Raven.Server.NotificationCenter.Notifications;
-using Raven.Server.NotificationCenter.Notifications.Details;
 using Raven.Server.ServerWide;
 using Raven.Server.ServerWide.Commands.ETL;
 using Raven.Server.ServerWide.Context;
@@ -131,7 +130,13 @@ namespace Raven.Server.Documents.ETL
                 return new EtlProcessState();
             }
         }
+        
+        public void ForceBatchRetry()
+        {
+            FallbackTime = null;
+        }
     }
+
     public abstract class EtlProcess<TExtracted, TTransformed, TConfiguration, TConnectionString, TStatsScope, TEtlPerformanceOperation> : EtlProcess, ILowMemoryHandler where TExtracted : ExtractedItem
         where TConfiguration : EtlConfiguration<TConnectionString>
         where TConnectionString : ConnectionString
@@ -180,7 +185,7 @@ namespace Raven.Server.Documents.ETL
             Logger = database.Loggers.GetLogger(GetType());
             Database = database;
             _serverStore = serverStore;
-            Statistics = new EtlProcessStatistics(Tag, Name, Database.NotificationCenter);
+            Statistics = new EtlProcessStatistics(Tag, Name, Database.EtlErrorsStorage, Database.NotificationCenter, Database.Configuration.Etl);
 
             if (transformation.ApplyToAllDocuments == false)
                 _collections = new HashSet<string>(Transformation.Collections, StringComparer.OrdinalIgnoreCase);
@@ -427,7 +432,7 @@ namespace Raven.Server.Documents.ETL
                         }
                         catch (Exception e)
                         {
-                            Statistics.RecordTransformationError(e, item.DocumentId);
+                            Statistics.RecordItemTransformationError(e, item.DocumentId);
 
                             stats.RecordTransformationError();
 
@@ -451,26 +456,14 @@ namespace Raven.Server.Documents.ETL
         private void HandleTransformationScriptParseException(TStatsScope stats, Exception e)
         {
             var message = $"[{Name}] Could not parse transformation script. Stopping ETL process.";
+            var messageWithException = $"{message}: {e}";
 
             if (Logger.IsWarnEnabled)
                 Logger.Warn(message, e);
 
-            var key = $"{Tag}/{Name}";
-            var details = new EtlErrorsDetails();
-
-            details.Errors.Enqueue(new EtlErrorInfo { Date = SystemTime.UtcNow, Error = e.ToString() });
-
-            var alert = AlertRaised.Create(
-                Database.Name,
-                Tag,
-                message,
-                AlertReason.Etl_TransformationError,
-                NotificationSeverity.Error,
-                key: key,
-                details: details);
-
-            Database.NotificationCenter.Add(alert);
-
+            Statistics.SetProcessHealthStatusToFailed();
+            Statistics.RecordConfigurationError(messageWithException);
+            
             stats.RecordBatchTransformationCompleteReason(message);
             stats.RecordTransformationError();
 
@@ -498,6 +491,7 @@ namespace Raven.Server.Documents.ETL
                     if (CancellationToken.IsCancellationRequested == false)
                     {
                         string msg = LoadFailureMessage;
+                        var messageWithException = $"{msg}: {e}";
 
                         if (Logger.IsWarnEnabled)
                         {
@@ -505,11 +499,12 @@ namespace Raven.Server.Documents.ETL
                         }
 
                         stats.RecordLoadFailure();
-                        stats.RecordBatchStopReason($"{msg} : {e}");
+                        stats.RecordBatchStopReason(messageWithException);
 
                         EnterFallbackMode(e, Statistics.LastLoadErrorTime);
 
-                        Statistics.ThrowLoadError(e.ToString(), count: stats.NumberOfExtractedItems.Sum(x => x.Value));
+                        var count = stats.NumberOfExtractedItems.Sum(x => x.Value);
+                        Statistics.RecordLoadError(messageWithException, count);
                     }
 
                     return false;
@@ -521,15 +516,19 @@ namespace Raven.Server.Documents.ETL
 
         protected virtual void EnterFallbackMode(Exception ex, DateTime? lastErrorTime)
         {
+            var now = Database.Time.GetUtcNow();
+            
             if (lastErrorTime == null)
                 FallbackTime = TimeSpan.FromSeconds(5);
             else
             {
-                // double the fallback time (but don't cross Etl.EmbeddingsGenerationTaskMaxFallbackTime)
-                var secondsSinceLastError = (Database.Time.GetUtcNow() - lastErrorTime.Value).TotalSeconds;
+                // double the fallback time (but don't cross Etl.MaxFallbackTime)
+                var secondsSinceLastError = (now - lastErrorTime.Value).TotalSeconds;
 
                 FallbackTime = TimeSpan.FromSeconds(Math.Min(Database.Configuration.Etl.MaxFallbackTime.AsTimeSpan.TotalSeconds, Math.Max(5, secondsSinceLastError * 2)));
             }
+            
+            Statistics.NextBatchRetryTime = now + FallbackTime;
         }
 
         protected abstract int LoadInternal(IEnumerable<TTransformed> items, DocumentsOperationContext context, TStatsScope scope);
@@ -838,16 +837,21 @@ namespace Raven.Server.Documents.ETL
                             catch (Exception e)
                             {
                                 var message = $"{Tag} Exception in ETL process '{Name}'";
+                                var messageWithException = $"{message}: {e}";
 
                                 if (Logger.IsWarnEnabled)
                                     Logger.Warn(message, e);
+                                
+                                Statistics.RecordUnknownError(messageWithException);
 
-                                stats.RecordBatchStopReason($"{message} : {e}");
+                                stats.RecordBatchStopReason(messageWithException);
                             }
                         }
 
                         statsAggregator.Complete();
                     }
+
+                    Statistics.OnBatchCompletion();
 
                     if (didWork)
                     {
@@ -925,13 +929,16 @@ namespace Raven.Server.Documents.ETL
                 catch (Exception e)
                 {
                     var msg = $"Unexpected error in {Tag} process: '{Name}'";
-
+                    var messageWithException = $"{msg}: {e}";
+                    
                     if (Logger.IsErrorEnabled)
                     {
                         Logger.Error(msg, e);
                     }
+                    
+                    Statistics.RecordUnknownError(messageWithException);
 
-                    ReportStopReasonToStats($"{msg} : {e}");
+                    ReportStopReasonToStats(messageWithException);
                 }
                 finally
                 {
@@ -943,10 +950,12 @@ namespace Raven.Server.Documents.ETL
 
         protected virtual string StatsAggregatorTag => "ETL";
 
-        private static void RecordSuccessfulBatch(TStatsScope stats)
+        private void RecordSuccessfulBatch(TStatsScope stats)
         {
             const string message = "Successfully finished loading all batch items";
             stats.RecordBatchStopReason(message);
+            
+            Statistics.LastSuccessfulBatchTime = Database.Time.GetUtcNow();
         }
 
         protected void UpdateEtlProcessState(EtlProcessState state, DateTime? lastBatchTime = null)
@@ -1282,15 +1291,17 @@ namespace Raven.Server.Documents.ETL
                         var results = ravenEtl.Transform(new[] { ravenEtlItem }, context, new EtlStatsScope(new EtlRunStats()),
                             new EtlProcessState { SkippedTimeSeriesDocs = new HashSet<string> { testScript.DocumentId } });
 
-                        return new RavenEtlTestScriptResult
-                        {
-                            TransformationErrors = ravenEtl.Statistics.TransformationErrorsInCurrentBatch.Errors.ToList(),
-                            Commands = results.ToList(),
-                            DebugOutput = debugOutput
-                        };
-                    }
-                case EtlType.Olap:
-                    var olapTestScriptConfiguration = testScript.Configuration as OlapEtlConfiguration;
+                            var etlItemErrors = ravenEtl.Statistics.ReadInMemoryItemErrors();
+                            
+                            return new RavenEtlTestScriptResult
+                            {
+                                ItemTransformationErrors = etlItemErrors.Where(x => x.Step == EtlErrorStep.Transformation).ToList(),
+                                Commands = results.ToList(),
+                                DebugOutput = debugOutput
+                            };
+                        }
+                    case EtlType.Olap:
+                        var olapTestScriptConfiguration = testScript.Configuration as OlapEtlConfiguration;
 
                     if (olapTestScriptConfiguration == null)
                         throw new InvalidOperationException(
@@ -1340,24 +1351,26 @@ namespace Raven.Server.Documents.ETL
 
                                     itemsByPartition.Add(partitionItems);
 
-                                    break;
-                                default:
-                                    throw new NotSupportedException("Unknown transform type: " + olapItem.GetType());
+                                        break;
+                                    default:
+                                        throw new NotSupportedException("Unknown transform type: " + olapItem.GetType());
+                                }
                             }
-                        }
+                            
+                            var etlItemErrors = olapElt.Statistics.ReadInMemoryItemErrors();
 
-                        return new OlapEtlTestScriptResult
+                            return new OlapEtlTestScriptResult
+                            {
+                                ItemTransformationErrors = etlItemErrors.Where(x => x.Step == EtlErrorStep.Transformation).ToList(),
+                                ItemsByPartition = itemsByPartition,
+                                DebugOutput = debugOutput
+                            };
+                        }
+                    case EtlType.ElasticSearch:
+                        using (var elasticSearchEtl = new ElasticSearchEtl(testScript.Configuration.Transforms[0], testScript.Configuration as ElasticSearchEtlConfiguration, database, database.ServerStore))
+                        using (elasticSearchEtl.EnterTestMode(out debugOutput))
                         {
-                            TransformationErrors = olapElt.Statistics.TransformationErrorsInCurrentBatch.Errors.ToList(),
-                            ItemsByPartition = itemsByPartition,
-                            DebugOutput = debugOutput
-                        };
-                    }
-                case EtlType.ElasticSearch:
-                    using (var elasticSearchEtl = new ElasticSearchEtl(testScript.Configuration.Transforms[0], testScript.Configuration as ElasticSearchEtlConfiguration, database, database.ServerStore))
-                    using (elasticSearchEtl.EnterTestMode(out debugOutput))
-                    {
-                        elasticSearchEtl.EnsureThreadAllocationStats();
+                            elasticSearchEtl.EnsureThreadAllocationStats();
 
                         var elasticSearchItem = testScript.IsDelete ? new ElasticSearchItem(tombstone, docCollection) : new ElasticSearchItem(document, docCollection);
 

@@ -6,6 +6,7 @@ using System.Reflection;
 using System.Threading.Tasks;
 using Lextm.SharpSnmpLib;
 using Raven.Client;
+using Raven.Server.Documents.ETL;
 using Raven.Server.Platform.Posix;
 using Raven.Server.ServerWide;
 using Raven.Server.ServerWide.Context;
@@ -403,6 +404,22 @@ namespace Raven.Server.Monitoring.Snmp
             [SnmpDataType(SnmpType.TimeTicks)]
             [Description("Time since creation of oldest transaction")]
             public const string ServerLongestTransaction = "1.19.1";
+            
+            [SnmpDataType(SnmpType.Integer32)]
+            [Description("Number of ETL errors")]
+            public const string EtlErrors = "1.20.1";
+            
+            [SnmpDataType(SnmpType.Integer32)]
+            [Description($"Number of ETL tasks with {nameof(EtlProcessHealthStatus.Healthy)} health status")]
+            public const string NumberOfHealthyEtls = "1.20.2";
+            
+            [SnmpDataType(SnmpType.Integer32)]
+            [Description($"Number of ETL tasks with {nameof(EtlProcessHealthStatus.Impaired)} health status")]
+            public const string NumberOfImpairedEtls = "1.20.3";
+            
+            [SnmpDataType(SnmpType.Integer32)]
+            [Description($"Number of ETL tasks with {nameof(EtlProcessHealthStatus.Failed)} health status")]
+            public const string NumberOfFailedEtls = "1.20.4";
 
             public static Dictionary<string, string> CreateMapping()
             {
@@ -511,8 +528,6 @@ namespace Raven.Server.Monitoring.Snmp
                             break;
                     }
                 }
-
-
             }
         }
 
@@ -639,6 +654,10 @@ namespace Raven.Server.Monitoring.Snmp
             [SnmpDataType(SnmpType.Integer32)]
             [Description("Number of indexing errors")]
             public const string IndexingErrors = "5.2.{0}.1.16";
+            
+            [SnmpDataType(SnmpType.Integer32)]
+            [Description("Number of ETL errors")]
+            public const string EtlErrors = "5.2.{0}.1.17";
 
             [SnmpDataType(SnmpType.Gauge32)]
             [Description("Documents storage allocated size in MB")]
@@ -747,6 +766,18 @@ namespace Raven.Server.Monitoring.Snmp
             [SnmpDataType(SnmpType.Gauge32)]
             [Description("Number of bytes written (documents, attachments, counters, timeseries)")]
             public const string DataWrittenPerSecond = "5.2.{0}.6.2";
+            
+            [SnmpDataType(SnmpType.Integer32)]
+            [Description($"Number of ETL tasks with {nameof(EtlProcessHealthStatus.Healthy)} health status")]
+            public const string NumberOfHealthyEtls = "5.2.{0}.7.1";
+            
+            [SnmpDataType(SnmpType.Integer32)]
+            [Description($"Number of ETL tasks with {nameof(EtlProcessHealthStatus.Impaired)} health status")]
+            public const string NumberOfImpairedEtls = "5.2.{0}.7.2";
+            
+            [SnmpDataType(SnmpType.Integer32)]
+            [Description($"Number of ETL tasks with {nameof(EtlProcessHealthStatus.Failed)} health status")]
+            public const string NumberOfFailedEtls = "5.2.{0}.7.3";
 
             public sealed class Indexes
             {
@@ -839,6 +870,84 @@ namespace Raven.Server.Monitoring.Snmp
                     }
 
                     return djv;
+                }
+            }
+
+            public sealed class Etls
+            {
+                private Etls()
+                {
+                }
+                
+                [Description("Number of task ETL errors")]
+                public const string EtlErrorsOfTask = "5.2.{0}.1.{{0}}.1";
+                
+                [Description("Health status of particular ETL task")]
+                public const string HealthStatus = "5.2.{0}.1.{{0}}.2";
+
+                [Description("Last successful batch time")]
+                public const string LastSuccessfulBatchTime = "5.2.{0}.1.{{0}}.3";
+                
+                public static Dictionary<string, string> CreateMapping(long ignoreIndex)
+                {
+                    var dictionary = new Dictionary<string, string>();
+                    foreach (var field in typeof(Etls).GetFields())
+                    {
+                        var fieldValue = GetFieldValue(field);
+                        var databaseOid = string.Format(fieldValue.Oid, ignoreIndex);
+                        var etlOid = string.Format(databaseOid, ignoreIndex);
+                        dictionary.Add(Root + etlOid, fieldValue.Description);
+                    }
+
+                    return dictionary;
+                }
+
+                public static DynamicJsonValue ToJson(ServerStore serverStore, TransactionOperationContext context, RawDatabaseRecord record, long databaseIndex)
+                {
+                    var mapping = SnmpDatabase.GetEtlMapping(context, serverStore, record.DatabaseName);
+
+                    var djv = new DynamicJsonValue();
+                    if (mapping.Count == 0)
+                        return djv;
+
+                    foreach (var elasticSearchEtl in record.ElasticSearchEtls)
+                        ProcessEtl(elasticSearchEtl.Name);
+                    
+                    foreach (var sqlEtl in record.SqlEtls)
+                        ProcessEtl(sqlEtl.Name);
+
+                    foreach (var olapEtl in record.OlapEtls)
+                        ProcessEtl(olapEtl.Name);
+                    
+                    foreach (var queueEtl in record.QueueEtls)
+                        ProcessEtl(queueEtl.Name);
+
+                    foreach (var ravenEtl in record.RavenEtls)
+                    {
+                        foreach (var transformation in ravenEtl.Transforms)
+                        {
+                            ProcessEtl($"{ravenEtl.Name}/{transformation.Name}");
+                        }
+                    }
+                    
+                    return djv;
+
+                    void ProcessEtl(string name)
+                    {
+                        if (mapping.TryGetValue(name, out var index) == false)
+                            return;
+
+                        var array = new DynamicJsonArray();
+                        foreach (var field in typeof(Etls).GetFields())
+                        {
+                            var fieldValue = GetFieldValue(field);
+                            var databaseOid = string.Format(fieldValue.Oid, databaseIndex);
+                            var indexOid = string.Format(databaseOid, index);
+                            array.Add(CreateJsonItem(Root + indexOid, fieldValue.Description));
+                        }
+
+                        djv[name] = array;
+                    }
                 }
             }
 
@@ -1066,7 +1175,11 @@ namespace Raven.Server.Monitoring.Snmp
 
             public static Dictionary<string, string> CreateMapping()
             {
-                var dict = General.CreateMapping().Concat(Indexes.CreateMapping(0)).ToDictionary();
+                var dict = General.CreateMapping()
+                    .Concat(Indexes.CreateMapping(0))
+                    .Concat(Etls.CreateMapping(0))
+                    .ToDictionary();
+                
                 foreach (var field in typeof(Databases).GetFields())
                 {
                     var fieldValue = GetFieldValue(field);
@@ -1104,7 +1217,8 @@ namespace Raven.Server.Monitoring.Snmp
                         djv[kvp.Key] = new DynamicJsonValue
                         {
                             [$"@{nameof(General)}"] = array,
-                            [nameof(Indexes)] = Indexes.ToJson(serverStore, context, record, kvp.Value)
+                            [nameof(Indexes)] = Indexes.ToJson(serverStore, context, record, kvp.Value),
+                            [nameof(Etls)] = Etls.ToJson(serverStore, context, record, kvp.Value)
                         };
                     }
                 }
