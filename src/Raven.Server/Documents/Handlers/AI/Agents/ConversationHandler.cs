@@ -619,7 +619,8 @@ internal class ConversationHandler(ServerStore server, DocumentDatabase database
                 var sw = Stopwatch.StartNew();
                 attachment.Data = await remote.GetAttachmentDataAsBase64Async(attachment.RemoteStorageId, attachment.Data, attachment.Type, token);
                 sw.Stop();
-                _remoteAttachmentsDownloadObserver?.Invoke(sw.Elapsed);
+                var elapsed = sw.Elapsed;
+                _remoteAttachmentsDownloadObserver?.Invoke(elapsed);
                 attachment.Source = AiAttachmentSource.FromAttachment;
             }
         }
