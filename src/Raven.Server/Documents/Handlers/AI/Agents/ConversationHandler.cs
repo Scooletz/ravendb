@@ -618,7 +618,6 @@ internal class ConversationHandler(ServerStore server, DocumentDatabase database
                 // Resolve the attachment data asynchronously
                 var sw = Stopwatch.StartNew();
                 attachment.Data = await remote.GetAttachmentDataAsBase64Async(attachment.RemoteStorageId, attachment.Data, attachment.Type, token);
-                sw.Stop();
                 var elapsed = sw.Elapsed;
                 _remoteAttachmentsDownloadObserver?.Invoke(elapsed);
                 attachment.Source = AiAttachmentSource.FromAttachment;

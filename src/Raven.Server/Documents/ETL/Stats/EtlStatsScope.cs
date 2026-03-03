@@ -147,11 +147,14 @@ namespace Raven.Server.Documents.ETL.Stats
             double computed;
             var delta = duration.TotalMilliseconds;
 
-            do
+            while (true)
             {
                 initial = _remoteAttachmentsDownloadDurationInMs;
                 computed = initial + delta;
-            } while (Math.Abs(Interlocked.CompareExchange(ref _remoteAttachmentsDownloadDurationInMs, computed, initial) - initial) > double.Epsilon);
+
+                if (Interlocked.CompareExchange(ref _remoteAttachmentsDownloadDurationInMs, computed, initial) == initial)
+                    break;
+            }
         }
 
         public AiUsage Usage { get; set; }
