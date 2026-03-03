@@ -20,15 +20,13 @@ namespace Raven.Server.Documents.Handlers.Processors.Attachments.Strategies
 
         public override async Task WriteResponseStream(DocumentsOperationContext context, DocumentsTransaction tx, Attachment attachment, OperationCancelToken token)
         {
-            Stream stream = RequestHandler.Database.DocumentsStorage.AttachmentsStorage.GetAttachmentStream(context, attachment.Base64Hash);
+            var stream = RequestHandler.Database.DocumentsStorage.AttachmentsStorage.GetAttachmentStream(context, attachment.Base64Hash);
 
             if (stream == null)
             {
                 tx.Dispose(); // we are reading from remote, we can dispose the transaction
-                using (var downloader = RequestHandler.Database.DocumentsStorage.AttachmentsStorage.RemoteAttachmentsStorage.GetDownloader(attachment, token))
-                {
-                    stream = await RequestHandler.Database.DocumentsStorage.AttachmentsStorage.RemoteAttachmentsStorage.StreamForDownloadDestinationInternal(downloader, attachment.Base64Hash.ToString());
-                }
+                using var downloader = RequestHandler.Database.DocumentsStorage.AttachmentsStorage.RemoteAttachmentsStorage.GetDownloader(attachment, token);
+                stream = await RequestHandler.Database.DocumentsStorage.AttachmentsStorage.RemoteAttachmentsStorage.StreamForDownloadDestinationInternal(downloader, attachment.Base64Hash.ToString());
             }
 
             await using (stream)

@@ -1,9 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Threading;
 using System.Threading.Tasks;
 using JetBrains.Annotations;
 using Raven.Client;
@@ -14,6 +16,7 @@ using Raven.Client.Json.Serialization;
 using Raven.Client.ServerWide;
 using Raven.Server.Documents.Attachments;
 using Raven.Server.Documents.BackgroundWork;
+using Raven.Server.Documents.ETL.Providers.AI.GenAi;
 using Raven.Server.Documents.Handlers.Processors.Attachments;
 using Raven.Server.Documents.PeriodicBackup;
 using Raven.Server.Documents.PeriodicBackup.DirectDownload;
@@ -201,20 +204,21 @@ public class RemoteAttachmentsStorage : AbstractBackgroundWorkStorage<DocumentEx
         return (allHashPassed, id);
     }
 
-    public DirectFileDownloader GetDownloader(Attachment attachment, OperationCancelToken token) => GetDownloader(attachment.RemoteParameters.Identifier, attachment.Key, token);
+    public DirectFileDownloader GetDownloader(Attachment attachment, OperationCancelToken token) => GetDownloaderImpl(attachment.RemoteParameters.Identifier, attachment.Key, token);
 
-    public DirectFileDownloader GetDownloader(string remoteId, [CanBeNull] LazyStringValue key, OperationCancelToken token)
+    private DirectFileDownloader GetDownloaderImpl(string remoteId, object key, OperationCancelToken token)
     {
         if (Configuration == null)
-            throw new InvalidOperationException($"Cannot get the remote attachment {(key != null  ? $"'{key}'" : "")} downloader for '{remoteId}' because {nameof(RemoteAttachmentsConfiguration)} is not configured on {Database.Name}.");
+            throw new InvalidOperationException($"Cannot get remote attachment '{key}' because {nameof(RemoteAttachmentsConfiguration)} is not configured on {Database.Name}.");
 
         if (Configuration.Disabled)
-            throw new InvalidOperationException($"Cannot get the remote attachment {(key != null  ? $"'{key}'" : "")} downloader for '{remoteId}' because {nameof(RemoteAttachmentsConfiguration)} is disabled.");
+            throw new InvalidOperationException($"Cannot get remote attachment '{key}' because {nameof(RemoteAttachmentsConfiguration)} is disabled.");
 
         if (Configuration.Destinations == null || Configuration.Destinations.TryGetValue(remoteId, out var destination) == false)
-            throw new InvalidOperationException($"Cannot get the remote attachment {(key != null  ? $"'{key}'" : "")} downloader for '{remoteId}' because it doesn't exist.");
+            throw new InvalidOperationException($"Cannot get remote attachment '{key}' because destination for '{remoteId}' doesn't exist.");
+
         if (destination.Disabled)
-            throw new InvalidOperationException($"Cannot get the remote attachment {(key != null  ? $"'{key}'" : "")} downloader for '{remoteId}' because it is disabled.");
+            throw new InvalidOperationException($"Cannot get remote attachment '{key}' because destination for '{remoteId}' is disabled.");
 
         var settings = UploaderSettings.GenerateDirectUploaderSettingsForAttachments(Database, nameof(AttachmentHandlerProcessorForGetAttachment), destination.S3Settings, destination.AzureSettings);
         return new DirectFileDownloader(settings, token);
@@ -316,6 +320,16 @@ public class RemoteAttachmentsStorage : AbstractBackgroundWorkStorage<DocumentEx
         }
 
         return false;
+    }
+
+    public async ValueTask<string> GetAttachmentDataAsBase64Async(string remoteStorageId, string hash, string type, CancellationToken token)
+    {
+        using OperationCancelToken operationToken = new(token);
+        using var downloader = GetDownloaderImpl(remoteStorageId, null, operationToken);
+        await using var stream = await StreamForDownloadDestinationInternal(downloader, hash);
+
+        // Determine the type based on content type or default to application/octet-stream
+        return GenAiScriptTransformer.GetAttachmentDataAsBase64(stream, type ?? "application/octet-stream");
     }
 
     public RemoteAttachmentsSender UpdateRemoteAttachmentsFromDatabaseRecord(DatabaseRecord dbRecord, RemoteAttachmentsSender remoteAttachmentsSender)

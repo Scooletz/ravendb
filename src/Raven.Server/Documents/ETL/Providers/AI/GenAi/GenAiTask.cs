@@ -40,7 +40,7 @@ using PatchRequest = Raven.Server.Documents.Patch.PatchRequest;
 namespace Raven.Server.Documents.ETL.Providers.AI.GenAi;
 
 public sealed class GenAiTask : EtlProcess<GenAiItem, GenAiScriptResult, GenAiConfiguration, AiConnectionString,
-    GenAiStatsScope, GenAiPerformanceOperation>, IDeferredAttachmentResolver
+    GenAiStatsScope, GenAiPerformanceOperation>
 {
     public const string GenAiTaskTag = "Gen/AI";
 
@@ -219,7 +219,7 @@ public sealed class GenAiTask : EtlProcess<GenAiItem, GenAiScriptResult, GenAiCo
                     },
                     UserPrompt = json,
                     Attachments = item.ContextOutput.Attachments
-                }, changeVector: null, raftId: null, attachmentResolver: this);
+                }, changeVector: null);
 
                 handler.SetClient(_chatCompletionClient);
                 try
@@ -622,17 +622,6 @@ public sealed class GenAiTask : EtlProcess<GenAiItem, GenAiScriptResult, GenAiCo
         }
 
         return results;
-    }
-
-    async ValueTask<string> IDeferredAttachmentResolver.ResolveAsync(string remoteStorageId, string hash, string type, CancellationToken token = default)
-    {
-        RemoteAttachmentsStorage remote = Database.DocumentsStorage.AttachmentsStorage.RemoteAttachmentsStorage;
-        using OperationCancelToken operationToken = new(token);
-        using var downloader = remote.GetDownloader(remoteStorageId, key: null, operationToken);
-        await using var stream = await remote.StreamForDownloadDestinationInternal(downloader, hash);
-
-        // Determine the type based on content type or default to application/octet-stream
-        return GenAiScriptTransformer.GetAttachmentDataAsBase64(stream, type ?? "application/octet-stream");
     }
 
     internal ChatCompletionClient GetChatCompletionClient() => _chatCompletionClient;

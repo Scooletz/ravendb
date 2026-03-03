@@ -44,11 +44,10 @@ internal class ConversationHandler(ServerStore server, DocumentDatabase database
     private string _changeVector;
     private string _raftId;
     private int _maxModelIterationsPerCall;
-    private IDeferredAttachmentResolver _attachmentResolver;
 
     public required RavenServer.AuthenticateConnection Authentication;
     
-    public void Initialize(AiAgentConfiguration configuration, string conversationId, RequestBody body, string changeVector, string raftId = null, IDeferredAttachmentResolver attachmentResolver = null)
+    public void Initialize(AiAgentConfiguration configuration, string conversationId, RequestBody body, string changeVector, string raftId = null)
     {
         _conversationId = conversationId;
         _request = body;
@@ -56,7 +55,6 @@ internal class ConversationHandler(ServerStore server, DocumentDatabase database
         _changeVector = changeVector;
         _raftId = raftId;
         _maxModelIterationsPerCall = configuration.MaxModelIterationsPerCall ?? DefaultMaxModelIterationsPerCall;
-        _attachmentResolver = attachmentResolver;
     }
 
     protected virtual async Task InitializeDocument(DocumentsOperationContext context)
@@ -602,15 +600,17 @@ internal class ConversationHandler(ServerStore server, DocumentDatabase database
 
     private async Task ResolveDeferredAttachmentsAsync(List<AiAttachment> attachments, CancellationToken token)
     {
-        if (attachments == null || _attachmentResolver == null)
+        if (attachments == null)
             return;
+
+        var remote = database.DocumentsStorage.AttachmentsStorage.RemoteAttachmentsStorage;
 
         foreach (var attachment in attachments)
         {
             if (attachment.Source == AiAttachmentSource.Deferred)
             {
                 // Resolve the attachment data asynchronously
-                attachment.Data = await _attachmentResolver.ResolveAsync(attachment.RemoteStorageId, attachment.Data, attachment.Type, token);
+                attachment.Data = await remote.GetAttachmentDataAsBase64Async(attachment.RemoteStorageId, attachment.Data, attachment.Type, token);
                 attachment.Source = AiAttachmentSource.FromAttachment;
             }
         }
