@@ -111,6 +111,16 @@ public class GenAiRemoteAttachments(ITestOutputHelper output) : RemoteAttachment
 
                 var hashes = (await GetHashes<Post>(store, postId)).ToList();
                 Assert.Equal(2, hashes.Count);
+
+                var etlProcess = database.EtlLoader.Processes.OfType<GenAiTask>().Single();
+                var stats = etlProcess.GetPerformanceStats()
+                    .Where(x => x.NumberOfLoadedItems > 0)
+                    .ToArray();
+
+                var loadDetails = stats[^1].Details.Operations[^1];
+                var genAiStats = loadDetails.Operations.FirstOrDefault(x => x.Name == GenAiOperations.LoadToModel) as GenAiPerformanceOperation;
+                Assert.NotNull(genAiStats);
+                Assert.True(genAiStats.RemoteAttachmentsDownloadDurationInMs > 0);
             }
         }
     }

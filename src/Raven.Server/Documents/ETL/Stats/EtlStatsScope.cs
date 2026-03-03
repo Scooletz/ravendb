@@ -1,6 +1,8 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Threading;
 using Raven.Client.Documents.Operations.AI;
 using Raven.Client.Documents.Operations.AI.Agents;
 using Raven.Client.Documents.Operations.Backups;
@@ -131,6 +133,27 @@ namespace Raven.Server.Documents.ETL.Stats
 
         public int UpdateFailures { get; set; }
 
+        private double _remoteAttachmentsDownloadDurationInMs;
+
+        public double RemoteAttachmentsDownloadDurationInMs
+        {
+            get => _remoteAttachmentsDownloadDurationInMs;
+            set => _remoteAttachmentsDownloadDurationInMs = value;
+        }
+
+        public void AddRemoteAttachmentsDownloadDuration(TimeSpan duration)
+        {
+            double initial;
+            double computed;
+            var delta = duration.TotalMilliseconds;
+
+            do
+            {
+                initial = _remoteAttachmentsDownloadDurationInMs;
+                computed = initial + delta;
+            } while (Math.Abs(Interlocked.CompareExchange(ref _remoteAttachmentsDownloadDurationInMs, computed, initial) - initial) > double.Epsilon);
+        }
+
         public AiUsage Usage { get; set; }
 
         protected override GenAiStatsScope OpenNewScope(EtlRunStats stats, bool start)
@@ -154,6 +177,7 @@ namespace Raven.Server.Documents.ETL.Stats
                 ModelCallFailures = ModelCallFailures,
                 TotalUpdates = TotalUpdates,
                 UpdateFailures = UpdateFailures,
+                RemoteAttachmentsDownloadDurationInMs = RemoteAttachmentsDownloadDurationInMs,
                 Usage = Usage
             };
 

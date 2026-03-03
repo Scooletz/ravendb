@@ -46,6 +46,7 @@ internal class ConversationHandler(ServerStore server, DocumentDatabase database
     private int _maxModelIterationsPerCall;
 
     public required RavenServer.AuthenticateConnection Authentication;
+    private Action<TimeSpan> _remoteAttachmentsDownloadObserver;
     
     public void Initialize(AiAgentConfiguration configuration, string conversationId, RequestBody body, string changeVector, string raftId = null)
     {
@@ -55,6 +56,11 @@ internal class ConversationHandler(ServerStore server, DocumentDatabase database
         _changeVector = changeVector;
         _raftId = raftId;
         _maxModelIterationsPerCall = configuration.MaxModelIterationsPerCall ?? DefaultMaxModelIterationsPerCall;
+    }
+
+    public void SetRemoteAttachmentsDownloadObserver(Action<TimeSpan> observer)
+    {
+        _remoteAttachmentsDownloadObserver = observer;
     }
 
     protected virtual async Task InitializeDocument(DocumentsOperationContext context)
@@ -610,7 +616,10 @@ internal class ConversationHandler(ServerStore server, DocumentDatabase database
             if (attachment.Source == AiAttachmentSource.Deferred)
             {
                 // Resolve the attachment data asynchronously
+                var sw = Stopwatch.StartNew();
                 attachment.Data = await remote.GetAttachmentDataAsBase64Async(attachment.RemoteStorageId, attachment.Data, attachment.Type, token);
+                sw.Stop();
+                _remoteAttachmentsDownloadObserver?.Invoke(sw.Elapsed);
                 attachment.Source = AiAttachmentSource.FromAttachment;
             }
         }

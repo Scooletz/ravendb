@@ -20,5 +20,7 @@ public sealed class GenAiPerformanceOperation(TimeSpan duration) : EtlPerformanc
 
     public int UpdateFailures { get; set; }
 
+    public double RemoteAttachmentsDownloadDurationInMs { get; set; }
+
     public AiUsage Usage { get; set;  }
 }
