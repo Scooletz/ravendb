@@ -69,7 +69,7 @@ public class GenAiConfiguration : AbstractAiIntegrationConfiguration
         }
     }
 
-    public override bool Validate(out List<string> errors, bool validateName = true, bool validateConnection = true, bool validateIdentifier = true)
+    public override bool Validate(out List<string> errors, bool validateName = true, bool validateConnection = true, bool validateIdentifier = true, EtlConfiguration<AiConnectionString> existingConfiguration = null)
     {
         if (validateConnection && Initialized == false)
             throw new InvalidOperationException("GenAi configuration must be initialized");
