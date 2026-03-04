@@ -147,6 +147,10 @@ public partial class IndexWriter
                 var word = new Span<byte>(_parent._analyzersContext.EncodingBufferHandler, token.Offset, (int)token.Length);
                 ExactInsert(field, word, InserterMode.ExactInsert);
             }
+            
+            //Analyze pipeline removed all content from our input. It means the value actually does not exist.
+            if (tokens.Length == 0)
+                ExactInsert(field, Constants.NonExistingValueSlice, InserterMode.ExactInsert);
         }
 
         private void AnalyzeTerm(IndexedField field, ReadOnlySpan<byte> value, Analyzer analyzer, out Span<byte> wordsBuffer, out Span<Token> tokens)
@@ -168,19 +172,22 @@ public partial class IndexWriter
             }
         }
 
-        ref EntriesModifications ExactInsert(IndexedField field, ReadOnlySpan<byte> value, InserterMode inserterMode)
+        ref EntriesModifications ExactInsert(IndexedField field, ReadOnlySpan<byte> value, InserterMode inserterMode, bool forceExactInsert = false)
         {
-            Debug.Assert(field.FieldIndexingMode != FieldIndexingMode.No, "field.FieldIndexingMode != FieldIndexingMode.No");
+            Debug.Assert(forceExactInsert || field.FieldIndexingMode != FieldIndexingMode.No, "field.FieldIndexingMode != FieldIndexingMode.No");
 
             ByteStringContext<ByteStringMemoryCache>.InternalScope? scope = CreateNormalizedTerm(_parent._entriesAllocator, value, out var slice);
 
-            // We are gonna try to get the reference if it exists, but we wont try to do the addition here, because to store in the
-            // dictionary we need to close the slice as we are disposing it afterwards. 
+            // RavenDB-25907: Sentinel value pattern for atomic Dictionary+Storage update.
+            // If any allocation throws, termLocation remains InvalidStorageIndex, allowing retry on next access.
             ref var termLocation = ref CollectionsMarshal.GetValueRefOrAddDefault(field.Textual, slice, out var exists);
-            if (exists == false)
+            if (exists == false || termLocation == Constants.IndexWriter.InvalidStorageIndex)
             {
-                termLocation = field.Storage.Count;
+                termLocation = Constants.IndexWriter.InvalidStorageIndex; // Mark as in-progress FIRST
+                var newIndex = field.Storage.Count;
                 field.Storage.AddByRef(new EntriesModifications(value.Length));
+                termLocation = newIndex; // Commit only after ALL allocations succeed
+
                 scope = null; // We don't want the fieldname (slice) to be returned.
             }
 
@@ -238,20 +245,24 @@ public partial class IndexWriter
 
         private void NumericInsert(IndexedField field, long lVal, double dVal)
         {
-            // We make sure we get a reference because we want the struct to be modified directly from the dictionary.
+            // RavenDB-25907: Sentinel value pattern for atomic Dictionary+Storage update.
             ref var doublesTermsLocation = ref CollectionsMarshal.GetValueRefOrAddDefault(field.Doubles, dVal, out bool fieldDoublesExist);
-            if (fieldDoublesExist == false)
+            if (fieldDoublesExist == false || doublesTermsLocation == Constants.IndexWriter.InvalidStorageIndex)
             {
-                doublesTermsLocation = field.Storage.Count;
+                doublesTermsLocation = Constants.IndexWriter.InvalidStorageIndex;
+                var newIndex = field.Storage.Count;
                 field.Storage.AddByRef(new EntriesModifications(sizeof(double)));
+                doublesTermsLocation = newIndex;
             }
 
-            // We make sure we get a reference because we want the struct to be modified directly from the dictionary.
+            // RavenDB-25907: Sentinel value pattern for atomic Dictionary+Storage update.
             ref var longsTermsLocation = ref CollectionsMarshal.GetValueRefOrAddDefault(field.Longs, lVal, out bool fieldLongExist);
-            if (fieldLongExist == false)
+            if (fieldLongExist == false || longsTermsLocation == Constants.IndexWriter.InvalidStorageIndex)
             {
-                longsTermsLocation = field.Storage.Count;
+                longsTermsLocation = Constants.IndexWriter.InvalidStorageIndex;
+                var newIndex = field.Storage.Count;
                 field.Storage.AddByRef(new EntriesModifications(sizeof(long)));
+                longsTermsLocation = newIndex;
             }
 
             ref var doublesTerm = ref field.Storage.GetAsRef(doublesTermsLocation);
@@ -278,6 +289,12 @@ public partial class IndexWriter
         }
 
         public void Write(int fieldId, ReadOnlySpan<byte> value) => Write(fieldId, null, value);
+        
+        public void WriteCompound(int fieldId, ReadOnlySpan<byte> value)
+        {
+            var field = GetField(fieldId, null);
+            ExactInsert(field, value, InserterMode.ExactInsert, forceExactInsert: true);
+        }
 
         public void WriteVector(int fieldId, string path, ReadOnlySpan<byte> value)
         {
