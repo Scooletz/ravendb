@@ -12,7 +12,10 @@ namespace Raven.Server.Utils.Stats
     public abstract class StatsScope<T, TStatsScope> : IStatsScope, IDisposable 
         where TStatsScope : StatsScope<T, TStatsScope>
     {
-        private readonly Stopwatch _sw;
+        // A stopwatch replacement that takes only 2 fields.
+        private long _start;
+        private TimeSpan _elapsed;
+
         private readonly T _stats;
         private Dictionary<string, TStatsScope> _scopes;
         protected List<KeyValuePair<string, TStatsScope>> Scopes;
@@ -20,19 +23,25 @@ namespace Raven.Server.Utils.Stats
         protected StatsScope(T stats, bool start = true)
         {
             _stats = stats;
-            _sw = new Stopwatch();
 
             if (start)
                 Start();
         }
 
-        public TimeSpan Duration => _sw.Elapsed;
+        /// <summary>
+        /// Gets the duration or sets it in a forceful way.
+        /// </summary>
+        public TimeSpan Duration
+        {
+            get => _elapsed != TimeSpan.Zero ? _elapsed : Stopwatch.GetElapsedTime(_start);
+            set => _elapsed = value;
+        }
 
         public T CurrentStats => _stats;
 
         public TStatsScope Start()
         {
-            _sw.Start();
+            _start = Stopwatch.GetTimestamp();
             return this as TStatsScope;
         }
 
@@ -61,7 +70,11 @@ namespace Raven.Server.Utils.Stats
 
         public void Dispose()
         {
-            _sw?.Stop();
+            if (_elapsed == TimeSpan.Zero)
+            {
+                // Set only if not previously set
+                _elapsed = Stopwatch.GetElapsedTime(_start);
+            }
         }
     }
 }

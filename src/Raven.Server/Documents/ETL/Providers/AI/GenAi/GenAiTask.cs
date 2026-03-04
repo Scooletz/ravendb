@@ -278,6 +278,7 @@ public sealed class GenAiTask : EtlProcess<GenAiItem, GenAiScriptResult, GenAiCo
     {
         List<Exception> exceptions = null;
 
+        double deferredAttachmentsTimeInMs = 0;
         for (int index = 0; index < tasks.Count; index++)
         {
             var task = tasks[index];
@@ -308,10 +309,22 @@ public sealed class GenAiTask : EtlProcess<GenAiItem, GenAiScriptResult, GenAiCo
             statsScope.Usage.PromptTokens += result.Usage.PromptTokens;
             statsScope.Usage.TotalTokens += result.Usage.TotalTokens;
 
+            // Max aggregation is used. The tasks are run in parallel so we pick the longest of all of them.
+            deferredAttachmentsTimeInMs = Math.Max(deferredAttachmentsTimeInMs, result.DeferredAttachmentsTimeInMs);
+
             if (Configuration.TestMode)
             {
                 item.ModelOutput.Usage = result.Usage;
                 item.ModelOutput.ConversationDocument = context.Sync.ReadForMemory(result.ConversationDocument, item.DocumentId);
+            }
+        }
+
+        if (deferredAttachmentsTimeInMs > 0)
+        {
+            using (var scope = statsScope.For(GenAiOperations.LoadToModelDeferredAttachments))
+            {
+                // Use explicit set for the duration, that overrides the scoped time measurement.
+                scope.Duration = TimeSpan.FromMilliseconds(deferredAttachmentsTimeInMs);
             }
         }
 

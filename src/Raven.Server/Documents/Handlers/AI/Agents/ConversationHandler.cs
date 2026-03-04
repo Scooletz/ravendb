@@ -559,7 +559,7 @@ internal class ConversationHandler(ServerStore server, DocumentDatabase database
         return true;
     }
 
-    public async Task<(BlittableJsonReaderObject Response, AiUsage Usage)> HandleRequest(
+    public async Task<(BlittableJsonReaderObject Response, AiUsage Usage, TimeSpan DeferredAttachmentsTime)> HandleRequest(
         DocumentsOperationContext context,
         CancellationToken token)
     {
@@ -569,12 +569,13 @@ internal class ConversationHandler(ServerStore server, DocumentDatabase database
             return default;
 
         // Resolve deferred attachments before talking to the model
-        await ResolveDeferredAttachmentsAsync(_request.Attachments, token);
+        TimeSpan deferredAttachmentsTime = await ResolveDeferredAttachmentsAsync(_request.Attachments, token);
 
-        return await TalkAsync(context, token: token);
+        (BlittableJsonReaderObject response, AiUsage usage) = await TalkAsync(context, token: token);
+        return (response, usage, deferredAttachmentsTime);
     }
 
-    public async Task<(BlittableJsonReaderObject Response, AiUsage Usage)> HandleStreamingRequest(
+    public async Task<(BlittableJsonReaderObject Response, AiUsage Usage, TimeSpan DeferredAttachmentsTime)> HandleStreamingRequest(
         DocumentsOperationContext context,
         Stream outputStream,
         string streamPropertyPath,
@@ -586,34 +587,43 @@ internal class ConversationHandler(ServerStore server, DocumentDatabase database
             return default;
 
         // Resolve deferred attachments before talking to the model
-        await ResolveDeferredAttachmentsAsync(_request.Attachments, token);
+        TimeSpan deferredAttachmentsTime = await ResolveDeferredAttachmentsAsync(_request.Attachments, token);
 
         await using var writer = new AsyncBlittableJsonTextWriter(context, outputStream);
-        return await StreamingTalkAsync(context, streamPropertyPath, async (data) =>
+        (BlittableJsonReaderObject response, AiUsage usage) = await StreamingTalkAsync(context, streamPropertyPath, async (data) =>
         {
             using LazyStringValue s = context.GetLazyString(data.Span, longLived: false);
             writer.WriteString(s);
             writer.WriteRawString("\r\n"u8);
             await writer.FlushAsync(token);
         }, token: token);
+        return (response, usage, deferredAttachmentsTime);
     }
 
-    private async Task ResolveDeferredAttachmentsAsync(List<AiAttachment> attachments, CancellationToken token)
+    private async Task<TimeSpan> ResolveDeferredAttachmentsAsync(List<AiAttachment> attachments, CancellationToken token)
     {
         if (attachments == null)
-            return;
+            return TimeSpan.Zero;
 
         var remote = database.DocumentsStorage.AttachmentsStorage.RemoteAttachmentsStorage;
 
+        Stopwatch sw = new();
         foreach (var attachment in attachments)
         {
             if (attachment.Source == AiAttachmentSource.Deferred)
             {
+                sw.Start();
+
                 // Resolve the attachment data asynchronously
                 attachment.Data = await remote.GetAttachmentDataAsBase64Async(attachment.RemoteStorageId, attachment.Data, attachment.Type, token);
+
+                sw.Stop();
+
                 attachment.Source = AiAttachmentSource.FromAttachment;
             }
         }
+
+        return sw.Elapsed;
     }
 
     private static readonly string SummarizationOutputSchema = ChatCompletionClient.GetSchemaFromSampleObject(JsonConvert.SerializeObject(new SummarizationSampleObject()));

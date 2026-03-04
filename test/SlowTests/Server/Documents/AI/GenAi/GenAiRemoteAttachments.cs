@@ -14,6 +14,7 @@ using Raven.Client.Documents.Session;
 using Raven.Client.Json;
 using Raven.Server.Documents.ETL.Providers.AI.GenAi;
 using Raven.Server.Documents.ETL.Providers.AI.GenAi.Stats;
+using Raven.Server.Documents.ETL.Stats;
 using SlowTests.Server.Documents.Attachments;
 using Tests.Infrastructure;
 using Xunit;
@@ -111,6 +112,25 @@ public class GenAiRemoteAttachments(ITestOutputHelper output) : RemoteAttachment
 
                 var hashes = (await GetHashes<Post>(store, postId)).ToList();
                 Assert.Equal(2, hashes.Count);
+
+                var etlProcess = database.EtlLoader.Processes.OfType<GenAiTask>().Single();
+                var stats = etlProcess.GetPerformanceStats()
+                    .Where(x => x.NumberOfLoadedItems > 0)
+                    .ToArray();
+
+                var etlLoad = stats[0].Details.Operations
+                    .OfType<GenAiPerformanceOperation>()
+                    .Single(x => x.Name == EtlOperations.Load);
+
+                var genAiLoadToModel = etlLoad.Operations
+                    .OfType<GenAiPerformanceOperation>()
+                    .Single(x => x.Name == GenAiOperations.LoadToModel);
+
+                var deferredAttachments = genAiLoadToModel.Operations
+                    .OfType<GenAiPerformanceOperation>()
+                    .Single(x => x.Name == GenAiOperations.LoadToModelDeferredAttachments);
+
+                Assert.True(deferredAttachments.DurationInMs > 1, "Reaching over the wire is at least 1ms");
             }
         }
     }
