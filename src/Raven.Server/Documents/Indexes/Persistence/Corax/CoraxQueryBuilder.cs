@@ -757,7 +757,7 @@ public static partial class CoraxQueryBuilder
 
             if (builderParameters.HighlightingTerms != null)
             {
-                var highlightingTerm = new CoraxHighlightingTermIndex { FieldName = fieldName, Values = (valueFirst, valueSecond) };
+                var highlightingTerm = new CoraxHighlightingTermIndex { FieldName = fieldName, Values = new Tuple<string, string>(valueFirstAsString, valueSecondAsString) };
                 builderParameters.HighlightingTerms[fieldName] = highlightingTerm;
             }
 
