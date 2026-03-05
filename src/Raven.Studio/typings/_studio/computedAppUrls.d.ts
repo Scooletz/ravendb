@@ -99,6 +99,7 @@ interface computedAppUrls {
     conflictResolution: KnockoutComputed<string>;
     revisionsBinCleaner: KnockoutComputed<string>;
     remoteAttachments: KnockoutComputed<string>;
+    tasksError: KnockoutComputed<string>;
 
     about: KnockoutComputed<string>;
     whatsNew: KnockoutComputed<string>;

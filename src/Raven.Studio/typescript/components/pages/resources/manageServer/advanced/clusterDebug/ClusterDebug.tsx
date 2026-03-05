@@ -16,8 +16,8 @@ export default function ClusterDebug() {
     const [refreshing, setRefreshing] = useState(false);
 
     const getAndMapLog = useCallback(
-        async (nodeTag: string) => {
-            const result = await manageServerService.getClusterLog(nodeTag, 0, 1);
+        async (location: databaseLocationSpecifier) => {
+            const result = await manageServerService.getClusterLog(location.nodeTag, 0, 1);
             return mapRaftDebugView(result);
         },
         [manageServerService]

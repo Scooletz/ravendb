@@ -1,4 +1,4 @@
-﻿import React, { useCallback, useEffect, useReducer, useState } from "react";
+﻿import React, { useCallback, useEffect, useMemo, useReducer, useState } from "react";
 import { useServices } from "hooks/useServices";
 import { OngoingTasksState, ongoingTasksReducer, ongoingTasksReducerInitializer } from "./partials/OngoingTasksReducer";
 import { ExternalReplicationPanel } from "./panels/ExternalReplicationPanel";
@@ -73,6 +73,7 @@ import { SnowflakeEtlPanel } from "components/pages/database/tasks/ongoingTasks/
 import { AmazonSqsEtlPanel } from "components/pages/database/tasks/ongoingTasks/panels/AmazonSqsEtlPanel";
 import { EmbeddingsGenerationPanel } from "components/pages/database/tasks/ongoingTasks/panels/EmbeddingsGenerationPanel";
 import { GenAiPanel } from "./panels/GenAiPanel";
+import { useAsync } from "react-async-hook";
 
 interface OngoingTasksPageProps {
     isAiOnly?: boolean;
@@ -81,7 +82,7 @@ interface OngoingTasksPageProps {
 export function OngoingTasksPage({ isAiOnly = false }: OngoingTasksPageProps) {
     const db = useAppSelector(databaseSelectors.activeDatabase);
 
-    const { tasksService } = useServices();
+    const { tasksService, databasesService } = useServices();
     const [tasks, dispatch] = useReducer(ongoingTasksReducer, db, ongoingTasksReducerInitializer);
 
     const { value: internalReplicationProgressEnabled, setTrue: startTrackingInternalReplicationProgress } =
@@ -93,6 +94,21 @@ export function OngoingTasksPage({ isAiOnly = false }: OngoingTasksPageProps) {
         searchText: "",
         types: [],
     });
+
+    const fetchEtlErrors = useAsync(async () => {
+        const locations = DatabaseUtils.getLocations(db);
+
+        const locationsEtlErrors = [];
+        for (const location of locations) {
+            const errors = await databasesService.getEtlErrors(db.name, location);
+
+            locationsEtlErrors.push(errors);
+        }
+
+        return locationsEtlErrors;
+    }, []);
+
+    console.log("maxym fetchEtlErrors", fetchEtlErrors.result);
 
     const upgradeLicenseLink = useRavenLink({ hash: "FLDLO4", isDocs: false });
 
@@ -229,6 +245,19 @@ export function OngoingTasksPage({ isAiOnly = false }: OngoingTasksPageProps) {
         ...snowflakeEtls,
         ...amazonSqsEtls,
     ];
+    
+    useAsync(async() => {
+        const locations = DatabaseUtils.getLocations(db);
+
+        const locationsEtlErrors = [];
+        for (const location of locations) {
+            const errors = await databasesService.getEtlErrors(db.name, location);
+            
+            locationsEtlErrors.push(errors);
+        }
+
+        return locationsEtlErrors;
+    }, []);
 
     const sinks = [...kafkaSinks, ...rabbitMqSinks];
 

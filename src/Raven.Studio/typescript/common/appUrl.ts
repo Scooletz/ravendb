@@ -125,6 +125,7 @@ class appUrl {
         remoteAttachments: ko.pureComputed(() => appUrl.forRemoteAttachments(appUrl.currentDatabase())),
         documentSchema: ko.pureComputed(() => appUrl.forDocumentSchema(appUrl.currentDatabase())),
         documentSchemaPlayground: ko.pureComputed(() => appUrl.forDocumentSchemaPlayground(appUrl.currentDatabase())),
+        tasksError: ko.pureComputed(() => appUrl.forTasksErrors(appUrl.currentDatabase())),
 
         statusStorageReport: ko.pureComputed(() => appUrl.forStatusStorageReport(appUrl.currentDatabase())),
         statusBucketsReport: ko.pureComputed(() => appUrl.forStatusBucketsReport(appUrl.currentDatabase())),
@@ -450,6 +451,10 @@ class appUrl {
     
     static forRevisionsBinCleaner(db: database | string): string {
         return "#databases/settings/revisionsBinCleaner?" + appUrl.getEncodedDbPart(db);
+    }
+    
+    static forTasksErrors(db: database): string {
+        return "#databases/tasks/tasksErrors?" + appUrl.getEncodedDbPart(db);
     }
 
     static forRemoteAttachments(db: database): string {

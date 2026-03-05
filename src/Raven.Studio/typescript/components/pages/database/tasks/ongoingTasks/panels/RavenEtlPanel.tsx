@@ -9,6 +9,7 @@ import {
     RichPanelSelect,
 } from "components/common/RichPanel";
 import {
+    BaseOngoingTaskPanelProps,
     ConnectionStringItem,
     EmptyScriptsWarning,
     ICanShowTransformationScriptPreview,
@@ -16,10 +17,10 @@ import {
     OngoingTaskName,
     OngoingTaskResponsibleNode,
     OngoingTaskStatus,
+    useTasksOperations,
 } from "../../shared/shared";
 import { useAppUrls } from "hooks/useAppUrls";
 import { OngoingTaskRavenEtlInfo } from "components/models/tasks";
-import { BaseOngoingTaskPanelProps, useTasksOperations } from "../../shared/shared";
 import { OngoingEtlTaskDistribution } from "../partials/OngoingEtlTaskDistribution";
 import Collapse from "react-bootstrap/Collapse";
 import Form from "react-bootstrap/Form";
@@ -27,6 +28,9 @@ import { databaseSelectors } from "components/common/shell/databaseSliceSelector
 import { useAppSelector } from "components/store";
 import { accessManagerSelectors } from "components/common/shell/accessManagerSliceSelectors";
 import { Icon } from "components/common/Icon";
+import Button from "react-bootstrap/esm/Button";
+import Badge from "react-bootstrap/Badge";
+import { ProgressCircle } from "components/common/ProgressCircle";
 
 type RavenEtlPanelProps = BaseOngoingTaskPanelProps<OngoingTaskRavenEtlInfo>;
 
@@ -87,6 +91,8 @@ export function RavenEtlPanel(props: RavenEtlPanelProps & ICanShowTransformation
         [data, showItemPreview]
     );
 
+    console.log("maxym data", data);
+
     return (
         <RichPanel>
             <RichPanelHeader>
@@ -125,6 +131,61 @@ export function RavenEtlPanel(props: RavenEtlPanelProps & ICanShowTransformation
                     />
                 </RichPanelActions>
             </RichPanelHeader>
+            <RichPanelDetails>
+                <RichPanelDetailItem>
+                    <Button
+                        variant="secondary"
+                        className="btn-toggle-panel rounded-pill"
+                        onClick={toggleDetails}
+                        title="Click for details"
+                    >
+                        <Icon icon={detailsVisible ? "fold" : "unfold"} margin="m-0" />
+                    </Button>
+                </RichPanelDetailItem>
+                <RichPanelDetailItem>
+                    <span>
+                        <Icon icon="ravendb-etl" />
+                        RavenDB ETL
+                    </span>
+                </RichPanelDetailItem>
+                <RichPanelDetailItem>
+                    <Icon icon="manage-connection-strings" />
+                    {data.shared.connectionStringName}
+                </RichPanelDetailItem>
+                <RichPanelDetailItem>
+                    <Icon icon="database" />
+                    {data.shared.destinationDatabase}
+                </RichPanelDetailItem>
+                <RichPanelDetailItem>
+                    <Icon icon="link" addon="arrow-up" />
+                    {data.shared.destinationUrl}
+                </RichPanelDetailItem>
+                <RichPanelDetailItem>
+                    <Icon icon="cluster" addon="link" />
+                    {data.shared.topologyDiscoveryUrls.join(", ")}
+                </RichPanelDetailItem>
+                <RichPanelDetailItem>
+                    <Icon icon="healthcheck" />
+                    <Badge bg="faded-danger" className="rounded-pill">
+                        <Icon icon="close" />
+                        {data.nodesInfo[0].status}
+                    </Badge>
+                </RichPanelDetailItem>
+
+                <RichPanelDetailItem>
+                    <Icon icon="warning" color="danger" />
+                    <div className="d-flex gap-1">
+                        <span className="text-danger">Errors</span>
+                        <b>100</b>
+                    </div>
+                </RichPanelDetailItem>
+
+                <RichPanelDetailItem className="d-flex align-items-center justify-content-center">
+                    <ProgressCircle className="d-flex pb-0 flex-row-reverse gap-2" state="running" progress={0.75}>
+                        Running
+                    </ProgressCircle>
+                </RichPanelDetailItem>
+            </RichPanelDetails>
             <Collapse in={detailsVisible}>
                 <div>
                     <Details {...props} canEdit={canEdit} />

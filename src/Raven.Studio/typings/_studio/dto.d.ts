@@ -908,7 +908,7 @@ interface TimeSeriesOperation extends Raven.Client.Documents.Operations.TimeSeri
 }
 
 type StudioTaskType = "Replication" | "PullReplicationAsHub" | "PullReplicationAsSink" | "Backup" | "Subscription" |
-    "RavenEtl" | "SqlEtl" | "SnowflakeEtl" | "OlapEtl" | "ElasticSearchEtl" | 
+    "RavenEtl" | "SqlEtl" | "SnowflakeEtl" | "OlapEtl" | "ElasticSearchEtl" |
     "KafkaQueueEtl" | "RabbitQueueEtl" | "AzureQueueStorageQueueEtl" | "AmazonSqsQueueEtl" |
     "KafkaQueueSink" | "RabbitQueueSink" | "EmbeddingsGeneration" | "GenAi";
 
@@ -1181,3 +1181,19 @@ type RemoteAttachmentsStudioConfiguration =
     Pick<Raven.Client.Documents.Attachments.RemoteAttachmentsConfiguration, "Disabled"> & {
         Destinations: Record<string, RemoteAttachmentsDestinationStudioConfiguration>;
     };
+
+interface EtlErrors {
+    ProcessName: string;
+    ProcessErrors: Raven.Server.Documents.ETL.EtlProcessError[];
+    ItemErrors: Raven.Server.Documents.ETL.EtlItemError[];
+}
+
+interface EtlProcessTransformationStats {
+    Statistics: Raven.Server.Documents.ETL.EtlProcessStatistics;
+    TransformationName: string;
+}
+
+interface EtlTaskStats {
+    Stats: EtlProcessTransformationStats[];
+    TaskName: string;
+}

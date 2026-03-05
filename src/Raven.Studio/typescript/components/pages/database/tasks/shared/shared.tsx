@@ -182,9 +182,6 @@ export function OngoingTaskActions(props: OngoingTaskActionsProps) {
     return (
         <div className="actions">
             <ButtonGroup>
-                <Button variant="secondary" onClick={toggleDetails} title="Click for details">
-                    <Icon icon={isDetailsOpen ? "fold" : "unfold"} margin="m-0" />
-                </Button>
                 {!task.shared.serverWide && (
                     <Button variant="secondary" onClick={onEdit} title="Edit task">
                         <Icon icon="edit" margin="m-0" />

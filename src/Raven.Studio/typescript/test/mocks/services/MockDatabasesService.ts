@@ -219,4 +219,12 @@ export default class MockDatabasesService extends AutoMockService<DatabasesServi
     withSchemaValidations(dto?: MockedValue<any>) {
         return this.mockResolvedValue(this.mocks.getSchemaValidation, dto, DatabasesStubs.schemaValidators());
     }
+
+    withEtlErrors(dto?: MockedValue<EtlErrors[]>) {
+        return this.mockResolvedValue(this.mocks.getEtlErrors, dto, DatabasesStubs.etlErrors());
+    }
+
+    withEtlStats(dto?: MockedValue<EtlTaskStats[]>) {
+        return this.mockResolvedValue(this.mocks.getEtlStats, dto, DatabasesStubs.etlStats());
+    }
 }

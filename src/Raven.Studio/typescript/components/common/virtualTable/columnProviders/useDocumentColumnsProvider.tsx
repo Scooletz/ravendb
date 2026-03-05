@@ -36,19 +36,19 @@ export function useDocumentColumnsProvider(props: UseDocumentColumnsProviderProp
 
         if (hasCheckbox) {
             columnsDefs.push(columnCheckbox as ColumnDef<document>);
-            initialColumnVisibility[columnCheckbox.header.toString()] = true;
+            initialColumnVisibility[columnCheckbox.id] = true;
             availableWidth -= columnCheckbox.size;
         }
 
         if (hasPreview) {
             columnsDefs.push(columnPreview as ColumnDef<document>);
-            initialColumnVisibility[columnPreview.header.toString()] = true;
+            initialColumnVisibility[columnPreview.header as string] = true;
             availableWidth -= columnPreview.size;
         }
 
         if (hasFlags) {
             columnsDefs.push(columnDocumentFlags);
-            initialColumnVisibility[columnDocumentFlags.header.toString()] = true;
+            initialColumnVisibility[columnDocumentFlags.id] = true;
             availableWidth -= columnDocumentFlags.size ?? defaultSize;
         }
 

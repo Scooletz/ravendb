@@ -1,0 +1,28 @@
+import commandBase = require("commands/commandBase");
+import endpoints = require("endpoints");
+import database = require("models/resources/database");
+
+interface EtlErrorsArgs extends databaseLocationSpecifier {
+    name?: string[];
+}
+
+class getEtlErrorsCommand extends commandBase {
+    constructor(private db: database | string, private location: databaseLocationSpecifier, private taskNames: string[] = []) {
+        super();
+    }
+
+    execute(): JQueryPromise<EtlErrors[]> {
+        const args: EtlErrorsArgs = this.location
+        
+        if (this.taskNames.length > 0) {
+            args.name = this.taskNames;
+        }
+        
+        const url = endpoints.databases.etl.etlErrors + this.urlEncodeArgs(args);
+
+        return this.query<EtlErrors[]>(url, null, this.db, (res) => res.Results)
+            .fail((response: JQueryXHR) => this.reportError("Failed to get info about the ETL errors", response.responseText, response.statusText));
+    }
+}
+
+export = getEtlErrorsCommand;

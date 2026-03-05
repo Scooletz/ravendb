@@ -6,6 +6,8 @@ import CreateSampleData = require("components/pages/database/tasks/createSampleD
 import EditGenAiTask = require("components/pages/database/tasks/ongoingTasks/editTasks/editGenAiTask/EditGenAiTask");
 import OngoingTasksPage = require("components/pages/database/tasks/ongoingTasks/OngoingTasksPage");
 import AddNewOngoingTask = require("components/pages/database/tasks/ongoingTasks/AddNewOngoingTask");
+import separatorMenuItem = require("common/shell/menu/separatorMenuItem");
+import TasksErrorsPage = require("components/pages/database/tasks/tasksErrors/TasksErrorsPage");
 
 export = getTasksMenuItem;
 
@@ -400,6 +402,17 @@ function getTasksMenuItem(appUrls: computedAppUrls) {
                 overrideTitle: "Add New RabbitMQ Sink Task",
                 alternativeTitles: ["Create RabbitMQ Sink Task"],
             }
+        }),
+        new separatorMenuItem(),
+        new leafMenuItem({
+            route: 'databases/tasks/tasksErrors',
+            moduleId: reactUtils.bridgeToReact(TasksErrorsPage.default, "nonShardedView"),
+            shardingMode: "allShards",
+            title: 'Tasks Errors',
+            nav: true,
+            css: 'icon-ongoing-tasks',
+            dynamicHash: appUrls.tasksError,
+            // requiredAccess: "DatabaseReadWrite"
         }),
     ];
 
