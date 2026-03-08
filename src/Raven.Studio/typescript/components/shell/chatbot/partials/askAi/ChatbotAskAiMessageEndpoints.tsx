@@ -12,7 +12,7 @@ import { CustomDropdownToggle } from "components/common/Dropdown";
 import { useAsyncCallback } from "react-async-hook";
 import messagePublisher from "common/messagePublisher";
 import Badge from "react-bootstrap/Badge";
-import { chatbotConstants } from "components/shell/chatbot/utils/chatbotConstants";
+import { chatbotConstants, ChatbotEndpointEntry } from "components/shell/chatbot/utils/chatbotConstants";
 import "./ChatbotAskAiMessageEndpoints.scss";
 import genUtils from "common/generalUtils";
 import { ConditionalPopover } from "components/common/ConditionalPopover";
@@ -43,18 +43,6 @@ export default function ChatbotAskAiMessageEndpoints({
     const isDataSubmissionEnabled = useAppSelector(chatbotSelectors.isDataSubmissionEnabled);
 
     const hasOnlyDeniedEndpoints = endpoints.map((x) => x.url).every((endpoint) => deniedEndpoints.includes(endpoint));
-
-    const isOnWhitelist = (url: string) => {
-        return chatbotConstants.whitelistRegexEndpoints.some(({ regex }) =>
-            regex.test(new URL(url, window.location.origin).pathname)
-        );
-    };
-
-    const isWithDataSubmission = (url: string) => {
-        return chatbotConstants.dataSubmissionRegexEndpoints.some(({ regex }) =>
-            regex.test(new URL(url, window.location.origin).pathname)
-        );
-    };
 
     const asyncHandleAllow = useAsyncCallback(
         async () => {
@@ -102,6 +90,22 @@ export default function ChatbotAskAiMessageEndpoints({
                         ...baseResult,
                         status: "error",
                         resultText: defaultErrorMessage,
+                    };
+                }
+
+                const exposedFieldsConfig = getExposedFieldsConfig(url);
+                if (exposedFieldsConfig) {
+                    const jsonResult = await tryCatch(() => response.data.json());
+                    if (jsonResult.status === "error") {
+                        return { ...baseResult, status: "error", resultText: "Failed to parse the response" };
+                    }
+
+                    const exposedFieldsResult = createExposedFieldsResult(jsonResult.data, exposedFieldsConfig);
+
+                    return {
+                        ...baseResult,
+                        status: "success",
+                        ...exposedFieldsResult,
                     };
                 }
 
@@ -280,11 +284,11 @@ export default function ChatbotAskAiMessageEndpoints({
                 Retrieve endpoints
             </div>
             <div className="p-2">
-                <div className="vstack gap-1">
+                <ul className="tree">
                     {endpoints.map((endpoint) => (
                         <EndpointItem key={endpoint.url} endpoint={endpoint} />
                     ))}
-                </div>
+                </ul>
                 {userActionState === "waiting" ? (
                     <div className="retrieve-endpoints-actions hstack justify-content-between mt-2">
                         <Button
@@ -366,43 +370,54 @@ function EndpointItem({ endpoint }: EndpointItemProps) {
         regex.test(urlObject.pathname)
     );
 
-    return (
-        <div>
-            <div className="hstack w-100 gap-1">
-                <span className="text-nowrap">
-                    <EndpointItemStateIcon state={endpoint.state} />
-                    GET
-                </span>
-                <a href={endpoint.url} target="_blank" className="text-truncate no-decor" title={endpoint.url}>
-                    {urlWithParamToDisplay ? urlObject.pathname : endpoint.url}
-                </a>
-                {endpoint.resultSizeInBytes != null && (
-                    <ConditionalPopover
-                        conditions={{
-                            isActive: endpoint.isRequestTooLarge,
-                            message: "Request too large to process",
-                        }}
-                        className="ms-auto"
-                    >
-                        <Badge className="text-nowrap" bg={endpoint.isRequestTooLarge ? "danger" : "secondary"} pill>
-                            {genUtils.formatBytesToSize(endpoint.resultSizeInBytes)}
-                        </Badge>
-                    </ConditionalPopover>
-                )}
-            </div>
-            {urlWithParamToDisplay?.paramToDisplay && (
+    const paramIds = urlWithParamToDisplay?.paramToDisplay
+        ? urlObject.searchParams.getAll(urlWithParamToDisplay.paramToDisplay)
+        : [];
+    const hasParams = paramIds.length > 0;
+
+    const content = (
+        <div className="hstack w-100 gap-1 d-inline-flex align-items-center">
+            <span className="text-nowrap">
+                <EndpointItemStateIcon state={endpoint.state} />
+                <span className="font-monospace fw-semibold font-size-12">GET</span>
+            </span>
+            <a href={endpoint.url} target="_blank" className="text-truncate no-decor" title={endpoint.url}>
+                {urlWithParamToDisplay ? urlObject.pathname : endpoint.url}
+            </a>
+            {endpoint.resultSizeInBytes != null && (
+                <ConditionalPopover
+                    conditions={{
+                        isActive: endpoint.isRequestTooLarge,
+                        message: "Request too large to process",
+                    }}
+                    className="ms-auto"
+                >
+                    <Badge className="text-nowrap" bg={endpoint.isRequestTooLarge ? "danger" : "secondary"} pill>
+                        {genUtils.formatBytesToSize(endpoint.resultSizeInBytes)}
+                    </Badge>
+                </ConditionalPopover>
+            )}
+        </div>
+    );
+
+    if (hasParams) {
+        return (
+            <li className="branch">
+                {content}
                 <ul>
-                    {urlObject.searchParams.getAll(urlWithParamToDisplay.paramToDisplay).map((id) => (
-                        <li key={id}>
+                    {paramIds.map((id) => (
+                        <li key={id} className="leaf">
                             <span className="d-block text-truncate" title={id}>
                                 {id}
                             </span>
                         </li>
                     ))}
                 </ul>
-            )}
-        </div>
-    );
+            </li>
+        );
+    }
+
+    return <li className="leaf">{content}</li>;
 }
 
 function EndpointItemStateIcon({ state }: Pick<ChatbotEndpointItem, "state">) {
@@ -418,6 +433,56 @@ function EndpointItemStateIcon({ state }: Pick<ChatbotEndpointItem, "state">) {
             return <Icon icon="cancel" />;
         case "waiting":
         default:
-            return <span className="me-1">-</span>;
+            return null;
     }
+}
+
+function isOnWhitelist(url: string) {
+    return chatbotConstants.whitelistRegexEndpoints.some(({ regex }) =>
+        regex.test(new URL(url, window.location.origin).pathname)
+    );
+}
+
+function isWithDataSubmission(url: string) {
+    return chatbotConstants.dataSubmissionRegexEndpoints.some(({ regex }) =>
+        regex.test(new URL(url, window.location.origin).pathname)
+    );
+}
+
+function getExposedFieldsConfig(url: string): ChatbotEndpointEntry["exposedFieldsConfig"] {
+    const endpoint = chatbotConstants.exposingFieldsRegexEndpoints.find(({ regex }) =>
+        regex.test(new URL(url, window.location.origin).pathname)
+    );
+
+    return endpoint?.exposedFieldsConfig;
+}
+
+function createExposedFieldsResult(
+    jsonData: any,
+    exposedFieldsConfig: ChatbotEndpointEntry["exposedFieldsConfig"]
+): Pick<EndpointResult, "resultText" | "resultSizeInBytes"> {
+    const filteredData: Record<string, any> = {};
+
+    if (exposedFieldsConfig.resultShape === "singleObject") {
+        for (const field of exposedFieldsConfig.fields) {
+            if (field in jsonData) {
+                filteredData[field] = jsonData[field];
+            }
+        }
+    } else if (exposedFieldsConfig.resultShape === "resultsArray") {
+        filteredData.Results = jsonData.Results.map((item: any) => {
+            const filteredItem: Record<string, any> = {};
+            for (const field of exposedFieldsConfig.fields) {
+                if (field in item) {
+                    filteredItem[field] = item[field];
+                }
+            }
+            return filteredItem;
+        });
+    }
+
+    const resultText = JSON.stringify(filteredData);
+    const resultSizeInBytes = new Blob([resultText]).size;
+
+    return { resultText, resultSizeInBytes };
 }

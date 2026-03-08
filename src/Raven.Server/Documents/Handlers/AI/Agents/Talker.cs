@@ -28,6 +28,8 @@ internal class Talker(ConversationHandler handler, JsonOperationContext context,
         _tools = ConversationDocument.GenerateTools(handler, context, configuration);
 
         Client = handler.CreateClient();
+
+        _tools = Client.GenerateTools(context, configuration, handler._persistedAttachmentsNames);
     }
 
     public HttpRequestMessage CreateCompletionRequest(List<AiAttachment> attachments)

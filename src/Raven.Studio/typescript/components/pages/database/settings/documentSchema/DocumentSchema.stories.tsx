@@ -1,4 +1,4 @@
-import { databaseAccessArgType, withBootstrap5, withStorybookContexts } from "test/storybookTestUtils";
+import { withBootstrap5, withStorybookContexts } from "test/storybookTestUtils";
 import { Meta, StoryObj } from "@storybook/react-webpack5";
 import DocumentSchema from "components/pages/database/settings/documentSchema/DocumentSchema";
 import { mockStore } from "test/mocks/store/MockStore";
@@ -9,9 +9,6 @@ export default {
     title: "Pages/Settings/Document Schema",
     component: DocumentSchema,
     decorators: [withStorybookContexts, withBootstrap5],
-    argTypes: {
-        databaseAccess: databaseAccessArgType,
-    },
     parameters: {
         design: {
             type: "figma",
@@ -19,26 +16,27 @@ export default {
         },
     },
     args: {
-        databaseAccess: "DatabaseAdmin",
+        hasLicense: true,
     },
 } satisfies Meta;
 
 interface DefaultDocumentSchemaArgs {
-    databaseAccess: databaseAccessLevel;
+    hasLicense: boolean;
 }
 
 export const DefaultDocumentSchema: StoryObj<DefaultDocumentSchemaArgs> = {
     name: "Document Schema",
     render: (args) => {
-        const { databases, accessManager, collectionsTracker } = mockStore;
+        const { databases, accessManager, collectionsTracker, license } = mockStore;
         const { databasesService } = mockServices;
 
         const db = databases.withActiveDatabase_NonSharded_SingleNode();
         collectionsTracker.with_Collections();
-        databasesService.withSchemaValidations();
-        accessManager.with_databaseAccess({
-            [db.name]: args.databaseAccess,
+        license.with_License({
+            HasSchemaValidation: args.hasLicense,
         });
+        databasesService.withSchemaValidations();
+        accessManager.with_securityClearance("ClusterAdmin");
 
         return <DocumentSchema />;
     },
@@ -46,11 +44,14 @@ export const DefaultDocumentSchema: StoryObj<DefaultDocumentSchemaArgs> = {
 
 export const DefaultDocumentSchemaPlayground: StoryObj<DefaultDocumentSchemaArgs> = {
     name: "Document Schema Playground",
-    render: () => {
-        const { databases, accessManager, collectionsTracker } = mockStore;
+    render: (args) => {
+        const { databases, accessManager, collectionsTracker, license } = mockStore;
 
         const db = databases.withActiveDatabase_NonSharded_SingleNode();
         collectionsTracker.with_Collections();
+        license.with_License({
+            HasSchemaValidation: args.hasLicense,
+        });
         accessManager.with_databaseAccess({
             [db.name]: "DatabaseAdmin",
         });

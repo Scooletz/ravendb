@@ -213,13 +213,13 @@ public class RavenDB_24887_3(ITestOutputHelper output) : RavenTestBase(output)
 
         var chat = store.AI.Conversation(userAgent0Id, "chats/",
             new AiConversationCreationOptions().AddParameter("userId", "Users/1"));
-        chat.Handle<ChangeUserNameSampleRequest>("user-info-agent-1/user-info-agent-2/ChangeUserName", async (r) =>
+        chat.Handle<ChangeUserNameSampleRequest, ActionToolResult>("user-info-agent-1/user-info-agent-2/ChangeUserName", async (r) =>
         {
             var res = (await ChangeUserNameAsync(store, r)) as ActionToolResult;
             // Console.WriteLine(res.Answer);
             return res;
         });
-        chat.Handle<RateToolSampleRequest>("user-info-agent-1/user-info-agent-2/RateMovie", async (r) =>
+        chat.Handle<RateToolSampleRequest, ActionToolResult>("user-info-agent-1/user-info-agent-2/RateMovie", async (r) =>
         {
             var res = await RateMovieAsync(store, "Users/1", r) as ActionToolResult;
             // Console.WriteLine(res.Answer);
@@ -288,19 +288,19 @@ public class RavenDB_24887_3(ITestOutputHelper output) : RavenTestBase(output)
 
         var chat = store.AI.Conversation(userAgent0Id, "chats/",
             new AiConversationCreationOptions().AddParameter("userId", "Users/1"));
-        chat.Handle<ChangeUserNameSampleRequest>(changeUserNameActionName, async (r) =>
+        chat.Handle<ChangeUserNameSampleRequest, ActionToolResult>(changeUserNameActionName, async (r) =>
         {
             var res = (await ChangeUserNameAsync(store, r)) as ActionToolResult;
             // Console.WriteLine(res.Answer);
             return res;
         });
-        chat.Handle<RateToolSampleRequest>(rateMovieActionName, async (r) =>
+        chat.Handle<RateToolSampleRequest, ActionToolResult>(rateMovieActionName, async (r) =>
         {
             var res = await RateMovieAsync(store, "Users/1", r) as ActionToolResult;
             // Console.WriteLine(res.Answer);
             return res;
         });
-        chat.Handle<AddMovieToWatchedListSampleRequest>(addMovieToListActionName, async (r) =>
+        chat.Handle<AddMovieToWatchedListSampleRequest, ActionToolResult>(addMovieToListActionName, async (r) =>
         {
             var res = await AddMovieAsync(store, "Users/1", r) as ActionToolResult;
             return res;
@@ -739,13 +739,13 @@ public class RavenDB_24887_3(ITestOutputHelper output) : RavenTestBase(output)
 
         var chat = store.AI.Conversation(userAgent1Id, "chats/",
             new AiConversationCreationOptions().AddParameter("userId", "Users/1"));
-        chat.Handle<ChangeUserNameSampleRequest>("user-info-agent-2/user-info-agent-3/ChangeUserName", async (r) =>
+        chat.Handle<ChangeUserNameSampleRequest, ActionToolResult>("user-info-agent-2/user-info-agent-3/ChangeUserName", async (r) =>
         {
             var res = (await ChangeUserNameAsync(store, r)) as ActionToolResult;
             // Console.WriteLine(res.Answer);
             return res;
         });
-        chat.Handle<RateToolSampleRequest>("user-info-agent-2/user-info-agent-3/RateMovie", async (r) =>
+        chat.Handle<RateToolSampleRequest, ActionToolResult>("user-info-agent-2/user-info-agent-3/RateMovie", async (r) =>
         {
             var res = await RateMovieAsync(store, "Users/1", r) as ActionToolResult;
             // Console.WriteLine(res.Answer);
@@ -769,7 +769,7 @@ public class RavenDB_24887_3(ITestOutputHelper output) : RavenTestBase(output)
     }
 
 
-    private static async Task<object> ChangeUserNameAsync(IDocumentStore store, ChangeUserNameSampleRequest req)
+    private static async Task<ActionToolResult> ChangeUserNameAsync(IDocumentStore store, ChangeUserNameSampleRequest req)
     {
         using (var session = store.OpenAsyncSession())
         {

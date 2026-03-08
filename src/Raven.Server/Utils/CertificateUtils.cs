@@ -408,12 +408,14 @@ namespace Raven.Server.Utils
                 rng.GetBytes(serialNumberBytes);
             }
 
+            serialNumberBytes[0] &= 0x7F; // Force positive number, preventing the '00' padding
+
+            log?.AppendLine($"serialNumber bytes generated.");
+
             if (issuerCertBytes is { Length: > 0 })
             {
                 request.CertificateExtensions.Add(new X509Extension(new Oid(Constants.Certificates.ServerCertExtensionOid), issuerCertBytes, false));
             }
-
-            log?.AppendLine($"serialNumber bytes generated.");
 
             // Create the signature generator.
             // This is the correct way to pass the private key for signing in older .NET versions.
@@ -494,7 +496,7 @@ namespace Raven.Server.Utils
 
             // Create the self-signed certificate.
             // The CreateSelfSigned method automatically adds AuthorityKeyIdentifier and SubjectKeyIdentifier.
-            var notBefore = DateTimeOffset.UtcNow.Date;
+            var notBefore = DateTimeOffset.UtcNow.Date.AddDays(-7);
             var notAfter = notBefore.AddYears(2);
             var cert = request.CreateSelfSigned(notBefore, notAfter);
             log?.AppendLine($"Certificate created. NotBefore: {cert.NotBefore}, NotAfter: {cert.NotAfter}");

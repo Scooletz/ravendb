@@ -10,7 +10,6 @@ using Raven.Client.Documents.Operations.AI;
 using Raven.Client.Documents.Operations.AI.Agents;
 using Raven.Client.Documents.Operations.ConnectionStrings;
 using Raven.Client.Exceptions;
-using Raven.Client.Exceptions.Documents;
 using Raven.Client.Extensions;
 using Tests.Infrastructure;
 using Xunit;
@@ -41,7 +40,7 @@ public class AiAgentErrors : RavenTestBase
     }
 
     [RavenTheory(RavenTestCategory.Ai)]
-    [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi, DatabaseMode = RavenDatabaseMode.Single)]
+    [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi | RavenAiIntegration.Google, DatabaseMode = RavenDatabaseMode.Single)]
     public async Task BadParameters(Options options, GenAiConfiguration config)
     {
         const string agentParametersSampleObject = "{\"name\": [\"the name you search by\"]}"; // valid parameter: "{\"name\": \"the name you search by\"}" (not array)
@@ -79,7 +78,7 @@ public class AiAgentErrors : RavenTestBase
     }
 
     [RavenTheory(RavenTestCategory.Ai)]
-    [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi, DatabaseMode = RavenDatabaseMode.Single)]
+    [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi | RavenAiIntegration.Google, DatabaseMode = RavenDatabaseMode.Single)]
     public async Task BadQuery(Options options, GenAiConfiguration config)
     {
         using var store = GetDocumentStore(options);
@@ -110,7 +109,7 @@ public class AiAgentErrors : RavenTestBase
     }
 
     [RavenTheory(RavenTestCategory.Ai)]
-    [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi, DatabaseMode = RavenDatabaseMode.Single)]
+    [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi | RavenAiIntegration.Google, DatabaseMode = RavenDatabaseMode.Single)]
     public async Task BadIndexQuery(Options options, GenAiConfiguration config)
     {
         using var store = GetDocumentStore(options);
@@ -163,12 +162,23 @@ public class AiAgentErrors : RavenTestBase
     }
 
     [RavenTheory(RavenTestCategory.Ai)]
-    [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi, DatabaseMode = RavenDatabaseMode.Single)]
+    [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi | RavenAiIntegration.Google, DatabaseMode = RavenDatabaseMode.Single)]
     public async Task BadApiKey(Options options, GenAiConfiguration config)
     {
         using var store = GetDocumentStore(options);
 
-        config.Connection.OpenAiSettings.ApiKey = "xyz"; // wrong api key
+        if (config.Connection.OpenAiSettings != null)
+        {
+            config.Connection.OpenAiSettings.ApiKey = "xyz"; // wrong api key
+        }
+        else if (config.Connection.GoogleSettings != null)
+        {
+            config.Connection.GoogleSettings.ApiKey = "xyz"; // wrong api key
+        }
+        else
+        {
+            throw new InvalidOperationException("Unknown provider");
+        }
 
         await store.Maintenance.SendAsync(new PutConnectionStringOperation<AiConnectionString>(config.Connection));
 
@@ -199,12 +209,26 @@ public class AiAgentErrors : RavenTestBase
     }
 
     [RavenTheory(RavenTestCategory.Ai)]
-    [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi, DatabaseMode = RavenDatabaseMode.Single)]
+    [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi | RavenAiIntegration.Google, DatabaseMode = RavenDatabaseMode.Single)]
     public async Task BadModel(Options options, GenAiConfiguration config)
     {
         using var store = GetDocumentStore(options);
 
-        config.Connection.OpenAiSettings.Model += "xyz"; // wrong model
+        var model = string.Empty;
+        if (config.Connection.OpenAiSettings != null)
+        {
+            config.Connection.OpenAiSettings.Model += "xyz"; // wrong model
+            model = config.Connection.OpenAiSettings.Model;
+        }
+        else if (config.Connection.GoogleSettings != null)
+        {
+            config.Connection.GoogleSettings.Model += "xyz";
+            model = config.Connection.GoogleSettings.Model;
+        }
+        else
+        {
+            throw new InvalidOperationException("Unknown provider");
+        }
 
         await store.Maintenance.SendAsync(new PutConnectionStringOperation<AiConnectionString>(config.Connection));
 
@@ -240,16 +264,29 @@ public class AiAgentErrors : RavenTestBase
         // Raven.Client.Exceptions.RavenException: Raven.Server.Documents.AI.UnsuccessfulRequestException: The model `gpt-4oxyz` does not exist or you do not have access to it
         var e = await Assert.ThrowsAsync<AiException>(() => chat.RunAsync<CustomerOutputSchema>(CancellationToken.None));
         Assert.Contains($"The model `{config.Connection.OpenAiSettings.Model}` does not exist or you do not have access to it", e.Message);
+
     }
 
     [RavenTheory(RavenTestCategory.Ai)]
-    [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi, DatabaseMode = RavenDatabaseMode.Single)]
+    [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi | RavenAiIntegration.Google, DatabaseMode = RavenDatabaseMode.Single)]
     public async Task WrongUrl(Options options, GenAiConfiguration config)
     {
         using var store = GetDocumentStore(options);
 
-        config.Connection.OpenAiSettings.ApiKey = "abc";
-        config.Connection.OpenAiSettings.Endpoint = "https://google.com/v5"; // wrong url
+        if (config.Connection.OpenAiSettings != null)
+        {
+            config.Connection.OpenAiSettings.ApiKey = "abc";
+            config.Connection.OpenAiSettings.Endpoint = "https://google.com/v5"; // wrong url
+        }
+        else if (config.Connection.GoogleSettings != null)
+        {
+            config.Connection.GoogleSettings.ApiKey = "abc";
+            config.Connection.GoogleSettings.Endpoint = "https://google.com/v5"; // wrong url
+        }
+        else
+        {
+            throw new InvalidOperationException("Unknown provider");
+        }
 
         await store.Maintenance.SendAsync(new PutConnectionStringOperation<AiConnectionString>(config.Connection));
 
@@ -317,7 +354,7 @@ public class AiAgentErrors : RavenTestBase
     }
 
     [RavenTheory(RavenTestCategory.Ai)]
-    [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi, DatabaseMode = RavenDatabaseMode.Single)]
+    [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi | RavenAiIntegration.Google, DatabaseMode = RavenDatabaseMode.Single)]
     public async Task RefusedChat(Options options, GenAiConfiguration config)
     {
         using var store = GetDocumentStore(options);
@@ -370,7 +407,7 @@ public class AiAgentErrors : RavenTestBase
             "chats/",
             creationOptions: null);
 
-        chat.SetUserPrompt("Can you answer Aviv questions?");
+        chat.SetUserPrompt("Can you answer Aviv's questions?");
         var r = await chat.RunAsync<QuestionOutputSchema>(CancellationToken.None);
 
         var aviv = r.Answer;
@@ -378,7 +415,7 @@ public class AiAgentErrors : RavenTestBase
         Assert.NotNull(aviv.Answer);
         Assert.False(aviv.RefusedToAnswer, aviv.ToString());
 
-        chat.SetUserPrompt("Can you answer Karmel questions?");
+        chat.SetUserPrompt("Can you answer Karmel's questions?");
         r = await chat.RunAsync<QuestionOutputSchema>(CancellationToken.None);
 
         var karmel = r.Answer;
@@ -386,7 +423,7 @@ public class AiAgentErrors : RavenTestBase
         Assert.NotNull(karmel.Answer);
         Assert.False(karmel.RefusedToAnswer, karmel.ToString());
 
-        chat.SetUserPrompt("Can you answer Shahar questions?");
+        chat.SetUserPrompt("Can you answer Shahar's questions?");
         r = await chat.RunAsync<QuestionOutputSchema>(CancellationToken.None);
 
         var shahar = r.Answer;

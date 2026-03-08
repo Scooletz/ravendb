@@ -1,10 +1,12 @@
 ﻿using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using FastTests;
 using Newtonsoft.Json;
 using Raven.Client.Documents.Operations.AI;
 using Raven.Client.Documents.Operations.ConnectionStrings;
+using Raven.Server.Documents;
 using Tests.Infrastructure;
 using Xunit;
 using Xunit.Abstractions;
@@ -19,7 +21,7 @@ namespace SlowTests.Server.Documents.AI.GenAi.Issues
         public record ImageDescription(string Description, bool SafeForWork, string[] Tags);
 
         private const string NonEmptyAnswerHint =
-            " ;Always provide a valid structured response matching the schema (if you have no answer or an empty answer - please return default values instead)";
+            " ;Always provide a valid structured response matching the schema do not return an empty answer";
 
         private const string FormatScript = @"
 ai.genContext({})
@@ -91,7 +93,7 @@ ai.genContext({})
             Assert.True(await etl.WaitAsync(TimeSpan.FromSeconds(Debugger.IsAttached ? 1200 : 30)));
         
             var db = await Server.ServerStore.DatabasesLandlord.TryGetOrCreateResourceStore(store.Database);
-            Assert.False(ValidateErrorNotification(db, string.Empty));
+            Assert.False(ValidateErrorNotification(db, string.Empty), PrintNotificationErrors(db));
             using (var session = store.OpenAsyncSession())
             {
                 var item1 = await session.LoadAsync<Item>(FirstItemId);
@@ -185,7 +187,11 @@ ai.genContext({})
             Assert.False(await etl.WaitAsync(TimeSpan.FromSeconds(Debugger.IsAttached ? 1200 : 30)));
 
             var db = await Server.ServerStore.DatabasesLandlord.TryGetOrCreateResourceStore(store.Database);
-            Assert.True(ValidateErrorNotification(db, "You uploaded an unsupported image."));
+            if (config.Connection.OpenAiSettings != null)
+                Assert.True(ValidateErrorNotification(db, "You uploaded an unsupported image."));
+
+            if (config.Connection.GoogleSettings != null)
+                Assert.True(ValidateErrorNotification(db, "Unable to process input image"));
         }
 
         private static Stream GetEmbeddedImgStream(string format)
@@ -199,6 +205,22 @@ ai.genContext({})
                                                 "Check Build Action = Embedded Resource and the path/casing.");
 
             return stream;
+        }
+
+        public static string PrintNotificationErrors(DocumentDatabase db)
+        {
+            using (db.NotificationCenter.GetStored(out var actions))
+            {
+                var jsonAlerts = actions.ToList();
+                if (jsonAlerts.Count == 0)
+                    return null;
+
+                var fullNotificationsJson = string.Join(
+                    Environment.NewLine,
+                    jsonAlerts.Select(a => a.Json?.ToString() ?? string.Empty));
+
+                return fullNotificationsJson;
+            }
         }
 
         private static byte[] GetEmbeddedImgBytes(string format)

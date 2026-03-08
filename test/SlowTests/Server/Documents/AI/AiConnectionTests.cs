@@ -37,7 +37,7 @@ namespace SlowTests.Server.Documents.AI
             }
         }
 
-        [RavenTheory(RavenTestCategory.Ai)]
+        [RavenMultiplatformTheory(RavenTestCategory.Ai, RavenArchitecture.AllX64)]
         [ClassData(typeof(IntegrationDataType<Embeddings>))]
         public void CanConnectEmbeddings(RavenAiIntegration integration)
         {
@@ -50,7 +50,7 @@ namespace SlowTests.Server.Documents.AI
         }
 
         [RavenTheory(RavenTestCategory.Ai)]
-        [RavenGenAiData(IntegrationType = RavenAiIntegration.AzureOpenAI | RavenAiIntegration.OpenAi, DatabaseMode = RavenDatabaseMode.Single)]
+        [RavenGenAiData(IntegrationType = RavenAiIntegration.AzureOpenAI | RavenAiIntegration.OpenAi | RavenAiIntegration.vLLM | RavenAiIntegration.Ollama, DatabaseMode = RavenDatabaseMode.Single)]
         public void CanTestAiChatConnectionString(Options options, GenAiConfiguration configuration)
         {
             using (var store = GetDocumentStore())
@@ -62,7 +62,7 @@ namespace SlowTests.Server.Documents.AI
             }
         }
 
-        [RavenTheory(RavenTestCategory.Ai)]
+        [RavenMultiplatformTheory(RavenTestCategory.Ai, RavenArchitecture.AllX64)]
         [RavenAiEmbeddingsData(IntegrationType = RavenAiIntegration.All, DatabaseMode = RavenDatabaseMode.Single)]
         public void CanTestAiEmbeddingsConnectionString(Options options, EmbeddingsGenerationConfiguration configuration)
         {

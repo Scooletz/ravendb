@@ -345,6 +345,7 @@ class shell extends viewModelBase {
             // eslint-disable-next-line @typescript-eslint/no-unused-vars
             .done(
                 (
+                    // eslint-disable-next-line @typescript-eslint/no-unused-vars
                     [license]: [LicenseStatus],
                     // eslint-disable-next-line @typescript-eslint/no-unused-vars
                     [topology]: [Raven.Server.NotificationCenter.Notifications.Server.ClusterTopologyChanged],
@@ -384,30 +385,21 @@ class shell extends viewModelBase {
 
                     this.connectToRavenServer();
 
-                    // "http"
-                    if (location.protocol === "http:") {
+                    if (!certificate) {
                         this.accessManager.securityClearance("ClusterAdmin");
                         this.accessManager.secureServer(false);
                     } else {
-                        // "https"
-                        if (certificate) {
-                            this.accessManager.securityClearance(certificate.SecurityClearance);
-                            accessManager.clientCertificateThumbprint(certificate.Thumbprint);
+                        this.accessManager.securityClearance(certificate.SecurityClearance);
+                        accessManager.clientCertificateThumbprint(certificate.Thumbprint);
 
-                            const databasesAccess: dictionary<databaseAccessLevel> = {};
-                            for (const key in certificate.Permissions) {
-                                const access = certificate.Permissions[key];
-                                databasesAccess[`${key}`] = `Database${access}` as databaseAccessLevel;
-                            }
-                            accessManager.databasesAccess = databasesAccess;
-                            storeCompat.globalDispatch(
-                                accessManagerSlice.accessManagerActions.onDatabaseAccessLoaded(databasesAccess)
-                            );
-                            this.accessManager.secureServer(true);
-                        } else {
-                            this.accessManager.securityClearance("ValidUser");
-                            this.accessManager.secureServer(false);
+                        const databasesAccess: dictionary<databaseAccessLevel> = {};
+                        for (const key in certificate.Permissions) {
+                            const access = certificate.Permissions[key];
+                            databasesAccess[`${key}`] = `Database${access}` as databaseAccessLevel;
                         }
+                        accessManager.databasesAccess = databasesAccess;
+                        storeCompat.globalDispatch(accessManagerSlice.accessManagerActions.onDatabaseAccessLoaded(databasesAccess));
+                        this.accessManager.secureServer(true);
                     }
                 }
             )

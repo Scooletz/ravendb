@@ -33,9 +33,13 @@ import useConfirm from "components/common/ConfirmDialog";
 import { RemoteAttachmentsInfoHub } from "components/pages/database/settings/remoteAttachments/partials/RemoteAttachmentsInfoHub";
 import { useViewSheet, ViewSheet } from "components/common/splitView/ViewSheet";
 import { EmptySet } from "components/common/EmptySet";
+import { licenseSelectors } from "components/common/shell/licenseSlice";
+import { ConditionalPopover } from "components/common/ConditionalPopover";
+import FeatureNotAvailableInYourLicensePopoverBody from "components/common/FeatureNotAvailableInYourLicensePopoverBody";
+import { getDatabaseAccessRequiredMessage } from "components/utils/accessUtils";
+import classNames from "classnames";
 
 export default function RemoteAttachments() {
-    // TODO: Add license restrictions. I cant do that at the moment because the key is missing in `LicenseStatus`
     const { reportEvent } = useEventsCollector();
     const databaseName = useAppSelector(databaseSelectors.activeDatabaseName);
     const hasDatabaseAdminAccess = useAppSelector(accessManagerSelectors.getHasDatabaseAdminAccess)();
@@ -55,6 +59,8 @@ export default function RemoteAttachments() {
     });
 
     const { handleSubmit, formState, reset } = form;
+
+    const hasRemoteAttachments = useAppSelector(licenseSelectors.statusValue("HasRemoteAttachments"));
 
     useDirtyFlag(formState.isDirty || isAnyModified);
 
@@ -96,20 +102,41 @@ export default function RemoteAttachments() {
                 <Form onSubmit={handleSubmit(handleSave)}>
                     <Row className="gy-sm">
                         <Col>
-                            <AboutViewHeading title="Remote Attachments" icon="remote-attachment" />
-                            {hasDatabaseAdminAccess && (
+                            <AboutViewHeading
+                                title="Remote Attachments"
+                                icon="remote-attachment"
+                                licenseBadgeText={hasRemoteAttachments ? null : "Enterprise"}
+                            />
+                            <ConditionalPopover
+                                conditions={[
+                                    {
+                                        isActive: !hasRemoteAttachments,
+                                        message: <FeatureNotAvailableInYourLicensePopoverBody />,
+                                    },
+                                    {
+                                        isActive: !hasDatabaseAdminAccess,
+                                        message: getDatabaseAccessRequiredMessage("DatabaseAdmin"),
+                                    },
+                                ]}
+                            >
                                 <ButtonWithSpinner
                                     type="submit"
                                     variant="primary"
                                     className="mb-3"
-                                    disabled={!isAnyModified && !formState.isDirty}
+                                    disabled={
+                                        !hasDatabaseAdminAccess ||
+                                        !hasRemoteAttachments ||
+                                        (!isAnyModified && !formState.isDirty)
+                                    }
                                     icon="save"
                                     isSpinning={formState.isSubmitting}
                                 >
                                     Save
                                 </ButtonWithSpinner>
-                            )}
-                            <RemoteAttachmentsSettingsCard />
+                            </ConditionalPopover>
+                            <div className={hasRemoteAttachments ? "" : "item-disabled pe-none"}>
+                                <RemoteAttachmentsSettingsCard />
+                            </div>
                             <DestinationsList />
                         </Col>
                         <Col sm={12} lg={4}>
@@ -128,6 +155,7 @@ function DestinationsList() {
     const destinations = useAppSelector(remoteAttachmentsSelectors.destinations);
     const destinationsTotal = useAppSelector(remoteAttachmentsSelectors.destinationsTotal);
     const hasDatabaseAdminAccess = useAppSelector(accessManagerSelectors.getHasDatabaseAdminAccess)();
+    const hasRemoteAttachments = useAppSelector(licenseSelectors.statusValue("HasRemoteAttachments"));
 
     const deleteDestination = async (id: string) => {
         const confirmed = await confirm({
@@ -167,18 +195,24 @@ function DestinationsList() {
         <div className="mb-4">
             <HrHeader
                 right={
-                    hasDatabaseAdminAccess && (
+                    <ConditionalPopover
+                        conditions={{
+                            isActive: !hasDatabaseAdminAccess,
+                            message: getDatabaseAccessRequiredMessage("DatabaseAdmin"),
+                        }}
+                    >
                         <Button
                             size="sm"
                             onClick={() => handleOpenSheet()}
                             variant="info"
                             className="rounded-pill"
                             title="Click to define a new destination"
+                            disabled={!hasDatabaseAdminAccess}
                         >
                             <Icon icon="plus" size="sm" />
                             Add new
                         </Button>
-                    )
+                    </ConditionalPopover>
                 }
                 count={destinationsTotal}
             >
@@ -186,15 +220,17 @@ function DestinationsList() {
                 Destinations
             </HrHeader>
             {destinations.length === 0 && <EmptySet>No destinations have been defined.</EmptySet>}
-            {destinations.map((field, index) => (
-                <DestinationPanel
-                    {...field}
-                    key={index}
-                    onEdit={editDestination}
-                    onDelete={deleteDestination}
-                    onToggle={toggleDestination}
-                />
-            ))}
+            <div className={classNames(!hasRemoteAttachments && "item-disabled pe-none")}>
+                {destinations.map((field, index) => (
+                    <DestinationPanel
+                        {...field}
+                        key={index}
+                        onEdit={editDestination}
+                        onDelete={deleteDestination}
+                        onToggle={toggleDestination}
+                    />
+                ))}
+            </div>
         </div>
     );
 }

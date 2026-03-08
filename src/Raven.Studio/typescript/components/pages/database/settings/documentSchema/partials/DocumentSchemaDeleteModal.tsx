@@ -55,19 +55,19 @@ export default function DocumentSchemaDeleteModal({
     const isBulk = namesToDelete.length > 1;
 
     const onDelete = async () => {
+        const next = validatorsAll.filter((v) => !namesToDelete.includes(v.Name));
+        await asyncSaveValidators.execute(next);
         if (isBulk) {
             dispatch(documentSchemaActions.selectedValidatorsDeleted());
         } else if (namesToDelete.length === 1) {
             dispatch(documentSchemaActions.validatorDeleted(namesToDelete[0]));
         }
-        const next = validatorsAll.filter((v) => !namesToDelete.includes(v.Name));
-        await asyncSaveValidators.execute(next);
         onHide();
     };
 
     return (
-        <Modal show centered contentClassName="modal-border bulge-danger" size="lg">
-            <Modal.Header className="vstack gap-3" onCloseClick={onHide}>
+        <Modal show centered contentClassName="modal-border bulge-danger">
+            <Modal.Header className="vstack gap-3 pb-0" onCloseClick={onHide}>
                 <div className="text-center">
                     <Icon icon="warning" color="danger" margin="m-0" className="fs-1" />
                 </div>
@@ -88,12 +88,13 @@ export default function DocumentSchemaDeleteModal({
                     {isBulk ? (
                         <>
                             This action will permanently delete the JSON schemas for the selected collections. This
-                            cannot be undone. Are you sure you want to proceed?
+                            cannot be undone.
+                            <br /> <p className="mt-3 mb-0">Are you sure you want to proceed?</p>
                         </>
                     ) : (
                         <>
                             This action will permanently delete the JSON schema for the {namesToDelete[0]} collection.
-                            This cannot be undone. Are you sure you want to proceed?
+                            This cannot be undone. <br /> <p className="mt-3 mb-0">Are you sure you want to proceed?</p>
                         </>
                     )}
                 </div>

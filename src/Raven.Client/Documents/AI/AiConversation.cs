@@ -10,6 +10,8 @@ using Raven.Client.Documents.Operations.AI.Agents;
 using Raven.Client.Exceptions;
 using Raven.Client.Util;
 using Sparrow.Json;
+using System.IO;
+using Raven.Client.Documents.Commands.Batches;
 
 namespace Raven.Client.Documents.AI;
 
@@ -21,10 +23,12 @@ internal class AiConversation : IAiConversationOperations
 
     private string _conversationId;
     private List<AiAgentActionRequest> _actionRequests;
-    private readonly List<AiAgentActionResponse> _actionResponses = [];
+    private readonly Dictionary<string, AiAgentActionResponse> _actionResponses = [];
     private readonly List<AiAgentArtificialActionResponse> _artificialActions = [];
     private readonly List<ContentPart> _promptParts = [];
     private string _changeVector;
+    private readonly List<ICommandData> _attachmentsCommands = new();
+    
     public string ChangeVector => _changeVector;
 
     private delegate Task HandleActionDelegate(JsonOperationContext context, AiAgentActionRequest actionRequest, CancellationToken token);
@@ -42,6 +46,24 @@ internal class AiConversation : IAiConversationOperations
         _conversationId = conversationId;
         _options = options;
         _changeVector = changeVector;
+    }
+    
+    public void AddAttachment(string name, Stream stream, string contentType)
+    {
+        if (stream == null)
+            throw new ArgumentNullException(nameof(stream));
+
+        var attachmentName = name;
+        _attachmentsCommands.Add(new PutAttachmentCommandData("__this__", attachmentName, stream, contentType, changeVector: string.Empty));
+    }
+
+    public void CopyAttachmentFrom(string sourceDocumentId, string fileName)
+    {
+        ValidationMethods.AssertNotNullOrEmpty(sourceDocumentId, nameof(sourceDocumentId));
+        ValidationMethods.AssertNotNullOrEmpty(fileName, nameof(fileName));
+        ValidationMethods.AssertNotNullOrEmpty(sourceDocumentId, nameof(sourceDocumentId));
+
+        _attachmentsCommands.Add(new CopyAttachmentCommandData(sourceDocumentId, fileName, "__this__", fileName, changeVector: string.Empty));
     }
 
     public IEnumerable<AiAgentActionRequest> RequiredActions() =>
@@ -117,11 +139,15 @@ internal class AiConversation : IAiConversationOperations
         ValidationMethods.AssertNotNullOrEmpty(toolId, nameof(toolId));
         ValidationMethods.AssertNotNullOrEmpty(actionResponse, nameof(actionResponse));
 
-        _actionResponses.Add(new AiAgentActionResponse
+        if (_actionResponses.ContainsKey(toolId))
+            throw new InvalidOperationException($"An action response for tool-id '{toolId}' was already added. Each tool call must have exactly one response. " +
+                                                $"If you're using {nameof(Handle)}, return the value from the handler (don't call {nameof(AddActionResponse)} manually).");
+
+        _actionResponses[toolId] = new AiAgentActionResponse
         {
             ToolId = toolId,
             Content = actionResponse
-        });
+        };
     }
 
     public void SetUserPrompt(string userPrompt)
@@ -140,9 +166,11 @@ internal class AiConversation : IAiConversationOperations
         }
     }
 
-    public void Handle<TArgs>(string actionName, Func<TArgs, Task<object>> action, AiHandleErrorStrategy aiHandleError) where TArgs : class
+    public void Handle<TArgs, TResult>(string actionName, Func<TArgs, Task<TResult>> action, AiHandleErrorStrategy aiHandleError) 
+        where TArgs : class 
+        where TResult : class
     {
-        Handle<TArgs>(actionName, (_, token) => action(token), aiHandleError);
+        Handle<TArgs, TResult>(actionName, (_, token) => action(token), aiHandleError);
     }
 
     public void Handle<TArgs>(string actionName, Func<TArgs, object> action, AiHandleErrorStrategy aiHandleError) where TArgs : class
@@ -150,15 +178,14 @@ internal class AiConversation : IAiConversationOperations
         Handle<TArgs>(actionName, (_, token) => action(token), aiHandleError);
     }
 
-    public void Handle<TArgs>(string actionName, Func<AiAgentActionRequest, TArgs, Task<object>> action, AiHandleErrorStrategy aiHandleError)
+    public void Handle<TArgs, TResult>(string actionName, Func<AiAgentActionRequest, TArgs, Task<TResult>> action, AiHandleErrorStrategy aiHandleError)
         where TArgs : class
+        where TResult : class
     {
-        Receive<TArgs>(actionName, (request, args) =>
+        Receive<TArgs>(actionName, async (request, args) =>
         {
-            return action(request, args).ContinueWith(t =>
-            {
-                AddActionResponse(request.ToolId, t.Result);
-            }, TaskContinuationOptions.OnlyOnRanToCompletion);
+            var result = await action(request, args).ConfigureAwait(false);
+            AddActionResponse(request.ToolId, result);
         }, aiHandleError);
     }
 
@@ -266,15 +293,14 @@ internal class AiConversation : IAiConversationOperations
             // if this is null, it is the first time we call RunAsync, so we are going to the server to get the pending actions
             _actionRequests != null &&
             // otherwise, we already went to the server and have nothing new to tell it, so we are done
-            _promptParts.Count == 0 && _actionResponses.Count == 0)
+            _promptParts.Count == 0 && _actionResponses.Count == 0 && _attachmentsCommands.Count == 0)
         {
             return new AiAnswer<TAnswer>
             {
                 Status = AiConversationResult.Done
             };
         }
-
-        var op = new RunConversationOperation<TAnswer>(_agentId, _conversationId, _promptParts, _actionResponses, _artificialActions, _options, _changeVector, streamPropertyPath, streamedChunksCallback);
+        var op = new RunConversationOperation<TAnswer>(_agentId, _conversationId, _promptParts, [.. _actionResponses.Values], _artificialActions, _options, _changeVector, _attachmentsCommands, streamPropertyPath, streamedChunksCallback);
 
         try
         {
@@ -302,6 +328,7 @@ internal class AiConversation : IAiConversationOperations
             _promptParts.Clear();
             _actionResponses.Clear();
             _artificialActions.Clear();
+            _attachmentsCommands.Clear();
         }
     }
 

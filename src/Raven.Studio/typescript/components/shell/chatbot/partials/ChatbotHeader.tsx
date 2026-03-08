@@ -10,6 +10,8 @@ import { ConditionalPopover } from "components/common/ConditionalPopover";
 import AiAssistantDisabledInSettingsMessage from "components/common/aiAssistant/AiAssistantDisabledInSettingsMessage";
 import "./ChatbotHeader.scss";
 import useConfirm from "components/common/ConfirmDialog";
+import Badge from "react-bootstrap/Badge";
+import PopoverWithHoverWrapper from "components/common/PopoverWithHoverWrapper";
 
 export default function ChatbotHeader() {
     const dispatch = useAppDispatch();
@@ -45,7 +47,7 @@ function AskAiActions() {
 
     const confirm = useConfirm();
 
-    const isNewConversationDisabled = messagesCount === 0;
+    const isConversationEmpty = messagesCount === 0;
 
     const resetConversation = async () => {
         const isConfirmed = await confirm({
@@ -68,8 +70,8 @@ function AskAiActions() {
         <>
             <ConditionalPopover
                 conditions={{
-                    isActive: isNewConversationDisabled,
-                    message: "Chat is empty",
+                    isActive: isConversationEmpty,
+                    message: "The current conversation is empty",
                 }}
             >
                 <Button
@@ -77,7 +79,7 @@ function AskAiActions() {
                     size="sm"
                     className="text-reset"
                     onClick={resetConversation}
-                    disabled={isNewConversationDisabled}
+                    disabled={isConversationEmpty}
                 >
                     <Icon icon="plus" margin="m-0" title="Start new conversation" />
                 </Button>
@@ -95,6 +97,15 @@ function AskAiActions() {
                         }
                     >
                         Always allow endpoints calls
+                        <PopoverWithHoverWrapper
+                            message={
+                                <>
+                                    Enable this option to allow AI Assistant <b>always</b> call endpoints.
+                                </>
+                            }
+                        >
+                            <Icon icon="info-new" margin="ms-1" />
+                        </PopoverWithHoverWrapper>
                     </Switch>
                     <ConditionalPopover
                         conditions={[
@@ -113,16 +124,34 @@ function AskAiActions() {
                             disabled={aiAssistantSettings.isDataSubmissionDisabled}
                         >
                             Allow data submission
+                            <PopoverWithHoverWrapper
+                                message={
+                                    <>Enable this option to allow the AI Assistant to submit data for processing.</>
+                                }
+                            >
+                                <Icon icon="info-new" margin="ms-1" />
+                            </PopoverWithHoverWrapper>
                         </Switch>
                     </ConditionalPopover>
-                    <Button
-                        variant="secondary"
-                        onClick={() => dispatch(chatbotActions.exportConversation())}
-                        className="d-block ps-0 rounded-1 w-100 text-center mt-2"
+                    <ConditionalPopover
+                        conditions={{
+                            isActive: isConversationEmpty,
+                            message: "The current conversation is empty",
+                        }}
+                        className="w-100"
                     >
-                        <Icon icon="export" />
-                        Export conversation
-                    </Button>
+                        <>
+                            <Button
+                                variant="secondary"
+                                onClick={() => dispatch(chatbotActions.exportConversation())}
+                                className="d-block ps-0 rounded-1 w-100 text-center mt-2"
+                                disabled={isConversationEmpty}
+                            >
+                                <Icon icon="export" />
+                                Export conversation
+                            </Button>
+                        </>
+                    </ConditionalPopover>
                 </Dropdown.Menu>
             </Dropdown>
         </>
@@ -141,9 +170,16 @@ function HeaderTitle() {
 
     if (chatbotTab === "aiAssistant") {
         return (
-            <div>
-                <Icon icon="ask-ai" className="ai-gradient" />
+            <div className="d-flex align-items-center gap-1">
+                <Icon icon="ask-ai" className="ai-gradient" margin="m-0" />
                 AI Assistant
+                <Badge
+                    bg="faded-experimental"
+                    className="font-monospace border border-experimental font-monospace font-size-10 px-1"
+                    pill
+                >
+                    Preview
+                </Badge>
             </div>
         );
     }

@@ -11,7 +11,8 @@ public interface IIndexEntryBuilder
     void WriteNull(int fieldId, string path);
     void WriteNonExistingMarker(int fieldId, string path);
     void Write(int fieldId, ReadOnlySpan<byte> value);
-    void WriteVector(int fieldId, string path, ReadOnlySpan<byte> value);
+    void WriteCompound(int fieldId, ReadOnlySpan<byte> value);
+    void WriteVector(int fieldId, string path, ReadOnlySpan<byte> value, Random random = null);
     void Write(int fieldId, string path, ReadOnlySpan<byte> value);
     void Write(int fieldId, string path, string value);
     void Write(int fieldId, ReadOnlySpan<byte> value, long longValue, double dblValue);

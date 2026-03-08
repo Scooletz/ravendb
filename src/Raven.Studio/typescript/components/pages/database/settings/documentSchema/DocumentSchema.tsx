@@ -55,6 +55,10 @@ import { useViewSheet } from "components/common/splitView/ViewSheet";
 import { ConditionalPopover } from "components/common/ConditionalPopover";
 import { ValidationSchemaViewSheetPanel } from "components/pages/database/settings/documentSchema/partials/ValidationSchemaViewSheetPanel";
 import { ScriptSyntaxHelp } from "components/pages/database/settings/documentSchema/partials/ScriptSyntaxHelp";
+import { licenseSelectors } from "components/common/shell/licenseSlice";
+import FeatureNotAvailableInYourLicensePopoverBody from "components/common/FeatureNotAvailableInYourLicensePopoverBody";
+import classNames from "classnames";
+import { StickyHeader } from "components/common/StickyHeader";
 
 const ajv = new Ajv({
     allErrors: true,
@@ -66,6 +70,7 @@ export default function DocumentSchema() {
     const databaseName = useAppSelector(databaseSelectors.activeDatabaseName);
     const { databasesService } = useServices();
     const hasDatabaseAdminAccess = useAppSelector(accessManagerSelectors.getHasDatabaseAdminAccess)();
+    const hasSchemaValidation = useAppSelector(licenseSelectors.statusValue("HasSchemaValidation"));
 
     const asyncLoadValidators = useAsync(async () => {
         const result = await databasesService.getSchemaValidation(databaseName);
@@ -88,37 +93,51 @@ export default function DocumentSchema() {
         <div className="content-margin">
             <Row className="gy-sm">
                 <Col>
-                    <AboutViewHeading marginBottom={4} title="Document Schema" icon="document-schema" />
-                    {hasDatabaseAdminAccess && <DocumentSchemaSelectActions />}
+                    <AboutViewHeading
+                        marginBottom={4}
+                        title="Document Schema"
+                        icon="document-schema"
+                        licenseBadgeText={hasSchemaValidation ? null : "Professional +"}
+                    />
+                    <StickyHeader>
+                        <DocumentSchemaSelectActions />
 
-                    {hasAnyValidator && (
-                        <DocumentSchemaFilter
-                            selectedCollections={selectedCollections}
-                            setSelectedCollections={handleOnSelectCollection}
-                            collectionOptions={options}
-                            selectedStatuses={selectedStatuses}
-                            setSelectedStatuses={setSelectedStatuses}
-                            schemasCount={filteredValidators.length}
-                            isLoading={asyncLoadValidators.loading}
-                        />
-                    )}
-
+                        <div className={hasSchemaValidation ? "" : "item-disabled pe-none"}>
+                            {hasAnyValidator && (
+                                <DocumentSchemaFilter
+                                    selectedCollections={selectedCollections}
+                                    setSelectedCollections={handleOnSelectCollection}
+                                    collectionOptions={options}
+                                    selectedStatuses={selectedStatuses}
+                                    setSelectedStatuses={setSelectedStatuses}
+                                    schemasCount={filteredValidators.length}
+                                    isLoading={asyncLoadValidators.loading}
+                                />
+                            )}
+                        </div>
+                    </StickyHeader>
                     <div className="mt-4">
                         <HrHeader
                             count={filteredValidators.length}
                             right={
-                                hasDatabaseAdminAccess && (
+                                <ConditionalPopover
+                                    conditions={{
+                                        isActive: !hasSchemaValidation,
+                                        message: <FeatureNotAvailableInYourLicensePopoverBody />,
+                                    }}
+                                >
                                     <Button
                                         size="xs"
                                         variant="info"
                                         className="rounded-pill"
                                         onClick={handleAddNew}
+                                        disabled={!hasSchemaValidation || !hasDatabaseAdminAccess}
                                         title="Click to add a new schema for a collection"
                                     >
                                         <Icon icon="plus" />
                                         Add new
                                     </Button>
-                                )
+                                </ConditionalPopover>
                             }
                         >
                             <Icon icon="documents" />
@@ -127,10 +146,12 @@ export default function DocumentSchema() {
                                 <Icon icon="info-new" margin="ms-1" />
                             </PopoverWithHoverWrapper>
                         </HrHeader>
-                        <DocumentSchemaBody
-                            filteredValidators={filteredValidators}
-                            asyncLoadValidators={asyncLoadValidators}
-                        />
+                        <div className={classNames(!hasSchemaValidation && "item-disabled pe-none")}>
+                            <DocumentSchemaBody
+                                filteredValidators={filteredValidators}
+                                asyncLoadValidators={asyncLoadValidators}
+                            />
+                        </div>
                     </div>
                 </Col>
                 <Col sm={12} lg={4}>
@@ -246,6 +267,7 @@ const CollectionSchemaRichPanel = ({
     schema = "",
     schemaValidatorCollections,
 }: CollectionSchemaRichPanelProps) => {
+    const hasSchemaValidation = useAppSelector(licenseSelectors.statusValue("HasSchemaValidation"));
     const { value: isEditingSchema, toggle: toggleEditingSchema } = useBoolean(false);
     const { value: isTogglingStatus, setTrue: setTogglingStatus, setFalse: unsetTogglingStatus } = useBoolean(false);
     const { open } = useViewSheet();
@@ -285,9 +307,9 @@ const CollectionSchemaRichPanel = ({
 
     const handleEditSchema = async (data: DocumentSchemaFormData) => {
         const updatedItem = documentSchemaUtils.mapToDocumentSchemaValidatorConfigDto(data);
-        dispatch(documentSchemaActions.validatorEdited({ originalName: validator.Name, validator: updatedItem }));
         const next = [...validatorsAll.filter((v) => v.Name !== validator.Name), updatedItem];
         await asyncSaveValidators(next);
+        dispatch(documentSchemaActions.validatorEdited({ originalName: validator.Name, validator: updatedItem }));
         toggleEditingSchema();
     };
 
@@ -295,11 +317,11 @@ const CollectionSchemaRichPanel = ({
         try {
             setTogglingStatus();
             const updatedValidator = { ...validator, Disabled: disabled };
+            const next = [...validatorsAll.filter((v) => v.Name !== validator.Name), updatedValidator];
+            await asyncSaveValidators(next);
             dispatch(
                 documentSchemaActions.validatorEdited({ originalName: validator.Name, validator: updatedValidator })
             );
-            const next = [...validatorsAll.filter((v) => v.Name !== validator.Name), updatedValidator];
-            await asyncSaveValidators(next);
         } finally {
             unsetTogglingStatus();
         }
@@ -359,14 +381,22 @@ const CollectionSchemaRichPanel = ({
                                         <Icon icon="rocket" margin="m-0" />
                                     </Button>
                                 </ConditionalPopover>
-                                <ButtonWithSpinner
-                                    onClick={isEditingSchema ? handleSubmit(handleEditSchema) : toggleEditingSchema}
-                                    variant={isEditingSchema ? "success" : "secondary"}
-                                    isSpinning={form.formState.isSubmitting}
-                                    icon={isEditingSchema ? "save" : "edit"}
+                                <ConditionalPopover
+                                    conditions={{
+                                        isActive: !hasSchemaValidation,
+                                        message: <FeatureNotAvailableInYourLicensePopoverBody />,
+                                    }}
                                 >
-                                    {isEditingSchema ? <span className="ms-1">Save</span> : null}
-                                </ButtonWithSpinner>
+                                    <ButtonWithSpinner
+                                        onClick={isEditingSchema ? handleSubmit(handleEditSchema) : toggleEditingSchema}
+                                        variant={isEditingSchema ? "success" : "secondary"}
+                                        isSpinning={form.formState.isSubmitting}
+                                        disabled={!hasSchemaValidation}
+                                        icon={isEditingSchema ? "save" : "edit"}
+                                    >
+                                        {isEditingSchema ? <span className="ms-1">Save</span> : null}
+                                    </ButtonWithSpinner>
+                                </ConditionalPopover>
                                 {isEditingSchema ? (
                                     <Button
                                         variant="secondary"
@@ -380,12 +410,20 @@ const CollectionSchemaRichPanel = ({
                                         Discard
                                     </Button>
                                 ) : (
-                                    <ButtonWithSpinner
-                                        isSpinning={form.formState.isSubmitting}
-                                        variant="danger"
-                                        onClick={toggleDeleteModal}
-                                        icon="trash"
-                                    />
+                                    <ConditionalPopover
+                                        conditions={{
+                                            isActive: !hasSchemaValidation,
+                                            message: <FeatureNotAvailableInYourLicensePopoverBody />,
+                                        }}
+                                    >
+                                        <ButtonWithSpinner
+                                            isSpinning={form.formState.isSubmitting}
+                                            variant="danger"
+                                            onClick={toggleDeleteModal}
+                                            disabled={!hasSchemaValidation}
+                                            icon="trash"
+                                        />
+                                    </ConditionalPopover>
                                 )}
                             </RichPanelActions>
                         )}
