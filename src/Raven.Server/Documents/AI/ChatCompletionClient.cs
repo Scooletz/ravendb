@@ -26,14 +26,13 @@ using Raven.Client.Json;
 using Raven.Server.Documents.AI.Settings;
 using Raven.Server.Documents.ETL.Providers.AI;
 using Raven.Server.Documents.Handlers.AI.Agents;
+using Raven.Server.Documents.SchemaValidation.ErrorMessage;
 using Raven.Server.Json;
 using Raven.Server.Utils;
 using Sparrow;
 using Sparrow.Json;
 using Sparrow.Json.Parsing;
 using Sparrow.Server.Json.Sync;
-using Raven.Client.Documents.Operations.AI.Agents;
-using Raven.Server.Documents.SchemaValidation.ErrorMessage;
 using JsonSerializer = System.Text.Json.JsonSerializer;
 
 namespace Raven.Server.Documents.AI;
@@ -94,32 +93,9 @@ public class ChatCompletionClient : IDisposable
         _contextPool = contextPool;
     }
 
-    public List<BlittableJsonReaderObject> GenerateTools(JsonOperationContext context, AiAgentConfiguration configuration, List<string> persistedAttachmentsNames)
+    public List<BlittableJsonReaderObject> GenerateTools(JsonOperationContext context, AiAgentConfiguration configuration, ConversationHandler handler)
     {
-        var strict = _settings.SupportStrictTools;
-
-        List<BlittableJsonReaderObject> tools = [];
-        foreach (var q in configuration.Queries ?? [])
-        {
-            if (ShouldAllowModelQueries(q.Options) == false)
-                continue;
-
-            var paramsSchema = GetSchemaForTool(q.ParametersSchema, q.ParametersSampleObject);
-            var tool = new DynamicJsonValue
-            {
-                [Constants.ResponseFields.Type] = Constants.ResponseFields.Function,
-                [Constants.ResponseFields.Function] = new DynamicJsonValue
-                {
-                    [Constants.ResponseFields.Name] = q.Name,
-                    [Constants.JsonSchemaFields.Description] = q.Description,
-                    [Constants.JsonSchemaFields.Parameters] = context.Sync.ReadForMemory(paramsSchema, "params/schema")
-                },
-            };
-            if (strict)
-                tool[Constants.JsonSchemaFields.Strict] = true;
-            tools.Add(context.ReadObject(tool, "tool"));
-        }
-
+        var persistedAttachmentsNames = handler._persistedAttachmentsNames;
         if (persistedAttachmentsNames is { Count: > 0 })
         {
             configuration.Actions.Add(new AiAgentToolAction
@@ -130,33 +106,56 @@ public class ChatCompletionClient : IDisposable
                 ParametersSampleObject = "{\"names\": [\"**ATTENTION IMPORTANT INSTRUCTION**: use **ONLY** the names from the tool description\"]}",
             });
         }
+
+        List<BlittableJsonReaderObject> tools = [];
+        foreach (var q in configuration.Queries ?? [])
+        {
+            if (q.ShouldAllowModelQueries() == false)
+                continue;
+
+            var paramsSchema = GetSchemaForTool(q.ParametersSchema, q.ParametersSampleObject);
+            var tool = GetTool(context, q.Name, q.Description, paramsSchema);
+            tools.Add(context.ReadObject(tool, "tool"));
+        }
+
         foreach (var a in configuration.Actions ?? [])
         {
             string paramsSchema = GetSchemaForTool(a.ParametersSchema, a.ParametersSampleObject);
-            var tool = new DynamicJsonValue
-            {
-                [Constants.ResponseFields.Type] = Constants.ResponseFields.Function,
-                [Constants.ResponseFields.Function] = new DynamicJsonValue
-                {
-                    [Constants.ResponseFields.Name] = a.Name,
-                    [Constants.JsonSchemaFields.Description] = a.Description,
-                    [Constants.JsonSchemaFields.Parameters] = context.Sync.ReadForMemory(paramsSchema, "params/schema")
-                },
-            };
-            if (strict)
-                tool[Constants.JsonSchemaFields.Strict] = true;
+            var tool = GetTool(context, a.Name, a.Description, paramsSchema);
+            tools.Add(context.ReadObject(tool, "tool"));
+        }
+
+        foreach (var subAgent in configuration.SubAgents ?? [])
+        {
+            var subAgentConfiguration = handler.GetAiAgentConfiguration(subAgent.Identifier);
+            var parameters = ConversationHandler.BuildSubAgentParameters(context, configuration, subAgentConfiguration);
+            var paramsSchema = ConversationHandler.GetSchemaForSubAgentTool(context, parameters);
+            var description = new StringBuilder(subAgent.Description).AppendLine();
+            subAgentConfiguration.AppendCapabilities(description);
+            var tool = GetTool(context, subAgent.Identifier, description.ToString(), paramsSchema);
             tools.Add(context.ReadObject(tool, "tool"));
         }
 
         return tools;
+    }
 
-        static bool ShouldAllowModelQueries(AiAgentToolQueryOptions options)
+    public DynamicJsonValue GetTool(JsonOperationContext context, string name, string description, string paramsSchema)
+    {
+        var tool = new DynamicJsonValue
         {
-            if (options?.AllowModelQueries is null)
-                return true;
+            [Constants.JsonSchemaFields.Type] = "function",
+            [Constants.ResponseFields.Function] = new DynamicJsonValue
+            {
+                [Constants.ResponseFields.Name] = name,
+                [Constants.JsonSchemaFields.Description] = description,
+                ["parameters"] = context.Sync.ReadForMemory(paramsSchema, "params/schema")
+            }
+        };
 
-            return options.AllowModelQueries.Value;
-        }
+        if (_settings.SupportStrictTools)
+            tool[Constants.JsonSchemaFields.Strict] = true;
+
+        return tool;
     }
 
     public async Task<AiResponse> StreamingCompleteAsync(JsonOperationContext streamingContext, IMemoryContextPool contextPool,

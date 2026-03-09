@@ -205,7 +205,18 @@ public class AiAgentErrors : RavenTestBase
 
         // Raven.Client.Exceptions.RavenException: Raven.Server.Documents.AI.UnsuccessfulRequestException: Incorrect API key provided
         var e = await Assert.ThrowsAsync<AiException>(() => chat.RunAsync<CustomerOutputSchema>(CancellationToken.None));
-        Assert.Contains("Incorrect API key provided", e.Message);
+        var provider = config.Connection.GetActiveProvider();
+        switch (provider)
+        {
+            case AiConnectorType.OpenAi:
+                Assert.Contains("Incorrect API key provided", e.Message);
+                break;
+            case AiConnectorType.Google:
+                Assert.Contains("API key not valid.", e.Message);
+                break;
+            default:
+                throw new InvalidOperationException($"Unknown provider '{provider}'");
+        }
     }
 
     [RavenTheory(RavenTestCategory.Ai)]
@@ -263,8 +274,18 @@ public class AiAgentErrors : RavenTestBase
 
         // Raven.Client.Exceptions.RavenException: Raven.Server.Documents.AI.UnsuccessfulRequestException: The model `gpt-4oxyz` does not exist or you do not have access to it
         var e = await Assert.ThrowsAsync<AiException>(() => chat.RunAsync<CustomerOutputSchema>(CancellationToken.None));
-        Assert.Contains($"The model `{config.Connection.OpenAiSettings.Model}` does not exist or you do not have access to it", e.Message);
-
+        var p = Assert.IsAssignableFrom<OpenAiBaseSettings>(config.Connection.GetActiveProviderInstance());
+        switch (p)
+        {
+            case OpenAiSettings:
+                Assert.Contains($"The model `{p.Model}` does not exist or you do not have access to it", e.Message);
+                break;
+            case GoogleSettings:
+                Assert.Contains($"models/{p.Model} is not found", e.Message);
+                break;
+            default:
+                throw new InvalidOperationException($"Unknown provider '{p.GetType().Name}'");
+        }
     }
 
     [RavenTheory(RavenTestCategory.Ai)]

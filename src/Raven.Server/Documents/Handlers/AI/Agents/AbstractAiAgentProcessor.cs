@@ -9,6 +9,7 @@ using Microsoft.Net.Http.Headers;
 using Raven.Client.Documents.AI;
 using Raven.Client.Documents.Operations.AI.Agents;
 using Raven.Client.Exceptions;
+using Raven.Client.Exceptions.Documents.Attachments;
 using Raven.Server.Documents.Handlers.Batches;
 using Raven.Server.Documents.Handlers.Processors;
 using Raven.Server.ServerWide;
@@ -74,10 +75,14 @@ namespace Raven.Server.Documents.Handlers.AI.Agents
                 catch (MissingAiAgentParameterException)
                 {
                     throw;
-                } 
+                }
+                catch (AttachmentDoesNotExistException)
+                {
+                    throw;
+                }
                 catch (Exception e)
                 {
-                    throw new AiException($"Failed to 'communicate' with the agent '{configuration.Identifier}', conversation: '{conversationId}'.", e)
+                    throw new AiException($"Failed to communicate with the agent '{configuration.Identifier}', conversation: '{conversationId}'.", e)
                     {
                         RequestId = RequestHandler.HttpContext.Response.Headers.RequestId
                     };
@@ -134,8 +139,9 @@ namespace Raven.Server.Documents.Handlers.AI.Agents
         {
 
             var contentType = HttpContext.Request.ContentType;
-            if (contentType.StartsWith("multipart/mixed", StringComparison.OrdinalIgnoreCase) ||
-                contentType.StartsWith("multipart/form-data", StringComparison.OrdinalIgnoreCase))
+            if (contentType != null &&
+                (contentType.StartsWith("multipart/mixed", StringComparison.OrdinalIgnoreCase) ||
+                contentType.StartsWith("multipart/form-data", StringComparison.OrdinalIgnoreCase)))
             {
                 using (var commandsReader = new DatabaseBatchCommandsReader(RequestHandler, RequestHandler.Database))
                 {

@@ -97,7 +97,7 @@ public class ConversationDocument([NotNull] string agent, BlittableJsonReaderObj
 
         foreach (AiAgentToolQuery query in configuration.Queries ?? [])
         {
-            if (ShouldAddToInitialContext(query.Options) == false)
+            if (query.ShouldAddToInitialContext() == false)
                 continue;
 
             result ??= [];
@@ -112,14 +112,6 @@ public class ConversationDocument([NotNull] string agent, BlittableJsonReaderObj
         AddArtificialToolCall(context, result);
 
         return result;
-        
-        static bool ShouldAddToInitialContext(AiAgentToolQueryOptions options)
-        {
-            if (options?.AddToInitialContext is null)
-                return false;
-            
-            return options.AddToInitialContext.Value;
-        }
     }
 
     public void AddToolResponse(JsonOperationContext context, string toolId, string content)
@@ -303,59 +295,6 @@ public class ConversationDocument([NotNull] string agent, BlittableJsonReaderObj
         }
 
         return conversation;
-    }
-
-    public static List<BlittableJsonReaderObject> GenerateTools(ConversationHandler handler, JsonOperationContext context, AiAgentConfiguration configuration)
-    {
-        List<BlittableJsonReaderObject> tools = [];
-        foreach (var q in configuration.Queries ?? [])
-        {
-            if (ShouldAllowModelQueries(q.Options) == false)
-                continue;
-
-            var paramsSchema = ChatCompletionClient.GetSchemaForTool(q.ParametersSchema, q.ParametersSampleObject);
-            var tool = GetTool(context, q.Name, q.Description, paramsSchema);
-            tools.Add(context.ReadObject(tool, "tool"));
-        }
-
-        foreach (var a in configuration.Actions ?? [])
-        {
-            string paramsSchema = ChatCompletionClient.GetSchemaForTool(a.ParametersSchema, a.ParametersSampleObject);
-            var tool = GetTool(context, a.Name, a.Description, paramsSchema);
-            tools.Add(context.ReadObject(tool, "tool"));
-        }
-
-        foreach (var subAgent in configuration.SubAgents ?? [])
-        {
-            var tool = handler.GetSubAgentTool(context, configuration, subAgent);
-            tools.Add(context.ReadObject(tool, "tool"));
-        }
-
-        return tools;
-
-        static bool ShouldAllowModelQueries(AiAgentToolQueryOptions options)
-        {
-            if (options?.AllowModelQueries is null)
-                return true;
-            
-            return options.AllowModelQueries.Value;
-        }
-    }
-
-    public static DynamicJsonValue GetTool(JsonOperationContext context, string name, string description, string paramsSchema)
-    {
-        var tool = new DynamicJsonValue
-        {
-            [ChatCompletionClient.Constants.JsonSchemaFields.Type] = "function",
-            [ChatCompletionClient.Constants.ResponseFields.Function] = new DynamicJsonValue
-            {
-                [ChatCompletionClient.Constants.ResponseFields.Name] = name,
-                [ChatCompletionClient.Constants.JsonSchemaFields.Description] = description,
-                ["parameters"] = context.Sync.ReadForMemory(paramsSchema, "params/schema")
-            },
-            [ChatCompletionClient.Constants.JsonSchemaFields.Strict] = true
-        };
-        return tool;
     }
 
     private static bool TryCreateParameterDescriptionMessage(List<AiAgentParameter> parameters, out string message)

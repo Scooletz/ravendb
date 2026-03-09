@@ -547,7 +547,7 @@ public partial class ConversationHandler(ServerStore server, DocumentDatabase da
             }, "system/summary/final/msg"));
 
         var usage = new AiUsage();
-        var tools = client.GenerateTools(context, configuration, _persistedAttachmentsNames);
+        var tools = client.GenerateTools(context, configuration, this);
         using var request = client.CreateCompletionRequest(context, messages, attachments: null, tools, useTools: false, streaming: false, schema: SummarizationOutputSchema);
         var result = await client.CompleteAsync(context, request, usage, token);
 
@@ -765,26 +765,22 @@ public partial class ConversationHandler(ServerStore server, DocumentDatabase da
             foreach (BlittableJsonReaderObject tool in _request.ActionResponses)
             {
                 var t = JsonDeserializationClient.ActionResponse(tool);
-                if (_document.OpenActionCalls.TryGetValue(t.ToolId, out var openCall) == false)
-                    throw new InvalidOperationException($"{t.ToolId} is an unknown action ID for conversation '{_conversationId}'");
-
-                if (openCall.IsInternalToolCall())
-                {
-                    continue;
-                }
-
-                if (_document.OpenActionCalls.Remove(t.ToolId) == false)
-                    throw new InvalidOperationException($"{t.ToolId} is an unknown action ID for conversation '{_conversationId}'");
-
                 var split = t.ToolId.Split('$', 2); // split by first '$'
                 var rootToolId = split[0];
 
                 if (_document.OpenActionCalls.TryGetValue(rootToolId, out var action) == false)
                     throw new InvalidOperationException($"{rootToolId} is an unknown action ID for conversation '{_conversationId}'");
 
+                if (action.IsInternalToolCall())
+                {
+                    continue;
+                }
+
                 if (action.SubConversationId == null)
                 {
-                    _document.OpenActionCalls.Remove(rootToolId);
+                    if (_document.OpenActionCalls.Remove(t.ToolId) == false)
+                        throw new InvalidOperationException($"{t.ToolId} is an unknown action ID for conversation '{_conversationId}'");
+
                     _document.AddMessage(context, context.ReadObject(
                         new DynamicJsonValue
                         {
