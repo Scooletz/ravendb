@@ -54,9 +54,6 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             if (TryParseWrappedRqlFetchViaAst(queryText, parametersDataTypes, documentDatabase, out pgQuery))
                 return true;
 
-            if (TryParseWrappedRqlFetchWithWhereViaAst(queryText, parametersDataTypes, documentDatabase, out pgQuery))
-                return true;
-
             // Match queries sent by PowerBI, either RQL queries wrapped in an SQL statement OR generic SQL queries
             if (TryGetMatches(queryText, out var matches, out var rql) == false)
             {
@@ -144,13 +141,36 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 if (selectStmt == null)
                     return false;
 
-                if (TryMatchWrappedRqlFetchShape(selectStmt, out var limit) == false)
+                if (TryMatchWrappedRqlFetchShape(selectStmt, out var limit, out var outerAlias) == false)
                     return false;
 
-                if (IsValidRqlSelect(innerRql) == false)
+                if (TryExtractPowerBiReplaceColumns(selectStmt, outerAlias, out var replaces) == false)
                     return false;
 
-                pgQuery = new PowerBIRqlQuery(innerRql, parametersDataTypes, documentDatabase, replaces: null, limit: limit);
+                Raven.Server.Documents.Queries.AST.Query q;
+                try
+                {
+                    q = QueryMetadata.ParseQuery(innerRql, QueryType.Select);
+                }
+                catch
+                {
+                    return false;
+                }
+
+                if (selectStmt.WhereClause != null)
+                {
+                    if (OuterWhereTranslator.TryTranslateWhere(selectStmt.WhereClause, outerAlias, q.From.Alias, out var whereExpression) == false)
+                        return false;
+
+                    if (q.Where == null)
+                        q.Where = whereExpression;
+                    else
+                        q.Where = new BinaryExpression(q.Where, whereExpression, OperatorType.And);
+                }
+
+                var newRql = q.ToString();
+
+                pgQuery = new PowerBIRqlQuery(newRql, parametersDataTypes, documentDatabase, replaces, limit: limit);
                 return true;
             }
             catch
@@ -159,12 +179,10 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 return false;
             }
 
-            static bool TryMatchWrappedRqlFetchShape(SelectStmt selectStmt, out int limit)
+            static bool TryMatchWrappedRqlFetchShape(SelectStmt selectStmt, out int limit, out string outerAlias)
             {
                 limit = 0;
-
-                if (selectStmt.WhereClause != null)
-                    return false;
+                outerAlias = null;
 
                 if (selectStmt.LimitOffset != null)
                     return false;
@@ -194,123 +212,69 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                     string.Equals(aliasName, "_", StringComparison.OrdinalIgnoreCase) == false)
                     return false;
 
-                return rss.Subquery?.SelectStmt != null;
-            }
-
-            static bool IsValidRqlSelect(string rql)
-            {
-                try
-                {
-                    if (string.IsNullOrWhiteSpace(rql))
-                        return false;
-
-                    QueryMetadata.ParseQuery(rql, QueryType.Select);
-                    return true;
-                }
-                catch
-                {
-                    return false;
-                }
-            }
-        }
-
-        private static bool TryParseWrappedRqlFetchWithWhereViaAst(string queryText, int[] parametersDataTypes, DocumentDatabase documentDatabase, out PgQuery pgQuery)
-        {
-            pgQuery = null;
-
-            if (string.IsNullOrWhiteSpace(queryText))
-                return false;
-
-            try
-            {
-                var sql = queryText;
-
-                if (TryExtractInnermostRql(sql, out var innerRql, out var innerStart, out var innerEnd) == false)
-                    return false;
-
-                var sanitizedSql = sql[..innerStart] + "select 1" + sql[innerEnd..];
-
-                var parseResult = Parser.Parse(sanitizedSql);
-                if (parseResult.IsSuccess == false || parseResult.Value == null)
-                    return false;
-
-                if (parseResult.Value.Stmts is not { Count: 1 })
-                    return false;
-
-                var stmt = parseResult.Value.Stmts[0];
-                var selectStmt = stmt?.Stmt?.SelectStmt;
-                if (selectStmt == null)
-                    return false;
-
-                if (TryMatchWrappedRqlFetchWithWhereShape(selectStmt, out var limit, out var outerAlias) == false)
-                    return false;
-
-                Raven.Server.Documents.Queries.AST.Query q;
-                try
-                {
-                    q = QueryMetadata.ParseQuery(innerRql, QueryType.Select);
-                }
-                catch
-                {
-                    return false;
-                }
-
-                if (OuterWhereTranslator.TryTranslateWhere(selectStmt.WhereClause, outerAlias, q.From.Alias, out var whereExpression) == false)
-                    return false;
-
-                if (q.Where == null)
-                    q.Where = whereExpression;
-                else
-                    q.Where = new BinaryExpression(q.Where, whereExpression, OperatorType.And);
-
-                var newRql = q.ToString();
-
-                pgQuery = new PowerBIRqlQuery(newRql, parametersDataTypes, documentDatabase, replaces: null, limit: limit);
-                return true;
-            }
-            catch
-            {
-                pgQuery = null;
-                return false;
-            }
-
-            static bool TryMatchWrappedRqlFetchWithWhereShape(SelectStmt selectStmt, out int limit, out string outerAlias)
-            {
-                limit = 0;
-                outerAlias = null;
-
-                if (selectStmt.WhereClause == null)
-                    return false;
-
-                if (selectStmt.LimitOffset != null)
-                    return false;
-
-                if (TryExtractNonNegativeIntAConst(selectStmt.LimitCount, out limit) == false)
-                    return false;
-
-                if (selectStmt.FromClause is not { Count: 1 })
-                    return false;
-
-                var fromItem = selectStmt.FromClause[0];
-                if (fromItem?.RangeSubselect == null)
-                    return false;
-
-                if (fromItem.RangeVar != null || fromItem.JoinExpr != null)
-                    return false;
-
-                var rss = fromItem.RangeSubselect;
-                var aliasName = rss.Alias?.Aliasname;
-                if (string.IsNullOrWhiteSpace(aliasName))
-                    return false;
-
-                if (string.Equals(aliasName, "$Table", StringComparison.OrdinalIgnoreCase) == false &&
-                    string.Equals(aliasName, "_", StringComparison.OrdinalIgnoreCase) == false)
-                    return false;
-
                 outerAlias = aliasName;
 
                 return rss.Subquery?.SelectStmt != null;
             }
+        }
+
+        private static bool TryExtractPowerBiReplaceColumns(SelectStmt selectStmt, string outerAlias, out Dictionary<string, ReplaceColumnValue> replaces)
+        {
+            replaces = null;
+
+            var targets = selectStmt?.TargetList;
+            if (targets == null || targets.Count == 0)
+                return true;
+
+            foreach (var t in targets)
+            {
+                var resTarget = t?.ResTarget;
+                var funcCall = resTarget?.Val?.FuncCall;
+                if (funcCall == null)
+                    continue;
+
+                var funcName = funcCall.Funcname is { Count: > 0 }
+                    ? funcCall.Funcname[0].String?.Sval
+                    : null;
+
+                if (string.Equals(funcName, "replace", StringComparison.OrdinalIgnoreCase) == false)
+                    return false;
+
+                if (string.IsNullOrWhiteSpace(resTarget.Name))
+                    return false;
+
+                if (funcCall.Args is not { Count: 3 })
+                    return false;
+
+                var arg0 = funcCall.Args[0];
+                if (arg0?.ColumnRef?.Fields is not { Count: 2 } fields)
+                    return false;
+
+                var arg0Alias = fields[0].String?.Sval;
+                if (string.IsNullOrWhiteSpace(arg0Alias) || string.Equals(arg0Alias, outerAlias, StringComparison.OrdinalIgnoreCase) == false)
+                    return false;
+
+                var srcColumn = fields[1].String?.Sval;
+                if (string.IsNullOrWhiteSpace(srcColumn))
+                    return false;
+
+                var oldValue = funcCall.Args[1]?.AConst?.Sval?.Sval;
+                var newValue = funcCall.Args[2]?.AConst?.Sval?.Sval;
+
+                if (oldValue == null || newValue == null)
+                    return false;
+
+                replaces ??= new Dictionary<string, ReplaceColumnValue>(StringComparer.OrdinalIgnoreCase);
+                replaces[srcColumn] = new ReplaceColumnValue
+                {
+                    SrcColumnName = srcColumn,
+                    DstColumnName = resTarget.Name,
+                    OldValue = oldValue,
+                    NewValue = newValue
+                };
+            }
+
+            return true;
         }
 
         private static class OuterWhereTranslator
@@ -386,6 +350,30 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
 
                 if (aExpr == null)
                     return false;
+
+                if (IsAExprKind(aExpr, A_Expr_Kind.AexprBetween))
+                {
+                    if (aExpr.Lexpr == null || aExpr.Rexpr?.List?.Items == null)
+                        return false;
+
+                    var items = aExpr.Rexpr.List.Items;
+                    if (items.Count != 2)
+                        return false;
+
+                    if (TryExtractFieldExpression(aExpr.Lexpr, outerAlias, innerAlias, out var fieldExpr) == false)
+                        return false;
+
+                    if (TryExtractConstantValue(items[0], out var lower) == false)
+                        return false;
+
+                    if (TryExtractConstantValue(items[1], out var upper) == false)
+                        return false;
+
+                    var ge = new BinaryExpression(fieldExpr, lower, OperatorType.GreaterThanEqual);
+                    var le = new BinaryExpression(fieldExpr, upper, OperatorType.LessThanEqual);
+                    expr = new BinaryExpression(ge, le, OperatorType.And);
+                    return true;
+                }
 
                 if (IsAExprKind(aExpr, A_Expr_Kind.AexprIn))
                 {
@@ -559,6 +547,9 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             {
                 valueExpression = null;
 
+                if (TryExtractTimestampLiteral(node, out valueExpression))
+                    return true;
+
                 var c = node?.AConst;
                 if (c == null)
                     return false;
@@ -590,6 +581,90 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 }
 
                 return false;
+            }
+
+            private static bool TryExtractTimestampLiteral(Node node, out ValueExpression valueExpression)
+            {
+                valueExpression = null;
+
+                var typeCast = node?.TypeCast;
+                if (typeCast == null)
+                    return false;
+
+                var names = typeCast.TypeName?.Names;
+                if (names == null)
+                    return TryExtractTimestampLiteralViaReflection(node, out valueExpression);
+
+                var hasTimestamp = false;
+                foreach (var nameNode in names)
+                {
+                    var s = nameNode?.String?.Sval;
+                    if (string.Equals(s, "timestamp", StringComparison.OrdinalIgnoreCase))
+                    {
+                        hasTimestamp = true;
+                        break;
+                    }
+                }
+
+                if (hasTimestamp == false)
+                    return false;
+
+                var raw = typeCast.Arg?.AConst?.Sval?.Sval;
+                if (raw == null)
+                    return TryExtractTimestampLiteralViaReflection(node, out valueExpression);
+
+                if (DateTime.TryParse(raw, out var dt) == false)
+                    return false;
+
+                valueExpression = new ValueExpression(dt.GetDefaultRavenFormat(), ValueTokenType.String);
+                return true;
+            }
+
+            private static bool TryExtractTimestampLiteralViaReflection(Node node, out ValueExpression valueExpression)
+            {
+                valueExpression = null;
+
+                var typeCastObj = node?.GetType().GetProperty("TypeCast")?.GetValue(node);
+                if (typeCastObj == null)
+                    return false;
+
+                var typeNameObj = typeCastObj.GetType().GetProperty("TypeName")?.GetValue(typeCastObj);
+                if (typeNameObj == null)
+                    return false;
+
+                var typeName = TryGetTypeNameIdentifier(typeNameObj);
+                if (string.Equals(typeName, "timestamp", StringComparison.OrdinalIgnoreCase) == false)
+                    return false;
+
+                var arg = typeCastObj.GetType().GetProperty("Arg")?.GetValue(typeCastObj) as Node;
+                var raw = arg?.AConst?.Sval?.Sval;
+                if (raw == null)
+                    return false;
+
+                if (DateTime.TryParse(raw, out var dt) == false)
+                    return false;
+
+                valueExpression = new ValueExpression(dt.GetDefaultRavenFormat(), ValueTokenType.String);
+                return true;
+            }
+
+            private static string TryGetTypeNameIdentifier(object typeNameObj)
+            {
+                var namesObj = typeNameObj.GetType().GetProperty("Names")?.GetValue(typeNameObj) as System.Collections.IEnumerable;
+                if (namesObj == null)
+                    return null;
+
+                foreach (var item in namesObj)
+                {
+                    if (item is Node n)
+                    {
+                        var s = n.String?.Sval;
+                        if (string.IsNullOrWhiteSpace(s) == false)
+                            return s;
+                    }
+                }
+
+                return null;
             }
 
             private static bool TryExtractConstantList(Node node, out List<QueryExpression> values)
