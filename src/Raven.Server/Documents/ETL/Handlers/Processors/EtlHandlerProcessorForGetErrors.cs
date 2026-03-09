@@ -3,6 +3,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading.Tasks;
 using Raven.Server.Documents.ETL.Stats;
+using Raven.Server.Documents.Sharding;
 using Raven.Server.ServerWide;
 using Raven.Server.ServerWide.Context;
 using Raven.Server.Web.Http;
@@ -20,8 +21,14 @@ internal sealed class EtlHandlerProcessorForGetErrors : AbstractEtlHandlerProces
     
     protected override async ValueTask HandleCurrentNodeAsync()
     {
-        var response = new Response();
-
+        var response = new Response
+        {
+            NodeTag = RequestHandler.ServerStore.NodeTag
+        };
+        
+        if (RequestHandler.Database is ShardedDocumentDatabase shardedDatabase)
+            response.ShardNumber = shardedDatabase.ShardNumber;
+        
         var storage = RequestHandler.Database.EtlErrorsStorage;
         var processNames = GetNames().ToList();
         
@@ -49,6 +56,18 @@ internal sealed class EtlHandlerProcessorForGetErrors : AbstractEtlHandlerProces
             await using (var writer = new AsyncBlittableJsonTextWriter(context, RequestHandler.ResponseBodyStream()))
             {
                 writer.WriteStartObject();
+                
+                writer.WritePropertyName(nameof(Response.NodeTag));
+                writer.WriteString(response.NodeTag);
+                writer.WriteComma();
+
+                writer.WritePropertyName(nameof(response.ShardNumber));
+                if (response.ShardNumber != null)
+                    writer.WriteInteger(response.ShardNumber.Value);
+                else
+                    writer.WriteNull();
+                writer.WriteComma();
+                
                 writer.WriteArray(context, nameof(Response.Results), response.Results, (w, c, errors) => w.WriteObject(c.ReadObject(errors.ToJson(), "etl/errors")));
                 writer.WriteEndObject();
             }
@@ -59,6 +78,8 @@ internal sealed class EtlHandlerProcessorForGetErrors : AbstractEtlHandlerProces
 
     internal class Response
     {
+        public string NodeTag { get; set; }
+        public int? ShardNumber { get; set; }
         public List<EtlErrors> Results { get; set; } = new List<EtlErrors>();        
     }
 }
