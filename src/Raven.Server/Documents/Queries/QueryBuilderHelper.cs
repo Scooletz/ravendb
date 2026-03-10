@@ -21,6 +21,7 @@ using Raven.Server.Documents.Indexes.VectorSearch;
 using Raven.Server.Documents.Queries.AST;
 using Raven.Server.ServerWide.Context;
 using Sparrow;
+using Sparrow.Extensions;
 using Sparrow.Json;
 using Sparrow.Server;
 using Spatial4n.Shapes;
@@ -41,10 +42,7 @@ public static class QueryBuilderHelper
         {
             var parameterName = value.Token.Value;
 
-            if (parameters == null)
-                ThrowParametersWereNotProvided(metadata.QueryText);
-
-            if (parameters.TryGetMember(parameterName, out var parameterValue) == false)
+            if (TryGetParameterValue(parameterName, parameters, out var parameterValue) == false)
                 ThrowParameterValueWasNotProvided(parameterName, metadata.QueryText, parameters);
 
             if (parameterValue is BlittableJsonReaderArray array)
@@ -151,10 +149,7 @@ public static class QueryBuilderHelper
         {
             var parameterName = value.Token.Value;
 
-            if (parameters == null)
-                ThrowParametersWereNotProvided(metadata.QueryText);
-
-            if (parameters.TryGetMember(parameterName, out var parameterValue) == false)
+            if (TryGetParameterValue(parameterName, parameters, out var parameterValue) == false)
                 ThrowParameterValueWasNotProvided(parameterName, metadata.QueryText, parameters);
 
             if (allowArraysInParameters && parameterValue is BlittableJsonReaderArray)
@@ -187,6 +182,21 @@ public static class QueryBuilderHelper
             default:
                 throw new ArgumentOutOfRangeException(nameof(value.Type), value.Type, null);
         }
+    }
+
+    internal static bool TryGetParameterValue(StringSegment parameterName, BlittableJsonReaderObject parameters, out object parameterValue)
+    {
+        if (parameters != null && parameters.TryGetMember(parameterName, out parameterValue))
+            return true;
+
+        if (parameterName == "now")
+        {
+            parameterValue = DateTime.UtcNow.GetDefaultRavenFormat(isUtc: true);
+            return true;
+        }
+
+        parameterValue = null;
+        return false;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -247,7 +257,7 @@ public static class QueryBuilderHelper
         if (parameterValue == null)
             return ValueTokenType.Null;
 
-        if (parameterValue is LazyStringValue || parameterValue is LazyCompressedStringValue)
+        if (parameterValue is LazyStringValue || parameterValue is LazyCompressedStringValue || parameterValue is string)
             return ValueTokenType.String;
 
         if (parameterValue is LazyNumberValue)

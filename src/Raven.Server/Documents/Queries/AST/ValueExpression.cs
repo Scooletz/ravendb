@@ -26,7 +26,7 @@ namespace Raven.Server.Documents.Queries.AST
         {
             if (parent != null && Value == ValueTokenType.Parameter)
             {
-                if (parent.QueryParameters.TryGet(Token, out object o))
+                if (QueryBuilderHelper.TryGetParameterValue(Token, parent.QueryParameters, out object o))
                     return o?.ToString();
             }
             return Token.Value;
@@ -58,7 +58,7 @@ namespace Raven.Server.Documents.Queries.AST
             switch (Value)
             {
                 case ValueTokenType.Parameter:
-                    queryParameters.TryGetMember(Token, out var r);
+                    QueryBuilderHelper.TryGetParameterValue(Token, queryParameters, out var r);
                     return r;
                 case ValueTokenType.Long:
                     return QueryBuilderHelper.ParseInt64WithSeparators(Token.Value);
