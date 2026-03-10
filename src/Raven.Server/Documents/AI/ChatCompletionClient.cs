@@ -5,7 +5,6 @@ using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Net.ServerSentEvents;
@@ -27,6 +26,7 @@ using Raven.Client.Json;
 using Raven.Server.Documents.AI.Settings;
 using Raven.Server.Documents.ETL.Providers.AI;
 using Raven.Server.Documents.Handlers.AI.Agents;
+using Raven.Server.Documents.SchemaValidation.ErrorMessage;
 using Raven.Server.Json;
 using Raven.Server.Utils;
 using Sparrow;
@@ -93,81 +93,70 @@ public class ChatCompletionClient : IDisposable
         _contextPool = contextPool;
     }
 
-    private struct ToolCallState
+    public List<BlittableJsonReaderObject> GenerateTools(JsonOperationContext context, AiAgentConfiguration configuration, ConversationHandler handler)
     {
-        private StringBuilder _id;
-        private StringBuilder _type;
-        private StringBuilder _name;
-        private StringBuilder _arguments;
-
-        private int _toolCallIndex;
-
-        public List<AiToolCall> AllToolCalls;
-
-        public ToolCallState()
+        var persistedAttachmentsNames = handler._persistedAttachmentsNames;
+        if (persistedAttachmentsNames is { Count: > 0 })
         {
-            _toolCallIndex = -1;
+            configuration.Actions.Add(new AiAgentToolAction
+            {
+                Name = Constants.ToolNames.RetrieveAttachment,
+                Description =
+                    $"Retrieves one or more attachments by their names. Use this to re-read files. {Environment.NewLine} Available Attachments: {string.Join(", ", persistedAttachmentsNames)}",
+                ParametersSampleObject = "{\"names\": [\"**ATTENTION IMPORTANT INSTRUCTION**: use **ONLY** the names from the tool description\"]}",
+            });
         }
 
-        public void Merge(BlittableJsonReaderObject toolCallChunk)
+        List<BlittableJsonReaderObject> tools = [];
+        foreach (var q in configuration.Queries ?? [])
         {
-            if (toolCallChunk.TryGet(Constants.ResponseFields.Index, out int index) == false)
-                return;
+            if (q.ShouldAllowModelQueries() == false)
+                continue;
 
-            if (index != _toolCallIndex)
-            {
-                AddAndReset();
-                _toolCallIndex = index;
-            }
-
-            if (toolCallChunk.TryGet(Constants.ResponseFields.Id, out string id))
-            {
-                _id.Append(id);
-            }
-
-            if (toolCallChunk.TryGet(Constants.ResponseFields.Type, out string type))
-            {
-                _type.Append(type);
-            }
-
-            if (toolCallChunk.TryGet(Constants.ResponseFields.Function, out BlittableJsonReaderObject functionChunk))
-            {
-                if (functionChunk.TryGet(Constants.ResponseFields.Name, out string nameChunk))
-                {
-                    _name.Append(nameChunk);
-                }
-
-                if (functionChunk.TryGet(Constants.ResponseFields.Arguments, out string argsChunk))
-                {
-                    _arguments.Append(argsChunk);
-                }
-            }
+            var paramsSchema = GetSchemaForTool(q.ParametersSchema, q.ParametersSampleObject);
+            var tool = GetTool(context, q.Name, q.Description, paramsSchema);
+            tools.Add(context.ReadObject(tool, "tool"));
         }
 
-        public void AddAndReset()
+        foreach (var a in configuration.Actions ?? [])
         {
-            if (_toolCallIndex == -1)
-            {
-                _id ??= new();
-                _type ??= new();
-                _name ??= new();
-                _arguments ??= new();
-
-                return;
-            }
-
-            AllToolCalls ??= [];
-            AllToolCalls.Add(new AiToolCall(_id.ToString(), _name.ToString(), _arguments.ToString()));
-
-
-            _toolCallIndex = -1;
-            _id.Clear();
-            _type.Clear();
-            _name.Clear();
-            _arguments.Clear();
+            string paramsSchema = GetSchemaForTool(a.ParametersSchema, a.ParametersSampleObject);
+            var tool = GetTool(context, a.Name, a.Description, paramsSchema);
+            tools.Add(context.ReadObject(tool, "tool"));
         }
+
+        foreach (var subAgent in configuration.SubAgents ?? [])
+        {
+            var subAgentConfiguration = handler.GetAiAgentConfiguration(subAgent.Identifier);
+            var parameters = ConversationHandler.BuildSubAgentParameters(context, configuration, subAgentConfiguration);
+            var paramsSchema = ConversationHandler.GetSchemaForSubAgentTool(context, parameters);
+            var description = new StringBuilder(subAgent.Description).AppendLine();
+            subAgentConfiguration.AppendCapabilities(description);
+            var tool = GetTool(context, subAgent.Identifier, description.ToString(), paramsSchema);
+            tools.Add(context.ReadObject(tool, "tool"));
+        }
+
+        return tools;
     }
 
+    public DynamicJsonValue GetTool(JsonOperationContext context, string name, string description, string paramsSchema)
+    {
+        var tool = new DynamicJsonValue
+        {
+            [Constants.JsonSchemaFields.Type] = "function",
+            [Constants.ResponseFields.Function] = new DynamicJsonValue
+            {
+                [Constants.ResponseFields.Name] = name,
+                [Constants.JsonSchemaFields.Description] = description,
+                ["parameters"] = context.Sync.ReadForMemory(paramsSchema, "params/schema")
+            }
+        };
+
+        if (_settings.SupportStrictTools)
+            tool[Constants.JsonSchemaFields.Strict] = true;
+
+        return tool;
+    }
 
     public async Task<AiResponse> StreamingCompleteAsync(JsonOperationContext streamingContext, IMemoryContextPool contextPool,
         string streamPropertyPath, HttpRequestMessage request,
@@ -175,27 +164,15 @@ public class ChatCompletionClient : IDisposable
         AiUsage usage, CancellationToken token)
     {
         AddDefaultHeaders(request);
-        // we use a small buffer size since we expect those to be "token" level updates, not very big ones
-        const int initialBufferSize = 64;
+        using var streamedPropertyBuffer = new JsonOperationContextBuffer<byte>(streamingContext);
 
-        using var __ = streamingContext.GetRawMemoryBuffer(initialBufferSize, out var streamedPropertyBuffer);
         var parser = new SseStreamingJsonParser(streamingContext, streamPropertyPath);
         var alreadySeen = 0;
-        var sizeToStream = 0;
         parser.OnStringRead += (e) =>
         {
-            int size = e.SizeInBytes - alreadySeen;
-            if (size > streamedPropertyBuffer.SizeInBytes)
-            {
-                streamingContext.GrowAllocation(streamedPropertyBuffer, size - streamedPropertyBuffer.SizeInBytes);
-            }
-
-            unsafe
-            {
-                var read = e.CopyTo(alreadySeen, streamedPropertyBuffer.Address);
-                alreadySeen += read;
-                sizeToStream += read;
-            }
+            // the `e` we get here is the _full_ string (including past chunks we already saw)
+            // we want to read only the *new* parts, that we didn't see before
+            alreadySeen += streamedPropertyBuffer.Append(alreadySeen, e);
         };
 
         using var response = await SendStreamingRequestAsync(request, token);
@@ -207,7 +184,7 @@ public class ChatCompletionClient : IDisposable
         }
 
         await using var responseStream = await response.Content.ReadAsStreamAsync(token).ConfigureAwait(false);
-        ToolCallState toolCallState = new();
+        IToolCallState toolCallState = _settings.CreateToolCallState();
         BlittableJsonReaderObject message = null;
 
         // need two contexts here because we run two parsing operations at once, first for each of the SSE events
@@ -255,10 +232,13 @@ public class ChatCompletionClient : IDisposable
                     toolCallState.AddAndReset();
 
                     var final = parser.Process(content);
-                    if (sizeToStream is not 0)
+                    if (streamedPropertyBuffer.Length is not 0) // Length is the written data length (not the buffer real size)
                     {
-                        await streamedPropertyCallback(streamedPropertyBuffer.AsMemory()[..sizeToStream]);
-                        sizeToStream = 0;
+                        // here we send all the data that wasn't sent so far to the client
+                        await streamedPropertyCallback(streamedPropertyBuffer.AsMemory());
+                        // reset the buffer length so we can overwrite the start of the buffer
+                        // and only retain in memory the parts we'll need to send next time
+                        streamedPropertyBuffer.Length = 0;
                     }
 
                     if (final is not null)
@@ -278,32 +258,17 @@ public class ChatCompletionClient : IDisposable
         }
 
         // Some OpenAI-like APIs return an empty array instead of omitting the field when no tool calls are made
-        if (toolCallState.AllToolCalls?.Count > 0)
+        if (toolCallState.TryGetToolCallsForMessage(out var allToolCalls))
         {
-            DynamicJsonArray toolCalls = new();
-            foreach (var call in toolCallState.AllToolCalls)
-            {
-                toolCalls.Add(new DynamicJsonValue
-                {
-                    [Constants.ResponseFields.Id] = call.Id,
-                    [Constants.ResponseFields.Type] = Constants.ResponseFields.Function,
-                    [Constants.ResponseFields.Function] = new DynamicJsonValue
-                    {
-                        [Constants.ResponseFields.Name] = call.Name,
-                        [Constants.ResponseFields.Arguments] = call.Arguments
-                    }
-                });
-            }
-
             return new AiResponse(AiResponseType.Tool)
             {
                 Message = streamingContext.ReadObject(new DynamicJsonValue
                 {
                     [Constants.ResponseFields.Role] = Constants.RequestFields.RoleAssistantValue,
                     [Constants.ResponseFields.Content] = null,
-                    [Constants.ResponseFields.ToolCalls] = toolCalls
+                    [Constants.ResponseFields.ToolCalls] = allToolCalls
                 }, "persisted/streamed/toolcalls"),
-                ToolCalls = toolCallState.AllToolCalls,
+                ToolCalls = toolCallState.GetAllToolCalls(),
             };
         }
 
@@ -453,61 +418,6 @@ public class ChatCompletionClient : IDisposable
     protected virtual Task<HttpResponseMessage> SendRequestAsync(HttpRequestMessage request, CancellationToken token) => _client.SendAsync(request, token);
 
     protected virtual Task<HttpResponseMessage> SendStreamingRequestAsync(HttpRequestMessage request, CancellationToken token) => _client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, token);
-  
-    public static DynamicJsonValue CreateMessageWithAttachments(IEnumerable<AiAttachment> attachments)
-    {
-        var content = new DynamicJsonArray();
-        var message = new DynamicJsonValue
-        {
-            [Constants.RequestFields.Role] = Constants.RequestFields.RoleUserValue,
-            [Constants.RequestFields.Content] = content
-        };
- 
-        foreach (var attachment in attachments)
-        {
-            if (attachment.Source == AiAttachmentSource.NotFound)
-            {
-                content.Add(new DynamicJsonValue
-                {
-                    [Constants.AttachmentsRequestFields.Type] = Constants.AttachmentsRequestFields.TypeText,
-                    [Constants.AttachmentsRequestFields.TypeText] = $"File '{attachment.Name}' (of type '{attachment.Type}') could not be loaded: attachment not found"
-                });
-                continue;
-            }
-
-            content.Add(attachment.Type switch
-            {
-                Constants.AttachmentsRequestFields.MediaTypeTextPlain => new DynamicJsonValue
-                {
-                    [Constants.AttachmentsRequestFields.Type] = Constants.AttachmentsRequestFields.TypeText,
-                    [Constants.AttachmentsRequestFields.TypeText] = attachment.Data
-                },
-                Constants.AttachmentsRequestFields.MediaTypeApplicationPdf => new DynamicJsonValue
-                {
-                    [Constants.AttachmentsRequestFields.Type] = Constants.AttachmentsRequestFields.File,
-                    [Constants.AttachmentsRequestFields.File] = new DynamicJsonValue
-                    {
-                        [Constants.AttachmentsRequestFields.FileName] = attachment.Name,
-                        [Constants.AttachmentsRequestFields.FileData] = "data:application/pdf;base64," + attachment.Data
-                    }
-                },
-                Constants.AttachmentsRequestFields.MediaTypeImageJpeg or
-                    Constants.AttachmentsRequestFields.MediaTypeImagePng or
-                    Constants.AttachmentsRequestFields.MediaTypeImageGif or
-                    Constants.AttachmentsRequestFields.MediaTypeImageWebp => new DynamicJsonValue
-                    {
-                        [Constants.AttachmentsRequestFields.Type] = Constants.AttachmentsRequestFields.ImageUrl,
-                        [Constants.AttachmentsRequestFields.ImageUrl] = new DynamicJsonValue
-                        {
-                            [Constants.AttachmentsRequestFields.Url] = "data:" + attachment.Type + ";base64," + attachment.Data
-                        }
-                    },
-                _ => throw new InvalidOperationException($"Attachment '{attachment.Name}' has unknown type: {attachment.Type}")
-            });
-        }
-
-        return message;
-    }
 
      public HttpRequestMessage CreateCompletionRequest(JsonOperationContext ctx,
         List<BlittableJsonReaderObject> messages,
@@ -563,7 +473,7 @@ public class ChatCompletionClient : IDisposable
 
         List<LazyStringValue> filterProperties = [ctx.GetLazyString(ConversationDocument.DateProperty), ctx.GetLazyString(ConversationDocument.UsageProperty)];
 
-        writer.WriteArray(ctx, Constants.RequestFields.Messages, messages.WithAttachments(ctx, attachments), (w, context, message) =>
+        writer.WriteArray(ctx, Constants.RequestFields.Messages, WithAttachments(ctx, messages, attachments), (w, context, message) =>
         {
             if (_forTestingPurposes?.SimulateFailureAsync != null)
                 _forTestingPurposes.SimulateFailureAsync(message.ToString()).GetAwaiter().GetResult();
@@ -624,6 +534,55 @@ public class ChatCompletionClient : IDisposable
         }
     }
 
+    private IEnumerable<BlittableJsonReaderObject> WithAttachments(JsonOperationContext context, IEnumerable<BlittableJsonReaderObject> messages, List<AiAttachment> attachments)
+    {
+        foreach (var message in messages)
+        {
+            if (message.TryGet(Constants.RequestFields.Content, out object content))
+            {
+                // we need to stringify the content before sending to the model
+                if (content is BlittableJsonReaderObject blittableJson)
+                {
+                    // clone once, not to change the original, since we are going to persist it
+                    var msg = message.CloneOnTheSameContext();
+                    var modifications = msg.Modifications ??= new DynamicJsonValue(msg);
+                    modifications[Constants.RequestFields.Content] = blittableJson.ToString();
+                    // clone twice, so the changes will take effect
+                    yield return msg.CloneOnTheSameContext();
+                    continue;
+                }
+            }
+
+            yield return message;
+        }
+
+        if (attachments is not null && attachments.Count > 0)
+        {
+            var content = new DynamicJsonArray();
+            var message = new DynamicJsonValue
+            {
+                [Constants.RequestFields.Role] = Constants.RequestFields.RoleUserValue,
+                [Constants.RequestFields.Content] = content
+            };
+
+            foreach (var attachment in attachments)
+            {
+                if (attachment.Source == AiAttachmentSource.NotFound)
+                {
+                    content.Add(new DynamicJsonValue
+                    {
+                        [Constants.AttachmentsRequestFields.Type] = Constants.AttachmentsRequestFields.TypeText,
+                        [Constants.AttachmentsRequestFields.TypeText] = $"File '{attachment.Name}' (of type '{attachment.Type}') could not be loaded: attachment not found"
+                    });
+                    continue;
+                }
+
+                content.Add(_settings.GetAiAttachmentJson(attachment));
+            }
+            yield return context.ReadObject(message, "write-ai-attachments");
+        }
+    }
+
     public async Task ProxyModelsAsync(HttpResponse response, CancellationToken token)
     {
         using var request = new HttpRequestMessage
@@ -660,7 +619,7 @@ public class ChatCompletionClient : IDisposable
 
             try
             {
-                return await context.ReadForMemoryAsync(ms, "response/object").ConfigureAwait(false);
+                return await _settings.TryGetResponseContentAsync(context, ms).ConfigureAwait(false);
             }
             catch (InvalidDataException ide) when (ide.Message.Contains("Cannot have a '<' in this position at  (1,2) around:")) // likely HTML response
             {
@@ -698,7 +657,9 @@ public class ChatCompletionClient : IDisposable
             case ErrorType.TooManyTokens:
             case ErrorType.TooManyRequests:
                 var retryAfter = TimeSpan.Zero;
-                if (headers.Contains(Constants.Headers.RetryAfterMs) == false && headers.Contains(Constants.Headers.RetryAfter) == false)
+                if(headers.Contains(Constants.Headers.RetryAfterMs) == false &&
+                  headers.Contains(Constants.Headers.RetryAfter) == false &&
+                  error.RetryAfter == null)
                 {
                     throw new TooManyTokensException(message)
                     {
@@ -706,12 +667,17 @@ public class ChatCompletionClient : IDisposable
                     };
                 }
 
+                if (error.RetryAfter != null)
+                    retryAfter = error.RetryAfter.Value;
+
                 if (headers.TryGetValues(Constants.Headers.XRateLimitResetTokens, out var resetTokensValues))
                 {
                     // TPM
                     var retryAfterAsString = resetTokensValues.FirstOrDefault();
-                    if (TryParseResetTime(retryAfterAsString, out retryAfter) == false)
+                    if (TryParseResetTime(retryAfterAsString, out var retryAfterForTokens) == false)
                         throw new FormatException($"Unrecognized rate-limit format: '{retryAfterAsString}'");
+
+                    retryAfter = retryAfterForTokens > retryAfter ? retryAfterForTokens : retryAfter;
                 }
 
                 if (headers.TryGetValues(Constants.Headers.XRateLimitResetRequests, out var resetRequestsValues))
@@ -763,7 +729,7 @@ public class ChatCompletionClient : IDisposable
         RegexOptions.Compiled | RegexOptions.CultureInvariant
     );
 
-    private static bool TryParseResetTime(string input, out TimeSpan time)
+    internal static bool TryParseResetTime(string input, out TimeSpan time)
     {
         time = TimeSpan.Zero;
 
@@ -971,8 +937,15 @@ public class ChatCompletionClient : IDisposable
 
     public static class Constants
     {
+        public static class ToolNames
+        {
+            // Internal RavenDB tool used by agents to fetch attachments from the conversation document.
+            public const string RetrieveAttachment = "__RetrieveAttachment";
+        }
+
         public static class ResponseFields
         {
+            public const string Names = "names";
             public const string Choices = "choices";
             public const string Message = "message";
             public const string Content = "content";
@@ -1023,6 +996,8 @@ public class ChatCompletionClient : IDisposable
             public const string Id = "id";
             public const string Function = "function";
             public const string Arguments = "arguments";
+            public const string Parameters = "parameters";
+            public const string Tool = "tool";
 
             // Values
             public const string TypeObject = "object";
@@ -1085,38 +1060,6 @@ public class ChatCompletionClient : IDisposable
             public const string MediaTypeImagePng = "image/png";
             public const string MediaTypeImageGif = "image/gif";
             public const string MediaTypeImageWebp = "image/webp";
-        }
-    }
-}
-
-public static class ChatCompletionClientExtensions
-{
-    public static IEnumerable<BlittableJsonReaderObject> WithAttachments(this IEnumerable<BlittableJsonReaderObject> messages, JsonOperationContext context, List<AiAttachment> attachments)
-    {
-        foreach (var message in messages)
-        {
-            if (message.TryGet(ChatCompletionClient.Constants.RequestFields.Content, out object content))
-            {
-                // we need to stringify the content before sending to the model
-                if (content is BlittableJsonReaderObject blittableJson)
-                {
-                    // clone once, not to change the original, since we are going to persist it
-                    var msg = message.CloneOnTheSameContext();
-                    var modifications = msg.Modifications ??= new DynamicJsonValue(msg);
-                    modifications[ChatCompletionClient.Constants.RequestFields.Content] = blittableJson.ToString();
-                    // clone twice, so the changes will take effect
-                    yield return msg.CloneOnTheSameContext();
-                    continue;
-                }
-            }
-
-            yield return message;
-        }
-
-        if (attachments is not null && attachments.Count > 0)
-        {
-            var message = ChatCompletionClient.CreateMessageWithAttachments(attachments);
-            yield return context.ReadObject(message, "write-ai-attachments");
         }
     }
 }

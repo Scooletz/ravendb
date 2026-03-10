@@ -1,15 +1,15 @@
 ﻿using System.Collections.Generic;
 using Raven.Client.Documents.Operations.AI.Agents;
+using Raven.Server.Documents.Handlers.Batches.Commands;
 using Raven.Server.Documents.TransactionMerger.Commands;
 using Raven.Server.ServerWide.Context;
 using Sparrow.Json;
-using PutOperationResults = Raven.Server.Documents.DocumentsStorage.PutOperationResults;
 
 namespace Raven.Server.Documents.Handlers.AI.Agents
 {
     internal class PutConversationCommand : MergedTransactionCommand<DocumentsOperationContext, DocumentsTransaction>
     {
-        public PutOperationResults PutResult;
+        public DocumentsStorage.PutOperationResults PutResult;
 
         private BlittableJsonReaderObject _conversationDoc;
         private readonly ConversationDocument _conversation;
@@ -17,7 +17,7 @@ namespace Raven.Server.Documents.Handlers.AI.Agents
         private readonly LazyStringValue _expectedChangeVector;
         private readonly DocumentDatabase _database;
         private readonly AiAgentConfiguration _configuration;
-
+        public MergedBatchCommand Attachments { get; set; }
         private const string AiAgentConversationHistoryIdPrefix = "ConversationHistory";
 
         public PutConversationCommand(ConversationDocument conversation, List<BlittableJsonReaderObject> history, LazyStringValue changeVector, AiAgentConfiguration configuration, DocumentDatabase database)
@@ -45,6 +45,13 @@ namespace Raven.Server.Documents.Handlers.AI.Agents
 
             _conversationDoc = _conversation.ToBlittable(context);
             PutResult = _database.DocumentsStorage.Put(context, _conversation.Id, _expectedChangeVector, _conversationDoc);
+
+            if (Attachments is not null)
+            {
+                Attachments.ExecuteDirectly(context);
+                var d = _database.DocumentsStorage.GetDocumentOrTombstone(context, PutResult.Id, DocumentFields.ChangeVector);// Attachments will change the document change vector; re-read to return the final CV.
+                PutResult.ChangeVector = d.Document.ChangeVector;
+            }
 
             return 1;
         }

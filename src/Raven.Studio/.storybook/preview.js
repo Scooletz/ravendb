@@ -9,7 +9,7 @@ overrideViews();
 import system from "durandal/system";
 system.debug(true);
 
-require('../wwwroot/Content/css/fonts/icomoon.font');
+require("../wwwroot/Content/css/fonts/icomoon-svgtofont/icomoon.css");
 
 const ko = require("knockout");
 require("knockout.validation");
@@ -24,7 +24,6 @@ extensions.install();
 
 import "bootstrap/dist/js/bootstrap";
 import "jquery-fullscreen-plugin/jquery.fullscreen";
-import "bootstrap-select";
 
 import "bootstrap-multiselect";
 
@@ -143,6 +142,7 @@ export const parameters = {
               ],
               "About",
           ],
+          "Widgets",
           "Shell",
           "Setup Wizard",
           "Bits",

@@ -213,16 +213,14 @@ namespace Raven.Server.Documents.Handlers.AI.Agents
             }
         }
 
-        public DynamicJsonValue GetSubAgentTool(JsonOperationContext context, AiAgentConfiguration configuration, AiAgentToolSubAgent subAgent)
+        public static Dictionary<string, ParameterDefinition> BuildSubAgentParameters(JsonOperationContext context, AiAgentConfiguration parent, AiAgentConfiguration child)
         {
-            AiAgentConfiguration subAgentConfiguration = GetAiAgentConfiguration(subAgent.Identifier);
             var parameters = new Dictionary<string, ParameterDefinition>();
-
             // We only add what the sub-agent has that the root agent doesn't have
             // the mutual params will be added to the request when we create it
-            foreach (var parameter in subAgentConfiguration.Parameters ?? [])
+            foreach (var parameter in child.Parameters ?? [])
             {
-                var parentParam = configuration.Parameters?.FirstOrDefault(p => p.Name == parameter.Name);
+                var parentParam = parent.Parameters?.FirstOrDefault(p => p.Name == parameter.Name);
                 if (parentParam != null)
                 {
                     // same name exists
@@ -254,13 +252,10 @@ namespace Raven.Server.Documents.Handlers.AI.Agents
             }
 
             parameters[ConversationDocument.SubAgentUserPromptKey] = new ParameterDefinition("A natural language prompt instructions for the sub-agent to do its work", AiAgentParameterValueType.String);
-            var paramsSchema = GetSchemaForSubAgentTool(context, parameters);
-            var description = new StringBuilder(subAgent.Description).AppendLine();
-            subAgentConfiguration.AppendCapabilities(description);
-            return ConversationDocument.GetTool(context, subAgent.Identifier, description.ToString(), paramsSchema);
+            return  parameters;
         }
 
-        private static string GetSchemaForSubAgentTool(JsonOperationContext context, Dictionary<string, ParameterDefinition> parameters)
+        public static string GetSchemaForSubAgentTool(JsonOperationContext context, Dictionary<string, ParameterDefinition> parameters)
         {
             var properties = new DynamicJsonValue();
             var required = new DynamicJsonArray();
@@ -321,7 +316,7 @@ namespace Raven.Server.Documents.Handlers.AI.Agents
             }, "tool/parameters").ToString();
         }
 
-        private readonly struct ParameterDefinition
+        public readonly struct ParameterDefinition
         {
             public string Description { get; }
             public AiAgentParameterValueType Type { get; }

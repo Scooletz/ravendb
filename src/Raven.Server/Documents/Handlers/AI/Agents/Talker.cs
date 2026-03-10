@@ -25,9 +25,8 @@ internal class Talker(ConversationHandler handler, JsonOperationContext context,
         document.EnsureInitialized();
 
         _schema = ChatCompletionClient.GetSchemaForRequest(configuration.OutputSchema, configuration.SampleObject);
-        _tools = ConversationDocument.GenerateTools(handler, context, configuration);
-
         Client = handler.CreateClient();
+        _tools = Client.GenerateTools(context, configuration, handler);
     }
 
     public HttpRequestMessage CreateCompletionRequest(List<AiAttachment> attachments)

@@ -50,7 +50,7 @@ namespace Raven.Client.Documents.Operations.AI.Agents
 
         /// <summary>
         /// The actual query string (RQL) that represents this tool.
-        /// This query will not be executed by the database when the model requests for this tool.
+        /// This query will be executed by the database when the model requests this tool.
         /// </summary>
         public string Query { get; set; }
 
@@ -70,7 +70,23 @@ namespace Raven.Client.Documents.Operations.AI.Agents
         /// Options for the AI agent tool query.
         /// </summary>
         public AiAgentToolQueryOptions Options { get; set; }
-        
+
+        internal bool ShouldAddToInitialContext()
+        {
+            if (Options?.AddToInitialContext is null)
+                return false;
+
+            return Options.AddToInitialContext.Value;
+        }
+
+        internal bool ShouldAllowModelQueries()
+        {
+            if (Options?.AllowModelQueries is null)
+                return true;
+
+            return Options.AllowModelQueries.Value;
+        }
+
         public DynamicJsonValue ToJson()
         {
             var djv = new DynamicJsonValue
