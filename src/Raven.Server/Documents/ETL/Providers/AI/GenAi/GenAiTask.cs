@@ -585,7 +585,18 @@ public sealed class GenAiTask : EtlProcess<GenAiItem, GenAiScriptResult, GenAiCo
                 if (attachment == null)
                     throw new InvalidOperationException($"The document '{item.DocumentId}' has no attachment with name '{genAtt.Name}' from type '{genAtt.Type}' anymore");
                 
-                genAtt.Data = GenAiScriptTransformer.GetAttachmentDataAsBase64(attachment.Stream, genAtt.Type);
+                if (attachment.Stream != null)
+                {
+                    // The stream is there. Materialize it as.
+                    genAtt.Data = GenAiScriptTransformer.GetAttachmentDataAsBase64(attachment.Stream, genAtt.Type);
+                }
+                // The last resort, check for the remote parameters and process as deferred.
+                else if (attachment.RemoteParameters.IsRemoteStorageAttachment())
+                {
+                    genAtt.Source = AiAttachmentSource.Deferred;
+                    genAtt.Data = attachment.Base64Hash.ToString();
+                    genAtt.RemoteStorageId = attachment.RemoteParameters.Identifier;
+                }
             }
         }
     }

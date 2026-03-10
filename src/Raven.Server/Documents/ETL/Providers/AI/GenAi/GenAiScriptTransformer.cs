@@ -250,8 +250,7 @@ var ai = new AI();
                             // The last resort, check for the remote parameters and process as deferred.
                             else if (attachment.RemoteParameters.IsRemoteStorageAttachment())
                             {
-                                // If it's the debug mode, not mark it as a deferred. Just return its cache.
-                                source = DocumentScript.DebugMode ? AiAttachmentSource.FromAttachment : AiAttachmentSource.Deferred;
+                                source = AiAttachmentSource.Deferred;
                                 data = attachment.Base64Hash.ToString(); // Will be resolved later
                                 remoteStorageId = attachment.RemoteParameters.Identifier;
                             }
