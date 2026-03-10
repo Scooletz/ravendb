@@ -15,15 +15,16 @@ public enum RavenAiIntegration
     None = 0,
     OpenAi = 1 << 1,
     AzureOpenAI = 1 << 2,
-    // Ollama = 1 << 3,
+    Ollama = 1 << 3, // we keep ollama here only for connectivity check
     Onnx = 1 << 4,
     Google = 1 << 5,
     HuggingFace = 1 << 6,
     MistralAi = 1 << 7,
     Vertex = 1 << 8,
+    vLLM = 1 << 9,
 
-    All = OpenAi | AzureOpenAI/* | Ollama*/ | Onnx | Google | HuggingFace | MistralAi | Vertex,
-    NonInternal = OpenAi | AzureOpenAI /*| Ollama*/ | Google | HuggingFace | MistralAi | Vertex
+    All = OpenAi | AzureOpenAI | vLLM | Onnx | Google | HuggingFace | MistralAi | Vertex,
+    NonInternal = OpenAi | AzureOpenAI | vLLM | Google | HuggingFace | MistralAi | Vertex
 }
 
 public abstract class AbstractRavenAiIntegrationDataAttribute<TConfig> : RavenDataAttributeBase
@@ -129,11 +130,17 @@ public class RavenGenAiDataAttribute : AbstractRavenAiIntegrationDataAttribute<G
         if (aiIntegration.HasFlag(RavenAiIntegration.OpenAi))
             yield return GenAiOpenAiConnectorForTesting.Instance;
 
-        /*if (aiIntegration.HasFlag(RavenAiIntegration.Ollama))
-            yield return GenAiOllamaConnectorForTesting.Instance;*/
+        if (aiIntegration.HasFlag(RavenAiIntegration.Ollama))
+            yield return GenAiOllamaConnectorForTesting.Instance;
 
         if (aiIntegration.HasFlag(RavenAiIntegration.AzureOpenAI))
             yield return GenAiAzureOpenAiConnectorForTesting.Instance;
+
+        if (aiIntegration.HasFlag(RavenAiIntegration.vLLM))
+            yield return GenAiVllmConnectorForTesting.Instance;
+
+        if (aiIntegration.HasFlag(RavenAiIntegration.Google))
+            yield return GenAiGoogleConnectorForTesting.Instance;
     }
 
     public override IEnumerable<IAiConnectorForTesting<GenAiConfiguration>> GetAiConnectionStringsSingleton(RavenAiIntegration aiIntegration) => GetAiConnectionStrings(aiIntegration);
@@ -149,8 +156,8 @@ public class RavenAiEmbeddingsDataAttribute : AbstractRavenAiIntegrationDataAttr
         if (aiIntegration.HasFlag(RavenAiIntegration.AzureOpenAI))
             yield return EmbeddingsAzureOpenAiConnectorForTesting.Instance;
 
-        /*if (aiIntegration.HasFlag(RavenAiIntegration.Ollama))
-            yield return EmbeddingsOllamaConnectorForTesting.Instance;*/
+        if (aiIntegration.HasFlag(RavenAiIntegration.Ollama))
+            yield return EmbeddingsOllamaConnectorForTesting.Instance;
 
         if (aiIntegration.HasFlag(RavenAiIntegration.Onnx))
             yield return EmbeddedConnectorForTesting.Instance;
@@ -166,6 +173,9 @@ public class RavenAiEmbeddingsDataAttribute : AbstractRavenAiIntegrationDataAttr
 
         if (aiIntegration.HasFlag(RavenAiIntegration.Vertex))
             yield return EmbeddingsVertexConnectorForTesting.Instance;
+
+        if (aiIntegration.HasFlag(RavenAiIntegration.vLLM))
+            yield return EmbeddingsVllmConnectorForTesting.Instance;
     }
 
     public override IEnumerable<IAiConnectorForTesting<EmbeddingsGenerationConfiguration>> GetAiConnectionStringsSingleton(RavenAiIntegration aiIntegration) => GetAiConnectionStrings(aiIntegration);

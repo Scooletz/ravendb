@@ -42,7 +42,6 @@ import { useEventsCollector } from "components/hooks/useEventsCollector";
 import { setupWizardConstants, setupWizardGA4Prefixes } from "components/setupWizard/utils/setupWizardConstants";
 import useBoolean from "hooks/useBoolean";
 import { SetupWizardInfoPopover } from "components/setupWizard/partials/SetupWizardInfoPopover";
-import { setupWizardFormDefaultValues } from "components/setupWizard/utils/setupWizardFormDefaultValues";
 import { components, OptionProps, SingleValueProps } from "react-select";
 import Badge from "react-bootstrap/Badge";
 
@@ -67,7 +66,7 @@ export function SetupWizardNodeAddressStep() {
 
     const getDomainForWildcard = (tag: string | null): string => {
         if (cns.length === 0) {
-            return "";
+            return null;
         }
 
         const cn = cns[0];
@@ -135,6 +134,8 @@ export function SetupWizardNodeAddressStep() {
             });
         }
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+    useRevalidatePersistedNodesOnEntry();
 
     return (
         <div>
@@ -322,9 +323,10 @@ function NodeDetailsPanelHeader({ control, index, onRemove, editNodeForm }: Node
     const handleSaveEdit = handleSubmit(async (formData: NodeEditFormData) => {
         setValue(`nodeAddressStep.nodes.${index}`, {
             ...formData,
+            dnsName: securityOption === "ownCertificate" ? formData.dnsName : null,
             nodeUrl: handleNodeUrl(formData),
             httpPort: formData.httpPort == null ? (securityOption === "none" ? 8080 : 443) : formData.httpPort,
-            nodeTag: formData.isPassive ? undefined : formData.nodeTag,
+            nodeTag: formData.isPassive ? null : formData.nodeTag,
             isEditing: false,
             isNewlyAdded: false,
         });
@@ -399,8 +401,17 @@ function NodeDetailsPanelHeader({ control, index, onRemove, editNodeForm }: Node
                             </Button>
                         </ConditionalPopover>
                         <Button variant="secondary" onClick={handleDiscardEdit}>
-                            <Icon icon="close" />
-                            Discard
+                            {nodeData.isNewlyAdded ? (
+                                <>
+                                    <Icon icon="trash" />
+                                    Remove
+                                </>
+                            ) : (
+                                <>
+                                    <Icon icon="close" />
+                                    Discard
+                                </>
+                            )}
                         </Button>
                     </>
                 ) : (
@@ -430,11 +441,17 @@ function NodeDetailsPanelHeader({ control, index, onRemove, editNodeForm }: Node
     );
 }
 
-function NodeDetailsPanelView({ index, control }: { index: number; control: Control<SetupWizardFormData> }) {
-    const nodeData = useWatch({
+interface NodeDetailsPanelViewProps {
+    index: number;
+    control: Control<SetupWizardFormData>;
+}
+
+function NodeDetailsPanelView({ index, control }: NodeDetailsPanelViewProps) {
+    const setupWizardData = useWatch({
         control,
-        name: `nodeAddressStep.nodes.${index}`,
     });
+
+    const nodeData = setupWizardData.nodeAddressStep.nodes[index];
 
     const localIpPortAddress = `${nodeData.ipAddress[0].ipAddress}:${nodeData.httpPort}`;
     return (
@@ -486,7 +503,9 @@ function NodeDetailsPanelView({ index, control }: { index: number; control: Cont
             <RichPanelDetailItem>
                 <div className="d-flex flex-column">
                     <span className="hstack">
-                        <span className="md-label mb-0">HTTPS port</span>
+                        <span className="md-label mb-0">
+                            {setupWizardData.securityStep.securityOption === "none" ? "HTTP" : "HTTPS"} port
+                        </span>
                         <PopoverWithHoverWrapper
                             message={
                                 <SetupWizardInfoPopover
@@ -682,12 +701,11 @@ function NodeDetailsPanelEdit({
                     <Col md={colWidth}>
                         <FormGroup>
                             <FormLabel className="d-flex">
-                                HTTPS port
+                                {securityOption === "none" ? "HTTP" : "HTTPS"} port
                                 <PopoverWithHoverWrapper
                                     message={
                                         <SetupWizardInfoPopover
-                                            description="Defines the private HTTPS port used by clients and browsers.
-                                                By default, this value is set to 443."
+                                            description={`Defines the private ${securityOption === "none" ? "HTTP" : "HTTPS"} port used by clients and browsers. By default, this value is set to ${securityOption === "none" ? "8080" : "443"}.`}
                                             docsLink="https://docs.ravendb.net/server/configuration/core-configuration#serverurl"
                                         />
                                     }
@@ -898,7 +916,7 @@ function AddAnotherNode({ onAddNode }: AddAnotherNodeProps) {
     const nodeData = getValues("nodeAddressStep.nodes");
 
     const maxClusterSize = licenseKeyStep?.licenseInfo?.maxClusterSize ?? setupWizardConstants.AGPL_MAX_CLUSTER_SIZE;
-    const isMaxClusterNodes = maxClusterSize === nodeData?.length;
+    const isMaxClusterNodes = nodeData?.length >= maxClusterSize;
 
     return (
         <div
@@ -1169,6 +1187,10 @@ export function SetupWizardNodeAddressStepFooter() {
     const { reportEvent } = useEventsCollector();
 
     const nodeData = getValues("nodeAddressStep.nodes");
+    const licenseKeyStep = getValues("licenseKeyStep");
+
+    const maxClusterSize = licenseKeyStep?.licenseInfo?.maxClusterSize ?? setupWizardConstants.AGPL_MAX_CLUSTER_SIZE;
+    const hasExceededLicenseLimit = nodeData?.length > maxClusterSize;
 
     const isEditing = nodeData?.some((node) => node.isEditing);
 
@@ -1298,8 +1320,9 @@ export function SetupWizardNodeAddressStepFooter() {
                 setValue("currentStep", "Security");
                 break;
         }
-        setValue("nodeAddressStep", setupWizardFormDefaultValues["nodeAddressStep"]);
     };
+
+    const isContinueDisabled = isEditing || hasExceededLicenseLimit || nodeData.length === 0;
 
     return (
         <div className="hstack justify-content-between">
@@ -1307,16 +1330,95 @@ export function SetupWizardNodeAddressStepFooter() {
                 <Icon icon="arrow-left" /> Back
             </Button>
             <ConditionalPopover
-                conditions={{
-                    isActive: isEditing,
-                    message: "You can't proceed if you have unsaved nodes. Save your changes first.",
-                }}
+                conditions={[
+                    {
+                        isActive: hasExceededLicenseLimit,
+                        message: <LicenseLimitExceededMessage />,
+                    },
+                    {
+                        isActive: isEditing && !hasExceededLicenseLimit,
+                        message: "You can't proceed if you have unsaved nodes. Save your changes first.",
+                    },
+                ]}
             >
-                <Button disabled={isEditing} variant="primary" className="rounded-pill" onClick={handleContinue}>
+                <Button
+                    disabled={isContinueDisabled}
+                    variant="primary"
+                    className="rounded-pill"
+                    onClick={handleContinue}
+                >
                     Continue <Icon icon="arrow-right" margin="m-0" />
                 </Button>
             </ConditionalPopover>
         </div>
+    );
+}
+
+function useRevalidatePersistedNodesOnEntry() {
+    const { setValue, getValues } = useFormContext<SetupWizardFormData>();
+
+    useEffect(() => {
+        const nodes = getValues("nodeAddressStep.nodes");
+        const securityOption = getValues("securityStep.securityOption");
+        const cns = getValues("selfSignedCertificateStep.cns");
+
+        nodes.forEach((node, index) => {
+            if (securityOption !== "ownCertificate" && node.dnsName) {
+                setValue(`nodeAddressStep.nodes.${index}.dnsName`, null);
+            }
+
+            if (securityOption === "ownCertificate" && node.dnsName) {
+                const isDnsNameInCns = cns?.some((cn) => cn === node.dnsName);
+                if (!isDnsNameInCns) {
+                    if (cns.length === 1) {
+                        // set first CN if only one is available
+                        setValue(`nodeAddressStep.nodes.${index}.dnsName`, cns[0]);
+                    } else {
+                        setValue(`nodeAddressStep.nodes.${index}.dnsName`, null);
+                    }
+                }
+            }
+
+            /*
+             * “Discard” restores the node to its pre-edit state. If the user returned here after changing earlier steps, restoring is not allowed because it would cause a validation error, the node must be either saved or removed.
+             * When `isNewlyAdded` is true, the “Remove” button is shown instead of “Discard”.
+             */
+            setValue(`nodeAddressStep.nodes.${index}.isNewlyAdded`, true, {
+                shouldValidate: true,
+            });
+            setValue(`nodeAddressStep.nodes.${index}.isEditing`, true, {
+                shouldValidate: true,
+            });
+        });
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
+}
+
+function LicenseLimitExceededMessage() {
+    const { getValues } = useFormContext<SetupWizardFormData>();
+
+    const nodeData = getValues("nodeAddressStep.nodes");
+    const licenseKeyStep = getValues("licenseKeyStep");
+
+    const maxClusterSize = licenseKeyStep?.licenseInfo?.maxClusterSize ?? setupWizardConstants.AGPL_MAX_CLUSTER_SIZE;
+    const currentNodeCount = nodeData?.length;
+
+    return (
+        <>
+            <p className="mb-0">
+                Your license allows maximum <strong>{maxClusterSize}</strong> node(s), but you have configured{" "}
+                <strong>{currentNodeCount}</strong> nodes.
+            </p>
+            <p className="mb-0">
+                Remove <strong>{currentNodeCount - maxClusterSize}</strong> node(s) or upgrade your license to continue.
+            </p>
+            <hr className="my-2" />
+            <span className="md-label">
+                <Icon icon="link" /> See{" "}
+                <a href="https://ravendb.net/buy" target="_blank">
+                    licenses comparison <Icon icon="newtab" />
+                </a>
+            </span>
+        </>
     );
 }
 

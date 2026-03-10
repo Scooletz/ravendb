@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Raven.Client.Documents;
@@ -15,7 +14,7 @@ namespace SlowTests.Server.Documents.AI.Embeddings;
 
 public class LoadVectorQuantizationTests(ITestOutputHelper output) : EmbeddingsGenerationTestBase(output)
 {
-    [RavenFact(RavenTestCategory.Indexes | RavenTestCategory.Querying | RavenTestCategory.Vector)]
+    [RavenMultiplatformFact(RavenTestCategory.Indexes | RavenTestCategory.Querying | RavenTestCategory.Vector, RavenArchitecture.AllX64)]
     public async Task CanIndexAlreadyQuantizedVectorAndQueryItProperly_Int8()
     {
         using var store = GetDocumentStore(Options.ForSearchEngine(RavenSearchEngineMode.Corax));
@@ -65,7 +64,7 @@ public class LoadVectorQuantizationTests(ITestOutputHelper output) : EmbeddingsG
         }
     }
     
-    [RavenFact(RavenTestCategory.Indexes | RavenTestCategory.Querying | RavenTestCategory.Vector)]
+    [RavenMultiplatformFact(RavenTestCategory.Indexes | RavenTestCategory.Querying | RavenTestCategory.Vector, RavenArchitecture.AllX64)]
     public async Task CanPerformQuantizationInIndexFromEtl()
     {
         using var store = GetDocumentStore(Options.ForSearchEngine(RavenSearchEngineMode.Corax));
@@ -108,7 +107,7 @@ public class LoadVectorQuantizationTests(ITestOutputHelper output) : EmbeddingsG
         }
     }
     
-    [RavenFact(RavenTestCategory.Indexes | RavenTestCategory.Querying | RavenTestCategory.Vector)]
+    [RavenMultiplatformFact(RavenTestCategory.Indexes | RavenTestCategory.Querying | RavenTestCategory.Vector, RavenArchitecture.AllX64)]
     public async Task CanIndexAlreadyQuantizedVectorAndQueryItProperly_Int1()
     {
         using var store = GetDocumentStore(Options.ForSearchEngine(RavenSearchEngineMode.Corax));
@@ -148,7 +147,7 @@ public class LoadVectorQuantizationTests(ITestOutputHelper output) : EmbeddingsG
         }
     }
     
-    [RavenFact(RavenTestCategory.Indexes | RavenTestCategory.Querying | RavenTestCategory.Vector)]
+    [RavenMultiplatformFact(RavenTestCategory.Indexes | RavenTestCategory.Querying | RavenTestCategory.Vector, RavenArchitecture.AllX64)]
     public async Task QuantizedValuesInCacheAreSeparated()
     {
         using var store = GetDocumentStore(Options.ForSearchEngine(RavenSearchEngineMode.Corax));

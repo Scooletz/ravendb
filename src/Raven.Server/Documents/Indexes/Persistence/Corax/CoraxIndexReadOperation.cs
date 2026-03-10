@@ -105,8 +105,11 @@ namespace Raven.Server.Documents.Indexes.Persistence.Corax
             _fieldMappings = fieldsMapping;
             IndexSearcher = new IndexSearcher(readTransaction, _fieldMappings)
             {
-                MaxMemoizationSizeInBytes = index.Configuration.MaxMemoizationSize.GetValue(SizeUnit.Bytes) 
+                MaxMemoizationSizeInBytes = index.Configuration.MaxMemoizationSize.GetValue(SizeUnit.Bytes),
             };
+            
+            if (index is {_forTestingPurposes: {CoraxConfiguration: not null}})
+                IndexSearcher.SetTestingConfiguration(index._forTestingPurposes.CoraxConfiguration);
             
             var primaryKey = index.Type.IsMap() 
                 ? Constants.Documents.Indexing.Fields.DocumentIdFieldName
@@ -647,7 +650,6 @@ namespace Raven.Server.Documents.Indexes.Persistence.Corax
                                 yield break;
                         }
 
-                        queryTimings?.SetQueryPlan(queryMatch.Inspect());
                     }
                     finally
                     {
@@ -806,9 +808,13 @@ namespace Raven.Server.Documents.Indexes.Persistence.Corax
                     } 
                     while (read != 0);
                 }
+                
+                
 
                 Done:
-
+                // Since some primitives are lazily initialized, we must call Inspect after at least one Fill call.
+                queryTimings?.SetQueryPlan(queryMatch.Inspect());
+                
                 QueryPool.Return(ids);
                 if (sortingData.IncludeScores)
                     ScorePool.Return(sortingData.ScoresBuffer);

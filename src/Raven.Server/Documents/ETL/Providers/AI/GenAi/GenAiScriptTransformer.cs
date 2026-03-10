@@ -169,6 +169,25 @@ var ai = new AI();
         ObjectInstance ai = DocumentScript.ScriptEngine.GetValue("ai").AsObject();
         Function retrieveContexts = ai.Prototype!.GetOwnProperty("__retrieveContexts").Value.AsFunctionInstance();
         JsArray contexts = retrieveContexts.Call(ai, []).AsArray();
+        if (contexts.Length == 0)
+        {
+            // No contexts were generated for this document.
+            // If metadata still contains GenAI hashes for this task, enqueue a marker so the load phase can remove them.
+            if (Current.Document.Data.TryGet(Constants.Documents.Metadata.Key, out BlittableJsonReaderObject metadata) &&
+                metadata.TryGet(Constants.Documents.Metadata.GenAiHashes, out BlittableJsonReaderObject hashesSection) &&
+                hashesSection.TryGet(_configuration.Identifier, out object _))
+            {
+                _currentRun.Add(new GenAiScriptResult(
+                    Current.DocumentId,
+                    Context: null,
+                    AiHash: null,
+                    IsCached: true,
+                    IsMetadataCleanupMarker: true));
+            }
+
+            return;
+        }
+
         List<string> attachmentsHashes = null;
         foreach (var ctx in contexts)
         {
@@ -226,7 +245,7 @@ var ai = new AI();
                             else if (attachment.Stream != null)
                             {
                                 // The stream is there. Materialize it as.
-                                data = DocumentScript.DebugMode ? GetAttachmentPreview(attachment, type) : GetAttachmentDataAsBase64(attachment, type);
+                                data = DocumentScript.DebugMode ? GetAttachmentPreview(attachment, type) : GetAttachmentDataAsBase64(attachment.Stream, type);
                             }
                             // The last resort, check for the remote parameters and process as deferred.
                             else if (attachment.RemoteParameters.IsRemoteStorageAttachment())
@@ -278,19 +297,17 @@ var ai = new AI();
         return $"[Hash:'{attachment.Base64Hash}']";
     }
 
-    public static string GetAttachmentDataAsBase64(Attachment attachment, string type) => GetAttachmentDataAsBase64(attachment.Stream, type);
-
-    public static string GetAttachmentDataAsBase64(Stream attachmentStream, string type)
+    public static string GetAttachmentDataAsBase64(Stream stream, string type)
     {
         using var memoryStream = RecyclableMemoryStreamFactory.GetRecyclableStream();
         if (type == AttachmentsRequestConstants.MediaTypeTextPlain)
         {
-            attachmentStream.CopyTo(memoryStream);
+            stream.CopyTo(memoryStream);
         }
         else // anything but text is using BASE64
         {
             using var transform = new ToBase64Transform();
-            using var cryptoStream = new CryptoStream(attachmentStream, transform, CryptoStreamMode.Read);
+            using var cryptoStream = new CryptoStream(stream, transform, CryptoStreamMode.Read);
             cryptoStream.CopyTo(memoryStream);
         }
 
@@ -329,6 +346,10 @@ var ai = new AI();
             UpdateHashString(state, cfg.JsonSchema);
             UpdateHashString(state, cfg.UpdateScript);
             UpdateHashString(state, cfg.ConnectionStringName);
+            if (cfg.Version == (GenAiConfiguration.WithSampleObject))
+            {
+                UpdateHashString(state, cfg.SampleObject);
+            }
             return result;
         }
 

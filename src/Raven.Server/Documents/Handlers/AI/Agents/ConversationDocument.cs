@@ -11,7 +11,6 @@ using Raven.Server.Documents.AI;
 using Raven.Server.NotificationCenter.Notifications.Details;
 using Sparrow.Json;
 using Sparrow.Json.Parsing;
-using Sparrow.Server.Json.Sync;
 
 namespace Raven.Server.Documents.Handlers.AI.Agents;
 
@@ -272,7 +271,7 @@ public class ConversationDocument([NotNull] string agent, BlittableJsonReaderObj
             openTools.Add(callId, call);
         }
 
-        var conversation =  new ConversationDocument(agent, parameters?.CloneOnTheSameContext())
+        var conversation = new ConversationDocument(agent, parameters?.CloneOnTheSameContext())
         {
             Id = id,
             Messages = messages.Items.Select(m => ((BlittableJsonReaderObject)m).CloneOnTheSameContext()).ToList(),
@@ -290,57 +289,6 @@ public class ConversationDocument([NotNull] string agent, BlittableJsonReaderObj
             conversation.CurrentUsage = JsonDeserializationClient.AiUsage(currentUsageBlittable);
         }
         return conversation;
-    }
-
-    public static List<BlittableJsonReaderObject> GenerateTools(JsonOperationContext context, AiAgentConfiguration configuration)
-    {
-        List<BlittableJsonReaderObject> tools = [];
-        foreach (var q in configuration.Queries ?? [])
-        {
-            if (ShouldAllowModelQueries(q.Options) == false)
-                continue;
-
-            var paramsSchema = ChatCompletionClient.GetSchemaForTool(q.ParametersSchema, q.ParametersSampleObject);
-            var tool = new DynamicJsonValue
-            {
-                ["type"] = "function",
-                ["function"] = new DynamicJsonValue
-                {
-                    ["name"] = q.Name,
-                    ["description"] = q.Description,
-                    ["parameters"] = context.Sync.ReadForMemory(paramsSchema, "params/schema")
-                },
-                ["strict"] = true
-            };
-            tools.Add(context.ReadObject(tool, "tool"));
-        }
-
-        foreach (var a in configuration.Actions ?? [])
-        {
-            string paramsSchema = ChatCompletionClient.GetSchemaForTool(a.ParametersSchema, a.ParametersSampleObject);
-            var tool = new DynamicJsonValue
-            {
-                ["type"] = "function",
-                ["function"] = new DynamicJsonValue
-                {
-                    ["name"] = a.Name,
-                    ["description"] = a.Description,
-                    ["parameters"] = context.Sync.ReadForMemory(paramsSchema, "params/schema")
-                },
-                ["strict"] = true
-            };
-            tools.Add(context.ReadObject(tool, "tool"));
-        }
-
-        return tools;
-
-        static bool ShouldAllowModelQueries(AiAgentToolQueryOptions options)
-        {
-            if (options?.AllowModelQueries is null)
-                return true;
-            
-            return options.AllowModelQueries.Value;
-        }
     }
 
     private static bool TryCreateParameterDescriptionMessage(List<AiAgentParameter> parameters, out string message)
