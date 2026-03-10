@@ -1,5 +1,4 @@
 using System;
-using System.Globalization;
 using FastTests;
 using Raven.Client;
 using Raven.Client.Documents.Commands;
@@ -12,16 +11,6 @@ namespace FastTests.Issues
 {
     public class RqlNowMacro : RavenTestBase
     {
-        private const string Employee1Id = "employees/1-A";
-        private const string Employee2Id = "employees/2-A";
-        private const string LessOrEqualNowQuery = "from Employees where HiredAt <= $now";
-        private const string GreaterOrEqualNowQuery = "from Employees where HiredAt >= $now";
-        private const string FarPastHiredAt = "2000-01-01T00:00:00.0000000Z";
-        private const string FarFutureHiredAt = "2100-01-01T00:00:00.0000000Z";
-        private const string BeforeExplicitNow = "1990-01-01T00:00:00.0000000Z";
-        private const string ExplicitNow = "1994-04-01T00:00:00.0000000Z";
-        private const string AfterExplicitNow = "2000-01-01T00:00:00.0000000Z";
-
         public RqlNowMacro(ITestOutputHelper output) : base(output)
         {
         }
@@ -29,23 +18,25 @@ namespace FastTests.Issues
         [RavenFact(RavenTestCategory.Querying)]
         public void Missing_now_parameter_uses_server_utc_time_when_query_parameters_are_null()
         {
+            var now = DateTime.UtcNow;
+
             using (var store = GetDocumentStore())
             {
                 StoreEmployees(store,
                     new Employee
                     {
-                        Id = Employee1Id,
-                        HiredAt = ParseUtc(FarPastHiredAt)
+                        Id = "employees/1-A",
+                        HiredAt = now.AddDays(-1)
                     },
                     new Employee
                     {
-                        Id = Employee2Id,
-                        HiredAt = ParseUtc(FarFutureHiredAt)
+                        Id = "employees/2-A",
+                        HiredAt = now.AddDays(1)
                     });
 
                 var count = ExecuteQuery(store, new IndexQuery
                 {
-                    Query = LessOrEqualNowQuery,
+                    Query = "from Employees where HiredAt <= $now",
                     WaitForNonStaleResults = true
                 });
 
@@ -56,23 +47,25 @@ namespace FastTests.Issues
         [RavenFact(RavenTestCategory.Querying)]
         public void Missing_now_parameter_uses_server_utc_time_when_query_parameters_are_empty()
         {
+            var now = DateTime.UtcNow;
+
             using (var store = GetDocumentStore())
             {
                 StoreEmployees(store,
                     new Employee
                     {
-                        Id = Employee1Id,
-                        HiredAt = ParseUtc(FarPastHiredAt)
+                        Id = "employees/1-A",
+                        HiredAt = now.AddDays(-1)
                     },
                     new Employee
                     {
-                        Id = Employee2Id,
-                        HiredAt = ParseUtc(FarFutureHiredAt)
+                        Id = "employees/2-A",
+                        HiredAt = now.AddDays(1)
                     });
 
                 var count = ExecuteQuery(store, new IndexQuery
                 {
-                    Query = LessOrEqualNowQuery,
+                    Query = "from Employees where HiredAt <= $now",
                     QueryParameters = new Parameters(),
                     WaitForNonStaleResults = true
                 });
@@ -84,37 +77,34 @@ namespace FastTests.Issues
         [RavenFact(RavenTestCategory.Querying)]
         public void Explicit_now_parameter_value_is_preserved()
         {
+            var now = DateTime.UtcNow;
+
             using (var store = GetDocumentStore())
             {
                 StoreEmployees(store,
                     new Employee
                     {
-                        Id = Employee1Id,
-                        HiredAt = ParseUtc(BeforeExplicitNow)
+                        Id = "employees/1-A",
+                        HiredAt = new DateTime(1990, 1, 1, 0, 0, 0, DateTimeKind.Utc)
                     },
                     new Employee
                     {
-                        Id = Employee2Id,
-                        HiredAt = ParseUtc(AfterExplicitNow)
+                        Id = "employees/2-A",
+                        HiredAt = now.AddMinutes(-1)
                     });
 
                 var count = ExecuteQuery(store, new IndexQuery
                 {
-                    Query = GreaterOrEqualNowQuery,
+                    Query = "from Employees where HiredAt >= $now",
                     QueryParameters = new Parameters
                     {
-                        ["now"] = ExplicitNow
+                        ["now"] = "1994-04-01T00:00:00.0000000"
                     },
                     WaitForNonStaleResults = true
                 });
 
                 Assert.Equal(1, count);
             }
-        }
-
-        private static DateTime ParseUtc(string value)
-        {
-            return DateTime.Parse(value, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind);
         }
 
         private static void StoreEmployees(Raven.Client.Documents.IDocumentStore store, params Employee[] employees)
