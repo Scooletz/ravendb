@@ -221,6 +221,99 @@ limit 1000";
         }
 
         [Fact]
+        public void TryParse_should_support_multi_nested_wrapped_rql_with_multiple_wheres_and_replace()
+        {
+            const string sql = @"select ""_"".""id()"" as ""id()"", replace(""_"".""Title"", 'Sales', 'Marketing') as ""t0_0""
+from
+(
+    select ""_"".""id()"" as ""id()"", ""_"".""Title"" as ""Title""
+    from
+    (
+        from Employees where startsWith(LastName, 'D')
+    ) ""_""
+    where ""_"".""FirstName"" = 'Anne'
+) ""_""
+where ((""_"".""LastName"" <> 'Dodsworth' or ""_"".""LastName"" is null) and ""_"".""ReportsTo"" between 1 and 10)
+limit 1000";
+
+            Assert.True(PowerBIFetchQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
+
+            Assert.IsType<PowerBIRqlQuery>(pgQuery);
+            var queryString = GetQueryString(pgQuery);
+            Assert.Contains("from Employees", queryString, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("startsWith", queryString, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("Anne", queryString, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("Dodsworth", queryString, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains(">= 1", queryString, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("<= 10", queryString, StringComparison.OrdinalIgnoreCase);
+            Assert.Equal(1000, GetLimit(pgQuery));
+
+            var replaces = GetReplaces(pgQuery);
+            Assert.NotNull(replaces);
+            Assert.True(replaces.TryGetValue("Title", out var r));
+            Assert.Equal("t0_0", r.DstColumnName);
+        }
+
+        [Fact]
+        public void TryParse_should_extract_nested_replace_projection_aliases_as_keys()
+        {
+            const string sql = @"select ""_"".""id()"" as ""id()"",
+    ""_"".""LastName"" as ""LastName"",
+    ""_"".""FirstName"" as ""FirstName"",
+    ""_"".""json()"" as ""json()"",
+    ""_"".""t0_0"" as ""t0_0"",
+    ""_"".""t0_03"" as ""t0_03"",
+    replace(""_"".""t0_0"", 'aaa', 'bbb') as ""t0_02"",
+    replace(""_"".""t0_03"", 'Steven', 'ddd') as ""t0_04""
+from
+(
+    select ""_"".""id()"" as ""id()"",
+        ""_"".""LastName"" as ""LastName"",
+        ""_"".""FirstName"" as ""FirstName"",
+        ""_"".""json()"" as ""json()"",
+        replace(""_"".""LastName"", 'Dodsworth', 'aaa') as ""t0_0"",
+        replace(""_"".""FirstName"", 'Janet', 'ccc') as ""t0_03""
+    from
+    (
+        from Employees
+    ) ""_""
+) ""_""
+limit 1000";
+
+            Assert.True(PowerBIFetchQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
+
+            Assert.IsType<PowerBIRqlQuery>(pgQuery);
+            Assert.Equal(1000, GetLimit(pgQuery));
+
+            var replaces = GetReplaces(pgQuery);
+            Assert.NotNull(replaces);
+
+            Assert.True(replaces.TryGetValue("LastName", out var r0));
+            Assert.Equal("t0_0", r0.DstColumnName);
+            Assert.Equal("LastName", r0.SrcColumnName);
+            Assert.Equal("Dodsworth", r0.OldValue);
+            Assert.Equal("aaa", r0.NewValue);
+
+            Assert.True(replaces.TryGetValue("FirstName", out var r03));
+            Assert.Equal("t0_03", r03.DstColumnName);
+            Assert.Equal("FirstName", r03.SrcColumnName);
+            Assert.Equal("Janet", r03.OldValue);
+            Assert.Equal("ccc", r03.NewValue);
+
+            Assert.True(replaces.TryGetValue("t0_0", out var r02));
+            Assert.Equal("t0_02", r02.DstColumnName);
+            Assert.Equal("t0_0", r02.SrcColumnName);
+            Assert.Equal("aaa", r02.OldValue);
+            Assert.Equal("bbb", r02.NewValue);
+
+            Assert.True(replaces.TryGetValue("t0_03", out var r04));
+            Assert.Equal("t0_04", r04.DstColumnName);
+            Assert.Equal("t0_03", r04.SrcColumnName);
+            Assert.Equal("Steven", r04.OldValue);
+            Assert.Equal("ddd", r04.NewValue);
+        }
+
+        [Fact]
         public void TryParse_should_match_wrapped_rql_fetch_shape_with_outer_where_and_apply_filter_to_inner_alias()
         {
             const string sql = @"select ""_"".""id()"",

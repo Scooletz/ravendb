@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Raven.Server.Documents;
 using Raven.Server.Integrations.PostgreSQL.Messages;
@@ -20,16 +21,42 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
         {
             await base.GenerateSchema();
 
-            if (_replaces != null)
+            if (_replaces == null)
+                return Columns.Values;
+
+            var orderedReplaces = _replaces.Values
+                .OrderBy(x => x.SrcColumnName, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(x => x.DstColumnName, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            // The longest possible chain is bounded by the number of replace entries.
+            for (var i = 0; i < _replaces.Count; i++)
             {
-                foreach (var replace in _replaces.Values)
+                var added = false;
+
+                foreach (var replace in orderedReplaces)
                 {
-                    if (Columns.TryGetValue(replace.SrcColumnName, out var originalColumn))
+                    if (string.IsNullOrEmpty(replace.DstColumnName))
+                        continue;
+
+                    if (string.Equals(replace.SrcColumnName, replace.DstColumnName, StringComparison.OrdinalIgnoreCase))
+                        continue;
+
+                    if (Columns.ContainsKey(replace.DstColumnName))
+                        continue;
+
+                    if (Columns.TryGetValue(replace.SrcColumnName, out var originalColumn) == false)
+                        continue;
+
+                    if (Columns.TryAdd(replace.DstColumnName,
+                            new PgColumn(replace.DstColumnName, (short)Columns.Count, originalColumn.PgType, originalColumn.FormatCode)))
                     {
-                        Columns.TryAdd(replace.DstColumnName,
-                            new PgColumn(replace.DstColumnName, (short)Columns.Count, originalColumn.PgType, originalColumn.FormatCode));
+                        added = true;
                     }
                 }
+
+                if (added == false)
+                    break;
             }
 
             return Columns.Values;
