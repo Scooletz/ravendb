@@ -327,7 +327,7 @@ public sealed class GenAiTask : EtlProcess<GenAiItem, GenAiScriptResult, GenAiCo
 
         if (deferredAttachmentsTimeInMs > 0)
         {
-            using (var scope = statsScope.For(GenAiOperations.LoadToModelDeferredAttachments))
+            using (var scope = statsScope.For(GenAiOperations.LoadToModelRemoteAttachments))
             {
                 // Use explicit set for the duration, that overrides the scoped time measurement.
                 scope.Duration = TimeSpan.FromMilliseconds(deferredAttachmentsTimeInMs);

@@ -3,10 +3,5 @@ using Xunit.Abstractions;
 
 namespace FastTests
 {
-    public abstract class NoDisposalNeeded : ParallelTestBase
-    {
-        protected NoDisposalNeeded(ITestOutputHelper output) : base(output)
-        {
-        }
-    }
+    public abstract class NoDisposalNeeded(ITestOutputHelper output) : ParallelTestBase(output);
 }

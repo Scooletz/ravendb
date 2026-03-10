@@ -128,7 +128,7 @@ public class GenAiRemoteAttachments(ITestOutputHelper output) : RemoteAttachment
 
                 var deferredAttachments = genAiLoadToModel.Operations
                     .OfType<GenAiPerformanceOperation>()
-                    .Single(x => x.Name == GenAiOperations.LoadToModelDeferredAttachments);
+                    .Single(x => x.Name == GenAiOperations.LoadToModelRemoteAttachments);
 
                 Assert.True(deferredAttachments.DurationInMs > 1, "Reaching over the wire is at least 1ms");
             }

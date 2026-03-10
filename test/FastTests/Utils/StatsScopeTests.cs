@@ -3,10 +3,11 @@ using System.Threading;
 using Raven.Server.Utils.Stats;
 using Tests.Infrastructure;
 using Xunit;
+using Xunit.Abstractions;
 
 namespace FastTests.Utils;
 
-public class StatsScopeTests
+public class StatsScopeTests(ITestOutputHelper output) : NoDisposalNeeded(output)
 {
     private const RavenTestCategory Category = RavenTestCategory.Ai | RavenTestCategory.Etl;
 
@@ -42,8 +43,5 @@ public class StatsScopeTests
         protected override TestStatsScope OpenNewScope(Stats stats, bool start) => new(stats, start);
     }
 
-    private sealed class Stats
-    {
-        public int Counter;
-    }
+    private sealed class Stats;
 }

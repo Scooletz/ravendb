@@ -7,7 +7,7 @@ public sealed class GenAiOperations
     /// <summary>
     /// A sub-scope of <see cref="LoadToModel"/>. Covering the scope of loading the <see cref="AiAttachmentSource.Deferred"/> attachments.
     /// </summary>
-    public const string LoadToModelDeferredAttachments = "GenAI/LoadToModel/DeferredAttachments";
+    public const string LoadToModelRemoteAttachments = "GenAI/LoadToModel/RemoteAttachments";
 
     public const string ApplyUpdateScript = "GenAI/UpdatePhase";
 }
