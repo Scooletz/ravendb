@@ -402,21 +402,16 @@ public sealed class GenAiTask : EtlProcess<GenAiItem, GenAiScriptResult, GenAiCo
 
     public TestEtlScriptResult RunTest(TestGenAiScript testGenAiScript, DocumentsOperationContext context)
     {
-        List<GenAiResultItem> items;
-        BlittableJsonReaderObject outputDocument = null;
+        Document document = null;
+        List<GenAiResultItem> items = null;
+        PatchStatus status = PatchStatus.NotModified;
         DynamicJsonValue debugActions = null;
         List<string> debugOutput = null;
-        PatchStatus status = PatchStatus.NotModified;
-        Document document = null;
-
+        BlittableJsonReaderObject outputDocument = null;
         switch (testGenAiScript.TestStage)
         {
             case TestStage.CreateContextObjects:
             case TestStage.ApplyUpdateScript:
-
-                if (testGenAiScript.Document == null && string.IsNullOrEmpty(testGenAiScript.DocumentId))
-                    throw new InvalidOperationException("Document or DocumentId must be provided to run GenAI test");
-
                 if (testGenAiScript.Document != null && string.IsNullOrEmpty(testGenAiScript.DocumentId) == false)
                 {
                     context.OpenReadTransaction();
@@ -494,10 +489,6 @@ public sealed class GenAiTask : EtlProcess<GenAiItem, GenAiScriptResult, GenAiCo
 
                     if (testGenAiScript.Document != null)
                     {
-                        // the document that was provided as input does not exist (we gave it a dummy id),
-                        // so it needs to be written to storage before the patch.
-                        // the write-tx is not commited so this won't be persisted.
-
                         FilterMetadataProperties(context, document);
                         context.DocumentDatabase.DocumentsStorage.Put(context, document!.Id, expectedChangeVector: null, document.Data);
                     }
@@ -533,7 +524,6 @@ public sealed class GenAiTask : EtlProcess<GenAiItem, GenAiScriptResult, GenAiCo
 
                         cmd.Execute(context, recordingState: null);
                     }
-
 
                     if (lastPatch != null)
                     {
@@ -572,7 +562,6 @@ public sealed class GenAiTask : EtlProcess<GenAiItem, GenAiScriptResult, GenAiCo
 
     private void ReloadAttachmentsData(DocumentsOperationContext context, IEnumerable<GenAiResultItem> items)
     {
-        // load the attachments data again and replace the summary(preview) with it
         foreach (var item in items)
         {
             if (item.ContextOutput.Attachments.IsNullOrEmpty())
@@ -580,14 +569,98 @@ public sealed class GenAiTask : EtlProcess<GenAiItem, GenAiScriptResult, GenAiCo
 
             foreach (var genAtt in item.ContextOutput.Attachments.Where(a => a.Source == AiAttachmentSource.FromAttachment))
             {
-                // try to reload again every loaded/not-found attachment
                 var attachment = Database.DocumentsStorage.AttachmentsStorage.GetAttachment(context, item.DocumentId, genAtt.Name, AttachmentType.Document, changeVector: null);
                 if (attachment == null)
                     throw new InvalidOperationException($"The document '{item.DocumentId}' has no attachment with name '{genAtt.Name}' from type '{genAtt.Type}' anymore");
-                
+
                 genAtt.Data = GenAiScriptTransformer.GetAttachmentDataAsBase64(attachment.Stream, genAtt.Type);
             }
         }
+    }
+
+    public async ValueTask<TestEtlScriptResult> RunTestAsync(TestGenAiScript testGenAiScript, DocumentsOperationContext context)
+    {
+        if (testGenAiScript.TestStage != TestStage.SendToModel)
+            return RunTest(testGenAiScript, context);
+
+        var items = testGenAiScript.Input;
+        using var scope = new GenAiStatsScope(new EtlRunStats());
+
+        await ReloadAttachmentsDataAsync(context, items);
+
+        _chatCompletionClient ??= GetClient();
+        List<Exception> exceptions = null;
+        using (var cts = CancellationTokenSource.CreateLinkedTokenSource(CancellationToken))
+            exceptions = SendToModel(items, context, scope, cts.Token);
+        if (exceptions is not null)
+            throw new AggregateException(exceptions);
+
+        items.ForEach(item => item.ContextOutput.Attachments = null);
+
+        return new GenAiTestScriptResult
+        {
+            Results = items,
+            TransformationErrors = Statistics.TransformationErrorsInCurrentBatch.Errors.ToList(),
+        };
+    }
+
+    private async ValueTask ReloadAttachmentsDataAsync(DocumentsOperationContext context, IEnumerable<GenAiResultItem> items)
+    {
+        // load the attachments data again and replace the summary(preview) with it
+        List<(Attachment Attachment, AiAttachment GenAiAttachment)> remoteAttachments = null;
+
+        using (context.OpenReadTransaction())
+        {
+            foreach (var item in items)
+            {
+                if (item.ContextOutput.Attachments.IsNullOrEmpty())
+                    continue;
+
+                foreach (var genAtt in item.ContextOutput.Attachments.Where(RequiresAttachmentReload))
+                {
+                    var attachment = Database.DocumentsStorage.AttachmentsStorage.GetAttachment(context, item.DocumentId, genAtt.Name, AttachmentType.Document, changeVector: null);
+                    if (attachment == null)
+                        throw new InvalidOperationException($"The document '{item.DocumentId}' has no attachment with name '{genAtt.Name}' from type '{genAtt.Type}' anymore");
+
+                    if (attachment.Stream != null)
+                    {
+                        genAtt.Data = GenAiScriptTransformer.GetAttachmentDataAsBase64(attachment.Stream, genAtt.Type);
+                        genAtt.Source = AiAttachmentSource.FromAttachment;
+                        continue;
+                    }
+
+                    if (attachment.RemoteParameters.IsRemoteStorageAttachment() == false)
+                        throw new InvalidOperationException($"The attachment '{genAtt.Name}' for document '{item.DocumentId}' could not be loaded for the test run.");
+
+                    remoteAttachments ??= [];
+                    remoteAttachments.Add((attachment, genAtt));
+                }
+            }
+        }
+
+        if (remoteAttachments == null)
+            return;
+
+        using var token = new OperationCancelToken(CancellationToken);
+        foreach (var (attachment, genAiAttachment) in remoteAttachments)
+        {
+            genAiAttachment.Data = await LoadRemoteAttachmentDataAsync(attachment, genAiAttachment.Type, token);
+            genAiAttachment.Source = AiAttachmentSource.FromAttachment;
+        }
+    }
+
+    private async ValueTask<string> LoadRemoteAttachmentDataAsync(Attachment attachment, string attachmentType, OperationCancelToken token)
+    {
+        using var downloader = Database.DocumentsStorage.AttachmentsStorage.RemoteAttachmentsStorage.GetDownloader(attachment, token);
+        await using var stream = await Database.DocumentsStorage.AttachmentsStorage.RemoteAttachmentsStorage.StreamForDownloadDestinationInternal(downloader, attachment.Base64Hash.ToString());
+        return GenAiScriptTransformer.GetAttachmentDataAsBase64(stream, attachmentType);
+    }
+
+    // Attachments coming from document attachments or deferred remote references need to be reloaded before the test call,
+    // so the model receives the actual attachment payload instead of the preview/hash captured during context generation.
+    private static bool RequiresAttachmentReload(AiAttachment attachment)
+    {
+        return attachment.Source is AiAttachmentSource.FromAttachment or AiAttachmentSource.Deferred;
     }
 
     private static void FilterMetadataProperties(DocumentsOperationContext context, Document document)

@@ -1,21 +1,31 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 using Raven.Client;
+using Raven.Client.Documents.Conventions;
 using Raven.Client.Documents;
+using Raven.Client.Documents.Operations;
 using Raven.Client.Documents.Operations.AI;
 using Raven.Client.Documents.Operations.Attachments;
 using Raven.Client.Documents.Operations.ConnectionStrings;
 using Raven.Client.Documents.Session;
+using Raven.Client.Http;
 using Raven.Client.Json;
+using Raven.Client.Json.Serialization;
+using Raven.Server.Documents;
+using Raven.Server.Documents.ETL.Providers.AI;
 using Raven.Server.Documents.ETL.Providers.AI.GenAi;
 using Raven.Server.Documents.ETL.Providers.AI.GenAi.Stats;
+using Raven.Server.Documents.ETL.Providers.AI.GenAi.Test;
 using Raven.Server.Documents.ETL.Stats;
+using Raven.Server.ServerWide.Context;
 using SlowTests.Server.Documents.Attachments;
+using Sparrow.Json;
 using Tests.Infrastructure;
 using Xunit;
 using Xunit.Abstractions;
@@ -212,6 +222,75 @@ public class GenAiRemoteAttachments(ITestOutputHelper output) : RemoteAttachment
         }
     }
 
+    [RavenTheory(RavenTestCategory.Ai | RavenTestCategory.Attachments)]
+    [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi, DatabaseMode = RavenDatabaseMode.Single)]
+    public async Task TestModeShouldLoadRemoteAttachmentsBeforeSendingToModel(Options options, GenAiConfiguration config)
+    {
+        await using (CreateCloudSettings())
+        using (var store = GetDocumentStore())
+        {
+            string remoteId = await PutRemoteAttachmentsConfiguration(store, Settings);
+            await store.Maintenance.SendAsync(new PutConnectionStringOperation<AiConnectionString>(config.Connection));
+
+            config.Prompt = "Describe the following images." + NonEmptyAnswerHint;
+            config.Collection = "Posts";
+            config.SampleObject = JsonConvert.SerializeObject(new { PhotoDescription = "Description of the photo" });
+            config.GenAiTransformation = new GenAiTransformation
+            {
+                Script = @"
+for(const comment of this.Comments)
+{
+    let img = loadAttachment(comment.ProfileImage);
+    if (!img)
+        continue;
+
+    ai.genContext({Id: comment.Id}).withPng(img);
+}"
+            };
+
+            const string postId = "Post/1";
+            using (var session = store.OpenAsyncSession())
+            {
+                await session.StoreAsync(new Post("Hello World!",
+                [
+                    new Comment(Id: "Comment1", Author: "Shahar Heart", AuthorDescription: "None", Content: "Hey!", ProfileImage: "heart.png"),
+                    new Comment(Id: "Comment2", Author: "Omer Star", AuthorDescription: "None", Content: "Hello!", ProfileImage: "star.png"),
+                    new Comment(Id: "Comment3", Author: "Aviv Rachmany", AuthorDescription: "None", Content: "Hello", ProfileImage: "none.png")
+                ]), postId);
+
+                using var heart = new MemoryStream(Convert.FromBase64String(Data.HeartPngBase64));
+                using var star = new MemoryStream(Convert.FromBase64String(Data.StarPngBase64));
+
+                RemoteAttachmentParameters remote = new(remoteId, DateTime.UtcNow.AddMinutes(1));
+                session.Advanced.Attachments.Store(postId, new StoreAttachmentParameters("heart.png", heart) { RemoteParameters = remote });
+                session.Advanced.Attachments.Store(postId, new StoreAttachmentParameters("star.png", star) { RemoteParameters = remote });
+
+                await session.SaveChangesAsync();
+            }
+
+            var database = await Databases.GetDocumentDatabaseInstanceFor(Server, store);
+            database.Time.UtcDateTime = () => DateTime.UtcNow.AddMinutes(10);
+            await database.RemoteAttachmentsSender.ProcessRemoteAttachments(int.MaxValue, int.MaxValue);
+
+            await GetBlobsFromCloudAndAssertForCount(Settings, 2, 15_000);
+
+            using IDisposable contextScope = database.DocumentsStorage.ContextPool.AllocateOperationContext(out DocumentsOperationContext context);
+
+            var createContextResult = await store.Maintenance.SendAsync(context, new TestCreateGenAiContextOperation(postId, config));
+            Assert.Equal(2, createContextResult.Results.Count);
+            Assert.All(createContextResult.Results, item =>
+            {
+                Assert.StartsWith("[Hash:'", item.ContextOutput.Attachments.First().Data);
+                Assert.NotNull(item.ContextOutput.Attachments.First().RemoteStorageId);
+                Assert.Equal(AiAttachmentSource.FromAttachment, item.ContextOutput.Attachments.First().Source);
+            });
+
+            var sendToModelResult = await store.Maintenance.SendAsync(context, new TestGenAiSendToModelOperation(createContextResult.Results, config));
+            Assert.Equal(2, sendToModelResult.Results.Count);
+            Assert.All(sendToModelResult.Results, item => Assert.NotNull(item.ModelOutput?.Output));
+        }
+    }
+
     private static async Task AddGenAiTask(GenAiConfiguration config, DocumentStore store)
     {
         // Configure AI
@@ -256,5 +335,68 @@ for(const comment of this.Comments)
 
             return null;
         }
+    }
+
+    private class TestCreateGenAiContextOperation : IMaintenanceOperation<GenAiTestScriptResult>
+    {
+        private readonly TestGenAiScript _testGenAiScript;
+
+        public TestCreateGenAiContextOperation(string docId, GenAiConfiguration config)
+        {
+            _testGenAiScript = new TestGenAiScript
+            {
+                DocumentId = docId,
+                Configuration = config,
+                TestStage = TestStage.CreateContextObjects
+            };
+        }
+
+        public RavenCommand<GenAiTestScriptResult> GetCommand(DocumentConventions conventions, JsonOperationContext context)
+        {
+            return new TestGenAiCommand(_testGenAiScript, conventions);
+        }
+    }
+
+    private class TestGenAiSendToModelOperation : IMaintenanceOperation<GenAiTestScriptResult>
+    {
+        private readonly TestGenAiScript _testGenAiScript;
+
+        public TestGenAiSendToModelOperation(List<GenAiResultItem> genAiContexts, GenAiConfiguration config)
+        {
+            _testGenAiScript = new TestGenAiScript
+            {
+                Input = genAiContexts,
+                Configuration = config,
+                TestStage = TestStage.SendToModel
+            };
+        }
+
+        public RavenCommand<GenAiTestScriptResult> GetCommand(DocumentConventions conventions, JsonOperationContext context)
+        {
+            return new TestGenAiCommand(_testGenAiScript, conventions);
+        }
+    }
+
+    private class TestGenAiCommand(TestGenAiScript testGenAiScript, DocumentConventions conventions) : RavenCommand<GenAiTestScriptResult>
+    {
+        public override bool IsReadRequest { get; } = true;
+
+        public override HttpRequestMessage CreateRequest(JsonOperationContext ctx, ServerNode node, out string url)
+        {
+            url = $"{node.Url}/databases/{node.Database}/admin/ai/gen-ai/test";
+            BlittableJsonReaderObject bjro = ctx.ReadObject(testGenAiScript.ToJson(), "TestGenAiCommand_payload");
+            return new HttpRequestMessage
+            {
+                Method = HttpMethod.Post,
+                Content = new BlittableJsonContent(async stream => await ctx.WriteAsync(stream, bjro).ConfigureAwait(false), conventions)
+            };
+        }
+
+        public override void SetResponse(JsonOperationContext context, BlittableJsonReaderObject response, bool fromCache)
+        {
+            Result = DeserializeToTestEtlScriptResult(response);
+        }
+
+        private static readonly Func<BlittableJsonReaderObject, GenAiTestScriptResult> DeserializeToTestEtlScriptResult = JsonDeserializationClient.GenerateJsonDeserializationRoutine<GenAiTestScriptResult>();
     }
 }

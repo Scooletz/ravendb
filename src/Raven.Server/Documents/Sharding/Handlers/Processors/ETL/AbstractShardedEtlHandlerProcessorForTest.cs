@@ -24,9 +24,9 @@ internal abstract class AbstractShardedEtlHandlerProcessorForTest<TTestEtlScript
 
     protected override bool SupportsCurrentNode => false;
 
-    protected override TestEtlScriptResult TestScript(TransactionOperationContext context, TTestEtlScript testScript)
+    protected override ValueTask<TestEtlScriptResult> TestScriptAsync(TransactionOperationContext context, TTestEtlScript testScript)
     {
-        throw new NotSupportedException();
+        return ValueTask.FromException<TestEtlScriptResult>(new NotSupportedException());
     }
 
     protected abstract RavenCommand CreateCommand(BlittableJsonReaderObject json);

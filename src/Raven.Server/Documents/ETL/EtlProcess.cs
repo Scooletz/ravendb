@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 using Raven.Client.Documents.Changes;
 using Raven.Client.Documents.Operations.AI;
 using Raven.Client.Documents.Operations.ConnectionStrings;
@@ -1472,6 +1473,85 @@ namespace Raven.Server.Documents.ETL
                 default:
                         throw new NotSupportedException($"Unknown ETL type in script test: {testScript.Configuration.EtlType}");
                 }
+        }
+
+        public static async ValueTask<TestEtlScriptResult> TestScriptAsync<TC, TCS>(
+                TestEtlScript<TC, TCS> testScript,
+                DocumentDatabase database,
+                ServerStore serverStore,
+                DocumentsOperationContext context)
+            where TC : EtlConfiguration<TCS>
+            where TCS : ConnectionString
+        {
+            // Only the GenAI SendToModel test stage needs async handling because that stage may need to fetch remote attachments
+            // and materialize them as base64 before invoking the model. All other ETL test paths can continue using the existing
+            // synchronous implementation.
+            if (testScript.Configuration.EtlType != EtlType.GenAi ||
+                testScript is not TestGenAiScript { TestStage: TestStage.SendToModel } testGenAiScript)
+                return TestScript(testScript, database, serverStore, context);
+
+            TCS connection = null;
+            List<string> csErrors = [];
+
+            if (testScript.Configuration.Connection != null)
+            {
+                if (testScript.Configuration.Connection.Validate(csErrors) == false)
+                    throw new InvalidOperationException($"Invalid connection string due to {string.Join(";", csErrors)}");
+
+                connection = testScript.Configuration.Connection as TCS;
+            }
+            else
+            {
+                if (typeof(TCS) != typeof(AiConnectionString))
+                    throw new InvalidOperationException($"Unexpected connection string type {typeof(TCS)}");
+
+                Dictionary<string, AiConnectionString> connectionStrings;
+                using (serverStore.ContextPool.AllocateOperationContext(out TransactionOperationContext ctx))
+                using (ctx.OpenReadTransaction())
+                using (var rawRecord = serverStore.Cluster.ReadRawDatabaseRecord(ctx, database.Name))
+                {
+                    connectionStrings = rawRecord.AiConnectionStrings;
+                    if (connectionStrings == null)
+                        throw new InvalidOperationException($"{nameof(DatabaseRecord.AiConnectionStrings)} was not found in the database record");
+                }
+
+                if (connectionStrings.TryGetValue(testScript.Configuration.ConnectionStringName, out var aiConnection) == false)
+                {
+                    throw new InvalidOperationException(
+                        $"Connection string named '{testScript.Configuration.ConnectionStringName}' was not found in the database record");
+                }
+
+                if (aiConnection.Validate(csErrors) == false)
+                    throw new InvalidOperationException(
+                        $"Invalid '{testScript.Configuration.ConnectionStringName}' connection string due to {string.Join(";", csErrors)}");
+
+                connection = aiConnection as TCS;
+            }
+
+            testScript.Configuration.Initialize(connection);
+            testScript.Configuration.TestMode = true;
+
+            if (testScript.Configuration.Validate(out List<string> errors, validateIdentifier: false) == false)
+            {
+                throw new InvalidOperationException($"Invalid ETL configuration for '{testScript.Configuration.Name}'. " +
+                                                    $"Reason{(errors.Count > 1 ? "s" : string.Empty)}: {string.Join(";", errors)}.");
+            }
+
+            if (testScript.Configuration.Transforms.Count != 1)
+            {
+                throw new InvalidOperationException($"Invalid number of transformations. You have provided {testScript.Configuration.Transforms.Count} " +
+                                                    "while ETL test expects to get exactly 1 transformation script");
+            }
+
+            var aiGenConfiguration = testGenAiScript.Configuration;
+            using var genAiTask = new GenAiTask(testScript.Configuration.Transforms[0], aiGenConfiguration, database, database.ServerStore);
+            using (genAiTask.EnterTestMode(out var debugOutput))
+            {
+                genAiTask.EnsureThreadAllocationStats();
+                var result = await genAiTask.RunTestAsync(testGenAiScript, context);
+                result.DebugOutput = debugOutput;
+                return result;
+            }
         }
 
         private IDisposable EnterTestMode(out List<string> debugOutput)

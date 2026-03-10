@@ -20,9 +20,9 @@ internal abstract class AbstractDatabaseEtlHandlerProcessorForTest<TTestEtlScrip
 
     protected override bool SupportsCurrentNode => true;
 
-    protected override TestEtlScriptResult TestScript(DocumentsOperationContext context, TTestEtlScript testScript)
+    protected override ValueTask<TestEtlScriptResult> TestScriptAsync(DocumentsOperationContext context, TTestEtlScript testScript)
     {
-        return RavenEtl.TestScript(testScript, RequestHandler.Database, RequestHandler.ServerStore, context);
+        return RavenEtl.TestScriptAsync(testScript, RequestHandler.Database, RequestHandler.ServerStore, context);
     }
 
     protected override ValueTask HandleRemoteNodeAsync(DocumentsOperationContext context, TTestEtlScript testScript, BlittableJsonReaderObject testScriptJson)
