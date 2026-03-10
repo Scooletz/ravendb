@@ -124,7 +124,10 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             {
                 var sql = queryText;
 
-                if (TryExtractInnermostRql(sql, out var innerRql, out var innerStart, out var innerEnd) == false)
+                if (TryExtractDeepestInnerRqlSpan(sql, out var innerStart, out var innerEnd, out var innerRql) == false)
+                    return false;
+
+                if (innerRql.StartsWith("from", StringComparison.OrdinalIgnoreCase) == false)
                     return false;
 
                 var sanitizedSql = sql[..innerStart] + "select 1" + sql[innerEnd..];
@@ -141,10 +144,10 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 if (selectStmt == null)
                     return false;
 
-                if (TryMatchWrappedRqlFetchShape(selectStmt, out var limit, out var outerAlias) == false)
+                if (selectStmt.LimitOffset != null)
                     return false;
 
-                if (TryExtractPowerBiReplaceColumns(selectStmt, outerAlias, out var replaces) == false)
+                if (TryExtractNonNegativeIntAConst(selectStmt.LimitCount, out var limit) == false)
                     return false;
 
                 Raven.Server.Documents.Queries.AST.Query q;
@@ -157,20 +160,67 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                     return false;
                 }
 
-                if (selectStmt.WhereClause != null)
+                Dictionary<string, ReplaceColumnValue> allReplaces = null;
+                List<Dictionary<string, ReplaceColumnValue>> wrapperReplaces = null;
+
+                var currentSelect = selectStmt;
+                var isOuterMost = true;
+
+                while (true)
                 {
-                    if (OuterWhereTranslator.TryTranslateWhere(selectStmt.WhereClause, outerAlias, q.From.Alias, out var whereExpression) == false)
+                    if (IsWrapperRangeSubselectSelect(currentSelect, out var wrapperAlias, out var nextSelect) == false)
+                    {
+                        if (isOuterMost)
+                            return false;
+
+                        break;
+                    }
+
+                    if (isOuterMost == false)
+                    {
+                        if (currentSelect.LimitCount != null || currentSelect.LimitOffset != null)
+                            return false;
+                    }
+
+                    if (TryExtractPowerBiReplaceColumns(currentSelect, wrapperAlias, out var levelReplaces) == false)
                         return false;
 
-                    if (q.Where == null)
-                        q.Where = whereExpression;
-                    else
-                        q.Where = new BinaryExpression(q.Where, whereExpression, OperatorType.And);
+                    if (levelReplaces != null)
+                    {
+                        wrapperReplaces ??= new List<Dictionary<string, ReplaceColumnValue>>();
+                        wrapperReplaces.Add(levelReplaces);
+                    }
+
+                    if (currentSelect.WhereClause != null)
+                    {
+                        if (OuterWhereTranslator.TryTranslateWhere(currentSelect.WhereClause, wrapperAlias, q.From.Alias, out var whereExpression) == false)
+                            return false;
+
+                        q.Where = q.Where == null
+                            ? whereExpression
+                            : new BinaryExpression(q.Where, whereExpression, OperatorType.And);
+                    }
+
+                    if (nextSelect == null)
+                        break;
+
+                    currentSelect = nextSelect;
+                    isOuterMost = false;
+                }
+
+                if (wrapperReplaces != null)
+                {
+                    for (int i = wrapperReplaces.Count - 1; i >= 0; i--)
+                    {
+                        allReplaces ??= new Dictionary<string, ReplaceColumnValue>(StringComparer.OrdinalIgnoreCase);
+                        foreach (var kvp in wrapperReplaces[i])
+                            allReplaces[kvp.Key] = kvp.Value;
+                    }
                 }
 
                 var newRql = q.ToString();
 
-                pgQuery = new PowerBIRqlQuery(newRql, parametersDataTypes, documentDatabase, replaces, limit: limit);
+                pgQuery = new PowerBIRqlQuery(newRql, parametersDataTypes, documentDatabase, allReplaces, limit: limit);
                 return true;
             }
             catch
@@ -179,21 +229,15 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 return false;
             }
 
-            static bool TryMatchWrappedRqlFetchShape(SelectStmt selectStmt, out int limit, out string outerAlias)
+            static bool IsWrapperRangeSubselectSelect(SelectStmt s, out string alias, out SelectStmt nextSelect)
             {
-                limit = 0;
-                outerAlias = null;
+                alias = null;
+                nextSelect = null;
 
-                if (selectStmt.LimitOffset != null)
+                if (s.FromClause is not { Count: 1 })
                     return false;
 
-                if (TryExtractNonNegativeIntAConst(selectStmt.LimitCount, out limit) == false)
-                    return false;
-
-                if (selectStmt.FromClause is not { Count: 1 })
-                    return false;
-
-                var fromItem = selectStmt.FromClause[0];
+                var fromItem = s.FromClause[0];
                 if (fromItem?.RangeSubselect == null)
                     return false;
 
@@ -201,21 +245,41 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                     return false;
 
                 var rss = fromItem.RangeSubselect;
-                if (rss == null)
+                alias = rss.Alias?.Aliasname;
+                if (string.IsNullOrWhiteSpace(alias))
                     return false;
 
-                var aliasName = rss.Alias?.Aliasname;
-                if (string.IsNullOrWhiteSpace(aliasName))
+                if (string.Equals(alias, "_", StringComparison.OrdinalIgnoreCase) == false &&
+                    string.Equals(alias, "$Table", StringComparison.OrdinalIgnoreCase) == false)
                     return false;
 
-                if (string.Equals(aliasName, "$Table", StringComparison.OrdinalIgnoreCase) == false &&
-                    string.Equals(aliasName, "_", StringComparison.OrdinalIgnoreCase) == false)
-                    return false;
-
-                outerAlias = aliasName;
-
-                return rss.Subquery?.SelectStmt != null;
+                nextSelect = rss.Subquery?.SelectStmt;
+                return true;
             }
+        }
+
+        private static bool TryExtractDeepestInnerRqlSpan(string sql, out int innerStartAbs, out int innerEndAbs, out string innerRql)
+        {
+            innerStartAbs = 0;
+            innerEndAbs = 0;
+            innerRql = null;
+
+            var currentSlice = sql;
+            var baseOffsetAbs = 0;
+            var found = false;
+
+            while (TryExtractInnermostRql(currentSlice, out var extractedInnerRql, out var currentStartRel, out var currentEndRel))
+            {
+                innerStartAbs = baseOffsetAbs + currentStartRel;
+                innerEndAbs = baseOffsetAbs + currentEndRel;
+                innerRql = extractedInnerRql;
+                found = true;
+
+                baseOffsetAbs += currentStartRel;
+                currentSlice = extractedInnerRql;
+            }
+
+            return found;
         }
 
         private static bool TryExtractPowerBiReplaceColumns(SelectStmt selectStmt, string outerAlias, out Dictionary<string, ReplaceColumnValue> replaces)
@@ -240,7 +304,8 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 if (string.Equals(funcName, "replace", StringComparison.OrdinalIgnoreCase) == false)
                     return false;
 
-                if (string.IsNullOrWhiteSpace(resTarget.Name))
+                var dstColumn = resTarget.Name;
+                if (string.IsNullOrWhiteSpace(dstColumn))
                     return false;
 
                 if (funcCall.Args is not { Count: 3 })
@@ -268,7 +333,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 replaces[srcColumn] = new ReplaceColumnValue
                 {
                     SrcColumnName = srcColumn,
-                    DstColumnName = resTarget.Name,
+                    DstColumnName = dstColumn,
                     OldValue = oldValue,
                     NewValue = newValue
                 };
@@ -735,29 +800,10 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             const string endTokenTable = ") \"$Table\"";
             const string endTokenUnderscore = ") \"_\"";
 
-            int end = -1;
+            var endTable = sql.LastIndexOf(endTokenTable, StringComparison.OrdinalIgnoreCase);
+            var endUnderscore = sql.LastIndexOf(endTokenUnderscore, StringComparison.OrdinalIgnoreCase);
 
-            var endTable = sql.IndexOf(endTokenTable, StringComparison.OrdinalIgnoreCase);
-            if (endTable != -1)
-            {
-                if (sql.IndexOf(endTokenTable, endTable + endTokenTable.Length, StringComparison.OrdinalIgnoreCase) != -1)
-                    return false;
-
-                end = endTable;
-            }
-
-            var endUnderscore = sql.IndexOf(endTokenUnderscore, StringComparison.OrdinalIgnoreCase);
-            if (endUnderscore != -1)
-            {
-                if (sql.IndexOf(endTokenUnderscore, endUnderscore + endTokenUnderscore.Length, StringComparison.OrdinalIgnoreCase) != -1)
-                    return false;
-
-                if (end != -1)
-                    return false;
-
-                end = endUnderscore;
-            }
-
+            var end = Math.Max(endTable, endUnderscore);
             if (end == -1)
                 return false;
 
@@ -802,13 +848,13 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             if (string.Equals(sql.Substring(fromStart, 4), "from", StringComparison.OrdinalIgnoreCase) == false)
                 return false;
 
-            innerStart = open + 1;
-            innerEnd = end;
-            if (innerStart >= innerEnd)
+            var untrimmedStart = open + 1;
+            var untrimmedEnd = end;
+            if (untrimmedStart >= untrimmedEnd)
                 return false;
 
-            var trimmedStart = innerStart;
-            var trimmedEnd = innerEnd;
+            var trimmedStart = untrimmedStart;
+            var trimmedEnd = untrimmedEnd;
             while (trimmedStart < trimmedEnd && char.IsWhiteSpace(sql[trimmedStart]))
                 trimmedStart++;
             while (trimmedEnd > trimmedStart && char.IsWhiteSpace(sql[trimmedEnd - 1]))
@@ -818,6 +864,9 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 return false;
 
             innerRql = sql.Substring(trimmedStart, trimmedEnd - trimmedStart);
+
+            innerStart = trimmedStart;
+            innerEnd = trimmedEnd;
             return string.IsNullOrWhiteSpace(innerRql) == false;
         }
 
