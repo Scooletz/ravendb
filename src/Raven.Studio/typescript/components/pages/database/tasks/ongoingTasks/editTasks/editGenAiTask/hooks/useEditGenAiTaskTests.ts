@@ -157,6 +157,7 @@ export function useEditGenAiTaskTests() {
             RemoteStorageId: x.RemoteStorageId,
             Source: x.Source,
             Type: x.Type,
+            DownloadDurationInMs: x.DownloadDurationInMs,
         }));
     };
 

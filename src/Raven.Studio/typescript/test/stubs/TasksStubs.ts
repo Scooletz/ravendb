@@ -835,6 +835,7 @@ namespace Orders
                                 RemoteStorageId: undefined,
                                 Source: "FromAttachment",
                                 Data: "[Hash:'FLNK25A3VOpVPIiusBEZMwUU5mWqSZR7T2OqYF4nBfA=']",
+                                DownloadDurationInMs: 0,
                             },
                             {
                                 Name: "transactions.csv",
@@ -842,6 +843,7 @@ namespace Orders
                                 RemoteStorageId: undefined,
                                 Source: "FromAttachment",
                                 Data: "Date,Description,Category,Amount\r\n2025-01-01,Grocery Store,food,45.32\r\n2025-01-02,Utility Bill,Ut...",
+                                DownloadDurationInMs: 0,
                             },
                         ],
                     },
@@ -864,6 +866,7 @@ namespace Orders
                                 RemoteStorageId: undefined,
                                 Source: "FromAttachment",
                                 Data: "[Hash:'FLNK25A3VOpVPIiusBEZMwUU5mWqSZR7T2OqYF4nBfA=']",
+                                DownloadDurationInMs: 0,
                             },
                             {
                                 Name: "transactions.csv",
@@ -871,6 +874,7 @@ namespace Orders
                                 RemoteStorageId: undefined,
                                 Source: "FromAttachment",
                                 Data: "Date,Description,Category,Amount\r\n2025-01-01,Grocery Store,food,45.32\r\n2025-01-02,Utility Bill,Ut...",
+                                DownloadDurationInMs: 0,
                             },
                         ],
                     },

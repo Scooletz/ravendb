@@ -13,6 +13,7 @@ const attachmentsSchema = yup.array().of(
         Data: yup.string(),
         Name: yup.string(),
         RemoteStorageId: yup.string().nullable(),
+        DownloadDurationInMs: yup.number(),
         Source: yup.string<Raven.Server.Documents.ETL.Providers.AI.AiAttachmentSource>(),
         Type: yup.string(),
     }).nullable()
