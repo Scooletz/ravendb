@@ -14,9 +14,9 @@ using Sparrow.Server.Logging;
 
 namespace Raven.Server.Integrations.PostgreSQL.Translation
 {
-    internal static class AstSqlToRqlTranslator
+    internal static class PgSqlToRqlTranslator
     {
-        private static readonly RavenLogger Logger = RavenLogManager.Instance.GetLoggerForServer(typeof(AstSqlToRqlTranslator));
+        private static readonly RavenLogger Logger = RavenLogManager.Instance.GetLoggerForServer(typeof(PgSqlToRqlTranslator));
 
         private const string UnsupportedSelectAggregateMessage = "Unsupported SELECT aggregate";
         private const string UnsupportedSelectProjectionMessage = "Unsupported SELECT projection";
@@ -32,7 +32,7 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
             rql = null;
 
             if (Logger.IsDebugEnabled)
-                Logger.Debug($"{nameof(AstSqlToRqlTranslator)}.{nameof(TryParse)} invoked with SQL: {sql}");
+                Logger.Debug($"{nameof(PgSqlToRqlTranslator)}.{nameof(TryParse)} invoked with SQL: {sql}");
 
             try
             {
@@ -44,9 +44,9 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
                     {
                         var parseError = parseResult.Error;
                         if (parseError != null)
-                            Logger.Debug($"{nameof(AstSqlToRqlTranslator)} parse error. Message: {parseError.Message}. SQL: {sql}");
+                            Logger.Debug($"{nameof(PgSqlToRqlTranslator)} parse error. Message: {parseError.Message}. SQL: {sql}");
                         else
-                            Logger.Debug($"{nameof(AstSqlToRqlTranslator)} parse error. SQL: {sql}");
+                            Logger.Debug($"{nameof(PgSqlToRqlTranslator)} parse error. SQL: {sql}");
                     }
 
                     return LogFailure("parse error");
@@ -72,14 +72,14 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
         private static bool LogSuccess(string sql, string rql)
         {
             if (Logger.IsInfoEnabled)
-                Logger.Info($"{nameof(AstSqlToRqlTranslator)} translated SQL to RQL. SQL: {sql}. RQL: {rql}");
+                Logger.Info($"{nameof(PgSqlToRqlTranslator)} translated SQL to RQL. SQL: {sql}. RQL: {rql}");
             return true;
         }
 
         private static bool LogFailure(string reason)
         {
             if (Logger.IsDebugEnabled)
-                Logger.Debug($"{nameof(AstSqlToRqlTranslator)} did not translate SQL. Reason: {reason}");
+                Logger.Debug($"{nameof(PgSqlToRqlTranslator)} did not translate SQL. Reason: {reason}");
             return false;
         }
 

@@ -58,11 +58,9 @@ namespace Raven.Server.Integrations.PostgreSQL
                 if (HardcodedQuery.TryParse(queryText, parametersDataTypes, session, out var hardcodedQuery))
                     return hardcodedQuery;
 
-                if (AstSqlToRqlTranslator.TryParse(queryText, parametersDataTypes, out var rql))
-                {
+                if (PgSqlToRqlTranslator.TryParse(queryText, parametersDataTypes, out var rql))
                     return new RqlQuery(rql, parametersDataTypes, documentDatabase);
-                }
-
+                
                 throw new PgErrorException(
                     PgErrorCodes.StatementTooComplex,
                     "Unhandled query (Are you using ; in your query? " +

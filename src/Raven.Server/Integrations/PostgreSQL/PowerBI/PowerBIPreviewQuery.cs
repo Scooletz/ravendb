@@ -14,6 +14,10 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
 {
     public sealed class PowerBIPreviewQuery : PowerBIRqlQuery
     {
+        private const string InformationSchema = "information_schema";
+        private const string Columns = "columns";
+        private const string PublicSchema = "public";
+
         private readonly List<PgDataRow> _results;
 
         public PowerBIPreviewQuery(DocumentDatabase documentDatabase, string tableName)
@@ -31,16 +35,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
 
             try
             {
-                var parseResult = Parser.Parse(queryText);
-                if (parseResult.IsSuccess == false || parseResult.Value?.Stmts == null)
-                    return false;
-
-                if (parseResult.Value.Stmts.Count != 1)
-                    return false;
-
-                var stmt = parseResult.Value.Stmts[0];
-                var selectStmt = stmt?.Stmt?.SelectStmt;
-                if (selectStmt == null)
+                if (PgSqlAstHelpers.TryParseSingleSelect(queryText, out var selectStmt) == false)
                     return false;
 
                 if (IsPowerBiPreviewShape(selectStmt, out var tableName) == false)
@@ -60,136 +55,108 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
         {
             tableName = null;
 
-            if (selectStmt?.FromClause is not { Count: 1 })
+            if (PgSqlAstHelpers.TryGetSingleRangeVarFromClause(selectStmt, out var rangeVar) == false)
                 return false;
 
-            var fromNode = selectStmt.FromClause[0];
-
-            var rangeVar = fromNode?.RangeVar;
-            if (rangeVar?.Schemaname == null || rangeVar.Relname == null)
+            // FROM
+            if (rangeVar.Schemaname.Equals(InformationSchema, StringComparison.OrdinalIgnoreCase) == false)
                 return false;
 
-            if (rangeVar.Schemaname.Equals("information_schema", StringComparison.OrdinalIgnoreCase) == false)
+            if (rangeVar.Relname.Equals(Columns, StringComparison.OrdinalIgnoreCase) == false)
                 return false;
 
-            if (rangeVar.Relname.Equals("columns", StringComparison.OrdinalIgnoreCase) == false)
+            // SELECT
+            if (selectStmt.TargetList is not { Count: >= 3 } targets)
                 return false;
 
-            if (selectStmt.TargetList is not { Count: >= 3 } targetList)
+            if (PgSqlAstHelpers.IsSelectColumn(targets[0], "COLUMN_NAME") == false)
                 return false;
 
-            if (IsSelectColumn(targetList[0], "COLUMN_NAME") == false)
+            if (PgSqlAstHelpers.IsSelectColumn(targets[1], "ORDINAL_POSITION") == false)
                 return false;
 
-            if (IsSelectColumn(targetList[1], "ORDINAL_POSITION") == false)
+            if (PgSqlAstHelpers.IsSelectColumn(targets[2], "IS_NULLABLE") == false)
                 return false;
 
-            if (IsSelectColumn(targetList[2], "IS_NULLABLE") == false)
-                return false;
-
-            static bool IsSelectColumn(Node node, string expectedColumn)
-            {
-                var colRef = node?.ResTarget?.Val?.ColumnRef;
-                return colRef?.Fields is { Count: 1 } &&
-                       colRef.Fields[0].String?.Sval?.Equals(expectedColumn, StringComparison.OrdinalIgnoreCase) == true;
-            }
-
+            // WHERE
             if (TryExtractWhereTableSchemaAndName(selectStmt.WhereClause, out var schemaName, out tableName) == false)
                 return false;
 
-            if (schemaName.Equals("public", StringComparison.OrdinalIgnoreCase) == false)
+            if (schemaName.Equals(PublicSchema, StringComparison.OrdinalIgnoreCase) == false)
                 return false;
 
-            if (ContainsOrderByOrdinalPosition(selectStmt.SortClause) == false)
+            // ORDER BY
+            if (IsPowerBiPreviewOrderBy(selectStmt.SortClause) == false)
                 return false;
 
             return true;
+        }
 
-            static bool TryExtractWhereTableSchemaAndName(Node whereNode, out string schemaName, out string tableName)
-            {
-                schemaName = null;
-                tableName = null;
+        private static bool TryExtractWhereTableSchemaAndName(Node whereNode, out string schemaName, out string tableName)
+        {
+            schemaName = null;
+            tableName = null;
 
-                if (whereNode?.BoolExpr is not { Boolop: BoolExprType.AndExpr, Args: { Count: 2 } args })
-                    return false;
+            if (whereNode?.BoolExpr is not { Boolop: BoolExprType.AndExpr, Args: { Count: 2 } args })
+                return false;
 
-                var tableSchemaExpr = args[0]?.AExpr;
-                if (tableSchemaExpr == null)
-                    return false;
+            var tableSchemaExpr = args[0]?.AExpr;
+            if (tableSchemaExpr == null)
+                return false;
 
-                if (tableSchemaExpr.Kind != A_Expr_Kind.AexprOp)
-                    return false;
+            if (tableSchemaExpr.Kind != A_Expr_Kind.AexprOp)
+                return false;
 
-                if (tableSchemaExpr.Name is not { Count: 1 } || tableSchemaExpr.Name[0].String?.Sval != "=")
-                    return false;
+            if (tableSchemaExpr.Name is not { Count: 1 } || tableSchemaExpr.Name[0].String?.Sval != "=")
+                return false;
 
-                var tableSchemaColRef = tableSchemaExpr.Lexpr?.ColumnRef;
-                if (tableSchemaColRef?.Fields is not { Count: 1 })
-                    return false;
+            var tableSchemaColRef = tableSchemaExpr.Lexpr?.ColumnRef;
+            if (tableSchemaColRef?.Fields is not { Count: 1 })
+                return false;
 
-                if (tableSchemaColRef.Fields[0].String?.Sval?.Equals("TABLE_SCHEMA", StringComparison.OrdinalIgnoreCase) != true)
-                    return false;
+            if (tableSchemaColRef.Fields[0].String?.Sval?.Equals("TABLE_SCHEMA", StringComparison.OrdinalIgnoreCase) != true)
+                return false;
 
-                schemaName = tableSchemaExpr.Rexpr?.AConst?.Sval?.Sval;
-                if (string.IsNullOrWhiteSpace(schemaName))
-                    return false;
+            schemaName = tableSchemaExpr.Rexpr?.AConst?.Sval?.Sval;
+            if (string.IsNullOrWhiteSpace(schemaName))
+                return false;
 
-                var tableNameExpr = args[1]?.AExpr;
-                if (tableNameExpr == null)
-                    return false;
+            var tableNameExpr = args[1]?.AExpr;
+            if (tableNameExpr == null)
+                return false;
 
-                if (tableNameExpr.Kind != A_Expr_Kind.AexprOp)
-                    return false;
+            if (tableNameExpr.Kind != A_Expr_Kind.AexprOp)
+                return false;
 
-                if (tableNameExpr.Name is not { Count: 1 } || tableNameExpr.Name[0].String?.Sval != "=")
-                    return false;
+            if (tableNameExpr.Name is not { Count: 1 } || tableNameExpr.Name[0].String?.Sval != "=")
+                return false;
 
-                var tableNameColRef = tableNameExpr.Lexpr?.ColumnRef;
-                if (tableNameColRef?.Fields is not { Count: 1 })
-                    return false;
+            var tableNameColRef = tableNameExpr.Lexpr?.ColumnRef;
+            if (tableNameColRef?.Fields is not { Count: 1 })
+                return false;
 
-                if (tableNameColRef.Fields[0].String?.Sval?.Equals("TABLE_NAME", StringComparison.OrdinalIgnoreCase) != true)
-                    return false;
+            if (tableNameColRef.Fields[0].String?.Sval?.Equals("TABLE_NAME", StringComparison.OrdinalIgnoreCase) != true)
+                return false;
 
-                tableName = tableNameExpr.Rexpr?.AConst?.Sval?.Sval;
-                return string.IsNullOrWhiteSpace(tableName) == false;
-            }
+            tableName = tableNameExpr.Rexpr?.AConst?.Sval?.Sval;
+            return string.IsNullOrWhiteSpace(tableName) == false;
+        }
 
-            static bool ContainsOrderByOrdinalPosition(IList<Node> sortClause)
-            {
-                if (sortClause == null || sortClause.Count == 0)
-                    return false;
+        private static bool IsPowerBiPreviewOrderBy(IList<Node> sortClause)
+        {
+            if (sortClause is not { Count: 3 })
+                return false;
 
-                if (sortClause.Count != 3)
-                    return false;
+            if (PgSqlAstHelpers.IsOrderByAsc(sortClause[0], "TABLE_SCHEMA") == false)
+                return false;
 
-                if (IsOrderBy(sortClause[0], "TABLE_SCHEMA") == false)
-                    return false;
+            if (PgSqlAstHelpers.IsOrderByAsc(sortClause[1], "TABLE_NAME") == false)
+                return false;
 
-                if (IsOrderBy(sortClause[1], "TABLE_NAME") == false)
-                    return false;
+            if (PgSqlAstHelpers.IsOrderByAsc(sortClause[2], "ORDINAL_POSITION") == false)
+                return false;
 
-                if (IsOrderBy(sortClause[2], "ORDINAL_POSITION") == false)
-                    return false;
-
-                return  true;
-
-                static bool IsOrderBy(Node node, string expectedColumn)
-                {
-                    var sortBy = node?.SortBy;
-                    if (sortBy == null)
-                        return false;
-
-                    if (sortBy.SortbyDir == SortByDir.SortbyDesc)
-                        return false;
-
-                    var colRef = sortBy.Node?.ColumnRef;
-                    if (colRef?.Fields is not { Count: 1 })
-                        return false;
-
-                    return colRef.Fields[0].String?.Sval?.Equals(expectedColumn, StringComparison.OrdinalIgnoreCase) == true;
-                }
-            }
+            return true;
         }
 
         public override async Task Execute(MessageBuilder builder, PipeWriter writer, CancellationToken token)
@@ -204,8 +171,6 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
 
         public override void Bind(ICollection<byte[]> parameters, short[] parameterFormatCodes, short[] resultColumnFormatCodes)
         {
-            // Note: We don't call base.Bind(..) because we only support parameters for this custom RQL, not the original SQL
-
             // Intentional no-op: this query executes our own RQL (not the original SQL) and currently has no parameters.
         }
 

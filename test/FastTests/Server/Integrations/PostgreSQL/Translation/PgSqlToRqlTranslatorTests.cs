@@ -3,11 +3,11 @@ using Xunit;
 
 namespace FastTests.Server.Integrations.PostgreSQL.Translation
 {
-    public sealed class AstSqlToRqlTranslatorTests
+    public sealed class PgSqlToRqlTranslatorTests
     {
         private static string Translate(string sql)
         {
-            Assert.True(Raven.Server.Integrations.PostgreSQL.Translation.AstSqlToRqlTranslator.TryParse(sql, Array.Empty<int>(), out var rql));
+            Assert.True(Raven.Server.Integrations.PostgreSQL.Translation.PgSqlToRqlTranslator.TryParse(sql, Array.Empty<int>(), out var rql));
             return rql;
         }
 
