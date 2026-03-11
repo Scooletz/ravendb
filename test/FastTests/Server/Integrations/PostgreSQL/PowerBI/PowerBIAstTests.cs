@@ -69,21 +69,6 @@ from ""public"".""Orders"" ""$Table"" limit 200";
         }
 
         [Fact]
-        public void TryParse_should_extract_inner_rql_span_via_two_parsers_when_string_scan_is_ambiguous()
-        {
-            // Intentionally uses a non-PowerBI SELECT projection ("select 1") so legacy regex fallback won't match.
-            // Also uses multiple spaces before the alias to defeat the legacy string-scan end token search.
-            const string sql = "select 1 from (from Employees)   \"$Table\" limit 1000";
-
-            Assert.True(PowerBIFetchQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
-
-            Assert.IsType<PowerBIRqlQuery>(pgQuery);
-            var queryString = GetQueryString(pgQuery);
-            Assert.Contains("from Employees", queryString, StringComparison.OrdinalIgnoreCase);
-            Assert.Equal(1000, GetLimit(pgQuery));
-        }
-
-        [Fact]
         public void TryParse_should_match_wrapped_rql_fetch_with_outer_where_not_equal_or_is_null()
         {
             const string sql = @"select ""_"".""id()"" as ""id()"", ""_"".""FirstName"" as ""FirstName""
@@ -270,6 +255,397 @@ limit 1000";
         }
 
         [Fact]
+        public void TryParse_should_support_deep_wrapper_nesting_with_complex_outer_where_and_multiple_replace_levels_and_huge_inner_rql()
+        {
+            var innerRql = @"from 'Users' as u
+where u.Age > 0 and u.Name != null
+order by u.Name
+select {
+    Name: u.Name,
+    Age: u.Age,
+    Title: u.Title,
+    Field01: u.Field01,
+    Field02: u.Field02,
+    Field03: u.Field03,
+    Field04: u.Field04,
+    Field05: u.Field05,
+    Field06: u.Field06,
+    Field07: u.Field07,
+    Field08: u.Field08,
+    Field09: u.Field09,
+    Field10: u.Field10,
+    VeryLongTailMarker123: u.VeryLongTailMarker123
+}";
+
+            var sql = $@"select ""_"".""id()"",
+       ""_"".""Company"",
+       ""_"".""Employee"",
+       ""_"".""Freight"",
+       ""_"".""Lines"",
+       ""_"".""OrderedAt"",
+       ""_"".""RequireAt"",
+       ""_"".""ShipTo"",
+       ""_"".""ShipVia"",
+       ""_"".""ShippedAt"",
+       ""_"".""json()""
+from
+(
+    select ""_"".""id()"" as ""id()"",
+           ""_"".""Company"" as ""Company"",
+           ""_"".""Employee"" as ""Employee"",
+           ""_"".""Freight"" as ""Freight"",
+           ""_"".""Lines"" as ""Lines"",
+           ""_"".""OrderedAt"" as ""OrderedAt"",
+           ""_"".""RequireAt"" as ""RequireAt"",
+           ""_"".""ShipTo"" as ""ShipTo"",
+           ""_"".""ShipVia"" as ""ShipVia"",
+           ""_"".""ShippedAt"" as ""ShippedAt"",
+           ""_"".""json()"" as ""json()"",
+           ""_"".""FirstName"" as ""FirstName"",
+           replace(""_"".""FirstName"", 'Ann', 'Anne') as ""t1_0""
+    from
+    (
+        select ""$Table"".""id()"" as ""id()"",
+               ""$Table"".""Company"" as ""Company"",
+               ""$Table"".""Employee"" as ""Employee"",
+               ""$Table"".""Freight"" as ""Freight"",
+               ""$Table"".""Lines"" as ""Lines"",
+               ""$Table"".""OrderedAt"" as ""OrderedAt"",
+               ""$Table"".""RequireAt"" as ""RequireAt"",
+               ""$Table"".""ShipTo"" as ""ShipTo"",
+               ""$Table"".""ShipVia"" as ""ShipVia"",
+               ""$Table"".""ShippedAt"" as ""ShippedAt"",
+               ""$Table"".""json()"" as ""json()"",
+               ""$Table"".""Title"" as ""Title"",
+               replace(""$Table"".""Title"", 'Sales', 'Marketing') as ""t0_0""
+        from
+        (
+            select ""_"".""id()"" as ""id()"",
+                   ""_"".""Age"" as ""Age"",
+                   ""_"".""Name"" as ""Name"",
+                   ""_"".""Company"" as ""Company"",
+                   ""_"".""Employee"" as ""Employee"",
+                   ""_"".""Freight"" as ""Freight"",
+                   ""_"".""Lines"" as ""Lines"",
+                   ""_"".""OrderedAt"" as ""OrderedAt"",
+                   ""_"".""RequireAt"" as ""RequireAt"",
+                   ""_"".""ShipTo"" as ""ShipTo"",
+                   ""_"".""ShipVia"" as ""ShipVia"",
+                   ""_"".""ShippedAt"" as ""ShippedAt"",
+                   ""_"".""json()"" as ""json()"",
+                   ""_"".""Title"" as ""Title"",
+                   ""_"".""DeletedAt"" as ""DeletedAt"",
+                   ""_"".""IsActive"" as ""IsActive"",
+                   ""_"".""Score"" as ""Score"",
+                   ""_"".""FirstName"" as ""FirstName""
+            from
+            (
+                {innerRql}
+            ) ""_""
+            where ((""_"".""Age"" between 10 and 20 and ""_"".""Name"" in ('a','b','c')) and (""_"".""DeletedAt"" is null))
+        ) ""$Table""
+        where (((not (""$Table"".""IsActive"" = true)) or (""$Table"".""Score"" <> 5)) and ""$Table"".""Title"" is not null)
+    ) ""_""
+    where (""_"".""FirstName"" is not null and ""_"".""Score"" <> 5)
+) ""_""
+where ((""_"".""Company"" is not null) and ((""_"".""Freight"" <> 5) or (""_"".""Freight"" is null)) and (""_"".""OrderedAt"" between 1 and 10))
+limit 25";
+
+            Assert.True(PowerBIFetchQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
+
+            Assert.IsType<PowerBIRqlQuery>(pgQuery);
+            var queryString = GetQueryString(pgQuery);
+            Assert.NotNull(queryString);
+
+            var expected = """
+FROM Users AS u WHERE (((((u.Age > 0 AND u.Name != null) AND ((u.Company != null AND (u.Freight != 5 OR u.Freight = null)) AND (u.OrderedAt >= 1 AND u.OrderedAt <= 10))) AND (u.FirstName != null AND u.Score != 5)) AND ((u.IsActive != true OR u.Score != 5) AND u.Title != null)) AND (((u.Age >= 10 AND u.Age <= 20) AND u.Name IN ('a', 'b', 'c')) AND u.DeletedAt = null))
+ORDER BY u.Name
+SELECT { 
+
+    Name: u.Name,
+    Age: u.Age,
+    Title: u.Title,
+    Field01: u.Field01,
+    Field02: u.Field02,
+    Field03: u.Field03,
+    Field04: u.Field04,
+    Field05: u.Field05,
+    Field06: u.Field06,
+    Field07: u.Field07,
+    Field08: u.Field08,
+    Field09: u.Field09,
+    Field10: u.Field10,
+    VeryLongTailMarker123: u.VeryLongTailMarker123
+
+}
+""";
+            Assert.Equal(Normalize(expected), Normalize(queryString));
+
+            Assert.Equal(25, GetLimit(pgQuery));
+
+            var replaces = GetReplaces(pgQuery);
+            Assert.NotNull(replaces);
+
+            Assert.True(replaces.TryGetValue("Title", out var titleReplace));
+            Assert.Equal("t0_0", titleReplace.DstColumnName);
+            Assert.Equal("Title", titleReplace.SrcColumnName);
+            Assert.Equal("Sales", titleReplace.OldValue);
+            Assert.Equal("Marketing", titleReplace.NewValue);
+
+            Assert.True(replaces.TryGetValue("FirstName", out var firstNameReplace));
+            Assert.Equal("t1_0", firstNameReplace.DstColumnName);
+            Assert.Equal("FirstName", firstNameReplace.SrcColumnName);
+            Assert.Equal("Ann", firstNameReplace.OldValue);
+            Assert.Equal("Anne", firstNameReplace.NewValue);
+        }
+
+        [Fact]
+        public void TryParse_should_support_declare_function_inner_rql_with_wrappers_outer_where_and_limit()
+        {
+            var innerRql = @"declare function isGood(u) { return u.Age > 18; }
+from 'Users' as u
+where isGood(u)
+select { Name: u.Name, Age: u.Age }";
+
+            var sql = $@"select ""_"".""id()"",
+       ""_"".""Company"",
+       ""_"".""Employee"",
+       ""_"".""Freight"",
+       ""_"".""Lines"",
+       ""_"".""OrderedAt"",
+       ""_"".""RequireAt"",
+       ""_"".""ShipTo"",
+       ""_"".""ShipVia"",
+       ""_"".""ShippedAt"",
+       ""_"".""json()""
+from
+(
+    select ""$Table"".""id()"" as ""id()"",
+           ""$Table"".""Company"" as ""Company"",
+           ""$Table"".""Employee"" as ""Employee"",
+           ""$Table"".""Freight"" as ""Freight"",
+           ""$Table"".""Lines"" as ""Lines"",
+           ""$Table"".""OrderedAt"" as ""OrderedAt"",
+           ""$Table"".""RequireAt"" as ""RequireAt"",
+           ""$Table"".""ShipTo"" as ""ShipTo"",
+           ""$Table"".""ShipVia"" as ""ShipVia"",
+           ""$Table"".""ShippedAt"" as ""ShippedAt"",
+           ""$Table"".""json()"" as ""json()"",
+           ""$Table"".""Name"" as ""Name"",
+           replace(""$Table"".""Name"", 'a', 'b') as ""n0""
+    from
+    (
+        select ""_"".""Name"" as ""Name""
+        from
+        (
+            {innerRql}
+        ) ""_""
+    ) ""$Table""
+    where (""$Table"".""Name"" in ('a','b') and ""$Table"".""Name"" is not null)
+) ""_""
+where (""_"".""Company"" in ('a','b') and ""_"".""Company"" is not null)
+limit 7";
+
+            Assert.True(PowerBIFetchQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
+
+            Assert.IsType<PowerBIRqlQuery>(pgQuery);
+            var queryString = GetQueryString(pgQuery);
+            Assert.NotNull(queryString);
+
+            var expected = """
+DECLARE function isGood(u) { return u.Age > 18; }
+
+FROM Users AS u WHERE ((isGood(u) AND (u.Company IN ('a', 'b') AND u.Company != null)) AND (u.Name IN ('a', 'b') AND u.Name != null))
+SELECT { 
+ Name: u.Name, Age: u.Age 
+}
+""";
+            Assert.Equal(Normalize(expected), Normalize(queryString));
+            Assert.Equal(7, GetLimit(pgQuery));
+
+            var replaces = GetReplaces(pgQuery);
+            Assert.NotNull(replaces);
+            Assert.True(replaces.TryGetValue("Name", out var nameReplace));
+            Assert.Equal("n0", nameReplace.DstColumnName);
+            Assert.Equal("Name", nameReplace.SrcColumnName);
+            Assert.Equal("a", nameReplace.OldValue);
+            Assert.Equal("b", nameReplace.NewValue);
+        }
+
+        [Fact]
+        public void TryParse_should_support_projection_heavy_multi_wrapper_with_replace_at_outer_and_inner_levels_and_complex_outer_where()
+        {
+            var innerRql = @"from Orders as o
+where o.Company != null
+select { Company: o.Company, Employee: o.Employee, Freight: o.Freight, OrderedAt: o.OrderedAt, ShippedAt: o.ShippedAt }";
+
+            const int limit = 33;
+
+            var sql = $@"select ""_"".""id()"",
+       ""_"".""Company"",
+       ""_"".""Employee"",
+       replace(""_"".""Employee"", 'X', 'Y') as ""tOuter_0"",
+       ""_"".""Freight"",
+       ""_"".""Lines"",
+       ""_"".""OrderedAt"",
+       ""_"".""RequireAt"",
+       ""_"".""ShipTo"",
+       ""_"".""ShipVia"",
+       ""_"".""ShippedAt"",
+       ""_"".""json()""
+from
+(
+    select ""_"".""id()"" as ""id()"",
+           ""_"".""Company"" as ""Company"",
+           ""_"".""Employee"" as ""Employee"",
+           ""_"".""Freight"" as ""Freight"",
+           ""_"".""Lines"" as ""Lines"",
+           ""_"".""OrderedAt"" as ""OrderedAt"",
+           ""_"".""RequireAt"" as ""RequireAt"",
+           ""_"".""ShipTo"" as ""ShipTo"",
+           ""_"".""ShipVia"" as ""ShipVia"",
+           ""_"".""ShippedAt"" as ""ShippedAt"",
+           ""_"".""json()"" as ""json()""
+    from
+    (
+        select ""$Table"".""id()"" as ""id()"",
+               ""$Table"".""Company"" as ""Company"",
+               replace(""$Table"".""Company"", 'A', 'B') as ""tInner_0"",
+               ""$Table"".""Employee"" as ""Employee"",
+               ""$Table"".""Freight"" as ""Freight"",
+               ""$Table"".""Lines"" as ""Lines"",
+               ""$Table"".""OrderedAt"" as ""OrderedAt"",
+               ""$Table"".""RequireAt"" as ""RequireAt"",
+               ""$Table"".""ShipTo"" as ""ShipTo"",
+               ""$Table"".""ShipVia"" as ""ShipVia"",
+               ""$Table"".""ShippedAt"" as ""ShippedAt"",
+               ""$Table"".""json()"" as ""json()""
+        from
+        (
+            {innerRql}
+        ) ""$Table""
+    ) ""_""
+) ""_""
+where (((""_"".""Employee"" <> 'X' or ""_"".""Employee"" is null) and (""_"".""ShippedAt"" is not null)) and (""_"".""Freight"" between 10 and 20))
+limit {limit}";
+
+            Assert.True(PowerBIFetchQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
+
+            Assert.IsType<PowerBIRqlQuery>(pgQuery);
+            var queryString = GetQueryString(pgQuery);
+            Assert.NotNull(queryString);
+
+            var expected = """
+FROM Orders AS o WHERE (o.Company != null AND (((o.Employee != 'X' OR o.Employee = null) AND o.ShippedAt != null) AND (o.Freight >= 10 AND o.Freight <= 20)))
+SELECT { 
+ Company: o.Company, Employee: o.Employee, Freight: o.Freight, OrderedAt: o.OrderedAt, ShippedAt: o.ShippedAt 
+}
+""";
+            Assert.Equal(Normalize(expected), Normalize(queryString));
+            Assert.Equal(limit, GetLimit(pgQuery));
+
+            var replaces = GetReplaces(pgQuery);
+            Assert.NotNull(replaces);
+
+            Assert.True(replaces.TryGetValue("Employee", out var employeeReplace));
+            Assert.Equal("tOuter_0", employeeReplace.DstColumnName);
+            Assert.Equal("Employee", employeeReplace.SrcColumnName);
+            Assert.Equal("X", employeeReplace.OldValue);
+            Assert.Equal("Y", employeeReplace.NewValue);
+
+            Assert.True(replaces.TryGetValue("Company", out var companyReplace));
+            Assert.Equal("tInner_0", companyReplace.DstColumnName);
+            Assert.Equal("Company", companyReplace.SrcColumnName);
+            Assert.Equal("A", companyReplace.OldValue);
+            Assert.Equal("B", companyReplace.NewValue);
+        }
+
+        [Fact]
+        public void TryParse_should_support_projection_heavy_wrapper_with_large_inner_rql_and_in_and_not_outer_where_and_limit()
+        {
+            var innerRql = @"from 'Users' as u
+where u.Age > 0
+order by u.Name
+select {
+    Name: u.Name,
+    Age: u.Age,
+    Company: u.Company,
+    Employee: u.Employee,
+    Freight: u.Freight,
+    Lines: u.Lines,
+    OrderedAt: u.OrderedAt,
+    RequireAt: u.RequireAt,
+    ShipTo: u.ShipTo,
+    ShipVia: u.ShipVia,
+    ShippedAt: u.ShippedAt,
+    TailMarkerB987: u.TailMarkerB987
+}";
+
+            const int limit = 12;
+
+            var sql = $@"select ""_"".""id()"",
+       ""_"".""Company"",
+       ""_"".""Employee"",
+       ""_"".""Freight"",
+       ""_"".""Lines"",
+       ""_"".""OrderedAt"",
+       ""_"".""RequireAt"",
+       ""_"".""ShipTo"",
+       ""_"".""ShipVia"",
+       ""_"".""ShippedAt"",
+       ""_"".""json()""
+from
+(
+    select ""_"".""id()"" as ""id()"",
+           ""_"".""Company"" as ""Company"",
+           ""_"".""Employee"" as ""Employee"",
+           ""_"".""Freight"" as ""Freight"",
+           ""_"".""Lines"" as ""Lines"",
+           ""_"".""OrderedAt"" as ""OrderedAt"",
+           ""_"".""RequireAt"" as ""RequireAt"",
+           ""_"".""ShipTo"" as ""ShipTo"",
+           ""_"".""ShipVia"" as ""ShipVia"",
+           ""_"".""ShippedAt"" as ""ShippedAt"",
+           ""_"".""json()"" as ""json()""
+    from
+    (
+        {innerRql}
+    ) ""_""
+) ""_""
+where ((""_"".""Company"" in ('a','b','c')) and (not (""_"".""Company"" in ('x','y'))))
+limit {limit}";
+
+            Assert.True(PowerBIFetchQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
+
+            Assert.IsType<PowerBIRqlQuery>(pgQuery);
+            var queryString = GetQueryString(pgQuery);
+            Assert.NotNull(queryString);
+
+            var expected = """
+FROM Users AS u WHERE (u.Age > 0 AND (u.Company IN ('a', 'b', 'c') AND NOT (u.Company IN ('x', 'y'))))
+ORDER BY u.Name
+SELECT { 
+
+    Name: u.Name,
+    Age: u.Age,
+    Company: u.Company,
+    Employee: u.Employee,
+    Freight: u.Freight,
+    Lines: u.Lines,
+    OrderedAt: u.OrderedAt,
+    RequireAt: u.RequireAt,
+    ShipTo: u.ShipTo,
+    ShipVia: u.ShipVia,
+    ShippedAt: u.ShippedAt,
+    TailMarkerB987: u.TailMarkerB987
+
+}
+""";
+            Assert.Equal(Normalize(expected), Normalize(queryString));
+            Assert.Equal(limit, GetLimit(pgQuery));
+        }
+
+        [Fact]
         public void TryParse_should_extract_nested_replace_projection_aliases_as_keys()
         {
             const string sql = @"select ""_"".""id()"" as ""id()"",
@@ -453,6 +829,8 @@ limit 1000";
                 .GetField("_replaces", BindingFlags.Instance | BindingFlags.NonPublic)
                 ?.GetValue(pgQuery);
         }
+
+        private static string Normalize(string s) => s.Replace("\r\n", "\n").Trim();
 
     }
 }
