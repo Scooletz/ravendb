@@ -69,6 +69,21 @@ from ""public"".""Orders"" ""$Table"" limit 200";
         }
 
         [Fact]
+        public void TryParse_should_extract_inner_rql_span_via_two_parsers_when_string_scan_is_ambiguous()
+        {
+            // Intentionally uses a non-PowerBI SELECT projection ("select 1") so legacy regex fallback won't match.
+            // Also uses multiple spaces before the alias to defeat the legacy string-scan end token search.
+            const string sql = "select 1 from (from Employees)   \"$Table\" limit 1000";
+
+            Assert.True(PowerBIFetchQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
+
+            Assert.IsType<PowerBIRqlQuery>(pgQuery);
+            var queryString = GetQueryString(pgQuery);
+            Assert.Contains("from Employees", queryString, StringComparison.OrdinalIgnoreCase);
+            Assert.Equal(1000, GetLimit(pgQuery));
+        }
+
+        [Fact]
         public void TryParse_should_match_wrapped_rql_fetch_with_outer_where_not_equal_or_is_null()
         {
             const string sql = @"select ""_"".""id()"" as ""id()"", ""_"".""FirstName"" as ""FirstName""

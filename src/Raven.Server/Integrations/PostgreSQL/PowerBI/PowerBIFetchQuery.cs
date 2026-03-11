@@ -124,10 +124,8 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             {
                 var sql = queryText;
 
-                if (TryExtractDeepestInnerRqlSpan(sql, out var innerStart, out var innerEnd, out var innerRql) == false)
-                    return false;
-
-                if (innerRql.StartsWith("from", StringComparison.OrdinalIgnoreCase) == false)
+                if (TryExtractInnerRqlSpanViaTwoParsers(sql, out var innerStart, out var innerEnd, out var innerRql) == false &&
+                    TryExtractDeepestInnerRqlSpan(sql, out innerStart, out innerEnd, out innerRql) == false)
                     return false;
 
                 var sanitizedSql = sql[..innerStart] + "select 1" + sql[innerEnd..];
@@ -257,6 +255,162 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 return true;
             }
         }
+
+        private static bool TryExtractInnerRqlSpanViaTwoParsers(string sql, out int innerStart, out int innerEnd, out string innerRql)
+        {
+            innerStart = 0;
+            innerEnd = 0;
+            innerRql = null;
+
+            if (string.IsNullOrWhiteSpace(sql))
+                return false;
+
+            // This is intentionally conservative: we rely on pgsqlparser's failure cursor pointing at the start
+            // of the embedded RQL. If this doesn't hold for some query shape, the legacy fallback extractor
+            // (`TryExtractDeepestInnerRqlSpan`) is expected to handle it.
+            var parseResult = Parser.Parse(sql);
+
+            if (parseResult.IsSuccess)
+                return false;
+
+            var cursorPos1Based = parseResult.Error?.CursorPos ?? 0;
+            if (cursorPos1Based <= 0)
+                return false;
+
+            var start = cursorPos1Based - 1;
+            if ((uint)start >= (uint)sql.Length)
+                return false;
+
+            start = SkipWhitespaceForward(sql, start);
+            if (start >= sql.Length)
+                return false;
+
+            start = NormalizeIdentifierStart(sql, start);
+
+            if (StartsWithKeywordAt(sql, start, "from") == false &&
+                StartsWithKeywordAt(sql, start, "declare") == false)
+                return false;
+
+            if (TryParseRqlPrefixAndGetEnd(sql, start, out var end) == false)
+                return false;
+
+            if (TryConsumeNextNonWsChar(sql, end, ')', out var afterCloseParen) == false)
+                return false;
+
+            if (TryReadQuotedAlias(sql, afterCloseParen, out _, out _) == false)
+                return false;
+
+            innerStart = start;
+            innerEnd = end;
+            innerRql = sql.Substring(innerStart, innerEnd - innerStart).Trim();
+            return true;
+        }
+
+        private static int SkipWhitespaceForward(string s, int i)
+        {
+            while ((uint)i < (uint)s.Length && char.IsWhiteSpace(s[i]))
+                i++;
+            return i;
+        }
+
+        private static int NormalizeIdentifierStart(string s, int i)
+        {
+            if ((uint)i >= (uint)s.Length)
+                return i;
+
+            if (IsIdentChar(s[i]) == false)
+                return i;
+
+            while (i > 0 && IsIdentChar(s[i - 1]))
+                i--;
+
+            return i;
+        }
+
+        private static bool StartsWithKeywordAt(string s, int i, string keyword)
+        {
+            if ((uint)i >= (uint)s.Length)
+                return false;
+
+            if (i > 0 && IsIdentChar(s[i - 1]))
+                return false;
+
+            if (s.AsSpan(i).StartsWith(keyword, StringComparison.OrdinalIgnoreCase) == false)
+                return false;
+
+            var end = i + keyword.Length;
+            if (end < s.Length && IsIdentChar(s[end]))
+                return false;
+
+            return true;
+        }
+
+        private static bool TryParseRqlPrefixAndGetEnd(string sql, int start, out int end)
+        {
+            end = 0;
+
+            var slice = sql.Substring(start);
+            var qp = new QueryParser();
+            qp.Init(slice);
+
+            if (qp.TryParse(out _, out _, QueryType.Select, recursive: true) == false)
+                return false;
+
+            var consumed = qp.Scanner.Position;
+            if (consumed <= 0 || consumed > slice.Length)
+                return false;
+
+            end = start + consumed;
+            return end > start && end <= sql.Length;
+        }
+
+        private static bool TryConsumeNextNonWsChar(string s, int i, char expected, out int nextIndex)
+        {
+            nextIndex = 0;
+
+            var idx = SkipWhitespaceForward(s, i);
+            if ((uint)idx >= (uint)s.Length)
+                return false;
+
+            if (s[idx] != expected)
+                return false;
+
+            nextIndex = idx + 1;
+            return true;
+        }
+
+        private static bool TryReadQuotedAlias(string s, int i, out string alias, out int nextIndex)
+        {
+            alias = null;
+            nextIndex = 0;
+
+            var idx = SkipWhitespaceForward(s, i);
+            if ((uint)idx >= (uint)s.Length || s[idx] != '"')
+                return false;
+
+            var aliasSpan = s.AsSpan(idx + 1);
+            if (aliasSpan.StartsWith("_\"", StringComparison.OrdinalIgnoreCase))
+            {
+                alias = "_";
+                nextIndex = idx + 1 + alias.Length + 1;
+                return true;
+            }
+
+            if (aliasSpan.StartsWith("$Table\"", StringComparison.OrdinalIgnoreCase))
+            {
+                alias = "$Table";
+                nextIndex = idx + 1 + alias.Length + 1;
+                return true;
+            }
+
+            return false;
+        }
+
+        private static bool IsIdentChar(char ch) =>
+            (ch is >= 'A' and <= 'Z') ||
+            (ch is >= 'a' and <= 'z') ||
+            (ch is >= '0' and <= '9') ||
+            ch == '_';
 
         private static bool TryExtractDeepestInnerRqlSpan(string sql, out int innerStartAbs, out int innerEndAbs, out string innerRql)
         {
