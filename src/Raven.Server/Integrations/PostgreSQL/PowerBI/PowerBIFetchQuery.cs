@@ -1,14 +1,12 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Text.RegularExpressions;
 using PgSqlParser;
 using Raven.Server.Integrations.PostgreSQL.Translation;
 using Raven.Server.Documents;
 using Raven.Server.Documents.Queries;
 using Raven.Server.Documents.Queries.AST;
 using Raven.Server.Documents.Queries.Parser;
-using Raven.Server.Integrations.PostgreSQL.Exceptions;
 using Sparrow;
 using Sparrow.Extensions;
 
@@ -16,36 +14,6 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
 {
     public static class PowerBIFetchQuery
     {
-        /// <summary>
-        /// Match an SQL from PowerBI that intends to query a collection. The SQL query may be nested and 
-        /// may also have a nested RQL query.
-        /// </summary>
-        private static readonly Regex FetchSqlRegex = new(@"(?is)^\s*(?:select\s+(?:\*|(?:(?:(?:""(\$Table|_)""\.)?""(?<src_columns>[^""]+)""(?:\s+as\s+""(?<all_columns>(?<dest_columns>[^""]+))"")?(?<replace>)|(?<replace>replace)\(""_"".""(?<src_columns>[^""]+)"",\s+'(?<replace_inputs>[^']*)',\s+'(?<replace_texts>[^']*)'\)\s+as\s+""(?<all_columns>(?<dest_columns>[^""]+))"")(?:\s|,)*)+)\s+from\s+(?:(?:\((?:\s|,)*)(?<inner_query>.*)\s*\)|""public"".""(?<table_name>.+)""))\s+""(?:\$Table|_)""(\s+where\s+(?<where>.*?))?(?:\s+limit\s+(?<limit>[0-9]+))?\s*$",
-            RegexOptions.Compiled);
-
-        /// <summary>
-        /// Match the column names found in the SQL where clause. 
-        /// Used to integrate the column names into the where clause of the RQL query.
-        /// </summary>
-        private static readonly Regex WhereColumnRegex = new(@"""_""\.""(?<column>.*?)""", RegexOptions.Compiled);
-
-        /// <summary>
-        /// Match operators found in the SQL where clause. 
-        /// Used to integrate the where clause into the RQL query.
-        /// </summary>
-        private static readonly Regex WhereOperatorRegex = new(@"(?=.*?\s+)is(\s+not)?(?=\s+.+?)", RegexOptions.Compiled);
-
-        /// <summary>
-        /// Map of operators from PostgreSQL to RQL
-        /// </summary>
-        private static readonly Dictionary<string, string> OperatorMap = new(StringComparer.OrdinalIgnoreCase)
-        {
-            { "is", "=" },
-            { "is not", "!=" },
-        };
-
-        private static readonly Regex TimestampConditionRegex = new(@"timestamp\ \'(?<date>.*?)\'", RegexOptions.Compiled);
-
         public static bool TryParse(string queryText, int[] parametersDataTypes, DocumentDatabase documentDatabase, out PgQuery pgQuery)
         {
             if (TryParseSimpleTableFetchViaAst(queryText, parametersDataTypes, documentDatabase, out pgQuery))
@@ -54,63 +22,8 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             if (TryParseWrappedRqlFetchViaAst(queryText, parametersDataTypes, documentDatabase, out pgQuery))
                 return true;
 
-            // Match queries sent by PowerBI, either RQL queries wrapped in an SQL statement OR generic SQL queries
-            if (TryGetMatches(queryText, out var matches, out var rql) == false)
-            {
-                pgQuery = null;
-                return false;
-            }
-
-            Dictionary<string, ReplaceColumnValue> powerBiReplaceValues = GetReplaceValues(matches);
-
-            string newRql = null;
-
-            if (rql != null)
-            {
-                // RQL query coming  from 'SQL statement (optional, requires database)' text box in Power BI
-
-                var powerBiFiltering = GetSqlWhereConditions(matches, rql.From.Alias);
-
-                if (powerBiFiltering != null)
-                {
-                    if (rql.Where == null)
-                        rql.Where = powerBiFiltering;
-                    else
-                        rql.Where = new BinaryExpression(rql.Where, powerBiFiltering, OperatorType.And);
-
-                    newRql = rql.ToString();
-                }
-                else
-                {
-                    newRql = rql.QueryText;
-                }
-            }
-            else if (matches[0].Groups["table_name"].Success)
-            {
-                // SQL query coming from selecting an loading entire collection (table)
-
-                if (matches.Count != 1)
-                    throw new PgErrorException(PgErrorCodes.StatementTooComplex,
-                        "Unexpected PowerBI nested SQL query. Query: " + queryText);
-
-                var sqlQuery = matches[0];
-
-                string tableName = sqlQuery.Groups["table_name"].Value;
-
-                newRql = $"from '{tableName}'";
-            }
-
-            if (newRql == null)
-            {
-                pgQuery = null;
-                return false;
-            }
-
-            var limit = matches[0].Groups["limit"];
-
-            pgQuery = new PowerBIRqlQuery(newRql, parametersDataTypes, documentDatabase, powerBiReplaceValues, limit.Success ? int.Parse(limit.Value) : null);
-
-            return true;
+            // AST-first parsing for known PowerBI shapes; fall back to legacy regex parsing for everything else.
+            return PowerBIFetchLegacyParser.TryParseLegacy(queryText, parametersDataTypes, documentDatabase, out pgQuery);
         }
 
         private static bool TryParseWrappedRqlFetchViaAst(string queryText, int[] parametersDataTypes, DocumentDatabase documentDatabase, out PgQuery pgQuery)
@@ -145,13 +58,13 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 if (selectStmt.LimitOffset != null)
                     return false;
 
-                if (TryExtractNonNegativeIntAConst(selectStmt.LimitCount, out var limit) == false)
+                if (TryExtractLimit(selectStmt.LimitCount, out var limit) == false)
                     return false;
 
-                Raven.Server.Documents.Queries.AST.Query q;
+                Documents.Queries.AST.Query query;
                 try
                 {
-                    q = QueryMetadata.ParseQuery(innerRql, QueryType.Select);
+                    query = QueryMetadata.ParseQuery(innerRql, QueryType.Select);
                 }
                 catch
                 {
@@ -191,12 +104,12 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
 
                     if (currentSelect.WhereClause != null)
                     {
-                        if (OuterWhereTranslator.TryTranslateWhere(currentSelect.WhereClause, wrapperAlias, q.From.Alias, out var whereExpression) == false)
+                        if (OuterWhereTranslator.TryTranslateWhere(currentSelect.WhereClause, wrapperAlias, query.From.Alias, out var whereExpression) == false)
                             return false;
 
-                        q.Where = q.Where == null
+                        query.Where = query.Where == null
                             ? whereExpression
-                            : new BinaryExpression(q.Where, whereExpression, OperatorType.And);
+                            : new BinaryExpression(query.Where, whereExpression, OperatorType.And);
                     }
 
                     if (nextSelect == null)
@@ -216,7 +129,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                     }
                 }
 
-                var newRql = q.ToString();
+                var newRql = query.ToString();
 
                 pgQuery = new PowerBIRqlQuery(newRql, parametersDataTypes, documentDatabase, allReplaces, limit: limit);
                 return true;
@@ -278,17 +191,11 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 return false;
 
             var start = cursorPos1Based - 1;
-            if ((uint)start >= (uint)sql.Length)
+            if (TryNormalizeStartIndex(sql, start, out start) == false)
                 return false;
 
-            start = SkipWhitespaceForward(sql, start);
-            if (start >= sql.Length)
-                return false;
-
-            start = NormalizeIdentifierStart(sql, start);
-
-            if (StartsWithKeywordAt(sql, start, "from") == false &&
-                StartsWithKeywordAt(sql, start, "declare") == false)
+            if (StartsWithKeywordAtWordBoundary(sql, start, "from") == false &&
+                StartsWithKeywordAtWordBoundary(sql, start, "declare") == false)
                 return false;
 
             if (TryParseRqlPrefixAndGetEnd(sql, start, out var end) == false)
@@ -297,12 +204,29 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             if (TryConsumeNextNonWsChar(sql, end, ')', out var afterCloseParen) == false)
                 return false;
 
-            if (TryReadQuotedAlias(sql, afterCloseParen, out _, out _) == false)
+            if (TryConsumeQuotedAlias(sql, afterCloseParen) == false)
                 return false;
 
             innerStart = start;
             innerEnd = end;
             innerRql = sql.Substring(innerStart, innerEnd - innerStart).Trim();
+            return true;
+        }
+
+        // Helpers for cursor-based inner RQL extraction (intentionally conservative)
+
+        private static bool TryNormalizeStartIndex(string s, int start, out int normalizedStart)
+        {
+            normalizedStart = 0;
+
+            if ((uint)start >= (uint)s.Length)
+                return false;
+
+            start = SkipWhitespaceForward(s, start);
+            if (start >= s.Length)
+                return false;
+
+            normalizedStart = NormalizeIdentifierStart(s, start);
             return true;
         }
 
@@ -327,7 +251,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             return i;
         }
 
-        private static bool StartsWithKeywordAt(string s, int i, string keyword)
+        private static bool StartsWithKeywordAtWordBoundary(string s, int i, string keyword)
         {
             if ((uint)i >= (uint)s.Length)
                 return false;
@@ -404,6 +328,11 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             }
 
             return false;
+        }
+
+        private static bool TryConsumeQuotedAlias(string s, int i)
+        {
+            return TryReadQuotedAlias(s, i, out _, out _);
         }
 
         private static bool IsIdentChar(char ch) =>
@@ -1024,7 +953,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             return string.IsNullOrWhiteSpace(innerRql) == false;
         }
 
-        private static bool TryExtractNonNegativeIntAConst(Node node, out int value)
+        private static bool TryExtractLimit(Node node, out int value)
         {
             value = 0;
 
@@ -1101,187 +1030,6 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             return true;
         }
 
-        private static Dictionary<string, ReplaceColumnValue> GetReplaceValues(List<Match> matches)
-        {
-            Dictionary<string, ReplaceColumnValue> replaceValues = null;
-
-            foreach (var matchToCheck in matches)
-            {
-                var replaceGroup = matchToCheck.Groups["replace"];
-
-                if (replaceGroup.Success)
-                {
-                    if (string.IsNullOrEmpty(replaceGroup.Value) == false)
-                    {
-                        // Populate the replace columns starting from the inner-most SQL
-
-                        replaceValues = new Dictionary<string, ReplaceColumnValue>();
-
-                        for (var i = matches.Count - 1; i >= 0; i--)
-                        {
-                            replaceValues = GetReplaces(matches[i], ref replaceValues);
-                        }
-
-                        break;
-                    }
-                }
-            }
-
-            return replaceValues;
-        }
-
-        private static QueryExpression GetSqlWhereConditions(List<Match> matches, StringSegment? alias)
-        {
-            List<QueryExpression> whereExpressions = null;
-
-            foreach (var matchToCheck in matches)
-            {
-                var whereGroup = matchToCheck.Groups["where"];
-
-                if (whereGroup.Success)
-                {
-                    if (string.IsNullOrEmpty(whereGroup.Value) == false)
-                    {
-                        var whereFilteringCondition = whereGroup.Value;
-
-                        var replaceValue = "${column}";
-
-                        if (alias != null)
-                            replaceValue = $"{alias}." + replaceValue;
-
-                        whereFilteringCondition = WhereColumnRegex.Replace(whereFilteringCondition, replaceValue);
-
-                        whereFilteringCondition = WhereOperatorRegex.Replace(whereFilteringCondition, (m) =>
-                        {
-                            if (OperatorMap.TryGetValue(m.Value, out var val))
-                                return val;
-
-                            return m.Value;
-                        });
-
-                        whereFilteringCondition = TimestampConditionRegex.Replace(whereFilteringCondition, timestampMatch =>
-                        {
-                            if (timestampMatch.Success)
-                            {
-                                var dateGroup = timestampMatch.Groups["date"];
-
-                                if (dateGroup.Success && DateTime.TryParse(dateGroup.Value, out var date))
-                                {
-                                    return $"'{date.GetDefaultRavenFormat()}'";
-                                }
-                            }
-
-                            return timestampMatch.Value;
-                        });
-
-                        var parser = new QueryParser();
-
-                        parser.Init(whereFilteringCondition);
-
-                        if (parser.Expression(out var parsedConditions) == false)
-                        {
-                            throw new NotSupportedException("Unable to parse WHERE clause: " + whereFilteringCondition);
-                        }
-
-                        whereExpressions ??= new List<QueryExpression>();
-
-                        whereExpressions.Add(parsedConditions);
-                    }
-                }
-            }
-
-            if (whereExpressions == null)
-                return null;
-
-            if (whereExpressions.Count == 1)
-                return whereExpressions[0];
-
-            BinaryExpression result = null;
-
-            for (int i = 1; i < whereExpressions.Count; i++)
-            {
-                if (result == null)
-                    result = new BinaryExpression(whereExpressions[0], whereExpressions[1], OperatorType.And);
-                else
-                    result = new BinaryExpression(whereExpressions[i], result, OperatorType.And);
-            }
-
-            return result;
-        }
-
-        private static bool TryGetMatches(string queryText, out List<Match> outMatches, out Raven.Server.Documents.Queries.AST.Query rql)
-        {
-            var matches = new List<Match>();
-            var queryToMatch = queryText;
-            Group innerQuery;
-
-            rql = null;
-
-            // Queries can have inner queries that we need to parse, so here we collect those
-            do
-            {
-                var match = FetchSqlRegex.Match(queryToMatch);
-
-                if (!match.Success)
-                {
-                    outMatches = null;
-                    return false;
-                }
-
-                matches.Add(match);
-
-                innerQuery = match.Groups["inner_query"];
-                queryToMatch = match.Groups["inner_query"].Value;
-            } while (innerQuery.Success && IsRql(queryToMatch, out rql) == false);
-
-            outMatches = matches;
-            return true;
-        }
-
-        private static Dictionary<string, ReplaceColumnValue> GetReplaces(Match match, ref Dictionary<string, ReplaceColumnValue> replaces)
-        {
-            var destColumns = match.Groups["dest_columns"].Captures;
-            var srcColumns = match.Groups["src_columns"].Captures;
-            var replace = match.Groups["replace"].Captures;
-            var replaceInputs = match.Groups["replace_inputs"].Captures;
-            var replaceTexts = match.Groups["replace_texts"].Captures;
-
-            var replaceIndex = 0;
-            for (var i = 0; i < destColumns.Count; i++)
-            {
-                var destColumn = destColumns[i].Value;
-                var srcColumn = srcColumns[i].Value;
-
-                if (replace[i].Value.Length != 0)
-                {
-                    replaces[srcColumn] = new ReplaceColumnValue
-                    {
-                        DstColumnName = destColumn,
-                        SrcColumnName = srcColumn,
-                        OldValue = replaceInputs[replaceIndex].Value,
-                        NewValue = replaceTexts[replaceIndex].Value,
-                    };
-
-                    replaceIndex++;
-                }
-            }
-
-            return replaces;
-        }
-
-        private static bool IsRql(string queryText, out Documents.Queries.AST.Query query)
-        {
-            try
-            {
-                query = QueryMetadata.ParseQuery(queryText, QueryType.Select);
-            }
-            catch
-            {
-                query = null;
-                return false;
-            }
-
-            return true;
-        }
+        
     }
 }
