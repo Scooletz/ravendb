@@ -1,5 +1,5 @@
 import { AboutViewFloating, AboutViewHeading, AccordionItemWrapper } from "components/common/AboutView";
-import React, { useCallback, useMemo, useState } from "react";
+import React, { ReactNode, useCallback, useMemo, useState } from "react";
 import { Icon } from "components/common/Icon";
 import "./TasksErrorsPage.scss";
 import classNames from "classnames";
@@ -53,32 +53,18 @@ import { Switch } from "components/common/Checkbox";
 import ButtonWithSpinner from "components/common/ButtonWithSpinner";
 import DatabaseUtils from "components/utils/DatabaseUtils";
 import TableDisplaySettings from "components/common/virtualTable/commonComponents/columnsSelect/TableDisplaySettings";
+import { useViewSheet, ViewSheet } from "components/common/splitView/ViewSheet";
 import PopoverWithHoverWrapper from "components/common/PopoverWithHoverWrapper";
 import genUtils from "common/generalUtils";
 import { CellWithCopyWrapper } from "components/common/virtualTable/cells/CellWithCopy";
+import clusterDashboard from "viewmodels/resources/clusterDashboard";
+import { useAppUrls } from "components/hooks/useAppUrls";
+import assertUnreachable from "components/utils/assertUnreachable";
+import { LoadError } from "components/common/LoadError";
 
+type EtlErrorStep = Raven.Server.Documents.ETL.EtlErrorStep;
 type GroupByType = "task" | "none";
 type EtlHealthStatus = Raven.Server.Documents.ETL.EtlProcessHealthStatus;
-
-interface TasksFiltersState {
-    searchText: string;
-    nodeTag: string | null;
-    shardNumber: string | null;
-    healthStatus: EtlHealthStatus;
-}
-
-function useTasksFilters(): [TasksFiltersState, (patch: Partial<TasksFiltersState>) => void] {
-    const [filters, setFilters] = useState<TasksFiltersState>({
-        searchText: "",
-        nodeTag: null,
-        shardNumber: null,
-        healthStatus: null,
-    });
-
-    const updateFilters = (patch: Partial<TasksFiltersState>) => setFilters((prev) => ({ ...prev, ...patch }));
-
-    return [filters, updateFilters];
-}
 
 export default function TasksErrorsPage() {
     const db = useAppSelector(databaseSelectors.activeDatabase);
@@ -88,16 +74,35 @@ export default function TasksErrorsPage() {
         return await databasesService.getEtlErrors(db.name, location);
     }, []);
 
-    const { result: asyncFetchAllEtlErrors, loading: isLoadingEtlErrors } = useClusterWideAsync(getEtlErrors);
+    const {
+        result: asyncFetchAllEtlErrors,
+        loading: isLoadingEtlErrors,
+        refresh: refreshEtlErrors,
+    } = useClusterWideAsync(getEtlErrors);
 
     const getEtlStats = useCallback(async (location: databaseLocationSpecifier) => {
         return await databasesService.getEtlStats(db.name, location);
     }, []);
 
-    const { result: asyncFetchAllEtlStats, loading: isLoadingEtlStats } = useClusterWideAsync(getEtlStats);
+    const {
+        result: asyncFetchAllEtlStats,
+        loading: isLoadingEtlStats,
+        refresh: refreshEtlStats,
+    } = useClusterWideAsync(getEtlStats);
 
     if (isLoadingEtlErrors || isLoadingEtlStats) {
         return <LoadingView />;
+    }
+
+    const hasAnyError = asyncFetchAllEtlErrors.some((x) => x.error) || asyncFetchAllEtlStats.some((x) => x.error);
+
+    const handleRefresh = async () => {
+        await refreshEtlErrors();
+        await refreshEtlStats();
+    };
+
+    if (hasAnyError) {
+        return <LoadError refresh={handleRefresh} />;
     }
 
     const allEtlErrors = asyncFetchAllEtlErrors.flatMap((x) =>
@@ -115,7 +120,7 @@ export default function TasksErrorsPage() {
         <div className="content-padding tasks-errors-page">
             <div className="d-flex flex-column gap-2 flex-shrink-0">
                 <div className="d-flex justify-content-between">
-                    <AboutViewHeading marginBottom={0} title="Tasks Errors" icon="ongoing-tasks" iconAddon="cancel" />
+                    <AboutViewHeading marginBottom={0} title="Tasks Errors" icon="tasks-errors" />
                     <TasksErrorsAboutView />
                 </div>
                 {tasksWithErrors.length > 0 && <div>Analyze and get more details on your Tasks errors. </div>}
@@ -145,14 +150,18 @@ const TasksErrorsPageBody = ({ tasksWithErrors, flattenAllEtlStats }: TasksError
 
     return (
         <div className="d-flex flex-column flex-grow-1 min-h-0">
-            <div className="border-1 align-items-center d-flex w-100 bg-dark border-secondary p-1 my-2 rounded flex-shrink-0">
+            <div className="border-1 align-items-center d-flex w-100 bg-dark border-secondary border p-1 my-2 rounded flex-shrink-0">
                 <Icon icon="tasks" />
                 <span className="flex-grow">
                     <b>{tasksWithErrors.length ?? 0}</b> {tasksWithErrors.length === 1 ? "task" : "tasks"} with errors
                 </span>
                 <div className="d-flex gap-1">
                     {flattenAllEtlStats.map((etl, index) => (
-                        <TaskPill color={getTaskPillColor(etl.Stats)} key={index} />
+                        <TaskPill
+                            color={getTaskPillColor(etl.Stats)}
+                            key={index}
+                            message={<TaskPillMessage etlTaskStats={etl} tasksWithErrors={tasksWithErrors} />}
+                        />
                     ))}
                 </div>
             </div>
@@ -163,6 +172,7 @@ const TasksErrorsPageBody = ({ tasksWithErrors, flattenAllEtlStats }: TasksError
                 filters={filters}
                 updateFilters={updateFilters}
             />
+
             <div className="mt-4 flex-grow-1 min-h-0">
                 {selectedGroupByType === "task" && (
                     <GroupByTaskView
@@ -172,7 +182,11 @@ const TasksErrorsPageBody = ({ tasksWithErrors, flattenAllEtlStats }: TasksError
                     />
                 )}
                 {selectedGroupByType === "none" && (
-                    <GroupByNoneView tasksWithErrors={tasksWithErrors} etlStats={flattenAllEtlStats} />
+                    <GroupByNoneView
+                        tasksWithErrors={tasksWithErrors}
+                        etlStats={flattenAllEtlStats}
+                        filters={filters}
+                    />
                 )}
             </div>
         </div>
@@ -208,7 +222,7 @@ function TasksFilters({ setSelectedGroupByType, selectedGroupByType, filters, up
     }, [db]);
 
     return (
-        <Row className="gap-2">
+        <Row className="mt-4">
             <Col>
                 <div className="small-label ms-1 mb-1">Filter by task/script name</div>
                 <div className="clearable-input">
@@ -233,30 +247,52 @@ function TasksFilters({ setSelectedGroupByType, selectedGroupByType, filters, up
             <Col>
                 <div className="small-label ms-1 mb-1">Filter by node</div>
                 <Select
+                    isMulti
                     isClearable
                     options={nodeOptions}
-                    onChange={(o) => updateFilters({ nodeTag: o?.value ?? null })}
+                    onChange={(options) => updateFilters({ nodeTags: options ? options.map((o) => o.value) : [] })}
                 />
             </Col>
             {db.isSharded && (
                 <Col>
                     <div className="small-label ms-1 mb-1">Filter by shard</div>
                     <Select
+                        isMulti
                         isClearable
                         options={shardOptions}
-                        onChange={(o) => updateFilters({ shardNumber: o?.value ?? null })}
+                        onChange={(options) =>
+                            updateFilters({ shardNumbers: options ? options.map((o) => o.value) : [] })
+                        }
                     />
                 </Col>
             )}
             <Col>
-                <div className="small-label ms-1 mb-1">Filter by task health</div>
+                <div className="small-label ms-1 mb-1">Filter by task type</div>
                 <Select
+                    isMulti
                     isClearable
-                    options={taskHealthOptions}
-                    onChange={(o) => updateFilters({ healthStatus: (o?.value ?? null) as EtlHealthStatus })}
+                    options={taskTypeOptions}
+                    onChange={(options) =>
+                        updateFilters({
+                            taskTypes: options ? (options.map((o) => o.value) as StudioEtlType[]) : [],
+                        })
+                    }
                 />
             </Col>
             <Col>
+                <div className="small-label ms-1 mb-1">Filter by task health</div>
+                <Select
+                    isMulti
+                    isClearable
+                    options={taskHealthOptions}
+                    onChange={(options) =>
+                        updateFilters({
+                            healthStatuses: options ? (options.map((o) => o.value) as EtlHealthStatus[]) : [],
+                        })
+                    }
+                />
+            </Col>
+            <Col xs="auto">
                 <div className="small-label ms-1 mb-1">Group by</div>
                 <MultiRadioToggle<GroupByType>
                     inputItems={groupByOptions}
@@ -274,6 +310,37 @@ const taskHealthOptions: SelectOption<EtlHealthStatus>[] = [
     { label: "Impaired", value: "Impaired" },
 ];
 
+const taskTypeOptions: SelectOption<StudioEtlType>[] = [
+    {
+        label: "RavenDB ETL",
+        value: "Raven",
+    },
+    {
+        label: "SQL ETL",
+        value: "Sql",
+    },
+    {
+        label: "Azure Queue Storage ETL",
+        value: "AzureQueueStorage",
+    },
+    {
+        label: "OLAP ETL",
+        value: "Olap",
+    },
+    {
+        label: "Kafka ETL",
+        value: "Kafka",
+    },
+    {
+        label: "Elastic Search ETL",
+        value: "ElasticSearch",
+    },
+    {
+        label: "RabbitMQ ETL",
+        value: "RabbitMQ",
+    },
+];
+
 const groupByOptions: InputItem<GroupByType>[] = [
     { value: "task", label: "Task" },
     { value: "none", label: "None" },
@@ -287,7 +354,7 @@ interface GroupByTaskViewProps {
 
 const GroupByTaskView = ({ tasksWithErrors, etlStats, filters }: GroupByTaskViewProps) => {
     const filteredTasksWithErrors = useMemo(() => {
-        const { searchText, nodeTag, shardNumber, healthStatus } = filters;
+        const { searchText, nodeTags, shardNumbers, healthStatuses } = filters;
 
         return tasksWithErrors
             .map((task) => ({
@@ -299,14 +366,17 @@ const GroupByTaskView = ({ tasksWithErrors, etlStats, filters }: GroupByTaskView
                         !searchText ||
                         task.etlName.toLowerCase().includes(searchText.toLowerCase()) ||
                         t.transformationName.toLowerCase().includes(searchText.toLowerCase());
-                    const matchesNode = !nodeTag || allErrors.some((e) => e.nodeTag === nodeTag);
-                    const matchesShard = !shardNumber || allErrors.some((e) => e.shard === +shardNumber);
+                    const matchesNode = !nodeTags.length || allErrors.some((e) => nodeTags.includes(e.nodeTag));
+                    const matchesShard =
+                        !shardNumbers.length || allErrors.some((e) => shardNumbers.includes(String(e.shard)));
                     const matchesHealth =
-                        !healthStatus ||
-                        etlStats
-                            .find((s) => s.TaskName === task.etlName)
-                            ?.Stats.find((s) => s.TransformationName === t.transformationName)?.Statistics
-                            .HealthStatus === healthStatus;
+                        !healthStatuses.length ||
+                        healthStatuses.includes(
+                            etlStats
+                                .find((s) => s.TaskName === task.etlName)
+                                ?.Stats.find((s) => s.TransformationName === t.transformationName)?.Statistics
+                                .HealthStatus
+                        );
 
                     return matchesSearch && matchesNode && matchesShard && matchesHealth;
                 }),
@@ -340,6 +410,7 @@ const TaskPanel = ({ etlName, transformations, etlStats }: TaskPanelProps) => {
 
     const taskHealth = getTaskHealthStatus(etlStats, etlName);
     const { bg, icon, label } = healthStatusToBadge(taskHealth);
+    const etlType = etlStats.find((s) => s.TaskName === etlName)?.EtlType;
     return (
         <RichPanel>
             <RichPanelHeader>
@@ -366,10 +437,7 @@ const TaskPanel = ({ etlName, transformations, etlStats }: TaskPanelProps) => {
                         <Icon icon={isDetailsVisible ? "fold" : "unfold"} margin="m-0" />
                     </Button>
                 </RichPanelDetailItem>
-                <RichPanelDetailItem>
-                    <Icon icon="ravendb-etl" />
-                    <span>RavenDB ETL</span>
-                </RichPanelDetailItem>
+                <EtlTypeRichPanelItem etlType={etlType} />
                 <RichPanelDetailItem childrenClassName="d-flex gap-1 align-items-center">
                     <Icon icon="warning" color="danger" margin="m-0" />
                     <span>Errors</span> <b>{errorsCount}</b>
@@ -522,12 +590,14 @@ const useTasksErrorsPanelTableColumns = (availableWidth: number) => {
                 cell: CellValueWrapper,
                 accessorKey: "Error",
                 size: getSize(db.isSharded ? 40 : 45),
+                enableSorting: false,
             },
             {
                 header: "Node",
                 cell: CellNodeValueWrapper,
                 accessorKey: "nodeTag",
                 size: getSize(5),
+                enableSorting: false,
             },
         ],
         []
@@ -539,29 +609,32 @@ const useTasksErrorsPanelTableColumns = (availableWidth: number) => {
             cell: CellShardValueWrapper,
             accessorKey: "shard",
             size: getSize(5),
+            enableSorting: false,
         });
     }
 
     return tasksErrorsPanelColumns;
 };
 
-type Step = "Transformation" | "Load" | "Extract";
-
-const getStepIcon = (step: Step): IconName => {
+const getStepIcon = (step: EtlErrorStep): IconName => {
     switch (step) {
         case "Transformation":
             return "replace";
         case "Load":
             return "import";
-        case "Extract":
-            return "export";
+        case "Configuration":
+            return "config";
         default:
             return null;
     }
 };
 
-const CellErrorStepWrapper = ({ getValue }: CellContext<FlatError, Step>) => {
+const CellErrorStepWrapper = ({ getValue }: CellContext<FlatError, EtlErrorStep>) => {
     const value = getValue();
+
+    if (!value) {
+        return <CellValue value="-" />;
+    }
 
     const stepIcon = getStepIcon(value);
     return (
@@ -605,30 +678,45 @@ const CellShardValueWrapper = ({ getValue }: CellContext<FlatError, string>) => 
 };
 
 const CellNodeValueWrapper = ({ getValue }: CellContext<FlatError, string>) => {
-    return (
-        <>
-            <Icon icon="node" color="node" />
-            <CellValue value={getValue()} />
-        </>
-    );
+    return <NodeCircle nodeTag={getValue()} />;
 };
 
-const CellValueButtonWrapper = (args: any) => {
-    const { value: isOpen, toggle: toggleIsOpen } = useBoolean(false);
+interface NodeCircleProps {
+    nodeTag: string;
+}
+
+function NodeCircle({ nodeTag }: NodeCircleProps) {
+    const db = useAppSelector(databaseSelectors.activeDatabase);
+    const nodeColors = clusterDashboard.nodeColors;
+    const nodeIndex = db.nodes.findIndex((n) => n.tag === nodeTag);
 
     return (
-        <>
-            <Button variant="secondary" onClick={toggleIsOpen}>
-                <Icon icon="preview" margin="m-0" />
-            </Button>
-            {/*<IndexErrorsModal*/}
-            {/*    isOpen={isOpen}*/}
-            {/*    toggleModal={toggleIsOpen}*/}
-            {/*    errorDetails={args.row}*/}
-            {/*    dataLength={args.table.options.data.length}*/}
-            {/*    getRow={args.table.getRow}*/}
-            {/*/>*/}
-        </>
+        <div
+            className="node-circle rounded-circle p-2 d-flex text-black justify-content-center align-items-center fw-bold"
+            style={{ backgroundColor: nodeColors.at(nodeIndex) }}
+        >
+            {nodeTag}
+        </div>
+    );
+}
+
+const CellValueButtonWrapper = (args: CellContext<any, unknown>) => {
+    const { open } = useViewSheet();
+
+    const handleOpenSheet = () => {
+        open({
+            component: <EtlErrorDetailsSheet error={args.row.original} />,
+            initialWidth: "40%",
+            minWidth: "25%",
+            maxWidth: "60%",
+            isPinned: false,
+        });
+    };
+
+    return (
+        <Button variant="secondary" onClick={handleOpenSheet}>
+            <Icon icon="preview" margin="m-0" />
+        </Button>
     );
 };
 
@@ -645,11 +733,71 @@ const HyperLinkDocumentCellValue = ({ getValue }: HyperLinkDocumentCellValueProp
 };
 
 interface TaskPillProps {
-    color: "warning" | "danger" | "success";
+    color: "bg-warning" | "bg-danger" | "bg-success";
+    message?: ReactNode;
 }
 
-const TaskPill = ({ color }: TaskPillProps) => {
-    return <div className={classNames("tasks-pill rounded", color ? `bg-${color}` : "")}></div>;
+const TaskPill = ({ color, message }: TaskPillProps) => {
+    return (
+        <PopoverWithHoverWrapper placement="left-end" message={message}>
+            <div className={classNames("tasks-pill rounded", color)} />
+        </PopoverWithHoverWrapper>
+    );
+};
+
+interface TaskPillMessageProps {
+    etlTaskStats: EtlTaskStats;
+    tasksWithErrors: EtlTaskWithErrors[];
+}
+
+const TaskPillMessage = ({ etlTaskStats, tasksWithErrors }: TaskPillMessageProps) => {
+    const overallHealth = getTaskHealthStatus([etlTaskStats], etlTaskStats.TaskName);
+    const { bg, icon, label } = healthStatusToBadge(overallHealth);
+
+    const taskWithErrors = tasksWithErrors.find((t) => t.etlName === etlTaskStats.TaskName);
+
+    const scripts = etlTaskStats.Stats.map((stat) => {
+        const transformation = taskWithErrors?.transformations.find(
+            (t) => t.transformationName === stat.TransformationName
+        );
+        const errorCount = transformation ? transformation.itemErrors.length + transformation.processErrors.length : 0;
+
+        return {
+            name: stat.TransformationName,
+            errorCount,
+            healthStatus: stat.Statistics.HealthStatus,
+        };
+    });
+
+    return (
+        <div className="task-pill-message">
+            <div className="d-flex align-items-center gap-2 mb-1">
+                <div>
+                    <b className="flex-grow text-nowrap">{scripts.length}</b>{" "}
+                    {scripts.length === 1 ? "script" : "scripts"}
+                </div>
+                <Badge bg={bg} className="rounded-pill ms-2 text-nowrap">
+                    <Icon icon={icon} />
+                    {label}
+                </Badge>
+            </div>
+            {scripts.length > 0 && (
+                <div className="d-flex flex-column gap-1">
+                    {scripts.map((script) => {
+                        return (
+                            <div key={script.name} className="d-flex align-items-center gap-2">
+                                <span className="text-truncate flex-grow-1 small">{script.name || "(default)"}</span>
+                                <span className="small text-muted ms-auto text-nowrap flex-shrink-0">
+                                    <Icon icon="warning" color="danger" margin="m-0" />
+                                    <b> {script.errorCount}</b> {script.errorCount === 1 ? "error" : "errors"}
+                                </span>
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
+        </div>
+    );
 };
 
 const TasksErrorsAboutView = () => {
@@ -719,9 +867,10 @@ function getTasksWithErrors(processes: EtlErrorsWithLocation[]): EtlTaskWithErro
 interface GroupByNoneViewProps {
     tasksWithErrors: EtlTaskWithErrors[];
     etlStats: EtlTaskStats[];
+    filters: TasksFiltersState;
 }
 
-function GroupByNoneView({ tasksWithErrors, etlStats }: GroupByNoneViewProps) {
+function GroupByNoneView({ tasksWithErrors, etlStats, filters }: GroupByNoneViewProps) {
     const { value: isDeleteAllErrorsModalOpen, toggle: toggleDeleteAllErrorsModal } = useBoolean(false);
 
     return (
@@ -736,6 +885,7 @@ function GroupByNoneView({ tasksWithErrors, etlStats }: GroupByNoneViewProps) {
                             tasksWithErrors={tasksWithErrors}
                             etlStats={etlStats}
                             width={width}
+                            filters={filters}
                         />
                     )}
                 />
@@ -751,6 +901,8 @@ interface EtlError {
     etlName: string;
     transformationName: string;
     healthStatus: EtlHealthStatus;
+    taskId: number | null;
+    etlType: StudioEtlType | null;
 }
 
 type FlatError = (
@@ -764,9 +916,16 @@ interface GroupByNoneTableProps {
     etlStats: EtlTaskStats[];
     width: number;
     toggleDeleteAllErrorsModal: () => void;
+    filters: TasksFiltersState;
 }
 
-function GroupByNoneTable({ tasksWithErrors, toggleDeleteAllErrorsModal, etlStats, width }: GroupByNoneTableProps) {
+function GroupByNoneTable({
+    tasksWithErrors,
+    toggleDeleteAllErrorsModal,
+    etlStats,
+    width,
+    filters,
+}: GroupByNoneTableProps) {
     const [rowSelection, setRowSelection] = useState({});
     const [columnVisibility, setColumnVisibility] = useState<Record<string, boolean>>({});
     const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
@@ -775,10 +934,23 @@ function GroupByNoneTable({ tasksWithErrors, toggleDeleteAllErrorsModal, etlStat
 
     const columns = useGroupByNoneTableColumns(width);
 
-    const data = useMemo<FlatError[]>(
-        () => flattenAllTasksErrors(tasksWithErrors, etlStats),
-        [tasksWithErrors, etlStats]
-    );
+    const data = useMemo<FlatError[]>(() => {
+        const allErrors = flattenAllTasksErrors(tasksWithErrors, etlStats);
+        const { searchText, nodeTags, shardNumbers, healthStatuses, taskTypes } = filters;
+
+        return allErrors.filter((error) => {
+            const matchesSearch =
+                !searchText ||
+                error.etlName.toLowerCase().includes(searchText.toLowerCase()) ||
+                error.transformationName?.toLowerCase().includes(searchText.toLowerCase());
+            const matchesNode = !nodeTags.length || nodeTags.includes(error.nodeTag);
+            const matchesShard = !shardNumbers.length || shardNumbers.includes(String(error.shard));
+            const matchesHealth = !healthStatuses.length || healthStatuses.includes(error.healthStatus);
+            const matchesTaskType = !taskTypes.length || taskTypes.includes(error.etlType);
+
+            return matchesSearch && matchesNode && matchesShard && matchesHealth && matchesTaskType;
+        });
+    }, [tasksWithErrors, etlStats, filters]);
 
     const table = useReactTable({
         data,
@@ -803,18 +975,22 @@ function GroupByNoneTable({ tasksWithErrors, toggleDeleteAllErrorsModal, etlStat
 
     return (
         <div className="d-flex flex-column h-100">
-            <div className="d-flex justify-content-between mb-3 flex-shrink-0">
+            <div className="d-flex justify-content-between mb-1 flex-shrink-0">
                 <Button variant="danger" onClick={toggleDeleteAllErrorsModal}>
                     <Icon icon="trash" />
                     <span>Delete all errors</span>
                 </Button>
                 <TableDisplaySettings table={table} />
             </div>
-            <SizeGetter
-                isHeighRequired
-                className="flex-grow-1 min-h-0"
-                render={({ height }) => <VirtualTable table={table} heightInPx={height} />}
-            />
+            {data.length === 0 ? (
+                <EmptySet>No tasks match the current filters.</EmptySet>
+            ) : (
+                <SizeGetter
+                    isHeighRequired
+                    className="flex-grow-1 min-h-0"
+                    render={({ height }) => <VirtualTable table={table} heightInPx={height} />}
+                />
+            )}
         </div>
     );
 }
@@ -834,7 +1010,7 @@ const useGroupByNoneTableColumns = (availableWidth: number) => {
             {
                 header: "Task",
                 accessorKey: "etlName",
-                cell: CellTaskNameWrapper,
+                cell: CellHyperlinkOngoingTaskValue,
                 size: getSize(10),
                 enableColumnFilter: false,
             },
@@ -874,20 +1050,31 @@ const useGroupByNoneTableColumns = (availableWidth: number) => {
                 accessorKey: "Error",
                 cell: CellWithCopyWrapper,
                 size: getSize(db.isSharded ? 25 : 35),
+                enableSorting: false,
             },
             {
-                header: "Health",
+                header: "Current task health",
                 accessorKey: "healthStatus",
                 cell: CellTaskHealthWrapper,
                 size: getSize(8),
+                enableColumnFilter: false,
+                enableSorting: false,
+            },
+            {
+                header: "Task type",
+                accessorKey: "etlType",
+                cell: CellEtlTypeWrapper,
+                size: getSize(5),
+                enableSorting: false,
                 enableColumnFilter: false,
             },
             {
                 header: "Node",
                 accessorKey: "nodeTag",
                 cell: CellNodeValueWrapper,
-                size: getSize(5),
+                size: getSize(3),
                 enableColumnFilter: false,
+                enableSorting: false,
             },
         ],
         []
@@ -898,27 +1085,78 @@ const useGroupByNoneTableColumns = (availableWidth: number) => {
             header: "Shard",
             accessorKey: "shard",
             cell: CellShardValueWrapper,
-            size: getSize(5),
+            size: getSize(3),
             enableColumnFilter: false,
+            enableSorting: false,
         });
     }
 
     return columns;
 };
 
-const CellTaskNameWrapper = ({ getValue }: CellContext<FlatError, string>) => (
-    <div className="cell-value value-string">
-        <Icon icon="ongoing-tasks" />
-        <CellValue value={getValue()} />
-    </div>
-);
+const CellHyperlinkOngoingTaskValue = ({ getValue, row }: CellContext<FlatError, string>) => {
+    const databaseName = useAppSelector(databaseSelectors.activeDatabaseName);
+    const { appUrl } = useAppUrls();
 
-const CellScriptNameWrapper = ({ getValue }: CellContext<FlatError, string>) => (
-    <div className="cell-value value-string">
-        <Icon icon="console" />
-        <CellValue value={getValue()} />
-    </div>
-);
+    const getTaskLink = (value: string) => {
+        if (typeof value !== "string" || row.original.taskId == null || row.original.etlType == null) {
+            return null;
+        }
+
+        const { taskId, etlType } = row.original;
+
+        switch (etlType) {
+            case "Raven":
+                return appUrl.forEditRavenEtl(databaseName, taskId);
+            case "Sql":
+                return appUrl.forEditSqlEtl(databaseName, taskId);
+            case "Olap":
+                return appUrl.forEditOlapEtl(databaseName, taskId);
+            case "ElasticSearch":
+                return appUrl.forEditElasticSearchEtl(databaseName, taskId);
+            case "Kafka":
+                return appUrl.forEditKafkaEtl(databaseName, taskId);
+            case "RabbitMQ":
+                return appUrl.forEditRabbitMqEtl(databaseName, taskId);
+            case "AzureQueueStorage":
+                return appUrl.forEditAzureQueueStorageEtl(databaseName, taskId);
+            default:
+                return assertUnreachable(etlType);
+        }
+    };
+
+    const taskLink = getTaskLink(getValue());
+
+    if (taskLink) {
+        return (
+            <div className="cell-value value-string">
+                <a href={taskLink}>
+                    <Icon icon="ongoing-tasks" /> {getValue()}
+                </a>
+            </div>
+        );
+    }
+
+    return (
+        <div className="cell-value value-string">
+            <Icon icon="ongoing-tasks" />
+            <CellValue value={getValue()} />
+        </div>
+    );
+};
+
+const CellScriptNameWrapper = ({ getValue }: CellContext<FlatError, string>) => {
+    if (!getValue()) {
+        return <CellValue value="-" />;
+    }
+
+    return (
+        <div className="cell-value value-string">
+            <Icon icon="console" />
+            <CellValue value={getValue()} />
+        </div>
+    );
+};
 
 const healthStatusToBadge = (status: EtlHealthStatus | null): { bg: string; icon: IconName; label: string } => {
     switch (status) {
@@ -945,6 +1183,39 @@ const CellTaskHealthWrapper = ({ getValue }: CellContext<FlatError, EtlHealthSta
     );
 };
 
+const getEtlTypeIcon = (value: StudioEtlType): IconName => {
+    switch (value) {
+        case "Raven":
+            return "ravendb-etl";
+        case "Sql":
+            return "sql-etl";
+        case "Olap":
+            return "olap-etl";
+        case "ElasticSearch":
+            return "elastic-search-etl";
+        case "Kafka":
+            return "kafka-etl";
+        case "AzureQueueStorage":
+            return "azure-queue-storage-etl";
+        case "RabbitMQ":
+            return "rabbitmq-etl";
+        default:
+            return null;
+    }
+};
+
+// TODO: Add new icons for different ETL types for higher versions (7.0+)
+const CellEtlTypeWrapper = ({ getValue }: CellContext<FlatError, StudioEtlType>) => {
+    const icon = getEtlTypeIcon(getValue());
+    const label = getEtlTypeLabel(getValue());
+    return (
+        <div className="cell-value value-string">
+            <Icon icon={icon} />
+            <CellValue value={label} />
+        </div>
+    );
+};
+
 function getTaskHealthStatus(etlStats: EtlTaskStats[], etlName: string): EtlHealthStatus {
     const stats = etlStats.find((s) => s.TaskName === etlName)?.Stats ?? [];
 
@@ -957,14 +1228,52 @@ function getTaskHealthStatus(etlStats: EtlTaskStats[], etlName: string): EtlHeal
     return "Healthy";
 }
 
+const getEtlTypeLabel = (etlType: StudioEtlType) => {
+    switch (etlType) {
+        case "Raven":
+            return "RavenDB ETL";
+        case "Sql":
+            return "SQL";
+        case "Olap":
+            return "OLAP";
+        case "ElasticSearch":
+            return "ElasticSearch ETL";
+        case "Kafka":
+            return "Kafka ETL";
+        case "AzureQueueStorage":
+            return "Azure Queue Storage ETL";
+        case "RabbitMQ":
+            return "RabbitMQ ETL";
+        default:
+            return etlType;
+    }
+};
+
+interface EtlTypeRichPanelItemProps {
+    etlType: StudioEtlType;
+}
+
+const EtlTypeRichPanelItem = ({ etlType }: EtlTypeRichPanelItemProps) => {
+    const icon = getEtlTypeIcon(etlType);
+
+    const label = getEtlTypeLabel(etlType);
+
+    return (
+        <RichPanelDetailItem>
+            <Icon icon={icon} />
+            <span>{label}</span>
+        </RichPanelDetailItem>
+    );
+};
+
 function getTaskPillColor(stats: EtlTaskStats["Stats"]): TaskPillProps["color"] {
     if (stats.some((s) => s.Statistics.HealthStatus === "Failed")) {
-        return "danger";
+        return "bg-danger";
     }
     if (stats.some((s) => s.Statistics.HealthStatus === "Impaired")) {
-        return "warning";
+        return "bg-warning";
     }
-    return "success";
+    return "bg-success";
 }
 
 function flattenTransformationErrors(
@@ -980,6 +1289,8 @@ function flattenTransformationErrors(
 function flattenAllTasksErrors(tasksWithErrors: EtlTaskWithErrors[], etlStats: EtlTaskStats[]): FlatError[] {
     return tasksWithErrors.flatMap((task) => {
         const taskStats = etlStats.find((s) => s.TaskName === task.etlName);
+        const taskId = taskStats?.TaskId;
+        const etlType = taskStats?.EtlType;
 
         return task.transformations.flatMap((transformation) => {
             const healthStatus =
@@ -993,6 +1304,8 @@ function flattenAllTasksErrors(tasksWithErrors: EtlTaskWithErrors[], etlStats: E
                     etlName: task.etlName,
                     transformationName: transformation.transformationName,
                     healthStatus,
+                    taskId,
+                    etlType,
                 })),
                 ...transformation.processErrors.map((e) => ({
                     ...e,
@@ -1000,6 +1313,8 @@ function flattenAllTasksErrors(tasksWithErrors: EtlTaskWithErrors[], etlStats: E
                     etlName: task.etlName,
                     transformationName: transformation.transformationName,
                     healthStatus,
+                    taskId,
+                    etlType,
                 })),
             ];
         });
@@ -1059,7 +1374,7 @@ function DeleteAllErrorsModal({ toggle, tasksWithErrors }: DeleteAllErrorsModalP
 
     return (
         <Modal show contentClassName="modal-border bulge-danger">
-            <Modal.Header closeButton onHide={toggle} className="pb-0">
+            <Modal.Header closeButton onCloseClick={toggle} className="pb-0">
                 <h3>
                     <Icon icon="trash" color="danger" />
                     <span>Delete all errors?</span>
@@ -1112,4 +1427,195 @@ function useDeleteConfirmation(isRequireTypedConfirm: boolean) {
         handleTextChange,
         isConfirmed: isRequireTypedConfirm ? confirmText === "DELETE" : true,
     };
+}
+
+// ---------------------------------------------------------------------------
+// EtlErrorDetailsSheet
+// ---------------------------------------------------------------------------
+
+interface EtlErrorDetailsSheetProps {
+    error: Record<string, any>;
+}
+
+function EtlErrorDetailsSheet({ error }: EtlErrorDetailsSheetProps) {
+    const { close } = useViewSheet();
+
+    const { bg, icon, label } = healthStatusToBadge(error.healthStatus ?? null);
+    const stepIcon = error.Step ? getStepIcon(error.Step as EtlErrorStep) : null;
+    const etlTypeIcon = error.etlType ? getEtlTypeIcon(error.etlType as StudioEtlType) : null;
+    const etlTypeLabel = error.etlType ? getEtlTypeLabel(error.etlType as StudioEtlType) : null;
+
+    return (
+        <ViewSheet>
+            <ViewSheet.Header>
+                <h3 className="mb-0">
+                    <Icon icon="warning" color="danger" />
+                    ETL Error Details
+                </h3>
+            </ViewSheet.Header>
+            <ViewSheet.Body className="m-2">
+                <div className="d-flex flex-column gap-3">
+                    {error.etlName && (
+                        <div className="d-flex justify-content-between align-items-center">
+                            <div className="small-label">Task</div>
+                            <div className="d-flex align-items-center gap-2">
+                                {etlTypeIcon && <Icon icon={etlTypeIcon} />}
+                                <div>{error.etlName}</div>
+                            </div>
+                        </div>
+                    )}
+
+                    {error.etlType && (
+                        <div className="d-flex justify-content-between align-items-center">
+                            <div className="small-label mb-1">Task Type</div>
+                            <div className="d-flex align-items-center gap-2">
+                                {etlTypeIcon && <Icon icon={etlTypeIcon} />}
+                            </div>
+                        </div>
+                    )}
+
+                    {error.transformationName && (
+                        <div className="d-flex justify-content-between align-items-center">
+                            <div className="small-label mb-1">Script</div>
+                            <div className="w-75 text-right" title={error.transformationName}>
+                                <Icon icon="console" />
+                                {error.transformationName}
+                                {error.transformationName}
+                                {error.transformationName}
+                                {error.transformationName}
+                                {error.transformationName}
+                                {error.transformationName}
+                                {error.transformationName}
+                                {error.transformationName}
+                                {error.transformationName}
+                                {error.transformationName}
+                                {error.transformationName}
+                                {error.transformationName}
+                                {error.transformationName}
+                                {error.transformationName}
+                                {error.transformationName}
+                            </div>
+                        </div>
+                    )}
+
+                    {error.errorType && (
+                        <div className="d-flex justify-content-between align-items-center">
+                            <div className="small-label mb-1">Error Type</div>
+                            <Badge
+                                bg={error.errorType === "Item" ? "secondary" : "info"}
+                                className="rounded-pill cell-value"
+                            >
+                                <Icon icon={error.errorType === "Item" ? "tasks" : "hammer-driver"} />
+                                {error.errorType === "Item" ? "Item Error" : "Process Error"}
+                            </Badge>
+                        </div>
+                    )}
+
+                    {error.Step && (
+                        <div className="d-flex justify-content-between align-items-center">
+                            <div className="small-label mb-1">Error Step</div>
+                            <div>
+                                {stepIcon && <Icon icon={stepIcon} />}
+                                {error.Step}
+                            </div>
+                        </div>
+                    )}
+
+                    {error.DocumentId && (
+                        <div className="d-flex justify-content-between align-items-center">
+                            <div className="small-label mb-1">Document</div>
+                            <div>
+                                <Icon icon="document" />
+                                {error.DocumentId}
+                            </div>
+                        </div>
+                    )}
+
+                    {error.CreatedAt && (
+                        <div className="d-flex justify-content-between align-items-center">
+                            <div className="small-label mb-1">Date</div>
+                            <div>{String(error.CreatedAt)}</div>
+                        </div>
+                    )}
+
+                    {error.healthStatus && (
+                        <div className="d-flex justify-content-between align-items-center">
+                            <div className="small-label mb-1">Current Task Health</div>
+                            <Badge bg={bg} className="rounded-pill">
+                                <Icon icon={icon} />
+                                {label}
+                            </Badge>
+                        </div>
+                    )}
+                    
+                    <div className="d-flex justify-content-between align-items-center">
+                        <div className="small-label">Localization</div>
+                        <div className="d-flex align-items-center gap-2">
+                            <div className="d-flex align-items-center justify-content-center">
+                                <Icon icon="node" color="node" />
+                                <div>{error.nodeTag}</div>
+                            </div>
+                            {error.shard != null && (
+                                <div className="d-flex align-items-center justify-content-center">
+                                    <Icon icon="shard" color="shard" />
+                                    <div>#{error.shard}</div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                    {/*{error.nodeTag && (*/}
+                    {/*    <div>*/}
+                    {/*        <div className="small-label mb-1">Node</div>*/}
+                    {/*        <NodeCircle nodeTag={error.nodeTag} />*/}
+                    {/*    </div>*/}
+                    {/*)}*/}
+
+                    {/*{error.shard != null && (*/}
+                    {/*    <div>*/}
+                    {/*        <div className="small-label mb-1">Shard</div>*/}
+                    {/*        <div className="d-flex align-items-center gap-1">*/}
+                    {/*            <Icon icon="shard" color="shard" />#{error.shard}*/}
+                    {/*        </div>*/}
+                    {/*    </div>*/}
+                    {/*)}*/}
+
+                    {error.Error && (
+                        <div>
+                            <Card className="bg-black p-2">
+                                <pre className="text-wrap mb-0 small">{error.Error}</pre>
+                            </Card>
+                        </div>
+                    )}
+                </div>
+            </ViewSheet.Body>
+            <ViewSheet.Footer>
+                <Button variant="secondary" onClick={close}>
+                    <Icon icon="close" />
+                    Close
+                </Button>
+            </ViewSheet.Footer>
+        </ViewSheet>
+    );
+}
+
+interface TasksFiltersState {
+    searchText: string;
+    nodeTags: string[];
+    shardNumbers: string[];
+    healthStatuses: EtlHealthStatus[];
+    taskTypes: StudioEtlType[];
+}
+
+function useTasksFilters(): [TasksFiltersState, (patch: Partial<TasksFiltersState>) => void] {
+    const [filters, setFilters] = useState<TasksFiltersState>({
+        searchText: "",
+        nodeTags: [],
+        shardNumbers: [],
+        healthStatuses: [],
+        taskTypes: [],
+    });
+
+    const updateFilters = (patch: Partial<TasksFiltersState>) => setFilters((prev) => ({ ...prev, ...patch }));
+
+    return [filters, updateFilters];
 }

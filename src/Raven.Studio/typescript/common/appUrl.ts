@@ -453,7 +453,7 @@ class appUrl {
         return "#databases/settings/revisionsBinCleaner?" + appUrl.getEncodedDbPart(db);
     }
     
-    static forTasksErrors(db: database): string {
+    static forTasksErrors(db: database | string): string {
         return "#databases/tasks/tasksErrors?" + appUrl.getEncodedDbPart(db);
     }
 

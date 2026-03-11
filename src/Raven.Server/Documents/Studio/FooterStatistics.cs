@@ -16,12 +16,15 @@ namespace Raven.Server.Documents.Studio
 
         public long CountOfIndexingErrors { get; set; }
 
+        public long CountOfEtlTaskErrors { get; set; }
+
         public void CombineWith(FooterStatistics stats)
         {
             CountOfDocuments += stats.CountOfDocuments;
 
             CountOfIndexes = stats.CountOfIndexes; // every node has the same amount of indexes
             CountOfIndexingErrors += stats.CountOfIndexingErrors;
+            CountOfEtlTaskErrors += stats.CountOfEtlTaskErrors;
 
             if (StaleIndexes == null)
                 StaleIndexes = stats.StaleIndexes;

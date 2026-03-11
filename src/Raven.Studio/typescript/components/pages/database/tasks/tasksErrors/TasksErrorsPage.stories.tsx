@@ -1,8 +1,16 @@
-import { withBootstrap5, withForceRerender, withStorybookContexts } from "test/storybookTestUtils";
+import {
+    databaseArgType,
+    DatabaseType,
+    withBootstrap5,
+    withForceRerender,
+    withStorybookContexts,
+} from "test/storybookTestUtils";
 import { Meta, StoryObj } from "@storybook/react-webpack5";
 import TasksErrorsPage from "components/pages/database/tasks/tasksErrors/TasksErrorsPage";
 import { mockStore } from "test/mocks/store/MockStore";
 import { mockServices } from "test/mocks/services/MockServices";
+import { DatabasesStubs } from "test/stubs/DatabasesStubs";
+import assertUnreachable from "components/utils/assertUnreachable";
 
 export default {
     title: "Pages/Tasks/Tasks Errors",
@@ -15,15 +23,40 @@ export default {
     },
 } satisfies Meta;
 
-export const Default: StoryObj = {
-    name: "Tasks Errors",
-    render: () => {
-        const { databases } = mockStore;
-        const {databasesService} = mockServices;
-        databases.withActiveDatabase_NonSharded_SingleNode();
+interface TasksErrorsPageArgs {
+    hasErrors: boolean;
+    databaseType: DatabaseType;
+}
 
-        databasesService.withEtlErrors();
-        databasesService.withEtlStats();
+export const Default: StoryObj<TasksErrorsPageArgs> = {
+    name: "Tasks Errors",
+    render: ({ hasErrors, databaseType }) => {
+        const { databases } = mockStore;
+        const { databasesService } = mockServices;
+
+        switch (databaseType) {
+            case "sharded":
+                databases.withActiveDatabase_Sharded();
+                break;
+            case "cluster":
+                databases.withActiveDatabase_NonSharded_Cluster();
+                break;
+            case "singleNode":
+                databases.withActiveDatabase_NonSharded_SingleNode();
+                break;
+            default:
+                assertUnreachable(databaseType);
+        }
+
+        databasesService.withEtlErrors(hasErrors ? DatabasesStubs.etlErrors() : []);
+        databasesService.withEtlStats(hasErrors ? DatabasesStubs.etlStats() : []);
         return <TasksErrorsPage />;
+    },
+    argTypes: {
+        databaseType: databaseArgType
+    },
+    args: {
+        hasErrors: true,
+        databaseType: "singleNode",
     },
 };

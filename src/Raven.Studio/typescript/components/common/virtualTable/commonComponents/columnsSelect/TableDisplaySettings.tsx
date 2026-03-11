@@ -332,10 +332,10 @@ function SortableColumnRow({
                 selected={isSelected}
                 toggleSelection={meta.canHide ? onToggle : undefined}
                 disabled={!meta.canHide}
-                title={meta.canHide ? id : "This column is always visible and cannot be hidden"}
+                title={meta.canHide ? meta.headerTitle : "This column is always visible and cannot be hidden"}
                 className="flex-grow-1 overflow-hidden"
             >
-                <span className="column-list-item-name">{id}</span>
+                <span className="column-list-item-name">{meta.headerTitle}</span>
             </Checkbox>
             <Button
                 variant="link"
@@ -361,10 +361,10 @@ function ColumnRowPreview({ id, meta, isSelected, isPinned }: ColumnRowProps) {
                 selected={isSelected}
                 toggleSelection={() => {}}
                 disabled={!meta.canHide}
-                title={meta.canHide ? id : "This column is always visible and cannot be hidden"}
+                title={meta.canHide ? meta.headerTitle : "This column is always visible and cannot be hidden"}
                 className="flex-grow-1 overflow-hidden"
             >
-                <span className="column-list-item-name">{id}</span>
+                <span className="column-list-item-name">{meta.headerTitle}</span>
             </Checkbox>
             <Button
                 variant="link"

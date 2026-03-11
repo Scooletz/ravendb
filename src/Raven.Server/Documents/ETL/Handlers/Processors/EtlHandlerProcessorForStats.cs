@@ -27,6 +27,8 @@ internal sealed class EtlHandlerProcessorForStats : AbstractEtlHandlerProcessorF
         var etlStats = GetProcessesToReportOn(RequestHandler.Database, names).Select(x => new EtlTaskStats
         {
             TaskName = x.Key,
+            TaskId = x.Value.First().TaskId,
+            EtlType = x.Value.First().EtlType,
             Stats = x.Value.Select(y => new EtlProcessTransformationStats
             {
                 TransformationName = y.TransformationName,

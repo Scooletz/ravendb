@@ -8,6 +8,7 @@ import OngoingTasksPage = require("components/pages/database/tasks/ongoingTasks/
 import AddNewOngoingTask = require("components/pages/database/tasks/ongoingTasks/AddNewOngoingTask");
 import separatorMenuItem = require("common/shell/menu/separatorMenuItem");
 import TasksErrorsPage = require("components/pages/database/tasks/tasksErrors/TasksErrorsPage");
+import footer = require("common/shell/footer")
 
 export = getTasksMenuItem;
 
@@ -410,9 +411,10 @@ function getTasksMenuItem(appUrls: computedAppUrls) {
             shardingMode: "allShards",
             title: 'Tasks Errors',
             nav: true,
-            css: 'icon-ongoing-tasks',
+            css: 'icon-tasks-errors',
             dynamicHash: appUrls.tasksError,
             // requiredAccess: "DatabaseReadWrite"
+            badgeData: ko.pureComputed(() => { return footer.default.stats() ? footer.default.stats().countOfTasksErrors() : null; })
         }),
     ];
 

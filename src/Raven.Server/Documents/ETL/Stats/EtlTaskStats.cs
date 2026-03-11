@@ -1,10 +1,15 @@
-﻿using Sparrow.Json.Parsing;
+﻿using Raven.Client.Documents.Operations.ETL;
+using Sparrow.Json.Parsing;
 
 namespace Raven.Server.Documents.ETL.Stats
 {
     public sealed class EtlTaskStats : IDynamicJson
     {
         public string TaskName { get; set; }
+
+        public EtlType EtlType { get; set; }
+
+        public long TaskId {get; set; }
 
         public EtlProcessTransformationStats[] Stats { get; set; }
 
@@ -13,6 +18,8 @@ namespace Raven.Server.Documents.ETL.Stats
             return new DynamicJsonValue
             {
                 [nameof(TaskName)] = TaskName,
+                [nameof(TaskId)] = TaskId,
+                [nameof(EtlType)] = EtlType,
                 [nameof(Stats)] = new DynamicJsonArray(Stats)
             };
         }

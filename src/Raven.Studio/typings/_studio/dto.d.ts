@@ -1196,4 +1196,6 @@ interface EtlProcessTransformationStats {
 interface EtlTaskStats {
     Stats: EtlProcessTransformationStats[];
     TaskName: string;
+    TaskId: number;
+    EtlType: StudioEtlType;
 }

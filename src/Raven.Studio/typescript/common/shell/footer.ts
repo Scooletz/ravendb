@@ -17,6 +17,7 @@ class footerStats {
     countOfIndexes = ko.observable<number>();
     countOfStaleIndexes = ko.observable<number>();
     countOfIndexingErrors = ko.observable<number>();
+    countOfTasksErrors = ko.observable<number>();
 }
 
 class footer {
@@ -79,6 +80,7 @@ class footer {
                 newStats.countOfIndexes(stats.CountOfIndexes);
                 newStats.countOfStaleIndexes(stats.CountOfStaleIndexes);
                 newStats.countOfIndexingErrors(stats.CountOfIndexingErrors);
+                newStats.countOfTasksErrors(stats.CountOfEtlTaskErrors);
                 this.stats(newStats);
             })
             .always(() => this.spinners.loading(false));

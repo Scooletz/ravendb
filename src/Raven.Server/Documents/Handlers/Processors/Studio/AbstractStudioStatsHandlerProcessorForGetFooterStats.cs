@@ -41,6 +41,10 @@ namespace Raven.Server.Documents.Handlers.Processors.Studio
 
                 writer.WritePropertyName(nameof(FooterStatistics.CountOfIndexingErrors));
                 writer.WriteInteger(stats.CountOfIndexingErrors);
+                writer.WriteComma();
+
+                writer.WritePropertyName(nameof(FooterStatistics.CountOfEtlTaskErrors));
+                writer.WriteInteger(stats.CountOfEtlTaskErrors);
 
                 writer.WriteEndObject();
             }
