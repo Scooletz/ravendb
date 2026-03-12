@@ -9,9 +9,11 @@ namespace Raven.Server.Utils.Stats
         TimeSpan Duration { get; }
     }
 
-    public abstract class StatsScope<T, TStatsScope> : IStatsScope, IDisposable 
+    public abstract class StatsScope<T, TStatsScope> : IStatsScope, IDisposable
         where TStatsScope : StatsScope<T, TStatsScope>
     {
+        private const long NotStarted = 0;
+
         // A stopwatch replacement that takes only 2 fields.
         private long _start;
         private TimeSpan _elapsed;
@@ -33,8 +35,13 @@ namespace Raven.Server.Utils.Stats
         /// </summary>
         public TimeSpan Duration
         {
-            get => _elapsed != TimeSpan.Zero ? _elapsed : Stopwatch.GetElapsedTime(_start);
-            set => _elapsed = value;
+            get => _elapsed + (_start != NotStarted ? Stopwatch.GetElapsedTime(_start) : TimeSpan.Zero);
+            set
+            {
+                _elapsed = value;
+                // Clear if it was started before
+                _start = NotStarted;
+            }
         }
 
         public T CurrentStats => _stats;
@@ -70,11 +77,14 @@ namespace Raven.Server.Utils.Stats
 
         public void Dispose()
         {
-            if (_elapsed == TimeSpan.Zero)
-            {
-                // Set only if not previously set
-                _elapsed = Stopwatch.GetElapsedTime(_start);
-            }
+            if (_start == NotStarted)
+                return;
+
+            // Add elapsed
+            _elapsed += Stopwatch.GetElapsedTime(_start);
+
+            // Pause the timer
+            _start = NotStarted;
         }
     }
 }
