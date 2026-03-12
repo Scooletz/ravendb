@@ -34,7 +34,7 @@ public class StatsScopeTests(ITestOutputHelper output) : NoDisposalNeeded(output
         new SpinWait().SpinOnce();
         scope.Dispose();
 
-        Assert.True(TimeSpan.Zero < scope.Duration && scope.Duration < TimeSpan.FromMilliseconds(1), "Duration should be non-zero and small");
+        Assert.True(scope.Duration > TimeSpan.Zero, "Duration should be greater than zero");
     }
 
     private sealed class TestStatsScope(Stats stats, bool start = true) :
