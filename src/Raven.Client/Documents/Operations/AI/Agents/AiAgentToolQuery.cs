@@ -70,7 +70,10 @@ namespace Raven.Client.Documents.Operations.AI.Agents
         /// Options for the AI agent tool query.
         /// </summary>
         public AiAgentToolQueryOptions Options { get; set; }
-        
+
+        /// <summary>
+        /// Serializes this query tool to a JSON structure.
+        /// </summary>
         public DynamicJsonValue ToJson()
         {
             var djv = new DynamicJsonValue
