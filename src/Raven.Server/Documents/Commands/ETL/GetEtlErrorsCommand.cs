@@ -17,7 +17,7 @@ internal sealed class GetEtlErrorsCommand : RavenCommand<EtlErrors[]>
         SelectedNodeTag = nodeTag;
     }
 
-    public override bool IsReadRequest => false;
+    public override bool IsReadRequest => true;
 
     public override HttpRequestMessage CreateRequest(JsonOperationContext ctx, ServerNode node, out string url)
     {

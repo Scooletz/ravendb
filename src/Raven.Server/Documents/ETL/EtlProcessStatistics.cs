@@ -277,7 +277,7 @@ namespace Raven.Server.Documents.ETL
                 [nameof(HealthStatus)] = HealthStatus,
                 [nameof(NextBatchRetryTime)] = NextBatchRetryTime,
                 [nameof(LastSuccessfulBatchTime)] = LastSuccessfulBatchTime,
-                [nameof(BatchStopReason)] = BatchStopReason.ToJson(),
+                [nameof(BatchStopReason)] = BatchStopReason?.ToJson(),
             };
             return json;
         }
