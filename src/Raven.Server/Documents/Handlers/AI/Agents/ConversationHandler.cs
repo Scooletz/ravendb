@@ -49,6 +49,7 @@ internal class ConversationHandler(ServerStore server, DocumentDatabase database
     internal List<string> _persistedAttachmentsNames;
 
     public required RavenServer.AuthenticateConnection Authentication;
+    
     public void Initialize(AiAgentConfiguration configuration, string conversationId, RequestBody body, string changeVector, string raftId = null)
     {
         _conversationId = conversationId;
@@ -192,6 +193,9 @@ internal class ConversationHandler(ServerStore server, DocumentDatabase database
         Talker talker, CancellationToken token)
     {
         talker.Init();
+
+        // Resolve deferred attachments before talking to the model
+        await ResolveDeferredAttachmentsAsync(_request.Attachments, token);
 
         AiResponse r = default;
         List<BlittableJsonReaderObject> historyDocs = default;
@@ -684,8 +688,7 @@ internal class ConversationHandler(ServerStore server, DocumentDatabase database
         return await TalkAsync(context, token: token);
     }
 
-    public async Task<(BlittableJsonReaderObject Response, AiUsage Usage)> HandleStreamingRequest(
-        DocumentsOperationContext context,
+    public async Task<(BlittableJsonReaderObject Response, AiUsage Usage)> HandleStreamingRequest(DocumentsOperationContext context,
         Stream outputStream,
         string streamPropertyPath,
         CancellationToken token)
@@ -703,6 +706,26 @@ internal class ConversationHandler(ServerStore server, DocumentDatabase database
             writer.WriteRawString("\r\n"u8);
             await writer.FlushAsync(token);
         }, token: token);
+    }
+
+    private async Task ResolveDeferredAttachmentsAsync(List<AiAttachment> attachments, CancellationToken token)
+    {
+        if (attachments == null)
+            return;
+
+        var remote = database.DocumentsStorage.AttachmentsStorage.RemoteAttachmentsStorage;
+
+        foreach (var attachment in attachments)
+        {
+            if (attachment.Source == AiAttachmentSource.Deferred)
+            {
+                var sw = Stopwatch.StartNew();
+                // Resolve the attachment data asynchronously
+                attachment.Data = await remote.GetAttachmentDataAsBase64Async(attachment.RemoteStorageId, attachment.Data, attachment.Type, token);
+                attachment.DownloadDurationInMs = sw.ElapsedMilliseconds;
+                attachment.Source = AiAttachmentSource.FromAttachment;
+            }
+        }
     }
 
     private static readonly string SummarizationOutputSchema = ChatCompletionClient.GetSchemaFromSampleObject(JsonConvert.SerializeObject(new SummarizationSampleObject()));

@@ -22,6 +22,7 @@ using Raven.Server.Documents.ETL.Providers.AI.GenAi.Test;
 using Raven.Server.Documents.ETL.Stats;
 using Raven.Server.Documents.ETL.Test;
 using Raven.Server.Documents.Handlers.AI.Agents;
+using Raven.Server.Documents.Handlers.Processors.Attachments.Strategies;
 using Raven.Server.Documents.Patch;
 using Raven.Server.Documents.Replication.ReplicationItems;
 using Raven.Server.Documents.TimeSeries;
@@ -283,6 +284,7 @@ public sealed class GenAiTask : EtlProcess<GenAiItem, GenAiScriptResult, GenAiCo
     {
         List<Exception> exceptions = null;
 
+        var resolvedAttachmentDurationInMs = 0L;
         for (int index = 0; index < tasks.Count; index++)
         {
             var task = tasks[index];
@@ -313,10 +315,23 @@ public sealed class GenAiTask : EtlProcess<GenAiItem, GenAiScriptResult, GenAiCo
             statsScope.Usage.PromptTokens += result.Usage.PromptTokens;
             statsScope.Usage.TotalTokens += result.Usage.TotalTokens;
 
+            var currentResolvedAttachmentDurationInMs = item.ContextOutput.Attachments?.Sum(a => a.DownloadDurationInMs) ?? 0;
+            // Max aggregation is used. The tasks are run in parallel so we pick the longest of all of them.
+            resolvedAttachmentDurationInMs = Math.Max(resolvedAttachmentDurationInMs, currentResolvedAttachmentDurationInMs);
+
             if (Configuration.TestMode)
             {
                 item.ModelOutput.Usage = result.Usage;
                 item.ModelOutput.ConversationDocument = context.Sync.ReadForMemory(result.ConversationDocument, item.DocumentId);
+            }
+        }
+
+        if (resolvedAttachmentDurationInMs > 0)
+        {
+            using (var scope = statsScope.For(GenAiOperations.LoadToModelRemoteAttachments))
+            {
+                // Use explicit set for the duration, that overrides the scoped time measurement.
+                scope.Duration = TimeSpan.FromMilliseconds(resolvedAttachmentDurationInMs);
             }
         }
 
@@ -571,7 +586,18 @@ public sealed class GenAiTask : EtlProcess<GenAiItem, GenAiScriptResult, GenAiCo
                 if (attachment == null)
                     throw new InvalidOperationException($"The document '{item.DocumentId}' has no attachment with name '{genAtt.Name}' from type '{genAtt.Type}' anymore");
                 
-                genAtt.Data = GenAiScriptTransformer.GetAttachmentDataAsBase64(attachment.Stream, genAtt.Type);
+                if (attachment.Stream != null)
+                {
+                    // The stream is there. Materialize it as.
+                    genAtt.Data = GenAiScriptTransformer.GetAttachmentDataAsBase64(attachment.Stream, genAtt.Type);
+                }
+                // The last resort, check for the remote parameters and process as deferred.
+                else if (attachment.RemoteParameters.IsRemoteStorageAttachment())
+                {
+                    genAtt.Source = AiAttachmentSource.Deferred;
+                    genAtt.Data = attachment.Base64Hash.ToString();
+                    genAtt.RemoteStorageId = attachment.RemoteParameters.Identifier;
+                }
             }
         }
     }
