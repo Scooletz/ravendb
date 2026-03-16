@@ -85,8 +85,6 @@ public sealed class EmbeddingsGenerationTask : EtlProcess<EmbeddingsGenerationIt
 
     protected override string LoadFailureMessage => $"Failed to generate embeddings in '{Configuration.Name}' task. Going to do the retry in {FallbackTime} (failure #{_fallbackCounter}).";
 
-    protected override bool ShouldRecordGenericLoadError => false;
-
     protected override void EnterFallbackMode(Exception e, DateTime? lastErrorTime)
     {
         // rate limits in embeddings are usually expressed as requests per minute or tokens per minute
@@ -130,6 +128,8 @@ public sealed class EmbeddingsGenerationTask : EtlProcess<EmbeddingsGenerationIt
 
     protected override int LoadInternal(IEnumerable<EmbeddingGenerationScriptResult> items, DocumentsOperationContext context, EmbeddingsGenerationStatsScope scope)
     {
+        LoadErrorStep = TaskErrorStep.ModelInference;
+        
         if (items is not EmbeddingsGenerationScriptRun embeddingsScriptRun)
         {
             Debug.Assert(items is EmbeddingGenerationScriptResult[] {Length: 0});
@@ -150,21 +150,11 @@ public sealed class EmbeddingsGenerationTask : EtlProcess<EmbeddingsGenerationIt
                     batch.StartGenerateEmbeddingFor(context, embeddingItem.DocumentId, embeddingItem.DocumentCollectionName,
                         embeddingItem.Fields);
                 }
-
-                try
-                {
-                    // Wait for embeddings generation and storage of embeddings cache documents 
-                    batch.WaitForGenerationAsync().GetAwaiter().GetResult();
-                    storageScope.NumberOfEmbeddingsInCache = batch.CachedEmbeddings;
-                    storageScope.NumberOfGeneratedEmbeddings = embeddingsScriptRun.Additions.Count;
-                }
-                catch (Exception e)
-                {
-                    var msg = $"Failed to generate embeddings: {e}";
-                    Statistics.RecordInferenceError(msg, embeddingsScriptRun.Additions.Count);
-
-                    throw;
-                }
+                
+                // Wait for embeddings generation and storage of embeddings cache documents 
+                batch.WaitForGenerationAsync().GetAwaiter().GetResult();
+                storageScope.NumberOfEmbeddingsInCache = batch.CachedEmbeddings;
+                storageScope.NumberOfGeneratedEmbeddings = embeddingsScriptRun.Additions.Count;
             }
 
             foreach (var embeddingItem in embeddingsScriptRun.Removals)
@@ -174,18 +164,9 @@ public sealed class EmbeddingsGenerationTask : EtlProcess<EmbeddingsGenerationIt
             
             using (var storageScope = scope.For(EmbeddingsGenerationOperations.Storage))
             {
-                try
-                {
-                    // Start storing embedding documents and wait for them to be stored
-                    batch.StoreDocumentEmbeddingsAsync().GetAwaiter().GetResult();
-                }
-                catch (Exception e)
-                {
-                    var msg = $"Failed to store document embeddings: {e}";
-                    Statistics.RecordPersistenceError(msg, embeddingsScriptRun.Additions.Count + embeddingsScriptRun.Removals.Count);
-
-                    throw;
-                }
+                LoadErrorStep = TaskErrorStep.Persistence;
+                // Start storing embedding documents and wait for them to be stored
+                batch.StoreDocumentEmbeddingsAsync().GetAwaiter().GetResult();
                 
                 storageScope.NumberOfPutEmbeddingDocuments = embeddingsScriptRun.Additions.Count;
                 storageScope.NumberOfDeletedEmbeddingDocuments = embeddingsScriptRun.Removals.Count;

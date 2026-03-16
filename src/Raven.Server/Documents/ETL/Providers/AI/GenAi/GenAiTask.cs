@@ -142,6 +142,8 @@ public sealed class GenAiTask : EtlProcess<GenAiItem, GenAiScriptResult, GenAiCo
 
     protected override int LoadInternal(IEnumerable<GenAiScriptResult> items, DocumentsOperationContext context, GenAiStatsScope scope)
     {
+        LoadErrorStep = TaskErrorStep.ModelInference;
+        
         var (results, docIdsToClearTaskHashes) = PrepareItemsBeforeSendingToModel(items);
         if (docIdsToClearTaskHashes.Count > 0)
         {
@@ -162,10 +164,12 @@ public sealed class GenAiTask : EtlProcess<GenAiItem, GenAiScriptResult, GenAiCo
             exceptions = SendToModel(results, context, scope, cts.Token);
         }
 
+        LoadErrorStep = TaskErrorStep.Persistence;
         ApplyUpdateScript(results, scope);
 
         if (exceptions?.Count > 0)
         {
+            LoadErrorStep = TaskErrorStep.ModelInference;
             _maxConcurrency = 1;
             throw new AggregateException(exceptions).ExtractSingleInnerException();
         }

@@ -502,12 +502,9 @@ namespace Raven.Server.Documents.ETL
                         stats.RecordBatchStopReason(messageWithException);
 
                         EnterFallbackMode(e, Statistics.LastLoadErrorTime);
-
-                        if (ShouldRecordGenericLoadError)
-                        {
-                            var count = stats.NumberOfExtractedItems.Sum(x => x.Value);
-                            Statistics.RecordLoadError(messageWithException, count);
-                        }
+                        
+                        var count = stats.NumberOfExtractedItems.Sum(x => x.Value);
+                        Statistics.RecordLoadError(messageWithException, LoadErrorStep, count);
                     }
 
                     return false;
@@ -517,7 +514,7 @@ namespace Raven.Server.Documents.ETL
 
         protected virtual string LoadFailureMessage => $"Failed to load transformed data for '{Name}'";
 
-        protected virtual bool ShouldRecordGenericLoadError => true;
+        protected TaskErrorStep LoadErrorStep { get; set; } = TaskErrorStep.Load;
 
         protected virtual void EnterFallbackMode(Exception ex, DateTime? lastErrorTime)
         {

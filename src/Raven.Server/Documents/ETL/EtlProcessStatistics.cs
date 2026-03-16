@@ -179,44 +179,6 @@ namespace Raven.Server.Documents.ETL
             
             LastLoadErrorTime = now;
         }
-        
-        public void RecordInferenceError(string error, int count)
-        {
-            var now = SystemTime.UtcNow;
-            
-            var etlError = new EtlProcessError()
-            {
-                CreatedAt = now,
-                EtlProcessName = _processName,
-                AffectedDocumentsCount = count,
-                Step = TaskErrorStep.ModelInference,
-                Error = error
-            };
-            
-            _etlErrorsStorage.EnqueueProcessError(etlError);
-            
-            LastLoadErrorTime = now;
-            BatchErrors += count;
-        }
-        
-        public void RecordPersistenceError(string error, int count)
-        {
-            var now = SystemTime.UtcNow;
-            
-            var etlError = new EtlProcessError()
-            {
-                CreatedAt = now,
-                EtlProcessName = _processName,
-                AffectedDocumentsCount = count,
-                Step = TaskErrorStep.Persistence,
-                Error = error
-            };
-            
-            _etlErrorsStorage.EnqueueProcessError(etlError);
-            
-            LastLoadErrorTime = now;
-            BatchErrors += count;
-        }
 
         public void RecordConfigurationError(string error)
         {
@@ -234,7 +196,7 @@ namespace Raven.Server.Documents.ETL
             _etlErrorsStorage.EnqueueProcessError(etlError);
         }
 
-        public void RecordLoadError(string error, int count)
+        public void RecordLoadError(string error, TaskErrorStep step, int count)
         {
             var now = SystemTime.UtcNow;
 
@@ -243,7 +205,7 @@ namespace Raven.Server.Documents.ETL
                 CreatedAt = now,
                 EtlProcessName = _processName,
                 AffectedDocumentsCount = count,
-                Step = TaskErrorStep.Load,
+                Step = step,
                 Error = error
             };
             
