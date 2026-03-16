@@ -29,9 +29,11 @@ namespace FastTests.Client
         }
 
         [RavenTheory(RavenTestCategory.BulkInsert)]
-        [RavenData(false, CompressionLevel.NoCompression, DatabaseMode = RavenDatabaseMode.All)]
-        [RavenData(false, CompressionLevel.Optimal, DatabaseMode = RavenDatabaseMode.All)]
-        public async Task Simple_Bulk_Insert(Options options, bool useSsl, CompressionLevel compressionLevel)
+        [RavenData(false, CompressionLevel.NoCompression, HttpCompressionAlgorithm.Gzip, DatabaseMode = RavenDatabaseMode.All)]
+        [RavenData(false, CompressionLevel.NoCompression, HttpCompressionAlgorithm.Zstd, DatabaseMode = RavenDatabaseMode.All)]
+        [RavenData(false, CompressionLevel.Optimal, HttpCompressionAlgorithm.Gzip, DatabaseMode = RavenDatabaseMode.All)]
+        [RavenData(false, CompressionLevel.Optimal, HttpCompressionAlgorithm.Zstd, DatabaseMode = RavenDatabaseMode.All)]
+        public async Task Simple_Bulk_Insert(Options options, bool useSsl, CompressionLevel compressionLevel, HttpCompressionAlgorithm compressionAlgorithm)
         {
             string dbName = GetDatabaseName();
             X509Certificate2 clientCertificate = null;
@@ -49,9 +51,13 @@ namespace FastTests.Client
             options.AdminCertificate = adminCertificate;
             options.ClientCertificate = clientCertificate;
             options.ModifyDatabaseName = s => dbName;
+            options.ModifyDocumentStore = s =>
+            {
+                s.Conventions.HttpCompressionAlgorithm = compressionAlgorithm;
 
             if (useSsl)
-                options.ModifyDocumentStore = s => s.OnFailedRequest += (_, args) => Console.WriteLine($"Failed Request ('{args.Database}'): {args.Url}. Exception: {args.Exception}");
+                    s.OnFailedRequest += (_, args) => Console.WriteLine($"Failed Request ('{args.Database}'): {args.Url}. Exception: {args.Exception}");
+            };
 
             using (var store = GetDocumentStore(options))
             {

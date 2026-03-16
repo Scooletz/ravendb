@@ -162,7 +162,7 @@ public sealed class GenAiTask : EtlProcess<GenAiItem, GenAiScriptResult, GenAiCo
             exceptions = SendToModel(results, context, scope, cts.Token);
         }
 
-        ApplyUpdateScript(context, results, scope);
+        ApplyUpdateScript(results, scope);
 
         if (exceptions?.Count > 0)
         {
@@ -181,12 +181,10 @@ public sealed class GenAiTask : EtlProcess<GenAiItem, GenAiScriptResult, GenAiCo
         return results.Count;
     }
 
-    private List<Exception> SendToModel(List<GenAiResultItem> items, DocumentsOperationContext context, GenAiStatsScope scope, CancellationToken batchToken)
+    private List<Exception> SendToModel(List<GenAiResultItem> items, JsonOperationContext context, GenAiStatsScope scope, CancellationToken batchToken)
     {
         using (var statsScope = scope.For(GenAiOperations.LoadToModel))
         {
-            context.CloseTransaction();
-
             List<Task<GenAiHandlerResult>> tasks = [];
             Task[] executingTasks = new Task[Math.Max(1, _maxConcurrency)];
             Array.Fill(executingTasks, Task.CompletedTask);
@@ -218,7 +216,7 @@ public sealed class GenAiTask : EtlProcess<GenAiItem, GenAiScriptResult, GenAiCo
 
                 handler.Initialize(agentConfiguration, $"{Configuration.Identifier}/{item.DocumentId}/", new RequestBody
                 {
-                    Parameters = item.ContextOutput.Context,
+                    Parameters = item.ContextOutput.Context.CloneOnTheSameContext(), // we need that to be a root blittable, so we can use the concurrent read method
                     CreationOptions = new AiConversationCreationOptions
                     {
                         ExpirationInSec = Configuration.ExpirationInSec
@@ -258,7 +256,7 @@ public sealed class GenAiTask : EtlProcess<GenAiItem, GenAiScriptResult, GenAiCo
         }
     }
 
-    private AiAgentConfiguration CreateAgentConfiguration(DocumentsOperationContext context, GenAiResultItem item)
+    private AiAgentConfiguration CreateAgentConfiguration(JsonOperationContext context, GenAiResultItem item)
     {
         var agentParameters = new List<AiAgentParameter>();
         var contextObjPropNames = item.ContextOutput.Context.GetPropertyNames();
@@ -280,7 +278,7 @@ public sealed class GenAiTask : EtlProcess<GenAiItem, GenAiScriptResult, GenAiCo
         return agentConfiguration;
     }
 
-    private List<Exception> ProcessModelResults(List<GenAiResultItem> items, DocumentsOperationContext context, List<Task<GenAiHandlerResult>> tasks, GenAiStatsScope statsScope)
+    private List<Exception> ProcessModelResults(List<GenAiResultItem> items, JsonOperationContext context, List<Task<GenAiHandlerResult>> tasks, GenAiStatsScope statsScope)
     {
         List<Exception> exceptions = null;
 
@@ -381,10 +379,10 @@ public sealed class GenAiTask : EtlProcess<GenAiItem, GenAiScriptResult, GenAiCo
         }
     }
 
-    private void ApplyUpdateScript(DocumentsOperationContext context, List<GenAiResultItem> results, GenAiStatsScope scope)
+    private void ApplyUpdateScript(List<GenAiResultItem> results, GenAiStatsScope scope)
     {
         PatchRequest req = new(Configuration.UpdateScript, PatchRequestType.GenAi);
-        var cmd = new GenAiBatchPatchCommand(context, results, req, Configuration.Identifier, Logger, Statistics, scope);
+        var cmd = new GenAiBatchPatchCommand(results, req, Configuration.Identifier, Logger, Statistics, scope);
 
         Database.TxMerger.EnqueueSync(cmd);
     }

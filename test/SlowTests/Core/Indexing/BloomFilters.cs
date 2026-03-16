@@ -52,11 +52,9 @@ namespace SlowTests.Core.Indexing
                 {
                     using (context.OpenWriteTransaction())
                     {
-                        using (var collection = CollectionOfBloomFilters.Load(CollectionOfBloomFilters.Mode.X64, context))
-                        {
-                            Assert.Equal(1, collection.Count);
-                            Assert.Equal(0, collection.CurrentFilterCount);
-                        }
+                        var collection = CollectionOfBloomFilters.Load(CollectionOfBloomFilters.Mode.X64, context);
+                        Assert.Equal(1, collection.Count);
+                        Assert.Equal(0, collection.CurrentFilterCount);
                     }
                 }
 
@@ -79,11 +77,9 @@ namespace SlowTests.Core.Indexing
                 {
                     using (context.OpenWriteTransaction())
                     {
-                        using (var collection = CollectionOfBloomFilters.Load(CollectionOfBloomFilters.Mode.X64, context))
-                        {
-                            Assert.Equal(1, collection.Count);
-                            Assert.Equal(10, collection.CurrentFilterCount);
-                        }
+                        var collection = CollectionOfBloomFilters.Load(CollectionOfBloomFilters.Mode.X64, context);
+                        Assert.Equal(1, collection.Count);
+                        Assert.Equal(10, collection.CurrentFilterCount);
                     }
                 }
             }

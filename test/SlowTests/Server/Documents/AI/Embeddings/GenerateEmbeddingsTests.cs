@@ -929,7 +929,7 @@ Console.WriteLine(""Hello, World!"");";
         }
     }
 
-    [RavenFact(RavenTestCategory.Ai | RavenTestCategory.Vector | RavenTestCategory.Etl)]
+    [RavenMultiplatformFact(RavenTestCategory.Ai | RavenTestCategory.Vector | RavenTestCategory.Etl, RavenArchitecture.AllX64)]
     public async Task QuantizationOfEmbeddingsInTwoTasks()
     {
         using var store = GetDocumentStore(Options.ForSearchEngine(RavenSearchEngineMode.Corax));
