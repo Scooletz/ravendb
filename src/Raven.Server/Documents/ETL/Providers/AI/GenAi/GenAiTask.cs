@@ -568,7 +568,7 @@ public sealed class GenAiTask : EtlProcess<GenAiItem, GenAiScriptResult, GenAiCo
             Results = items,
             DebugActions = debugActions,
             DebugOutput = debugOutput,
-            ItemTransformationErrors = itemErrors.Where(x => x.Step == EtlErrorStep.Transformation).ToList(),
+            ItemTransformationErrors = itemErrors.Where(x => x.Step == TaskErrorStep.Transformation).ToList(),
         };
     }
 

@@ -8,11 +8,11 @@ public abstract class EtlErrorBase
     public string Id => GetId();
     public string EtlProcessName { get; set; }
     public DateTime CreatedAt { get; set; }
-    public EtlErrorStep Step { get; set; }
+    public TaskErrorStep Step { get; set; }
     public string Error { get; set; }
     public string AdditionalInfo { get; set; } = string.Empty;
 
-    protected virtual string GetId() => throw new NotImplementedException();
+    protected virtual string GetId() => throw new NotSupportedException();
 
     public virtual DynamicJsonValue ToJson()
     {

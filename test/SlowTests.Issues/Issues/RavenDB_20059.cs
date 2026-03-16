@@ -96,7 +96,7 @@ function deleteDocumentsOfContractsBehavior(docId) {
                     var processErrors = errorTableValues.ToList();
                     
                     Assert.Single(processErrors);
-                    Assert.Equal((int)EtlErrorStep.Configuration, processErrors.Single().Step);
+                    Assert.Equal((int)TaskErrorStep.Configuration, processErrors.Single().Step);
                     Assert.True(processErrors.Single().Error.Contains($"{nameof(JavaScriptParseException)}: Failed to parse:"));
                     Assert.True(processErrors.Single().Error.Contains("Unexpected token ."));
                 }

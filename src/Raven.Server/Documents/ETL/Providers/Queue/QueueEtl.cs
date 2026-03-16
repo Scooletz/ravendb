@@ -177,7 +177,7 @@ public abstract class QueueEtl<T> : EtlProcess<QueueItem, QueueWithItems<T>, Que
 
         return new QueueEtlTestScriptResult
         {
-            ItemTransformationErrors = etlItemErrors.Where(x => x.Step == EtlErrorStep.Transformation).ToList(),
+            ItemTransformationErrors = etlItemErrors.Where(x => x.Step == TaskErrorStep.Transformation).ToList(),
             Summary = summaries
         };
     }

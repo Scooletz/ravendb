@@ -503,8 +503,11 @@ namespace Raven.Server.Documents.ETL
 
                         EnterFallbackMode(e, Statistics.LastLoadErrorTime);
 
-                        var count = stats.NumberOfExtractedItems.Sum(x => x.Value);
-                        Statistics.RecordLoadError(messageWithException, count);
+                        if (ShouldRecordGenericLoadError)
+                        {
+                            var count = stats.NumberOfExtractedItems.Sum(x => x.Value);
+                            Statistics.RecordLoadError(messageWithException, count);
+                        }
                     }
 
                     return false;
@@ -513,6 +516,8 @@ namespace Raven.Server.Documents.ETL
         }
 
         protected virtual string LoadFailureMessage => $"Failed to load transformed data for '{Name}'";
+
+        protected virtual bool ShouldRecordGenericLoadError => true;
 
         protected virtual void EnterFallbackMode(Exception ex, DateTime? lastErrorTime)
         {
@@ -1295,13 +1300,13 @@ namespace Raven.Server.Documents.ETL
                             
                             return new RavenEtlTestScriptResult
                             {
-                                ItemTransformationErrors = etlItemErrors.Where(x => x.Step == EtlErrorStep.Transformation).ToList(),
+                                ItemTransformationErrors = etlItemErrors.Where(x => x.Step == TaskErrorStep.Transformation).ToList(),
                                 Commands = results.ToList(),
                                 DebugOutput = debugOutput
                             };
-                        }
-                    case EtlType.Olap:
-                        var olapTestScriptConfiguration = testScript.Configuration as OlapEtlConfiguration;
+                    }
+                case EtlType.Olap:
+                    var olapTestScriptConfiguration = testScript.Configuration as OlapEtlConfiguration;
 
                     if (olapTestScriptConfiguration == null)
                         throw new InvalidOperationException(
@@ -1351,26 +1356,26 @@ namespace Raven.Server.Documents.ETL
 
                                     itemsByPartition.Add(partitionItems);
 
-                                        break;
-                                    default:
-                                        throw new NotSupportedException("Unknown transform type: " + olapItem.GetType());
-                                }
+                                    break;
+                                default:
+                                    throw new NotSupportedException("Unknown transform type: " + olapItem.GetType());
                             }
-                            
-                            var etlItemErrors = olapElt.Statistics.ReadInMemoryItemErrors();
-
-                            return new OlapEtlTestScriptResult
-                            {
-                                ItemTransformationErrors = etlItemErrors.Where(x => x.Step == EtlErrorStep.Transformation).ToList(),
-                                ItemsByPartition = itemsByPartition,
-                                DebugOutput = debugOutput
-                            };
                         }
-                    case EtlType.ElasticSearch:
-                        using (var elasticSearchEtl = new ElasticSearchEtl(testScript.Configuration.Transforms[0], testScript.Configuration as ElasticSearchEtlConfiguration, database, database.ServerStore))
-                        using (elasticSearchEtl.EnterTestMode(out debugOutput))
+                            
+                        var etlItemErrors = olapElt.Statistics.ReadInMemoryItemErrors();
+
+                        return new OlapEtlTestScriptResult
                         {
-                            elasticSearchEtl.EnsureThreadAllocationStats();
+                            ItemTransformationErrors = etlItemErrors.Where(x => x.Step == TaskErrorStep.Transformation).ToList(),
+                            ItemsByPartition = itemsByPartition,
+                            DebugOutput = debugOutput
+                        };
+                    }
+                case EtlType.ElasticSearch:
+                    using (var elasticSearchEtl = new ElasticSearchEtl(testScript.Configuration.Transforms[0], testScript.Configuration as ElasticSearchEtlConfiguration, database, database.ServerStore))
+                    using (elasticSearchEtl.EnterTestMode(out debugOutput))
+                    {
+                        elasticSearchEtl.EnsureThreadAllocationStats();
 
                         var elasticSearchItem = testScript.IsDelete ? new ElasticSearchItem(tombstone, docCollection) : new ElasticSearchItem(document, docCollection);
 

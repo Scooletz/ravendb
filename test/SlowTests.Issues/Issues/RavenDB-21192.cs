@@ -74,7 +74,7 @@ public class RavenDB_21192 : RavenTestBase
                 CreatedAt = now,
                 EtlProcessName = processName1,
                 AffectedDocumentsCount = 1,
-                Step = EtlErrorStep.Transformation,
+                Step = TaskErrorStep.Transformation,
                 Error = "Test message",
                 AdditionalInfo = "some additional info"
             };
@@ -84,7 +84,7 @@ public class RavenDB_21192 : RavenTestBase
                 CreatedAt = now.AddDays(1),
                 EtlProcessName = processName2,
                 AffectedDocumentsCount = 21,
-                Step = EtlErrorStep.Load,
+                Step = TaskErrorStep.Load,
                 Error = "Test message"
             };
                 
@@ -117,7 +117,7 @@ public class RavenDB_21192 : RavenTestBase
                 DocumentId = "doc/1", 
                 EtlProcessName = processName1,
                 CreatedAt = now,
-                Step = EtlErrorStep.Load,
+                Step = TaskErrorStep.Load,
                 Error = "Item error"
             };
             

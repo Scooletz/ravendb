@@ -16,7 +16,7 @@ public class EtlItemErrorTableValue : EtlErrorTableValueBase
             CreatedAt = CreatedAt,
             EtlProcessName = EtlProcessName,
             DocumentId = DocumentId,
-            Step = (EtlErrorStep)Step,
+            Step = (TaskErrorStep)Step,
             Error = Error,
             AdditionalInfo = AdditionalInfo
         };

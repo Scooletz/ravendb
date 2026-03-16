@@ -246,7 +246,7 @@ namespace FastTests
 
                 database.EtlErrorsStorage.ReadItemErrorsOfEtl($"{config.Name}/{config.Transforms.First().Name}", out var errors);
 
-                return errors.Where(error => error.Step == (int)EtlErrorStep.Load);
+                return errors.Where(error => error.Step == (int)TaskErrorStep.Load);
             }
 
             public async Task<IEnumerable<EtlItemErrorTableValue>> GetItemTransformationErrorsAsync<T>(string databaseName, EtlConfiguration<T> config) where T : ConnectionString
@@ -255,7 +255,7 @@ namespace FastTests
 
                 database.EtlErrorsStorage.ReadItemErrorsOfEtl($"{config.Name}/{config.Transforms.First().Name}", out var errors);
 
-                return errors.Where(error => error.Step == (int)EtlErrorStep.Transformation);
+                return errors.Where(error => error.Step == (int)TaskErrorStep.Transformation);
             }
 
             public async Task<DocumentDatabase> GetDatabaseFor(IDocumentStore store, string docId)

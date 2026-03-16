@@ -148,7 +148,7 @@ namespace Raven.Server.Documents.ETL
                 CreatedAt = now,
                 EtlProcessName = _processName,
                 DocumentId = documentId,
-                Step = EtlErrorStep.Transformation,
+                Step = TaskErrorStep.Transformation,
                 Error = e.ToString()
             };
             
@@ -167,7 +167,7 @@ namespace Raven.Server.Documents.ETL
                 CreatedAt = now,
                 EtlProcessName = _processName,
                 DocumentId = documentId,
-                Step = EtlErrorStep.Load,
+                Step = TaskErrorStep.Load,
                 Error = error
             };
             
@@ -179,6 +179,44 @@ namespace Raven.Server.Documents.ETL
             
             LastLoadErrorTime = now;
         }
+        
+        public void RecordInferenceError(string error, int count)
+        {
+            var now = SystemTime.UtcNow;
+            
+            var etlError = new EtlProcessError()
+            {
+                CreatedAt = now,
+                EtlProcessName = _processName,
+                AffectedDocumentsCount = count,
+                Step = TaskErrorStep.ModelInference,
+                Error = error
+            };
+            
+            _etlErrorsStorage.EnqueueProcessError(etlError);
+            
+            LastLoadErrorTime = now;
+            BatchErrors += count;
+        }
+        
+        public void RecordPersistenceError(string error, int count)
+        {
+            var now = SystemTime.UtcNow;
+            
+            var etlError = new EtlProcessError()
+            {
+                CreatedAt = now,
+                EtlProcessName = _processName,
+                AffectedDocumentsCount = count,
+                Step = TaskErrorStep.Persistence,
+                Error = error
+            };
+            
+            _etlErrorsStorage.EnqueueProcessError(etlError);
+            
+            LastLoadErrorTime = now;
+            BatchErrors += count;
+        }
 
         public void RecordConfigurationError(string error)
         {
@@ -189,7 +227,7 @@ namespace Raven.Server.Documents.ETL
                 CreatedAt = now,
                 EtlProcessName = _processName,
                 AffectedDocumentsCount = 0,
-                Step = EtlErrorStep.Configuration,
+                Step = TaskErrorStep.Configuration,
                 Error = error
             };
             
@@ -205,7 +243,7 @@ namespace Raven.Server.Documents.ETL
                 CreatedAt = now,
                 EtlProcessName = _processName,
                 AffectedDocumentsCount = count,
-                Step = EtlErrorStep.Load,
+                Step = TaskErrorStep.Load,
                 Error = error
             };
             
@@ -224,7 +262,7 @@ namespace Raven.Server.Documents.ETL
                 CreatedAt = now,
                 EtlProcessName = _processName,
                 AffectedDocumentsCount = 0,
-                Step = EtlErrorStep.Unknown,
+                Step = TaskErrorStep.Unknown,
                 Error = error
             };
             
