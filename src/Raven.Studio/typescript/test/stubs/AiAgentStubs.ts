@@ -78,7 +78,7 @@ export class AiAgentStubs {
         return new document({
             Agent: "first-agent",
             Parameters: {
-                company: "companies/90-A",
+                company: { Value: "companies/90-A", SendToModel: true },
             },
             Messages: [
                 {
