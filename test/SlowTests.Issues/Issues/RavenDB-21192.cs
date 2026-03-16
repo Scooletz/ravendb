@@ -28,7 +28,6 @@ using Raven.Server.Utils.Monitoring;
 using Sparrow.Json;
 using Tests.Infrastructure;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace SlowTests.Issues;
 
@@ -88,8 +87,8 @@ public class RavenDB_21192 : RavenTestBase
                 Error = "Test message"
             };
                 
-            database.EtlErrorsStorage.EnqueueProcessError(error1);
-            database.EtlErrorsStorage.EnqueueProcessError(error2);
+            database.EtlErrorsStorage.StoreProcessError(error1);
+            database.EtlErrorsStorage.StoreProcessError(error2);
 
             using (database.EtlErrorsStorage.ReadAllProcessErrors(out var errorTableValues))
             {
@@ -121,7 +120,7 @@ public class RavenDB_21192 : RavenTestBase
                 Error = "Item error"
             };
             
-            database.EtlErrorsStorage.EnqueueItemErrors(processName1, [itemError1]);
+            database.EtlErrorsStorage.StoreItemErrors(processName1, [itemError1]);
             
             using (database.EtlErrorsStorage.ReadAllItemErrors(out var itemErrorTableValues))
             {

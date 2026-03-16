@@ -185,7 +185,7 @@ namespace Raven.Server.Documents.ETL
             Logger = database.Loggers.GetLogger(GetType());
             Database = database;
             _serverStore = serverStore;
-            Statistics = new EtlProcessStatistics(Tag, Name, Database.EtlErrorsStorage, Database.NotificationCenter, Database.Configuration.Etl);
+            Statistics = new EtlProcessStatistics(Tag, Name, Database.NotificationCenter, Database.Configuration.Etl);
 
             if (transformation.ApplyToAllDocuments == false)
                 _collections = new HashSet<string>(Transformation.Collections, StringComparer.OrdinalIgnoreCase);
@@ -462,7 +462,7 @@ namespace Raven.Server.Documents.ETL
                 Logger.Warn(message, e);
 
             Statistics.SetProcessHealthStatusToFailed();
-            Statistics.RecordConfigurationError(messageWithException);
+            RecordConfigurationError(messageWithException);
             
             stats.RecordBatchTransformationCompleteReason(message);
             stats.RecordTransformationError();
@@ -504,7 +504,7 @@ namespace Raven.Server.Documents.ETL
                         EnterFallbackMode(e, Statistics.LastLoadErrorTime);
                         
                         var count = stats.NumberOfExtractedItems.Sum(x => x.Value);
-                        Statistics.RecordLoadError(messageWithException, LoadErrorStep, count);
+                        RecordLoadError(messageWithException, LoadErrorStep, count);
                     }
 
                     return false;
@@ -830,6 +830,8 @@ namespace Raven.Server.Documents.ETL
                                         if (Logger.IsDebugEnabled)
                                             LogSuccessfulBatchInfo(stats);
                                     }
+                                    
+                                    Database.EtlErrorsStorage.StoreItemErrors(Name, Statistics.ReadInMemoryItemErrors());
                                 }
                             }
                             catch (OperationCanceledException)
@@ -844,7 +846,7 @@ namespace Raven.Server.Documents.ETL
                                 if (Logger.IsWarnEnabled)
                                     Logger.Warn(message, e);
                                 
-                                Statistics.RecordUnknownError(messageWithException);
+                                RecordUnknownError(messageWithException);
 
                                 stats.RecordBatchStopReason(messageWithException);
                             }
@@ -854,6 +856,7 @@ namespace Raven.Server.Documents.ETL
                     }
 
                     Statistics.OnBatchCompletion();
+                    Statistics.BatchStopReason = Database.EtlErrorsStorage.ReadLatestProcessErrorOfEtl(Name)?.ToEtlProcessError();
 
                     if (didWork)
                     {
@@ -938,7 +941,7 @@ namespace Raven.Server.Documents.ETL
                         Logger.Error(msg, e);
                     }
                     
-                    Statistics.RecordUnknownError(messageWithException);
+                    RecordUnknownError(messageWithException);
 
                     ReportStopReasonToStats(messageWithException);
                 }
@@ -1082,6 +1085,56 @@ namespace Raven.Server.Documents.ETL
                 return OngoingTaskConnectionStatus.Active;
 
             return OngoingTaskConnectionStatus.NotActive;
+        }
+
+        internal void RecordLoadError(string error, TaskErrorStep step, int count)
+        {
+            var now = SystemTime.UtcNow;
+
+            var etlError = new EtlProcessError()
+            {
+                CreatedAt = now,
+                EtlProcessName = Name,
+                AffectedDocumentsCount = count,
+                Step = step,
+                Error = error
+            };
+            
+            Database.EtlErrorsStorage.StoreProcessError(etlError);
+            
+            Statistics.RecordProcessLoadError(count);
+        }
+        
+        internal void RecordConfigurationError(string error)
+        {
+            var now = SystemTime.UtcNow;
+
+            var etlError = new EtlProcessError()
+            {
+                CreatedAt = now,
+                EtlProcessName = Name,
+                AffectedDocumentsCount = 0,
+                Step = TaskErrorStep.Configuration,
+                Error = error
+            };
+            
+            Database.EtlErrorsStorage.StoreProcessError(etlError);
+        }
+        
+        internal void RecordUnknownError(string error)
+        {
+            var now = SystemTime.UtcNow;
+
+            var etlError = new EtlProcessError()
+            {
+                CreatedAt = now,
+                EtlProcessName = Name,
+                AffectedDocumentsCount = 0,
+                Step = TaskErrorStep.Unknown,
+                Error = error
+            };
+            
+            Database.EtlErrorsStorage.StoreProcessError(etlError);
         }
 
         public static TestEtlScriptResult TestScript<TC, TCS>(

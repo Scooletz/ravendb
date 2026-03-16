@@ -268,7 +268,7 @@ namespace Raven.Server.Documents.ETL.Providers.OLAP
                 if (Logger.IsErrorEnabled)
                     Logger.Error(message);
                 
-                Statistics.RecordConfigurationError(message);
+                RecordConfigurationError(message);
 
                 return default;
             }

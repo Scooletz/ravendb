@@ -59,7 +59,7 @@ public unsafe class EtlErrorsStorage
         }
     }
 
-    internal void EnqueueProcessError(EtlProcessError processError)
+    internal void StoreProcessError(EtlProcessError processError)
     {
         var tableName = GetProcessErrorsTableName(processError.EtlProcessName);
         
@@ -102,7 +102,7 @@ public unsafe class EtlErrorsStorage
         }
     }
 
-    internal void EnqueueItemErrors(string processName, List<EtlItemError> itemErrors)
+    internal void StoreItemErrors(string processName, List<EtlItemError> itemErrors)
     {
         var tableName = GetItemErrorsTableName(processName);
         

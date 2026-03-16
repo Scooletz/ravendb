@@ -6,7 +6,6 @@ using Raven.Server.Config.Categories;
 using Raven.Server.NotificationCenter;
 using Raven.Server.NotificationCenter.Notifications.Details;
 using Raven.Server.Utils.Metrics;
-using Sparrow.Json;
 using Sparrow.Json.Parsing;
 
 namespace Raven.Server.Documents.ETL
@@ -16,7 +15,6 @@ namespace Raven.Server.Documents.ETL
         private readonly string _processTag;
         private readonly string _processName;
         private readonly DatabaseNotificationCenter _notificationCenter;
-        private readonly EtlErrorsStorage _etlErrorsStorage;
         private readonly EtlConfiguration _etlConfiguration;
 
         private readonly OnDisposeActions _onDisposeActions;
@@ -29,12 +27,11 @@ namespace Raven.Server.Documents.ETL
             // for deserialization
         }
         
-        public EtlProcessStatistics(string processTag, string processName, EtlErrorsStorage etlErrorsStorage, DatabaseNotificationCenter notificationCenter, EtlConfiguration etlConfiguration)
+        public EtlProcessStatistics(string processTag, string processName, DatabaseNotificationCenter notificationCenter, EtlConfiguration etlConfiguration)
         {
             _processTag = processTag;
             _processName = processName;
             _notificationCenter = notificationCenter;
-            _etlErrorsStorage = etlErrorsStorage;
             LastSlowSqlWarningsInCurrentBatch = new SlowSqlDetails();
             _onDisposeActions = new OnDisposeActions(this);
             _etlConfiguration = etlConfiguration;
@@ -71,7 +68,7 @@ namespace Raven.Server.Documents.ETL
         private bool SetHealthStatusToFailed { get; set; }
         public DateTime? NextBatchRetryTime { get; set; }
         public DateTime? LastSuccessfulBatchTime { get; set; }
-        public EtlProcessError BatchStopReason { get; private set; }
+        public EtlProcessError BatchStopReason { get; internal set; }
 
         public void TransformationSuccess()
         {
@@ -88,13 +85,10 @@ namespace Raven.Server.Documents.ETL
         internal void OnBatchCompletion()
         {
             UpdateHealthStatusOnBatchCompletion();
-            _etlErrorsStorage.EnqueueItemErrors(_processName, _itemErrors);
             _itemErrors.Clear();
             
             AverageErrorsRatio.UpdateOnBatchCompletion(BatchErrors, BatchErrors + LoadSuccessesInCurrentBatch);
             ResetBatchStatistics();
-            
-            BatchStopReason = ReadLatestProcessError();
             
             return;
             
@@ -180,55 +174,11 @@ namespace Raven.Server.Documents.ETL
             LastLoadErrorTime = now;
         }
 
-        public void RecordConfigurationError(string error)
+        public void RecordProcessLoadError(int count)
         {
-            var now = SystemTime.UtcNow;
-
-            var etlError = new EtlProcessError()
-            {
-                CreatedAt = now,
-                EtlProcessName = _processName,
-                AffectedDocumentsCount = 0,
-                Step = TaskErrorStep.Configuration,
-                Error = error
-            };
-            
-            _etlErrorsStorage.EnqueueProcessError(etlError);
-        }
-
-        public void RecordLoadError(string error, TaskErrorStep step, int count)
-        {
-            var now = SystemTime.UtcNow;
-
-            var etlError = new EtlProcessError()
-            {
-                CreatedAt = now,
-                EtlProcessName = _processName,
-                AffectedDocumentsCount = count,
-                Step = step,
-                Error = error
-            };
-            
-            _etlErrorsStorage.EnqueueProcessError(etlError);
-            
-            LastLoadErrorTime = now;
+            WasLatestLoadSuccessful = false;
             BatchErrors += count;
-        }
-        
-        public void RecordUnknownError(string error)
-        {
-            var now = SystemTime.UtcNow;
-
-            var etlError = new EtlProcessError()
-            {
-                CreatedAt = now,
-                EtlProcessName = _processName,
-                AffectedDocumentsCount = 0,
-                Step = TaskErrorStep.Unknown,
-                Error = error
-            };
-            
-            _etlErrorsStorage.EnqueueProcessError(etlError);
+            LastLoadErrorTime = SystemTime.UtcNow;
         }
 
         public void RecordSlowSql(SlowSqlStatementInfo slowSql)
@@ -258,10 +208,6 @@ namespace Raven.Server.Documents.ETL
             return _itemErrors.ToList();
         }
 
-        private EtlProcessError ReadLatestProcessError()
-        {
-            return _etlErrorsStorage.ReadLatestProcessErrorOfEtl(_processName)?.ToEtlProcessError();
-        }
 
         public DynamicJsonValue ToJson()
         {
