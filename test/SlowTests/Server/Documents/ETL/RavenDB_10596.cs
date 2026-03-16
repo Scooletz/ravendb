@@ -48,16 +48,13 @@ namespace SlowTests.Server.Documents.ETL
 
                     await etlDone.WaitAsync(TimeSpan.FromSeconds(5));
 
-                    using (database.EtlErrorsStorage.ReadAllItemErrors(out var itemErrorTableValues))
-                    {
-                        var itemErrors = itemErrorTableValues.ToList();
+                    var itemErrors = database.EtlErrorsStorage.ReadAllItemErrors();
 
-                        Assert.Equal(i + 1, itemErrors.Count);
+                    Assert.Equal(i + 1, itemErrors.Count);
 
-                        Assert.Equal($"users/{i}", itemErrors[i].DocumentId);
-                        Assert.Contains("super exception", itemErrors[i].Error);
-                        Assert.NotNull(itemErrors[i].CreatedAt);
-                    }
+                    Assert.Equal($"users/{i}", itemErrors[i].DocumentId);
+                    Assert.Contains("super exception", itemErrors[i].Error);
+                    Assert.NotNull(itemErrors[i].CreatedAt);
                 }
             }
         }

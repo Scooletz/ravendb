@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Raven.Server.Documents.TransactionMerger;
 using Raven.Server.Documents.TransactionMerger.Commands;
 using Raven.Server.ServerWide;
@@ -243,42 +244,38 @@ public unsafe class EtlErrorsStorage
     }
     */
     
-    public IDisposable ReadAllProcessErrors(out List<EtlProcessErrorTableValue> errors)
+    public List<EtlProcessErrorTableValue> ReadAllProcessErrors()
     {
-        errors = [];
-        
-        using (var scope = new DisposableScope())
-        {
-            scope.EnsureDispose(_contextPool.AllocateOperationContext(out DocumentsOperationContext context));
-            scope.EnsureDispose(context.OpenReadTransaction());
+        var errors = new List<EtlProcessErrorTableValue>();
 
+        using (_contextPool.AllocateOperationContext(out DocumentsOperationContext context))
+        using (context.OpenReadTransaction())
+        {
             foreach (var process in _etlLoader.Processes)
             {
                 var processErrors = ReadProcessErrorsOfEtl(process.Name, context);
                 errors.AddRange(processErrors);
             }
-
-            return scope.Delay();
         }
+
+        return errors;
     }
     
-    public IDisposable ReadAllItemErrors(out List<EtlItemErrorTableValue> errors)
+    public List<EtlItemErrorTableValue> ReadAllItemErrors()
     {
-        errors = [];
-        
-        using (var scope = new DisposableScope())
-        {
-            scope.EnsureDispose(_contextPool.AllocateOperationContext(out DocumentsOperationContext context));
-            scope.EnsureDispose(context.OpenReadTransaction());
+        var errors = new List<EtlItemErrorTableValue>();
 
+        using (_contextPool.AllocateOperationContext(out DocumentsOperationContext context))
+        using (context.OpenReadTransaction())
+        {
             foreach (var process in _etlLoader.Processes)
             {
                 var itemErrors = ReadItemErrorsOfEtl(process.Name, context);
                 errors.AddRange(itemErrors);
             }
-
-            return scope.Delay();
         }
+
+        return errors;
     }
     
     public long ReadErrorsCount()
@@ -295,11 +292,9 @@ public unsafe class EtlErrorsStorage
 
     public long ReadErrorsCountOfEtl(string etlProcessName)
     {
-        using (var scope = new DisposableScope())
+        using (_contextPool.AllocateOperationContext(out DocumentsOperationContext context))
+        using (context.OpenReadTransaction())
         {
-            scope.EnsureDispose(_contextPool.AllocateOperationContext(out DocumentsOperationContext context));
-            scope.EnsureDispose(context.OpenReadTransaction());
-            
             var processErrorsCount = ReadProcessErrorsCountOfEtl(etlProcessName, context);
             var itemErrorsCount = ReadItemErrorsCountOfEtl(etlProcessName, context);
 
@@ -329,29 +324,21 @@ public unsafe class EtlErrorsStorage
         return table.NumberOfEntries;
     }
 
-    public IDisposable ReadProcessErrorsOfEtl(string etlProcessName, out IEnumerable<EtlProcessErrorTableValue> errors)
+    public List<EtlProcessErrorTableValue> ReadProcessErrorsOfEtl(string etlProcessName)
     {
-        using (var scope = new DisposableScope())
+        using (_contextPool.AllocateOperationContext(out DocumentsOperationContext context))
+        using (context.OpenReadTransaction())
         {
-            scope.EnsureDispose(_contextPool.AllocateOperationContext(out DocumentsOperationContext context));
-            scope.EnsureDispose(context.OpenReadTransaction());
-
-            errors = ReadProcessErrorsOfEtl(etlProcessName, context);
-
-            return scope.Delay();
+            return ReadProcessErrorsOfEtl(etlProcessName, context).ToList();
         }
     }
     
-    public IDisposable ReadItemErrorsOfEtl(string etlProcessName, out IEnumerable<EtlItemErrorTableValue> errors)
+    public List<EtlItemErrorTableValue> ReadItemErrorsOfEtl(string etlProcessName)
     {
-        using (var scope = new DisposableScope())
+        using (_contextPool.AllocateOperationContext(out DocumentsOperationContext context))
+        using (context.OpenReadTransaction())
         {
-            scope.EnsureDispose(_contextPool.AllocateOperationContext(out DocumentsOperationContext context));
-            scope.EnsureDispose(context.OpenReadTransaction());
-
-            errors = ReadItemErrorsOfEtl(etlProcessName, context);
-
-            return scope.Delay();
+            return ReadItemErrorsOfEtl(etlProcessName, context).ToList();
         }
     }
     

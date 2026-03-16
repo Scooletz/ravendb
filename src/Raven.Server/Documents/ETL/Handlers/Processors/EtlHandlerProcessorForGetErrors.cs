@@ -37,18 +37,17 @@ internal sealed class EtlHandlerProcessorForGetErrors : AbstractEtlHandlerProces
         
         foreach (var etlProcessName in processNames)
         {
-            using (storage.ReadProcessErrorsOfEtl(etlProcessName, out var processErrors))
-            using (storage.ReadItemErrorsOfEtl(etlProcessName, out var itemErrors))
+            var processErrors = storage.ReadProcessErrorsOfEtl(etlProcessName);
+            var itemErrors = storage.ReadItemErrorsOfEtl(etlProcessName);
+
+            var etlProcessErrors = new EtlErrors()
             {
-                var etlProcessErrors = new EtlErrors()
-                {
-                    ProcessName = etlProcessName,
-                    ProcessErrors = processErrors.Select(x => x.ToEtlProcessError()).ToArray(),
-                    ItemErrors = itemErrors.Select(x => x.ToEtlItemError()).ToArray()
-                };
+                ProcessName = etlProcessName,
+                ProcessErrors = processErrors.Select(x => x.ToEtlProcessError()).ToArray(),
+                ItemErrors = itemErrors.Select(x => x.ToEtlItemError()).ToArray()
+            };
                 
-                response.Results.Add(etlProcessErrors);
-            }
+            response.Results.Add(etlProcessErrors);
         }
 
         using (ContextPool.AllocateOperationContext(out JsonOperationContext context))

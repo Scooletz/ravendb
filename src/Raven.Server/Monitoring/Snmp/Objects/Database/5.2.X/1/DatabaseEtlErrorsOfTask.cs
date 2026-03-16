@@ -22,10 +22,10 @@ public sealed class DatabaseEtlErrorsOfTask : DatabaseEtlScalarObjectBase<OctetS
             {
                 var database = Landlord.TryGetOrCreateResourceStore(DatabaseName).Result;
                 
-                database.EtlErrorsStorage.ReadProcessErrorsOfEtl(EtlName, out var processErrors);
-                database.EtlErrorsStorage.ReadItemErrorsOfEtl(EtlName, out var itemErrors);
+                var processErrors = database.EtlErrorsStorage.ReadProcessErrorsOfEtl(EtlName);
+                var itemErrors = database.EtlErrorsStorage.ReadItemErrorsOfEtl(EtlName);
 
-                return new Integer32(processErrors.Count() + itemErrors.Count());
+                return new Integer32(processErrors.Count + itemErrors.Count);
             }
 
             return null;
