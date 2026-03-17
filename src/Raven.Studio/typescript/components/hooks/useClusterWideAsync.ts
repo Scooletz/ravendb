@@ -21,7 +21,7 @@ export function useClusterWideAsync<T>(perNodeProvider: (location: databaseLocat
     const locations = useMemo(() => DatabaseUtils.getLocations(db), [db]);
 
     const [state, dispatch] = useReducer(clusterWideReducer<T>, locations, initReducer<T>);
- 
+
     const handleLocation = useCallback(
         async (location: databaseLocationSpecifier) => {
             try {
@@ -44,12 +44,15 @@ export function useClusterWideAsync<T>(perNodeProvider: (location: databaseLocat
         [perNodeProvider]
     );
 
-    const { execute, loading } = useAsync(() => Promise.allSettled(locations.map(handleLocation)), [locations, handleLocation]);
+    const { execute, loading } = useAsync(
+        () => Promise.allSettled(locations.map(handleLocation)),
+        [locations, handleLocation]
+    );
 
     return {
         result: state.result,
         refresh: execute,
-        loading
+        loading,
     };
 }
 
@@ -91,9 +94,7 @@ function clusterWideReducer<T>(
     switch (type) {
         case "NodeDataLoaded":
             return produce(state, (draft) => {
-                const itemToModify = draft.result.find(
-                    (t) => t.nodeTag === action.nodeTag && t.shard === action.shard
-                );
+                const itemToModify = draft.result.find((t) => t.nodeTag === action.nodeTag && t.shard === action.shard);
                 if (!itemToModify) {
                     throw new Error("Unable to find data for node = " + action.nodeTag);
                 }
@@ -103,9 +104,7 @@ function clusterWideReducer<T>(
             });
         case "NodeDataError":
             return produce(state, (draft) => {
-                const itemToModify = draft.result.find(
-                    (t) => t.nodeTag === action.nodeTag && t.shard === action.shard
-                );
+                const itemToModify = draft.result.find((t) => t.nodeTag === action.nodeTag && t.shard === action.shard);
                 if (!itemToModify) {
                     throw new Error("Unable to find data for node = " + action.nodeTag);
                 }

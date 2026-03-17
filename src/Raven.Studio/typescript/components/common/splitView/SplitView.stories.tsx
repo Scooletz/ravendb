@@ -5,14 +5,7 @@ import Button from "react-bootstrap/Button";
 import { ViewSheetWidth } from "./ViewSheet";
 import { Icon } from "components/common/Icon";
 import { Checkbox } from "components/common/Checkbox";
-import {
-    closestCenter,
-    DndContext,
-    DragOverlay,
-    PointerSensor,
-    useSensor,
-    useSensors,
-} from "@dnd-kit/core";
+import { closestCenter, DndContext, DragOverlay, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { CSSProperties, useState } from "react";
@@ -275,7 +268,12 @@ function StorySortableRow({ id, isSelected, isPinned, onToggle, onTogglePin }: S
                 <Icon icon={isPinned ? "pinned" : "pin"} margin="m-0" />
             </Button>
             <span
-                style={{ cursor: isDragging ? "grabbing" : "grab", display: "flex", alignItems: "center", padding: "0 4px" }}
+                style={{
+                    cursor: isDragging ? "grabbing" : "grab",
+                    display: "flex",
+                    alignItems: "center",
+                    padding: "0 4px",
+                }}
                 {...attributes}
                 {...listeners}
             >

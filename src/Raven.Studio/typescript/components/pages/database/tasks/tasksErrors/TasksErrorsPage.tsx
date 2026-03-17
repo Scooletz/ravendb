@@ -61,17 +61,24 @@ import clusterDashboard from "viewmodels/resources/clusterDashboard";
 import { useAppUrls } from "components/hooks/useAppUrls";
 import assertUnreachable from "components/utils/assertUnreachable";
 import { LoadError } from "components/common/LoadError";
+import moment from "moment";
+import RichAlert from "components/common/RichAlert";
+import { FormGroup, FormLabel } from "components/common/Form";
 
 type EtlErrorStep = Raven.Server.Documents.ETL.EtlErrorStep;
 type GroupByType = "task" | "none";
 type EtlHealthStatus = Raven.Server.Documents.ETL.EtlProcessHealthStatus;
 
-export default function TasksErrorsPage() {
+interface TasksErrorsPageQueryParams {
+    taskName?: string;
+}
+
+export default function TasksErrorsPage({ queryParams }: ReactQueryParamsProps<TasksErrorsPageQueryParams>) {
     const db = useAppSelector(databaseSelectors.activeDatabase);
-    const { databasesService } = useServices();
+    const { tasksService } = useServices();
 
     const getEtlErrors = useCallback(async (location: databaseLocationSpecifier) => {
-        return await databasesService.getEtlErrors(db.name, location);
+        return await tasksService.getEtlErrors(db.name, location);
     }, []);
 
     const {
@@ -81,7 +88,7 @@ export default function TasksErrorsPage() {
     } = useClusterWideAsync(getEtlErrors);
 
     const getEtlStats = useCallback(async (location: databaseLocationSpecifier) => {
-        return await databasesService.getEtlStats(db.name, location);
+        return await tasksService.getEtlStats(db.name, location);
     }, []);
 
     const {
@@ -125,7 +132,11 @@ export default function TasksErrorsPage() {
                 </div>
                 {tasksWithErrors.length > 0 && <div>Analyze and get more details on your Tasks errors. </div>}
             </div>
-            <TasksErrorsPageBody tasksWithErrors={tasksWithErrors} flattenAllEtlStats={flattenAllEtlStats} />
+            <TasksErrorsPageBody
+                tasksWithErrors={tasksWithErrors}
+                flattenAllEtlStats={flattenAllEtlStats}
+                initialSearchText={queryParams?.taskName}
+            />
         </div>
     );
 }
@@ -133,11 +144,12 @@ export default function TasksErrorsPage() {
 interface TasksErrorsPageBodyProps {
     tasksWithErrors: EtlTaskWithErrors[];
     flattenAllEtlStats: EtlTaskStats[];
+    initialSearchText?: string;
 }
 
-const TasksErrorsPageBody = ({ tasksWithErrors, flattenAllEtlStats }: TasksErrorsPageBodyProps) => {
-    const [selectedGroupByType, setSelectedGroupByType] = useState<GroupByType>("none");
-    const [filters, updateFilters] = useTasksFilters();
+const TasksErrorsPageBody = ({ tasksWithErrors, flattenAllEtlStats, initialSearchText }: TasksErrorsPageBodyProps) => {
+    const [selectedGroupByType, setSelectedGroupByType] = useState<GroupByType>("task");
+    const [filters, updateFilters] = useTasksFilters(initialSearchText);
 
     if (tasksWithErrors.length === 0) {
         return (
@@ -149,7 +161,7 @@ const TasksErrorsPageBody = ({ tasksWithErrors, flattenAllEtlStats }: TasksError
     }
 
     return (
-        <div className="d-flex flex-column flex-grow-1 min-h-0">
+        <div className="d-flex flex-column flex-grow-1 min-h-0 mt-3">
             <div className="border-1 align-items-center d-flex w-100 bg-dark border-secondary border p-1 my-2 rounded flex-shrink-0">
                 <Icon icon="tasks" />
                 <span className="flex-grow">
@@ -354,9 +366,18 @@ interface GroupByTaskViewProps {
 
 const GroupByTaskView = ({ tasksWithErrors, etlStats, filters }: GroupByTaskViewProps) => {
     const filteredTasksWithErrors = useMemo(() => {
-        const { searchText, nodeTags, shardNumbers, healthStatuses } = filters;
+        const { searchText, nodeTags, shardNumbers, healthStatuses, taskTypes } = filters;
 
         return tasksWithErrors
+            .filter((task) => {
+                const taskEtlType = etlStats.find((s) => s.TaskName === task.etlName)?.EtlType;
+                const matchesTaskType = !taskTypes.length || (taskEtlType != null && taskTypes.includes(taskEtlType));
+
+                const taskHealth = getTaskHealthStatus(etlStats, task.etlName);
+                const matchesHealth = !healthStatuses.length || healthStatuses.includes(taskHealth);
+
+                return matchesTaskType && matchesHealth;
+            })
             .map((task) => ({
                 ...task,
                 transformations: task.transformations.filter((t) => {
@@ -369,16 +390,8 @@ const GroupByTaskView = ({ tasksWithErrors, etlStats, filters }: GroupByTaskView
                     const matchesNode = !nodeTags.length || allErrors.some((e) => nodeTags.includes(e.nodeTag));
                     const matchesShard =
                         !shardNumbers.length || allErrors.some((e) => shardNumbers.includes(String(e.shard)));
-                    const matchesHealth =
-                        !healthStatuses.length ||
-                        healthStatuses.includes(
-                            etlStats
-                                .find((s) => s.TaskName === task.etlName)
-                                ?.Stats.find((s) => s.TransformationName === t.transformationName)?.Statistics
-                                .HealthStatus
-                        );
 
-                    return matchesSearch && matchesNode && matchesShard && matchesHealth;
+                    return matchesSearch && matchesNode && matchesShard;
                 }),
             }))
             .filter((task) => task.transformations.length > 0);
@@ -403,6 +416,7 @@ interface TaskPanelProps extends EtlTaskWithErrors {
 
 const TaskPanel = ({ etlName, transformations, etlStats }: TaskPanelProps) => {
     const { value: isDetailsVisible, toggle: toggleDetails } = useBoolean(true);
+    const { value: isDeleteModalOpen, toggle: toggleDeleteModal } = useBoolean(false);
     const errorsCount = transformations.reduce(
         (acc, transformation) => acc + transformation.processErrors.length + transformation.itemErrors.length,
         0
@@ -412,70 +426,75 @@ const TaskPanel = ({ etlName, transformations, etlStats }: TaskPanelProps) => {
     const { bg, icon, label } = healthStatusToBadge(taskHealth);
     const etlType = etlStats.find((s) => s.TaskName === etlName)?.EtlType;
     return (
-        <RichPanel>
-            <RichPanelHeader>
-                <RichPanelInfo>
-                    <a href="#" className="fs-3">
-                        {etlName}
-                    </a>
-                </RichPanelInfo>
-                <RichPanelActions>
-                    <Button variant="danger">
-                        <Icon icon="trash" />
-                        Delete errors
-                    </Button>
-                </RichPanelActions>
-            </RichPanelHeader>
-            <RichPanelDetails>
-                <RichPanelDetailItem>
-                    <Button
-                        variant="secondary"
-                        className="btn-toggle-panel rounded-pill"
-                        onClick={toggleDetails}
-                        title="Click for details"
-                    >
-                        <Icon icon={isDetailsVisible ? "fold" : "unfold"} margin="m-0" />
-                    </Button>
-                </RichPanelDetailItem>
-                <EtlTypeRichPanelItem etlType={etlType} />
-                <RichPanelDetailItem childrenClassName="d-flex gap-1 align-items-center">
-                    <Icon icon="warning" color="danger" margin="m-0" />
-                    <span>Errors</span> <b>{errorsCount}</b>
-                </RichPanelDetailItem>
-                <RichPanelDetailItem childrenClassName="d-flex gap-1 align-items-center">
-                    <Icon icon="console" />
-                    <span>Scripts</span> <b>{transformations.length}</b>
-                </RichPanelDetailItem>
+        <>
+            <RichPanel>
+                <RichPanelHeader>
+                    <RichPanelInfo>
+                        <a href="#" className="fs-3">
+                            {etlName}
+                        </a>
+                    </RichPanelInfo>
+                    <RichPanelActions>
+                        <Button variant="danger" onClick={toggleDeleteModal}>
+                            <Icon icon="trash" />
+                            Delete errors
+                        </Button>
+                    </RichPanelActions>
+                </RichPanelHeader>
+                <RichPanelDetails>
+                    <RichPanelDetailItem>
+                        <Button
+                            variant="secondary"
+                            className="btn-toggle-panel rounded-pill"
+                            onClick={toggleDetails}
+                            title="Click for details"
+                        >
+                            <Icon icon={isDetailsVisible ? "fold" : "unfold"} margin="m-0" />
+                        </Button>
+                    </RichPanelDetailItem>
+                    <EtlTypeRichPanelItem etlType={etlType} />
+                    <RichPanelDetailItem childrenClassName="d-flex gap-1 align-items-center">
+                        <Icon icon="warning" color="danger" margin="m-0" />
+                        <span>Errors</span> <b>{errorsCount}</b>
+                    </RichPanelDetailItem>
+                    <RichPanelDetailItem childrenClassName="d-flex gap-1 align-items-center">
+                        <Icon icon="console" />
+                        <span>Scripts</span> <b>{transformations.length}</b>
+                    </RichPanelDetailItem>
 
-                <RichPanelDetailItem>
-                    <PopoverWithHoverWrapper
-                        wrapperClassName="d-flex align-items-center"
-                        message={getPopoverMessageForTaskHealth(taskHealth)}
-                    >
-                        <Icon icon="healthcheck" />
-                        <Badge bg={bg} className="rounded-pill">
-                            <Icon icon={icon} />
-                            {label}
-                        </Badge>
-                    </PopoverWithHoverWrapper>
-                </RichPanelDetailItem>
-            </RichPanelDetails>
-            <SizeGetter
-                render={(sizeProps) => (
-                    <Collapse in={isDetailsVisible} unmountOnExit mountOnEnter>
-                        <div className="m-2 d-flex gap-2 flex-column">
-                            {transformations.map((transformation) => (
-                                <NestedTaskPanelDetails
-                                    key={transformation.transformationName}
-                                    {...sizeProps}
-                                    {...transformation}
-                                />
-                            ))}
-                        </div>
-                    </Collapse>
-                )}
-            />
-        </RichPanel>
+                    <RichPanelDetailItem>
+                        <PopoverWithHoverWrapper
+                            wrapperClassName="d-flex align-items-center"
+                            message={getPopoverMessageForTaskHealth(taskHealth)}
+                        >
+                            <Icon icon="healthcheck" />
+                            <Badge bg={bg} className="rounded-pill">
+                                <Icon icon={icon} />
+                                {label}
+                            </Badge>
+                        </PopoverWithHoverWrapper>
+                    </RichPanelDetailItem>
+                </RichPanelDetails>
+                <SizeGetter
+                    render={(sizeProps) => (
+                        <Collapse in={isDetailsVisible} unmountOnExit mountOnEnter>
+                            <div className="m-2 d-flex gap-2 flex-column">
+                                {transformations.map((transformation) => (
+                                    <NestedTaskPanelDetails
+                                        key={transformation.transformationName}
+                                        {...sizeProps}
+                                        {...transformation}
+                                    />
+                                ))}
+                            </div>
+                        </Collapse>
+                    )}
+                />
+            </RichPanel>
+            {isDeleteModalOpen && (
+                <DeleteTaskErrorsModal etlName={etlName} errorsCount={errorsCount} toggle={toggleDeleteModal} />
+            )}
+        </>
     );
 };
 
@@ -700,7 +719,7 @@ function NodeCircle({ nodeTag }: NodeCircleProps) {
     );
 }
 
-const CellValueButtonWrapper = (args: CellContext<any, unknown>) => {
+const CellValueButtonWrapper = (args: CellContext<FlatError, unknown>) => {
     const { open } = useViewSheet();
 
     const handleOpenSheet = () => {
@@ -1158,7 +1177,7 @@ const CellScriptNameWrapper = ({ getValue }: CellContext<FlatError, string>) => 
     );
 };
 
-const healthStatusToBadge = (status: EtlHealthStatus | null): { bg: string; icon: IconName; label: string } => {
+const healthStatusToBadge = (status: EtlHealthStatus): { bg: string; icon: IconName; label: string } => {
     switch (status) {
         case "Failed":
             return { bg: "danger", icon: "close", label: "Failed" };
@@ -1222,9 +1241,11 @@ function getTaskHealthStatus(etlStats: EtlTaskStats[], etlName: string): EtlHeal
     if (stats.some((s) => s.Statistics.HealthStatus === "Failed")) {
         return "Failed";
     }
+
     if (stats.some((s) => s.Statistics.HealthStatus === "Impaired")) {
         return "Impaired";
     }
+
     return "Healthy";
 }
 
@@ -1270,9 +1291,11 @@ function getTaskPillColor(stats: EtlTaskStats["Stats"]): TaskPillProps["color"] 
     if (stats.some((s) => s.Statistics.HealthStatus === "Failed")) {
         return "bg-danger";
     }
+
     if (stats.some((s) => s.Statistics.HealthStatus === "Impaired")) {
         return "bg-warning";
     }
+
     return "bg-success";
 }
 
@@ -1321,14 +1344,15 @@ function flattenAllTasksErrors(tasksWithErrors: EtlTaskWithErrors[], etlStats: E
     });
 }
 
-interface DeleteAllErrorsModalProps {
+interface DeleteTaskErrorsModalProps {
     toggle: () => void;
-    tasksWithErrors: EtlTaskWithErrors[];
+    etlName: string;
+    errorsCount: number;
 }
 
-function DeleteAllErrorsModal({ toggle, tasksWithErrors }: DeleteAllErrorsModalProps) {
+function DeleteTaskErrorsModal({ toggle, etlName, errorsCount }: DeleteTaskErrorsModalProps) {
     const db = useAppSelector(databaseSelectors.activeDatabase);
-    const { databasesService } = useServices();
+    const { tasksService } = useServices();
 
     const asyncGlobalSettings = useAsync(async () => await studioSettings.default.globalSettings(), []);
 
@@ -1337,24 +1361,21 @@ function DeleteAllErrorsModal({ toggle, tasksWithErrors }: DeleteAllErrorsModalP
 
     const { confirmText, handleTextChange, isConfirmed } = useDeleteConfirmation(isRequireTypedConfirm);
 
-    const asyncDeleteAllErrors = useAsyncCallback(async () => {
-        const etlNames = tasksWithErrors.map((task) => task.etlName);
-
-        //TODO: Something doesnt work, check that. api returns 200, but it fall into catch.
+    const asyncDeleteErrors = useAsyncCallback(async () => {
         try {
             if (db.isSharded) {
                 const locations = DatabaseUtils.getLocations(db);
                 await Promise.all(
                     locations.map((location) =>
-                        databasesService.deleteEtlErrors(db.name, {
-                            name: [tasksWithErrors[0].etlName],
+                        tasksService.deleteEtlErrors(db.name, {
+                            name: [etlName],
                             nodeTag: location.nodeTag,
                             shardNumber: location.shardNumber,
                         })
                     )
                 );
             } else {
-                await databasesService.deleteEtlErrors(db.name, { name: etlNames });
+                await tasksService.deleteEtlErrors(db.name, { name: [etlName] });
             }
             toggle();
         } catch (e) {
@@ -1368,7 +1389,103 @@ function DeleteAllErrorsModal({ toggle, tasksWithErrors }: DeleteAllErrorsModalP
             return;
         }
 
-        asyncGlobalSettings.result.isRequireTypedConfirmationToDeleteDocuments.setValue(!isRequireTypedConfirm);
+        asyncGlobalSettings.result.isRequireTypedConfirmationToDeleteEtlErrors.setValue(!isRequireTypedConfirm);
+        await asyncGlobalSettings.execute();
+    };
+
+    return (
+        <Modal show contentClassName="modal-border bulge-danger" size="lg">
+            <Modal.Header closeButton onCloseClick={toggle} className="pb-0">
+                <h3>
+                    <Icon icon="trash" color="danger" />
+                    <span>Delete all errors for {etlName} task?</span>
+                </h3>
+            </Modal.Header>
+            <Modal.Body className="pt-0">
+                <p>
+                    You are about to delete all <b>{errorsCount} errors</b> from <b>{etlName}</b> task.
+                </p>
+                <RichAlert variant="info" icon="info">
+                    While the current AI task errors will be deleted, a task in an <b>Error state</b> will not set back
+                    to the <b>Normal</b> state.
+                </RichAlert>
+                {isRequireTypedConfirm && (
+                    <FormGroup>
+                        <FormLabel className="fw-bold">Type DELETE to confirm</FormLabel>
+                        <Form.Control placeholder="DELETE" value={confirmText} onChange={handleTextChange} />
+                    </FormGroup>
+                )}
+            </Modal.Body>
+            <Modal.Footer className="hstack justify-content-between">
+                <Switch selected={isRequireTypedConfirm} toggleSelection={toggleIsRequireTypedConfirm} color="primary">
+                    Require typed confirmation
+                </Switch>
+                <div className="hstack gap-2 flex-grow-1 justify-content-end">
+                    <Button variant="link" onClick={toggle} className="link-muted">
+                        Cancel
+                    </Button>
+                    <ButtonWithSpinner
+                        isSpinning={asyncDeleteErrors.loading}
+                        variant="danger"
+                        onClick={asyncDeleteErrors.execute}
+                        className="rounded-pill"
+                        disabled={!isConfirmed || asyncDeleteErrors.loading}
+                    >
+                        Delete
+                    </ButtonWithSpinner>
+                </div>
+            </Modal.Footer>
+        </Modal>
+    );
+}
+
+interface DeleteAllErrorsModalProps {
+    toggle: () => void;
+    tasksWithErrors: EtlTaskWithErrors[];
+}
+
+function DeleteAllErrorsModal({ toggle, tasksWithErrors }: DeleteAllErrorsModalProps) {
+    const db = useAppSelector(databaseSelectors.activeDatabase);
+    const { tasksService } = useServices();
+
+    const asyncGlobalSettings = useAsync(async () => await studioSettings.default.globalSettings(), []);
+
+    const isRequireTypedConfirm =
+        asyncGlobalSettings.result?.isRequireTypedConfirmationToDeleteEtlErrors.getValue() ?? true;
+
+    const { confirmText, handleTextChange, isConfirmed } = useDeleteConfirmation(isRequireTypedConfirm);
+
+    const asyncDeleteAllErrors = useAsyncCallback(async () => {
+        const etlNames = tasksWithErrors.map((task) => task.etlName);
+
+        try {
+            if (db.isSharded) {
+                const locations = DatabaseUtils.getLocations(db);
+                await Promise.all(
+                    locations.map((location) =>
+                        tasksService.deleteEtlErrors(db.name, {
+                            name: [tasksWithErrors[0].etlName],
+                            nodeTag: location.nodeTag,
+                            shardNumber: location.shardNumber,
+                        })
+                    )
+                );
+            } else {
+                await tasksService.deleteEtlErrors(db.name, { name: etlNames });
+            }
+            toggle();
+        } catch (e) {
+            console.error(e);
+        }
+    });
+
+    const toggleIsRequireTypedConfirm = async () => {
+        if (!asyncGlobalSettings.result) {
+            messagePublisher.reportError("Failed to load studio global settings");
+            return;
+        }
+
+        asyncGlobalSettings.result.isRequireTypedConfirmationToDeleteEtlErrors.setValue(!isRequireTypedConfirm);
         await asyncGlobalSettings.execute();
     };
 
@@ -1429,78 +1546,84 @@ function useDeleteConfirmation(isRequireTypedConfirm: boolean) {
     };
 }
 
-// ---------------------------------------------------------------------------
-// EtlErrorDetailsSheet
-// ---------------------------------------------------------------------------
-
 interface EtlErrorDetailsSheetProps {
-    error: Record<string, any>;
+    error: FlatError;
+}
+
+interface SheetDetailRowProps {
+    children: ReactNode;
+    className?: string;
+}
+
+function SheetDetailRow({ children, className }: SheetDetailRowProps) {
+    return (
+        <div
+            className={classNames(
+                "d-flex justify-content-between align-items-center pb-1 border-bottom border-secondary",
+                className
+            )}
+        >
+            {children}
+        </div>
+    );
 }
 
 function EtlErrorDetailsSheet({ error }: EtlErrorDetailsSheetProps) {
     const { close } = useViewSheet();
+    const dbName = useAppSelector(databaseSelectors.activeDatabaseName);
 
     const { bg, icon, label } = healthStatusToBadge(error.healthStatus ?? null);
-    const stepIcon = error.Step ? getStepIcon(error.Step as EtlErrorStep) : null;
-    const etlTypeIcon = error.etlType ? getEtlTypeIcon(error.etlType as StudioEtlType) : null;
-    const etlTypeLabel = error.etlType ? getEtlTypeLabel(error.etlType as StudioEtlType) : null;
+    const stepIcon = error.Step ? getStepIcon(error.Step) : null;
+    const etlTypeIcon = error.etlType ? getEtlTypeIcon(error.etlType) : null;
+    const etlTypeLabel = error.etlType ? getEtlTypeLabel(error.etlType) : null;
+
+    console.log("maxym error", error);
 
     return (
         <ViewSheet>
             <ViewSheet.Header>
                 <h3 className="mb-0">
-                    <Icon icon="warning" color="danger" />
-                    ETL Error Details
+                    <Icon icon="warning" color="warning" />
+                    ETL error details
                 </h3>
             </ViewSheet.Header>
             <ViewSheet.Body className="m-2">
-                <div className="d-flex flex-column gap-3">
-                    {error.etlName && (
-                        <div className="d-flex justify-content-between align-items-center">
-                            <div className="small-label">Task</div>
-                            <div className="d-flex align-items-center gap-2">
+                <div className="vstack gap-3">
+                    {error.etlName && error.transformationName && (
+                        <SheetDetailRow>
+                            <div className="small-label">Task name/Script name</div>
+                            <div className="d-flex align-items-center">
                                 {etlTypeIcon && <Icon icon={etlTypeIcon} />}
-                                <div>{error.etlName}</div>
+                                <div>
+                                    {error.etlName}/{error.transformationName}
+                                </div>
                             </div>
-                        </div>
+                        </SheetDetailRow>
+                    )}
+
+                    {error.EtlProcessName && (
+                        <SheetDetailRow>
+                            <div className="small-label">Task name/Script name</div>
+                            <div className="d-flex align-items-center">
+                                {etlTypeIcon && <Icon icon={etlTypeIcon} />}
+                                <div>{error.EtlProcessName}</div>
+                            </div>
+                        </SheetDetailRow>
                     )}
 
                     {error.etlType && (
-                        <div className="d-flex justify-content-between align-items-center">
-                            <div className="small-label mb-1">Task Type</div>
-                            <div className="d-flex align-items-center gap-2">
+                        <SheetDetailRow>
+                            <div className="small-label mb-1">Task type</div>
+                            <div className="d-flex align-items-center">
                                 {etlTypeIcon && <Icon icon={etlTypeIcon} />}
+                                {etlTypeLabel}
                             </div>
-                        </div>
-                    )}
-
-                    {error.transformationName && (
-                        <div className="d-flex justify-content-between align-items-center">
-                            <div className="small-label mb-1">Script</div>
-                            <div className="w-75 text-right" title={error.transformationName}>
-                                <Icon icon="console" />
-                                {error.transformationName}
-                                {error.transformationName}
-                                {error.transformationName}
-                                {error.transformationName}
-                                {error.transformationName}
-                                {error.transformationName}
-                                {error.transformationName}
-                                {error.transformationName}
-                                {error.transformationName}
-                                {error.transformationName}
-                                {error.transformationName}
-                                {error.transformationName}
-                                {error.transformationName}
-                                {error.transformationName}
-                                {error.transformationName}
-                            </div>
-                        </div>
+                        </SheetDetailRow>
                     )}
 
                     {error.errorType && (
-                        <div className="d-flex justify-content-between align-items-center">
-                            <div className="small-label mb-1">Error Type</div>
+                        <SheetDetailRow>
+                            <div className="small-label mb-1">Error type</div>
                             <Badge
                                 bg={error.errorType === "Item" ? "secondary" : "info"}
                                 className="rounded-pill cell-value"
@@ -1508,76 +1631,57 @@ function EtlErrorDetailsSheet({ error }: EtlErrorDetailsSheetProps) {
                                 <Icon icon={error.errorType === "Item" ? "tasks" : "hammer-driver"} />
                                 {error.errorType === "Item" ? "Item Error" : "Process Error"}
                             </Badge>
-                        </div>
+                        </SheetDetailRow>
                     )}
 
                     {error.Step && (
-                        <div className="d-flex justify-content-between align-items-center">
-                            <div className="small-label mb-1">Error Step</div>
+                        <SheetDetailRow>
+                            <div className="small-label mb-1">Error step</div>
                             <div>
                                 {stepIcon && <Icon icon={stepIcon} />}
                                 {error.Step}
                             </div>
-                        </div>
+                        </SheetDetailRow>
                     )}
 
-                    {error.DocumentId && (
-                        <div className="d-flex justify-content-between align-items-center">
-                            <div className="small-label mb-1">Document</div>
-                            <div>
-                                <Icon icon="document" />
-                                {error.DocumentId}
-                            </div>
-                        </div>
+                    {error.errorType === "Item" && error.DocumentId && (
+                        <SheetDetailRow>
+                            <div className="small-label mb-1">Document ID</div>
+                            <CellDocumentValue value={error.DocumentId} databaseName={dbName} hasHyperlinkForIds />
+                        </SheetDetailRow>
                     )}
 
                     {error.CreatedAt && (
-                        <div className="d-flex justify-content-between align-items-center">
+                        <SheetDetailRow>
                             <div className="small-label mb-1">Date</div>
-                            <div>{String(error.CreatedAt)}</div>
-                        </div>
+                            <div>{moment(error.CreatedAt).format(genUtils.dateFormat)}</div>
+                        </SheetDetailRow>
                     )}
 
                     {error.healthStatus && (
-                        <div className="d-flex justify-content-between align-items-center">
+                        <SheetDetailRow>
                             <div className="small-label mb-1">Current Task Health</div>
                             <Badge bg={bg} className="rounded-pill">
                                 <Icon icon={icon} />
                                 {label}
                             </Badge>
-                        </div>
+                        </SheetDetailRow>
                     )}
-                    
-                    <div className="d-flex justify-content-between align-items-center">
+
+                    <SheetDetailRow className="border-bottom-0">
                         <div className="small-label">Localization</div>
                         <div className="d-flex align-items-center gap-2">
                             <div className="d-flex align-items-center justify-content-center">
                                 <Icon icon="node" color="node" />
-                                <div>{error.nodeTag}</div>
+                                {error.nodeTag}
                             </div>
                             {error.shard != null && (
                                 <div className="d-flex align-items-center justify-content-center">
-                                    <Icon icon="shard" color="shard" />
-                                    <div>#{error.shard}</div>
+                                    <Icon icon="shard" color="shard" />#{error.shard}
                                 </div>
                             )}
                         </div>
-                    </div>
-                    {/*{error.nodeTag && (*/}
-                    {/*    <div>*/}
-                    {/*        <div className="small-label mb-1">Node</div>*/}
-                    {/*        <NodeCircle nodeTag={error.nodeTag} />*/}
-                    {/*    </div>*/}
-                    {/*)}*/}
-
-                    {/*{error.shard != null && (*/}
-                    {/*    <div>*/}
-                    {/*        <div className="small-label mb-1">Shard</div>*/}
-                    {/*        <div className="d-flex align-items-center gap-1">*/}
-                    {/*            <Icon icon="shard" color="shard" />#{error.shard}*/}
-                    {/*        </div>*/}
-                    {/*    </div>*/}
-                    {/*)}*/}
+                    </SheetDetailRow>
 
                     {error.Error && (
                         <div>
@@ -1606,9 +1710,9 @@ interface TasksFiltersState {
     taskTypes: StudioEtlType[];
 }
 
-function useTasksFilters(): [TasksFiltersState, (patch: Partial<TasksFiltersState>) => void] {
+function useTasksFilters(initialSearchText = ""): [TasksFiltersState, (patch: Partial<TasksFiltersState>) => void] {
     const [filters, setFilters] = useState<TasksFiltersState>({
-        searchText: "",
+        searchText: initialSearchText,
         nodeTags: [],
         shardNumbers: [],
         healthStatuses: [],

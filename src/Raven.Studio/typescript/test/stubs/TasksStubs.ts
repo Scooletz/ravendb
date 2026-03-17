@@ -1241,4 +1241,85 @@ namespace Orders
             ],
         };
     }
+
+    static etlErrors(): EtlErrors[] {
+        const etlError: EtlErrors = {
+            ProcessName: "ETL1/Transformation1",
+            ProcessErrors: [],
+            ItemErrors: [
+                {
+                    Id: "ETL1/Transformation1/users/1-A",
+                    EtlProcessName: "ETL1/Transformation1",
+                    CreatedAt: "2026-03-17T11:02:19.3494157",
+                    Step: "Transformation",
+                    Error: 'Raven.Client.Exceptions.Documents.Patching.JavaScriptException: At 6:5 Script failed for document ID \'\'. {"message":"dummy error","stack":"   at call :5:7\\r\\n   at execute (doc, args) :11:5\\r\\n   at :13:1"}\r\n ---> Jint.Runtime.JavaScriptException: dummy error\r\n ---> Error: dummy error\r\n   at call :5:7\r\n   at execute (doc, args) :11:5\r\n   at :13:1\r\n   --- End of inner exception stack trace ---\r\n   at Jint.Runtime.ExceptionHelper.ThrowJavaScriptException(Engine engine, JsValue value, Completion& result)\r\n   at Jint.Native.Function.ScriptFunction.Call(JsValue thisObject, JsValue[] arguments)\r\n   at Jint.Engine.Call(Function function, JsValue thisObject, JsValue[] arguments, JintExpression expression)\r\n   at Jint.Engine.<>c__DisplayClass135_0.<Call>g__Callback|0()\r\n   at Jint.Engine.ExecuteWithConstraints[T](Boolean strict, Func`1 callback)\r\n   at Jint.Engine.Call(JsValue callable, JsValue thisObject, JsValue[] arguments)\r\n   at Raven.Server.Documents.Patch.ScriptRunner.SingleRun.Run(JsonOperationContext jsonCtx, DocumentsOperationContext docCtx, String method, String documentId, Object[] args, QueryTimingsScope scope, CancellationToken token) in C:\\Users\\maksym.smolinski\\WebstormProjects\\ravendb-v6.2\\src\\Raven.Server\\Documents\\Patch\\ScriptRunner.cs:line 2147\r\n   --- End of inner exception stack trace ---\r\n   at Raven.Server.Documents.Patch.ScriptRunner.SingleRun.Run(JsonOperationContext jsonCtx, DocumentsOperationContext docCtx, String method, String documentId, Object[] args, QueryTimingsScope scope, CancellationToken token) in C:\\Users\\maksym.smolinski\\WebstormProjects\\ravendb-v6.2\\src\\Raven.Server\\Documents\\Patch\\ScriptRunner.cs:line 2168\r\n   at Raven.Server.Documents.Patch.ScriptRunner.SingleRun.Run(JsonOperationContext jsonCtx, DocumentsOperationContext docCtx, String method, Object[] args, QueryTimingsScope scope, CancellationToken token) in C:\\Users\\maksym.smolinski\\WebstormProjects\\ravendb-v6.2\\src\\Raven.Server\\Documents\\Patch\\ScriptRunner.cs:line 2126\r\n   at Raven.Server.Documents.ETL.Providers.Raven.RavenEtlDocumentTransformer.Transform(RavenEtlItem item, EtlStatsScope stats, EtlProcessState state) in C:\\Users\\maksym.smolinski\\WebstormProjects\\ravendb-v6.2\\src\\Raven.Server\\Documents\\ETL\\Providers\\Raven\\RavenEtlDocumentTransformer.cs:line 247\r\n   at Raven.Server.Documents.ETL.EtlProcess`6.Transform(IEnumerable`1 items, DocumentsOperationContext context, TStatsScope stats, EtlProcessState state) in C:\\Users\\maksym.smolinski\\WebstormProjects\\ravendb-v6.2\\src\\Raven.Server\\Documents\\ETL\\EtlProcess.cs:line 400',
+                    AdditionalInfo: "",
+                    DocumentId: "users/1-A",
+                },
+                {
+                    Id: "ETL1/Transformation1/users/2-A",
+                    EtlProcessName: "ETL1/Transformation1",
+                    CreatedAt: "2026-03-17T11:02:19.4560975",
+                    Step: "Transformation",
+                    Error: 'Raven.Client.Exceptions.Documents.Patching.JavaScriptException: At 6:5 Script failed for document ID \'\'. {"message":"dummy error","stack":"   at call :5:7\\r\\n   at execute (doc, args) :11:5\\r\\n   at :13:1"}\r\n ---> Jint.Runtime.JavaScriptException: dummy error\r\n ---> Error: dummy error\r\n   at call :5:7\r\n   at execute (doc, args) :11:5\r\n   at :13:1\r\n   --- End of inner exception stack trace ---\r\n   at Jint.Runtime.ExceptionHelper.ThrowJavaScriptException(Engine engine, JsValue value, Completion& result)\r\n   at Jint.Native.Function.ScriptFunction.Call(JsValue thisObject, JsValue[] arguments)\r\n   at Jint.Engine.Call(Function function, JsValue thisObject, JsValue[] arguments, JintExpression expression)\r\n   at Jint.Engine.<>c__DisplayClass135_0.<Call>g__Callback|0()\r\n   at Jint.Engine.ExecuteWithConstraints[T](Boolean strict, Func`1 callback)\r\n   at Jint.Engine.Call(JsValue callable, JsValue thisObject, JsValue[] arguments)\r\n   at Raven.Server.Documents.Patch.ScriptRunner.SingleRun.Run(JsonOperationContext jsonCtx, DocumentsOperationContext docCtx, String method, String documentId, Object[] args, QueryTimingsScope scope, CancellationToken token) in C:\\Users\\maksym.smolinski\\WebstormProjects\\ravendb-v6.2\\src\\Raven.Server\\Documents\\Patch\\ScriptRunner.cs:line 2147\r\n   --- End of inner exception stack trace ---\r\n   at Raven.Server.Documents.Patch.ScriptRunner.SingleRun.Run(JsonOperationContext jsonCtx, DocumentsOperationContext docCtx, String method, String documentId, Object[] args, QueryTimingsScope scope, CancellationToken token) in C:\\Users\\maksym.smolinski\\WebstormProjects\\ravendb-v6.2\\src\\Raven.Server\\Documents\\Patch\\ScriptRunner.cs:line 2168\r\n   at Raven.Server.Documents.Patch.ScriptRunner.SingleRun.Run(JsonOperationContext jsonCtx, DocumentsOperationContext docCtx, String method, Object[] args, QueryTimingsScope scope, CancellationToken token) in C:\\Users\\maksym.smolinski\\WebstormProjects\\ravendb-v6.2\\src\\Raven.Server\\Documents\\Patch\\ScriptRunner.cs:line 2126\r\n   at Raven.Server.Documents.ETL.Providers.Raven.RavenEtlDocumentTransformer.Transform(RavenEtlItem item, EtlStatsScope stats, EtlProcessState state) in C:\\Users\\maksym.smolinski\\WebstormProjects\\ravendb-v6.2\\src\\Raven.Server\\Documents\\ETL\\Providers\\Raven\\RavenEtlDocumentTransformer.cs:line 247\r\n   at Raven.Server.Documents.ETL.EtlProcess`6.Transform(IEnumerable`1 items, DocumentsOperationContext context, TStatsScope stats, EtlProcessState state) in C:\\Users\\maksym.smolinski\\WebstormProjects\\ravendb-v6.2\\src\\Raven.Server\\Documents\\ETL\\EtlProcess.cs:line 400',
+                    AdditionalInfo: "",
+                    DocumentId: "users/2-A",
+                },
+                {
+                    Id: "ETL1/Transformation1/users/3-A",
+                    EtlProcessName: "ETL1/Transformation1",
+                    CreatedAt: "2026-03-17T11:02:19.5041135",
+                    Step: "Transformation",
+                    Error: 'Raven.Client.Exceptions.Documents.Patching.JavaScriptException: At 6:5 Script failed for document ID \'\'. {"message":"dummy error","stack":"   at call :5:7\\r\\n   at execute (doc, args) :11:5\\r\\n   at :13:1"}\r\n ---> Jint.Runtime.JavaScriptException: dummy error\r\n ---> Error: dummy error\r\n   at call :5:7\r\n   at execute (doc, args) :11:5\r\n   at :13:1\r\n   --- End of inner exception stack trace ---\r\n   at Jint.Runtime.ExceptionHelper.ThrowJavaScriptException(Engine engine, JsValue value, Completion& result)\r\n   at Jint.Native.Function.ScriptFunction.Call(JsValue thisObject, JsValue[] arguments)\r\n   at Jint.Engine.Call(Function function, JsValue thisObject, JsValue[] arguments, JintExpression expression)\r\n   at Jint.Engine.<>c__DisplayClass135_0.<Call>g__Callback|0()\r\n   at Jint.Engine.ExecuteWithConstraints[T](Boolean strict, Func`1 callback)\r\n   at Jint.Engine.Call(JsValue callable, JsValue thisObject, JsValue[] arguments)\r\n   at Raven.Server.Documents.Patch.ScriptRunner.SingleRun.Run(JsonOperationContext jsonCtx, DocumentsOperationContext docCtx, String method, String documentId, Object[] args, QueryTimingsScope scope, CancellationToken token) in C:\\Users\\maksym.smolinski\\WebstormProjects\\ravendb-v6.2\\src\\Raven.Server\\Documents\\Patch\\ScriptRunner.cs:line 2147\r\n   --- End of inner exception stack trace ---\r\n   at Raven.Server.Documents.Patch.ScriptRunner.SingleRun.Run(JsonOperationContext jsonCtx, DocumentsOperationContext docCtx, String method, String documentId, Object[] args, QueryTimingsScope scope, CancellationToken token) in C:\\Users\\maksym.smolinski\\WebstormProjects\\ravendb-v6.2\\src\\Raven.Server\\Documents\\Patch\\ScriptRunner.cs:line 2168\r\n   at Raven.Server.Documents.Patch.ScriptRunner.SingleRun.Run(JsonOperationContext jsonCtx, DocumentsOperationContext docCtx, String method, Object[] args, QueryTimingsScope scope, CancellationToken token) in C:\\Users\\maksym.smolinski\\WebstormProjects\\ravendb-v6.2\\src\\Raven.Server\\Documents\\Patch\\ScriptRunner.cs:line 2126\r\n   at Raven.Server.Documents.ETL.Providers.Raven.RavenEtlDocumentTransformer.Transform(RavenEtlItem item, EtlStatsScope stats, EtlProcessState state) in C:\\Users\\maksym.smolinski\\WebstormProjects\\ravendb-v6.2\\src\\Raven.Server\\Documents\\ETL\\Providers\\Raven\\RavenEtlDocumentTransformer.cs:line 247\r\n   at Raven.Server.Documents.ETL.EtlProcess`6.Transform(IEnumerable`1 items, DocumentsOperationContext context, TStatsScope stats, EtlProcessState state) in C:\\Users\\maksym.smolinski\\WebstormProjects\\ravendb-v6.2\\src\\Raven.Server\\Documents\\ETL\\EtlProcess.cs:line 400',
+                    AdditionalInfo: "",
+                    DocumentId: "users/3-A",
+                },
+                {
+                    Id: "ETL1/Transformation1/users/4-A",
+                    EtlProcessName: "ETL1/Transformation1",
+                    CreatedAt: "2026-03-17T11:02:19.5496271",
+                    Step: "Transformation",
+                    Error: 'Raven.Client.Exceptions.Documents.Patching.JavaScriptException: At 6:5 Script failed for document ID \'\'. {"message":"dummy error","stack":"   at call :5:7\\r\\n   at execute (doc, args) :11:5\\r\\n   at :13:1"}\r\n ---> Jint.Runtime.JavaScriptException: dummy error\r\n ---> Error: dummy error\r\n   at call :5:7\r\n   at execute (doc, args) :11:5\r\n   at :13:1\r\n   --- End of inner exception stack trace ---\r\n   at Jint.Runtime.ExceptionHelper.ThrowJavaScriptException(Engine engine, JsValue value, Completion& result)\r\n   at Jint.Native.Function.ScriptFunction.Call(JsValue thisObject, JsValue[] arguments)\r\n   at Jint.Engine.Call(Function function, JsValue thisObject, JsValue[] arguments, JintExpression expression)\r\n   at Jint.Engine.<>c__DisplayClass135_0.<Call>g__Callback|0()\r\n   at Jint.Engine.ExecuteWithConstraints[T](Boolean strict, Func`1 callback)\r\n   at Jint.Engine.Call(JsValue callable, JsValue thisObject, JsValue[] arguments)\r\n   at Raven.Server.Documents.Patch.ScriptRunner.SingleRun.Run(JsonOperationContext jsonCtx, DocumentsOperationContext docCtx, String method, String documentId, Object[] args, QueryTimingsScope scope, CancellationToken token) in C:\\Users\\maksym.smolinski\\WebstormProjects\\ravendb-v6.2\\src\\Raven.Server\\Documents\\Patch\\ScriptRunner.cs:line 2147\r\n   --- End of inner exception stack trace ---\r\n   at Raven.Server.Documents.Patch.ScriptRunner.SingleRun.Run(JsonOperationContext jsonCtx, DocumentsOperationContext docCtx, String method, String documentId, Object[] args, QueryTimingsScope scope, CancellationToken token) in C:\\Users\\maksym.smolinski\\WebstormProjects\\ravendb-v6.2\\src\\Raven.Server\\Documents\\Patch\\ScriptRunner.cs:line 2168\r\n   at Raven.Server.Documents.Patch.ScriptRunner.SingleRun.Run(JsonOperationContext jsonCtx, DocumentsOperationContext docCtx, String method, Object[] args, QueryTimingsScope scope, CancellationToken token) in C:\\Users\\maksym.smolinski\\WebstormProjects\\ravendb-v6.2\\src\\Raven.Server\\Documents\\Patch\\ScriptRunner.cs:line 2126\r\n   at Raven.Server.Documents.ETL.Providers.Raven.RavenEtlDocumentTransformer.Transform(RavenEtlItem item, EtlStatsScope stats, EtlProcessState state) in C:\\Users\\maksym.smolinski\\WebstormProjects\\ravendb-v6.2\\src\\Raven.Server\\Documents\\ETL\\Providers\\Raven\\RavenEtlDocumentTransformer.cs:line 247\r\n   at Raven.Server.Documents.ETL.EtlProcess`6.Transform(IEnumerable`1 items, DocumentsOperationContext context, TStatsScope stats, EtlProcessState state) in C:\\Users\\maksym.smolinski\\WebstormProjects\\ravendb-v6.2\\src\\Raven.Server\\Documents\\ETL\\EtlProcess.cs:line 400',
+                    AdditionalInfo: "",
+                    DocumentId: "users/4-A",
+                },
+                {
+                    Id: "ETL1/Transformation1/users/5-A",
+                    EtlProcessName: "ETL1/Transformation1",
+                    CreatedAt: "2026-03-17T11:02:19.5935062",
+                    Step: "Transformation",
+                    Error: 'Raven.Client.Exceptions.Documents.Patching.JavaScriptException: At 6:5 Script failed for document ID \'\'. {"message":"dummy error","stack":"   at call :5:7\\r\\n   at execute (doc, args) :11:5\\r\\n   at :13:1"}\r\n ---> Jint.Runtime.JavaScriptException: dummy error\r\n ---> Error: dummy error\r\n   at call :5:7\r\n   at execute (doc, args) :11:5\r\n   at :13:1\r\n   --- End of inner exception stack trace ---\r\n   at Jint.Runtime.ExceptionHelper.ThrowJavaScriptException(Engine engine, JsValue value, Completion& result)\r\n   at Jint.Native.Function.ScriptFunction.Call(JsValue thisObject, JsValue[] arguments)\r\n   at Jint.Engine.Call(Function function, JsValue thisObject, JsValue[] arguments, JintExpression expression)\r\n   at Jint.Engine.<>c__DisplayClass135_0.<Call>g__Callback|0()\r\n   at Jint.Engine.ExecuteWithConstraints[T](Boolean strict, Func`1 callback)\r\n   at Jint.Engine.Call(JsValue callable, JsValue thisObject, JsValue[] arguments)\r\n   at Raven.Server.Documents.Patch.ScriptRunner.SingleRun.Run(JsonOperationContext jsonCtx, DocumentsOperationContext docCtx, String method, String documentId, Object[] args, QueryTimingsScope scope, CancellationToken token) in C:\\Users\\maksym.smolinski\\WebstormProjects\\ravendb-v6.2\\src\\Raven.Server\\Documents\\Patch\\ScriptRunner.cs:line 2147\r\n   --- End of inner exception stack trace ---\r\n   at Raven.Server.Documents.Patch.ScriptRunner.SingleRun.Run(JsonOperationContext jsonCtx, DocumentsOperationContext docCtx, String method, String documentId, Object[] args, QueryTimingsScope scope, CancellationToken token) in C:\\Users\\maksym.smolinski\\WebstormProjects\\ravendb-v6.2\\src\\Raven.Server\\Documents\\Patch\\ScriptRunner.cs:line 2168\r\n   at Raven.Server.Documents.Patch.ScriptRunner.SingleRun.Run(JsonOperationContext jsonCtx, DocumentsOperationContext docCtx, String method, Object[] args, QueryTimingsScope scope, CancellationToken token) in C:\\Users\\maksym.smolinski\\WebstormProjects\\ravendb-v6.2\\src\\Raven.Server\\Documents\\Patch\\ScriptRunner.cs:line 2126\r\n   at Raven.Server.Documents.ETL.Providers.Raven.RavenEtlDocumentTransformer.Transform(RavenEtlItem item, EtlStatsScope stats, EtlProcessState state) in C:\\Users\\maksym.smolinski\\WebstormProjects\\ravendb-v6.2\\src\\Raven.Server\\Documents\\ETL\\Providers\\Raven\\RavenEtlDocumentTransformer.cs:line 247\r\n   at Raven.Server.Documents.ETL.EtlProcess`6.Transform(IEnumerable`1 items, DocumentsOperationContext context, TStatsScope stats, EtlProcessState state) in C:\\Users\\maksym.smolinski\\WebstormProjects\\ravendb-v6.2\\src\\Raven.Server\\Documents\\ETL\\EtlProcess.cs:line 400',
+                    AdditionalInfo: "",
+                    DocumentId: "users/5-A",
+                },
+            ],
+        };
+        return [etlError];
+    }
+
+    static etlStats(): EtlTaskStats[] {
+        return [
+            {
+                TaskName: "ETL1",
+                Stats: [
+                    {
+                        TransformationName: "Transformation1",
+                        Statistics: {
+                            LastLoadErrorTime: null,
+                            LastProcessedEtag: 0,
+                            TransformationSuccesses: 0,
+                            TransformationErrors: 5,
+                            LoadSuccesses: 0,
+                            LoadErrors: 0,
+                            AverageErrorsRatio: 1.0,
+                            HealthStatus: "Failed",
+                            NextBatchRetryTime: null,
+                            LastSuccessfulBatchTime: null,
+                            BatchStopReason: null,
+                        },
+                    },
+                ],
+            },
+        ];
+    }
 }

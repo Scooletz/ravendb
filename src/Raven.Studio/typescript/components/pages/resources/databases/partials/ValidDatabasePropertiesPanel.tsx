@@ -202,10 +202,7 @@ export function ValidDatabasePropertiesPanel(props: ValidDatabasePropertiesPanel
 
             <div className="rich-panel-details-right">
                 {tasksErrors > 0 && (
-                    <RichPanelDetailItem
-                        key="tasks-errors"
-                        title="Tasks errors. Click to view the Tasks Errors."
-                    >
+                    <RichPanelDetailItem key="tasks-errors" title="Tasks errors. Click to view the Tasks Errors.">
                         <Badge bg="faded-danger" className="d-flex align-items-center lh-base rounded-pill">
                             <a href={tasksErrorsUrl} target={linksTarget} className="no-decor">
                                 <Icon icon="warning" /> {tasksErrors} Tasks errors

@@ -31,10 +31,25 @@ import { Icon } from "components/common/Icon";
 import Button from "react-bootstrap/esm/Button";
 import Badge from "react-bootstrap/Badge";
 import { ProgressCircle } from "components/common/ProgressCircle";
+import PopoverWithHoverWrapper from "components/common/PopoverWithHoverWrapper";
+import {
+    computeEtlPanelProgress,
+    getPopoverMessageForTaskHealth,
+    getTaskErrorCount,
+    getTaskHealthStatus,
+    healthStatusToBadge,
+} from "./etlPanelUtils";
 
-type RavenEtlPanelProps = BaseOngoingTaskPanelProps<OngoingTaskRavenEtlInfo>;
+type RavenEtlPanelProps = BaseOngoingTaskPanelProps<OngoingTaskRavenEtlInfo> & {
+    etlStats?: EtlTaskStats[];
+    etlErrors?: EtlErrors[];
+};
 
-function Details(props: RavenEtlPanelProps & { canEdit: boolean }) {
+interface EtlPanelProps extends RavenEtlPanelProps {
+    canEdit: boolean;
+}
+
+function Details(props: EtlPanelProps) {
     const { data, canEdit } = props;
     const connectionStringDefined = !!data.shared.destinationDatabase;
     const { appUrl } = useAppUrls();
@@ -74,11 +89,23 @@ function Details(props: RavenEtlPanelProps & { canEdit: boolean }) {
 }
 
 export function RavenEtlPanel(props: RavenEtlPanelProps & ICanShowTransformationScriptPreview) {
-    const { data, showItemPreview, toggleSelection, isSelected, onTaskOperation, isDeleting, isTogglingState } = props;
+    const {
+        data,
+        showItemPreview,
+        toggleSelection,
+        isSelected,
+        onTaskOperation,
+        isDeleting,
+        isTogglingState,
+        etlStats,
+        etlErrors,
+    } = props;
 
     const hasDatabaseAdminAccess = useAppSelector(accessManagerSelectors.getHasDatabaseAdminAccess)();
-    const { forCurrentDatabase } = useAppUrls();
+    const { forCurrentDatabase, appUrl } = useAppUrls();
+    const databaseName = useAppSelector(databaseSelectors.activeDatabaseName);
 
+    const goToTaskErrors = appUrl.forTasksErrors(databaseName, data.shared.taskName);
     const canEdit = hasDatabaseAdminAccess && !data.shared.serverWide;
     const editUrl = forCurrentDatabase.editRavenEtl(data.shared.taskId)();
 
@@ -91,7 +118,10 @@ export function RavenEtlPanel(props: RavenEtlPanelProps & ICanShowTransformation
         [data, showItemPreview]
     );
 
-    console.log("maxym data", data);
+    const taskHealth = getTaskHealthStatus(etlStats ?? [], data.shared.taskName);
+    const { bg, icon, label } = healthStatusToBadge(taskHealth);
+    const errorCount = getTaskErrorCount(etlErrors ?? [], data.shared.taskName);
+    const etlProgress = computeEtlPanelProgress(data);
 
     return (
         <RichPanel>
@@ -165,24 +195,35 @@ export function RavenEtlPanel(props: RavenEtlPanelProps & ICanShowTransformation
                     {data.shared.topologyDiscoveryUrls.join(", ")}
                 </RichPanelDetailItem>
                 <RichPanelDetailItem>
-                    <Icon icon="healthcheck" />
-                    <Badge bg="faded-danger" className="rounded-pill">
-                        <Icon icon="close" />
-                        {data.nodesInfo[0].status}
-                    </Badge>
+                    <PopoverWithHoverWrapper
+                        wrapperClassName="d-flex align-items-center"
+                        message={getPopoverMessageForTaskHealth(taskHealth)}
+                    >
+                        <Icon icon="healthcheck" />
+                        <Badge bg={bg} className="rounded-pill">
+                            <Icon icon={icon} />
+                            {label}
+                        </Badge>
+                    </PopoverWithHoverWrapper>
                 </RichPanelDetailItem>
 
+                {errorCount > 0 && (
+                    <RichPanelDetailItem>
+                        <a href={goToTaskErrors} className="d-flex gap-1 align-items-center">
+                            <Icon icon="warning" color="danger" margin="m-0" />
+                            <span className="text-danger">Errors</span>
+                            <b>{errorCount}</b>
+                        </a>
+                    </RichPanelDetailItem>
+                )}
                 <RichPanelDetailItem>
-                    <Icon icon="warning" color="danger" />
-                    <div className="d-flex gap-1">
-                        <span className="text-danger">Errors</span>
-                        <b>100</b>
-                    </div>
-                </RichPanelDetailItem>
-
-                <RichPanelDetailItem className="d-flex align-items-center justify-content-center">
-                    <ProgressCircle className="d-flex pb-0 flex-row-reverse gap-2" state="running" progress={0.75}>
-                        Running
+                    <ProgressCircle
+                        state={etlProgress.state}
+                        icon={etlProgress.icon}
+                        progress={etlProgress.progress}
+                        inline
+                    >
+                        {etlProgress.label}
                     </ProgressCircle>
                 </RichPanelDetailItem>
             </RichPanelDetails>

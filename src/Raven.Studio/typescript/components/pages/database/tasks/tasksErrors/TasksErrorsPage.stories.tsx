@@ -9,8 +9,8 @@ import { Meta, StoryObj } from "@storybook/react-webpack5";
 import TasksErrorsPage from "components/pages/database/tasks/tasksErrors/TasksErrorsPage";
 import { mockStore } from "test/mocks/store/MockStore";
 import { mockServices } from "test/mocks/services/MockServices";
-import { DatabasesStubs } from "test/stubs/DatabasesStubs";
 import assertUnreachable from "components/utils/assertUnreachable";
+import { TasksStubs } from "test/stubs/TasksStubs";
 
 export default {
     title: "Pages/Tasks/Tasks Errors",
@@ -32,7 +32,7 @@ export const Default: StoryObj<TasksErrorsPageArgs> = {
     name: "Tasks Errors",
     render: ({ hasErrors, databaseType }) => {
         const { databases } = mockStore;
-        const { databasesService } = mockServices;
+        const { tasksService } = mockServices;
 
         switch (databaseType) {
             case "sharded":
@@ -48,12 +48,12 @@ export const Default: StoryObj<TasksErrorsPageArgs> = {
                 assertUnreachable(databaseType);
         }
 
-        databasesService.withEtlErrors(hasErrors ? DatabasesStubs.etlErrors() : []);
-        databasesService.withEtlStats(hasErrors ? DatabasesStubs.etlStats() : []);
+        tasksService.withEtlErrors(hasErrors ? TasksStubs.etlErrors() : []);
+        tasksService.withEtlStats(hasErrors ? TasksStubs.etlStats() : []);
         return <TasksErrorsPage />;
     },
     argTypes: {
-        databaseType: databaseArgType
+        databaseType: databaseArgType,
     },
     args: {
         hasErrors: true,

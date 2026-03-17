@@ -13,7 +13,7 @@ export function ViewSheet(props: ComponentProps<"div"> & Required<PropsWithChild
     const { className, children, ...rest } = props;
 
     return (
-        <div {...rest} className={classNames("vstack", className)}>
+        <div {...rest} className={classNames("vstack h-100", className)}>
             {children}
         </div>
     );

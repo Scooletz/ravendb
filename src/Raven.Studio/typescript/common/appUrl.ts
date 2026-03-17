@@ -453,8 +453,10 @@ class appUrl {
         return "#databases/settings/revisionsBinCleaner?" + appUrl.getEncodedDbPart(db);
     }
     
-    static forTasksErrors(db: database | string): string {
-        return "#databases/tasks/tasksErrors?" + appUrl.getEncodedDbPart(db);
+    static forTasksErrors(db: database | string, taskName?: string): string {
+        const databasePart = appUrl.getEncodedDbPart(db);
+        const taskNamePart = taskName ? "&taskName=" + encodeURIComponent(taskName) : "";
+        return "#databases/tasks/tasksErrors?" + databasePart + taskNamePart;
     }
 
     static forRemoteAttachments(db: database): string {

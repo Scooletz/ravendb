@@ -15,7 +15,7 @@ class deleteEtlErrorsCommand extends commandBase {
     execute(): JQueryPromise<void> {
         const url = endpoints.databases.etl.etlErrors + this.urlEncodeArgs(this.deleteEtlDto);
         
-        return this.del<void>(url, null, this.db)
+        return this.del<void>(url, null, this.db, { dataType: "text" })
             .done(() => this.reportSuccess("ETL errors were deleted."))
             .fail((response: JQueryXHR) => this.reportError("Failed to delete ETL errors.", response.responseText, response.statusText));
     }

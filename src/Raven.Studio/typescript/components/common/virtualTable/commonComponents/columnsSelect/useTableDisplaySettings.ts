@@ -45,8 +45,7 @@ export function useTableDisplaySettings<T>(table: TanstackTable<T>) {
         return pinning?.left ?? [];
     };
 
-    const getInitialSelectedIds = (): string[] =>
-        allColumns.filter((column) => column.getIsVisible()).map((x) => x.id);
+    const getInitialSelectedIds = (): string[] => allColumns.filter((column) => column.getIsVisible()).map((x) => x.id);
 
     const applySettings = (selectedIds: string[], columnOrder: string[], pinnedIds: string[]) => {
         allColumns.forEach((column) => {
