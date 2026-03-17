@@ -386,7 +386,7 @@ public unsafe class EtlErrorsStorage
             if (table == null)
                 return null;
 
-            var tvh = table.SeekOneForwardFromPrefix(Schemas.EtlProcessErrors.Current.Indexes[Schemas.EtlProcessErrors.ByCreatedAt], Slices.BeforeAllKeys);
+            var tvh = table.SeekOneBackwardFrom(Schemas.EtlProcessErrors.Current.Indexes[Schemas.EtlProcessErrors.ByCreatedAt], Slices.Empty, Slices.AfterAllKeys);
             
             if (tvh == null)
                 return null;
