@@ -84,11 +84,11 @@ namespace Raven.Server.Documents.ETL
 
         internal void OnBatchCompletion()
         {
-            UpdateHealthStatusOnBatchCompletion();
-            _itemErrors.Clear();
-            
             AverageErrorsRatio.UpdateOnBatchCompletion(BatchErrors, BatchErrors + LoadSuccessesInCurrentBatch);
+            UpdateHealthStatusOnBatchCompletion();
+            
             ResetBatchStatistics();
+            _itemErrors.Clear();
             
             return;
             
@@ -264,7 +264,6 @@ namespace Raven.Server.Documents.ETL
             public void Dispose()
             {
                 _parent.CreateAlertIfAnySlowSqls();
-                _parent.OnBatchCompletion();
             }
         }
 

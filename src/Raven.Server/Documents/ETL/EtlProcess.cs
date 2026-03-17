@@ -520,6 +520,14 @@ namespace Raven.Server.Documents.ETL
         {
             var now = Database.Time.GetUtcNow();
             
+            if (Database.ForTestingPurposes?.EtlFallbackTime.HasValue == true)
+            {
+                FallbackTime = Database.ForTestingPurposes.EtlFallbackTime.Value;
+                Statistics.NextBatchRetryTime = now + FallbackTime;
+                
+                return;
+            }
+            
             if (lastErrorTime == null)
                 FallbackTime = TimeSpan.FromSeconds(5);
             else

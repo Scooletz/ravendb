@@ -471,6 +471,9 @@ public class RavenDB_21192 : RavenTestBase
         using (var src = GetDocumentStore())
         using (var dest = GetDocumentStore())
         {
+            var database = await GetDocumentDatabaseInstanceFor(src);
+            database.ForTestingPurposesOnly().EtlFallbackTime = TimeSpan.MaxValue;
+            
             const string connectionStringName1 = "ConnectionString1";
             const string etlName1 = "ETL1";
             const string transformationName1 = "Transformation1";
@@ -549,9 +552,9 @@ public class RavenDB_21192 : RavenTestBase
             etlStats = GetEtlStats(src, $"{etlName1}/{transformationName1}");
             
             Assert.Equal(950, etlStats.LoadSuccesses);
-            Assert.Equal(1020, etlStats.TransformationErrors);
+            Assert.Equal(2021, etlStats.TransformationErrors);
 
-            Assert.Equal(EtlProcessHealthStatus.Healthy, etlStats.HealthStatus);
+            Assert.Equal(EtlProcessHealthStatus.Impaired, etlStats.HealthStatus);
         }
     }
 

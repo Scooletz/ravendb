@@ -2278,6 +2278,8 @@ namespace Raven.Server.Documents
             internal AsyncManualResetEvent DelayQueryByPatch;
 
             internal bool EnableWritesToTheWrongShard = false;
+            
+            internal TimeSpan? EtlFallbackTime;
 
             internal IDisposable CallDuringDocumentDatabaseInternalDispose(Action action)
             {
