@@ -800,7 +800,7 @@ namespace Orders
             ModifiedDocument: null,
             OriginalDocument: null,
             Status: null,
-            TransformationErrors: [],
+            ItemTransformationErrors: [],
             DebugOutput: [],
             InputDocument: {
                 Name: "My first post",
@@ -891,7 +891,7 @@ namespace Orders
             ModifiedDocument: null,
             OriginalDocument: null,
             Status: null,
-            TransformationErrors: [],
+            ItemTransformationErrors: [],
             DebugOutput: [],
             InputDocument: {
                 Name: "My first post",
@@ -1156,7 +1156,7 @@ namespace Orders
             ModifiedDocument: null,
             OriginalDocument: null,
             Status: null,
-            TransformationErrors: [],
+            ItemTransformationErrors: [],
             DebugOutput: [],
             InputDocument: {
                 Name: "My first post",

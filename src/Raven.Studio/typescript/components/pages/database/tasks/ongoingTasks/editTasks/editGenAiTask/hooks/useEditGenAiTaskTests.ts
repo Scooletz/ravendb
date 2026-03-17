@@ -33,10 +33,10 @@ export function useEditGenAiTaskTests() {
 
         const result = await dispatch(editGenAiTaskActions.testContext({ databaseName, dto })).unwrap();
 
-        if (result.TransformationErrors?.length > 0) {
+        if (result.ItemTransformationErrors?.length > 0) {
             messagePublisher.reportError(
                 "Failed to create context objects",
-                result.TransformationErrors.map((x) => x.Error).join("\n")
+                result.ItemTransformationErrors.map((x) => x.Error).join("\n")
             );
             return;
         }

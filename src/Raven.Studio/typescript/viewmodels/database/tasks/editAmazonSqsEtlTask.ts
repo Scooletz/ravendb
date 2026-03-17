@@ -51,7 +51,7 @@ class amazonSqsTaskTestMode {
     debugOutput = ko.observableArray<string>([]);
 
     // all kinds of alerts:
-    transformationErrors = ko.observableArray<Raven.Server.NotificationCenter.Notifications.Details.EtlErrorInfo>([]);
+    transformationErrors = ko.observableArray<Raven.Server.Documents.ETL.EtlItemError>([]);
 
     warningsCount = ko.pureComputed(() => {
         return this.transformationErrors().length;
@@ -142,7 +142,7 @@ class amazonSqsTaskTestMode {
                 .done(simulationResult => {
                     this.testResults(simulationResult.Summary);
                     this.debugOutput(simulationResult.DebugOutput);
-                    this.transformationErrors(simulationResult.TransformationErrors);
+                    this.transformationErrors(simulationResult.ItemTransformationErrors);
 
                     if (this.warningsCount()) {
                         $('.test-container a[href="#warnings"]').tab('show');

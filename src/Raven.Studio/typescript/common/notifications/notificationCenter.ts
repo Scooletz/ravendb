@@ -45,7 +45,6 @@ import slowIoDetails = require("viewmodels/common/notificationCenter/detailViewe
 import pagingDetails = require("viewmodels/common/notificationCenter/detailViewer/performanceHint/pagingDetails");
 import hugeDocumentsDetails = require("viewmodels/common/notificationCenter/detailViewer/performanceHint/hugeDocumentsDetails");
 import newVersionAvailableDetails = require("viewmodels/common/notificationCenter/detailViewer/alerts/newVersionAvailableDetails");
-import etlTransformOrLoadErrorDetails = require("viewmodels/common/notificationCenter/detailViewer/alerts/etlTransformOrLoadErrorDetails");
 import remoteAttachmentErrorDetails = require("viewmodels/common/notificationCenter/detailViewer/alerts/remoteAttachmentErrorDetails");
 import genericAlertDetails = require("viewmodels/common/notificationCenter/detailViewer/alerts/genericAlertDetails");
 import recentErrorDetails = require("viewmodels/common/notificationCenter/detailViewer/recentErrorDetails");
@@ -192,7 +191,6 @@ class notificationCenter {
             
             // alerts:
             newVersionAvailableDetails,
-            etlTransformOrLoadErrorDetails,
             mismatchedReferenceLoadDetails,
             blockingTombstonesDetails,
             queueSinkErrorDetails,

@@ -116,7 +116,7 @@ class olapTaskTestMode {
 
     testResults = ko.observableArray<partitionTable>([]);
     debugOutput = ko.observableArray<string>([]);
-    transformationErrors = ko.observableArray<Raven.Server.NotificationCenter.Notifications.Details.EtlErrorInfo>([]);
+    transformationErrors = ko.observableArray<Raven.Server.Documents.ETL.EtlItemError>([]);
 
     warningsCount = ko.pureComputed(() => this.transformationErrors().length);
 
@@ -208,7 +208,7 @@ class olapTaskTestMode {
                         this.testResults(testResult.ItemsByPartition.map(x => new partitionTable(x)));
                     }, 300);
                     this.debugOutput(testResult.DebugOutput);
-                    this.transformationErrors(testResult.TransformationErrors);
+                    this.transformationErrors(testResult.ItemTransformationErrors);
 
                     if (this.warningsCount()) {
                         $('.test-container a[href="#warnings"]').tab('show');

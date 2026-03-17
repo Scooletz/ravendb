@@ -698,36 +698,11 @@ interface adminLogsConfiguration extends Raven.Client.ServerWide.Operations.Logs
     CurrentMode: Sparrow.Logging.LogMode;
 }
 
-interface testEtlScriptResult {
-    DebugOutput: Array<string>;
-    TransformationErrors: Array<Raven.Server.NotificationCenter.Notifications.Details.EtlErrorInfo>;
-}
-
-declare module Raven.Server.Documents.ETL.Providers.RelationalDatabase.Common.Test {
-    interface RelationalDatabaseEtlTestScriptResult extends testEtlScriptResult {
-    }
-}
-
 interface RavenEtlTestScriptResult extends Raven.Server.Documents.ETL.Test.TestEtlScriptResult {
     Commands: Array<Raven.Client.Documents.Commands.Batches.ICommandData>;
 }
 
 interface TestRavenEtlScript extends Raven.Server.Documents.ETL.Test.TestEtlScript<Raven.Client.Documents.Operations.ETL.RavenEtlConfiguration, Raven.Client.Documents.Operations.ETL.RavenConnectionString> {
-}
-
-declare module Raven.Server.Documents.ETL.Providers.OLAP.Test {
-    interface OlapEtlTestScriptResult extends testEtlScriptResult {
-    }
-}
-
-declare module Raven.Server.Documents.ETL.Providers.ElasticSearch.Test {
-    interface ElasticSearchEtlTestScriptResult extends testEtlScriptResult {
-    }
-}
-
-declare module Raven.Server.Documents.ETL.Providers.Queue.Test {
-    interface QueueEtlTestScriptResult extends testEtlScriptResult {
-    }
 }
 
 type backupOptions = "None" | "Local" | "Azure" | "AmazonGlacier" | "AmazonS3" | "FTP" | "GoogleCloud";
