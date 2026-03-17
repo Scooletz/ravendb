@@ -87,6 +87,10 @@ namespace Raven.Client.Documents.Operations.AI.Agents
             return Options.AllowModelQueries.Value;
         }
 
+
+        /// <summary>
+        /// Serializes this query tool to a JSON structure.
+        /// </summary>
         public DynamicJsonValue ToJson()
         {
             var djv = new DynamicJsonValue

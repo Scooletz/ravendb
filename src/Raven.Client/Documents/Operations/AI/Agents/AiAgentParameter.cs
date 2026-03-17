@@ -4,6 +4,9 @@ using Sparrow.Json.Parsing;
 
 namespace Raven.Client.Documents.Operations.AI.Agents;
 
+/// <summary>
+/// Represents a required input parameter used by an AI agent's tools (queries/actions).
+/// </summary>
 public class AiAgentParameter : IDynamicJson
 {
     public AiAgentParameter()
@@ -103,9 +106,8 @@ public class AiAgentParameter : IDynamicJson
     /// Defines whether the parameter is included in the data sent to the model
     /// </summary>
     public bool? SendToModel { get; set; }
-
     /// <summary>
-    /// The parameter name.
+    /// The parameter name as referenced by tools and scripts.
     /// </summary>
     public string Name { get; set; }
 

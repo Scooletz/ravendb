@@ -14,7 +14,6 @@ using Raven.Client.Documents.Operations.ConnectionStrings;
 using Raven.Client.Json;
 using Tests.Infrastructure;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace SlowTests.Server.Documents.AI.GenAi.Issues
 {
@@ -48,10 +47,9 @@ ai.genContext({}).withPdf(pdf);
 
         [RavenTheory(RavenTestCategory.Ai)]
         [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi | RavenAiIntegration.Google, DatabaseMode = RavenDatabaseMode.Single,
-            Data = new object[] { true })]
+            Data = [true])]
         [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi | RavenAiIntegration.Google, DatabaseMode = RavenDatabaseMode.Single,
-            Data = new object[] { false })]
-
+            Data = [false])]
         public async Task SelectivePdfDescriptionTransformWhenSomeAttachmentsAreMissing(Options options, GenAiConfiguration config, bool withNullAttachments)
         {
             using var store = GetDocumentStore(options);
