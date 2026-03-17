@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Linq;
 using System.Threading.Tasks;
 using FastTests;
 using FastTests.Utils;
@@ -43,13 +42,7 @@ namespace SlowTests.Issues
                     await session.SaveChangesAsync();
                 }
 
-                if (await loadDone1.WaitAsync(TimeSpan.FromSeconds(30)) == false)
-                {
-                    var loadErrors = await Etl.GetItemLoadErrorsAsync(src.Database, configuration);
-                    var transformationErrors = await Etl.GetItemTransformationErrorsAsync(src.Database, configuration);
-
-                    Assert.Fail($"ETL wasn't done. Load errors: {loadErrors.First().Error}. Transformation error: {transformationErrors.First().Error}");
-                }
+                await Etl.AssertEtlDoneAsync(loadDone1, TimeSpan.FromSeconds(30), src.Database, configuration);
 
                 using (var session = dst.OpenAsyncSession())
                 {
@@ -64,13 +57,7 @@ namespace SlowTests.Issues
                     await session.SaveChangesAsync();
                 }
 
-                if (await loadDone2.WaitAsync(TimeSpan.FromSeconds(30)) == false)
-                {
-                    var loadErrors = await Etl.GetItemLoadErrorsAsync(src.Database, configuration);
-                    var transformationErrors = await Etl.GetItemTransformationErrorsAsync(src.Database, configuration);
-
-                    Assert.Fail($"ETL wasn't done. Load errors: {loadErrors.First().Error}. Transformation error: {transformationErrors.First().Error}");
-                }
+                await Etl.AssertEtlDoneAsync(loadDone2, TimeSpan.FromSeconds(30), src.Database, configuration);
 
                 using (var session = dst.OpenAsyncSession())
                 {
@@ -85,7 +72,7 @@ namespace SlowTests.Issues
                     await session.SaveChangesAsync();
                 }
 
-                Assert.True(await deleteDone.WaitAsync(TimeSpan.FromSeconds(30)));
+                await Etl.AssertEtlDoneAsync(deleteDone, TimeSpan.FromSeconds(30), src.Database, configuration);
 
                 using (var session = dst.OpenAsyncSession())
                 {

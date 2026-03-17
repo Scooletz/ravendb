@@ -145,7 +145,9 @@ public class AmazonSqsEtlTests : AmazonSqsEtlTestBase
                 session.SaveChanges();
             }
 
-            var errors = await AssertWaitForNotNullAsync(() => Etl.GetItemLoadErrorsAsync(store.Database, config), timeout: (int)TimeSpan.FromMinutes(1).TotalMilliseconds);
+            await AssertWaitForTrueAsync(async () => (await Etl.GetItemLoadErrorsAsync(store.Database, config)).Any(), timeout: (int)TimeSpan.FromMinutes(1).TotalMilliseconds);
+
+            var errors = (await Etl.GetItemLoadErrorsAsync(store.Database, config)).ToList();
 
             Assert.Contains(
                 "MessageTooLong",
@@ -177,9 +179,10 @@ public class AmazonSqsEtlTests : AmazonSqsEtlTestBase
                 session.SaveChanges();
             }
 
-            var errors = await AssertWaitForNotNullAsync(() => Etl.GetItemLoadErrorsAsync(store.Database, config), timeout: (int)TimeSpan.FromMinutes(1).TotalMilliseconds);
+            await AssertWaitForTrueAsync(async () => (await Etl.GetItemLoadErrorsAsync(store.Database, config)).Any(), timeout: (int)TimeSpan.FromMinutes(1).TotalMilliseconds);
 
-            Assert.NotEmpty(errors);
+            var errors = (await Etl.GetItemLoadErrorsAsync(store.Database, config)).ToList();
+
             Assert.Contains(
                 "QueueDoesNotExist",
                 errors.First().Error);

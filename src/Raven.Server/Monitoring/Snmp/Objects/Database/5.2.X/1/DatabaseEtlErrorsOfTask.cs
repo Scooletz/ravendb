@@ -7,7 +7,7 @@ using Raven.Server.Documents;
 namespace Raven.Server.Monitoring.Snmp.Objects.Database;
 
 
-public sealed class DatabaseEtlErrorsOfTask : DatabaseEtlScalarObjectBase<OctetString>
+public sealed class DatabaseEtlErrorsOfTask : DatabaseEtlScalarObjectBase<Integer32>
 {
     public DatabaseEtlErrorsOfTask(string databaseName, string etlName, DatabasesLandlord landlord, int databaseIndex, int etlIndex)
         : base(databaseName, etlName, landlord, databaseIndex, etlIndex, SnmpOids.Databases.Etls.EtlErrorsOfTask)
@@ -32,7 +32,7 @@ public sealed class DatabaseEtlErrorsOfTask : DatabaseEtlScalarObjectBase<OctetS
         }
     }
 
-    protected override OctetString GetData(DocumentDatabase database)
+    protected override Integer32 GetData(DocumentDatabase database)
     {
         throw new NotSupportedException();
     }

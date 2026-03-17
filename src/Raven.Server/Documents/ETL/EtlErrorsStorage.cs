@@ -362,7 +362,7 @@ public unsafe class EtlErrorsStorage
     {
         var tableName = GetItemErrorsTableName(etlProcessName);
         
-        var table = context.Transaction.InnerTransaction.OpenTable(Schemas.EtlProcessErrors.Current, tableName);
+        var table = context.Transaction.InnerTransaction.OpenTable(Schemas.EtlItemErrors.Current, tableName);
         if (table == null)
             yield break;
 
@@ -427,7 +427,6 @@ public unsafe class EtlErrorsStorage
                 using (Slice.From(context.Transaction.InnerTransaction.Allocator, error.Id, out Slice errorId))
                 {
                     table.DeleteByKey(errorId);
-                    context.Transaction.Commit();
                     return;
                 }
             }
@@ -440,7 +439,7 @@ public unsafe class EtlErrorsStorage
             return;
 
         var numberOfEntriesToDelete = table.NumberOfEntries - ErrorsLimitPerEtl;
-        table.DeleteForwardFrom(Schemas.EtlItemErrors.Current.Indexes[Schemas.EtlItemErrors.ByEtlProcessName], Slices.BeforeAllKeys, false, numberOfEntriesToDelete);
+        table.DeleteForwardFrom(Schemas.EtlItemErrors.Current.Indexes[Schemas.EtlItemErrors.ByCreatedAt], Slices.BeforeAllKeys, false, numberOfEntriesToDelete);
     }
     
     private static string GetProcessErrorsTableName(string etlProcessName)

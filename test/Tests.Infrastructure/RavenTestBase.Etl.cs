@@ -302,12 +302,21 @@ namespace FastTests
             {
                 if (await etlDone.WaitAsync(timeout) == false)
                 {
-                    var loadErrors = await GetItemLoadErrorsAsync(databaseName, config);
-                    var transformationErrors = await GetItemTransformationErrorsAsync(databaseName, config);
+                    var loadErrors = (await GetItemLoadErrorsAsync(databaseName, config)).ToList();
+                    var transformationErrors = (await GetItemTransformationErrorsAsync(databaseName, config)).ToList();
 
-                    Assert.Fail($"ETL wasn't done. Load errors: {loadErrors.First().Error}. Transformation error: {transformationErrors.First().Error}");
+                    var errorMessage = new StringBuilder("ETL wasn't done.");
+
+                    if (loadErrors.Count != 0)
+                        errorMessage.Append($"First load error: {loadErrors.First().Error}");
+                    
+                    if (transformationErrors.Count != 0)
+                        errorMessage.Append($"First transformation error: {transformationErrors.First().Error}");
+                    
+                    Assert.Fail(errorMessage.ToString());
                 }
             }
+            
             public void Dispose()
             {
                 try

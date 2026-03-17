@@ -329,9 +329,9 @@ namespace Raven.Server.Documents
         public CatastrophicFailureNotification CatastrophicFailureNotification { get; }
 
         public DatabaseNotificationCenter NotificationCenter { get; private set; }
-		
+
         public EtlErrorsStorage EtlErrorsStorage { get; private set; }
-		
+
         public DatabaseOperations Operations { get; private set; }
 
         public HugeDocuments HugeDocuments { get; }

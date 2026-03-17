@@ -81,8 +81,8 @@ public class AzureQueueStorageEtlTests : AzureQueueStorageEtlTestBase
                 session.SaveChanges();
             }
 
-            var itemLoadErrors = await AssertWaitForNotNullAsync(() => Etl.GetItemLoadErrorsAsync(store.Database, config), timeout: (int)TimeSpan.FromMinutes(1).TotalMilliseconds);
-            var itemLoadErrorsList = itemLoadErrors.ToList();
+            await AssertWaitForTrueAsync(async () => (await Etl.GetItemLoadErrorsAsync(store.Database, config)).Any(), timeout: (int)TimeSpan.FromMinutes(1).TotalMilliseconds);
+            var itemLoadErrorsList = (await Etl.GetItemLoadErrorsAsync(store.Database, config)).ToList();
             
             Assert.Single(itemLoadErrorsList);
             Assert.Contains(

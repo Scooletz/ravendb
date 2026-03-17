@@ -43,13 +43,10 @@ loadTo" + OrdersIndexName + @"(orderData);",
                     await session.SaveChangesAsync();
                 }
 
-                var alert = await AssertWaitForNotNullAsync(async () =>
-                {
-                    var error = await Etl.GetItemLoadErrorsAsync(store.Database, config);
-                    return error;
-                }, timeout: (int)TimeSpan.FromMinutes(1).TotalMilliseconds);
+                await AssertWaitForTrueAsync(async () => (await Etl.GetItemLoadErrorsAsync(store.Database, config)).Any(), timeout: (int)TimeSpan.FromMinutes(1).TotalMilliseconds);
 
-                Assert.Contains($"The index '{OrdersIndexName}' has invalid mapping for 'Id' property.", alert.First().Error);
+                var errors = (await Etl.GetItemLoadErrorsAsync(store.Database, config)).ToList();
+                Assert.Contains($"The index '{OrdersIndexName}' has invalid mapping for 'Id' property.", errors.First().Error);
             }
         }
     }
