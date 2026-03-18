@@ -177,6 +177,7 @@ namespace Raven.Server.Documents.ETL
         public void RecordProcessLoadError(int count)
         {
             WasLatestLoadSuccessful = false;
+            LoadErrors += count;
             BatchErrors += count;
             LastLoadErrorTime = SystemTime.UtcNow;
         }
