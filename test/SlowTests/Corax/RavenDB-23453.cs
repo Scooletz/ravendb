@@ -17,7 +17,6 @@ using Tests.Infrastructure;
 using Voron;
 using Voron.Data.Graphs;
 using Xunit;
-using Xunit.Abstractions;
 using VectorOptions = Raven.Client.Documents.Indexes.Vector.VectorOptions;
 
 namespace SlowTests.Corax;
@@ -272,6 +271,7 @@ public class RavenDB_23453(ITestOutputHelper output) : StorageTest(output)
     [InlineDataWithRandomSeed(true, false)]
     [InlineDataWithRandomSeed(false, true)]
     [InlineDataWithRandomSeed(true, true)]
+    [InlineData(true, true, 1045861081)]
     [InlineDataWithRandomSeed(false, false, Skip = "Too small set")]
     public void FilterQueryAndWithMethodMultiVectorSearch(bool shouldScan, bool isExact, int seed)
     {

@@ -6,9 +6,19 @@ using Sparrow.Json.Parsing;
 
 namespace Raven.Client.Documents.AI;
 
+/// <summary>
+/// Options used when creating or continuing an AI conversation.
+/// Allows passing required parameters for the agent tools and controlling
+/// conversation expiration.
+/// </summary>
 public class AiConversationCreationOptions : IDynamicJson
 {
     public Dictionary<string, AiConversationParameter> Parameters { get; set; }
+
+    /// <summary>
+    /// Optional conversation expiration in seconds.
+    /// When specified, the server may expire the conversation document after this interval.
+    /// </summary>
     public int? ExpirationInSec { get; set; }
     public int? MaxModelIterationsPerCall { get; set; }
 
@@ -16,6 +26,12 @@ public class AiConversationCreationOptions : IDynamicJson
     {
     }
 
+    /// <summary>
+    /// Adds a named parameter and value to the <see cref="Parameters"/> dictionary.
+    /// </summary>
+    /// <param name="name">The parameter name.</param>
+    /// <param name="value">The parameter value.</param>
+    /// <returns>This instance for fluent configuration.</returns>
     public AiConversationCreationOptions AddParameter(string name, object value, AiConversationParameterOptions options = null)
     {
         if (value is not string && value is IEnumerable ie)
@@ -35,11 +51,15 @@ public class AiConversationCreationOptions : IDynamicJson
         Parameters = parameters.ToDictionary(kv => kv.Key, kv => new AiConversationParameter { Value = kv.Value, SendToModel = true});
     }
 
+    /// <summary>
+    /// Serializes the options to a JSON structure.
+    /// </summary>
     public DynamicJsonValue ToJson()
     {
         return new DynamicJsonValue
         {
             [nameof(ExpirationInSec)] = ExpirationInSec,
+            [nameof(MaxModelIterationsPerCall)] = MaxModelIterationsPerCall,
             [nameof(Parameters)] = Parameters != null ? DynamicJsonValue.Convert(Parameters) : null,
         };
     }

@@ -8,7 +8,6 @@ using Raven.Client.Documents.Operations.ConnectionStrings;
 using Raven.Client.Exceptions;
 using Tests.Infrastructure;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace SlowTests.Server.Documents.AI.AiAgent;
 
@@ -18,7 +17,7 @@ public class AiAgentClientApiHandleActionCalls : RavenTestBase
     {
     }
 
-    private const string ProductSearch = nameof(ProductSearch);
+    internal const string ProductSearch = nameof(ProductSearch);
     internal const string RecentOrder = nameof(RecentOrder);
     private class Sample
     {
