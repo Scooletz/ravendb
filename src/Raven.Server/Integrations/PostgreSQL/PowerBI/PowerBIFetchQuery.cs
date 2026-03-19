@@ -22,8 +22,8 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             if (TryParseWrappedRqlFetchViaAst(queryText, parametersDataTypes, documentDatabase, out pgQuery))
                 return true;
 
-            // AST-first parsing for known PowerBI shapes; fall back to legacy regex parsing for everything else.
-            return PowerBIFetchLegacyParser.TryParseLegacy(queryText, parametersDataTypes, documentDatabase, out pgQuery);
+            pgQuery = null;
+            return false;
         }
 
         private static bool TryParseWrappedRqlFetchViaAst(string queryText, int[] parametersDataTypes, DocumentDatabase documentDatabase, out PgQuery pgQuery)
