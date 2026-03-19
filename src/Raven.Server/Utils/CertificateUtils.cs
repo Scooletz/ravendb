@@ -527,7 +527,7 @@ namespace Raven.Server.Utils
             // Return a new X509Certificate2 object from the generated PFX byte array.
             var flags = X509KeyStorageFlags.PersistKeySet;
 #pragma warning disable SYSLIB0057
-            return new X509Certificate2(clientCertBytes, string.Empty, flags);
+            return new X509Certificate2(clientCertBytes, (string)null, flags);
 #pragma warning restore SYSLIB0057
         }
 
