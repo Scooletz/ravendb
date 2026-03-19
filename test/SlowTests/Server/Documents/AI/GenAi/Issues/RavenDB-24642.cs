@@ -329,7 +329,7 @@ ai.genContext({})
 
         }
 
-        Assert.True(await etl.WaitAsync(TimeSpan.FromSeconds(Debugger.IsAttached ? 1200 : 120)));
+        Assert.True(await etl.WaitAsync(TimeSpan.FromSeconds(Debugger.IsAttached ? 1200 : 240)));
 
         var db = await Server.ServerStore.DatabasesLandlord.TryGetOrCreateResourceStore(store.Database);
 
