@@ -1,6 +1,7 @@
 import commandBase = require("commands/commandBase");
 import endpoints = require("endpoints");
 import database = require("models/resources/database");
+import EtlErrors = Raven.Server.Documents.ETL.Stats.EtlErrors;
 
 interface EtlErrorsArgs extends databaseLocationSpecifier {
     name?: string[];

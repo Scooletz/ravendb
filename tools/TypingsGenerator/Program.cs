@@ -77,6 +77,7 @@ using Raven.Server.Documents.ETL.Providers.Queue.Test;
 using Raven.Server.Documents.ETL.Providers.RelationalDatabase.Common;
 using Raven.Server.Documents.ETL.Providers.RelationalDatabase.Common.Test;
 using Raven.Server.Documents.ETL.Stats;
+using Raven.Server.Documents.ETL.Test;
 using Raven.Server.Documents.Handlers;
 using Raven.Server.Documents.Handlers.Admin;
 using Raven.Server.Documents.Handlers.AI.Agents;
@@ -618,6 +619,11 @@ namespace TypingsGenerator
             scripter.AddType(typeof(AiAgentProcessorForTestConversation.AiAgentTestResult));
             scripter.AddType(typeof(AiAgentActionRequest));
             scripter.AddType(typeof(ConversionRequestBody));
+
+            // etl errors
+            scripter.AddType(typeof(EtlErrors));
+            scripter.AddType(typeof(EtlTaskStats));
+            scripter.AddType(typeof(EtlProcessTransformationStats));
 
             // connection strings
             scripter.AddType(typeof(ConnectionString));

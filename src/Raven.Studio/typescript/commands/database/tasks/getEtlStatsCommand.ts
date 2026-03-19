@@ -1,6 +1,7 @@
 import commandBase = require("commands/commandBase");
 import database = require("models/resources/database");
 import endpoints = require("endpoints");
+import EtlTaskStats = Raven.Server.Documents.ETL.Stats.EtlTaskStats;
 
 
 interface EtlStatsArgs extends databaseLocationSpecifier {

@@ -18,7 +18,6 @@ import {
     RichPanelInfo,
     RichPanelSelect,
 } from "components/common/RichPanel";
-import Collapse from "react-bootstrap/Collapse";
 import Form from "react-bootstrap/Form";
 import { databaseSelectors } from "components/common/shell/databaseSliceSelectors";
 import { useAppSelector } from "components/store";
@@ -27,9 +26,16 @@ import { Icon } from "components/common/Icon";
 
 type RabbitMqSinkPanelProps = BaseOngoingTaskPanelProps<OngoingTaskRabbitMqSinkInfo>;
 
-function Details(props: RabbitMqSinkPanelProps & { canEdit: boolean }) {
-    const { data, canEdit } = props;
-    const { appUrl } = useAppUrls();
+export function RabbitMqSinkPanel(props: RabbitMqSinkPanelProps) {
+    const { data, toggleSelection, isSelected, onTaskOperation, isDeleting, isTogglingState } = props;
+
+    const hasDatabaseAdminAccess = useAppSelector(accessManagerSelectors.getHasDatabaseAdminAccess)();
+    const { forCurrentDatabase, appUrl } = useAppUrls();
+
+    const canEdit = hasDatabaseAdminAccess && !data.shared.serverWide;
+    const editUrl = forCurrentDatabase.editRabbitMqSink(data.shared.taskId)();
+
+    const { detailsVisible, toggleDetails, onEdit } = useTasksOperations(editUrl, props);
 
     const databaseName = useAppSelector(databaseSelectors.activeDatabaseName);
     const connectionStringsUrl = appUrl.forConnectionStrings(
@@ -37,28 +43,6 @@ function Details(props: RabbitMqSinkPanelProps & { canEdit: boolean }) {
         "RabbitMQ",
         data.shared.connectionStringName
     );
-    return (
-        <RichPanelDetails>
-            <ConnectionStringItem
-                connectionStringDefined
-                canEdit={canEdit}
-                connectionStringName={data.shared.connectionStringName}
-                connectionStringsUrl={connectionStringsUrl}
-            />
-        </RichPanelDetails>
-    );
-}
-
-export function RabbitMqSinkPanel(props: RabbitMqSinkPanelProps) {
-    const { data, toggleSelection, isSelected, onTaskOperation, isDeleting, isTogglingState } = props;
-
-    const hasDatabaseAdminAccess = useAppSelector(accessManagerSelectors.getHasDatabaseAdminAccess)();
-    const { forCurrentDatabase } = useAppUrls();
-
-    const canEdit = hasDatabaseAdminAccess && !data.shared.serverWide;
-    const editUrl = forCurrentDatabase.editRabbitMqSink(data.shared.taskId)();
-
-    const { detailsVisible, toggleDetails, onEdit } = useTasksOperations(editUrl, props);
 
     return (
         <RichPanel>
@@ -98,11 +82,14 @@ export function RabbitMqSinkPanel(props: RabbitMqSinkPanelProps) {
                     />
                 </RichPanelActions>
             </RichPanelHeader>
-            <Collapse in={detailsVisible}>
-                <div>
-                    <Details {...props} canEdit={canEdit} />
-                </div>
-            </Collapse>
+            <RichPanelDetails>
+                <ConnectionStringItem
+                    connectionStringDefined
+                    canEdit={canEdit}
+                    connectionStringName={data.shared.connectionStringName}
+                    connectionStringsUrl={connectionStringsUrl}
+                />
+            </RichPanelDetails>
         </RichPanel>
     );
 }

@@ -153,7 +153,7 @@ class sqlTaskTestMode {
             
             new testSqlReplicationCommand(this.db, dto)
                 .execute()
-                .done((testResult: Raven.Server.Documents.ETL.Providers.RelationalDatabase.Common.Test.RelationalDatabaseEtlTestScriptResult) => {
+                .done((testResult) => {
                     this.testResults(testResult.Summary.flatMap(x => x.Commands));
                     this.debugOutput(testResult.DebugOutput);
                     this.loadErrors(testResult.ItemLoadErrors);
@@ -339,7 +339,7 @@ class editSqlEtlTask extends shardViewModelBase {
             }
 
             return null;
-        }); 
+        });
 
         this.collectionNames = ko.pureComputed(() => {
            return collectionsTracker.default.getCollectionNames(); 

@@ -1,7 +1,9 @@
+import moment = require("moment");
+import collectionsStats = require("models/database/documents/collectionsStats");
+import collection = require("models/database/documents/collection");
 import OngoingTasksResult = Raven.Server.Web.System.OngoingTasksResult;
 import EtlTaskProgress = Raven.Server.Documents.ETL.Stats.EtlTaskProgress;
 import EtlType = Raven.Client.Documents.Operations.ETL.EtlType;
-import moment = require("moment");
 import OngoingTaskBackup = Raven.Client.Documents.Operations.OngoingTasks.OngoingTaskBackup;
 import OngoingTaskPullReplicationAsSink = Raven.Client.Documents.Operations.OngoingTasks.OngoingTaskPullReplicationAsSink;
 import OngoingTaskPullReplicationAsHub = Raven.Client.Documents.Operations.OngoingTasks.OngoingTaskPullReplicationAsHub;
@@ -15,8 +17,6 @@ import OngoingTaskSqlEtl = Raven.Client.Documents.Operations.OngoingTasks.Ongoin
 import OngoingTaskOlapEtl = Raven.Client.Documents.Operations.OngoingTasks.OngoingTaskOlapEtl;
 import OngoingTaskQueueEtl = Raven.Client.Documents.Operations.OngoingTasks.OngoingTaskQueueEtl;
 import OngoingTaskElasticSearchEtl = Raven.Client.Documents.Operations.OngoingTasks.OngoingTaskElasticSearchEtl;
-import collectionsStats = require("models/database/documents/collectionsStats");
-import collection = require("models/database/documents/collection");
 import OngoingTaskQueueSink = Raven.Client.Documents.Operations.OngoingTasks.OngoingTaskQueueSink;
 import ReplicationTaskProgress = Raven.Server.Documents.Replication.Stats.ReplicationTaskProgress;
 import InternalReplicationTaskProgress = Raven.Server.Documents.Replication.Stats.InternalReplicationTaskProgress;
@@ -24,6 +24,8 @@ import ReplicationProcessProgress = Raven.Server.Documents.Replication.Stats.Rep
 import OngoingTaskSnowflakeEtl = Raven.Client.Documents.Operations.OngoingTasks.OngoingTaskSnowflakeEtl;
 import EmbeddingsGeneration = Raven.Client.Documents.Operations.OngoingTasks.EmbeddingsGeneration;
 import GenAi = Raven.Client.Documents.Operations.OngoingTasks.GenAi;
+import EtlTaskStats = Raven.Server.Documents.ETL.Stats.EtlTaskStats;
+import EtlErrors = Raven.Server.Documents.ETL.Stats.EtlErrors;
 
 export class TasksStubs {
     static getTasksList(): OngoingTasksResult {
@@ -1316,9 +1318,15 @@ namespace Orders
                             NextBatchRetryTime: null,
                             LastSuccessfulBatchTime: null,
                             BatchStopReason: null,
+                            LastChangeVector: "",
+                            LastSlowSqlWarningsInCurrentBatch: undefined,
+                            LoadSuccessesInCurrentBatch: 0,
+                            WasLatestLoadSuccessful: false,
                         },
                     },
                 ],
+                EtlType: "Raven",
+                TaskId: 0,
             },
         ];
     }

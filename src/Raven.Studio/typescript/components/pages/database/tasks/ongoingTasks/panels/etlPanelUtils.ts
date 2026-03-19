@@ -1,7 +1,24 @@
-import { OngoingEtlTaskNodeInfo, OngoingTaskInfo, OngoingTaskSharedInfo } from "components/models/tasks";
+import { useCallback } from "react";
+import {
+    AnyEtlOngoingTaskInfo,
+    OngoingEtlTaskNodeInfo,
+    OngoingTaskInfo,
+    OngoingTaskSharedInfo,
+} from "components/models/tasks";
 import { databaseLocationComparator } from "components/utils/common";
 import IconName from "typings/server/icons";
 import assertUnreachable from "components/utils/assertUnreachable";
+import { useAppSelector } from "components/store";
+import { accessManagerSelectors } from "components/common/shell/accessManagerSliceSelectors";
+import { databaseSelectors } from "components/common/shell/databaseSliceSelectors";
+import { useAppUrls } from "hooks/useAppUrls";
+import {
+    BaseOngoingTaskPanelProps,
+    ICanShowTransformationScriptPreview,
+    useTasksOperations,
+} from "../../shared/shared";
+import EtlTaskStats = Raven.Server.Documents.ETL.Stats.EtlTaskStats;
+import EtlErrors = Raven.Server.Documents.ETL.Stats.EtlErrors;
 
 export type EtlHealthStatus = Raven.Server.Documents.ETL.EtlProcessHealthStatus;
 
@@ -89,5 +106,47 @@ export function computeEtlPanelProgress(
         icon: anyDisabled ? "stop" : null,
         progress: percentage,
         label: anyDisabled ? "Disabled" : "Running",
+    };
+}
+
+export type EtlPanelBaseProps<T extends AnyEtlOngoingTaskInfo> = BaseOngoingTaskPanelProps<T> &
+    ICanShowTransformationScriptPreview & {
+        etlStats?: EtlTaskStats[];
+        etlErrors?: EtlErrors[];
+    };
+
+export function useEtlPanel<T extends AnyEtlOngoingTaskInfo>(props: EtlPanelBaseProps<T>, editUrl: string) {
+    const { data, showItemPreview, etlStats, etlErrors } = props;
+
+    const hasDatabaseAdminAccess = useAppSelector(accessManagerSelectors.getHasDatabaseAdminAccess)();
+    const { appUrl } = useAppUrls();
+    const databaseName = useAppSelector(databaseSelectors.activeDatabaseName);
+
+    const canEdit = hasDatabaseAdminAccess && !data.shared.serverWide;
+    const goToTaskErrors = appUrl.forTasksErrors(databaseName, data.shared.taskName);
+
+    const { detailsVisible, toggleDetails, onEdit } = useTasksOperations(editUrl, props);
+
+    const showPreview = useCallback(
+        (transformationName: string) => showItemPreview(data, transformationName),
+        [data, showItemPreview]
+    );
+
+    const taskHealth = getTaskHealthStatus(etlStats ?? [], data.shared.taskName);
+    const healthBadge = healthStatusToBadge(taskHealth);
+    const errorCount = getTaskErrorCount(etlErrors ?? [], data.shared.taskName);
+    const etlProgress = computeEtlPanelProgress(data);
+
+    return {
+        canEdit,
+        goToTaskErrors,
+        detailsVisible,
+        toggleDetails,
+        onEdit,
+        showPreview,
+        taskHealth,
+        healthBadge,
+        errorCount,
+        etlProgress,
     };
 }

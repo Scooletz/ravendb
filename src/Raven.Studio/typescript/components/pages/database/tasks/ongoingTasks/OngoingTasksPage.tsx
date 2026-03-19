@@ -74,6 +74,8 @@ import { useAsync } from "react-async-hook";
 import EtlTaskProgress = Raven.Server.Documents.ETL.Stats.EtlTaskProgress;
 import ReplicationTaskProgress = Raven.Server.Documents.Replication.Stats.ReplicationTaskProgress;
 import InternalReplicationTaskProgress = Raven.Server.Documents.Replication.Stats.InternalReplicationTaskProgress;
+import EtlErrors = Raven.Server.Documents.ETL.Stats.EtlErrors;
+import EtlTaskStats = Raven.Server.Documents.ETL.Stats.EtlTaskStats;
 
 interface OngoingTasksPageProps {
     isAiOnly?: boolean;

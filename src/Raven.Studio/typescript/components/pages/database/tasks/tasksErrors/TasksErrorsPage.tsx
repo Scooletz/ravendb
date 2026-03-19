@@ -64,10 +64,13 @@ import { LoadError } from "components/common/LoadError";
 import moment from "moment";
 import RichAlert from "components/common/RichAlert";
 import { FormGroup, FormLabel } from "components/common/Form";
-
+import { tryHandleSubmit } from "components/utils/common";
+import EtlTaskStats = Raven.Server.Documents.ETL.Stats.EtlTaskStats;
+import EtlErrors = Raven.Server.Documents.ETL.Stats.EtlErrors;
 type EtlErrorStep = Raven.Server.Documents.ETL.EtlErrorStep;
-type GroupByType = "task" | "none";
 type EtlHealthStatus = Raven.Server.Documents.ETL.EtlProcessHealthStatus;
+
+type GroupByType = "task" | "none";
 
 interface TasksErrorsPageQueryParams {
     taskName?: string;
@@ -370,7 +373,7 @@ const GroupByTaskView = ({ tasksWithErrors, etlStats, filters }: GroupByTaskView
 
         return tasksWithErrors
             .filter((task) => {
-                const taskEtlType = etlStats.find((s) => s.TaskName === task.etlName)?.EtlType;
+                const taskEtlType = etlStats.find((s) => s.TaskName === task.etlName)?.EtlType as StudioEtlType;
                 const matchesTaskType = !taskTypes.length || (taskEtlType != null && taskTypes.includes(taskEtlType));
 
                 const taskHealth = getTaskHealthStatus(etlStats, task.etlName);
@@ -424,7 +427,7 @@ const TaskPanel = ({ etlName, transformations, etlStats }: TaskPanelProps) => {
 
     const taskHealth = getTaskHealthStatus(etlStats, etlName);
     const { bg, icon, label } = healthStatusToBadge(taskHealth);
-    const etlType = etlStats.find((s) => s.TaskName === etlName)?.EtlType;
+    const etlType = etlStats.find((s) => s.TaskName === etlName)?.EtlType as StudioEtlType;
     return (
         <>
             <RichPanel>
@@ -606,7 +609,7 @@ const useTasksErrorsPanelTableColumns = (availableWidth: number) => {
             },
             {
                 header: "Content",
-                cell: CellValueWrapper,
+                cell: CellWithCopyWrapper,
                 accessorKey: "Error",
                 size: getSize(db.isSharded ? 40 : 45),
                 enableSorting: false,
@@ -615,7 +618,7 @@ const useTasksErrorsPanelTableColumns = (availableWidth: number) => {
                 header: "Node",
                 cell: CellNodeValueWrapper,
                 accessorKey: "nodeTag",
-                size: getSize(5),
+                size: getSize(3),
                 enableSorting: false,
             },
         ],
@@ -627,7 +630,7 @@ const useTasksErrorsPanelTableColumns = (availableWidth: number) => {
             header: "Shard",
             cell: CellShardValueWrapper,
             accessorKey: "shard",
-            size: getSize(5),
+            size: getSize(3),
             enableSorting: false,
         });
     }
@@ -723,8 +726,18 @@ const CellValueButtonWrapper = (args: CellContext<FlatError, unknown>) => {
     const { open } = useViewSheet();
 
     const handleOpenSheet = () => {
+        const allRows = args.table.getRowModel().rows;
+        const allErrors = allRows.map((r) => r.original);
+        const currentIndex = allRows.findIndex((r) => r.id === args.row.id);
+
         open({
-            component: <EtlErrorDetailsSheet error={args.row.original} />,
+            component: (
+                <EtlErrorDetailsSheet
+                    error={args.row.original}
+                    allErrors={allErrors}
+                    initialIndex={currentIndex >= 0 ? currentIndex : 0}
+                />
+            ),
             initialWidth: "40%",
             minWidth: "25%",
             maxWidth: "60%",
@@ -1313,7 +1326,7 @@ function flattenAllTasksErrors(tasksWithErrors: EtlTaskWithErrors[], etlStats: E
     return tasksWithErrors.flatMap((task) => {
         const taskStats = etlStats.find((s) => s.TaskName === task.etlName);
         const taskId = taskStats?.TaskId;
-        const etlType = taskStats?.EtlType;
+        const etlType = taskStats?.EtlType as StudioEtlType;
 
         return task.transformations.flatMap((transformation) => {
             const healthStatus =
@@ -1410,7 +1423,7 @@ function DeleteTaskErrorsModal({ toggle, etlName, errorsCount }: DeleteTaskError
                     to the <b>Normal</b> state.
                 </RichAlert>
                 {isRequireTypedConfirm && (
-                    <FormGroup>
+                    <FormGroup className="mt-3">
                         <FormLabel className="fw-bold">Type DELETE to confirm</FormLabel>
                         <Form.Control placeholder="DELETE" value={confirmText} onChange={handleTextChange} />
                     </FormGroup>
@@ -1455,10 +1468,10 @@ function DeleteAllErrorsModal({ toggle, tasksWithErrors }: DeleteAllErrorsModalP
 
     const { confirmText, handleTextChange, isConfirmed } = useDeleteConfirmation(isRequireTypedConfirm);
 
-    const asyncDeleteAllErrors = useAsyncCallback(async () => {
+    const asyncDeleteAllErrors = useAsyncCallback(() => {
         const etlNames = tasksWithErrors.map((task) => task.etlName);
 
-        try {
+        return tryHandleSubmit(async () => {
             if (db.isSharded) {
                 const locations = DatabaseUtils.getLocations(db);
                 await Promise.all(
@@ -1474,9 +1487,7 @@ function DeleteAllErrorsModal({ toggle, tasksWithErrors }: DeleteAllErrorsModalP
                 await tasksService.deleteEtlErrors(db.name, { name: etlNames });
             }
             toggle();
-        } catch (e) {
-            console.error(e);
-        }
+        });
     });
 
     const toggleIsRequireTypedConfirm = async () => {
@@ -1548,6 +1559,8 @@ function useDeleteConfirmation(isRequireTypedConfirm: boolean) {
 
 interface EtlErrorDetailsSheetProps {
     error: FlatError;
+    allErrors?: FlatError[];
+    initialIndex?: number;
 }
 
 interface SheetDetailRowProps {
@@ -1568,16 +1581,20 @@ function SheetDetailRow({ children, className }: SheetDetailRowProps) {
     );
 }
 
-function EtlErrorDetailsSheet({ error }: EtlErrorDetailsSheetProps) {
+function EtlErrorDetailsSheet({ error: initialError, allErrors = [], initialIndex = 0 }: EtlErrorDetailsSheetProps) {
     const { close } = useViewSheet();
     const dbName = useAppSelector(databaseSelectors.activeDatabaseName);
 
-    const { bg, icon, label } = healthStatusToBadge(error.healthStatus ?? null);
-    const stepIcon = error.Step ? getStepIcon(error.Step) : null;
-    const etlTypeIcon = error.etlType ? getEtlTypeIcon(error.etlType) : null;
-    const etlTypeLabel = error.etlType ? getEtlTypeLabel(error.etlType) : null;
+    const [currentIndex, setCurrentIndex] = useState(initialIndex);
+    const error = allErrors.length > 0 ? allErrors[currentIndex] : initialError;
 
-    console.log("maxym error", error);
+    const hasPrevious = currentIndex > 0;
+    const hasNext = currentIndex < allErrors.length - 1;
+
+    const { bg, icon, label } = healthStatusToBadge(error.healthStatus ?? null);
+    const stepIcon = getStepIcon(error.Step);
+    const etlTypeIcon = getEtlTypeIcon(error.etlType);
+    const etlTypeLabel = getEtlTypeLabel(error.etlType);
 
     return (
         <ViewSheet>
@@ -1692,7 +1709,17 @@ function EtlErrorDetailsSheet({ error }: EtlErrorDetailsSheetProps) {
                     )}
                 </div>
             </ViewSheet.Body>
-            <ViewSheet.Footer>
+            <ViewSheet.Footer className="d-flex justify-content-between">
+                <div className="d-flex gap-2">
+                    <Button variant="secondary" disabled={!hasPrevious} onClick={() => setCurrentIndex((i) => i - 1)}>
+                        <Icon icon="arrow-left" />
+                        Previous
+                    </Button>
+                    <Button variant="secondary" disabled={!hasNext} onClick={() => setCurrentIndex((i) => i + 1)}>
+                        Next
+                        <Icon icon="arrow-right" margin="ms-1" />
+                    </Button>
+                </div>
                 <Button variant="secondary" onClick={close}>
                     <Icon icon="close" />
                     Close
