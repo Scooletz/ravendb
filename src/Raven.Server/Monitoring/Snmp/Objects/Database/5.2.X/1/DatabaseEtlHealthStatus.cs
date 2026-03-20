@@ -1,5 +1,3 @@
-using System;
-using System.Linq;
 using Lextm.SharpSnmpLib;
 using Raven.Server.Documents;
 
@@ -11,26 +9,11 @@ public sealed class DatabaseEtlHealthStatus : DatabaseEtlScalarObjectBase<OctetS
         : base(databaseName, etlName, landlord, databaseIndex, etlIndex, SnmpOids.Databases.Etls.HealthStatus)
     {
     }
-    
-    public override ISnmpData Data
-    {
-        get
-        {
-            if (Landlord.IsDatabaseLoaded(DatabaseName))
-            {
-                var database = Landlord.TryGetOrCreateResourceStore(DatabaseName).Result;
-
-                var healthStatus = database.EtlLoader.Processes.Single(x => x.Name == EtlName).Statistics.HealthStatus;
-
-                return new OctetString(healthStatus.ToString());
-            }
-
-            return null;
-        }
-    }
 
     protected override OctetString GetData(DocumentDatabase database)
     {
-        throw new NotSupportedException();
+        var healthStatus = GetEtl(database).Statistics.HealthStatus;
+
+        return new OctetString(healthStatus.ToString());
     }
 }

@@ -1,6 +1,3 @@
-using System;
-using System.Globalization;
-using System.Linq;
 using Lextm.SharpSnmpLib;
 using Raven.Server.Documents;
 
@@ -13,27 +10,12 @@ public sealed class DatabaseEtlErrorsOfTask : DatabaseEtlScalarObjectBase<Intege
         : base(databaseName, etlName, landlord, databaseIndex, etlIndex, SnmpOids.Databases.Etls.EtlErrorsOfTask)
     {
     }
-    
-    public override ISnmpData Data
-    {
-        get
-        {
-            if (Landlord.IsDatabaseLoaded(DatabaseName))
-            {
-                var database = Landlord.TryGetOrCreateResourceStore(DatabaseName).Result;
-                
-                var processErrors = database.EtlErrorsStorage.ReadProcessErrorsOfEtl(EtlName);
-                var itemErrors = database.EtlErrorsStorage.ReadItemErrorsOfEtl(EtlName);
-
-                return new Integer32(processErrors.Count + itemErrors.Count);
-            }
-
-            return null;
-        }
-    }
 
     protected override Integer32 GetData(DocumentDatabase database)
     {
-        throw new NotSupportedException();
+        var processErrors = database.EtlErrorsStorage.ReadProcessErrorsOfEtl(EtlName);
+        var itemErrors = database.EtlErrorsStorage.ReadItemErrorsOfEtl(EtlName);
+
+        return new Integer32(processErrors.Count + itemErrors.Count);
     }
 }

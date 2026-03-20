@@ -1132,7 +1132,7 @@ public class RavenDB_21192 : RavenTestBase
                    [new Variable(new ObjectIdentifier(secondProcessLastSuccessfulBatchTimeOid))],
                    10000);
                
-               Assert.Equal(SnmpType.Null, result.Single().Data.TypeCode);
+               Assert.Equal(SnmpType.NoSuchInstance, result.Single().Data.TypeCode);
             }
         }
     }
