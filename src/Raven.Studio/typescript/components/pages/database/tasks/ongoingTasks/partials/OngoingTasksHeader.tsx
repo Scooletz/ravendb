@@ -65,7 +65,7 @@ export function OngoingTasksHeader(props: OngoingTasksHeaderProps) {
 
     return (
         <>
-            <StickyHeader>
+            <StickyHeader style={{ zIndex: 11 }}>
                 <div className="hstack gap-3 flex-wrap">
                     {hasDatabaseWriteAccess && (
                         <>

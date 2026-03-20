@@ -68,10 +68,6 @@ export function KafkaEtlPanel(props: KafkaEtlPanelProps & ICanShowTransformation
                     <OngoingTaskName task={data} canEdit={canEdit} editUrl={editUrl} />
                 </RichPanelInfo>
                 <RichPanelActions>
-                    <span>
-                        <Icon icon="kafka-etl" />
-                        Kafka ETL
-                    </span>
                     <OngoingTaskResponsibleNode task={data} />
                     <OngoingTaskStatus
                         task={data}
@@ -93,6 +89,10 @@ export function KafkaEtlPanel(props: KafkaEtlPanelProps & ICanShowTransformation
             </RichPanelHeader>
             <RichPanelDetails>
                 <EtlPanelToggleButton detailsVisible={detailsVisible} toggleDetails={toggleDetails} />
+                <RichPanelDetailItem label="Type">
+                    <Icon icon="kafka-etl" />
+                    Kafka ETL
+                </RichPanelDetailItem>
                 <ConnectionStringItem
                     connectionStringDefined
                     canEdit={canEdit}

@@ -69,10 +69,6 @@ export function RavenEtlPanel(props: RavenEtlPanelProps & ICanShowTransformation
                     <OngoingTaskName task={data} canEdit={canEdit} editUrl={editUrl} />
                 </RichPanelInfo>
                 <RichPanelActions>
-                    <span>
-                        <Icon icon="ravendb-etl" />
-                        RavenDB ETL
-                    </span>
                     <OngoingTaskResponsibleNode task={data} />
                     <OngoingTaskStatus
                         task={data}
@@ -94,18 +90,29 @@ export function RavenEtlPanel(props: RavenEtlPanelProps & ICanShowTransformation
             </RichPanelHeader>
             <RichPanelDetails>
                 <EtlPanelToggleButton detailsVisible={detailsVisible} toggleDetails={toggleDetails} />
+                <RichPanelDetailItem label="Type">
+                    <Icon icon="ravendb-etl" />
+                    RavenDB ETL
+                </RichPanelDetailItem>
                 <ConnectionStringItem
                     connectionStringDefined={connectionStringDefined}
                     canEdit={canEdit}
                     connectionStringName={data.shared.connectionStringName}
                     connectionStringsUrl={connectionStringsUrl}
                 />
-                <RichPanelDetailItem label="Destination Database">
-                    {data.shared.destinationDatabase}
+                <RichPanelDetailItem label="Destination Database" title={data.shared.destinationDatabase}>
+                    <div className="text-truncate" style={{ maxWidth: "200px" }}>
+                        {data.shared.destinationDatabase}
+                    </div>
                 </RichPanelDetailItem>
                 <DestinationUrlItem destinationUrl={data.shared.destinationUrl} />
-                <RichPanelDetailItem label="Topology Discovery URLs">
-                    {data.shared.topologyDiscoveryUrls.join(", ")}
+                <RichPanelDetailItem
+                    label="Topology Discovery URLs"
+                    title={data.shared.topologyDiscoveryUrls.join(", ")}
+                >
+                    <div className="text-truncate" style={{ maxWidth: "200px" }}>
+                        {data.shared.topologyDiscoveryUrls.join(", ")}
+                    </div>
                 </RichPanelDetailItem>
                 <EtlPanelHealthBadge taskHealth={taskHealth} />
                 <EtlPanelErrors errorCount={errorCount} goToTaskErrors={goToTaskErrors} />

@@ -69,10 +69,6 @@ export function SqlEtlPanel(props: SqlEtlPanelProps & ICanShowTransformationScri
                     <OngoingTaskName task={data} canEdit={canEdit} editUrl={editUrl} />
                 </RichPanelInfo>
                 <RichPanelActions>
-                    <span>
-                        <Icon icon="sql-etl" />
-                        SQL ETL
-                    </span>
                     <OngoingTaskResponsibleNode task={data} />
                     <OngoingTaskStatus
                         task={data}
@@ -94,6 +90,10 @@ export function SqlEtlPanel(props: SqlEtlPanelProps & ICanShowTransformationScri
             </RichPanelHeader>
             <RichPanelDetails>
                 <EtlPanelToggleButton detailsVisible={detailsVisible} toggleDetails={toggleDetails} />
+                <RichPanelDetailItem label="Type">
+                    <Icon icon="sql-etl" />
+                    SQL ETL
+                </RichPanelDetailItem>
                 <ConnectionStringItem
                     connectionStringDefined={connectionStringDefined}
                     canEdit={canEdit}

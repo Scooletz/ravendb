@@ -13,8 +13,8 @@ class getEtlErrorsCommand extends commandBase {
     }
 
     execute(): JQueryPromise<EtlErrors[]> {
-        const args: EtlErrorsArgs = this.location
-        
+        const args: EtlErrorsArgs = { ...this.location };
+
         if (this.taskNames.length > 0) {
             args.name = this.taskNames;
         }

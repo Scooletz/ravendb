@@ -326,7 +326,7 @@ function SortableColumnRow({
                 {...listeners}
                 style={{ cursor: isDragging || isDraggingActive ? (isDragging ? "grabbing" : "grab") : "grab" }}
             >
-                <Icon icon="reorder" margin="m-0" />
+                <Icon icon="reorder" color="secondary" margin="m-0" />
             </span>
             <Checkbox
                 selected={isSelected}

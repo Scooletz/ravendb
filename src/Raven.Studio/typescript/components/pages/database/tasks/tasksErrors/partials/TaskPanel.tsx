@@ -1,0 +1,275 @@
+import React, { useMemo } from "react";
+import { Icon } from "components/common/Icon";
+import Button from "react-bootstrap/esm/Button";
+import Badge from "react-bootstrap/Badge";
+import Card from "react-bootstrap/Card";
+import Collapse from "react-bootstrap/Collapse";
+import {
+    ColumnDef,
+    getCoreRowModel,
+    getFilteredRowModel,
+    getSortedRowModel,
+    useReactTable,
+} from "@tanstack/react-table";
+import { virtualTableUtils } from "components/common/virtualTable/utils/virtualTableUtils";
+import VirtualTable from "components/common/virtualTable/VirtualTable";
+import SizeGetter from "components/common/SizeGetter";
+import DateFormatterCell from "components/common/virtualTable/cells/CellDateFormatter";
+import { CellWithCopyWrapper } from "components/common/virtualTable/cells/CellWithCopy";
+import {
+    RichPanel,
+    RichPanelActions,
+    RichPanelDetailItem,
+    RichPanelDetails,
+    RichPanelHeader,
+    RichPanelInfo,
+} from "components/common/RichPanel";
+import useBoolean from "hooks/useBoolean";
+import PopoverWithHoverWrapper from "components/common/PopoverWithHoverWrapper";
+import { useAppSelector } from "components/store";
+import { databaseSelectors } from "components/common/shell/databaseSliceSelectors";
+import {
+    EtlTaskWithErrors,
+    EtlTransformationWithErrors,
+    flattenTransformationErrors,
+    getEtlTypeIcon,
+    getEtlTypeLabel,
+    getPopoverMessageForTaskHealth,
+    getTaskHealthStatus,
+    healthStatusToBadge,
+} from "../utils/tasksErrorsUtils";
+import {
+    CellErrorStepWrapper,
+    CellErrorTypeWrapper,
+    CellNodeValueWrapper,
+    CellShardValueWrapper,
+    CellValueButtonWrapper,
+    HyperLinkDocumentCellValue,
+} from "./TasksErrorsCells";
+import { DeleteTaskErrorsModal } from "./DeleteModals";
+import EtlTaskStats = Raven.Server.Documents.ETL.Stats.EtlTaskStats;
+
+interface EtlTypeRichPanelItemProps {
+    etlType: StudioEtlType;
+}
+
+function EtlTypeRichPanelItem({ etlType }: EtlTypeRichPanelItemProps) {
+    const icon = getEtlTypeIcon(etlType);
+    const label = getEtlTypeLabel(etlType);
+
+    return (
+        <RichPanelDetailItem>
+            <Icon icon={icon} />
+            <span>{label}</span>
+        </RichPanelDetailItem>
+    );
+}
+
+function useTasksErrorsPanelTableColumns(availableWidth: number) {
+    const db = useAppSelector(databaseSelectors.activeDatabase);
+    const bodyWidth = virtualTableUtils.getTableBodyWidth(availableWidth);
+    const getSize = virtualTableUtils.getCellSizeProvider(bodyWidth - 70);
+
+    const tasksErrorsPanelColumns: ColumnDef<any>[] = useMemo(
+        () => [
+            {
+                header: "Show",
+                cell: CellValueButtonWrapper,
+                size: 70,
+            },
+            {
+                header: "Error Type",
+                accessorKey: "errorType",
+                cell: CellErrorTypeWrapper,
+                size: getSize(10),
+            },
+            {
+                header: "Error step",
+                cell: CellErrorStepWrapper,
+                accessorKey: "Step",
+                size: getSize(10),
+            },
+            {
+                header: "Document",
+                cell: HyperLinkDocumentCellValue,
+                accessorKey: "DocumentId",
+                size: getSize(10),
+            },
+            {
+                header: "Date",
+                cell: DateFormatterCell,
+                accessorKey: "CreatedAt",
+                size: getSize(20),
+            },
+            {
+                header: "Content",
+                cell: CellWithCopyWrapper,
+                accessorKey: "Error",
+                size: getSize(db.isSharded ? 40 : 45),
+                enableSorting: false,
+            },
+            {
+                header: "Node",
+                cell: CellNodeValueWrapper,
+                accessorKey: "nodeTag",
+                size: getSize(3),
+                enableSorting: false,
+            },
+        ],
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        []
+    );
+
+    if (db.isSharded) {
+        tasksErrorsPanelColumns.push({
+            header: "Shard",
+            cell: CellShardValueWrapper,
+            accessorKey: "shard",
+            size: getSize(3),
+            enableSorting: false,
+        });
+    }
+
+    return tasksErrorsPanelColumns;
+}
+
+interface NestedTaskPanelDetailsTableProps {
+    width: number;
+    itemErrors: EtlTransformationWithErrors["itemErrors"];
+    processErrors: EtlTransformationWithErrors["processErrors"];
+}
+
+function NestedTaskPanelDetailsTable({ width, itemErrors, processErrors }: NestedTaskPanelDetailsTableProps) {
+    const columns = useTasksErrorsPanelTableColumns(width);
+    const data = useMemo(() => flattenTransformationErrors(itemErrors, processErrors), [itemErrors, processErrors]);
+
+    const tasksErrorsPanelTable = useReactTable({
+        data,
+        columns,
+        columnResizeMode: "onChange",
+        getCoreRowModel: getCoreRowModel(),
+        getSortedRowModel: getSortedRowModel(),
+        getFilteredRowModel: getFilteredRowModel(),
+    });
+
+    return <VirtualTable table={tasksErrorsPanelTable} heightInPx={400} />;
+}
+
+interface NestedTaskPanelDetailsProps extends EtlTransformationWithErrors {
+    width: number;
+}
+
+function NestedTaskPanelDetails({ width, transformationName, processErrors, itemErrors }: NestedTaskPanelDetailsProps) {
+    const { value: isNestedDetailsVisible, toggle: toggleNestedDetailsVisible } = useBoolean(true);
+
+    const totalErrors = processErrors.length + itemErrors.length;
+
+    return (
+        <Card className="bg-black p-2">
+            <div className="d-flex w-100 gap-2 align-items-center">
+                <span>{transformationName}</span>
+                <div className="flex-grow">
+                    <Icon icon="warning" color="danger" />
+                    <span>Errors</span> <b>{totalErrors}</b>
+                </div>
+                <Button variant="secondary" onClick={toggleNestedDetailsVisible}>
+                    <Icon icon={isNestedDetailsVisible ? "collapse-vertical" : "expand-vertical"} margin="m-0" />
+                </Button>
+            </div>
+            <Collapse in={isNestedDetailsVisible} unmountOnExit mountOnEnter>
+                <div className="mt-4">
+                    <NestedTaskPanelDetailsTable width={width} itemErrors={itemErrors} processErrors={processErrors} />
+                </div>
+            </Collapse>
+        </Card>
+    );
+}
+
+interface TaskPanelProps extends EtlTaskWithErrors {
+    etlStats: EtlTaskStats[];
+}
+
+export function TaskPanel({ etlName, transformations, etlStats }: TaskPanelProps) {
+    const { value: isDetailsVisible, toggle: toggleDetails } = useBoolean(true);
+    const { value: isDeleteModalOpen, toggle: toggleDeleteModal } = useBoolean(false);
+
+    const errorsCount = transformations.reduce(
+        (acc, transformation) => acc + transformation.processErrors.length + transformation.itemErrors.length,
+        0
+    );
+
+    const taskHealth = getTaskHealthStatus(etlStats, etlName);
+    const { bg, icon, label } = healthStatusToBadge(taskHealth);
+    const etlType = etlStats.find((s) => s.TaskName === etlName)?.EtlType as StudioEtlType;
+
+    return (
+        <>
+            <RichPanel>
+                <RichPanelHeader>
+                    <RichPanelInfo>
+                        <a href="#" className="fs-3">
+                            {etlName}
+                        </a>
+                    </RichPanelInfo>
+                    <RichPanelActions>
+                        <Button variant="danger" onClick={toggleDeleteModal}>
+                            <Icon icon="trash" />
+                            Delete errors
+                        </Button>
+                    </RichPanelActions>
+                </RichPanelHeader>
+                <RichPanelDetails>
+                    <RichPanelDetailItem>
+                        <Button
+                            variant="secondary"
+                            className="btn-toggle-panel rounded-pill"
+                            onClick={toggleDetails}
+                            title="Click for details"
+                        >
+                            <Icon icon={isDetailsVisible ? "fold" : "unfold"} margin="m-0" />
+                        </Button>
+                    </RichPanelDetailItem>
+                    <EtlTypeRichPanelItem etlType={etlType} />
+                    <RichPanelDetailItem childrenClassName="d-flex gap-1 align-items-center">
+                        <Icon icon="warning" color="danger" margin="m-0" />
+                        <span>Errors</span> <b>{errorsCount}</b>
+                    </RichPanelDetailItem>
+                    <RichPanelDetailItem childrenClassName="d-flex gap-1 align-items-center">
+                        <Icon icon="console" />
+                        <span>Scripts</span> <b>{transformations.length}</b>
+                    </RichPanelDetailItem>
+                    <RichPanelDetailItem>
+                        <PopoverWithHoverWrapper
+                            wrapperClassName="d-flex align-items-center"
+                            message={getPopoverMessageForTaskHealth(taskHealth)}
+                        >
+                            <Icon icon="healthcheck" />
+                            <Badge bg={bg} className="rounded-pill">
+                                <Icon icon={icon} />
+                                {label}
+                            </Badge>
+                        </PopoverWithHoverWrapper>
+                    </RichPanelDetailItem>
+                </RichPanelDetails>
+                <SizeGetter
+                    render={(sizeProps) => (
+                        <Collapse in={isDetailsVisible} unmountOnExit mountOnEnter>
+                            <div className="m-2 d-flex gap-2 flex-column">
+                                {transformations.map((transformation) => (
+                                    <NestedTaskPanelDetails
+                                        key={transformation.transformationName}
+                                        {...sizeProps}
+                                        {...transformation}
+                                    />
+                                ))}
+                            </div>
+                        </Collapse>
+                    )}
+                />
+            </RichPanel>
+            {isDeleteModalOpen && (
+                <DeleteTaskErrorsModal etlName={etlName} errorsCount={errorsCount} toggle={toggleDeleteModal} />
+            )}
+        </>
+    );
+}

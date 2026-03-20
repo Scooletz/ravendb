@@ -72,10 +72,6 @@ export function ElasticSearchEtlPanel(props: ElasticSearchEtlPanelProps & ICanSh
                     <OngoingTaskName task={data} canEdit={canEdit} editUrl={editUrl} />
                 </RichPanelInfo>
                 <RichPanelActions>
-                    <span>
-                        <Icon icon="elastic-search-etl" />
-                        Elasticsearch ETL
-                    </span>
                     <OngoingTaskResponsibleNode task={data} />
                     <OngoingTaskStatus
                         task={data}
@@ -97,6 +93,10 @@ export function ElasticSearchEtlPanel(props: ElasticSearchEtlPanelProps & ICanSh
             </RichPanelHeader>
             <RichPanelDetails>
                 <EtlPanelToggleButton detailsVisible={detailsVisible} toggleDetails={toggleDetails} />
+                <RichPanelDetailItem label="Type">
+                    <Icon icon="elastic-search-etl" />
+                    Elasticsearch ETL
+                </RichPanelDetailItem>
                 <ConnectionStringItem
                     connectionStringDefined
                     canEdit={canEdit}

@@ -68,10 +68,6 @@ export function OlapEtlPanel(props: OlapEtlPanelProps & ICanShowTransformationSc
                     <OngoingTaskName task={data} canEdit={canEdit} editUrl={editUrl} />
                 </RichPanelInfo>
                 <RichPanelActions>
-                    <span>
-                        <Icon icon="olap-etl" />
-                        OLAP ETL
-                    </span>
                     <OngoingTaskResponsibleNode task={data} />
                     <OngoingTaskStatus
                         task={data}
@@ -93,6 +89,10 @@ export function OlapEtlPanel(props: OlapEtlPanelProps & ICanShowTransformationSc
             </RichPanelHeader>
             <RichPanelDetails>
                 <EtlPanelToggleButton detailsVisible={detailsVisible} toggleDetails={toggleDetails} />
+                <RichPanelDetailItem label="Type">
+                    <Icon icon="olap-etl" />
+                    OLAP ETL
+                </RichPanelDetailItem>
                 <ConnectionStringItem
                     connectionStringDefined
                     canEdit={canEdit}
@@ -100,11 +100,17 @@ export function OlapEtlPanel(props: OlapEtlPanelProps & ICanShowTransformationSc
                     connectionStringsUrl={connectionStringsUrl}
                 />
                 {data.shared.destinations.map((dst) => (
-                    <RichPanelDetailItem label="Destination" key={dst}>
-                        {dst}
+                    <RichPanelDetailItem label="Destination" key={dst} title={dst}>
+                        <div className="text-truncate" style={{ maxWidth: "200px" }}>
+                            {dst}
+                        </div>
                     </RichPanelDetailItem>
                 ))}
-                <RichPanelDetailItem label="Destination">{data.shared.destinationDescription}</RichPanelDetailItem>
+                <RichPanelDetailItem label="Destination" title={data.shared.destinationDescription}>
+                    <div className="text-truncate" style={{ maxWidth: "200px" }}>
+                        {data.shared.destinationDescription}
+                    </div>
+                </RichPanelDetailItem>
                 <EtlPanelHealthBadge taskHealth={taskHealth} />
                 <EtlPanelErrors errorCount={errorCount} goToTaskErrors={goToTaskErrors} />
                 <EtlPanelProgressItem etlProgress={etlProgress} />

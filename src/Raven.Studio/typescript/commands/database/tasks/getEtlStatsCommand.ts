@@ -3,7 +3,6 @@ import database = require("models/resources/database");
 import endpoints = require("endpoints");
 import EtlTaskStats = Raven.Server.Documents.ETL.Stats.EtlTaskStats;
 
-
 interface EtlStatsArgs extends databaseLocationSpecifier {
     name?: string[];
 }
@@ -14,7 +13,7 @@ class getEtlStatsCommand extends commandBase {
     }
 
     execute(): JQueryPromise<EtlTaskStats[]> {
-        const args: EtlStatsArgs = this.location;
+        const args: EtlStatsArgs = {...this.location};
 
         if (this.names.length > 0) {
             args.name = this.names;

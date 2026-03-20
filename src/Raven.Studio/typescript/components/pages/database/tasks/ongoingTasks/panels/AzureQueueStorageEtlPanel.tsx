@@ -13,6 +13,7 @@ import { useAppUrls } from "hooks/useAppUrls";
 import {
     RichPanel,
     RichPanelActions,
+    RichPanelDetailItem,
     RichPanelDetails,
     RichPanelHeader,
     RichPanelInfo,
@@ -71,10 +72,6 @@ export function AzureQueueStorageEtlPanel(props: AzureQueueStorageEtlPanelProps 
                     <OngoingTaskName task={data} canEdit={canEdit} editUrl={editUrl} />
                 </RichPanelInfo>
                 <RichPanelActions>
-                    <span>
-                        <Icon icon="azure-queue-storage-etl" />
-                        Azure Queue Storage ETL
-                    </span>
                     <OngoingTaskResponsibleNode task={data} />
                     <OngoingTaskStatus
                         task={data}
@@ -96,6 +93,10 @@ export function AzureQueueStorageEtlPanel(props: AzureQueueStorageEtlPanelProps 
             </RichPanelHeader>
             <RichPanelDetails>
                 <EtlPanelToggleButton detailsVisible={detailsVisible} toggleDetails={toggleDetails} />
+                <RichPanelDetailItem label="Type">
+                    <Icon icon="azure-queue-storage-etl" />
+                    Azure Queue Storage ETL
+                </RichPanelDetailItem>
                 <ConnectionStringItem
                     connectionStringDefined
                     canEdit={canEdit}

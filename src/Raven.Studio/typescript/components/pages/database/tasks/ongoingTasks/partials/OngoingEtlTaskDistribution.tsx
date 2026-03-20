@@ -6,7 +6,6 @@ import { ProgressCircle } from "components/common/ProgressCircle";
 import { OngoingEtlTaskProgressTooltip } from "../partials/OngoingEtlTaskProgressTooltip";
 import { Icon } from "components/common/Icon";
 import { databaseLocationComparator } from "components/utils/common";
-import { ErrorModal } from "components/pages/database/tasks/ongoingTasks/partials/ErrorModal";
 import Badge from "react-bootstrap/Badge";
 import Button from "react-bootstrap/Button";
 import ButtonWithSpinner from "components/common/ButtonWithSpinner";
@@ -21,7 +20,16 @@ import {
     healthStatusToBadge,
 } from "../panels/etlPanelUtils";
 import { useServices } from "hooks/useServices";
-import { useAsyncCallback } from "react-async-hook";
+import { useAsync, useAsyncCallback } from "react-async-hook";
+import { useViewSheet } from "components/common/splitView/ViewSheet";
+import EtlErrorDetailsSheet from "components/pages/database/tasks/tasksErrors/partials/EtlErrorDetailsSheet";
+import {
+    FlatError,
+    flattenAllTasksErrors,
+    getTasksWithErrors,
+} from "components/pages/database/tasks/tasksErrors/utils/tasksErrorsUtils";
+import genUtils from "common/generalUtils";
+import moment from "moment";
 import EtlTaskStats = Raven.Server.Documents.ETL.Stats.EtlTaskStats;
 import EtlErrors = Raven.Server.Documents.ETL.Stats.EtlErrors;
 import Spinner from "react-bootstrap/Spinner";
@@ -52,8 +60,10 @@ interface ItemWithTooltipProps {
 interface ConnectionStatusCellProps {
     status: Raven.Client.Documents.Operations.OngoingTasks.OngoingTaskConnectionStatus;
     taskName: string;
-    nodeTag: string;
+    location: databaseLocationSpecifier;
     toggleErrorModal: () => void;
+    nextBatchRetryTime?: string;
+    onRetrySuccess?: () => Promise<unknown>;
 }
 
 interface TransactionalIdCellProps {
@@ -162,11 +172,23 @@ function TransactionalIdLegend({ txIdLayout }: TransactionalIdLegendProps) {
     );
 }
 
-function ConnectionStatusCell({ status, taskName, nodeTag, toggleErrorModal }: ConnectionStatusCellProps) {
+function ConnectionStatusCell({
+    status,
+    taskName,
+    location,
+    toggleErrorModal,
+    nextBatchRetryTime,
+    onRetrySuccess,
+}: ConnectionStatusCellProps) {
     const { tasksService } = useServices();
     const databaseName = useAppSelector(databaseSelectors.activeDatabaseName);
 
-    const retryBatch = useAsyncCallback(() => tasksService.retryBatch(databaseName, taskName, nodeTag));
+    const retryBatch = useAsyncCallback(async () => {
+        await tasksService.retryBatch(databaseName, taskName, location);
+        await onRetrySuccess?.();
+    });
+
+    const isRetryPending = nextBatchRetryTime ? new Date() < new Date(nextBatchRetryTime) : false;
 
     if (status !== "Reconnect") {
         return <span>{status}</span>;
@@ -180,7 +202,8 @@ function ConnectionStatusCell({ status, taskName, nodeTag, toggleErrorModal }: C
                     <div className="vstack gap-2 p-1">
                         <div className="d-flex align-items-center gap-1">
                             <Icon icon="clock" margin="m-0" />
-                            Next batch retry time in: <b>5 minutes</b>
+                            Next batch retry time:{" "}
+                            <b>{nextBatchRetryTime ? moment(nextBatchRetryTime).format(genUtils.dateFormat) : "N/A"}</b>
                         </div>
                         <div className="d-flex gap-2">
                             <ButtonWithSpinner
@@ -190,6 +213,7 @@ function ConnectionStatusCell({ status, taskName, nodeTag, toggleErrorModal }: C
                                 icon="refresh"
                                 isSpinning={retryBatch.loading}
                                 onClick={retryBatch.execute}
+                                disabled={isRetryPending || retryBatch.loading}
                             >
                                 Retry now
                             </ButtonWithSpinner>
@@ -221,23 +245,81 @@ function ItemWithTooltip(props: ItemWithTooltipProps) {
         </div>
     );
 
-    const [errorToDisplay, setErrorToDisplay] = useState<string>(null);
-
-    const toggleErrorModal = () => {
-        setErrorToDisplay((error) => (error ? null : nodeInfo.details?.error));
-    };
+    const { open } = useViewSheet();
 
     const key = taskNodeInfoKey(nodeInfo);
     const hasError = !!nodeInfo.details?.error;
     const [node, setNode] = useState<HTMLDivElement>();
 
     const { appUrl } = useAppUrls();
+    const { tasksService } = useServices();
     const databaseName = useAppSelector(databaseSelectors.activeDatabaseName);
+
+    const processNames = (nodeInfo.etlProgress ?? []).map(
+        (progress) => `${task.shared.taskName}/${progress.transformationName}`
+    );
+
+    const asyncLocalEtlStats = useAsync(
+        () => tasksService.getEtlStats(databaseName, nodeInfo.location, processNames),
+        []
+    );
+
+    const asyncEtlErrors = useAsync(
+        async () => tasksService.getEtlErrors(databaseName, nodeInfo.location, processNames),
+        [databaseName, nodeInfo.location.nodeTag, nodeInfo.location.shardNumber, processNames.join(",")]
+    );
+
+    const openErrorSheet = () => {
+        const etlErrorsList = asyncEtlErrors.result ?? [];
+        const tasksWithErrors = getTasksWithErrors(
+            etlErrorsList.map((e) => ({
+                ...e,
+                nodeTag: nodeInfo.location.nodeTag,
+                shard: nodeInfo.location.shardNumber,
+            }))
+        );
+        const allErrors = flattenAllTasksErrors(tasksWithErrors, etlStats ?? []);
+
+        const firstError: FlatError =
+            allErrors[0] ??
+            ({
+                Error: nodeInfo.details?.error,
+                nodeTag: nodeInfo.location.nodeTag,
+                shard: nodeInfo.location.shardNumber,
+                etlName: task.shared.taskName,
+                transformationName: null,
+                healthStatus: null,
+                taskId: null,
+                etlType: null,
+                errorType: "Process",
+                EtlProcessName: null,
+                Step: null,
+                CreatedAt: null,
+                Id: null,
+                AdditionalInfo: null,
+                AffectedDocumentsCount: 0,
+            } as unknown as FlatError);
+
+        open({
+            component: <EtlErrorDetailsSheet error={firstError} allErrors={allErrors} initialIndex={0} />,
+            initialWidth: "40%",
+            minWidth: "25%",
+            maxWidth: "60%",
+        });
+    };
 
     const taskHealth = getTaskHealthStatus(etlStats ?? [], task.shared.taskName);
     const { bg, icon: heathIcon, label: healthLabel } = healthStatusToBadge(taskHealth);
     const errorCount = getTaskErrorCount(etlErrors ?? [], task.shared.taskName);
     const goToTaskErrors = appUrl.forTasksErrors(databaseName, task.shared.taskName);
+
+    const nextBatchRetryTime =
+        asyncLocalEtlStats.result
+            ?.find((s) => s.TaskName === task.shared.taskName)
+            ?.Stats?.find((s) => s.Statistics.NextBatchRetryTime != null)?.Statistics.NextBatchRetryTime ??
+        etlStats
+            ?.find((s) => s.TaskName === task.shared.taskName)
+            ?.Stats?.find((s) => s.Statistics.NextBatchRetryTime != null)?.Statistics.NextBatchRetryTime;
 
     return (
         <div ref={setNode}>
@@ -252,8 +334,10 @@ function ItemWithTooltip(props: ItemWithTooltipProps) {
                         <ConnectionStatusCell
                             status={nodeInfo.details.taskConnectionStatus}
                             taskName={task.shared.taskName}
-                            nodeTag={nodeInfo.location.nodeTag}
-                            toggleErrorModal={toggleErrorModal}
+                            location={nodeInfo.location}
+                            toggleErrorModal={openErrorSheet}
+                            nextBatchRetryTime={nextBatchRetryTime}
+                            onRetrySuccess={asyncLocalEtlStats.execute}
                         />
                     ) : (
                         ""
@@ -288,19 +372,16 @@ function ItemWithTooltip(props: ItemWithTooltipProps) {
                 {txIdLayout && <TransactionalIdCells txIdLayout={txIdLayout} nodeInfo={nodeInfo} />}
                 <OngoingEtlTaskProgress task={task} nodeInfo={nodeInfo} />
             </DistributionItem>
-            {node &&
-                (errorToDisplay ? (
-                    <ErrorModal key="modal" toggleErrorModal={toggleErrorModal} error={errorToDisplay} />
-                ) : (
-                    <OngoingEtlTaskProgressTooltip
-                        hasError={!!nodeInfo.details?.error}
-                        toggleErrorModal={toggleErrorModal}
-                        target={node}
-                        progress={nodeInfo.etlProgress}
-                        status={nodeInfo.status}
-                        showPreview={showPreview}
-                    />
-                ))}
+            {node && (
+                <OngoingEtlTaskProgressTooltip
+                    hasError={!!nodeInfo.details?.error}
+                    toggleErrorModal={openErrorSheet}
+                    target={node}
+                    progress={nodeInfo.etlProgress}
+                    status={nodeInfo.status}
+                    showPreview={showPreview}
+                />
+            )}
         </div>
     );
 }
