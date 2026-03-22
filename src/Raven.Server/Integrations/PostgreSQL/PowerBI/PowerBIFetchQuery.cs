@@ -37,8 +37,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             {
                 var sql = queryText;
 
-                if (TryExtractInnerRqlSpanViaTwoParsers(sql, out var innerStart, out var innerEnd, out var innerRql) == false &&
-                    TryExtractDeepestInnerRqlSpan(sql, out innerStart, out innerEnd, out innerRql) == false)
+                if (PowerBIInnerRqlExtractor.TryExtractInnerRqlSpan(sql, out var innerStart, out var innerEnd, out var innerRql) == false)
                     return false;
 
                 var sanitizedSql = sql[..innerStart] + "select 1" + sql[innerEnd..];
@@ -104,7 +103,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
 
                     if (currentSelect.WhereClause != null)
                     {
-                        if (OuterWhereTranslator.TryTranslateWhere(currentSelect.WhereClause, wrapperAlias, query.From.Alias, out var whereExpression) == false)
+                        if (PowerBIOuterWhereTranslator.TryTranslateWhere(currentSelect.WhereClause, wrapperAlias, query.From.Alias, out var whereExpression) == false)
                             return false;
 
                         query.Where = query.Where == null

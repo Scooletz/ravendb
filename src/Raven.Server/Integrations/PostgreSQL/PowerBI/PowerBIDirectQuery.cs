@@ -49,7 +49,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 // On any mismatch, return false so the other PowerBI parsers can handle it.
                 var sql = queryText;
 
-                if (TryExtractInnermostRql(sql, out var innerRql, out var innerStart, out var innerEnd) == false)
+                if (PowerBIInnerRqlExtractor.TryExtractInnerRqlSpan(sql, out var innerStart, out var innerEnd, out var innerRql) == false)
                     return false;
 
                 // Replace the inner RQL (which PgSqlParser cannot parse) with a trivial SQL subquery.
@@ -71,8 +71,27 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 if (TryExtractDirectQueryShape(selectStmt, out var shape) == false)
                     return false;
 
-                if (IsValidRqlSelect(innerRql) == false)
+                Documents.Queries.AST.Query q;
+                try
+                {
+                    q = QueryMetadata.ParseQuery(innerRql, QueryType.Select);
+                }
+                catch
+                {
                     return false;
+                }
+
+                if (selectStmt.WhereClause != null)
+                {
+                    if (PowerBIOuterWhereTranslator.TryTranslateWhere(selectStmt.WhereClause, outerAlias: "_", innerAlias: q.From.Alias, out var whereExpression) == false)
+                        return false;
+
+                    q.Where = q.Where == null
+                        ? whereExpression
+                        : new BinaryExpression(q.Where, whereExpression, OperatorType.And);
+                }
+
+                innerRql = q.ToString();
 
                 var rewrittenRql = RewriteRqlProjection(
                     innerRql,
@@ -309,97 +328,6 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 return string.IsNullOrWhiteSpace(colName) == false;
             }
 
-            static bool TryExtractInnermostRql(string sql, out string innerRql, out int innerStart, out int innerEnd)
-            {
-                innerRql = null;
-                innerStart = 0;
-                innerEnd = 0;
-
-                const string endToken = ") \"$Table\"";
-
-                int end = -1;
-                int nextSearch = 0;
-                while (true)
-                {
-                    var idx = sql.IndexOf(endToken, nextSearch, StringComparison.OrdinalIgnoreCase);
-                    if (idx == -1)
-                        break;
-
-                    if (end != -1)
-                        return false; // ambiguous
-
-                    end = idx;
-                    nextSearch = idx + endToken.Length;
-                }
-
-                if (end == -1)
-                    return false;
-
-                // Find the matching '(' for this ')', accounting for parentheses inside the RQL.
-                // We then validate it is preceded by `from` (ignoring whitespace).
-                int depth = 0;
-                int open = -1;
-                for (int i = end - 1; i >= 0; i--)
-                {
-                    var ch = sql[i];
-                    if (ch == ')')
-                    {
-                        depth++;
-                        continue;
-                    }
-
-                    if (ch != '(')
-                        continue;
-
-                    if (depth > 0)
-                    {
-                        depth--;
-                        continue;
-                    }
-
-                    open = i;
-                    break;
-                }
-
-                if (open == -1)
-                    return false;
-
-                // Ensure this paren belongs to a `from (` wrapper.
-                int j = open - 1;
-                while (j >= 0 && char.IsWhiteSpace(sql[j]))
-                    j--;
-
-                if (j < 3)
-                    return false;
-
-                // Expect: ... from (
-                var fromStart = j - 3;
-                if (fromStart < 0)
-                    return false;
-
-                if (string.Equals(sql.Substring(fromStart, 4), "from", StringComparison.OrdinalIgnoreCase) == false)
-                    return false;
-
-                // We slice the inner RQL without trimming to preserve exact indices for sanitization.
-                innerStart = open + 1;
-                innerEnd = end;
-                if (innerStart >= innerEnd)
-                    return false;
-
-                var trimmedStart = innerStart;
-                var trimmedEnd = innerEnd;
-                while (trimmedStart < trimmedEnd && char.IsWhiteSpace(sql[trimmedStart]))
-                    trimmedStart++;
-                while (trimmedEnd > trimmedStart && char.IsWhiteSpace(sql[trimmedEnd - 1]))
-                    trimmedEnd--;
-
-                if (trimmedStart >= trimmedEnd)
-                    return false;
-
-                innerRql = sql.Substring(trimmedStart, trimmedEnd - trimmedStart);
-                return string.IsNullOrWhiteSpace(innerRql) == false;
-            }
-
             static string RewriteRqlProjection(string innerRql, IReadOnlyList<string> projectionCols, IReadOnlyList<string> orderByCols, IReadOnlyList<bool> orderByDescFlags, int limit)
             {
                 if (string.IsNullOrWhiteSpace(innerRql))
@@ -494,78 +422,6 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                        $"limit 0, {limit}";
             }
 
-
-            /*
-            Legacy string-based fallback (kept for later; not used in runtime logic during demo/review)
-
-            static string RewriteRqlProjection_StringFallback(string innerRql, IReadOnlyList<string> projectionCols, IReadOnlyList<string> orderByCols, IReadOnlyList<bool> orderByDescFlags, int limit)
-            {
-                if (string.IsNullOrWhiteSpace(innerRql))
-                    return null;
-
-                if (projectionCols == null || projectionCols.Count == 0)
-                    return null;
-
-                if (orderByCols == null || orderByCols.Count == 0)
-                    return null;
-
-                if (orderByDescFlags == null || orderByDescFlags.Count != orderByCols.Count)
-                    return null;
-
-                var idxSelect = innerRql.LastIndexOf("select", StringComparison.OrdinalIgnoreCase);
-                if (idxSelect == -1)
-                    return null;
-
-                var prefix = innerRql.Substring(0, idxSelect).TrimEnd();
-                if (string.IsNullOrWhiteSpace(prefix))
-                    return null;
-
-                var projectionExprs = TryExtractProjectionExpressions(innerRql.AsSpan(idxSelect));
-
-                var orderByParts = new List<string>(capacity: orderByCols.Count);
-                var selectParts = new List<string>(capacity: projectionCols.Count);
-
-                for (int i = 0; i < projectionCols.Count; i++)
-                {
-                    var colName = projectionCols[i];
-                    if (string.IsNullOrWhiteSpace(colName))
-                        return null;
-
-                    var id = FormatRqlIdentifier(colName);
-                    if (id == null)
-                        return null;
-
-                    var selectField = FormatRqlObjectFieldIdentifier(colName);
-                    if (selectField == null)
-                        return null;
-
-                    var expr = id;
-                    if (projectionExprs != null && projectionExprs.TryGetValue(colName, out var extracted) && string.IsNullOrWhiteSpace(extracted) == false)
-                        expr = extracted;
-
-                    selectParts.Add($"{selectField}: {expr}");
-                }
-
-                for (int i = 0; i < orderByCols.Count; i++)
-                {
-                    var colName = orderByCols[i];
-                    if (string.IsNullOrWhiteSpace(colName))
-                        return null;
-
-                    var id = FormatRqlIdentifier(colName);
-                    if (id == null)
-                        return null;
-
-                    orderByParts.Add(id + (orderByDescFlags[i] ? " desc" : string.Empty));
-                }
-
-                const string nl = "\n";
-                return prefix + nl +
-                       $"order by {string.Join(", ", orderByParts)}" + nl +
-                       $"select distinct {{ {string.Join(", ", selectParts)} }}" + nl +
-                       $"limit 0, {limit}";
-            }
-            */
 
             static Dictionary<string, string> TryExtractProjectionExpressions(ReadOnlySpan<char> selectClause)
             {
