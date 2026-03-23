@@ -11,10 +11,10 @@ public class EmbeddingsVllmConnectorForTesting : AbstractEmbeddingsConnectorForT
     public EmbeddingsVllmConnectorForTesting()
     {
         RequiredEnvironmentVariables = [EnvironmentVariableApiKey, EnvironmentVariableEndpoint, EnvironmentVariableModelName];
-        NamePrefix = new Lazy<string>(() => nameof(RavenAiIntegration.vLLM));
+        NamePrefix = nameof(RavenAiIntegration.vLLM);
     }
     
-    public override Lazy<AiConnectorType> AiConnectorType { get; init; } = new(Raven.Client.Documents.Operations.AI.AiConnectorType.OpenAi);
+    public override AiConnectorType AiConnectorType { get; init; } = AiConnectorType.OpenAi;
 
     protected override AiConnectionString CreateAiConnectionStringImpl()
     {
@@ -35,10 +35,10 @@ public class GenAiVllmConnectorForTesting : AbstractGenAiConnectorForTesting<Gen
     public GenAiVllmConnectorForTesting()
     {
         RequiredEnvironmentVariables = [EnvironmentVariableApiKey, EnvironmentVariableEndpoint, EnvironmentVariableModelName];
-        NamePrefix = new Lazy<string>(() => nameof(RavenAiIntegration.vLLM));
+        NamePrefix = nameof(RavenAiIntegration.vLLM);
     }
 
-    public override Lazy<AiConnectorType> AiConnectorType { get; init; } = new(Raven.Client.Documents.Operations.AI.AiConnectorType.OpenAi);
+    public override AiConnectorType AiConnectorType { get; init; } = AiConnectorType.OpenAi;
 
     protected override AiConnectionString CreateAiConnectionStringImpl()
     {

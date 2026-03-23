@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -36,7 +36,7 @@ public abstract class AbstractRavenAiIntegrationDataAttribute<TConfig> : RavenDa
 {
     public RavenDatabaseMode DatabaseMode { get; set; } = RavenDatabaseMode.All;
     public RavenAiIntegration IntegrationType { get; set; } = RavenAiIntegration.All;
-    public object[] Data { get; set; } = null;
+    public object[] Data { get; set; }
 
     protected AbstractRavenAiIntegrationDataAttribute()
     {
@@ -56,11 +56,12 @@ public abstract class AbstractRavenAiIntegrationDataAttribute<TConfig> : RavenDa
             {
                 using (ResetSkipReason(Skip))
                 {
-                    if (string.IsNullOrEmpty(Skip))
+                    if (HasSkipReason(aiConnectionStringForTesting) == false)
                     {
-                        SetSkipValueIfShardedDbOnX86(databaseMode);
-                        SetSkipValueIfNoRequiredEnvVariablesDefined(aiConnectionStringForTesting);
-                        SetSkipValueIfUnableConnectToAi(aiConnectionStringForTesting);
+                        if (aiConnectionStringForTesting.CanConnect.Value == false)
+                        {
+                            Skip = $"Test requires connection to {aiConnectionStringForTesting.AiConnectorType}.";
+                    }
                     }
 
                     var aiIntegrationConfiguration = aiConnectionStringForTesting.GetAiConfiguration();
@@ -80,49 +81,32 @@ public abstract class AbstractRavenAiIntegrationDataAttribute<TConfig> : RavenDa
 
     private DisposableAction ResetSkipReason(string skip) => new(() => Skip = skip);
 
-    private void SetSkipValueIfShardedDbOnX86(RavenDatabaseMode databaseMode)
+    private bool HasSkipReason(IAiConnectorForTesting<TConfig> aiConnectorForTesting)
     {
-        if (Is32Bit == false)
-            return;
+        if (string.IsNullOrEmpty(Skip))
+            return true;
 
-        if (databaseMode.HasFlag(RavenDatabaseMode.Sharded) == false)
-            return;
-
-        Skip = ShardingSkipMessage;
-    }
-
-    private void SetSkipValueIfNoRequiredEnvVariablesDefined(IAiConnectorForTesting<TConfig> aiConnectorForTesting)
-    {
-        if (RavenTestHelper.IsRunningOnCI)
-            return;
-
-        if (aiConnectorForTesting.MissingRequiredEnvVariables(out var envVar) is false)
-            return;
-
-        Skip = $"The environment variable {envVar} is required for {aiConnectorForTesting.AiConnectorType}, but was not set.";
-    }
-
-    private void SetSkipValueIfUnableConnectToAi(IAiConnectorForTesting<TConfig> aiConnectorForTesting)
-    {
-        if (RavenTestHelper.IsRunningOnCI)
-            return;
-
-        // we want to skip only if we cannot connect
-        if (CanConnectToAi(aiConnectorForTesting, out string unableToConnectMessage))
-            return;
-
-        Skip = unableToConnectMessage;
-    }
-
-    private bool CanConnectToAi(IAiConnectorForTesting<TConfig> aiConnectorForTesting, out string skipMessage)
-    {
-        if (aiConnectorForTesting.CanConnect.Value)
+        if (RavenTestHelper.SkipAiIntegrationTests)
         {
-            skipMessage = Skip;
+            Skip = RavenTestHelper.SkipAiIntegrationMessage;
+            return true;
+    }
+
+        if (Is32Bit)
+    {
+            Skip = "AI tests are skipped on 32-bit process";
+            return true;
+    }
+
+        if (RavenTestHelper.IsRunningOnCI)
+            return false;
+
+        if (aiConnectorForTesting.MissingRequiredEnvVariables(out var envVar))
+    {
+            Skip = $"The environment variable {envVar} is required for {aiConnectorForTesting.AiConnectorType}, but was not set.";
             return true;
         }
 
-        skipMessage = $"Test requires connection to {aiConnectorForTesting.AiConnectorType.Value}.";
         return false;
     }
 
