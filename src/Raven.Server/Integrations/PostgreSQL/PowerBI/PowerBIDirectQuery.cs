@@ -36,6 +36,8 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             List<bool> OrderByDescFlags,
             int Limit);
 
+        private sealed record AggregateOnlyShape(string FunctionName, string FieldName, string OutputColumn);
+
         public static bool TryParse(string queryText, int[] parametersDataTypes, DocumentDatabase documentDatabase, out PgQuery pgQuery)
         {
             pgQuery = null;
@@ -68,6 +70,30 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 if (selectStmt == null)
                     return false;
 
+                if (TryExtractAggregateOnlyShape(selectStmt, out var aggregateShape))
+                {
+                    string rewritten;
+                    try
+                    {
+                        var innerQuery = QueryMetadata.ParseQuery(innerRql, QueryType.Select);
+
+                        rewritten = RewriteAggregateOnlyRql(innerQuery, aggregateShape);
+                    }
+                    catch
+                    {
+                        return false;
+                    }
+
+                    if (string.IsNullOrWhiteSpace(rewritten))
+                        return false;
+
+                    if (IsValidRqlSelect(rewritten) == false)
+                        return false;
+
+                    pgQuery = new PowerBIDirectQuery(rewritten, parametersDataTypes, documentDatabase, replaces: null, limit: null);
+                    return true;
+                }
+
                 if (TryExtractDirectQueryShape(selectStmt, out var shape) == false)
                     return false;
 
@@ -80,6 +106,9 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 {
                     return false;
                 }
+
+                if (q.From.Alias == null)
+                    return false;
 
                 if (selectStmt.WhereClause != null)
                 {
@@ -114,6 +143,101 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 return false;
             }
 
+            static bool TryExtractAggregateOnlyShape(SelectStmt selectStmt, out AggregateOnlyShape shape)
+            {
+                shape = null;
+
+                if (selectStmt == null)
+                    return false;
+
+                if (selectStmt.WhereClause != null)
+                    return false;
+
+                if (selectStmt.GroupClause is { Count: > 0 })
+                    return false;
+
+                if (selectStmt.SortClause is { Count: > 0 })
+                    return false;
+
+                if (selectStmt.LimitCount != null || selectStmt.LimitOffset != null)
+                    return false;
+
+                if (selectStmt.FromClause is not { Count: 1 } fromClause)
+                    return false;
+
+                var rss = fromClause[0]?.RangeSubselect;
+                if (rss == null)
+                    return false;
+
+                if (string.Equals(rss.Alias?.Aliasname, "rows", StringComparison.OrdinalIgnoreCase) == false)
+                    return false;
+
+                if (selectStmt.TargetList is not { Count: 1 } targetList)
+                    return false;
+
+                var resTarget = targetList[0]?.ResTarget;
+                if (resTarget == null)
+                    return false;
+
+                var outputColumn = resTarget.Name;
+                if (string.IsNullOrWhiteSpace(outputColumn))
+                    return false;
+
+                var funcCall = resTarget.Val?.FuncCall;
+                if (funcCall == null)
+                    return false;
+
+                var funcName = funcCall.Funcname is { Count: > 0 }
+                    ? funcCall.Funcname[0].String?.Sval
+                    : null;
+
+                if (string.Equals(funcName, "sum", StringComparison.OrdinalIgnoreCase) == false)
+                    return false;
+
+                if (funcCall.Args is not { Count: 1 } args)
+                    return false;
+
+                var colRef = args[0]?.ColumnRef;
+                if (colRef?.Fields is not { Count: 2 } fields)
+                    return false;
+
+                var alias = fields[0].String?.Sval;
+                if (string.Equals(alias, "rows", StringComparison.OrdinalIgnoreCase) == false)
+                    return false;
+
+                var fieldName = fields[1].String?.Sval;
+                if (string.IsNullOrWhiteSpace(fieldName))
+                    return false;
+
+                shape = new AggregateOnlyShape(funcName, fieldName, outputColumn);
+                return true;
+            }
+
+            static string RewriteAggregateOnlyRql(Documents.Queries.AST.Query q, AggregateOnlyShape shape)
+            {
+                if (q == null || shape == null)
+                    return null;
+
+                var id = FormatRqlIdentifier(shape.FieldName);
+                if (id == null)
+                    return null;
+
+                string agg;
+                if (string.Equals(shape.FunctionName, "sum", StringComparison.OrdinalIgnoreCase))
+                    agg = $"sum({id})";
+                else
+                    return null;
+
+                q.IsDistinct = false;
+                q.OrderBy = null;
+                q.Limit = null;
+                q.Offset = null;
+                q.Select = null;
+                q.SelectFunctionBody = default;
+
+                return q.ToString().TrimEnd().Replace("\r\n", "\n", StringComparison.Ordinal) + "\n" +
+                       $"select {agg}";
+            }
             static bool TryExtractOuterProjectedColumns(SelectStmt selectStmt, out List<string> cols)
             {
                 cols = null;
@@ -208,10 +332,45 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                     if (TryExtractOuterUnderscoreQualifiedColumn(colRef, out var colName) == false)
                         return false;
 
+                    if (TryNormalizeOrderByHelperColumn(colName, out var normalized))
+                        colName = normalized;
+
                     cols.Add(colName);
                     descFlags.Add(sortBy.SortbyDir == SortByDir.SortbyDesc);
                 }
 
+                return true;
+            }
+
+            static bool TryNormalizeOrderByHelperColumn(string colName, out string normalized)
+            {
+                normalized = null;
+
+                if (string.IsNullOrWhiteSpace(colName))
+                    return false;
+
+                // PowerBI null-order helper pattern:
+                //  - t[even]_0 = CASE WHEN oN IS NOT NULL THEN oN ELSE <sentinel timestamp> END
+                //  - t[odd]_0  = CASE WHEN oN IS NULL THEN 0 ELSE 1 END
+                // In RQL we can't preserve this pattern exactly without full CASE support.
+                // For now, we conservatively collapse t* order-bys back to ordering by the original column (oN),
+                // which keeps the query in DirectQuery and returns correct projected columns.
+                if (colName.Length < 3 || (colName[0] != 't' && colName[0] != 'T'))
+                    return false;
+
+                // Expect: t<idx>_0 (we only accept the PowerBI suffix "_0" here)
+                int underscore = colName.IndexOf('_');
+                if (underscore < 2)
+                    return false;
+
+                if (colName.AsSpan(underscore).Equals("_0", StringComparison.OrdinalIgnoreCase) == false)
+                    return false;
+
+                var idxSpan = colName.AsSpan(1, underscore - 1);
+                if (int.TryParse(idxSpan, out var idx) == false)
+                    return false;
+
+                normalized = "o" + (idx / 2);
                 return true;
             }
 
@@ -254,7 +413,8 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 if (orderByCols.Count == 0)
                     return false;
 
-                if (IsSubsetIgnoreCase(orderByCols, cols) == false)
+                // Be tolerant of PowerBI helper columns used only for ORDER BY (e.g. null-order helper aliases).
+                if (IsSubsetIgnoreCase(orderByCols, cols) == false && IsSubsetIgnoreCase(orderByCols, groupByCols) == false)
                     return false;
 
                 if (TryExtractLimit(selectStmt, out var limit) == false)
@@ -310,6 +470,8 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
 
                 var last = colRef.Fields[^1];
                 var name = last?.String?.Sval;
+                if (string.Equals(name, "id", StringComparison.OrdinalIgnoreCase))
+                    name = "id()";
                 return string.IsNullOrWhiteSpace(name) ? null : name;
             }
 
@@ -325,6 +487,8 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                     return false;
 
                 colName = TryExtractLastIdentifierSegment(colRef);
+                if (string.Equals(colName, "id", StringComparison.OrdinalIgnoreCase))
+                    colName = "id()";
                 return string.IsNullOrWhiteSpace(colName) == false;
             }
 
@@ -386,6 +550,24 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                     if (string.IsNullOrWhiteSpace(colName))
                         return null;
 
+                    if (string.Equals(colName, "json()", StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (q.From.Alias == null)
+                            return null;
+
+                        orderByParts.Add(q.From.Alias + (orderByDescFlags[i] ? " desc" : string.Empty));
+                        continue;
+                    }
+
+                    if (string.Equals(colName, "id()", StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (q.From.Alias == null)
+                            return null;
+
+                        orderByParts.Add($"id({q.From.Alias})" + (orderByDescFlags[i] ? " desc" : string.Empty));
+                        continue;
+                    }
+
                     var id = FormatRqlIdentifier(colName);
                     if (id == null)
                         return null;
@@ -399,6 +581,24 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                     var colName = projectionCols[i];
                     if (string.IsNullOrWhiteSpace(colName))
                         return null;
+
+                    if (string.Equals(colName, "json()", StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (q.From.Alias == null)
+                            return null;
+
+                        selectParts.Add($"\"json()\": {q.From.Alias}");
+                        continue;
+                    }
+
+                    if (string.Equals(colName, "id()", StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (q.From.Alias == null)
+                            return null;
+
+                        selectParts.Add($"\"id()\": id({q.From.Alias})");
+                        continue;
+                    }
 
                     var id = FormatRqlIdentifier(colName);
                     if (id == null)
