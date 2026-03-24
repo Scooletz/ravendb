@@ -278,13 +278,25 @@ public unsafe class EtlErrorsStorage
         return errors;
     }
     
-    public long ReadErrorsCount()
+    public long ReadTotalEtlErrorsCount()
     {
         var errorsCount = 0L;
 
-        foreach (var etlProcess in _etlLoader.Processes)
+        foreach (var etlProcess in _etlLoader.GetEtlProcesses())
         {
             errorsCount += ReadErrorsCountOfEtl(etlProcess.Name);
+        }
+
+        return errorsCount;
+    }
+
+    public long ReadTotalAiTasksErrorsCount()
+    {
+        var errorsCount = 0L;
+
+        foreach (var aiProcess in _etlLoader.GetAiProcesses())
+        {
+            errorsCount += ReadErrorsCountOfEtl(aiProcess.Name);
         }
 
         return errorsCount;

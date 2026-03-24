@@ -22,8 +22,8 @@ public sealed class ServerFailedAiTasks : ScalarObjectBase<Integer32>
 
         foreach (var db in _store.DatabasesLandlord.DatabasesCache)
         {
-            result += db.Value.GetAwaiter().GetResult().EtlLoader.Processes
-                .Count(x => x.EtlType is EtlType.EmbeddingsGeneration or EtlType.GenAi && x.Statistics.HealthStatus == EtlProcessHealthStatus.Failed);
+            result += db.Value.GetAwaiter().GetResult().EtlLoader.GetAiProcesses()
+                .Count(x => x.Statistics.HealthStatus == EtlProcessHealthStatus.Failed);
         }
 
         return new Integer32(result);

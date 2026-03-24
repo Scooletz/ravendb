@@ -3,12 +3,12 @@ using Raven.Server.ServerWide;
 
 namespace Raven.Server.Monitoring.Snmp.Objects.Server;
 
-public class ServerEtlErrors : ScalarObjectBase<Integer32>
+public class ServerAiTasksErrors : ScalarObjectBase<Integer32>
 {
     private readonly ServerStore _store;
     
-    public ServerEtlErrors(ServerStore store)
-        : base(SnmpOids.Server.EtlErrors)
+    public ServerAiTasksErrors(ServerStore store)
+        : base(SnmpOids.Server.AiTasksErrors)
     {
         _store = store;
     }
@@ -19,7 +19,7 @@ public class ServerEtlErrors : ScalarObjectBase<Integer32>
         
         foreach (var db in _store.DatabasesLandlord.DatabasesCache)
         {
-            result += (int)db.Value.GetAwaiter().GetResult().EtlErrorsStorage.ReadTotalEtlErrorsCount();
+            result += (int)db.Value.GetAwaiter().GetResult().EtlErrorsStorage.ReadTotalAiTasksErrorsCount();
         }
         
         return new Integer32(result);

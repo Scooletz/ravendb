@@ -97,6 +97,16 @@ namespace Raven.Server.Documents.ETL
             return items.Count();
         }
 
+        public EtlProcess[] GetEtlProcesses()
+        {
+            return _processes.Where(x => x.EtlType is not EtlType.EmbeddingsGeneration and EtlType.GenAi).ToArray();
+        }
+
+        public EtlProcess[] GetAiProcesses()
+        {
+            return _processes.Where(x => x.EtlType is EtlType.EmbeddingsGeneration or EtlType.GenAi).ToArray();
+        }
+
         public void Initialize(DatabaseRecord record)
         {
             LoadProcesses(record, record.RavenEtls, record.SqlEtls, record.OlapEtls, record.ElasticSearchEtls, record.QueueEtls, record.SnowflakeEtls, record.EmbeddingsGenerations, record.GenAis, toRemove: null, null, null);

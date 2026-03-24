@@ -524,6 +524,7 @@ namespace Raven.Server.Monitoring.Snmp
             store.Add(new ServerImpairedEtls(server.ServerStore));
             store.Add(new ServerFailedEtls(server.ServerStore));
 
+            store.Add(new ServerAiTasksErrors(server.ServerStore));
             store.Add(new ServerHealthyAiTasks(server.ServerStore));
             store.Add(new ServerImpairedAiTasks(server.ServerStore));
             store.Add(new ServerFailedAiTasks(server.ServerStore));

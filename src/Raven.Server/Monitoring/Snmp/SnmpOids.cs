@@ -420,18 +420,22 @@ namespace Raven.Server.Monitoring.Snmp
             [SnmpDataType(SnmpType.Integer32)]
             [Description($"Number of ETL tasks with {nameof(EtlProcessHealthStatus.Failed)} health status")]
             public const string NumberOfFailedEtls = "1.20.4";
+            
+            [SnmpDataType(SnmpType.Integer32)]
+            [Description("Number of AI tasks errors")]
+            public const string AiTasksErrors = "1.21.1";
 
             [SnmpDataType(SnmpType.Integer32)]
             [Description($"Number of AI tasks with {nameof(EtlProcessHealthStatus.Healthy)} health status")]
-            public const string NumberOfHealthyAiTasks = "1.21.1";
+            public const string NumberOfHealthyAiTasks = "1.21.2";
 
             [SnmpDataType(SnmpType.Integer32)]
             [Description($"Number of AI tasks with {nameof(EtlProcessHealthStatus.Impaired)} health status")]
-            public const string NumberOfImpairedAiTasks = "1.21.2";
+            public const string NumberOfImpairedAiTasks = "1.21.3";
 
             [SnmpDataType(SnmpType.Integer32)]
             [Description($"Number of AI tasks with {nameof(EtlProcessHealthStatus.Failed)} health status")]
-            public const string NumberOfFailedAiTasks = "1.21.3";
+            public const string NumberOfFailedAiTasks = "1.21.4";
 
             public static Dictionary<string, string> CreateMapping()
             {
@@ -670,6 +674,10 @@ namespace Raven.Server.Monitoring.Snmp
             [SnmpDataType(SnmpType.Integer32)]
             [Description("Number of ETL errors")]
             public const string EtlErrors = "5.2.{0}.1.17";
+            
+            [SnmpDataType(SnmpType.Integer32)]
+            [Description("Number of AI tasks errors")]
+            public const string AiTaskErrors = "5.2.{0}.1.18";
 
             [SnmpDataType(SnmpType.Gauge32)]
             [Description("Documents storage allocated size in MB")]

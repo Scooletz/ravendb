@@ -323,7 +323,7 @@ public sealed class MetricsProvider
             var dbResult = db.Value.GetAwaiter().GetResult();
 
             etlsCount += dbResult.EtlLoader.Processes.Length;
-            errorsCount += dbResult.EtlErrorsStorage.ReadErrorsCount();
+            errorsCount += dbResult.EtlErrorsStorage.ReadTotalEtlErrorsCount();
             healthyEtlsCount += dbResult.EtlLoader.Processes.Count(x => x.Statistics.HealthStatus == EtlProcessHealthStatus.Healthy);
             impairedEtlsCount += dbResult.EtlLoader.Processes.Count(x => x.Statistics.HealthStatus == EtlProcessHealthStatus.Impaired);
             failedEtlsCount += dbResult.EtlLoader.Processes.Count(x => x.Statistics.HealthStatus == EtlProcessHealthStatus.Failed);
@@ -502,7 +502,7 @@ public sealed class MetricsProvider
 
         result.Count = etls.Length;
 
-        var etlErrorsCount = database.EtlErrorsStorage.ReadErrorsCount();
+        var etlErrorsCount = database.EtlErrorsStorage.ReadTotalEtlErrorsCount();
         result.ErrorsCount = etlErrorsCount;
         
         var healthyEtlsCount = etls.Count(x => x.Statistics.HealthStatus == EtlProcessHealthStatus.Healthy);

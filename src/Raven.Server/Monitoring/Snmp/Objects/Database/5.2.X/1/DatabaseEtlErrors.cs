@@ -11,14 +11,11 @@ public sealed class DatabaseEtlErrors : DatabaseScalarObjectBase<Integer32>
 
     protected override Integer32 GetData(DocumentDatabase database)
     {
-        return new Integer32(GetCount(database));
+        return new Integer32((int)GetCount(database));
     }
     
-    private static int GetCount(DocumentDatabase database)
+    private static long GetCount(DocumentDatabase database)
     {
-        var itemErrors = database.EtlErrorsStorage.ReadAllItemErrors();
-        var processErrors = database.EtlErrorsStorage.ReadAllProcessErrors();
-        
-        return itemErrors.Count + processErrors.Count;
+        return database.EtlErrorsStorage.ReadTotalEtlErrorsCount();
     }
 }

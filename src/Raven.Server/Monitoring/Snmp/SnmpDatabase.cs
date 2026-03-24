@@ -74,6 +74,7 @@ namespace Raven.Server.Monitoring.Snmp
             _objectStore.Add(new DatabasePerformanceHints(_databaseName, _databaseLandlord, _databaseIndex));
             _objectStore.Add(new DatabaseIndexingErrors(_databaseName, _databaseLandlord, _databaseIndex));
             _objectStore.Add(new DatabaseEtlErrors(_databaseName, _databaseLandlord, _databaseIndex));
+            _objectStore.Add(new DatabaseAiTaskErrors(_databaseName, _databaseLandlord, _databaseIndex));
 
             _objectStore.Add(new DatabaseDocPutsPerSecond(_databaseName, _databaseLandlord, _databaseIndex));
             _objectStore.Add(new DatabaseMapIndexIndexedPerSecond(_databaseName, _databaseLandlord, _databaseIndex));
@@ -451,7 +452,7 @@ namespace Raven.Server.Monitoring.Snmp
             if (_loadedAiTasks.ContainsKey(processName))
                 return;
 
-            _objectStore.Add(new DatabaseAiTaskErrors(_databaseName, processName, _databaseLandlord, _databaseIndex, index));
+            _objectStore.Add(new DatabaseErrorsOfAiTask(_databaseName, processName, _databaseLandlord, _databaseIndex, index));
             _objectStore.Add(new DatabaseAiTaskHealthStatus(_databaseName, processName, _databaseLandlord, _databaseIndex, index));
             _objectStore.Add(new DatabaseAiTaskLastSuccessfulBatchTime(_databaseName, processName, _databaseLandlord, _databaseIndex, index));
 

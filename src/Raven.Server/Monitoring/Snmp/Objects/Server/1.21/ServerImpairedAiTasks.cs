@@ -22,8 +22,8 @@ public sealed class ServerImpairedAiTasks : ScalarObjectBase<Integer32>
 
         foreach (var db in _store.DatabasesLandlord.DatabasesCache)
         {
-            result += db.Value.GetAwaiter().GetResult().EtlLoader.Processes
-                .Count(x => x.EtlType is EtlType.EmbeddingsGeneration or EtlType.GenAi && x.Statistics.HealthStatus == EtlProcessHealthStatus.Impaired);
+            result += db.Value.GetAwaiter().GetResult().EtlLoader.GetAiProcesses()
+                .Count(x => x.Statistics.HealthStatus == EtlProcessHealthStatus.Impaired);
         }
 
         return new Integer32(result);

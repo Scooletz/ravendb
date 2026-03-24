@@ -3,19 +3,19 @@ using Raven.Server.Documents;
 
 namespace Raven.Server.Monitoring.Snmp.Objects.Database;
 
-public sealed class DatabaseAiTaskErrors : DatabaseEtlScalarObjectBase<Integer32>
+public sealed class DatabaseAiTaskErrors : DatabaseScalarObjectBase<Integer32>
 {
-    public DatabaseAiTaskErrors(string databaseName, string etlName, DatabasesLandlord landlord, int databaseIndex, int aiTaskIndex)
-        : base(databaseName, etlName, landlord, databaseIndex, aiTaskIndex, SnmpOids.Databases.AiTasks.AiTasksErrors)
+    public DatabaseAiTaskErrors(string databaseName, DatabasesLandlord landlord, int index) : base(databaseName, landlord, SnmpOids.Databases.AiTaskErrors, index)
     {
     }
-
+    
     protected override Integer32 GetData(DocumentDatabase database)
     {
-        var processErrors = database.EtlErrorsStorage.ReadProcessErrorsOfEtl(EtlName);
-        var itemErrors = database.EtlErrorsStorage.ReadItemErrorsOfEtl(EtlName);
-
-        return new Integer32(processErrors.Count + itemErrors.Count);
+        return new Integer32((int)GetCount(database));
+    }
+    
+    private static long GetCount(DocumentDatabase database)
+    {
+        return database.EtlErrorsStorage.ReadTotalAiTasksErrorsCount();
     }
 }
-
