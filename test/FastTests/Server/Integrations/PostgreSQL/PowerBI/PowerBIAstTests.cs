@@ -81,6 +81,39 @@ from ""public"".""Orders"" ""$Table"" limit 200";
         }
 
         [Fact]
+        public void DirectQuery_distinct_list_wrapper_with_inner_rql_load_should_report_actual_parser_classification()
+        {
+            const string sql = @"select ""_"".""Name"",
+        ""_"".""Manager""
+from
+(
+    select ""rows"".""Name"" as ""Name"",
+        ""rows"".""Manager"" as ""Manager""
+    from
+    (
+        select ""Name"",
+            ""Manager""
+        from
+        (
+            from Employees as e
+            where id() in ('employees/1-A')
+            load e.ReportsTo as boss
+            select { Name: e.FirstName, Manager: boss.FirstName }
+        ) ""$Table""
+    ) ""rows""
+    group by ""Name"",
+        ""Manager""
+) ""_""
+order by ""_"".""Name"",
+        ""_"".""Manager""
+limit 501";
+
+            Assert.True(PowerBIQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
+
+            Assert.IsType<PowerBIDirectQuery>(pgQuery);
+        }
+
+        [Fact]
         public void DirectQuery_desktop_grouped_sum_wrapper_should_be_handled_by_direct_query_parser_not_fetch()
         {
             const string sql = @"select ""_"".""Company"" as ""c2"",

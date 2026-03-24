@@ -9,6 +9,59 @@ namespace EmbeddedTests.Server.Integrations.PostgreSQL;
 public class RavenDB_17503 : PostgreSqlIntegrationTestBase
 {
     [Fact]
+    public async Task DirectQuery_distinct_list_wrapper_with_inner_rql_load_two_columns_should_work_end_to_end()
+    {
+        // Ownership note:
+        // - `FastTests.Server.Integrations.PostgreSQL.PowerBI.PowerBIAstTests.DirectQuery_distinct_list_wrapper_with_inner_rql_load_should_report_actual_parser_classification`
+        //   asserts parser classification (`PowerBIDirectQuery`).
+        // - This test asserts end-to-end execution and result shape.
+        using (var store = GetDocumentStore())
+        {
+            await store.Maintenance.SendAsync(new CreateSampleDataOperation());
+
+            const string sql = @"select ""_"".""Name"",
+        ""_"".""Manager""
+from
+(
+    select ""rows"".""Name"" as ""Name"",
+        ""rows"".""Manager"" as ""Manager""
+    from
+    (
+        select ""Name"",
+            ""Manager""
+        from
+        (
+            from Employees as e
+            where id() in ('employees/1-A')
+            load e.ReportsTo as boss
+            select { Name: e.FirstName, Manager: boss.FirstName }
+        ) ""$Table""
+    ) ""rows""
+    group by ""Name"",
+        ""Manager""
+) ""_""
+order by ""_"".""Name"",
+        ""_"".""Manager""
+limit 501";
+
+            var result = await Act(store, sql);
+
+            Assert.NotNull(result);
+
+            Assert.True(result.Columns.Contains("Name"));
+            Assert.True(result.Columns.Contains("Manager"));
+
+            Assert.Equal(1, result.Rows.Count);
+
+            var name = result.Rows[0]["Name"];
+            var manager = result.Rows[0]["Manager"];
+
+            Assert.NotEqual(System.DBNull.Value, name);
+            Assert.NotEqual(System.DBNull.Value, manager);
+        }
+    }
+
+    [Fact]
     public async Task DirectQuery_distinct_list_wrapper_single_column_should_work_end_to_end()
     {
         using (var store = GetDocumentStore())
