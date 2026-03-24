@@ -1,4 +1,5 @@
 import {
+    databaseAccessArgType,
     databaseArgType,
     DatabaseType,
     withBootstrap5,
@@ -26,27 +27,34 @@ export default {
 interface TasksErrorsPageArgs {
     hasErrors: boolean;
     databaseType: DatabaseType;
+    databaseAccess: databaseAccessLevel;
 }
 
 export const Default: StoryObj<TasksErrorsPageArgs> = {
     name: "Tasks Errors",
-    render: ({ hasErrors, databaseType }) => {
-        const { databases } = mockStore;
+    render: ({ hasErrors, databaseType, databaseAccess }) => {
+        const { databases, accessManager } = mockStore;
         const { tasksService } = mockServices;
+
+        let db = null;
 
         switch (databaseType) {
             case "sharded":
-                databases.withActiveDatabase_Sharded();
+                db = databases.withActiveDatabase_Sharded();
                 break;
             case "cluster":
-                databases.withActiveDatabase_NonSharded_Cluster();
+                db = databases.withActiveDatabase_NonSharded_Cluster();
                 break;
             case "singleNode":
-                databases.withActiveDatabase_NonSharded_SingleNode();
+                db = databases.withActiveDatabase_NonSharded_SingleNode();
                 break;
             default:
                 assertUnreachable(databaseType);
         }
+
+        accessManager.with_databaseAccess({
+            [db.name]: databaseAccess,
+        });
 
         tasksService.withEtlErrors(hasErrors ? TasksStubs.etlErrors() : []);
         tasksService.withEtlStats(hasErrors ? TasksStubs.etlStats() : []);
@@ -54,9 +62,11 @@ export const Default: StoryObj<TasksErrorsPageArgs> = {
     },
     argTypes: {
         databaseType: databaseArgType,
+        databaseAccess: databaseAccessArgType,
     },
     args: {
         hasErrors: true,
         databaseType: "singleNode",
+        databaseAccess: "DatabaseAdmin"
     },
 };

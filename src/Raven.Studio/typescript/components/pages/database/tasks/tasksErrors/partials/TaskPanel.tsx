@@ -47,6 +47,8 @@ import {
     HyperLinkDocumentCellValue,
 } from "./TasksErrorsCells";
 import { DeleteTaskErrorsModal } from "./DeleteModals";
+import { accessManagerSelectors } from "components/common/shell/accessManagerSliceSelectors";
+import { DatabaseAccessPopover } from "components/common/DatabaseAccessPopover";
 import EtlTaskStats = Raven.Server.Documents.ETL.Stats.EtlTaskStats;
 
 interface EtlTypeRichPanelItemProps {
@@ -190,6 +192,7 @@ interface TaskPanelProps extends EtlTaskWithErrors {
 }
 
 export function TaskPanel({ etlName, transformations, etlStats }: TaskPanelProps) {
+    const hasDatabaseWriteAccess = useAppSelector(accessManagerSelectors.getHasDatabaseWriteAccess)();
     const { value: isDetailsVisible, toggle: toggleDetails } = useBoolean(true);
     const { value: isDeleteModalOpen, toggle: toggleDeleteModal } = useBoolean(false);
 
@@ -212,10 +215,12 @@ export function TaskPanel({ etlName, transformations, etlStats }: TaskPanelProps
                         </a>
                     </RichPanelInfo>
                     <RichPanelActions>
-                        <Button variant="danger" onClick={toggleDeleteModal}>
-                            <Icon icon="trash" />
-                            Delete errors
-                        </Button>
+                        <DatabaseAccessPopover accessRequired="DatabaseReadWrite">
+                            <Button variant="danger" disabled={!hasDatabaseWriteAccess} onClick={toggleDeleteModal}>
+                                <Icon icon="trash" />
+                                Delete errors
+                            </Button>
+                        </DatabaseAccessPopover>
                     </RichPanelActions>
                 </RichPanelHeader>
                 <RichPanelDetails>

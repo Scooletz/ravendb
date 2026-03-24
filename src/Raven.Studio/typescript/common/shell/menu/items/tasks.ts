@@ -413,7 +413,7 @@ function getTasksMenuItem(appUrls: computedAppUrls) {
             nav: true,
             css: 'icon-tasks-errors',
             dynamicHash: appUrls.tasksError,
-            // requiredAccess: "DatabaseReadWrite"
+            requiredAccess: "DatabaseReadWrite",
             badgeData: ko.pureComputed(() => { return footer.default.stats() ? footer.default.stats().countOfTasksErrors() : null; })
         }),
     ];
