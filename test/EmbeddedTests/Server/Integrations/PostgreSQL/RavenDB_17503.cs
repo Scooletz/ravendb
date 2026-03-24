@@ -311,7 +311,84 @@ limit 501";
         {
             await store.Maintenance.SendAsync(new CreateSampleDataOperation());
 
-            const string sql = @"select ""_"".""OrderedAt"" as ""c2"", ""_"".""RequireAt"" as ""c3"" from ( select ""OrderedAt"", ""RequireAt"", ""_"".""t0_0"" as ""t0_0"", ""_"".""t1_0"" as ""t1_0"", ""_"".""t2_0"" as ""t2_0"", ""_"".""t3_0"" as ""t3_0"" from ( select ""_"".""OrderedAt"", ""_"".""RequireAt"", ""_"".""o0"", ""_"".""o1"", ""_"".""t0_0"", ""_"".""t1_0"", ""_"".""t2_0"", ""_"".""t3_0"" from ( select ""_"".""OrderedAt"" as ""OrderedAt"", ""_"".""RequireAt"" as ""RequireAt"", ""_"".""o0"" as ""o0"", ""_"".""o1"" as ""o1"", case when ""_"".""o0"" is not null then ""_"".""o0"" else timestamp '1899-12-28 00:00:00' end as ""t0_0"", case when ""_"".""o0"" is null then 0 else 1 end as ""t1_0"", case when ""_"".""o1"" is not null then ""_"".""o1"" else timestamp '1899-12-28 00:00:00' end as ""t2_0"", case when ""_"".""o1"" is null then 0 else 1 end as ""t3_0"" from ( select ""rows"".""OrderedAt"" as ""OrderedAt"", ""rows"".""RequireAt"" as ""RequireAt"", ""rows"".""o0"" as ""o0"", ""rows"".""o1"" as ""o1"" from ( select ""OrderedAt"" as ""OrderedAt"", ""RequireAt"" as ""RequireAt"", ""OrderedAt"" as ""o0"", ""RequireAt"" as ""o1"" from ( from Orders as o where o.Company = ""Companies/1-A"" OR o.Company = ""Companies/2-A"" select { OrderedAt: o.OrderedAt, RequireAt: o.RequireAt} ) ""$Table"" ) ""rows"" group by ""OrderedAt"", ""RequireAt"", ""o0"", ""o1"" ) ""_"" ) ""_"" ) ""_"" ) ""_"" order by ""_"".""t0_0"", ""_"".""t1_0"", ""_"".""t2_0"", ""_"".""t3_0"" limit 501";
+            const string sql = @"select ""_"".""OrderedAt"" as ""c2"",
+    ""_"".""RequireAt"" as ""c3""
+from
+(
+    select ""OrderedAt"",
+        ""RequireAt"",
+        ""_"".""t0_0"" as ""t0_0"",
+        ""_"".""t1_0"" as ""t1_0"",
+        ""_"".""t2_0"" as ""t2_0"",
+        ""_"".""t3_0"" as ""t3_0""
+    from
+    (
+        select ""_"".""OrderedAt"",
+            ""_"".""RequireAt"",
+            ""_"".""o0"",
+            ""_"".""o1"",
+            ""_"".""t0_0"",
+            ""_"".""t1_0"",
+            ""_"".""t2_0"",
+            ""_"".""t3_0""
+        from
+        (
+            select ""_"".""OrderedAt"" as ""OrderedAt"",
+                ""_"".""RequireAt"" as ""RequireAt"",
+                ""_"".""o0"" as ""o0"",
+                ""_"".""o1"" as ""o1"",
+                case
+                    when ""_"".""o0"" is not null
+                    then ""_"".""o0""
+                    else timestamp '1899-12-28 00:00:00'
+                end as ""t0_0"",
+                case
+                    when ""_"".""o0"" is null
+                    then 0
+                    else 1
+                end as ""t1_0"",
+                case
+                    when ""_"".""o1"" is not null
+                    then ""_"".""o1""
+                    else timestamp '1899-12-28 00:00:00'
+                end as ""t2_0"",
+                case
+                    when ""_"".""o1"" is null
+                    then 0
+                    else 1
+                end as ""t3_0""
+            from
+            (
+                select ""rows"".""OrderedAt"" as ""OrderedAt"",
+                    ""rows"".""RequireAt"" as ""RequireAt"",
+                    ""rows"".""o0"" as ""o0"",
+                    ""rows"".""o1"" as ""o1""
+                from
+                (
+                    select ""OrderedAt"" as ""OrderedAt"",
+                        ""RequireAt"" as ""RequireAt"",
+                        ""OrderedAt"" as ""o0"",
+                        ""RequireAt"" as ""o1""
+                    from
+                    (
+                        from Orders as o
+                        where o.Company = ""Companies/1-A"" OR o.Company = ""Companies/2-A""
+                        select { OrderedAt: o.OrderedAt, RequireAt: o.RequireAt}
+                    ) ""$Table""
+                ) ""rows""
+                group by ""OrderedAt"",
+                    ""RequireAt"",
+                    ""o0"",
+                    ""o1""
+            ) ""_""
+        ) ""_""
+    ) ""_""
+) ""_""
+order by ""_"".""t0_0"",
+        ""_"".""t1_0"",
+        ""_"".""t2_0"",
+        ""_"".""t3_0""
+limit 501";
 
             var result = await Act(store, sql);
 
@@ -396,6 +473,57 @@ limit 501";
 
             var json = result.Rows[0]["json()"]?.ToString();
             Assert.NotNull(json);
+        }
+    }
+
+    [Fact]
+    public async Task DirectQuery_grouped_sum_wrapper_from_desktop_should_work_end_to_end()
+    {
+        using (var store = GetDocumentStore())
+        {
+            await store.Maintenance.SendAsync(new CreateSampleDataOperation());
+
+            const string sql = @"select ""_"".""Company"" as ""c2"",
+    ""_"".""a0"" as ""a0""
+from
+(
+    select ""_"".""Company"",
+        ""_"".""a0""
+    from
+    (
+        select ""_"".""Company"",
+            ""_"".""a0""
+        from
+        (
+            select ""rows"".""Company"" as ""Company"",
+                sum(""rows"".""Freight"") as ""a0""
+            from
+            (
+                select ""Company"",
+                    ""Freight""
+                from
+                (
+                    from Orders as o
+                    where o.Company = ""Companies/1-A"" OR o.Company = ""Companies/2-A""
+                    select { Company: o.Company, Freight: o.Freight}
+                ) ""$Table""
+            ) ""rows""
+            group by ""Company""
+        ) ""_""
+        where not ""_"".""a0"" is null
+    ) ""_""
+) ""_""
+order by ""_"".""a0"" desc,
+        ""_"".""Company""
+limit 1001";
+
+            var result = await Act(store, sql);
+
+            Assert.NotNull(result);
+            Assert.NotEmpty(result.Rows);
+            Assert.True(result.Rows.Count > 0);
+            Assert.True(result.Columns.Contains("Company"));
+            Assert.True(result.Columns.Contains("a0"));
         }
     }
 

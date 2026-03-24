@@ -36,7 +36,34 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             List<bool> OrderByDescFlags,
             int Limit);
 
-        private sealed record AggregateOnlyShape(string FunctionName, string FieldName, string OutputColumn);
+        private sealed record GroupedAggregateShape(
+            string GroupByField,
+            string FunctionName,
+            string FieldName,
+            string OutputColumn,
+            List<string> OrderByCols,
+            List<bool> OrderByDescFlags,
+            int Limit);
+
+        private enum GroupedOrderByKind
+        {
+            Output,
+            GroupKey
+        }
+
+        private sealed record GroupedAggregateOrderByPart(
+            GroupedOrderByKind Kind,
+            bool Desc);
+
+        private sealed record GroupedAggregateRqlParts(
+            string FromText,
+            string WhereText,
+            string GroupByField,
+            string AggregateFunction,
+            string AggregateField,
+            string AggregateOutput,
+            List<GroupedAggregateOrderByPart> OrderBy,
+            int Limit);
 
         public static bool TryParse(string queryText, int[] parametersDataTypes, DocumentDatabase documentDatabase, out PgQuery pgQuery)
         {
@@ -70,14 +97,14 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 if (selectStmt == null)
                     return false;
 
-                if (TryExtractAggregateOnlyShape(selectStmt, out var aggregateShape))
+                if (TryExtractGroupedAggregateShape(selectStmt, out var aggregateShape))
                 {
                     string rewritten;
                     try
                     {
                         var innerQuery = QueryMetadata.ParseQuery(innerRql, QueryType.Select);
 
-                        rewritten = RewriteAggregateOnlyRql(innerQuery, aggregateShape);
+                        rewritten = RewriteGroupedAggregateRql(innerQuery, aggregateShape);
                     }
                     catch
                     {
@@ -143,100 +170,431 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 return false;
             }
 
-            static bool TryExtractAggregateOnlyShape(SelectStmt selectStmt, out AggregateOnlyShape shape)
+            static bool TryExtractGroupedAggregateShape(SelectStmt selectStmt, out GroupedAggregateShape shape)
             {
                 shape = null;
 
                 if (selectStmt == null)
                     return false;
 
-                if (selectStmt.WhereClause != null)
+                // Narrow grouped aggregate wrapper shape (Power BI Desktop):
+                // - LIMIT + ORDER BY exist on an outer wrapper select
+                // - GROUP BY exists on an inner select
+                // - projections and filters may appear across wrapper layers
+
+                if (selectStmt.LimitCount == null || selectStmt.LimitOffset != null)
                     return false;
 
-                if (selectStmt.GroupClause is { Count: > 0 })
+                if (TryExtractLimit(selectStmt, out var limit) == false)
                     return false;
 
-                if (selectStmt.SortClause is { Count: > 0 })
+                if (selectStmt.SortClause == null || selectStmt.SortClause.Count == 0)
                     return false;
 
-                if (selectStmt.LimitCount != null || selectStmt.LimitOffset != null)
+                // Extract order-by columns from the outer select. These are underscore-qualified.
+                var orderByCols = new List<string>(capacity: selectStmt.SortClause.Count);
+                var orderByDescFlags = new List<bool>(capacity: selectStmt.SortClause.Count);
+                foreach (var sortNode in selectStmt.SortClause)
+                {
+                    var sortBy = sortNode?.SortBy;
+                    if (sortBy == null)
+                        return false;
+
+                    var colRef = TryUnwrapToColumnRef(sortBy.Node);
+                    if (colRef == null)
+                        return false;
+
+                    if (TryExtractOuterUnderscoreQualifiedColumn(colRef, out var colName) == false)
+                        return false;
+
+                    orderByCols.Add(colName);
+                    orderByDescFlags.Add(sortBy.SortbyDir == SortByDir.SortbyDesc);
+                }
+
+                // Descend through pass-through wrapper layers: FROM ( ... ) "_" until we find the grouped aggregate select.
+                if (TryFindInnerGroupedSelect(selectStmt, out var groupedSelect) == false)
                     return false;
 
-                if (selectStmt.FromClause is not { Count: 1 } fromClause)
+                if (TryExtractGroupedAggregateShape(groupedSelect, out var groupByField, out var funcName, out var fieldName, out var outputColumn) == false)
                     return false;
 
-                var rss = fromClause[0]?.RangeSubselect;
-                if (rss == null)
+                shape = new GroupedAggregateShape(groupByField, funcName, fieldName, outputColumn, orderByCols, orderByDescFlags, limit);
+                return true;
+
+                static bool TryFindInnerGroupedSelect(SelectStmt outerSelectStmt, out SelectStmt groupedSelect)
+                {
+                    groupedSelect = null;
+
+                    if (outerSelectStmt?.FromClause is not { Count: 1 })
+                        return false;
+
+                    var rss = outerSelectStmt.FromClause[0]?.RangeSubselect;
+                    if (rss == null)
+                        return false;
+
+                    var current = rss.Subquery?.SelectStmt;
+                    while (current != null)
+                    {
+                        if (current.GroupClause is { Count: > 0 })
+                        {
+                            groupedSelect = current;
+                            return true;
+                        }
+
+                        if (current.FromClause is not { Count: 1 } currentFrom)
+                            return false;
+
+                        var next = currentFrom[0]?.RangeSubselect?.Subquery?.SelectStmt;
+                        if (next == null)
+                            return false;
+
+                        current = next;
+                    }
+
+                    return false;
+                }
+
+                static bool TryExtractGroupedAggregateShape(SelectStmt groupedSelect, out string groupByField, out string functionName, out string fieldName, out string outputColumn)
+                {
+                    groupByField = null;
+                    functionName = null;
+                    fieldName = null;
+                    outputColumn = null;
+
+                    if (groupedSelect == null)
+                        return false;
+
+                    if (groupedSelect.GroupClause is not { Count: 1 } groupClause)
+                        return false;
+
+                    var groupByCol = TryUnwrapToColumnRef(groupClause[0]);
+                    if (groupByCol == null)
+                        return false;
+
+                    groupByField = TryExtractLastIdentifierSegment(groupByCol);
+                    if (string.IsNullOrWhiteSpace(groupByField))
+                        return false;
+
+                    if (groupedSelect.TargetList == null || groupedSelect.TargetList.Count < 2)
+                        return false;
+
+                    var targets = groupedSelect.TargetList;
+
+                    ResTarget groupTarget = null;
+                    ResTarget aggTarget = null;
+                    ColumnRef unwrappedGroupTarget = null;
+                    FuncCall unwrappedAggTarget = null;
+
+                    foreach (var t in targets)
+                    {
+                        var rt = t?.ResTarget;
+                        if (rt == null)
+                            return false;
+
+                        var col = TryUnwrapToColumnRef(rt.Val);
+                        if (col != null)
+                        {
+                            groupTarget ??= rt;
+                            unwrappedGroupTarget ??= col;
+                            continue;
+                        }
+
+                        var func = TryUnwrapToFuncCall(rt.Val);
+                        if (func != null)
+                        {
+                            aggTarget ??= rt;
+                            unwrappedAggTarget ??= func;
+                            continue;
+                        }
+
+                        // Ignore other projection kinds.
+                    }
+
+                    if (unwrappedGroupTarget == null || unwrappedAggTarget == null || groupTarget == null || aggTarget == null)
+                        return false;
+
+                    var projectedGroup = TryExtractLastIdentifierSegment(unwrappedGroupTarget);
+                    if (string.IsNullOrWhiteSpace(projectedGroup))
+                        return false;
+
+                    outputColumn = aggTarget.Name;
+                    if (string.IsNullOrWhiteSpace(outputColumn))
+                        return false;
+
+                    functionName = unwrappedAggTarget.Funcname is { Count: > 0 }
+                        ? unwrappedAggTarget.Funcname[0].String?.Sval
+                        : null;
+
+                    if (string.Equals(functionName, "sum", StringComparison.OrdinalIgnoreCase) == false)
+                        return false;
+
+                    if (unwrappedAggTarget.Args is not { Count: 1 } args)
+                        return false;
+
+                    var colRef = TryUnwrapToColumnRef(args[0]);
+                    if (colRef?.Fields is not { Count: > 0 } fields)
+                        return false;
+
+                    fieldName = fields[^1].String?.Sval;
+                    if (string.IsNullOrWhiteSpace(fieldName))
+                        return false;
+
+                    return true;
+                }
+
+                static FuncCall TryUnwrapToFuncCall(Node node)
+                {
+                    while (node != null)
+                    {
+                        if (node.FuncCall != null)
+                            return node.FuncCall;
+
+                        if (node.TypeCast != null)
+                        {
+                            node = node.TypeCast.Arg;
+                            continue;
+                        }
+
+                        if (node.AExpr != null)
+                        {
+                            node = node.AExpr.Lexpr ?? node.AExpr.Rexpr;
+                            continue;
+                        }
+
+                        if (node.RelabelType != null)
+                        {
+                            node = node.RelabelType.Arg;
+                            continue;
+                        }
+
+                        break;
+                    }
+
+                    return null;
+                }
+
+                static ColumnRef TryUnwrapToColumnRef(Node node)
+                {
+                    while (node != null)
+                    {
+                        if (node.ColumnRef != null)
+                            return node.ColumnRef;
+
+                        if (node.TypeCast != null)
+                        {
+                            node = node.TypeCast.Arg;
+                            continue;
+                        }
+
+                        if (node.AExpr != null)
+                        {
+                            node = node.AExpr.Lexpr ?? node.AExpr.Rexpr;
+                            continue;
+                        }
+
+                        if (node.RelabelType != null)
+                        {
+                            node = node.RelabelType.Arg;
+                            continue;
+                        }
+
+                        break;
+                    }
+
+                    return null;
+                }
+            }
+
+            static string RewriteGroupedAggregateRql(Documents.Queries.AST.Query q, GroupedAggregateShape shape)
+            {
+                if (TryBuildGroupedAggregateParts(q, shape, out var parts) == false)
+                    return null;
+
+                return EmitGroupedAggregateRql(parts);
+            }
+
+            static bool TryBuildGroupedAggregateParts(Documents.Queries.AST.Query q, GroupedAggregateShape shape, out GroupedAggregateRqlParts parts)
+            {
+                parts = null;
+
+                if (q == null || shape == null)
                     return false;
 
-                if (string.Equals(rss.Alias?.Aliasname, "rows", StringComparison.OrdinalIgnoreCase) == false)
+                if (q.From.From == null)
                     return false;
 
-                if (selectStmt.TargetList is not { Count: 1 } targetList)
+                if (string.Equals(shape.FunctionName, "sum", StringComparison.OrdinalIgnoreCase) == false)
                     return false;
 
-                var resTarget = targetList[0]?.ResTarget;
-                if (resTarget == null)
+                var groupId = FormatRqlIdentifier(shape.GroupByField);
+                if (groupId == null)
                     return false;
 
-                var outputColumn = resTarget.Name;
-                if (string.IsNullOrWhiteSpace(outputColumn))
+                var fieldId = FormatRqlIdentifier(shape.FieldName);
+                if (fieldId == null)
                     return false;
 
-                var funcCall = resTarget.Val?.FuncCall;
-                if (funcCall == null)
+                var outId = FormatRqlIdentifier(shape.OutputColumn);
+                if (outId == null)
                     return false;
 
-                var funcName = funcCall.Funcname is { Count: > 0 }
-                    ? funcCall.Funcname[0].String?.Sval
-                    : null;
-
-                if (string.Equals(funcName, "sum", StringComparison.OrdinalIgnoreCase) == false)
+                if (TryBuildFromText(q, out var fromText) == false)
                     return false;
 
-                if (funcCall.Args is not { Count: 1 } args)
+                TryBuildWhereText(q, out var whereText);
+
+                if (TryBuildGroupedAggregateOrderBy(shape, groupId, outId, out var orderBy) == false)
                     return false;
 
-                var colRef = args[0]?.ColumnRef;
-                if (colRef?.Fields is not { Count: 2 } fields)
-                    return false;
-
-                var alias = fields[0].String?.Sval;
-                if (string.Equals(alias, "rows", StringComparison.OrdinalIgnoreCase) == false)
-                    return false;
-
-                var fieldName = fields[1].String?.Sval;
-                if (string.IsNullOrWhiteSpace(fieldName))
-                    return false;
-
-                shape = new AggregateOnlyShape(funcName, fieldName, outputColumn);
+                parts = new GroupedAggregateRqlParts(
+                    FromText: fromText,
+                    WhereText: whereText,
+                    GroupByField: groupId,
+                    AggregateFunction: "sum",
+                    AggregateField: fieldId,
+                    AggregateOutput: outId,
+                    OrderBy: orderBy,
+                    Limit: shape.Limit);
                 return true;
             }
 
-            static string RewriteAggregateOnlyRql(Documents.Queries.AST.Query q, AggregateOnlyShape shape)
+            static bool TryBuildGroupedAggregateOrderBy(GroupedAggregateShape shape, string groupId, string outId, out List<GroupedAggregateOrderByPart> orderBy)
             {
-                if (q == null || shape == null)
+                orderBy = null;
+
+                if (shape.OrderByCols == null || shape.OrderByDescFlags == null)
+                    return false;
+
+                if (shape.OrderByCols.Count != shape.OrderByDescFlags.Count)
+                    return false;
+
+                var parts = new List<GroupedAggregateOrderByPart>(capacity: shape.OrderByCols.Count);
+                for (int i = 0; i < shape.OrderByCols.Count; i++)
+                {
+                    var c = shape.OrderByCols[i];
+                    var desc = shape.OrderByDescFlags[i];
+
+                    if (string.Equals(c, shape.OutputColumn, StringComparison.OrdinalIgnoreCase))
+                    {
+                        parts.Add(new GroupedAggregateOrderByPart(Kind: GroupedOrderByKind.Output, Desc: desc));
+                        continue;
+                    }
+
+                    if (string.Equals(c, shape.GroupByField, StringComparison.OrdinalIgnoreCase))
+                    {
+                        parts.Add(new GroupedAggregateOrderByPart(Kind: GroupedOrderByKind.GroupKey, Desc: desc));
+                        continue;
+                    }
+
+                    return false;
+                }
+
+                orderBy = parts;
+                return true;
+            }
+
+            static string EmitGroupedAggregateRql(GroupedAggregateRqlParts parts)
+            {
+                if (parts == null)
                     return null;
 
-                var id = FormatRqlIdentifier(shape.FieldName);
-                if (id == null)
-                    return null;
+                // Build Raven grouped query explicitly (grammar differs from regular select projection).
+                // from <collection>
+                // group by <field>
+                // where <predicate>
+                // order by <aggregate alias> as double [desc], <group field> [desc]
+                // select key() as <field>, sum(<field>) as <output>
+                // limit 0, <limit>
 
-                string agg;
-                if (string.Equals(shape.FunctionName, "sum", StringComparison.OrdinalIgnoreCase))
-                    agg = $"sum({id})";
-                else
-                    return null;
+                const string nl = "\n";
+                var sb = new System.Text.StringBuilder();
+                sb.Append(parts.FromText);
+                sb.Append(nl);
+                sb.Append("group by ");
+                sb.Append(parts.GroupByField);
 
-                q.IsDistinct = false;
-                q.OrderBy = null;
-                q.Limit = null;
-                q.Offset = null;
-                q.Select = null;
-                q.SelectFunctionBody = default;
+                if (string.IsNullOrWhiteSpace(parts.WhereText) == false)
+                {
+                    sb.Append(nl);
+                    sb.Append(parts.WhereText);
+                }
 
-                return q.ToString().TrimEnd().Replace("\r\n", "\n", StringComparison.Ordinal) + "\n" +
-                       $"select {agg}";
+                if (parts.OrderBy is { Count: > 0 })
+                {
+                    sb.Append(nl);
+                    sb.Append("order by ");
+
+                    for (int i = 0; i < parts.OrderBy.Count; i++)
+                    {
+                        if (i > 0)
+                            sb.Append(", ");
+
+                        var ob = parts.OrderBy[i];
+                        switch (ob.Kind)
+                        {
+                            case GroupedOrderByKind.Output:
+                                sb.Append(parts.AggregateOutput);
+                                sb.Append(" as double");
+                                break;
+                            case GroupedOrderByKind.GroupKey:
+                                sb.Append(parts.GroupByField);
+                                break;
+                            default:
+                                return null;
+                        }
+
+                        if (ob.Desc)
+                            sb.Append(" desc");
+                    }
+                }
+
+                sb.Append(nl);
+                sb.Append("select key() as ");
+                sb.Append(parts.GroupByField);
+                sb.Append(", ");
+                sb.Append(parts.AggregateFunction);
+                sb.Append('(');
+                sb.Append(parts.AggregateField);
+                sb.Append(") as ");
+                sb.Append(parts.AggregateOutput);
+
+                sb.Append(nl);
+                sb.Append("limit 0, ");
+                sb.Append(parts.Limit);
+
+                return sb.ToString();
+            }
+
+            static bool TryBuildFromText(Documents.Queries.AST.Query q, out string fromText)
+            {
+                fromText = null;
+
+                if (q?.From.From == null)
+                    return false;
+
+                var sb = new System.Text.StringBuilder();
+                var v = new StringQueryVisitor(sb);
+                v.VisitFromClause(q.From.From, q.From.Alias, q.From.Filter, q.From.Index);
+                fromText = sb.ToString().Trim();
+                return string.IsNullOrWhiteSpace(fromText) == false;
+            }
+
+            static bool TryBuildWhereText(Documents.Queries.AST.Query q, out string whereText)
+            {
+                whereText = null;
+
+                if (q?.Where == null)
+                    return true;
+
+                var sb = new System.Text.StringBuilder();
+                var v = new StringQueryVisitor(sb);
+                v.VisitWhereClause(q.Where);
+                var rendered = sb.ToString().Trim();
+                if (string.IsNullOrWhiteSpace(rendered))
+                    return false;
+
+                whereText = rendered;
+                return true;
             }
             static bool TryExtractOuterProjectedColumns(SelectStmt selectStmt, out List<string> cols)
             {
@@ -280,8 +638,26 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 if (string.IsNullOrWhiteSpace(aliasName) || string.Equals(aliasName, "_", StringComparison.OrdinalIgnoreCase) == false)
                     return false;
 
-                groupBySelect = rss.Subquery?.SelectStmt;
-                return groupBySelect != null;
+                var current = rss.Subquery?.SelectStmt;
+                while (current != null)
+                {
+                    if (current.GroupClause is { Count: > 0 })
+                    {
+                        groupBySelect = current;
+                        return true;
+                    }
+
+                    if (current.FromClause is not { Count: 1 } currentFrom)
+                        return false;
+
+                    var next = currentFrom[0]?.RangeSubselect?.Subquery?.SelectStmt;
+                    if (next == null)
+                        return false;
+
+                    current = next;
+                }
+
+                return false;
             }
 
             static bool TryExtractGroupByColumns(SelectStmt selectStmt, out List<string> cols)
