@@ -23,7 +23,8 @@ namespace Raven.Server.Utils.Monitoring
         public CertificateMetrics Certificate { get; set; }
         public ClusterMetrics Cluster { get; set; }
         public AllDatabasesMetrics Databases { get; set; }
-        public ServerEtlMetrics Etl { get; set; }
+        public ServerEtlMetrics Etls { get; set; }
+        public ServerAiTasksMetrics AiTasks { get; set; }
         
         public DynamicJsonValue ToJson()
         {
@@ -44,7 +45,8 @@ namespace Raven.Server.Utils.Monitoring
                 [nameof(Certificate)] = Certificate.ToJson(),
                 [nameof(Cluster)] = Cluster.ToJson(),
                 [nameof(Databases)] = Databases.ToJson(),
-                [nameof(Etl)] = Etl.ToJson()
+                [nameof(Etls)] = Etls.ToJson(),
+                [nameof(AiTasks)] = AiTasks.ToJson()
             };
         }
     }
@@ -297,6 +299,27 @@ namespace Raven.Server.Utils.Monitoring
                 [nameof(HealthyEtlsCount)] = HealthyEtlsCount,
                 [nameof(ImpairedEtlsCount)] = ImpairedEtlsCount,
                 [nameof(FailedEtlsCount)] = FailedEtlsCount
+            };
+        }
+    }
+    
+    public sealed class ServerAiTasksMetrics
+    {
+        public int Count { get; set; }
+        public long ErrorsCount { get;  set; }
+        public int HealthyTasksCount { get; set; }
+        public int ImpairedTasksCount { get; set; }
+        public int FailedTasksCount { get; set; }
+        
+        public DynamicJsonValue ToJson()
+        {
+            return new DynamicJsonValue
+            {
+                [nameof(Count)] = Count,
+                [nameof(ErrorsCount)] = ErrorsCount,
+                [nameof(HealthyTasksCount)] = HealthyTasksCount,
+                [nameof(ImpairedTasksCount)] = ImpairedTasksCount,
+                [nameof(FailedTasksCount)] = FailedTasksCount
             };
         }
     }

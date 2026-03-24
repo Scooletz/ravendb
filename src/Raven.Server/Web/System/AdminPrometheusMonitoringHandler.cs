@@ -207,11 +207,18 @@ namespace Raven.Server.Web.System
                     WriteGaugeWithHelp(writer, "Server license max CPU cores", "license_max_cores", serverMetrics.License.MaxCores);
                     
                     // ETLs
-                    WriteCounterWithHelp(writer, "Number of ETLs", "server_etls_count", serverMetrics.Etl.Count);
-                    WriteCounterWithHelp(writer, "Number of ETL errors", "server_etls_errors_count", serverMetrics.Etl.ErrorsCount);
-                    WriteCounterWithHelp(writer, "Number of healthy ETLs", "server_etls_healthy_count", serverMetrics.Etl.HealthyEtlsCount);
-                    WriteCounterWithHelp(writer, "Number of impaired ETLs", "server_etls_impaired_count", serverMetrics.Etl.ImpairedEtlsCount);
-                    WriteCounterWithHelp(writer, "Number of failed ETLs", "server_etls_failed_count", serverMetrics.Etl.FailedEtlsCount);
+                    WriteCounterWithHelp(writer, "Number of ETLs", "server_etls_count", serverMetrics.Etls.Count);
+                    WriteCounterWithHelp(writer, "Number of ETL errors", "server_etls_errors_count", serverMetrics.Etls.ErrorsCount);
+                    WriteCounterWithHelp(writer, "Number of healthy ETLs", "server_etls_healthy_count", serverMetrics.Etls.HealthyEtlsCount);
+                    WriteCounterWithHelp(writer, "Number of impaired ETLs", "server_etls_impaired_count", serverMetrics.Etls.ImpairedEtlsCount);
+                    WriteCounterWithHelp(writer, "Number of failed ETLs", "server_etls_failed_count", serverMetrics.Etls.FailedEtlsCount);
+
+                    // AI Tasks
+                    WriteCounterWithHelp(writer, "Number of AI tasks", "server_ai_tasks_count", serverMetrics.AiTasks.Count);
+                    WriteCounterWithHelp(writer, "Number of AI task errors", "server_ai_tasks_errors_count", serverMetrics.AiTasks.ErrorsCount);
+                    WriteCounterWithHelp(writer, "Number of healthy AI tasks", "server_ai_tasks_healthy_count", serverMetrics.AiTasks.HealthyTasksCount);
+                    WriteCounterWithHelp(writer, "Number of impaired AI tasks", "server_ai_tasks_impaired_count", serverMetrics.AiTasks.ImpairedTasksCount);
+                    WriteCounterWithHelp(writer, "Number of failed AI tasks", "server_ai_tasks_failed_count", serverMetrics.AiTasks.FailedTasksCount);
                 }
 
                 ms.Position = 0;
@@ -340,6 +347,13 @@ namespace Raven.Server.Web.System
                     WriteGauges(writer, "Number of healthy ETLs", "database_etls_healthy_count", metrics, x => x.Etls.HealthyEtlsCount, cachedTags);
                     WriteGauges(writer, "Number of impaired ETLs", "database_etls_impaired_count", metrics, x => x.Etls.ImpairedEtlsCount, cachedTags);
                     WriteGauges(writer, "Number of failed ETLs", "database_etls_failed_count", metrics, x => x.Etls.FailedEtlsCount, cachedTags);
+
+                    // AI Tasks
+                    WriteGauges(writer, "Number of AI tasks", "database_ai_tasks_count", metrics, x => x.AiTasks.Count, cachedTags);
+                    WriteGauges(writer, "Number of AI task errors", "database_ai_tasks_errors_count", metrics, x => x.AiTasks.ErrorsCount, cachedTags);
+                    WriteGauges(writer, "Number of healthy AI tasks", "database_ai_tasks_healthy_count", metrics, x => x.AiTasks.HealthyTasksCount, cachedTags);
+                    WriteGauges(writer, "Number of impaired AI tasks", "database_ai_tasks_impaired_count", metrics, x => x.AiTasks.ImpairedTasksCount, cachedTags);
+                    WriteGauges(writer, "Number of failed AI tasks", "database_ai_tasks_failed_count", metrics, x => x.AiTasks.FailedTasksCount, cachedTags);
                 }
 
                 ms.Position = 0;
