@@ -496,6 +496,8 @@ export function OngoingTasksPage({ isAiOnly = false }: OngoingTasksPageProps) {
                                         data={x}
                                         onToggleDetails={startTrackingEtlProgress}
                                         showItemPreview={showItemPreview}
+                                        etlStats={flatEtlStats}
+                                        etlErrors={flatEtlErrors}
                                     />
                                 ))}
                                 {embeddingsGenerations.map((x) => (
@@ -505,6 +507,8 @@ export function OngoingTasksPage({ isAiOnly = false }: OngoingTasksPageProps) {
                                         data={x}
                                         onToggleDetails={startTrackingEtlProgress}
                                         showItemPreview={showItemPreview}
+                                        etlStats={flatEtlStats}
+                                        etlErrors={flatEtlErrors}
                                     />
                                 ))}
                             </div>
