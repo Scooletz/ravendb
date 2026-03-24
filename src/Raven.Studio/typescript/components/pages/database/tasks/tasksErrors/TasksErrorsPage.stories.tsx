@@ -67,6 +67,6 @@ export const Default: StoryObj<TasksErrorsPageArgs> = {
     args: {
         hasErrors: true,
         databaseType: "singleNode",
-        databaseAccess: "DatabaseAdmin"
+        databaseAccess: "DatabaseAdmin",
     },
 };

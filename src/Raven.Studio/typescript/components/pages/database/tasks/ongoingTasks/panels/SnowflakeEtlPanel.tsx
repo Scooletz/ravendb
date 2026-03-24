@@ -50,7 +50,11 @@ export function SnowflakeEtlPanel(props: SnowflakeEtlPanelProps & ICanShowTransf
     } = useEtlPanel(props, editUrl);
 
     const databaseName = useAppSelector(databaseSelectors.activeDatabaseName);
-    const connectionStringsUrl = appUrl.forConnectionStrings(databaseName, "Snowflake", data.shared.connectionStringName);
+    const connectionStringsUrl = appUrl.forConnectionStrings(
+        databaseName,
+        "Snowflake",
+        data.shared.connectionStringName
+    );
 
     return (
         <RichPanel>

@@ -91,7 +91,7 @@ function TableDisplaySettingsSheet({
     const [columnOrder, setColumnOrder] = useState<string[]>(initialColumnOrder);
     const [selectedIds, setSelectedIds] = useState<string[]>(initialSelectedIds);
     const [pinnedIds, setPinnedIds] = useState<string[]>(initialPinnedIds);
-    const [activeDragId, setActiveDragId] = useState<string | null>(null);
+    const [activeDragId, setActiveDragId] = useState<string>(null);
 
     const sensors = useSensors(useSensor(PointerSensor));
 

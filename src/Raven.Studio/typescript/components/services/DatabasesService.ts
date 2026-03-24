@@ -81,9 +81,6 @@ import getSchemaValidationCommand from "commands/database/settings/getSchemaVali
 import saveSchemaValidationCommand from "commands/database/settings/saveSchemaValidationCommand";
 import validateSchemaCommand from "commands/database/settings/validateSchemaCommand";
 import getRemoteAttachmentsDestinationsCommand from "commands/database/settings/getRemoteAttachmentsDestinationsCommand";
-import getEtlErrorsCommand from "commands/database/tasks/getEtlErrorsCommand";
-import getEtlStatsCommand from "commands/database/tasks/getEtlStatsCommand";
-import deleteEtlErrorsCommand from "commands/database/tasks/deleteEtlErrorsCommand";
 
 export default class DatabasesService {
     async setLockMode(databaseNames: string[], newLockMode: DatabaseLockMode) {
@@ -394,17 +391,5 @@ export default class DatabasesService {
 
     async validateSchema(...args: ConstructorParameters<typeof validateSchemaCommand>) {
         return new validateSchemaCommand(...args).execute();
-    }
-
-    async getEtlErrors(...args: ConstructorParameters<typeof getEtlErrorsCommand>) {
-        return new getEtlErrorsCommand(...args).execute();
-    }
-    
-    async getEtlStats(...args: ConstructorParameters<typeof getEtlStatsCommand>) {
-        return new getEtlStatsCommand(...args).execute();
-    }
-    
-    async deleteEtlErrors(...args: ConstructorParameters<typeof deleteEtlErrorsCommand>) {
-        return new deleteEtlErrorsCommand(...args).execute();
     }
 }

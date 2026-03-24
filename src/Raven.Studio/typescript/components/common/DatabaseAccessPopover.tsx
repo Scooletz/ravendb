@@ -9,7 +9,12 @@ export interface DatabaseAccessPopoverProps extends Omit<ConditionalPopoverProps
     conditions?: ConditionalPopoverProps["conditions"];
 }
 
-export function DatabaseAccessPopover({ conditions = [], children, accessRequired = "DatabaseAdmin", ...rest }: DatabaseAccessPopoverProps) {
+export function DatabaseAccessPopover({
+    conditions = [],
+    children,
+    accessRequired = "DatabaseAdmin",
+    ...rest
+}: DatabaseAccessPopoverProps) {
     const canHandleOperation = useAppSelector(accessManagerSelectors.getCanHandleOperation)(accessRequired);
 
     const additionalConditions = Array.isArray(conditions) ? conditions : [conditions];

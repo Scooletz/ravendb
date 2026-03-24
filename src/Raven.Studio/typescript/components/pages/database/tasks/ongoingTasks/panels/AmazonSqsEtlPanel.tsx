@@ -50,7 +50,11 @@ export function AmazonSqsEtlPanel(props: AmazonSqsEtlPanelProps & ICanShowTransf
     } = useEtlPanel(props, editUrl);
 
     const databaseName = useAppSelector(databaseSelectors.activeDatabaseName);
-    const connectionStringsUrl = appUrl.forConnectionStrings(databaseName, "AmazonSqs", data.shared.connectionStringName);
+    const connectionStringsUrl = appUrl.forConnectionStrings(
+        databaseName,
+        "AmazonSqs",
+        data.shared.connectionStringName
+    );
 
     return (
         <RichPanel>
