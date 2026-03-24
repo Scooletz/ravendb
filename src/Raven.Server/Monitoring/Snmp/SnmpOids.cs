@@ -421,6 +421,18 @@ namespace Raven.Server.Monitoring.Snmp
             [Description($"Number of ETL tasks with {nameof(EtlProcessHealthStatus.Failed)} health status")]
             public const string NumberOfFailedEtls = "1.20.4";
 
+            [SnmpDataType(SnmpType.Integer32)]
+            [Description($"Number of AI tasks with {nameof(EtlProcessHealthStatus.Healthy)} health status")]
+            public const string NumberOfHealthyAiTasks = "1.21.1";
+
+            [SnmpDataType(SnmpType.Integer32)]
+            [Description($"Number of AI tasks with {nameof(EtlProcessHealthStatus.Impaired)} health status")]
+            public const string NumberOfImpairedAiTasks = "1.21.2";
+
+            [SnmpDataType(SnmpType.Integer32)]
+            [Description($"Number of AI tasks with {nameof(EtlProcessHealthStatus.Failed)} health status")]
+            public const string NumberOfFailedAiTasks = "1.21.3";
+
             public static Dictionary<string, string> CreateMapping()
             {
                 var dictionary = new Dictionary<string, string>();
@@ -778,6 +790,18 @@ namespace Raven.Server.Monitoring.Snmp
             [SnmpDataType(SnmpType.Integer32)]
             [Description($"Number of ETL tasks with {nameof(EtlProcessHealthStatus.Failed)} health status")]
             public const string NumberOfFailedEtls = "5.2.{0}.7.3";
+            
+            [SnmpDataType(SnmpType.Integer32)]
+            [Description($"Number of AI tasks with {nameof(EtlProcessHealthStatus.Healthy)} health status")]
+            public const string NumberOfHealthyAiTasks = "5.2.{0}.8.1";
+            
+            [SnmpDataType(SnmpType.Integer32)]
+            [Description($"Number of AI tasks with {nameof(EtlProcessHealthStatus.Impaired)} health status")]
+            public const string NumberOfImpairedAiTasks = "5.2.{0}.8.2";
+            
+            [SnmpDataType(SnmpType.Integer32)]
+            [Description($"Number of AI tasks with {nameof(EtlProcessHealthStatus.Failed)} health status")]
+            public const string NumberOfFailedAiTasks = "5.2.{0}.8.3";
 
             public sealed class Indexes
             {
@@ -939,6 +963,70 @@ namespace Raven.Server.Monitoring.Snmp
 
                         var array = new DynamicJsonArray();
                         foreach (var field in typeof(Etls).GetFields())
+                        {
+                            var fieldValue = GetFieldValue(field);
+                            var databaseOid = string.Format(fieldValue.Oid, databaseIndex);
+                            var indexOid = string.Format(databaseOid, index);
+                            array.Add(CreateJsonItem(Root + indexOid, fieldValue.Description));
+                        }
+
+                        djv[name] = array;
+                    }
+                }
+            }
+            
+            public sealed class AiTasks
+            {
+                private AiTasks()
+                {
+                }
+                
+                [Description("Number of AI task errors")]
+                public const string AiTasksErrors = "5.2.{0}.2.{{0}}.1";
+                
+                [Description("Health status of particular AI task")]
+                public const string HealthStatus = "5.2.{0}.2.{{0}}.2";
+
+                [Description("Last successful batch time")]
+                public const string LastSuccessfulBatchTime = "5.2.{0}.2.{{0}}.3";
+                
+                public static Dictionary<string, string> CreateMapping(long ignoreIndex)
+                {
+                    var dictionary = new Dictionary<string, string>();
+                    foreach (var field in typeof(AiTasks).GetFields())
+                    {
+                        var fieldValue = GetFieldValue(field);
+                        var databaseOid = string.Format(fieldValue.Oid, ignoreIndex);
+                        var aiTaskOid = string.Format(databaseOid, ignoreIndex);
+                        dictionary.Add(Root + aiTaskOid, fieldValue.Description);
+                    }
+
+                    return dictionary;
+                }
+
+                public static DynamicJsonValue ToJson(ServerStore serverStore, TransactionOperationContext context, RawDatabaseRecord record, long databaseIndex)
+                {
+                    var mapping = SnmpDatabase.GetAiTasksMapping(context, serverStore, record.DatabaseName);
+
+                    var djv = new DynamicJsonValue();
+                    if (mapping.Count == 0)
+                        return djv;
+
+                    foreach (var embeddingsGenerationTaskConfiguration in record.EmbeddingsGenerations)
+                        ProcessTask(embeddingsGenerationTaskConfiguration.Name);
+                    
+                    foreach (var genAiTaskConfiguration in record.GenAis)
+                        ProcessTask(genAiTaskConfiguration.Name);
+                    
+                    return djv;
+
+                    void ProcessTask(string name)
+                    {
+                        if (mapping.TryGetValue(name, out var index) == false)
+                            return;
+
+                        var array = new DynamicJsonArray();
+                        foreach (var field in typeof(AiTasks).GetFields())
                         {
                             var fieldValue = GetFieldValue(field);
                             var databaseOid = string.Format(fieldValue.Oid, databaseIndex);
@@ -1178,6 +1266,7 @@ namespace Raven.Server.Monitoring.Snmp
                 var dict = General.CreateMapping()
                     .Concat(Indexes.CreateMapping(0))
                     .Concat(Etls.CreateMapping(0))
+                    .Concat(AiTasks.CreateMapping(0))
                     .ToDictionary();
                 
                 foreach (var field in typeof(Databases).GetFields())
@@ -1218,7 +1307,8 @@ namespace Raven.Server.Monitoring.Snmp
                         {
                             [$"@{nameof(General)}"] = array,
                             [nameof(Indexes)] = Indexes.ToJson(serverStore, context, record, kvp.Value),
-                            [nameof(Etls)] = Etls.ToJson(serverStore, context, record, kvp.Value)
+                            [nameof(Etls)] = Etls.ToJson(serverStore, context, record, kvp.Value),
+                            [nameof(AiTasks)] = AiTasks.ToJson(serverStore, context, record, kvp.Value)
                         };
                     }
                 }

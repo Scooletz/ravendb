@@ -7,6 +7,7 @@ using Lextm.SharpSnmpLib.Pipeline;
 using Raven.Client.Documents.Changes;
 using Raven.Client.Exceptions.Database;
 using Raven.Client.Util;
+using Raven.Client.Documents.Operations.ETL;
 using Raven.Server.Documents;
 using Raven.Server.Documents.ETL;
 using Raven.Server.Monitoring.Snmp.Objects.Database;
@@ -21,6 +22,7 @@ namespace Raven.Server.Monitoring.Snmp
     {
         private readonly Dictionary<string, int> _loadedIndexes = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, int> _loadedEtls = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, int> _loadedAiTasks = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
         private readonly DatabasesLandlord _databaseLandlord;
 
@@ -108,6 +110,10 @@ namespace Raven.Server.Monitoring.Snmp
             _objectStore.Add(new DatabaseImpairedEtls(_databaseName, _databaseLandlord, _databaseIndex));
             _objectStore.Add(new DatabaseFailedEtls(_databaseName, _databaseLandlord, _databaseIndex));
 
+            _objectStore.Add(new DatabaseHealthyAiTasks(_databaseName, _databaseLandlord, _databaseIndex));
+            _objectStore.Add(new DatabaseImpairedAiTasks(_databaseName, _databaseLandlord, _databaseIndex));
+            _objectStore.Add(new DatabaseFailedAiTasks(_databaseName, _databaseLandlord, _databaseIndex));
+
             //AddIndexesFromMappingDocument();
         }
 
@@ -132,6 +138,7 @@ namespace Raven.Server.Monitoring.Snmp
 
                     await AddIndexesFromDatabaseAsync(database);
                     await AddEtlsFromDatabaseAsync(database);
+                    await AddAiTasksFromDatabaseAsync(database);
 
                     _attached = true;
                 }
@@ -195,6 +202,12 @@ namespace Raven.Server.Monitoring.Snmp
 
         private void AddEtlProcess(EtlProcess process)
         {
+            if (IsAiTask(process))
+            {
+                AddAiTaskProcess(process);
+                return;
+            }
+
             Task.Factory.StartNew(async () =>
             {
                 await _locker.WaitAsync();
@@ -228,6 +241,50 @@ namespace Raven.Server.Monitoring.Snmp
                         }
 
                         LoadEtl(process.Name, (int)mapping[process.Name]);
+                    }
+                }
+                finally
+                {
+                    _locker.Release();
+                }
+            });
+        }
+
+        private void AddAiTaskProcess(EtlProcess process)
+        {
+            Task.Factory.StartNew(async () =>
+            {
+                await _locker.WaitAsync();
+
+                try
+                {
+                    if (_loadedAiTasks.ContainsKey(process.Name))
+                        return;
+
+                    var database = await _databaseLandlord.TryGetOrCreateResourceStore(_databaseName);
+
+                    using (database.ServerStore.ContextPool.AllocateOperationContext(out TransactionOperationContext context))
+                    {
+                        context.OpenReadTransaction();
+
+                        var mapping = GetAiTasksMapping(context, database.ServerStore, database.Name);
+                        if (mapping.ContainsKey(process.Name) == false)
+                        {
+                            context.CloseTransaction();
+
+                            var result = await database.ServerStore.SendToLeaderAsync(new UpdateSnmpDatabaseAiTasksMappingCommand(_databaseName, new List<string>
+                            {
+                                process.Name
+                            }, RaftIdGenerator.NewId()));
+
+                            await database.ServerStore.Cluster.WaitForIndexNotification(result.Index);
+
+                            context.OpenReadTransaction();
+
+                            mapping = GetAiTasksMapping(context, database.ServerStore, database.Name);
+                        }
+
+                        LoadAiTask(process.Name, (int)mapping[process.Name]);
                     }
                 }
                 finally
@@ -281,9 +338,9 @@ namespace Raven.Server.Monitoring.Snmp
         
         private async Task AddEtlsFromDatabaseAsync(DocumentDatabase database)
         {
-            var etls = database.EtlLoader.Processes;
+            var etls = database.EtlLoader.Processes.Where(x => IsAiTask(x) == false).ToArray();
 
-            if (etls.Count() == 0)
+            if (etls.Length == 0)
                 return;
 
             using (database.ServerStore.ContextPool.AllocateOperationContext(out TransactionOperationContext context))
@@ -313,6 +370,43 @@ namespace Raven.Server.Monitoring.Snmp
 
                 foreach (var etl in etls)
                     LoadEtl(etl.Name, (int)mapping[etl.Name]);
+            }
+        }
+
+        private async Task AddAiTasksFromDatabaseAsync(DocumentDatabase database)
+        {
+            var aiTasks = database.EtlLoader.Processes.Where(IsAiTask).ToArray();
+
+            if (aiTasks.Length == 0)
+                return;
+
+            using (database.ServerStore.ContextPool.AllocateOperationContext(out TransactionOperationContext context))
+            {
+                context.OpenReadTransaction();
+
+                var mapping = GetAiTasksMapping(context, database.ServerStore, database.Name);
+
+                var missingAiTasks = new List<string>();
+                foreach (var aiTask in aiTasks)
+                {
+                    if (mapping.ContainsKey(aiTask.Name) == false)
+                        missingAiTasks.Add(aiTask.Name);
+                }
+
+                if (missingAiTasks.Count > 0)
+                {
+                    context.CloseTransaction();
+
+                    var result = await database.ServerStore.SendToLeaderAsync(new UpdateSnmpDatabaseAiTasksMappingCommand(database.Name, missingAiTasks, RaftIdGenerator.NewId()));
+                    await database.ServerStore.Cluster.WaitForIndexNotification(result.Index);
+
+                    context.OpenReadTransaction();
+
+                    mapping = GetAiTasksMapping(context, database.ServerStore, database.Name);
+                }
+
+                foreach (var aiTask in aiTasks)
+                    LoadAiTask(aiTask.Name, (int)mapping[aiTask.Name]);
             }
         }
 
@@ -352,28 +446,41 @@ namespace Raven.Server.Monitoring.Snmp
             _loadedEtls[processName] = index;
         }
 
+        private void LoadAiTask(string processName, int index)
+        {
+            if (_loadedAiTasks.ContainsKey(processName))
+                return;
+
+            _objectStore.Add(new DatabaseAiTaskErrors(_databaseName, processName, _databaseLandlord, _databaseIndex, index));
+            _objectStore.Add(new DatabaseAiTaskHealthStatus(_databaseName, processName, _databaseLandlord, _databaseIndex, index));
+            _objectStore.Add(new DatabaseAiTaskLastSuccessfulBatchTime(_databaseName, processName, _databaseLandlord, _databaseIndex, index));
+
+            _loadedAiTasks[processName] = index;
+        }
+
+        private static bool IsAiTask(EtlProcess process)
+        {
+            return process.EtlType is EtlType.EmbeddingsGeneration or EtlType.GenAi;
+        }
+
         internal static Dictionary<string, long> GetIndexMapping(TransactionOperationContext context, ServerStore serverStore, string databaseName)
         {
-            var json = serverStore.Cluster.Read(context, UpdateSnmpDatabaseIndexesMappingCommand.GetStorageKey(databaseName));
-
-            var result = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
-            if (json == null)
-                return result;
-
-            var propertyDetails = new BlittableJsonReaderObject.PropertyDetails();
-            for (int i = 0; i < json.Count; i++)
-            {
-                json.GetPropertyByIndex(i, ref propertyDetails);
-
-                result[propertyDetails.Name] = (long)propertyDetails.Value;
-            }
-
-            return result;
+            return GetMapping(context, serverStore, UpdateSnmpDatabaseIndexesMappingCommand.GetStorageKey(databaseName));
         }
-        
+
         internal static Dictionary<string, long> GetEtlMapping(TransactionOperationContext context, ServerStore serverStore, string databaseName)
         {
-            var json = serverStore.Cluster.Read(context, UpdateSnmpDatabaseEtlsMappingCommand.GetStorageKey(databaseName));
+            return GetMapping(context, serverStore, UpdateSnmpDatabaseEtlsMappingCommand.GetStorageKey(databaseName));
+        }
+
+        internal static Dictionary<string, long> GetAiTasksMapping(TransactionOperationContext context, ServerStore serverStore, string databaseName)
+        {
+            return GetMapping(context, serverStore, UpdateSnmpDatabaseAiTasksMappingCommand.GetStorageKey(databaseName));
+        }
+
+        private static Dictionary<string, long> GetMapping(TransactionOperationContext context, ServerStore serverStore, string storageKey)
+        {
+            var json = serverStore.Cluster.Read(context, storageKey);
 
             var result = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
             if (json == null)

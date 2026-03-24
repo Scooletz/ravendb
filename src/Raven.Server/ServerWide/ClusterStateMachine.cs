@@ -518,6 +518,7 @@ namespace Raven.Server.ServerWide
                     case nameof(UpdateSubscriptionClientConnectionTime):
                     case nameof(UpdateSnmpDatabaseIndexesMappingCommand):
                     case nameof(UpdateSnmpDatabaseEtlsMappingCommand):
+                    case nameof(UpdateSnmpDatabaseAiTasksMappingCommand):
                     case nameof(RemoveEtlProcessStateCommand):
                     case nameof(UpdateQueueSinkProcessStateCommand):
                     case nameof(RemoveQueueSinkProcessStateCommand):

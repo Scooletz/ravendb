@@ -211,7 +211,9 @@ namespace Raven.Server.ServerWide
 
             [nameof(EditRemoteAttachmentsCommand)] = EditRemoteAttachmentsCommand.CommandVersion,
             [nameof(EditSchemaValidationConfigurationCommand)] = 72_000,
-            [nameof(UpdateSnmpDatabaseEtlsMappingCommand)] =  72_000
+            [nameof(UpdateSnmpDatabaseEtlsMappingCommand)] =  72_000,
+
+            [nameof(UpdateSnmpDatabaseAiTasksMappingCommand)] = 72_000
         };
 
         public bool CanPutCommand(string command)
