@@ -523,11 +523,13 @@ namespace Raven.Server.Monitoring.Snmp
             store.Add(new ServerHealthyEtls(server.ServerStore));
             store.Add(new ServerImpairedEtls(server.ServerStore));
             store.Add(new ServerFailedEtls(server.ServerStore));
+            store.Add(new ServerTotalNumberOfEtls(server.ServerStore));
 
             store.Add(new ServerAiTasksErrors(server.ServerStore));
             store.Add(new ServerHealthyAiTasks(server.ServerStore));
             store.Add(new ServerImpairedAiTasks(server.ServerStore));
             store.Add(new ServerFailedAiTasks(server.ServerStore));
+            store.Add(new ServerTotalNumberOfAiTasks(server.ServerStore));
 
             return store;
 

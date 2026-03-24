@@ -420,6 +420,10 @@ namespace Raven.Server.Monitoring.Snmp
             [SnmpDataType(SnmpType.Integer32)]
             [Description($"Number of ETL tasks with {nameof(EtlProcessHealthStatus.Failed)} health status")]
             public const string NumberOfFailedEtls = "1.20.4";
+
+            [SnmpDataType(SnmpType.Integer32)]
+            [Description("Total number of ETL tasks")]
+            public const string TotalNumberOfEtls = "1.20.5";
             
             [SnmpDataType(SnmpType.Integer32)]
             [Description("Number of AI tasks errors")]
@@ -436,6 +440,10 @@ namespace Raven.Server.Monitoring.Snmp
             [SnmpDataType(SnmpType.Integer32)]
             [Description($"Number of AI tasks with {nameof(EtlProcessHealthStatus.Failed)} health status")]
             public const string NumberOfFailedAiTasks = "1.21.4";
+
+            [SnmpDataType(SnmpType.Integer32)]
+            [Description("Total number of AI tasks")]
+            public const string TotalNumberOfAiTasks = "1.21.5";
 
             public static Dictionary<string, string> CreateMapping()
             {
@@ -798,6 +806,10 @@ namespace Raven.Server.Monitoring.Snmp
             [SnmpDataType(SnmpType.Integer32)]
             [Description($"Number of ETL tasks with {nameof(EtlProcessHealthStatus.Failed)} health status")]
             public const string NumberOfFailedEtls = "5.2.{0}.7.3";
+
+            [SnmpDataType(SnmpType.Integer32)]
+            [Description("Total number of ETL tasks")]
+            public const string TotalNumberOfEtls = "5.2.{0}.7.4";
             
             [SnmpDataType(SnmpType.Integer32)]
             [Description($"Number of AI tasks with {nameof(EtlProcessHealthStatus.Healthy)} health status")]
@@ -810,6 +822,10 @@ namespace Raven.Server.Monitoring.Snmp
             [SnmpDataType(SnmpType.Integer32)]
             [Description($"Number of AI tasks with {nameof(EtlProcessHealthStatus.Failed)} health status")]
             public const string NumberOfFailedAiTasks = "5.2.{0}.8.3";
+
+            [SnmpDataType(SnmpType.Integer32)]
+            [Description("Total number of AI tasks")]
+            public const string TotalNumberOfAiTasks = "5.2.{0}.8.4";
 
             public sealed class Indexes
             {
