@@ -154,6 +154,14 @@ export const CellHyperlinkOngoingTaskValue = ({ getValue, row }: CellContext<Fla
                 return appUrl.forEditRabbitMqEtl(databaseName, taskId);
             case "AzureQueueStorage":
                 return appUrl.forEditAzureQueueStorageEtl(databaseName, taskId);
+            case "AmazonSqs":
+                return appUrl.forEditAmazonSqsEtl(databaseName, taskId);
+            case "Snowflake":
+                return appUrl.forEditSnowflakeEtl(databaseName, taskId);
+            case "EmbeddingsGeneration":
+                return appUrl.forEditEmbeddingsGeneration(databaseName, taskId);
+            case "GenAi":
+                return appUrl.forEditGenAi(databaseName, taskId);
             default:
                 return assertUnreachable(etlType);
         }

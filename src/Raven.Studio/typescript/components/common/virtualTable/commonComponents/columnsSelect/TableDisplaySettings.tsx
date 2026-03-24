@@ -171,7 +171,7 @@ function TableDisplaySettingsSheet({
         <ViewSheet>
             <ViewSheet.Header>
                 <h3 className="mb-0">
-                    <Icon icon="columns" color="primary" />
+                    <Icon icon="table" color="primary" />
                     Column layout settings
                 </h3>
             </ViewSheet.Header>

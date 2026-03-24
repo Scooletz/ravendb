@@ -3,7 +3,7 @@ import IconName from "typings/server/icons";
 import EtlTaskStats = Raven.Server.Documents.ETL.Stats.EtlTaskStats;
 import EtlErrors = Raven.Server.Documents.ETL.Stats.EtlErrors;
 
-export type EtlErrorStep = Raven.Server.Documents.ETL.EtlErrorStep;
+export type EtlErrorStep = Raven.Server.Documents.ETL.TaskErrorStep;
 export type EtlHealthStatus = Raven.Server.Documents.ETL.EtlProcessHealthStatus;
 
 export type GroupByType = "task" | "none";
@@ -25,8 +25,8 @@ export interface EtlError {
     etlName: string;
     transformationName: string;
     healthStatus: EtlHealthStatus;
-    taskId: number | null;
-    etlType: StudioEtlType | null;
+    taskId?: number;
+    etlType?: StudioEtlType;
 }
 
 export type FlatError = (

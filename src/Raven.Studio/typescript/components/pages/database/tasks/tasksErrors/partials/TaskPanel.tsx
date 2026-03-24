@@ -230,11 +230,11 @@ export function TaskPanel({ etlName, transformations, etlStats }: TaskPanelProps
                         </Button>
                     </RichPanelDetailItem>
                     <EtlTypeRichPanelItem etlType={etlType} />
-                    <RichPanelDetailItem childrenClassName="d-flex gap-1 align-items-center">
+                    <RichPanelDetailItem contentClassName="d-flex gap-1 align-items-center">
                         <Icon icon="warning" color="danger" margin="m-0" />
                         <span>Errors</span> <b>{errorsCount}</b>
                     </RichPanelDetailItem>
-                    <RichPanelDetailItem childrenClassName="d-flex gap-1 align-items-center">
+                    <RichPanelDetailItem contentClassName="d-flex gap-1 align-items-center">
                         <Icon icon="console" />
                         <span>Scripts</span> <b>{transformations.length}</b>
                     </RichPanelDetailItem>

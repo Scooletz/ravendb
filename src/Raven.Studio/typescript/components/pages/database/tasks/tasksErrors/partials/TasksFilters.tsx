@@ -23,11 +23,15 @@ export const taskHealthOptions: SelectOption<EtlHealthStatus>[] = [
 export const taskTypeOptions: SelectOption<StudioEtlType>[] = [
     { label: "RavenDB ETL", value: "Raven" },
     { label: "SQL ETL", value: "Sql" },
+    { label: "Snowflake ETL", value: "Snowflake" },
     { label: "Azure Queue Storage ETL", value: "AzureQueueStorage" },
     { label: "OLAP ETL", value: "Olap" },
     { label: "Kafka ETL", value: "Kafka" },
     { label: "Elastic Search ETL", value: "ElasticSearch" },
     { label: "RabbitMQ ETL", value: "RabbitMQ" },
+    { label: "Amazon SQS ETL", value: "AmazonSqs" },
+    { label: "Embeddings Generation", value: "EmbeddingsGeneration" },
+    { label: "GenAI ETL", value: "GenAi" },
 ];
 
 export const groupByOptions: InputItem<GroupByType>[] = [
