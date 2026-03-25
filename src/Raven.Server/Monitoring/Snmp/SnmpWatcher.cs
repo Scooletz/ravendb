@@ -531,6 +531,7 @@ namespace Raven.Server.Monitoring.Snmp
             store.Add(new ServerImpairedAiTasks(server.ServerStore));
             store.Add(new ServerFailedAiTasks(server.ServerStore));
             store.Add(new ServerTotalNumberOfAiTasks(server.ServerStore));
+            store.Add(new ServerActiveAiTasks(server.ServerStore));
 
             return store;
 

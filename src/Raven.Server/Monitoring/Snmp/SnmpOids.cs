@@ -449,6 +449,10 @@ namespace Raven.Server.Monitoring.Snmp
             [Description("Total number of AI tasks")]
             public const string TotalNumberOfAiTasks = "1.21.5";
 
+            [SnmpDataType(SnmpType.Integer32)]
+            [Description("Number of AI tasks currently performing some work")]
+            public const string NumberOfActiveAiTasks = "1.21.6";
+
             public static Dictionary<string, string> CreateMapping()
             {
                 var dictionary = new Dictionary<string, string>();
@@ -834,6 +838,10 @@ namespace Raven.Server.Monitoring.Snmp
             [SnmpDataType(SnmpType.Integer32)]
             [Description("Total number of AI tasks")]
             public const string TotalNumberOfAiTasks = "5.2.{0}.8.4";
+
+            [SnmpDataType(SnmpType.Integer32)]
+            [Description("Number of AI tasks currently performing some work")]
+            public const string NumberOfActiveAiTasks = "5.2.{0}.8.5";
 
             public sealed class Indexes
             {
