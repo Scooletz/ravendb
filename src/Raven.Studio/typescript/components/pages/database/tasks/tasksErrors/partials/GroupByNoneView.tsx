@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { Icon } from "components/common/Icon";
-import Button from "react-bootstrap/esm/Button";
+import Button from "react-bootstrap/Button";
 import {
     ColumnDef,
     ColumnFiltersState,

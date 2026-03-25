@@ -6,7 +6,7 @@ import { CellWithCopyWrapper } from "components/common/virtualTable/cells/CellWi
 import CellDocumentValue from "components/common/virtualTable/cells/CellDocumentValue";
 import PopoverWithHoverWrapper from "components/common/PopoverWithHoverWrapper";
 import Badge from "react-bootstrap/Badge";
-import Button from "react-bootstrap/esm/Button";
+import Button from "react-bootstrap/Button";
 import { useViewSheet } from "components/common/splitView/ViewSheet";
 import { useAppSelector } from "components/store";
 import { databaseSelectors } from "components/common/shell/databaseSliceSelectors";

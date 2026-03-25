@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { Icon } from "components/common/Icon";
-import Form from "react-bootstrap/esm/Form";
-import Button from "react-bootstrap/esm/Button";
+import Form from "react-bootstrap/Form";
+import Button from "react-bootstrap/Button";
 import Row from "react-bootstrap/Row";
 import Col from "react-bootstrap/Col";
 import Select, { SelectOption } from "components/common/select/Select";

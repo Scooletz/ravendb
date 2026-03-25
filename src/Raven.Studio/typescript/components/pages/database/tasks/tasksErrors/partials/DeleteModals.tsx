@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Icon } from "components/common/Icon";
-import Button from "react-bootstrap/esm/Button";
-import Form from "react-bootstrap/esm/Form";
+import Button from "react-bootstrap/Button";
+import Form from "react-bootstrap/Form";
 import Modal from "components/common/Modal";
 import ButtonWithSpinner from "components/common/ButtonWithSpinner";
 import RichAlert from "components/common/RichAlert";

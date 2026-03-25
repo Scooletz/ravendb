@@ -3,7 +3,7 @@ import classNames from "classnames";
 import { Icon } from "components/common/Icon";
 import Badge from "react-bootstrap/Badge";
 import Card from "react-bootstrap/Card";
-import Button from "react-bootstrap/esm/Button";
+import Button from "react-bootstrap/Button";
 import { useViewSheet, ViewSheet } from "components/common/splitView/ViewSheet";
 import CellDocumentValue from "components/common/virtualTable/cells/CellDocumentValue";
 import { useAppSelector } from "components/store";

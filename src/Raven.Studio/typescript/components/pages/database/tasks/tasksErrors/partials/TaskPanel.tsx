@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
 import { Icon } from "components/common/Icon";
-import Button from "react-bootstrap/esm/Button";
+import Button from "react-bootstrap/Button";
 import Badge from "react-bootstrap/Badge";
 import Card from "react-bootstrap/Card";
 import Collapse from "react-bootstrap/Collapse";
