@@ -19,6 +19,7 @@ import {
     RichPanelInfo,
     RichPanelSelect,
 } from "components/common/RichPanel";
+import Collapse from "react-bootstrap/Collapse";
 import Form from "react-bootstrap/Form";
 import { databaseSelectors } from "components/common/shell/databaseSliceSelectors";
 import { useAppSelector } from "components/store";
@@ -27,19 +28,35 @@ import { Icon } from "components/common/Icon";
 
 type KafkaSinkPanelProps = BaseOngoingTaskPanelProps<OngoingTaskKafkaSinkInfo>;
 
+function Details(props: KafkaSinkPanelProps & { canEdit: boolean }) {
+    const { data, canEdit } = props;
+    const { appUrl } = useAppUrls();
+    const databaseName = useAppSelector(databaseSelectors.activeDatabaseName);
+    const connectionStringsUrl = appUrl.forConnectionStrings(databaseName, "Kafka", data.shared.connectionStringName);
+
+    return (
+        <RichPanelDetails>
+            <RichPanelDetailItem label="Bootstrap Servers">{data.shared.url}</RichPanelDetailItem>
+            <ConnectionStringItem
+                connectionStringDefined
+                canEdit={canEdit}
+                connectionStringName={data.shared.connectionStringName}
+                connectionStringsUrl={connectionStringsUrl}
+            />
+        </RichPanelDetails>
+    );
+}
+
 export function KafkaSinkPanel(props: KafkaSinkPanelProps) {
     const { data, toggleSelection, isSelected, onTaskOperation, isDeleting, isTogglingState } = props;
 
     const hasDatabaseAdminAccess = useAppSelector(accessManagerSelectors.getHasDatabaseAdminAccess)();
-    const { forCurrentDatabase, appUrl } = useAppUrls();
+    const { forCurrentDatabase } = useAppUrls();
 
     const canEdit = hasDatabaseAdminAccess && !data.shared.serverWide;
     const editUrl = forCurrentDatabase.editKafkaSink(data.shared.taskId)();
 
     const { detailsVisible, toggleDetails, onEdit } = useTasksOperations(editUrl, props);
-
-    const databaseName = useAppSelector(databaseSelectors.activeDatabaseName);
-    const connectionStringsUrl = appUrl.forConnectionStrings(databaseName, "Kafka", data.shared.connectionStringName);
 
     return (
         <RichPanel>
@@ -79,15 +96,11 @@ export function KafkaSinkPanel(props: KafkaSinkPanelProps) {
                     />
                 </RichPanelActions>
             </RichPanelHeader>
-            <RichPanelDetails>
-                <RichPanelDetailItem label="Bootstrap Servers">{data.shared.url}</RichPanelDetailItem>
-                <ConnectionStringItem
-                    connectionStringDefined
-                    canEdit={canEdit}
-                    connectionStringName={data.shared.connectionStringName}
-                    connectionStringsUrl={connectionStringsUrl}
-                />
-            </RichPanelDetails>
+            <Collapse in={detailsVisible}>
+                <div>
+                    <Details {...props} canEdit={canEdit} />
+                </div>
+            </Collapse>
         </RichPanel>
     );
 }

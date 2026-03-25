@@ -702,13 +702,6 @@ interface RavenEtlTestScriptResult extends Raven.Server.Documents.ETL.Test.TestE
     Commands: Array<Raven.Client.Documents.Commands.Batches.ICommandData>;
 }
 
-// type testEtlScriptResult = Raven.Server.Documents.ETL.Test.TestEtlScriptResult;
-//
-// declare module Raven.Server.Documents.ETL.Providers.SQL.Test {
-//     interface SqlEtlTestScriptResult extends testEtlScriptResult {
-//     }
-// }
-
 interface TestRavenEtlScript extends Raven.Server.Documents.ETL.Test.TestEtlScript<Raven.Client.Documents.Operations.ETL.RavenEtlConfiguration, Raven.Client.Documents.Operations.ETL.RavenConnectionString> {
 }
 

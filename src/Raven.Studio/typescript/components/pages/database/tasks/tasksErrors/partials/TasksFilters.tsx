@@ -10,7 +10,7 @@ import { MultiRadioToggle } from "components/common/toggles/MultiRadioToggle";
 import { useAppSelector } from "components/store";
 import { databaseSelectors } from "components/common/shell/databaseSliceSelectors";
 import DatabaseUtils from "components/utils/DatabaseUtils";
-import { GroupByType, TasksFiltersState, EtlHealthStatus } from "../utils/tasksErrorsUtils";
+import { EtlHealthStatus, GroupByType, TasksFiltersState } from "../utils/tasksErrorsUtils";
 
 export type { TasksFiltersState };
 
@@ -94,7 +94,7 @@ export function TasksFilters({
                 <div className="small-label ms-1 mb-1">Filter by task/script name</div>
                 <div className="clearable-input">
                     <Form.Control
-                        type="text"
+                        type="search"
                         accessKey="/"
                         placeholder="e.g. MyPeriodicBackupTask"
                         title="Filter ongoing tasks"
@@ -141,7 +141,7 @@ export function TasksFilters({
                     options={taskTypeOptions}
                     onChange={(options) =>
                         updateFilters({
-                            taskTypes: options ? (options.map((o) => o.value) as StudioEtlType[]) : [],
+                            taskTypes: options ? options.map((o) => o.value) : [],
                         })
                     }
                 />
@@ -154,7 +154,7 @@ export function TasksFilters({
                     options={taskHealthOptions}
                     onChange={(options) =>
                         updateFilters({
-                            healthStatuses: options ? (options.map((o) => o.value) as EtlHealthStatus[]) : [],
+                            healthStatuses: options ? options.map((o) => o.value) : [],
                         })
                     }
                 />

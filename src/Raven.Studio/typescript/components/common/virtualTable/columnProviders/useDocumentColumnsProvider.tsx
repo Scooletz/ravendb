@@ -42,7 +42,7 @@ export function useDocumentColumnsProvider(props: UseDocumentColumnsProviderProp
 
         if (hasPreview) {
             columnsDefs.push(columnPreview as ColumnDef<document>);
-            initialColumnVisibility[columnPreview.header as string] = true;
+            initialColumnVisibility[columnPreview.header.toString()] = true;
             availableWidth -= columnPreview.size;
         }
 

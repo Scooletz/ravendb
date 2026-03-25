@@ -25,6 +25,7 @@ import {
     EtlTaskWithErrors,
     FlatError,
     flattenAllTasksErrors,
+    SHOW_WIDTH_SIZE,
     TasksFiltersState,
 } from "../utils/tasksErrorsUtils";
 import {
@@ -47,7 +48,7 @@ import { DatabaseAccessPopover } from "components/common/DatabaseAccessPopover";
 function useGroupByNoneTableColumns(availableWidth: number) {
     const db = useAppSelector(databaseSelectors.activeDatabase);
     const bodyWidth = virtualTableUtils.getTableBodyWidth(availableWidth);
-    const getSize = virtualTableUtils.getCellSizeProvider(bodyWidth - 70);
+    const getSize = virtualTableUtils.getCellSizeProvider(bodyWidth - SHOW_WIDTH_SIZE);
 
     const columns = useMemo<ColumnDef<FlatError>[]>(
         () => [
@@ -126,8 +127,7 @@ function useGroupByNoneTableColumns(availableWidth: number) {
                 enableSorting: false,
             },
         ],
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-        []
+        [getSize]
     );
 
     if (db.isSharded) {

@@ -12,19 +12,19 @@ import { useAppSelector } from "components/store";
 import { databaseSelectors } from "components/common/shell/databaseSliceSelectors";
 import { useAppUrls } from "hooks/useAppUrls";
 import assertUnreachable from "components/utils/assertUnreachable";
-import clusterDashboard from "viewmodels/resources/clusterDashboard";
 import EtlErrorDetailsSheet from "./EtlErrorDetailsSheet";
 import {
-    FlatError,
-    EtlHealthStatus,
     EtlErrorStep,
-    healthStatusToBadge,
-    getStepIcon,
+    EtlHealthStatus,
+    FlatError,
     getEtlTypeIcon,
     getEtlTypeLabel,
     getPopoverMessageForErrorType,
     getPopoverMessageForTaskHealth,
+    getStepIcon,
+    healthStatusToBadge,
 } from "../utils/tasksErrorsUtils";
+import colorsManager from "common/colorsManager";
 
 export { CellWithCopyWrapper };
 
@@ -71,7 +71,7 @@ interface NodeCircleProps {
 
 export function NodeCircle({ nodeTag }: NodeCircleProps) {
     const db = useAppSelector(databaseSelectors.activeDatabase);
-    const nodeColors = clusterDashboard.nodeColors;
+    const nodeColors = colorsManager.nodeColors;
     const nodeIndex = db.nodes.findIndex((n) => n.tag === nodeTag);
 
     return (
@@ -212,7 +212,6 @@ export const CellTaskHealthWrapper = ({ getValue }: CellContext<FlatError, EtlHe
     );
 };
 
-// TODO: Add new icons for different ETL types for higher versions (7.0+)
 export const CellEtlTypeWrapper = ({ getValue }: CellContext<FlatError, StudioEtlType>) => {
     const icon = getEtlTypeIcon(getValue());
     const label = getEtlTypeLabel(getValue());

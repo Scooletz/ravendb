@@ -5,12 +5,8 @@ import Button from "react-bootstrap/Button";
 import Badge from "react-bootstrap/Badge";
 import PopoverWithHoverWrapper from "components/common/PopoverWithHoverWrapper";
 import { ProgressCircle } from "components/common/ProgressCircle";
-import {
-    EtlHealthStatus,
-    EtlPanelProgress,
-    getPopoverMessageForTaskHealth,
-    healthStatusToBadge,
-} from "./etlPanelUtils";
+import { EtlHealthStatus, EtlPanelProgress, getPopoverMessageForTaskHealth } from "./etlPanelUtils";
+import { healthStatusToBadge } from "components/pages/database/tasks/tasksErrors/utils/tasksErrorsUtils";
 
 interface EtlPanelToggleButtonProps {
     detailsVisible: boolean;

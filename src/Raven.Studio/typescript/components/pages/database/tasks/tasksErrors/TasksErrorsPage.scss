@@ -1,3 +1,5 @@
+@use "Content/scss/sizes";
+
 .tasks-errors-page {
     height: 100%;
     display: flex;
@@ -5,7 +7,7 @@
 
     .tasks-pill {
         height: 20px;
-        width: 9.43px;
+        width: 10px;
     }
 
     .node-circle {
@@ -17,5 +19,5 @@
 .task-pill-message {
     min-width: 240px;
     max-width: 320px;
-    padding: 0.25rem;
+    padding: sizes.$gutter-xxxs;
 }

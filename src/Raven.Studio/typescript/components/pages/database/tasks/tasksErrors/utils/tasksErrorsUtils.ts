@@ -2,6 +2,7 @@ import genUtils from "common/generalUtils";
 import IconName from "typings/server/icons";
 import EtlTaskStats = Raven.Server.Documents.ETL.Stats.EtlTaskStats;
 import EtlErrors = Raven.Server.Documents.ETL.Stats.EtlErrors;
+import { RavenBadgeBgVariants } from "react-bootstrap/Badge";
 
 export type EtlErrorStep = Raven.Server.Documents.ETL.TaskErrorStep;
 export type EtlHealthStatus = Raven.Server.Documents.ETL.EtlProcessHealthStatus;
@@ -155,7 +156,12 @@ export function getTaskPillColor(stats: EtlTaskStats["Stats"]): "bg-warning" | "
     return "bg-success";
 }
 
-export function healthStatusToBadge(status: EtlHealthStatus): { bg: string; icon: IconName; label: string } {
+interface HealthStatusBadge {
+    bg: RavenBadgeBgVariants;
+    icon: IconName;
+    label: EtlHealthStatus | "Unknown";
+}
+export function healthStatusToBadge(status?: EtlHealthStatus): HealthStatusBadge {
     switch (status) {
         case "Failed":
             return { bg: "danger", icon: "close", label: "Failed" };
@@ -246,3 +252,5 @@ export function getPopoverMessageForTaskHealth(status: EtlHealthStatus): string 
             return genUtils.assertUnreachable(status);
     }
 }
+
+export const SHOW_WIDTH_SIZE = 70;

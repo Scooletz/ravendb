@@ -19,32 +19,12 @@ import {
 } from "../../shared/shared";
 import EtlTaskStats = Raven.Server.Documents.ETL.Stats.EtlTaskStats;
 import EtlErrors = Raven.Server.Documents.ETL.Stats.EtlErrors;
+import {
+    getTaskHealthStatus,
+    healthStatusToBadge,
+} from "components/pages/database/tasks/tasksErrors/utils/tasksErrorsUtils";
 
 export type EtlHealthStatus = Raven.Server.Documents.ETL.EtlProcessHealthStatus;
-
-export function getTaskHealthStatus(etlStats: EtlTaskStats[], taskName: string): EtlHealthStatus {
-    const stats = etlStats?.find((s) => s.TaskName === taskName)?.Stats ?? [];
-    if (stats.some((s) => s.Statistics.HealthStatus === "Failed")) {
-        return "Failed";
-    }
-    if (stats.some((s) => s.Statistics.HealthStatus === "Impaired")) {
-        return "Impaired";
-    }
-    return "Healthy";
-}
-
-export function healthStatusToBadge(status: EtlHealthStatus): { bg: string; icon: IconName; label: string } {
-    switch (status) {
-        case "Failed":
-            return { bg: "danger", icon: "close", label: "Failed" };
-        case "Impaired":
-            return { bg: "warning", icon: "warning", label: "Impaired" };
-        case "Healthy":
-            return { bg: "success", icon: "check", label: "Healthy" };
-        default:
-            return { bg: "secondary", icon: "help", label: "Unknown" };
-    }
-}
 
 export function getPopoverMessageForTaskHealth(status: EtlHealthStatus): string {
     switch (status) {

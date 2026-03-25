@@ -11,7 +11,6 @@ import { databaseSelectors } from "components/common/shell/databaseSliceSelector
 import genUtils from "common/generalUtils";
 import moment from "moment";
 import {
-    EtlHealthStatus,
     FlatError,
     getEtlTypeIcon,
     getEtlTypeLabel,
@@ -57,7 +56,7 @@ export default function EtlErrorDetailsSheet({
     const hasPrevious = currentIndex > 0;
     const hasNext = currentIndex < allErrors.length - 1;
 
-    const { bg, icon, label } = healthStatusToBadge(error.healthStatus ?? (null as EtlHealthStatus));
+    const { bg, icon, label } = healthStatusToBadge(error.healthStatus);
     const stepIcon = getStepIcon(error.Step);
     const etlTypeIcon = getEtlTypeIcon(error.etlType);
     const etlTypeLabel = getEtlTypeLabel(error.etlType);

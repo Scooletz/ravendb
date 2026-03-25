@@ -70,7 +70,7 @@ import { SnowflakeEtlPanel } from "components/pages/database/tasks/ongoingTasks/
 import { AmazonSqsEtlPanel } from "components/pages/database/tasks/ongoingTasks/panels/AmazonSqsEtlPanel";
 import { EmbeddingsGenerationPanel } from "components/pages/database/tasks/ongoingTasks/panels/EmbeddingsGenerationPanel";
 import { GenAiPanel } from "./panels/GenAiPanel";
-import { useAsync } from "react-async-hook";
+import { useClusterWideAsync } from "components/hooks/useClusterWideAsync";
 import EtlTaskProgress = Raven.Server.Documents.ETL.Stats.EtlTaskProgress;
 import ReplicationTaskProgress = Raven.Server.Documents.Replication.Stats.ReplicationTaskProgress;
 import InternalReplicationTaskProgress = Raven.Server.Documents.Replication.Stats.InternalReplicationTaskProgress;
@@ -97,33 +97,18 @@ export function OngoingTasksPage({ isAiOnly = false }: OngoingTasksPageProps) {
         types: [],
     });
 
-    const { result: etlStatsResult } = useAsync(async () => {
-        const locations = DatabaseUtils.getLocations(db);
-        const results: EtlTaskStats[][] = [];
-        for (const location of locations) {
-            try {
-                const stats = await tasksService.getEtlStats(db.name, location);
-                results.push(stats);
-            } catch {
-                // ignore errors for individual nodes
-            }
-        }
-        return results;
-    }, [db]);
+    const getEtlStats = useCallback(
+        (location: databaseLocationSpecifier) => tasksService.getEtlStats(db.name, location),
+        []
+    );
 
-    const { result: etlErrorsResult } = useAsync(async () => {
-        const locations = DatabaseUtils.getLocations(db);
-        const results: EtlErrors[][] = [];
-        for (const location of locations) {
-            try {
-                const errors = await tasksService.getEtlErrors(db.name, location);
-                results.push(errors);
-            } catch {
-                // ignore errors for individual nodes
-            }
-        }
-        return results;
-    }, [db]);
+    const getEtlErrors = useCallback(
+        (location: databaseLocationSpecifier) => tasksService.getEtlErrors(db.name, location),
+        []
+    );
+
+    const { result: etlStatsResult } = useClusterWideAsync(getEtlStats);
+    const { result: etlErrorsResult } = useClusterWideAsync(getEtlErrors);
 
     const upgradeLicenseLink = useRavenLink({ hash: "FLDLO4", isDocs: false });
 
@@ -261,14 +246,20 @@ export function OngoingTasksPage({ isAiOnly = false }: OngoingTasksPageProps) {
         ...amazonSqsEtls,
     ];
 
-    const flatEtlStats: EtlTaskStats[] = etlStatsResult?.flat() ?? [];
-    const flatEtlErrors: EtlErrors[] = etlErrorsResult?.flat() ?? [];
+    const flatEtlStats: EtlTaskStats[] = etlStatsResult.flatMap((x) => x.data ?? []);
+    const flatEtlErrors: EtlErrors[] = etlErrorsResult.flatMap((x) => x.data ?? []);
 
     const sinks = [...kafkaSinks, ...rabbitMqSinks];
 
     useEffect(() => {
         throttledUpdateLicenseLimitsUsage();
     }, [subscriptions.length]);
+
+    useEffect(() => {
+        if (etls.length > 0 || ai.length > 0) {
+            startTrackingEtlProgress();
+        }
+    }, [etls.length, ai.length]);
 
     const {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
