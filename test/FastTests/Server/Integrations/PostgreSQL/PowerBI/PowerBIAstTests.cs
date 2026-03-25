@@ -81,6 +81,104 @@ from ""public"".""Orders"" ""$Table"" limit 200";
         }
 
         [Fact]
+        public void DirectQuery_desktop_employee_requireAt_json_with_null_order_helper_columns_should_be_classified_as_direct_query()
+        {
+            const string sql = @"select ""_"".""Employee"" as ""c3"",
+    ""_"".""RequireAt"" as ""c7"",
+    ""_"".""json()"" as ""c11""
+from 
+(
+    select ""Employee"",
+        ""RequireAt"",
+        ""json()"",
+        ""_"".""t2_0"" as ""t2_0"",
+        ""_"".""t3_0"" as ""t3_0""
+    from 
+    (
+        select ""_"".""Employee"",
+            ""_"".""RequireAt"",
+            ""_"".""json()"",
+            ""_"".""o2"",
+            ""_"".""t2_0"",
+            ""_"".""t3_0""
+        from 
+        (
+            select ""_"".""Employee"" as ""Employee"",
+                ""_"".""RequireAt"" as ""RequireAt"",
+                ""_"".""json()"" as ""json()"",
+                ""_"".""o2"" as ""o2"",
+                case
+                    when ""_"".""o2"" is not null
+                    then ""_"".""o2""
+                    else timestamp '1899-12-28 00:00:00'
+                end as ""t2_0"",
+                case
+                    when ""_"".""o2"" is null
+                    then 0
+                    else 1
+                end as ""t3_0""
+            from 
+            (
+                select ""rows"".""Employee"" as ""Employee"",
+                    ""rows"".""RequireAt"" as ""RequireAt"",
+                    ""rows"".""json()"" as ""json()"",
+                    ""rows"".""o2"" as ""o2""
+                from 
+                (
+                    select ""Employee"" as ""Employee"",
+                        ""RequireAt"" as ""RequireAt"",
+                        ""json()"" as ""json()"",
+                        ""RequireAt"" as ""o2""
+                    from 
+                    (
+                        from Orders
+                        where Company in ('Companies/1-A', 'Companies/2-A', 'Companies/3-A')
+                    ) ""$Table""
+                ) ""rows""
+                group by ""Employee"",
+                    ""RequireAt"",
+                    ""json()"",
+                    ""o2""
+            ) ""_""
+        ) ""_""
+    ) ""_""
+) ""_""
+order by ""_"".""Employee"",
+        ""_"".""json()"",
+        ""_"".""t2_0"",
+        ""_"".""t3_0""
+limit 501";
+
+            Assert.True(PowerBIQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
+            Assert.IsType<PowerBIDirectQuery>(pgQuery);
+        }
+
+        [Fact]
+        public void DirectQuery_distinct_list_wrapper_single_column_orders_employee_should_be_classified_as_direct_query()
+        {
+            const string sql = @"select ""_"".""Employee""
+from 
+(
+    select ""rows"".""Employee"" as ""Employee""
+    from 
+    (
+        select ""Employee""
+        from 
+        (
+            from Orders
+            where Company in ('Companies/1-A', 'Companies/2-A', 'Companies/3-A')
+        ) ""$Table""
+    ) ""rows""
+    group by ""Employee""
+) ""_""
+order by ""_"".""Employee""
+limit 1001";
+
+            Assert.True(PowerBIQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
+            Assert.IsType<PowerBIDirectQuery>(pgQuery);
+        }
+
+        [Fact]
         public void DirectQuery_distinct_list_wrapper_with_inner_rql_load_should_report_actual_parser_classification()
         {
             const string sql = @"select ""_"".""Name"",

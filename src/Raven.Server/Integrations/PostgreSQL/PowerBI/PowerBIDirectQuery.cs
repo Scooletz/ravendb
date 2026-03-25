@@ -134,8 +134,14 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                     return false;
                 }
 
+                // If the inner RQL doesn't define an alias (`from Orders ...`), we normally allow DirectQuery for plain field projections.
+                // However, some DirectQuery wrapper shapes require alias-based constructs like `"json()": <alias>` / `id(<alias>)`,
+                // or translating an outer SQL WHERE. In those cases synthesize a stable alias so we can still rewrite and execute.
                 if (q.From.Alias == null)
-                    return false;
+                {
+                    if (RequiresFromAlias(shape.ProjectionCols, shape.OrderByCols) || selectStmt.WhereClause != null)
+                        q.From.Alias = "_doc";
+                }
 
                 if (selectStmt.WhereClause != null)
                 {
@@ -147,10 +153,8 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                         : new BinaryExpression(q.Where, whereExpression, OperatorType.And);
                 }
 
-                innerRql = q.ToString();
-
                 var rewrittenRql = RewriteRqlProjection(
-                    innerRql,
+                    q,
                     projectionCols: shape.ProjectionCols,
                     shape.OrderByCols,
                     orderByDescFlags: shape.OrderByDescFlags,
@@ -167,6 +171,31 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             catch
             {
                 pgQuery = null;
+                return false;
+            }
+
+            static bool RequiresFromAlias(IReadOnlyList<string> projectionCols, IReadOnlyList<string> orderByCols)
+            {
+                if (projectionCols != null)
+                {
+                    foreach (var c in projectionCols)
+                    {
+                        if (string.Equals(c, "json()", StringComparison.OrdinalIgnoreCase) ||
+                            string.Equals(c, "id()", StringComparison.OrdinalIgnoreCase))
+                            return true;
+                    }
+                }
+
+                if (orderByCols != null)
+                {
+                    foreach (var c in orderByCols)
+                    {
+                        if (string.Equals(c, "json()", StringComparison.OrdinalIgnoreCase) ||
+                            string.Equals(c, "id()", StringComparison.OrdinalIgnoreCase))
+                            return true;
+                    }
+                }
+
                 return false;
             }
 
@@ -684,7 +713,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 return true;
             }
 
-            static bool TryExtractOrderByColumns(SelectStmt selectStmt, out List<string> cols, out List<bool> descFlags)
+            static bool TryExtractOrderByColumns(SelectStmt selectStmt, out List<string> cols, out List<bool> descFlags, SelectStmt groupBySelect)
             {
                 cols = null;
                 descFlags = null;
@@ -708,7 +737,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                     if (TryExtractOuterUnderscoreQualifiedColumn(colRef, out var colName) == false)
                         return false;
 
-                    if (TryNormalizeOrderByHelperColumn(colName, out var normalized))
+                    if (TryNormalizeOrderByHelperColumn(colName, groupBySelect, out var normalized))
                         colName = normalized;
 
                     cols.Add(colName);
@@ -718,7 +747,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 return true;
             }
 
-            static bool TryNormalizeOrderByHelperColumn(string colName, out string normalized)
+            static bool TryNormalizeOrderByHelperColumn(string colName, SelectStmt groupBySelect, out string normalized)
             {
                 normalized = null;
 
@@ -743,11 +772,178 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                     return false;
 
                 var idxSpan = colName.AsSpan(1, underscore - 1);
-                if (int.TryParse(idxSpan, out var idx) == false)
+                if (int.TryParse(idxSpan, out var helperIdx) == false)
                     return false;
 
-                normalized = "o" + (idx / 2);
+                if (TryMapHelperIndexToInnerOrderAlias(groupBySelect, helperIdx, out var orderAlias) == false)
+                    return false;
+
+                // Prefer resolving the wrapper alias (e.g. `o2`) back to the underlying business field (e.g. `RequireAt`).
+                // This keeps `orderByCols` comparable to `cols`/`groupByCols` and avoids leaking wrapper-only aliases.
+                if (TryResolveWrapperAliasToBusinessField(groupBySelect, orderAlias, out normalized))
+                    return true;
+
+                normalized = orderAlias;
+
                 return true;
+            }
+
+            static bool TryResolveWrapperAliasToBusinessField(SelectStmt groupBySelect, string orderAlias, out string businessField)
+            {
+                businessField = null;
+
+                if (groupBySelect == null || string.IsNullOrWhiteSpace(orderAlias))
+                    return false;
+
+                var current = groupBySelect;
+                while (current != null)
+                {
+                    // We are looking for a projection like:
+                    //   <expr> as "o2"
+                    // where <expr> ultimately references a business column name.
+                    var targets = current.TargetList;
+                    if (targets != null)
+                    {
+                        foreach (var t in targets)
+                        {
+                            var rt = t?.ResTarget;
+                            if (rt == null)
+                                continue;
+
+                            if (string.Equals(rt.Name, orderAlias, StringComparison.OrdinalIgnoreCase) == false)
+                                continue;
+
+                            // Common case in BI wrappers: `"RequireAt" as "o2"`.
+                            var colRef = rt.Val?.ColumnRef;
+                            if (colRef != null)
+                            {
+                                var colName = TryExtractLastIdentifierSegment(colRef);
+                                if (string.IsNullOrWhiteSpace(colName) == false &&
+                                    colName.StartsWith("o", StringComparison.OrdinalIgnoreCase) == false &&
+                                    string.Equals(colName, "t2_0", StringComparison.OrdinalIgnoreCase) == false)
+                                {
+                                    businessField = colName;
+                                    return true;
+                                }
+                            }
+
+                            // Another common case: `"_"."o2" as "o2"` (pass-through); keep walking.
+                            break;
+                        }
+                    }
+
+                    if (current.FromClause is not { Count: 1 } from)
+                        break;
+
+                    current = from[0]?.RangeSubselect?.Subquery?.SelectStmt;
+                }
+
+                return false;
+            }
+
+            static bool TryMapHelperIndexToInnerOrderAlias(SelectStmt groupBySelect, int helperIdx, out string normalized)
+            {
+                normalized = null;
+
+                if (groupBySelect == null)
+                    return false;
+
+                if (helperIdx < 0)
+                    return false;
+
+                // PowerBI null-order helper columns come in pairs: t<even>_0 and t<odd>_0.
+                // Both refer to the same underlying `oN` alias. For odd indices, also try the previous even `o<idx-1>`.
+                var directAlias = "o" + helperIdx;
+                var pairedAlias = (helperIdx & 1) == 1
+                    ? "o" + (helperIdx - 1)
+                    : null;
+                var desiredHelperPair = (helperIdx / 2) * 2;
+
+                var current = groupBySelect;
+                while (current != null)
+                {
+                    if (TryHasAliasInTargetList(current, directAlias))
+                    {
+                        normalized = directAlias;
+                        return true;
+                    }
+
+                    if (pairedAlias != null && TryHasAliasInTargetList(current, pairedAlias))
+                    {
+                        normalized = pairedAlias;
+                        return true;
+                    }
+
+                    if (TryFindOrderAliasInTargetList(current, helperIdx, desiredHelperPair, out normalized))
+                        return true;
+
+                    if (current.FromClause is not { Count: 1 } from)
+                        break;
+
+                    current = from[0]?.RangeSubselect?.Subquery?.SelectStmt;
+                }
+
+                return false;
+
+                static bool TryHasAliasInTargetList(SelectStmt s, string alias)
+                {
+                    if (string.IsNullOrWhiteSpace(alias))
+                        return false;
+
+                    var targets = s?.TargetList;
+                    if (targets == null || targets.Count == 0)
+                        return false;
+
+                    foreach (var t in targets)
+                    {
+                        var rt = t?.ResTarget;
+                        var name = rt?.Name;
+                        if (string.Equals(name, alias, StringComparison.OrdinalIgnoreCase))
+                            return true;
+                    }
+
+                    return false;
+                }
+
+                static bool TryFindOrderAliasInTargetList(SelectStmt s, int helperIdx, int desiredHelperPair, out string alias)
+                {
+                    alias = null;
+
+                    var targets = s?.TargetList;
+                    if (targets == null || targets.Count == 0)
+                        return false;
+
+                    foreach (var t in targets)
+                    {
+                        var rt = t?.ResTarget;
+                        if (rt == null)
+                            continue;
+
+                        var name = rt.Name;
+                        if (string.IsNullOrWhiteSpace(name) == false && name.Length > 1 && (name[0] == 'o' || name[0] == 'O'))
+                        {
+                            if (int.TryParse(name.AsSpan(1), out var orderIdx) == false)
+                                continue;
+
+                            // Preferred fallback: if there is an `o<idx>` whose numeric suffix matches the helper index, map to it.
+                            // This handles sparse numbering like `o2` with `t2_0/t3_0`.
+                            if (orderIdx == helperIdx)
+                            {
+                                alias = "o" + orderIdx;
+                                return true;
+                            }
+
+                            // Legacy fallback: old behavior for dense `o0/o1/...` wrappers.
+                            if (desiredHelperPair == orderIdx * 2)
+                            {
+                                alias = "o" + orderIdx;
+                                return true;
+                            }
+                        }
+                    }
+
+                    return false;
+                }
             }
 
             static bool TryExtractLimit(SelectStmt selectStmt, out int limit)
@@ -783,7 +979,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 if (IsSubsetIgnoreCase(cols, groupByCols) == false)
                     return false;
 
-                if (TryExtractOrderByColumns(selectStmt, out var orderByCols, out var orderDescFlags) == false)
+                if (TryExtractOrderByColumns(selectStmt, out var orderByCols, out var orderDescFlags, groupBySelect) == false)
                     return false;
 
                 if (orderByCols.Count == 0)
@@ -868,9 +1064,9 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 return string.IsNullOrWhiteSpace(colName) == false;
             }
 
-            static string RewriteRqlProjection(string innerRql, IReadOnlyList<string> projectionCols, IReadOnlyList<string> orderByCols, IReadOnlyList<bool> orderByDescFlags, int limit)
+            static string RewriteRqlProjection(Documents.Queries.AST.Query q, IReadOnlyList<string> projectionCols, IReadOnlyList<string> orderByCols, IReadOnlyList<bool> orderByDescFlags, int limit)
             {
-                if (string.IsNullOrWhiteSpace(innerRql))
+                if (q == null)
                     return null;
 
                 if (projectionCols == null || projectionCols.Count == 0)
@@ -882,25 +1078,15 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 if (orderByDescFlags == null || orderByDescFlags.Count != orderByCols.Count)
                     return null;
 
-                Documents.Queries.AST.Query q;
-                try
-                {
-                    q = QueryMetadata.ParseQuery(innerRql, QueryType.Select);
-                }
-                catch
-                {
-                    return null;
-                }
-
-                if (q == null)
-                    return null;
-
                 Dictionary<string, string> projectionExprs = null;
                 if (q.SelectFunctionBody.FunctionText != null)
                 {
                     // Use the already-parsed select function body when available to preserve expressions like `name(e)`.
                     projectionExprs = TryExtractProjectionExpressions(q.SelectFunctionBody.FunctionText.AsSpan());
                 }
+
+                if (TryRewriteAsAliaslessPlainFieldDistinct(q, projectionCols, orderByCols, orderByDescFlags, limit, projectionExprs, out var rewritten))
+                    return rewritten;
 
                 var prefixQuery = q.ShallowCopy();
                 prefixQuery.IsDistinct = false;
@@ -996,6 +1182,87 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                        $"order by {string.Join(", ", orderByParts)}" + nl +
                        $"select distinct {{ {string.Join(", ", selectParts)} }}" + nl +
                        $"limit 0, {limit}";
+            }
+
+            static bool TryRewriteAsAliaslessPlainFieldDistinct(
+                Documents.Queries.AST.Query q,
+                IReadOnlyList<string> projectionCols,
+                IReadOnlyList<string> orderByCols,
+                IReadOnlyList<bool> orderByDescFlags,
+                int limit,
+                Dictionary<string, string> projectionExprs,
+                out string rewritten)
+            {
+                rewritten = null;
+
+                if (q?.From.Alias != null)
+                    return false;
+
+                if (projectionExprs != null)
+                    return false;
+
+                if (projectionCols is not { Count: 1 })
+                    return false;
+
+                var onlyCol = projectionCols[0];
+                if (string.IsNullOrWhiteSpace(onlyCol))
+                    return false;
+
+                if (string.Equals(onlyCol, "json()", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(onlyCol, "id()", StringComparison.OrdinalIgnoreCase))
+                    return false;
+
+                var selectId = FormatRqlIdentifier(onlyCol);
+                if (selectId == null)
+                    return false;
+
+                if (orderByCols == null || orderByCols.Count == 0)
+                    return false;
+
+                if (orderByDescFlags == null || orderByDescFlags.Count != orderByCols.Count)
+                    return false;
+
+                var prefixQuery = q.ShallowCopy();
+                prefixQuery.IsDistinct = false;
+                prefixQuery.Filter = null;
+                prefixQuery.FilterLimit = null;
+                prefixQuery.OrderBy = null;
+                prefixQuery.Select = null;
+                prefixQuery.SelectFunctionBody = default;
+                prefixQuery.Limit = null;
+                prefixQuery.Offset = null;
+
+                var prefix = prefixQuery.ToString();
+                if (string.IsNullOrWhiteSpace(prefix))
+                    return false;
+
+                prefix = prefix.TrimEnd();
+                prefix = prefix.Replace("\r\n", "\n", StringComparison.Ordinal);
+
+                var orderByParts = new List<string>(capacity: orderByCols.Count);
+                for (int i = 0; i < orderByCols.Count; i++)
+                {
+                    var c = orderByCols[i];
+                    if (string.IsNullOrWhiteSpace(c))
+                        return false;
+
+                    if (string.Equals(c, "json()", StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(c, "id()", StringComparison.OrdinalIgnoreCase))
+                        return false;
+
+                    var id = FormatRqlIdentifier(c);
+                    if (id == null)
+                        return false;
+
+                    orderByParts.Add(id + (orderByDescFlags[i] ? " desc" : string.Empty));
+                }
+
+                const string nl = "\n";
+                rewritten = prefix + nl +
+                            $"order by {string.Join(", ", orderByParts)}" + nl +
+                            $"select distinct {selectId}" + nl +
+                            $"limit 0, {limit}";
+                return true;
             }
 
 
