@@ -7,7 +7,7 @@ public sealed class UpdateSnmpDatabaseAiTasksMappingCommand : UpdateSnmpDatabase
 {
     public static string GetStorageKey(string databaseName)
     {
-        return $"{Helpers.ClusterStateMachineValuesPrefix(databaseName)}/monitoring/snmp/aitasks/mapping";
+        return $"{Helpers.ClusterStateMachineValuesPrefix(databaseName)}/monitoring/snmp/ai-tasks/mapping";
     }
 
     public List<string> AiTasks { get; set; }

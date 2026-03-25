@@ -323,7 +323,7 @@ internal sealed class StudioDatabasesHandlerForGetDatabasesState : AbstractDatab
                 performanceHints = database.NotificationCenter.GetPerformanceHintCount();
                 indexingErrors = database.IndexStore?.GetIndexes()?.Sum(index => index.GetErrorCount()) ?? 0;
                 documentsCount = database.DocumentsStorage.GetNumberOfDocuments();
-                tasksErrors = database.EtlErrorsStorage.ReadErrorsCount();
+                tasksErrors = database.EtlErrorsStorage.ReadTotalEtlErrorsCount();
             }
             else if (databaseInfoCache.TryGet(databaseName, json =>
                      {

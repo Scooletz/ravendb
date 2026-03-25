@@ -99,7 +99,7 @@ namespace Raven.Server.Documents.ETL
 
         public EtlProcess[] GetEtlProcesses()
         {
-            return _processes.Where(x => x.EtlType is not EtlType.EmbeddingsGeneration and EtlType.GenAi).ToArray();
+            return _processes.Where(x => x.EtlType is not EtlType.EmbeddingsGeneration and not EtlType.GenAi).ToArray();
         }
 
         public EtlProcess[] GetAiProcesses()

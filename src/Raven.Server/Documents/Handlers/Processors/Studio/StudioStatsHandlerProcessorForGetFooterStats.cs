@@ -32,7 +32,7 @@ namespace Raven.Server.Documents.Handlers.Processors.Studio
                     StaleIndexes = staleIndexes,
                     CountOfStaleIndexes = staleIndexes.Length,
                     CountOfIndexingErrors = indexes.Sum(index => index.GetErrorCount()),
-                    CountOfEtlTaskErrors = RequestHandler.Database.EtlErrorsStorage.ReadErrorsCount()
+                    CountOfEtlTaskErrors = RequestHandler.Database.EtlErrorsStorage.ReadTotalEtlErrorsCount()
                 });
             }
         }
