@@ -616,9 +616,26 @@ public sealed class MetricsProvider
         result.ProcessName = etl.Name;
         result.HealthStatus = etl.Statistics.HealthStatus;
         result.ErrorsCount = errorsStorage.ReadErrorsCountOfEtl(etl.Name);
+        result.DocumentsProcessedPerSec = etl.Metrics.BatchSizeMeter.OneMinuteRate;
         
         result.LastSuccessfulBatchTimeInSec = etl.Statistics.LastSuccessfulBatchTime.HasValue
             ? (SystemTime.UtcNow - etl.Statistics.LastSuccessfulBatchTime.Value).TotalSeconds
+            : null;
+
+        return result;
+    }
+
+    public AiTaskMetrics CollectAiTaskMetrics(EtlProcess aiTask, EtlErrorsStorage errorsStorage)
+    {
+        var result = new AiTaskMetrics();
+
+        result.ProcessName = aiTask.Name;
+        result.HealthStatus = aiTask.Statistics.HealthStatus;
+        result.ErrorsCount = errorsStorage.ReadErrorsCountOfEtl(aiTask.Name);
+        result.DocumentsProcessedPerSec = aiTask.Metrics.BatchSizeMeter.OneMinuteRate;
+
+        result.LastSuccessfulBatchTimeInSec = aiTask.Statistics.LastSuccessfulBatchTime.HasValue
+            ? (SystemTime.UtcNow - aiTask.Statistics.LastSuccessfulBatchTime.Value).TotalSeconds
             : null;
 
         return result;

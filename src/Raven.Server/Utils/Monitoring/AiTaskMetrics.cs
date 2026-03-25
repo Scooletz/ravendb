@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using Raven.Server.Documents.ETL;
@@ -6,19 +5,19 @@ using Sparrow.Json.Parsing;
 
 namespace Raven.Server.Utils.Monitoring;
 
-public sealed class EtlMetrics
+public sealed class AiTaskMetrics
 {
     public string ProcessName { get; set; }
     public long ErrorsCount { get; set; }
     public EtlProcessHealthStatus HealthStatus { get; set; }
     public double? LastSuccessfulBatchTimeInSec { get; set; }
     public double DocumentsProcessedPerSec { get; set; }
-    
-    public EtlMetrics()
+
+    public AiTaskMetrics()
     {
-        // deserialization    
+        // deserialization
     }
-    
+
     public DynamicJsonValue ToJson()
     {
         return new DynamicJsonValue
@@ -32,11 +31,11 @@ public sealed class EtlMetrics
     }
 }
 
-public sealed class EtlsMetrics
+public sealed class AiTasksMetrics
 {
     public string PublicServerUrl { get; set; }
     public string NodeTag { get; set; }
-    public List<PerDatabaseEtlMetrics> Results { get; set; } = new List<PerDatabaseEtlMetrics>();
+    public List<PerDatabaseAiTaskMetrics> Results { get; set; } = new List<PerDatabaseAiTaskMetrics>();
 
     public DynamicJsonValue ToJson()
     {
@@ -49,17 +48,18 @@ public sealed class EtlsMetrics
     }
 }
 
-public sealed class PerDatabaseEtlMetrics
+public sealed class PerDatabaseAiTaskMetrics
 {
     public string DatabaseName { get; set; }
-    public List<EtlMetrics> Etls { get; set; } = new List<EtlMetrics>();
+    public List<AiTaskMetrics> AiTasks { get; set; } = new List<AiTaskMetrics>();
 
     public DynamicJsonValue ToJson()
     {
         return new DynamicJsonValue
         {
             [nameof(DatabaseName)] = DatabaseName,
-            [nameof(Etls)] = Etls.Select(x => x.ToJson()).ToList()
+            [nameof(AiTasks)] = AiTasks.Select(x => x.ToJson()).ToList()
         };
     }
 }
+

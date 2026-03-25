@@ -60,7 +60,8 @@ namespace Raven.Server.Web.System
             var skipDatabases = GetBoolValueQueryString("skipDatabasesMetrics", false) ?? false;
             var skipIndexes = GetBoolValueQueryString("skipIndexesMetrics", false) ?? false;
             var skipCollections = GetBoolValueQueryString("skipCollectionsMetrics", false) ?? false;
-            var skipEtls = GetBoolValueQueryString("skipEtlMetrics", false) ?? false;
+            var skipEtls = GetBoolValueQueryString("skipEtlsMetrics", false) ?? false;
+            var skipAiTasks = GetBoolValueQueryString("skipAiTasksMetrics", false) ?? false;
             var includeGc = GetBoolValueQueryString("includeGcMetrics", false) ?? false;
 
             var provider = new MetricsProvider(Server);
@@ -92,6 +93,11 @@ namespace Raven.Server.Web.System
             if (skipEtls == false)
             {
                 await WriteEtlMetricsAsync(provider, databases, responseStream);
+            }
+
+            if (skipAiTasks == false)
+            {
+                await WriteAiTaskMetricsAsync(provider, databases, responseStream);
             }
         }
 
@@ -411,7 +417,7 @@ namespace Raven.Server.Web.System
 
             foreach (var database in databases)
             {
-                foreach (var etl in database.EtlLoader.Processes)
+                foreach (var etl in database.EtlLoader.GetEtlProcesses())
                 {
                     var etlMetrics = provider.CollectEtlMetrics(etl, database.EtlErrorsStorage);
                     metrics.Add(etlMetrics);
@@ -430,6 +436,41 @@ namespace Raven.Server.Web.System
                     WriteGauges(writer, "Number of ETL errors", "etl_errors_count", metrics, x => x.ErrorsCount, cachedTags);
                     WriteGauges(writer, "ETL health status, " + EnumHelp.EtlHealthStatus, "etl_health_status", metrics, x => (int)x.HealthStatus, cachedTags);
                     WriteGauges(writer, "Time elapsed since Last successful batch (in seconds)", "etl_last_successful_batch_time_in_seconds", metrics, x => x.LastSuccessfulBatchTimeInSec, cachedTags);
+                    WriteGauges(writer, "Documents processed per second (one minute rate)", "etl_documents_processed_per_second", metrics, x => x.DocumentsProcessedPerSec, cachedTags);
+                }
+
+                ms.Position = 0;
+                await ms.CopyToAsync(responseStream);
+            }
+        }
+
+        private async Task WriteAiTaskMetricsAsync(MetricsProvider provider, List<DocumentDatabase> databases, Stream responseStream)
+        {
+            var metrics = new List<AiTaskMetrics>();
+            var cachedTags = new List<string>();
+
+            foreach (var database in databases)
+            {
+                foreach (var aiTask in database.EtlLoader.GetAiProcesses())
+                {
+                    var aiTaskMetrics = provider.CollectAiTaskMetrics(aiTask, database.EtlErrorsStorage);
+                    metrics.Add(aiTaskMetrics);
+                    cachedTags.Add(SerializeTags(new Dictionary<string, string>
+                    {
+                        { "database_name", database.Name },
+                        { "ai_task_name", aiTask.Name }
+                    }));
+                }
+            }
+
+            using (var ms = RecyclableMemoryStreamFactory.GetRecyclableStream())
+            {
+                await using (var writer = PrometheusWriter(ms))
+                {
+                    WriteGauges(writer, "Number of AI task errors", "ai_task_errors_count", metrics, x => x.ErrorsCount, cachedTags);
+                    WriteGauges(writer, "AI task health status, " + EnumHelp.EtlHealthStatus, "ai_task_health_status", metrics, x => (int)x.HealthStatus, cachedTags);
+                    WriteGauges(writer, "Time elapsed since Last successful batch (in seconds)", "ai_task_last_successful_batch_time_in_seconds", metrics, x => x.LastSuccessfulBatchTimeInSec, cachedTags);
+                    WriteGauges(writer, "Documents processed per second (one minute rate)", "ai_task_documents_processed_per_second", metrics, x => x.DocumentsProcessedPerSec, cachedTags);
                 }
 
                 ms.Position = 0;
