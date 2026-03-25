@@ -6,6 +6,8 @@ using System.Reflection;
 using System.Threading.Tasks;
 using Lextm.SharpSnmpLib;
 using Raven.Client;
+using Raven.Client.Documents.Operations.ConnectionStrings;
+using Raven.Client.Documents.Operations.ETL;
 using Raven.Server.Documents.ETL;
 using Raven.Server.Platform.Posix;
 using Raven.Server.ServerWide;
@@ -978,42 +980,42 @@ namespace Raven.Server.Monitoring.Snmp
                         return djv;
 
                     foreach (var elasticSearchEtl in record.ElasticSearchEtls)
-                        ProcessEtl(elasticSearchEtl.Name);
+                        ProcessEtl(elasticSearchEtl);
                     
                     foreach (var sqlEtl in record.SqlEtls)
-                        ProcessEtl(sqlEtl.Name);
+                        ProcessEtl(sqlEtl);
 
                     foreach (var olapEtl in record.OlapEtls)
-                        ProcessEtl(olapEtl.Name);
+                        ProcessEtl(olapEtl);
                     
                     foreach (var queueEtl in record.QueueEtls)
-                        ProcessEtl(queueEtl.Name);
+                        ProcessEtl(queueEtl);
 
                     foreach (var ravenEtl in record.RavenEtls)
-                    {
-                        foreach (var transformation in ravenEtl.Transforms)
-                        {
-                            ProcessEtl($"{ravenEtl.Name}/{transformation.Name}");
-                        }
-                    }
+                        ProcessEtl(ravenEtl);
                     
                     return djv;
 
-                    void ProcessEtl(string name)
+                    void ProcessEtl<T>(EtlConfiguration<T> etlConfiguration) where T : ConnectionString
                     {
-                        if (mapping.TryGetValue(name, out var index) == false)
-                            return;
-
-                        var array = new DynamicJsonArray();
-                        foreach (var field in typeof(Etls).GetFields())
+                        foreach (var transformation in etlConfiguration.Transforms)
                         {
-                            var fieldValue = GetFieldValue(field);
-                            var databaseOid = string.Format(fieldValue.Oid, databaseIndex);
-                            var indexOid = string.Format(databaseOid, index);
-                            array.Add(CreateJsonItem(Root + indexOid, fieldValue.Description));
-                        }
+                            var name = $"{etlConfiguration.Name}/{transformation.Name}";
+                            
+                            if (mapping.TryGetValue(name, out var index) == false)
+                                continue;
 
-                        djv[name] = array;
+                            var array = new DynamicJsonArray();
+                            foreach (var field in typeof(Etls).GetFields())
+                            {
+                                var fieldValue = GetFieldValue(field);
+                                var databaseOid = string.Format(fieldValue.Oid, databaseIndex);
+                                var indexOid = string.Format(databaseOid, index);
+                                array.Add(CreateJsonItem(Root + indexOid, fieldValue.Description));
+                            }
+
+                            djv[name] = array;
+                        }
                     }
                 }
             }

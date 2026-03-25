@@ -299,11 +299,6 @@ namespace Raven.Server.Monitoring.Snmp
             });
         }
 
-        private void RemoveEtlProcess(EtlProcess process)
-        {
-            // todo
-        }
-
         private async Task AddIndexesFromDatabaseAsync(DocumentDatabase database)
         {
             var indexes = database.IndexStore.GetIndexes().ToList();
