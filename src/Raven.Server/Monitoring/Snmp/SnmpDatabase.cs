@@ -447,6 +447,7 @@ namespace Raven.Server.Monitoring.Snmp
             _objectStore.Add(new DatabaseEtlErrorsOfTask(_databaseName, processName, _databaseLandlord, _databaseIndex, index));
             _objectStore.Add(new DatabaseEtlHealthStatus(_databaseName, processName, _databaseLandlord, _databaseIndex, index));
             _objectStore.Add(new DatabaseEtlLastSuccessfulBatchTime(_databaseName, processName, _databaseLandlord, _databaseIndex, index));
+            _objectStore.Add(new DatabaseEtlDocumentsProcessedPerSec(_databaseName, processName, _databaseLandlord, _databaseIndex, index));
 
             _loadedEtls[processName] = index;
         }
@@ -459,6 +460,7 @@ namespace Raven.Server.Monitoring.Snmp
             _objectStore.Add(new DatabaseErrorsOfAiTask(_databaseName, processName, _databaseLandlord, _databaseIndex, index));
             _objectStore.Add(new DatabaseAiTaskHealthStatus(_databaseName, processName, _databaseLandlord, _databaseIndex, index));
             _objectStore.Add(new DatabaseAiTaskLastSuccessfulBatchTime(_databaseName, processName, _databaseLandlord, _databaseIndex, index));
+            _objectStore.Add(new DatabaseAiTaskDocumentsProcessedPerSec(_databaseName, processName, _databaseLandlord, _databaseIndex, index));
 
             _loadedAiTasks[processName] = index;
         }

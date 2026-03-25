@@ -951,6 +951,9 @@ namespace Raven.Server.Monitoring.Snmp
 
                 [Description("Last successful batch time")]
                 public const string LastSuccessfulBatchTime = "5.2.{0}.1.{{0}}.3";
+
+                [Description("Documents processed per second (one minute rate)")]
+                public const string DocumentsProcessedPerSec = "5.2.{0}.1.{{0}}.4";
                 
                 public static Dictionary<string, string> CreateMapping(long ignoreIndex)
                 {
@@ -1029,6 +1032,9 @@ namespace Raven.Server.Monitoring.Snmp
 
                 [Description("Last successful batch time")]
                 public const string LastSuccessfulBatchTime = "5.2.{0}.2.{{0}}.3";
+
+                [Description("Documents processed per second (one minute rate)")]
+                public const string DocumentsProcessedPerSec = "5.2.{0}.2.{{0}}.4";
                 
                 public static Dictionary<string, string> CreateMapping(long ignoreIndex)
                 {

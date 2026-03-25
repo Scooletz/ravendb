@@ -303,6 +303,8 @@ public class RavenDB_21192 : RavenTestBase
                 Assert.Contains(thirdTaskErrors.ProcessErrors, x => x.AffectedDocumentsCount == 5);
                 Assert.Empty(thirdTaskErrors.ItemErrors);
             }
+            
+            WaitForUserToContinueTheTest(src);
         }
     }
     
@@ -1134,6 +1136,8 @@ public class RavenDB_21192 : RavenTestBase
                
                Assert.Equal(SnmpType.NoSuchInstance, result.Single().Data.TypeCode);
             }
+            
+            WaitForUserToContinueTheTest(src);
         }
     }
     
