@@ -3,13 +3,13 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using JetBrains.Annotations;
-using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Http.Features.Authentication;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Net.Http.Headers;
 using Raven.Client.Documents.AI;
-using Raven.Client.Documents.Operations.AI;
 using Raven.Client.Documents.Operations.AI.Agents;
+using Raven.Client.Exceptions;
+using Raven.Client.Exceptions.Documents.Attachments;
 using Raven.Server.Documents.Handlers.Batches;
 using Raven.Server.Documents.Handlers.Processors;
 using Raven.Server.ServerWide;
@@ -52,7 +52,7 @@ namespace Raven.Server.Documents.Handlers.AI.Agents
             bool streaming, OperationCancelToken token)
         {
             handler.Initialize(configuration, conversationId, body, changeVector, RequestHandler.GetRaftRequestIdFromQuery());
-            (BlittableJsonReaderObject Response, AiUsage Usage) r;
+            AiInternalConversationResult r;
 
             if (streaming)
             {
@@ -64,11 +64,33 @@ namespace Raven.Server.Documents.Handlers.AI.Agents
             }
             else
             {
-                r = await handler.HandleRequest(context, token.Token);
+                try
+                {
+                    r = await handler.HandleRequest(context, token.Token);
+                }
+                catch (ConcurrencyException)
+                {
+                    throw;
+                }
+                catch (MissingAiAgentParameterException)
+                {
+                    throw;
+                }
+                catch (AttachmentDoesNotExistException)
+                {
+                    throw;
+                }
+                catch (Exception e)
+                {
+                    throw new AiException($"Failed to communicate with the agent '{configuration.Identifier}', conversation: '{conversationId}'.", e)
+                    {
+                        RequestId = RequestHandler.HttpContext.Response.Headers.RequestId
+                    };
+                }
             }
 
             await using var writer = new AsyncBlittableJsonTextWriter(context, RequestHandler.ResponseBodyStream());
-            var finalPayload = handler.GetConversationResponse(context, r.Response);
+            var finalPayload = handler.GetConversationResponse(context, r.Response, r.ToolsIterations);
             context.Write(writer, finalPayload);
         }
 
@@ -95,10 +117,12 @@ namespace Raven.Server.Documents.Handlers.AI.Agents
 
             optionsBlittable.TryGet(nameof(AiConversationCreationOptions.Parameters), out BlittableJsonReaderObject parameters);
             optionsBlittable.TryGet(nameof(AiConversationCreationOptions.ExpirationInSec), out int? conversationExpirationInSec);
+            optionsBlittable.TryGet(nameof(AiConversationCreationOptions.MaxModelIterationsPerCall), out int? maxModelIterationsPerCall);
 
             var options = new AiConversationCreationOptions
             {
-                ExpirationInSec = conversationExpirationInSec
+                ExpirationInSec = conversationExpirationInSec,
+                MaxModelIterationsPerCall = maxModelIterationsPerCall
             };
 
             return new RequestBody
@@ -115,8 +139,9 @@ namespace Raven.Server.Documents.Handlers.AI.Agents
         {
 
             var contentType = HttpContext.Request.ContentType;
-            if (contentType.StartsWith("multipart/mixed", StringComparison.OrdinalIgnoreCase) ||
-                contentType.StartsWith("multipart/form-data", StringComparison.OrdinalIgnoreCase))
+            if (contentType != null &&
+                (contentType.StartsWith("multipart/mixed", StringComparison.OrdinalIgnoreCase) ||
+                contentType.StartsWith("multipart/form-data", StringComparison.OrdinalIgnoreCase)))
             {
                 using (var commandsReader = new DatabaseBatchCommandsReader(RequestHandler, RequestHandler.Database))
                 {

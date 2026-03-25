@@ -71,6 +71,23 @@ namespace Raven.Client.Documents.Operations.AI.Agents
         /// </summary>
         public AiAgentToolQueryOptions Options { get; set; }
 
+        internal bool ShouldAddToInitialContext()
+        {
+            if (Options?.AddToInitialContext is null)
+                return false;
+
+            return Options.AddToInitialContext.Value;
+        }
+
+        internal bool ShouldAllowModelQueries()
+        {
+            if (Options?.AllowModelQueries is null)
+                return true;
+
+            return Options.AllowModelQueries.Value;
+        }
+
+
         /// <summary>
         /// Serializes this query tool to a JSON structure.
         /// </summary>

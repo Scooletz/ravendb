@@ -1,21 +1,26 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using JetBrains.Annotations;
 using Raven.Client;
 using Raven.Client.Documents.Operations.AI;
 using Raven.Client.Documents.Operations.AI.Agents;
+using Raven.Client.Exceptions;
 using Raven.Client.Json.Serialization;
 using Raven.Server.Documents.AI;
 using Raven.Server.NotificationCenter.Notifications.Details;
 using Sparrow.Json;
 using Sparrow.Json.Parsing;
+using Sparrow.Server.Json.Sync;
 
 namespace Raven.Server.Documents.Handlers.AI.Agents;
 
 public class ConversationDocument([NotNull] string agent, BlittableJsonReaderObject parameters)
 {
+    public const string SubAgentUserPromptKey = "subAgentUserPrompt";
+
     public string Agent = agent;
 
     public BlittableJsonReaderObject Parameters = parameters;
@@ -33,32 +38,47 @@ public class ConversationDocument([NotNull] string agent, BlittableJsonReaderObj
 
     public int RemainingToolIterations;
 
-    public void Initialize(JsonOperationContext context, AiAgentConfiguration configuration, bool resetRemainingToolIterations = true)
+    public HashSet<string> SubConversationIds = new (StringComparer.OrdinalIgnoreCase);
+
+    public void Initialize(JsonOperationContext context, AiAgentConfiguration configuration, bool resetRemainingToolIterations, int maxModelIterationsPerCall)
     {
         if (Messages.Count > 0)
             throw new InvalidOperationException("conversation document is already initialized. Cannot re-initialize.");
 
-        List<AiAgentParameter> relevantParameters = [];
-        var parameters = configuration.Parameters;
+        List<AiAgentParameter> modelParameters = [];
+        var configParams = configuration.Parameters ?? [];
 
-        if (parameters != null)
+        foreach (var p in configParams)
         {
-            for (int i = 0; i < parameters.Count; i++)
+            // Skip parameters that should not be sent to the model
+            if (p.SendToModel == false)
+                continue;
+
+            if (Parameters == null || Parameters.TryGet(p.Name, out object value) == false)
+                throw new MissingAiAgentParameterException($"Parameter '{p.Name}' is missing.");
+
+            var param = ConversationHandler.GetAiConversationParameter(p.Name, value);
+            if (param.SendToModel)
+                modelParameters.Add(p);
+        }
+
+        // Additional Parameters (that are not defined in the configuration, but still should be sent to the model)
+        if (Parameters != null)
+        {
+            foreach (var paramName in Parameters.GetPropertyNames())
             {
-                var p = parameters[i];
-                if (p.SendToModel != false)
-                    relevantParameters.Add(p);
+                if (configParams.Any(p => p.Name == paramName))
+                    continue;
+
+                var param = ConversationHandler.GetAiConversationParameter(paramName, Parameters[paramName]);
+                if (param.SendToModel)
+                    modelParameters.Add(new AiAgentParameter(paramName));
             }
         }
 
-        foreach (var parameter in relevantParameters)
-        {
-            if (Parameters == null || Parameters.TryGet(parameter.Name, out object _) == false)
-                throw new ArgumentException($"Parameter '{parameter.Name}' is missing.");
-        }
 
         var promptMessage = configuration.SystemPrompt;
-        if (TryCreateParameterDescriptionMessage(relevantParameters, out string message))
+        if (TryCreateParameterDescriptionMessage(modelParameters, out string message))
         {
             promptMessage += "\n" + message;
         }
@@ -69,28 +89,28 @@ public class ConversationDocument([NotNull] string agent, BlittableJsonReaderObj
             [ChatCompletionClient.Constants.RequestFields.Content] = promptMessage
         }, "system/msg"), usage: null);
 
-        if (relevantParameters.Count > 0)
+        if (modelParameters.Count > 0)
         {
             AddMessage(context, context.ReadObject(new DynamicJsonValue
             {
                 [ChatCompletionClient.Constants.RequestFields.Role] = ChatCompletionClient.Constants.RequestFields.RoleUserValue,
-                [ChatCompletionClient.Constants.RequestFields.Content] = ParametersToString(relevantParameters)
+                [ChatCompletionClient.Constants.RequestFields.Content] = ParametersToString(modelParameters)
             }, "system/msg"), usage: null);
         }
 
         if (resetRemainingToolIterations == false)
             return;
 
-        RemainingToolIterations = configuration.MaxModelIterationsPerCall ?? ConversationHandler.DefaultMaxModelIterationsPerCall;
+        RemainingToolIterations = maxModelIterationsPerCall;
     }
 
-    public List<AiToolCall> InitialQueries(JsonOperationContext context, AiAgentConfiguration configuration)
+    public List<AiToolCall> InitialOperations(JsonOperationContext context, AiAgentConfiguration configuration)
     {
         List<AiToolCall> result = null;
 
         foreach (AiAgentToolQuery query in configuration.Queries ?? [])
         {
-            if (ShouldAddToInitialContext(query.Options) == false)
+            if (query.ShouldAddToInitialContext() == false)
                 continue;
 
             result ??= [];
@@ -105,14 +125,6 @@ public class ConversationDocument([NotNull] string agent, BlittableJsonReaderObj
         AddArtificialToolCall(context, result);
 
         return result;
-        
-        static bool ShouldAddToInitialContext(AiAgentToolQueryOptions options)
-        {
-            if (options?.AddToInitialContext is null)
-                return false;
-            
-            return options.AddToInitialContext.Value;
-        }
     }
 
     public void AddToolResponse(JsonOperationContext context, string toolId, string content)
@@ -156,7 +168,7 @@ public class ConversationDocument([NotNull] string agent, BlittableJsonReaderObj
         var sb = new StringBuilder("AI Agent Parameters:\n");
         foreach (var parameter in parameters)
         {
-            var value = Parameters[parameter.Name];
+            var value = ConversationHandler.GetAiConversationParameter(parameter.Name, Parameters[parameter.Name]).Value;
             sb.AppendLine($"{parameter.Name} = {value?.ToString() ?? "null"}");
         }
 
@@ -223,7 +235,8 @@ public class ConversationDocument([NotNull] string agent, BlittableJsonReaderObj
             [nameof(CreatedAt)] = CreatedAt,
             [nameof(Expires)] = Expires,
             [nameof(CurrentUsage)] = CurrentUsage,
-            [nameof(RemainingToolIterations)] = RemainingToolIterations
+            [nameof(RemainingToolIterations)] = RemainingToolIterations,
+            [nameof(SubConversationIds)] = new DynamicJsonArray(SubConversationIds)
         };
     }
 
@@ -241,7 +254,7 @@ public class ConversationDocument([NotNull] string agent, BlittableJsonReaderObj
         LastMessageAt = currentDate;
     }
 
-    public static ConversationDocument ToDocument(string id, BlittableJsonReaderObject document, AiAgentConfiguration config)
+    public static ConversationDocument ToDocument(string id, BlittableJsonReaderObject document, int maxModelIterationsPerCall)
     {
         if (document.TryGet(nameof(Agent), out string agent) == false)
             throw new ArgumentException($"Missing Agent in '{id}' conversation document");
@@ -262,7 +275,7 @@ public class ConversationDocument([NotNull] string agent, BlittableJsonReaderObj
         if (document.TryGet(nameof(Expires), out TimeSpan? expires) == false)
             throw new ArgumentException($"Missing Expires in '{id}' conversation document");
         if (document.TryGet(nameof(RemainingToolIterations), out int remainingToolIterations) == false)
-            remainingToolIterations = config.MaxModelIterationsPerCall ?? ConversationHandler.DefaultMaxModelIterationsPerCall;
+            remainingToolIterations = maxModelIterationsPerCall;
 
         var openTools = new Dictionary<string, AiAgentActionRequest>();
         foreach (var callId in openToolCalls.GetPropertyNames())
@@ -288,6 +301,12 @@ public class ConversationDocument([NotNull] string agent, BlittableJsonReaderObj
         {
             conversation.CurrentUsage = JsonDeserializationClient.AiUsage(currentUsageBlittable);
         }
+
+        if (document.TryGet(nameof(SubConversationIds), out BlittableJsonReaderArray subConversationIds))
+        {
+            conversation.SubConversationIds = subConversationIds.Items.Select(m => ((LazyStringValue)m).ToString(CultureInfo.InvariantCulture)).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        }
+
         return conversation;
     }
 
@@ -392,9 +411,14 @@ public class ConversationDocument([NotNull] string agent, BlittableJsonReaderObj
     private static ToolType GetToolType(AiAgentConfiguration configuration, string name)
     {
         if (configuration.FindAction(name) != null)
-        {
             return ToolType.Action;
-        }
-        return configuration.FindQuery(name) != null ? ToolType.Query : ToolType.Unknown;
+
+        if (configuration.FindQuery(name) != null)
+            return ToolType.Query;
+
+        if (configuration.FindSubAgent(name) != null)
+            return ToolType.SubAgent;
+
+        return ToolType.Unknown;
     }
 }

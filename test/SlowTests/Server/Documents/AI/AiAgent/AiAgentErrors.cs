@@ -71,7 +71,7 @@ public class AiAgentErrors : RavenTestBase
         // Raven.Client.Exceptions.InvalidQueryException: Parameter value '["Shahar"]' of type Sparrow.Json.BlittableJsonReaderArray is not supported
         // Query: from 'Customers' where Name == $name
         // Parameters: {"name":["Shahar"]}
-        var e = await Assert.ThrowsAsync<InvalidQueryException>(() => chat.RunAsync<CustomerOutputSchema>(CancellationToken.None));
+        var e = await Assert.ThrowsAsync<AiException>(() => chat.RunAsync<CustomerOutputSchema>(CancellationToken.None));
 
         Assert.Contains("Parameter value '[\"Shahar\"]' of type Sparrow.Json.BlittableJsonReaderArray is not supported", e.Message);
     }
@@ -142,7 +142,7 @@ public class AiAgentErrors : RavenTestBase
 
         // Raven.Client.Exceptions.RavenException: System.ArgumentException: The field 'Name1' is not indexed in 'Customers/ByName',
 
-        var e = await Assert.ThrowsAsync<RavenException>(() => chat.RunAsync<CustomerOutputSchema>(CancellationToken.None));
+        var e = await Assert.ThrowsAsync<AiException>(() => chat.RunAsync<CustomerOutputSchema>(CancellationToken.None));
 
         Assert.Contains("The field 'Name1' is not indexed in 'Customers/ByName'", e.Message);
     }
@@ -203,9 +203,19 @@ public class AiAgentErrors : RavenTestBase
         chat.SetUserPrompt("How many customers do we have with the name \"Shahar\"?");
 
         // Raven.Client.Exceptions.RavenException: Raven.Server.Documents.AI.UnsuccessfulRequestException: Incorrect API key provided
-        var e = await Assert.ThrowsAsync<RavenException>(() => chat.RunAsync<CustomerOutputSchema>(CancellationToken.None));
-        
-        Assert.Contains("API key", e.Message);
+        var e = await Assert.ThrowsAsync<AiException>(() => chat.RunAsync<CustomerOutputSchema>(CancellationToken.None));
+        var provider = config.Connection.GetActiveProvider();
+        switch (provider)
+        {
+            case AiConnectorType.OpenAi:
+                Assert.Contains("Incorrect API key provided", e.Message);
+                break;
+            case AiConnectorType.Google:
+                Assert.Contains("API key not valid.", e.Message);
+                break;
+            default:
+                throw new InvalidOperationException($"Unknown provider '{provider}'");
+        }
     }
 
     [RavenTheory(RavenTestCategory.Ai)]
@@ -262,10 +272,19 @@ public class AiAgentErrors : RavenTestBase
         chat.SetUserPrompt("How many customers do we have with the name \"Shahar\"?");
 
         // Raven.Client.Exceptions.RavenException: Raven.Server.Documents.AI.UnsuccessfulRequestException: The model `gpt-4oxyz` does not exist or you do not have access to it
-        var e = await Assert.ThrowsAsync<RavenException>(() => chat.RunAsync<CustomerOutputSchema>(CancellationToken.None));
-        Assert.Contains("Raven.Client.Exceptions.UnsuccessfulAiRequestException: Status Code: NotFound", e.Message);
-        if (config.Connection.OpenAiSettings != null)
-            Assert.Contains($"The model `{model}` does not exist or you do not have access to it", e.Message);
+        var e = await Assert.ThrowsAsync<AiException>(() => chat.RunAsync<CustomerOutputSchema>(CancellationToken.None));
+        var p = Assert.IsAssignableFrom<OpenAiBaseSettings>(config.Connection.GetActiveProviderInstance());
+        switch (p)
+        {
+            case OpenAiSettings:
+                Assert.Contains($"The model `{p.Model}` does not exist or you do not have access to it", e.Message);
+                break;
+            case GoogleSettings:
+                Assert.Contains($"models/{p.Model} is not found", e.Message);
+                break;
+            default:
+                throw new InvalidOperationException($"Unknown provider '{p.GetType().Name}'");
+        }
     }
 
     [RavenTheory(RavenTestCategory.Ai)]
@@ -314,7 +333,7 @@ public class AiAgentErrors : RavenTestBase
         chat.SetUserPrompt("How many customers do we have with the name \"Shahar\"?");
 
         // Raven.Client.Exceptions.RavenException: System.IO.InvalidDataException:  Cannot have a '<' in this position at  (1,2) ...
-        var e = await Assert.ThrowsAsync<RavenException>(() => chat.RunAsync<CustomerOutputSchema>(CancellationToken.None));
+        var e = await Assert.ThrowsAsync<AiException>(() => chat.RunAsync<CustomerOutputSchema>(CancellationToken.None));
 
         RavenTestHelper.AssertContainsRespectingNewLines("Received an unrecognized response from the server.\r\nStatus Code: NotFound\r\nResponse:\r\nStatusCode: 404, ReasonPhrase: 'Not Found'", e.Message);
     }

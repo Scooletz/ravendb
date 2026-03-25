@@ -34,6 +34,7 @@ public class ConversationResult<TAnswer>
     /// Any tool action requests emitted by the model that require user/tool responses.
     /// </summary>
     public List<AiAgentActionRequest> ActionRequests { get; set; }
+    internal int ToolsIterations { get; set; }
 
     internal static ConversationResult<TAnswer> Convert(BlittableJsonReaderObject response, DocumentConventions conventions)
     {

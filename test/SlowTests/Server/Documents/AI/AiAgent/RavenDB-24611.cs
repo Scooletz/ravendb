@@ -34,7 +34,7 @@ namespace SlowTests.Server.Documents.AI.AiAgent
 
             chat.SetUserPrompt("what are my recent orders?");
 
-            var ex = await Assert.ThrowsAsync<RavenException>(() => chat.RunAsync<OutputSchema>(CancellationToken.None));
+            var ex = await Assert.ThrowsAsync<MissingAiAgentParameterException>(() => chat.RunAsync<OutputSchema>(CancellationToken.None));
             Assert.Contains("Parameter 'company' is missing", ex.Message);
         }
 
