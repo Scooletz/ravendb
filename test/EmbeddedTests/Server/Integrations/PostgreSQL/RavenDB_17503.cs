@@ -709,6 +709,48 @@ limit 1001";
         }
     }
 
+    [Fact]
+    public async Task DirectQuery_desktop_grouped_sum_two_group_fields_with_outer_where_not_null_should_work_end_to_end()
+    {
+        // Ownership note:
+        // - `FastTests.Server.Integrations.PostgreSQL.PowerBI.PowerBIAstTests.DirectQuery_desktop_grouped_sum_two_group_fields_with_outer_where_not_null_should_be_classified_as_direct_query`
+        //   asserts parser classification (`PowerBIDirectQuery`).
+        // - This test asserts end-to-end execution and expected result shape.
+        using (var store = GetDocumentStore())
+        {
+            await store.Maintenance.SendAsync(new CreateSampleDataOperation());
+
+            const string sql = @"select ""_"".""Employee"",
+    ""_"".""RequireAt"",
+    ""_"".""a0""
+from 
+(
+    select ""rows"".""Employee"" as ""Employee"",
+        ""rows"".""RequireAt"" as ""RequireAt"",
+        sum(""rows"".""Freight"") as ""a0""
+    from 
+    (
+        from Orders
+        where Company in ('Companies/1-A', 'Companies/2-A', 'Companies/3-A')
+    ) ""rows""
+    group by ""Employee"",
+        ""RequireAt""
+) ""_""
+where not ""_"".""a0"" is null
+limit 1000001";
+
+            var result = await Act(store, sql);
+
+            Assert.NotNull(result);
+            Assert.NotEmpty(result.Rows);
+
+            Assert.Equal(3, result.Columns.Count);
+            Assert.True(result.Columns.Contains("Employee"));
+            Assert.True(result.Columns.Contains("RequireAt"));
+            Assert.True(result.Columns.Contains("a0"));
+        }
+    }
+
     [Fact(Skip = "Aggregate-only DirectQuery wrapper family not supported yet.")]
     public async Task DirectQuery_aggregate_only_sum_should_work_end_to_end()
     {

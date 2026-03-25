@@ -81,6 +81,32 @@ from ""public"".""Orders"" ""$Table"" limit 200";
         }
 
         [Fact]
+        public void DirectQuery_desktop_grouped_sum_two_group_fields_with_outer_where_not_null_should_be_classified_as_direct_query()
+        {
+            const string sql = @"select ""_"".""Employee"",
+    ""_"".""RequireAt"",
+    ""_"".""a0""
+from 
+(
+    select ""rows"".""Employee"" as ""Employee"",
+        ""rows"".""RequireAt"" as ""RequireAt"",
+        sum(""rows"".""Freight"") as ""a0""
+    from 
+    (
+        from Orders
+        where Company in ('Companies/1-A', 'Companies/2-A', 'Companies/3-A')
+    ) ""rows""
+    group by ""Employee"",
+        ""RequireAt""
+) ""_""
+where not ""_"".""a0"" is null
+limit 1000001";
+
+            Assert.True(PowerBIQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
+            Assert.IsType<PowerBIDirectQuery>(pgQuery);
+        }
+
+        [Fact]
         public void DirectQuery_desktop_employee_requireAt_json_with_null_order_helper_columns_should_be_classified_as_direct_query()
         {
             const string sql = @"select ""_"".""Employee"" as ""c3"",
