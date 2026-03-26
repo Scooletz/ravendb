@@ -1535,7 +1535,8 @@ public class RavenDB_21192_Multinode : ClusterTestBase
             var process = mentorDatabase.EtlLoader.Processes.FirstOrDefault(x => x.Name == $"{etlName}/{transformationName}");
             return process?.Statistics.LoadSuccesses >= 3;
         }, true, timeout: 30_000));
-        
+
+        Assert.True(WaitForValue(() => mentorDatabase.EtlErrorsStorage.ReadItemErrorsOfEtl($"{etlName}/{transformationName}").Count == 5, true, timeout: 30_000));
         var mentorItemErrors = mentorDatabase.EtlErrorsStorage.ReadItemErrorsOfEtl($"{etlName}/{transformationName}");
         Assert.Equal(5, mentorItemErrors.Count);
         
@@ -1571,10 +1572,11 @@ public class RavenDB_21192_Multinode : ClusterTestBase
             var process = newMentorDatabase.EtlLoader.Processes.FirstOrDefault(x => x.Name == $"{etlName}/{transformationName}");
             return process?.Statistics.TransformationErrors >= 7;
         }, true, timeout: 30_000));
-        
+
+        Assert.True(WaitForValue(() => newMentorDatabase.EtlErrorsStorage.ReadItemErrorsOfEtl($"{etlName}/{transformationName}").Count == 7, true, timeout: 30_000));
         var newMentorItemErrors = newMentorDatabase.EtlErrorsStorage.ReadItemErrorsOfEtl($"{etlName}/{transformationName}");
         Assert.Equal(7, newMentorItemErrors.Count);
-        
+
         mentorItemErrors = mentorDatabase.EtlErrorsStorage.ReadItemErrorsOfEtl($"{etlName}/{transformationName}");
         Assert.Equal(5, mentorItemErrors.Count);
         
