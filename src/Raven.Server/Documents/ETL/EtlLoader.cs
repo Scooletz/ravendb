@@ -107,6 +107,52 @@ namespace Raven.Server.Documents.ETL
             return _processes.Where(x => x.EtlType is EtlType.EmbeddingsGeneration or EtlType.GenAi).ToArray();
         }
 
+        public IEnumerable<string> GetEtlProcessNamesFromRecord()
+        {
+            if (RavenDestinations != null)
+                foreach (var config in RavenDestinations)
+                    foreach (var transform in config.Transforms)
+                        yield return $"{config.Name}/{transform.Name}";
+
+            if (SqlDestinations != null)
+                foreach (var config in SqlDestinations)
+                    foreach (var transform in config.Transforms)
+                        yield return $"{config.Name}/{transform.Name}";
+
+            if (OlapDestinations != null)
+                foreach (var config in OlapDestinations)
+                    foreach (var transform in config.Transforms)
+                        yield return $"{config.Name}/{transform.Name}";
+
+            if (ElasticSearchDestinations != null)
+                foreach (var config in ElasticSearchDestinations)
+                    foreach (var transform in config.Transforms)
+                        yield return $"{config.Name}/{transform.Name}";
+
+            if (QueueDestinations != null)
+                foreach (var config in QueueDestinations)
+                    foreach (var transform in config.Transforms)
+                        yield return $"{config.Name}/{transform.Name}";
+
+            if (SnowflakeDestinations != null)
+                foreach (var config in SnowflakeDestinations)
+                    foreach (var transform in config.Transforms)
+                        yield return $"{config.Name}/{transform.Name}";
+        }
+
+        public IEnumerable<string> GetAiProcessNamesFromRecord()
+        {
+            if (EmbeddingsGenerationDestinations != null)
+                foreach (var config in EmbeddingsGenerationDestinations)
+                    foreach (var transform in config.Transforms)
+                        yield return $"{config.Name}/{transform.Name}";
+
+            if (GenAiDestinations != null)
+                foreach (var config in GenAiDestinations)
+                    foreach (var transform in config.Transforms)
+                        yield return $"{config.Name}/{transform.Name}";
+        }
+
         public void Initialize(DatabaseRecord record)
         {
             LoadProcesses(record, record.RavenEtls, record.SqlEtls, record.OlapEtls, record.ElasticSearchEtls, record.QueueEtls, record.SnowflakeEtls, record.EmbeddingsGenerations, record.GenAis, toRemove: null, null, null);
@@ -126,8 +172,6 @@ namespace Raven.Server.Documents.ETL
         private void OnProcessRemoved(EtlProcess process)
         {
             ProcessRemoved?.Invoke(process);
-
-            _database.EtlErrorsStorage.DeleteEtlErrorsTablesForProcess(process.Name);
         }
 
         private void LoadProcesses(DatabaseRecord record,
@@ -903,6 +947,17 @@ namespace Raven.Server.Documents.ETL
 
             if (toRemove.Count == 0)
                 return;
+
+            foreach (var processGroup in toRemove)
+            {
+                if (responsibleNodes.ContainsKey(processGroup.Key))
+                    continue;
+
+                foreach (var process in processGroup.Value)
+                {
+                    _database.EtlErrorsStorage.DeleteEtlErrorsTablesForProcess(process.Name);
+                }
+            }
 
             ThreadPool.QueueUserWorkItem(_ =>
             {

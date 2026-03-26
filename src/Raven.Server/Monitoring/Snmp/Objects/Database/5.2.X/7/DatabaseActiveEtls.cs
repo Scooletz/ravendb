@@ -17,4 +17,3 @@ public sealed class DatabaseActiveEtls : DatabaseScalarObjectBase<Integer32>
             .Count(x => x.GetLatestPerformanceStats()?.Completed == false));
     }
 }
-

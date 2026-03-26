@@ -1136,8 +1136,6 @@ public class RavenDB_21192 : RavenTestBase
                
                Assert.Equal(SnmpType.NoSuchInstance, result.Single().Data.TypeCode);
             }
-            
-            WaitForUserToContinueTheTest(src);
         }
     }
     
@@ -1429,5 +1427,168 @@ public class RavenDB_21192 : RavenTestBase
         }
     
         public override bool IsReadRequest => true;
+    }
+}
+
+public class RavenDB_21192_Multinode : ClusterTestBase
+{
+    public RavenDB_21192_Multinode(ITestOutputHelper output) : base(output)
+    {
+    }
+
+    [RavenFact(RavenTestCategory.Etl | RavenTestCategory.Cluster)]
+    public async Task EtlErrorsShouldBeStoredOnResponsibleNodeInCluster()
+    {
+        const string connectionStringName = "ConnectionString1";
+        const string etlName = "ETL1";
+        const string transformationName = "Transformation1";
+        const string script = """
+                              if (this.Name == "James Doe")
+                              {
+                                   throw new Error("dummy error");
+                              }
+                              loadToUsers(this);
+                              """;
+        var collections = new List<string> { "Users" };
+
+        const int clusterSize = 3;
+
+        var (nodes, leader) = await CreateRaftCluster(clusterSize);
+
+        var srcDatabaseName = GetDatabaseName();
+        var dstDatabaseName = GetDatabaseName();
+
+        await CreateDatabaseInCluster(srcDatabaseName, 3, leader.WebUrl);
+        await CreateDatabaseInCluster(dstDatabaseName, 1, leader.WebUrl);
+
+        using var src = new DocumentStore
+        {
+            Urls = nodes.Select(n => n.WebUrl).ToArray(),
+            Database = srcDatabaseName
+        }.Initialize();
+
+        using var dest = new DocumentStore
+        {
+            Urls = new[] { leader.WebUrl },
+            Database = dstDatabaseName
+        }.Initialize();
+        
+        var mentorTag = nodes[0].ServerStore.NodeTag;
+
+        var configuration = new RavenEtlConfiguration
+        {
+            Name = etlName,
+            ConnectionStringName = connectionStringName,
+            MentorNode = mentorTag,
+            PinToMentorNode = true,
+            Transforms =
+            {
+                new Transformation
+                {
+                    Name = transformationName,
+                    Collections = collections,
+                    Script = script,
+                    ApplyToAllDocuments = false,
+                    Disabled = false
+                }
+            }
+        };
+
+        var connectionString = new RavenConnectionString
+        {
+            Name = connectionStringName,
+            Database = dest.Database,
+            TopologyDiscoveryUrls = dest.Urls.ToArray()
+        };
+
+        src.Maintenance.Send(new PutConnectionStringOperation<RavenConnectionString>(connectionString));
+        var addResult = src.Maintenance.Send(new AddEtlOperation<RavenConnectionString>(configuration));
+        Assert.NotNull(addResult.RaftCommandIndex);
+        
+        using (var session = src.OpenSession())
+        {
+            for (int i = 0; i < 5; i++)
+                session.Store(new User { Name = "James Doe" });
+
+            session.SaveChanges();
+        }
+        
+        using (var session = src.OpenSession())
+        {
+            for (int i = 0; i < 3; i++)
+                session.Store(new User { Name = "Joe Doe" });
+
+            session.SaveChanges();
+        }
+        
+        var mentorNode = nodes[0];
+        var mentorDatabase = await GetDatabase(mentorNode, srcDatabaseName);
+        
+        Assert.True(WaitForValue(() =>
+        {
+            var process = mentorDatabase.EtlLoader.Processes.FirstOrDefault(x => x.Name == $"{etlName}/{transformationName}");
+            return process?.Statistics.TransformationErrors >= 5;
+        }, true, timeout: 30_000));
+
+        Assert.True(WaitForValue(() =>
+        {
+            var process = mentorDatabase.EtlLoader.Processes.FirstOrDefault(x => x.Name == $"{etlName}/{transformationName}");
+            return process?.Statistics.LoadSuccesses >= 3;
+        }, true, timeout: 30_000));
+        
+        var mentorItemErrors = mentorDatabase.EtlErrorsStorage.ReadItemErrorsOfEtl($"{etlName}/{transformationName}");
+        Assert.Equal(5, mentorItemErrors.Count);
+        
+        for (int i = 1; i < clusterSize; i++)
+        {
+            var otherDatabase = await GetDatabase(nodes[i], srcDatabaseName);
+            var otherItemErrors = otherDatabase.EtlErrorsStorage.ReadItemErrorsOfEtl($"{etlName}/{transformationName}");
+            Assert.Empty(otherItemErrors);
+        }
+        
+        var newMentorTag = nodes[1].ServerStore.NodeTag;
+        configuration.MentorNode = newMentorTag;
+        src.Maintenance.Send(new UpdateEtlOperation<RavenConnectionString>(addResult.TaskId, configuration));
+
+        var newMentorNode = nodes[1];
+        var newMentorDatabase = await GetDatabase(newMentorNode, srcDatabaseName);
+        
+        Assert.True(WaitForValue(() =>
+        {
+            return newMentorDatabase.EtlLoader.Processes.Any(x => x.Name == $"{etlName}/{transformationName}");
+        }, true, timeout: 30_000));
+
+        using (var session = src.OpenSession())
+        {
+            for (int i = 0; i < 7; i++)
+                session.Store(new User { Name = "James Doe" });
+
+            session.SaveChanges();
+        }
+        
+        Assert.True(WaitForValue(() =>
+        {
+            var process = newMentorDatabase.EtlLoader.Processes.FirstOrDefault(x => x.Name == $"{etlName}/{transformationName}");
+            return process?.Statistics.TransformationErrors >= 7;
+        }, true, timeout: 30_000));
+        
+        var newMentorItemErrors = newMentorDatabase.EtlErrorsStorage.ReadItemErrorsOfEtl($"{etlName}/{transformationName}");
+        Assert.Equal(7, newMentorItemErrors.Count);
+        
+        mentorItemErrors = mentorDatabase.EtlErrorsStorage.ReadItemErrorsOfEtl($"{etlName}/{transformationName}");
+        Assert.Equal(5, mentorItemErrors.Count);
+        
+        newMentorDatabase.EtlErrorsStorage.DeleteErrorsOfEtl(etlName);
+        
+        newMentorItemErrors = newMentorDatabase.EtlErrorsStorage.ReadItemErrorsOfEtl($"{etlName}/{transformationName}");
+        Assert.Empty(newMentorItemErrors);
+        
+        mentorItemErrors = mentorDatabase.EtlErrorsStorage.ReadItemErrorsOfEtl($"{etlName}/{transformationName}");
+        Assert.Equal(5, mentorItemErrors.Count);
+    }
+
+    private class User
+    {
+        public string Name { get; set; }
     }
 }

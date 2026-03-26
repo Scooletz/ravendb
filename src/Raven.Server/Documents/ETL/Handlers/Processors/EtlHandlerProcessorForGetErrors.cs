@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading.Tasks;
+using Raven.Client.Documents.Operations.ETL;
 using Raven.Server.Documents.ETL.Stats;
 using Raven.Server.Documents.Sharding;
 using Raven.Server.ServerWide;
@@ -33,7 +34,7 @@ internal sealed class EtlHandlerProcessorForGetErrors : AbstractEtlHandlerProces
         var processNames = GetNames().ToList();
         
         if (processNames.Count == 0)
-            processNames = RequestHandler.Database.EtlLoader.Processes.Select(x => x.Name).ToList();
+            processNames = GetAllEtlProcessNamesFromDatabaseRecord();
         
         foreach (var etlProcessName in processNames)
         {
@@ -69,6 +70,40 @@ internal sealed class EtlHandlerProcessorForGetErrors : AbstractEtlHandlerProces
                 
                 writer.WriteArray(context, nameof(Response.Results), response.Results, (w, c, errors) => w.WriteObject(c.ReadObject(errors.ToJson(), "etl/errors")));
                 writer.WriteEndObject();
+            }
+        }
+    }
+
+    private List<string> GetAllEtlProcessNamesFromDatabaseRecord()
+    {
+        var record = RequestHandler.Database.ReadDatabaseRecord();
+
+        var processNames = new List<string>();
+
+        foreach (var config in record.RavenEtls)
+            AddProcessNames(config.Name, config.Transforms);
+        foreach (var config in record.SqlEtls)
+            AddProcessNames(config.Name, config.Transforms);
+        foreach (var config in record.OlapEtls)
+            AddProcessNames(config.Name, config.Transforms);
+        foreach (var config in record.ElasticSearchEtls)
+            AddProcessNames(config.Name, config.Transforms);
+        foreach (var config in record.QueueEtls)
+            AddProcessNames(config.Name, config.Transforms);
+        foreach (var config in record.SnowflakeEtls)
+            AddProcessNames(config.Name, config.Transforms);
+        foreach (var config in record.EmbeddingsGenerations)
+            AddProcessNames(config.Name, config.Transforms);
+        foreach (var config in record.GenAis)
+            AddProcessNames(config.Name, config.Transforms);
+
+        return processNames;
+
+        void AddProcessNames(string configName, List<Transformation> transforms)
+        {
+            foreach (var transform in transforms)
+            {
+                processNames.Add($"{configName}/{transform.Name}");
             }
         }
     }

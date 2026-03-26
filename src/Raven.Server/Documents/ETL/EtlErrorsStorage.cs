@@ -7,7 +7,6 @@ using Raven.Server.ServerWide;
 using Raven.Server.ServerWide.Context;
 using Sparrow.Binary;
 using Sparrow.Json;
-using Sparrow.Server.Utils;
 using Voron;
 using Voron.Data.Tables;
 
@@ -282,9 +281,9 @@ public unsafe class EtlErrorsStorage
     {
         var errorsCount = 0L;
 
-        foreach (var etlProcess in _etlLoader.GetEtlProcesses())
+        foreach (var processName in _etlLoader.GetEtlProcessNamesFromRecord())
         {
-            errorsCount += ReadErrorsCountOfEtl(etlProcess.Name);
+            errorsCount += ReadErrorsCountOfEtl(processName);
         }
 
         return errorsCount;
@@ -294,9 +293,9 @@ public unsafe class EtlErrorsStorage
     {
         var errorsCount = 0L;
 
-        foreach (var aiProcess in _etlLoader.GetAiProcesses())
+        foreach (var processName in _etlLoader.GetAiProcessNamesFromRecord())
         {
-            errorsCount += ReadErrorsCountOfEtl(aiProcess.Name);
+            errorsCount += ReadErrorsCountOfEtl(processName);
         }
 
         return errorsCount;
@@ -317,7 +316,7 @@ public unsafe class EtlErrorsStorage
     private static long ReadProcessErrorsCountOfEtl(string etlProcessName, DocumentsOperationContext context)
     {
         var tableName = GetProcessErrorsTableName(etlProcessName);
-                    
+
         var table = context.Transaction.InnerTransaction.OpenTable(Schemas.EtlProcessErrors.Current, tableName);
         if (table == null)
             return 0;
@@ -417,8 +416,14 @@ public unsafe class EtlErrorsStorage
     
     public void DeleteErrorsOfEtl(string etlProcessName)
     {
-        DeleteEtlErrorsTablesForProcess(etlProcessName);
-        CreateEtlErrorsTablesForProcess(etlProcessName);
+        foreach (var process in _etlLoader.Processes)
+        {
+            if (process.ConfigurationName == etlProcessName)
+            {
+                DeleteEtlErrorsTablesForProcess(process.Name);
+                CreateEtlErrorsTablesForProcess(process.Name);
+            }
+        }
     }
 
     private static void DeleteOldestProcessErrorOfTask<T>(Table table, TransactionOperationContext<T> context, string etlTaskName)
