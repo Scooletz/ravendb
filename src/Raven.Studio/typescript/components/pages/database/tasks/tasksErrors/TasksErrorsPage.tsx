@@ -11,10 +11,11 @@ import { EmptySet } from "components/common/EmptySet";
 import { LoadError } from "components/common/LoadError";
 import { EtlTaskWithErrors, getTaskPillColor, getTasksWithErrors, GroupByType } from "./utils/tasksErrorsUtils";
 import TasksErrorsAboutView from "./partials/TasksErrorsAboutView";
-import { TaskPill, TaskPillMessage } from "./partials/TaskPill";
+import { TaskPill, TaskPillGroupMessage } from "./partials/TaskPill";
 import { TasksFilters, useTasksFilters } from "./partials/TasksFilters";
 import { GroupByTaskView } from "./partials/GroupByTaskView";
 import { GroupByNoneView } from "./partials/GroupByNoneView";
+import PopoverWithHoverWrapper from "components/common/PopoverWithHoverWrapper";
 import EtlTaskStats = Raven.Server.Documents.ETL.Stats.EtlTaskStats;
 
 interface TasksErrorsPageQueryParams {
@@ -56,6 +57,14 @@ interface TasksErrorsPageBodyProps {
     initialSearchText?: string;
 }
 
+const pillGroupOrder: Array<"bg-success" | "bg-warning" | "bg-danger"> = ["bg-success", "bg-warning", "bg-danger"];
+
+function getPillGroups(etlStats: EtlTaskStats[]) {
+    return pillGroupOrder
+        .map((color) => ({ color, stats: etlStats.filter((etl) => getTaskPillColor(etl.Stats) === color) }))
+        .filter((group) => group.stats.length > 0);
+}
+
 function TasksErrorsPageBody({ tasksWithErrors, flattenAllEtlStats, initialSearchText }: TasksErrorsPageBodyProps) {
     const [selectedGroupByType, setSelectedGroupByType] = useState<GroupByType>("task");
     const [filters, updateFilters] = useTasksFilters(initialSearchText);
@@ -76,13 +85,24 @@ function TasksErrorsPageBody({ tasksWithErrors, flattenAllEtlStats, initialSearc
                 <span className="flex-grow">
                     <b>{tasksWithErrors.length ?? 0}</b> {tasksWithErrors.length === 1 ? "task" : "tasks"} with errors
                 </span>
-                <div className="d-flex gap-1">
-                    {flattenAllEtlStats.map((etl, index) => (
-                        <TaskPill
-                            color={getTaskPillColor(etl.Stats)}
-                            key={index}
-                            message={<TaskPillMessage etlTaskStats={etl} tasksWithErrors={tasksWithErrors} />}
-                        />
+                <div className="d-flex gap-1 pills-container">
+                    {getPillGroups(flattenAllEtlStats).map((group) => (
+                        <PopoverWithHoverWrapper
+                            key={group.color}
+                            placement="left-end"
+                            inline={false}
+                            wrapperClassName="d-flex gap-1 pill-group"
+                            message={
+                                <TaskPillGroupMessage
+                                    etlTaskStatsList={group.stats}
+                                    tasksWithErrors={tasksWithErrors}
+                                />
+                            }
+                        >
+                            {group.stats.map((etl) => (
+                                <TaskPill color={group.color} key={etl.TaskName} />
+                            ))}
+                        </PopoverWithHoverWrapper>
                     ))}
                 </div>
             </div>
