@@ -13,7 +13,9 @@ public class DatabaseEtlLastSuccessfulBatchTime : DatabaseEtlScalarObjectBase<Ti
 
     protected override TimeTicks GetData(DocumentDatabase database)
     {
-        var lastSuccessfulBatchTime = GetEtl(database).Statistics.LastSuccessfulBatchTime;
+        var etl = GetEtl(database);
+
+        var lastSuccessfulBatchTime = etl?.Statistics.LastSuccessfulBatchTime;
 
         if (lastSuccessfulBatchTime.HasValue)
             return SnmpValuesHelper.TimeSpanToTimeTicks(SystemTime.UtcNow - lastSuccessfulBatchTime.Value);

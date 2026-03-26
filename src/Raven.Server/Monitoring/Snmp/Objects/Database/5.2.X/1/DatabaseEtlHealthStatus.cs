@@ -12,8 +12,10 @@ public sealed class DatabaseEtlHealthStatus : DatabaseEtlScalarObjectBase<OctetS
 
     protected override OctetString GetData(DocumentDatabase database)
     {
-        var healthStatus = GetEtl(database).Statistics.HealthStatus;
+        var etl = GetEtl(database);
+        if (etl == null)
+            return null;
 
-        return new OctetString(healthStatus.ToString());
+        return new OctetString(etl.Statistics.HealthStatus.ToString());
     }
 }
