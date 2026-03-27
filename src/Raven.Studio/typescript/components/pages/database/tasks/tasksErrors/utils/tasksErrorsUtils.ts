@@ -3,11 +3,46 @@ import IconName from "typings/server/icons";
 import EtlTaskStats = Raven.Server.Documents.ETL.Stats.EtlTaskStats;
 import EtlErrors = Raven.Server.Documents.ETL.Stats.EtlErrors;
 import { RavenBadgeBgVariants } from "react-bootstrap/Badge";
+import appUrl from "common/appUrl";
+import assertUnreachable from "components/utils/assertUnreachable";
 
 export type EtlErrorStep = Raven.Server.Documents.ETL.TaskErrorStep;
 export type EtlHealthStatus = Raven.Server.Documents.ETL.EtlProcessHealthStatus;
 
 export type GroupByType = "task" | "none";
+
+export function getEtlEditLink(databaseName: string, taskId: number, etlType: StudioEtlType): string | null {
+    if (taskId == null || etlType == null) {
+        return null;
+    }
+
+    switch (etlType) {
+        case "Raven":
+            return appUrl.forEditRavenEtl(databaseName, taskId);
+        case "Sql":
+            return appUrl.forEditSqlEtl(databaseName, taskId);
+        case "Olap":
+            return appUrl.forEditOlapEtl(databaseName, taskId);
+        case "ElasticSearch":
+            return appUrl.forEditElasticSearchEtl(databaseName, taskId);
+        case "Kafka":
+            return appUrl.forEditKafkaEtl(databaseName, taskId);
+        case "RabbitMQ":
+            return appUrl.forEditRabbitMqEtl(databaseName, taskId);
+        case "AzureQueueStorage":
+            return appUrl.forEditAzureQueueStorageEtl(databaseName, taskId);
+        case "AmazonSqs":
+            return appUrl.forEditAmazonSqsEtl(databaseName, taskId);
+        case "Snowflake":
+            return appUrl.forEditSnowflakeEtl(databaseName, taskId);
+        case "EmbeddingsGeneration":
+            return appUrl.forEditEmbeddingsGeneration(databaseName, taskId);
+        case "GenAi":
+            return appUrl.forEditGenAi(databaseName, taskId);
+        default:
+            return assertUnreachable(etlType);
+    }
+}
 
 export type EtlErrorsWithLocation = EtlErrors & { nodeTag: string; shard?: number };
 

@@ -17,6 +17,7 @@ import {
     EtlErrorStep,
     EtlHealthStatus,
     FlatError,
+    getEtlEditLink,
     getEtlTypeIcon,
     getEtlTypeLabel,
     getPopoverMessageForErrorType,
@@ -134,7 +135,6 @@ export const HyperLinkDocumentCellValue = ({ getValue }: Pick<CellContext<FlatEr
 
 export const CellHyperlinkOngoingTaskValue = ({ getValue, row }: CellContext<FlatError, string>) => {
     const databaseName = useAppSelector(databaseSelectors.activeDatabaseName);
-    const { appUrl } = useAppUrls();
 
     const getTaskLink = (value: string) => {
         if (typeof value !== "string" || row.original.taskId == null || row.original.etlType == null) {
@@ -142,33 +142,7 @@ export const CellHyperlinkOngoingTaskValue = ({ getValue, row }: CellContext<Fla
         }
 
         const { taskId, etlType } = row.original;
-
-        switch (etlType) {
-            case "Raven":
-                return appUrl.forEditRavenEtl(databaseName, taskId);
-            case "Sql":
-                return appUrl.forEditSqlEtl(databaseName, taskId);
-            case "Olap":
-                return appUrl.forEditOlapEtl(databaseName, taskId);
-            case "ElasticSearch":
-                return appUrl.forEditElasticSearchEtl(databaseName, taskId);
-            case "Kafka":
-                return appUrl.forEditKafkaEtl(databaseName, taskId);
-            case "RabbitMQ":
-                return appUrl.forEditRabbitMqEtl(databaseName, taskId);
-            case "AzureQueueStorage":
-                return appUrl.forEditAzureQueueStorageEtl(databaseName, taskId);
-            case "AmazonSqs":
-                return appUrl.forEditAmazonSqsEtl(databaseName, taskId);
-            case "Snowflake":
-                return appUrl.forEditSnowflakeEtl(databaseName, taskId);
-            case "EmbeddingsGeneration":
-                return appUrl.forEditEmbeddingsGeneration(databaseName, taskId);
-            case "GenAi":
-                return appUrl.forEditGenAi(databaseName, taskId);
-            default:
-                return assertUnreachable(etlType);
-        }
+        return getEtlEditLink(databaseName, taskId, etlType);
     };
 
     const taskLink = getTaskLink(getValue());

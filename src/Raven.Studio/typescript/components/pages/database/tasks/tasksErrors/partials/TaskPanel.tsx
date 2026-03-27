@@ -32,6 +32,7 @@ import {
     EtlTaskWithErrors,
     EtlTransformationWithErrors,
     flattenTransformationErrors,
+    getEtlEditLink,
     getEtlTypeIcon,
     getEtlTypeLabel,
     getPopoverMessageForTaskHealth,
@@ -194,6 +195,7 @@ interface TaskPanelProps extends EtlTaskWithErrors {
 
 export function TaskPanel({ etlName, transformations, etlStats }: TaskPanelProps) {
     const hasDatabaseWriteAccess = useAppSelector(accessManagerSelectors.getHasDatabaseWriteAccess)();
+    const databaseName = useAppSelector(databaseSelectors.activeDatabaseName);
     const { value: isDetailsVisible, toggle: toggleDetails } = useBoolean(true);
     const { value: isDeleteModalOpen, toggle: toggleDeleteModal } = useBoolean(false);
 
@@ -204,14 +206,18 @@ export function TaskPanel({ etlName, transformations, etlStats }: TaskPanelProps
 
     const taskHealth = getTaskHealthStatus(etlStats, etlName);
     const { bg, icon, label } = healthStatusToBadge(taskHealth);
-    const etlType = etlStats.find((s) => s.TaskName === etlName)?.EtlType as StudioEtlType;
+    const taskStats = etlStats.find((s) => s.TaskName === etlName);
+    const etlType = taskStats?.EtlType as StudioEtlType;
+    const taskId = taskStats?.TaskId;
+
+    const taskLink = getEtlEditLink(databaseName, taskId, etlType);
 
     return (
         <>
             <RichPanel>
                 <RichPanelHeader>
                     <RichPanelInfo>
-                        <a href="#" className="fs-3">
+                        <a href={taskLink ?? "#"} className="fs-3">
                             {etlName}
                         </a>
                     </RichPanelInfo>

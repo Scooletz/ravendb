@@ -23,7 +23,7 @@ export function DatabaseAccessPopover({
             {...rest}
             conditions={[
                 {
-                    isActive: canHandleOperation,
+                    isActive: !canHandleOperation,
                     message: getDatabaseAccessRequiredMessage(accessRequired),
                 },
                 ...additionalConditions,

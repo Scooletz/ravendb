@@ -99,7 +99,7 @@ function useGroupByNoneTableColumns(availableWidth: number) {
                 header: "Content",
                 accessorKey: "Error",
                 cell: CellWithCopyWrapper,
-                size: getSize(db.isSharded ? 25 : 35),
+                size: getSize(db.isSharded ? 25 : 30),
                 enableSorting: false,
             },
             {
