@@ -1061,15 +1061,16 @@ namespace Raven.Server.Monitoring.Snmp
                         return djv;
 
                     foreach (var embeddingsGenerationTaskConfiguration in record.EmbeddingsGenerations)
-                        ProcessTask(embeddingsGenerationTaskConfiguration.Name);
+                        ProcessAiTask(embeddingsGenerationTaskConfiguration.Name, embeddingsGenerationTaskConfiguration.TransformationName);
                     
                     foreach (var genAiTaskConfiguration in record.GenAis)
-                        ProcessTask(genAiTaskConfiguration.Name);
+                        ProcessAiTask(genAiTaskConfiguration.Name, genAiTaskConfiguration.TransformationName);
                     
                     return djv;
 
-                    void ProcessTask(string name)
+                    void ProcessAiTask(string configName, string transformationName)
                     {
+                        var name = $"{configName}/{transformationName}";
                         if (mapping.TryGetValue(name, out var index) == false)
                             return;
 
