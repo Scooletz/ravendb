@@ -311,22 +311,16 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             if ((uint)idx >= (uint)s.Length || s[idx] != '"')
                 return false;
 
-            var aliasSpan = s.AsSpan(idx + 1);
-            if (aliasSpan.StartsWith("_\"", StringComparison.OrdinalIgnoreCase))
-            {
-                alias = "_";
-                nextIndex = idx + 1 + alias.Length + 1;
-                return true;
-            }
+            // In PowerBI wrappers, the inner RQL is placed inside a SQL subselect `( <RQL> ) "<alias>"`.
+            // Accept any quoted alias here; wrappers commonly use `_`, `$Table`, `rows`, etc.
+            // This keeps the extractor conservative about the RQL span itself while preventing false negatives.
+            var endQuote = s.IndexOf('"', idx + 1);
+            if (endQuote == -1)
+                return false;
 
-            if (aliasSpan.StartsWith("$Table\"", StringComparison.OrdinalIgnoreCase))
-            {
-                alias = "$Table";
-                nextIndex = idx + 1 + alias.Length + 1;
-                return true;
-            }
-
-            return false;
+            alias = s.Substring(idx + 1, endQuote - idx - 1);
+            nextIndex = endQuote + 1;
+            return string.IsNullOrWhiteSpace(alias) == false;
         }
 
         private static bool TryConsumeQuotedAlias(string s, int i)

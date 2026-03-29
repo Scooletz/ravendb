@@ -163,22 +163,16 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             if ((uint)idx >= (uint)s.Length || s[idx] != '"')
                 return false;
 
-            var aliasSpan = s.AsSpan(idx + 1);
-            if (aliasSpan.StartsWith("_\"", StringComparison.OrdinalIgnoreCase))
-            {
-                alias = "_";
-                nextIndex = idx + 1 + alias.Length + 1;
-                return true;
-            }
+            var endQuote = s.IndexOf('"', idx + 1);
+            if (endQuote == -1)
+                return false;
 
-            if (aliasSpan.StartsWith("$Table\"", StringComparison.OrdinalIgnoreCase))
-            {
-                alias = "$Table";
-                nextIndex = idx + 1 + alias.Length + 1;
-                return true;
-            }
+            alias = s.Substring(idx + 1, endQuote - idx - 1);
+            if (string.IsNullOrWhiteSpace(alias))
+                return false;
 
-            return false;
+            nextIndex = endQuote + 1;
+            return true;
         }
 
         private static bool IsIdentChar(char ch) =>

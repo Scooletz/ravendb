@@ -37,7 +37,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             int Limit);
 
         private sealed record GroupedAggregateShape(
-            string GroupByField,
+            List<string> GroupByFields,
             string FunctionName,
             string FieldName,
             string OutputColumn,
@@ -53,12 +53,13 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
 
         private sealed record GroupedAggregateOrderByPart(
             GroupedOrderByKind Kind,
+            int? GroupKeyIndex,
             bool Desc);
 
         private sealed record GroupedAggregateRqlParts(
             string FromText,
             string WhereText,
-            string GroupByField,
+            List<string> GroupByFields,
             string AggregateFunction,
             string AggregateField,
             string AggregateOutput,
@@ -185,7 +186,6 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                             return true;
                     }
                 }
-
                 if (orderByCols != null)
                 {
                     foreach (var c in orderByCols)
@@ -198,6 +198,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
 
                 return false;
             }
+
 
             static bool TryExtractGroupedAggregateShape(SelectStmt selectStmt, out GroupedAggregateShape shape)
             {
@@ -217,37 +218,48 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 if (TryExtractLimit(selectStmt, out var limit) == false)
                     return false;
 
-                if (selectStmt.SortClause == null || selectStmt.SortClause.Count == 0)
+                // Ownership-only: tolerate outer aggregate NULL filtering.
+                // Accept either:
+                //  - "_"."a0" is not null
+                //  - not "_"."a0" is null
+                // and do not attempt translating it yet.
+                if (selectStmt.WhereClause != null && TryIsOuterAggregateNotNullFilter(selectStmt.WhereClause, expectedName: "a0") == false)
                     return false;
 
-                // Extract order-by columns from the outer select. These are underscore-qualified.
-                var orderByCols = new List<string>(capacity: selectStmt.SortClause.Count);
-                var orderByDescFlags = new List<bool>(capacity: selectStmt.SortClause.Count);
-                foreach (var sortNode in selectStmt.SortClause)
+                // ORDER BY may be absent in some BI Desktop grouped-aggregate shapes.
+                // Keep recognition conservative: when ORDER BY is missing, proceed with an empty order-by list.
+                var orderByCols = new List<string>();
+                var orderByDescFlags = new List<bool>();
+                if (selectStmt.SortClause is { Count: > 0 })
                 {
-                    var sortBy = sortNode?.SortBy;
-                    if (sortBy == null)
-                        return false;
+                    orderByCols = new List<string>(capacity: selectStmt.SortClause.Count);
+                    orderByDescFlags = new List<bool>(capacity: selectStmt.SortClause.Count);
+                    foreach (var sortNode in selectStmt.SortClause)
+                    {
+                        var sortBy = sortNode?.SortBy;
+                        if (sortBy == null)
+                            return false;
 
-                    var colRef = TryUnwrapToColumnRef(sortBy.Node);
-                    if (colRef == null)
-                        return false;
+                        var colRef = TryUnwrapToColumnRef(sortBy.Node);
+                        if (colRef == null)
+                            return false;
 
-                    if (TryExtractOuterUnderscoreQualifiedColumn(colRef, out var colName) == false)
-                        return false;
+                        if (TryExtractOuterUnderscoreQualifiedColumn(colRef, out var colName) == false)
+                            return false;
 
-                    orderByCols.Add(colName);
-                    orderByDescFlags.Add(sortBy.SortbyDir == SortByDir.SortbyDesc);
+                        orderByCols.Add(colName);
+                        orderByDescFlags.Add(sortBy.SortbyDir == SortByDir.SortbyDesc);
+                    }
                 }
 
                 // Descend through pass-through wrapper layers: FROM ( ... ) "_" until we find the grouped aggregate select.
                 if (TryFindInnerGroupedSelect(selectStmt, out var groupedSelect) == false)
                     return false;
 
-                if (TryExtractGroupedAggregateShape(groupedSelect, out var groupByField, out var funcName, out var fieldName, out var outputColumn) == false)
+                if (TryExtractGroupedAggregateShape(groupedSelect, out var groupByFields, out var funcName, out var fieldName, out var outputColumn) == false)
                     return false;
 
-                shape = new GroupedAggregateShape(groupByField, funcName, fieldName, outputColumn, orderByCols, orderByDescFlags, limit);
+                shape = new GroupedAggregateShape(groupByFields, funcName, fieldName, outputColumn, orderByCols, orderByDescFlags, limit);
                 return true;
 
                 static bool TryFindInnerGroupedSelect(SelectStmt outerSelectStmt, out SelectStmt groupedSelect)
@@ -283,9 +295,9 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                     return false;
                 }
 
-                static bool TryExtractGroupedAggregateShape(SelectStmt groupedSelect, out string groupByField, out string functionName, out string fieldName, out string outputColumn)
+                static bool TryExtractGroupedAggregateShape(SelectStmt groupedSelect, out List<string> groupByFields, out string functionName, out string fieldName, out string outputColumn)
                 {
-                    groupByField = null;
+                    groupByFields = null;
                     functionName = null;
                     fieldName = null;
                     outputColumn = null;
@@ -293,16 +305,24 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                     if (groupedSelect == null)
                         return false;
 
-                    if (groupedSelect.GroupClause is not { Count: 1 } groupClause)
+                    if (groupedSelect.GroupClause is not { Count: > 0 } groupClause)
                         return false;
 
-                    var groupByCol = TryUnwrapToColumnRef(groupClause[0]);
-                    if (groupByCol == null)
-                        return false;
+                    var cols = new List<string>(capacity: groupClause.Count);
+                    foreach (var n in groupClause)
+                    {
+                        var groupByCol = TryUnwrapToColumnRef(n);
+                        if (groupByCol == null)
+                            return false;
 
-                    groupByField = TryExtractLastIdentifierSegment(groupByCol);
-                    if (string.IsNullOrWhiteSpace(groupByField))
-                        return false;
+                        var gb = TryExtractLastIdentifierSegment(groupByCol);
+                        if (string.IsNullOrWhiteSpace(gb))
+                            return false;
+
+                        cols.Add(gb);
+                    }
+
+                    groupByFields = cols;
 
                     if (groupedSelect.TargetList == null || groupedSelect.TargetList.Count < 2)
                         return false;
@@ -340,10 +360,6 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                     }
 
                     if (unwrappedGroupTarget == null || unwrappedAggTarget == null || groupTarget == null || aggTarget == null)
-                        return false;
-
-                    var projectedGroup = TryExtractLastIdentifierSegment(unwrappedGroupTarget);
-                    if (string.IsNullOrWhiteSpace(projectedGroup))
                         return false;
 
                     outputColumn = aggTarget.Name;
@@ -432,6 +448,71 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
 
                     return null;
                 }
+
+                static bool TryIsOuterAggregateNotNullFilter(Node whereClause, string expectedName)
+                {
+                    if (whereClause == null || string.IsNullOrWhiteSpace(expectedName))
+                        return false;
+
+                    if (TryExtractNotNullTest(whereClause, out var colRef) == false)
+                        return false;
+
+                    if (TryExtractOuterUnderscoreQualifiedColumn(colRef, out var col) == false)
+                        return false;
+
+                    return string.Equals(col, expectedName, StringComparison.OrdinalIgnoreCase);
+
+                    static bool TryExtractNotNullTest(Node where, out ColumnRef colRef)
+                    {
+                        colRef = null;
+
+                        // Direct: "_"."a0" is not null
+                        if (where.NullTest != null)
+                        {
+                            var nt = where.NullTest;
+                            if (IsNotNullTest(nt))
+                            {
+                                colRef = nt.Arg?.ColumnRef;
+                                return colRef != null;
+                            }
+
+                            return false;
+                        }
+
+                        // NOT( "_"."a0" is null )
+                        var be = where.BoolExpr;
+                        if (be?.Boolop != BoolExprType.AndExpr && be?.Boolop != BoolExprType.OrExpr && be?.Boolop != BoolExprType.NotExpr)
+                            ;
+
+                        if (be?.Boolop != BoolExprType.NotExpr || be.Args is not { Count: 1 })
+                            return false;
+
+                        var inner = be.Args[0];
+                        var innerNt = inner?.NullTest;
+                        if (innerNt == null)
+                            return false;
+
+                        if (IsNullTest(innerNt) == false)
+                            return false;
+
+                        colRef = innerNt.Arg?.ColumnRef;
+                        return colRef != null;
+
+                        static bool IsNotNullTest(NullTest nt)
+                        {
+                            var t = nt.Nulltesttype.ToString();
+                            return string.Equals(t, "IsNotNull", StringComparison.OrdinalIgnoreCase) ||
+                                   string.Equals(t, "NulltestIsNotNull", StringComparison.OrdinalIgnoreCase);
+                        }
+
+                        static bool IsNullTest(NullTest nt)
+                        {
+                            var t = nt.Nulltesttype.ToString();
+                            return string.Equals(t, "IsNull", StringComparison.OrdinalIgnoreCase) ||
+                                   string.Equals(t, "NulltestIsNull", StringComparison.OrdinalIgnoreCase);
+                        }
+                    }
+                }
             }
 
             static string RewriteGroupedAggregateRql(Documents.Queries.AST.Query q, GroupedAggregateShape shape)
@@ -455,9 +536,17 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 if (string.Equals(shape.FunctionName, "sum", StringComparison.OrdinalIgnoreCase) == false)
                     return false;
 
-                var groupId = FormatRqlIdentifier(shape.GroupByField);
-                if (groupId == null)
+                if (shape.GroupByFields is not { Count: > 0 })
                     return false;
+
+                var groupIds = new List<string>(capacity: shape.GroupByFields.Count);
+                foreach (var f in shape.GroupByFields)
+                {
+                    var groupId = FormatRqlIdentifier(f);
+                    if (groupId == null)
+                        return false;
+                    groupIds.Add(groupId);
+                }
 
                 var fieldId = FormatRqlIdentifier(shape.FieldName);
                 if (fieldId == null)
@@ -472,13 +561,13 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
 
                 TryBuildWhereText(q, out var whereText);
 
-                if (TryBuildGroupedAggregateOrderBy(shape, groupId, outId, out var orderBy) == false)
+                if (TryBuildGroupedAggregateOrderBy(shape, groupIds, outId, out var orderBy) == false)
                     return false;
 
                 parts = new GroupedAggregateRqlParts(
                     FromText: fromText,
                     WhereText: whereText,
-                    GroupByField: groupId,
+                    GroupByFields: groupIds,
                     AggregateFunction: "sum",
                     AggregateField: fieldId,
                     AggregateOutput: outId,
@@ -487,7 +576,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 return true;
             }
 
-            static bool TryBuildGroupedAggregateOrderBy(GroupedAggregateShape shape, string groupId, string outId, out List<GroupedAggregateOrderByPart> orderBy)
+            static bool TryBuildGroupedAggregateOrderBy(GroupedAggregateShape shape, List<string> groupIds, string outId, out List<GroupedAggregateOrderByPart> orderBy)
             {
                 orderBy = null;
 
@@ -505,17 +594,25 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
 
                     if (string.Equals(c, shape.OutputColumn, StringComparison.OrdinalIgnoreCase))
                     {
-                        parts.Add(new GroupedAggregateOrderByPart(Kind: GroupedOrderByKind.Output, Desc: desc));
+                        parts.Add(new GroupedAggregateOrderByPart(Kind: GroupedOrderByKind.Output, GroupKeyIndex: null, Desc: desc));
                         continue;
                     }
 
-                    if (string.Equals(c, shape.GroupByField, StringComparison.OrdinalIgnoreCase))
+                    if (shape.GroupByFields != null)
                     {
-                        parts.Add(new GroupedAggregateOrderByPart(Kind: GroupedOrderByKind.GroupKey, Desc: desc));
-                        continue;
+                        for (int gbIndex = 0; gbIndex < shape.GroupByFields.Count; gbIndex++)
+                        {
+                            var gb = shape.GroupByFields[gbIndex];
+                            if (string.Equals(c, gb, StringComparison.OrdinalIgnoreCase))
+                            {
+                                parts.Add(new GroupedAggregateOrderByPart(Kind: GroupedOrderByKind.GroupKey, GroupKeyIndex: gbIndex, Desc: desc));
+                                goto next;
+                            }
+                        }
                     }
 
                     return false;
+                    next:;
                 }
 
                 orderBy = parts;
@@ -540,7 +637,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 sb.Append(parts.FromText);
                 sb.Append(nl);
                 sb.Append("group by ");
-                sb.Append(parts.GroupByField);
+                sb.Append(string.Join(", ", parts.GroupByFields));
 
                 if (string.IsNullOrWhiteSpace(parts.WhereText) == false)
                 {
@@ -566,7 +663,12 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                                 sb.Append(" as double");
                                 break;
                             case GroupedOrderByKind.GroupKey:
-                                sb.Append(parts.GroupByField);
+                                if (parts.GroupByFields is not { Count: > 0 })
+                                    return null;
+                                var keyIndex = ob.GroupKeyIndex ?? 0;
+                                if ((uint)keyIndex >= (uint)parts.GroupByFields.Count)
+                                    return null;
+                                sb.Append(parts.GroupByFields[keyIndex]);
                                 break;
                             default:
                                 return null;
@@ -578,8 +680,14 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 }
 
                 sb.Append(nl);
-                sb.Append("select key() as ");
-                sb.Append(parts.GroupByField);
+                sb.Append("select ");
+                for (int i = 0; i < parts.GroupByFields.Count; i++)
+                {
+                    if (i > 0)
+                        sb.Append(", ");
+                    sb.Append("key() as ");
+                    sb.Append(parts.GroupByFields[i]);
+                }
                 sb.Append(", ");
                 sb.Append(parts.AggregateFunction);
                 sb.Append('(');
