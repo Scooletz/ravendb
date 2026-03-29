@@ -145,6 +145,10 @@ namespace Raven.Server.Integrations.PostgreSQL
                 if (_logger.IsErrorEnabled)
                     _logger.Error($"Failed to handle Postgres connection (session ID: {identifier})", e);
             }
+            finally
+            {
+
+            }
         }
 
         public void Dispose()

@@ -712,10 +712,7 @@ limit 1001";
     [Fact]
     public async Task DirectQuery_desktop_grouped_sum_two_group_fields_with_outer_where_not_null_should_work_end_to_end()
     {
-        // Ownership note:
-        // - `FastTests.Server.Integrations.PostgreSQL.PowerBI.PowerBIAstTests.DirectQuery_desktop_grouped_sum_two_group_fields_with_outer_where_not_null_should_be_classified_as_direct_query`
-        //   asserts parser classification (`PowerBIDirectQuery`).
-        // - This test asserts end-to-end execution and expected result shape.
+
         using (var store = GetDocumentStore())
         {
             await store.Maintenance.SendAsync(new CreateSampleDataOperation());
