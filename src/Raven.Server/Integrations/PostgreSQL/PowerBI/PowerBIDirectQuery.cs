@@ -752,7 +752,6 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 {
                     if (i > 0)
                         sb.Append(", ");
-                    sb.Append("key() as ");
                     sb.Append(parts.GroupByFields[i]);
                 }
                 sb.Append(", ");

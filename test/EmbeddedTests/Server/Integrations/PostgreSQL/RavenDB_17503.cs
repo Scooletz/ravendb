@@ -1,4 +1,5 @@
 #if NET8_0
+using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Threading.Tasks;
@@ -103,6 +104,52 @@ limit 1001";
             {
                 var v = row["Employee"];
                 Assert.False(string.IsNullOrWhiteSpace(v.ToString()));
+            }
+        }
+    }
+
+    [Fact]
+    public async Task DirectQuery_desktop_grouped_sum_company_orderedAt_freight_should_return_scalar_group_fields_end_to_end()
+    {
+        using (var store = GetDocumentStore())
+        {
+            await store.Maintenance.SendAsync(new CreateSampleDataOperation());
+
+            const string sql = @"select ""_"".""Company"",
+    ""_"".""OrderedAt"",
+    ""_"".""a0""
+from 
+(
+    select ""rows"".""Company"" as ""Company"",
+        ""rows"".""OrderedAt"" as ""OrderedAt"",
+        sum(""rows"".""Freight"") as ""a0""
+    from 
+    (
+        from Orders
+        where Company in ('Companies/1-A', 'Companies/2-A', 'Companies/3-A')
+    ) ""rows""
+    group by ""Company"",
+        ""OrderedAt""
+) ""_""
+where not ""_"".""a0"" is null
+limit 1000001";
+
+            var result = await Act(store, sql);
+
+            Assert.NotNull(result);
+            Assert.NotEmpty(result.Rows);
+
+            Assert.True(result.Columns.Contains("Company"));
+            Assert.True(result.Columns.Contains("OrderedAt"));
+            Assert.True(result.Columns.Contains("a0"));
+            Assert.Equal(3, result.Columns.Count);
+
+            foreach (DataRow row in result.Rows)
+            {
+                var company = row["Company"];
+                var orderedAt = row["OrderedAt"];
+                Assert.False(string.IsNullOrWhiteSpace(company.ToString()));
+                Assert.False(string.IsNullOrWhiteSpace(orderedAt.ToString()));
             }
         }
     }
