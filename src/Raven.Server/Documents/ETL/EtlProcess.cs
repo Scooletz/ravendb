@@ -80,6 +80,8 @@ namespace Raven.Server.Documents.ETL
 
         public TimeSpan? FallbackTime { get; protected set; }
 
+        protected abstract RavenLogger Logger { get; }
+
         public abstract void Start(string reason);
 
         public abstract void Stop(string reason);
@@ -135,6 +137,9 @@ namespace Raven.Server.Documents.ETL
 
         public void ForceBatchRetry()
         {
+            if (Logger.IsInfoEnabled)
+                Logger.Info($"Forced batch retry was requested for {Tag} process: '{Name}'.");
+
             FallbackTime = null;
         }
     }
@@ -165,7 +170,7 @@ namespace Raven.Server.Documents.ETL
         private TestMode _testMode;
 
         protected readonly Transformation Transformation;
-        protected readonly RavenLogger Logger;
+        protected override RavenLogger Logger { get; }
         protected readonly DocumentDatabase Database;
         protected EtlProcessState LastProcessState;
 
