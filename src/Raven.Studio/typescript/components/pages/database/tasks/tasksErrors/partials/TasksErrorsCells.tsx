@@ -47,7 +47,11 @@ export const CellErrorStepWrapper = ({ getValue }: CellContext<FlatError, EtlErr
 export const CellErrorTypeWrapper = ({ getValue }: CellContext<FlatError, "Item" | "Process">) => {
     const value = getValue();
     return (
-        <PopoverWithHoverWrapper message={getPopoverMessageForErrorType(value)}>
+        <PopoverWithHoverWrapper
+            message={getPopoverMessageForErrorType(value)}
+            wrapperClassName="d-flex align-items-center h-100"
+            inline={false}
+        >
             <Badge bg={value === "Item" ? "secondary" : "info"} className="rounded-pill cell-value">
                 <Icon icon={value === "Item" ? "tasks" : "hammer-driver"} />
                 {value === "Item" ? "Item Error" : "Process Error"}
@@ -112,7 +116,7 @@ export const CellValueButtonWrapper = (args: CellContext<FlatError, unknown>) =>
     };
 
     return (
-        <Button variant="secondary" onClick={handleOpenSheet}>
+        <Button variant="link" onClick={handleOpenSheet}>
             <Icon icon="preview" margin="m-0" />
         </Button>
     );
@@ -171,17 +175,14 @@ export const CellHyperlinkOngoingTaskValue = ({ getValue, row }: CellContext<Fla
 
     if (taskLink) {
         return (
-            <div className="cell-value value-string">
-                <a href={taskLink}>
-                    <Icon icon="ongoing-tasks" /> {getValue()}
-                </a>
+            <div className="cell-value">
+                <a href={taskLink}>{getValue()}</a>
             </div>
         );
     }
 
     return (
-        <div className="cell-value value-string">
-            <Icon icon="ongoing-tasks" />
+        <div className="cell-value">
             <CellValue value={getValue()} />
         </div>
     );
@@ -194,7 +195,6 @@ export const CellScriptNameWrapper = ({ getValue }: CellContext<FlatError, strin
 
     return (
         <div className="cell-value value-string">
-            <Icon icon="console" />
             <CellValue value={getValue()} />
         </div>
     );
@@ -203,7 +203,11 @@ export const CellScriptNameWrapper = ({ getValue }: CellContext<FlatError, strin
 export const CellTaskHealthWrapper = ({ getValue }: CellContext<FlatError, EtlHealthStatus | null>) => {
     const { bg, icon, label } = healthStatusToBadge(getValue());
     return (
-        <PopoverWithHoverWrapper message={getPopoverMessageForTaskHealth(getValue())}>
+        <PopoverWithHoverWrapper
+            message={getPopoverMessageForTaskHealth(getValue())}
+            wrapperClassName="d-flex align-items-center h-100"
+            inline={false}
+        >
             <Badge bg={bg} className="rounded-pill cell-value">
                 <Icon icon={icon} />
                 {label}

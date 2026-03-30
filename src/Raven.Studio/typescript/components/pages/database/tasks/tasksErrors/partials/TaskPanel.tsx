@@ -117,6 +117,7 @@ function useTasksErrorsPanelTableColumns(availableWidth: number) {
                 accessorKey: "nodeTag",
                 size: getSize(3),
                 enableSorting: false,
+                enableColumnFilter: false,
             },
         ],
         [getSize]
@@ -167,9 +168,9 @@ function NestedTaskPanelDetails({ width, transformationName, processErrors, item
     const totalErrors = processErrors.length + itemErrors.length;
 
     return (
-        <Card className="bg-black p-2">
+        <Card className="bg-black p-3">
             <div className="d-flex w-100 gap-2 align-items-center">
-                <span>{transformationName}</span>
+                <span className="h4 mb-0">{transformationName}</span>
                 <div className="flex-grow">
                     <Icon icon="warning" color="danger" />
                     <span>Errors</span> <b>{totalErrors}</b>
@@ -179,7 +180,7 @@ function NestedTaskPanelDetails({ width, transformationName, processErrors, item
                 </Button>
             </div>
             <Collapse in={isNestedDetailsVisible} unmountOnExit mountOnEnter>
-                <div className="mt-4">
+                <div className="mt-3">
                     <NestedTaskPanelDetailsTable width={width} itemErrors={itemErrors} processErrors={processErrors} />
                 </div>
             </Collapse>

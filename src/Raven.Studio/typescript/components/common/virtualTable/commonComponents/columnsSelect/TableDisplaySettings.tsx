@@ -176,10 +176,10 @@ function TableDisplaySettingsSheet({
                 </h3>
             </ViewSheet.Header>
             <ViewSheet.Body className="m-2">
-                <h4>Set up your column layout</h4>
+                <h4 className="mb-2">Set up your column layout</h4>
                 <Card className="bg-black p-1">
                     {hideableIds.length > 0 && (
-                        <div className="px-3 py-2 d-flex align-items-center border-bottom border-secondary">
+                        <div className="px-2 py-1 d-flex align-items-center border-bottom border-secondary">
                             <Checkbox
                                 selected={selectionState === "AllSelected"}
                                 toggleSelection={handleToggleAll}

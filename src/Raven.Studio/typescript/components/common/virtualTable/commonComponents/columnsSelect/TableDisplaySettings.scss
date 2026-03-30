@@ -5,8 +5,8 @@
     overflow: auto;
 
     .column-list-item {
-        padding: sizes.$gutter-xs 0;
-        padding-right: sizes.$gutter-sm;
+        padding: sizes.$gutter-xxs 0;
+        padding-right: sizes.$gutter-xs;
         background-color: colors.$well-bg-var;
         gap: sizes.$gutter-xs;
 

@@ -81,7 +81,7 @@ export function DeleteTaskErrorsModal({ toggle, etlName, errorsCount }: DeleteTa
     };
 
     return (
-        <Modal show contentClassName="modal-border bulge-danger" size="lg">
+        <Modal show contentClassName="modal-border bulge-danger">
             <Modal.Header closeButton onCloseClick={toggle} className="pb-0">
                 <h3>
                     <Icon icon="trash" color="danger" />

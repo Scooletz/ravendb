@@ -35,8 +35,8 @@ export const taskTypeOptions: SelectOption<StudioEtlType>[] = [
 ];
 
 export const groupByOptions: InputItem<GroupByType>[] = [
-    { value: "task", label: "Task" },
-    { value: "none", label: "None" },
+    { value: "task", label: "Task", badgeColor: "secondary" },
+    { value: "none", label: "None", badgeColor: "secondary" },
 ];
 
 export function useTasksFilters(
@@ -89,12 +89,12 @@ export function TasksFilters({
     }, [db]);
 
     return (
-        <Row className="mt-4">
-            <Col>
+        <div className="hstack flex-wrap align-items-end gap-2 my-3 justify-content-start">
+            <div className="flex-grow">
                 <div className="small-label ms-1 mb-1">Filter by task/script name</div>
                 <div className="clearable-input">
                     <Form.Control
-                        type="search"
+                        type="text"
                         accessKey="/"
                         placeholder="e.g. MyPeriodicBackupTask"
                         title="Filter ongoing tasks"
@@ -110,8 +110,8 @@ export function TasksFilters({
                         </div>
                     )}
                 </div>
-            </Col>
-            <Col>
+            </div>
+            <div className="TaskErrorFilter">
                 <div className="small-label ms-1 mb-1">Filter by node</div>
                 <Select
                     isMulti
@@ -119,9 +119,9 @@ export function TasksFilters({
                     options={nodeOptions}
                     onChange={(options) => updateFilters({ nodeTags: options ? options.map((o) => o.value) : [] })}
                 />
-            </Col>
+            </div>
             {db.isSharded && (
-                <Col>
+                <div className="TaskErrorFilter">
                     <div className="small-label ms-1 mb-1">Filter by shard</div>
                     <Select
                         isMulti
@@ -131,9 +131,9 @@ export function TasksFilters({
                             updateFilters({ shardNumbers: options ? options.map((o) => o.value) : [] })
                         }
                     />
-                </Col>
+                </div>
             )}
-            <Col>
+            <div className="TaskErrorFilter">
                 <div className="small-label ms-1 mb-1">Filter by task type</div>
                 <Select
                     isMulti
@@ -145,8 +145,8 @@ export function TasksFilters({
                         })
                     }
                 />
-            </Col>
-            <Col>
+            </div>
+            <div className="TaskErrorFilter">
                 <div className="small-label ms-1 mb-1">Filter by task health</div>
                 <Select
                     isMulti
@@ -158,15 +158,15 @@ export function TasksFilters({
                         })
                     }
                 />
-            </Col>
-            <Col xs="auto">
+            </div>
+            <div>
                 <div className="small-label ms-1 mb-1">Group by</div>
                 <MultiRadioToggle<GroupByType>
                     inputItems={groupByOptions}
                     selectedItem={selectedGroupByType}
                     setSelectedItem={(x) => setSelectedGroupByType(x)}
                 />
-            </Col>
-        </Row>
+            </div>
+        </div>
     );
 }

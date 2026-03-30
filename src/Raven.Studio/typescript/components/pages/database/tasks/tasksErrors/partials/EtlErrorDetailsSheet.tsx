@@ -27,7 +27,7 @@ function SheetDetailRow({ children, className }: SheetDetailRowProps) {
     return (
         <div
             className={classNames(
-                "d-flex justify-content-between align-items-center pb-1 border-bottom border-secondary",
+                "d-flex justify-content-between align-items-center pb-2 pt-2 border-bottom border-secondary",
                 className
             )}
         >
@@ -70,10 +70,10 @@ export default function EtlErrorDetailsSheet({
                 </h3>
             </ViewSheet.Header>
             <ViewSheet.Body className="m-2">
-                <div className="vstack gap-3">
+                <div className="vstack gap-0">
                     {error.etlName && error.transformationName ? (
                         <SheetDetailRow>
-                            <div className="small-label">Task name/Script name</div>
+                            <div className="small">Task name/Script name</div>
                             <div className="d-flex align-items-center">
                                 {etlTypeIcon && <Icon icon={etlTypeIcon} />}
                                 <div>
@@ -84,7 +84,7 @@ export default function EtlErrorDetailsSheet({
                     ) : (
                         error.EtlProcessName && (
                             <SheetDetailRow>
-                                <div className="small-label">Task name/Script name</div>
+                                <div className="small">Task name/Script name</div>
                                 <div className="d-flex align-items-center">
                                     {etlTypeIcon && <Icon icon={etlTypeIcon} />}
                                     <div>{error.EtlProcessName}</div>
@@ -95,7 +95,7 @@ export default function EtlErrorDetailsSheet({
 
                     {error.etlType && (
                         <SheetDetailRow>
-                            <div className="small-label mb-1">Task type</div>
+                            <div className="small">Task type</div>
                             <div className="d-flex align-items-center">
                                 {etlTypeIcon && <Icon icon={etlTypeIcon} />}
                                 {etlTypeLabel}
@@ -105,7 +105,7 @@ export default function EtlErrorDetailsSheet({
 
                     {error.errorType && (
                         <SheetDetailRow>
-                            <div className="small-label mb-1">Error type</div>
+                            <div className="small">Error type</div>
                             <Badge
                                 bg={error.errorType === "Item" ? "secondary" : "info"}
                                 className="rounded-pill cell-value"
@@ -118,7 +118,7 @@ export default function EtlErrorDetailsSheet({
 
                     {error.Step && (
                         <SheetDetailRow>
-                            <div className="small-label mb-1">Error step</div>
+                            <div className="small">Error step</div>
                             <div>
                                 {stepIcon && <Icon icon={stepIcon} />}
                                 {error.Step}
@@ -128,21 +128,21 @@ export default function EtlErrorDetailsSheet({
 
                     {error.errorType === "Item" && error.DocumentId && (
                         <SheetDetailRow>
-                            <div className="small-label mb-1">Document ID</div>
+                            <div className="small">Document ID</div>
                             <CellDocumentValue value={error.DocumentId} databaseName={dbName} hasHyperlinkForIds />
                         </SheetDetailRow>
                     )}
 
                     {error.CreatedAt && (
                         <SheetDetailRow>
-                            <div className="small-label mb-1">Date</div>
+                            <div className="small">Date</div>
                             <div>{moment(error.CreatedAt).format(genUtils.dateFormat)}</div>
                         </SheetDetailRow>
                     )}
 
                     {error.healthStatus && (
                         <SheetDetailRow>
-                            <div className="small-label mb-1">Current Task Health</div>
+                            <div className="small">Current Task Health</div>
                             <Badge bg={bg} className="rounded-pill">
                                 <Icon icon={icon} />
                                 {label}
@@ -151,7 +151,7 @@ export default function EtlErrorDetailsSheet({
                     )}
 
                     <SheetDetailRow className="border-bottom-0">
-                        <div className="small-label">Localization</div>
+                        <div className="small">Localization</div>
                         <div className="d-flex align-items-center gap-2">
                             <div className="d-flex align-items-center justify-content-center">
                                 <Icon icon="node" color="node" />
@@ -176,19 +176,25 @@ export default function EtlErrorDetailsSheet({
             </ViewSheet.Body>
             <ViewSheet.Footer className="d-flex justify-content-between">
                 <div className="d-flex gap-2">
-                    <Button variant="secondary" disabled={!hasPrevious} onClick={() => setCurrentIndex((i) => i - 1)}>
-                        <Icon icon="arrow-left" />
+                    <Button
+                        className="rounded-pill"
+                        variant="secondary"
+                        disabled={!hasPrevious}
+                        onClick={() => setCurrentIndex((i) => i - 1)}
+                    >
+                        <Icon icon="arrow-thin-left" />
                         Previous
                     </Button>
-                    <Button variant="secondary" disabled={!hasNext} onClick={() => setCurrentIndex((i) => i + 1)}>
+                    <Button
+                        className="rounded-pill"
+                        variant="secondary"
+                        disabled={!hasNext}
+                        onClick={() => setCurrentIndex((i) => i + 1)}
+                    >
                         Next
-                        <Icon icon="arrow-right" margin="ms-1" />
+                        <Icon icon="arrow-thin-right" margin="ms-1" />
                     </Button>
                 </div>
-                <Button variant="secondary" onClick={close}>
-                    <Icon icon="close" />
-                    Close
-                </Button>
             </ViewSheet.Footer>
         </ViewSheet>
     );
