@@ -468,7 +468,7 @@ namespace Raven.Server.Documents.ETL
             if (Logger.IsWarnEnabled)
                 Logger.Warn(message, e);
 
-            Statistics.SetProcessHealthStatusToFailed();
+            Statistics.SetProcessHealthStatusToFailedOnScriptParseError();
             RecordConfigurationError(messageWithException);
             
             stats.RecordBatchTransformationCompleteReason(message);

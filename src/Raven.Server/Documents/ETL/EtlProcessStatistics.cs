@@ -65,7 +65,7 @@ namespace Raven.Server.Documents.ETL
         private long BatchErrors { get; set; }
         
         public EtlProcessHealthStatus HealthStatus { get; private set; }
-        private bool SetHealthStatusToFailed { get; set; }
+        private bool SetHealthStatusToFailedOnScriptParseError { get; set; }
         public DateTime? NextBatchRetryTime { get; set; }
         public DateTime? LastSuccessfulBatchTime { get; set; }
         public EtlProcessError BatchStopReason { get; internal set; }
@@ -103,7 +103,7 @@ namespace Raven.Server.Documents.ETL
         {
             var previousStatus = HealthStatus;
             
-            if (SetHealthStatusToFailed)
+            if (SetHealthStatusToFailedOnScriptParseError)
             {
                 HealthStatus = EtlProcessHealthStatus.Failed;
             }
@@ -128,9 +128,9 @@ namespace Raven.Server.Documents.ETL
                 _notificationCenter.EtlNotifications.AddTaskHealthChangeNotification(_processTag, _processName, HealthStatus);
         }
 
-        internal void SetProcessHealthStatusToFailed()
+        internal void SetProcessHealthStatusToFailedOnScriptParseError()
         {
-            SetHealthStatusToFailed = true;
+            SetHealthStatusToFailedOnScriptParseError = true;
         }
 
         public void RecordItemTransformationError(Exception e, string documentId)

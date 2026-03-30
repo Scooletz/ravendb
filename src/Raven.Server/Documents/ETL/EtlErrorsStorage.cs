@@ -194,7 +194,7 @@ public unsafe class EtlErrorsStorage
         using (_contextPool.AllocateOperationContext(out DocumentsOperationContext context))
         using (context.OpenReadTransaction())
         {
-            foreach (var process in _etlLoader.Processes)
+            foreach (var process in _etlLoader.GetEtlProcesses())
             {
                 var processErrors = ReadProcessErrorsOfEtl(process.Name, context);
                 errors.AddRange(processErrors);
@@ -211,7 +211,7 @@ public unsafe class EtlErrorsStorage
         using (_contextPool.AllocateOperationContext(out DocumentsOperationContext context))
         using (context.OpenReadTransaction())
         {
-            foreach (var process in _etlLoader.Processes)
+            foreach (var process in _etlLoader.GetEtlProcesses())
             {
                 var itemErrors = ReadItemErrorsOfEtl(process.Name, context);
                 errors.AddRange(itemErrors);
@@ -368,9 +368,9 @@ public unsafe class EtlErrorsStorage
 
     public void DeleteAllEtlErrors()
     {
-        foreach (var etlProcess in _etlLoader.Processes)
+        foreach (var etlProcessName in _etlLoader.GetEtlProcessNamesFromRecord())
         {
-            DeleteErrorsOfEtl(etlProcess.Name);
+            DeleteErrorsOfEtl(etlProcessName);
         }
     }
     

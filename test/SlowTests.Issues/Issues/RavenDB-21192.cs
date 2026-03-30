@@ -534,6 +534,7 @@ public class RavenDB_21192 : RavenTestBase
             ModifyDatabaseRecord = record =>
             {
                 record.Settings[RavenConfiguration.GetKey(x => x.Etl.ProcessHealthStatusFailedThreshold)] = "0.01";
+                record.Settings[RavenConfiguration.GetKey(x => x.Etl.ProcessHealthStatusImpairedThreshold)] = "0.001";
             }
         };
         
