@@ -103,7 +103,7 @@ internal sealed class EtlHandlerProcessorForGetErrors : AbstractEtlHandlerProces
         {
             foreach (var transform in transforms)
             {
-                processNames.Add($"{configName}/{transform.Name}");
+                processNames.Add(EtlProcess.GetProcessName(configName, transform.Name));
             }
         }
     }

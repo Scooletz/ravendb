@@ -112,32 +112,32 @@ namespace Raven.Server.Documents.ETL
             if (RavenDestinations != null)
                 foreach (var config in RavenDestinations)
                     foreach (var transform in config.Transforms)
-                        yield return $"{config.Name}/{transform.Name}";
+                        yield return EtlProcess.GetProcessName(config.Name, transform.Name);
 
             if (SqlDestinations != null)
                 foreach (var config in SqlDestinations)
                     foreach (var transform in config.Transforms)
-                        yield return $"{config.Name}/{transform.Name}";
+                        yield return EtlProcess.GetProcessName(config.Name, transform.Name);
 
             if (OlapDestinations != null)
                 foreach (var config in OlapDestinations)
                     foreach (var transform in config.Transforms)
-                        yield return $"{config.Name}/{transform.Name}";
+                        yield return EtlProcess.GetProcessName(config.Name, transform.Name);
 
             if (ElasticSearchDestinations != null)
                 foreach (var config in ElasticSearchDestinations)
                     foreach (var transform in config.Transforms)
-                        yield return $"{config.Name}/{transform.Name}";
+                        yield return EtlProcess.GetProcessName(config.Name, transform.Name);
 
             if (QueueDestinations != null)
                 foreach (var config in QueueDestinations)
                     foreach (var transform in config.Transforms)
-                        yield return $"{config.Name}/{transform.Name}";
+                        yield return EtlProcess.GetProcessName(config.Name, transform.Name);
 
             if (SnowflakeDestinations != null)
                 foreach (var config in SnowflakeDestinations)
                     foreach (var transform in config.Transforms)
-                        yield return $"{config.Name}/{transform.Name}";
+                        yield return EtlProcess.GetProcessName(config.Name, transform.Name);
         }
 
         public IEnumerable<string> GetAiProcessNamesFromRecord()
@@ -145,12 +145,12 @@ namespace Raven.Server.Documents.ETL
             if (EmbeddingsGenerationDestinations != null)
                 foreach (var config in EmbeddingsGenerationDestinations)
                     foreach (var transform in config.Transforms)
-                        yield return $"{config.Name}/{transform.Name}";
+                        yield return EtlProcess.GetProcessName(config.Name, transform.Name);
 
             if (GenAiDestinations != null)
                 foreach (var config in GenAiDestinations)
                     foreach (var transform in config.Transforms)
-                        yield return $"{config.Name}/{transform.Name}";
+                        yield return EtlProcess.GetProcessName(config.Name, transform.Name);
         }
 
         public void Initialize(DatabaseRecord record)

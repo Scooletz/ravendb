@@ -131,6 +131,8 @@ namespace Raven.Server.Documents.ETL
             }
         }
         
+        public static string GetProcessName(string configurationName, string transformationName) => $"{configurationName}/{transformationName}";
+
         public void ForceBatchRetry()
         {
             FallbackTime = null;
@@ -181,7 +183,7 @@ namespace Raven.Server.Documents.ETL
             Tag = tag;
             ConfigurationName = Configuration.Name;
             TransformationName = Transformation.Name;
-            Name = $"{Configuration.Name}/{Transformation.Name}";
+            Name = GetProcessName(Configuration.Name, Transformation.Name);
             Logger = database.Loggers.GetLogger(GetType());
             Database = database;
             _serverStore = serverStore;

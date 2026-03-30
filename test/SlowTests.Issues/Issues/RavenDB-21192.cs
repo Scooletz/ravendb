@@ -10,6 +10,7 @@ using Lextm.SharpSnmpLib.Messaging;
 using Microsoft.AspNetCore.WebUtilities;
 using Newtonsoft.Json;
 using Raven.Client.Documents;
+using Raven.Client.Documents.Operations.AI;
 using Raven.Client.Documents.Operations.ConnectionStrings;
 using Raven.Client.Documents.Operations.ETL;
 using Raven.Client.Documents.Operations.OngoingTasks;
@@ -56,8 +57,8 @@ public class RavenDB_21192 : RavenTestBase
         const string etlName2 = "ETL2";
         const string transformationName2 = "Transformation2";
 
-        const string processName1 = $"{etlName1}/{transformationName1}";
-        const string processName2 = $"{etlName2}/{transformationName2}";
+        var processName1 = EtlProcess.GetProcessName(etlName1, transformationName1);
+        var processName2 = EtlProcess.GetProcessName(etlName2, transformationName2);
         
         using (var src = GetDocumentStore())
         using (var dest = GetDocumentStore())
@@ -169,9 +170,9 @@ public class RavenDB_21192 : RavenTestBase
                     await bulkInsert.StoreAsync(new User { Name = "James Doe", Value = 0 });
             }
 
-            await WaitForEtlStatsAsync(src, $"{etlName1}/{transformationName1}", stats => stats.TransformationErrors == 10);
+            await WaitForEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1), stats => stats.TransformationErrors == 10);
 
-            var etlStats = await GetEtlStatsAsync(src, $"{etlName1}/{transformationName1}");
+            var etlStats = await GetEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1));
             
             Assert.Equal(0, etlStats.LoadSuccesses);
             Assert.Equal(10, etlStats.TransformationErrors);
@@ -183,9 +184,9 @@ public class RavenDB_21192 : RavenTestBase
                     await bulkInsert.StoreAsync(new User { Name = "Joe Doe", Value = 1 });
             }
             
-            await WaitForEtlStatsAsync(src, $"{etlName1}/{transformationName1}", stats => stats.LoadSuccesses == 50);
+            await WaitForEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1), stats => stats.LoadSuccesses == 50);
             
-            etlStats = await GetEtlStatsAsync(src, $"{etlName1}/{transformationName1}");
+            etlStats = await GetEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1));
             
             Assert.Equal(50, etlStats.LoadSuccesses);
             Assert.Equal(20, etlStats.TransformationErrors);
@@ -197,9 +198,9 @@ public class RavenDB_21192 : RavenTestBase
                     await bulkInsert.StoreAsync(new User { Name = "Joe Doe", Value = 1 });
             }
             
-            await WaitForEtlStatsAsync(src, $"{etlName1}/{transformationName1}", stats => stats.LoadSuccesses == 950);
+            await WaitForEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1), stats => stats.LoadSuccesses == 950);
             
-            etlStats = await GetEtlStatsAsync(src, $"{etlName1}/{transformationName1}");
+            etlStats = await GetEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1));
             
             Assert.Equal(950, etlStats.LoadSuccesses);
             Assert.Equal(20, etlStats.TransformationErrors);
@@ -211,9 +212,9 @@ public class RavenDB_21192 : RavenTestBase
                     await bulkInsert.StoreAsync(new User { Name = "James Doe", Value = 0 });
             }
             
-            await WaitForEtlStatsAsync(src, $"{etlName1}/{transformationName1}", stats => stats.TransformationErrors == 510);
+            await WaitForEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1), stats => stats.TransformationErrors == 510);
             
-            etlStats = await GetEtlStatsAsync(src, $"{etlName1}/{transformationName1}");
+            etlStats = await GetEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1));
             
             Assert.Equal(950, etlStats.LoadSuccesses);
             Assert.Equal(1021, etlStats.TransformationErrors);
@@ -259,7 +260,7 @@ public class RavenDB_21192 : RavenTestBase
                     await bulkInsert.StoreAsync(new User { Name = "Joe Doe" });
             }
             
-            await WaitForEtlStatsAsync(src, $"{etlName1}/{transformationName1}", stats => stats.TransformationErrors == 5);
+            await WaitForEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1), stats => stats.TransformationErrors == 5);
             
             AddEtlTask(src, dest, etlName2, connectionStringName2, [transformationName2, transformationName3], [script2, script3], collections2);
             
@@ -273,8 +274,8 @@ public class RavenDB_21192 : RavenTestBase
                     await bulkInsert.StoreAsync(new Company() { Name = "Some Company" });
             }
             
-            await WaitForEtlStatsAsync(src, $"{etlName2}/{transformationName2}", stats => stats.LoadErrors == 5);
-            await WaitForEtlStatsAsync(src, $"{etlName2}/{transformationName3}", stats => stats.LoadErrors == 5);
+            await WaitForEtlStatsAsync(src, EtlProcess.GetProcessName(etlName2, transformationName2), stats => stats.LoadErrors == 5);
+            await WaitForEtlStatsAsync(src, EtlProcess.GetProcessName(etlName2, transformationName3), stats => stats.LoadErrors == 5);
 
             using (var commands = src.Commands())
             {
@@ -288,17 +289,17 @@ public class RavenDB_21192 : RavenTestBase
                 res.TryGet(nameof(EtlHandlerProcessorForGetErrors.Response.Results), out BlittableJsonReaderArray results);
                 var resultsObjectList = JsonConvert.DeserializeObject<List<EtlErrors>>(results.ToString());
 
-                var firstTaskErrors = resultsObjectList.Single(x => x.ProcessName == $"{etlName1}/{transformationName1}");
+                var firstTaskErrors = resultsObjectList.Single(x => x.ProcessName == EtlProcess.GetProcessName(etlName1, transformationName1));
                 
                 Assert.Empty(firstTaskErrors.ProcessErrors);
                 Assert.Equal(5, firstTaskErrors.ItemErrors.Length);
                 
-                var secondTaskErrors = resultsObjectList.Single(x => x.ProcessName == $"{etlName2}/{transformationName2}");
+                var secondTaskErrors = resultsObjectList.Single(x => x.ProcessName == EtlProcess.GetProcessName(etlName2, transformationName2));
                 
                 Assert.Contains(secondTaskErrors.ProcessErrors, x => x.AffectedDocumentsCount == 5);
                 Assert.Empty(secondTaskErrors.ItemErrors);
                 
-                var thirdTaskErrors = resultsObjectList.Single(x => x.ProcessName == $"{etlName2}/{transformationName3}");
+                var thirdTaskErrors = resultsObjectList.Single(x => x.ProcessName == EtlProcess.GetProcessName(etlName2, transformationName3));
                 
                 Assert.Contains(thirdTaskErrors.ProcessErrors, x => x.AffectedDocumentsCount == 5);
                 Assert.Empty(thirdTaskErrors.ItemErrors);
@@ -349,7 +350,7 @@ public class RavenDB_21192 : RavenTestBase
                     await bulkInsert.StoreAsync(new User { Id = $"Users/{i}${shardNumber}", Name = "Joe Doe" });
             }
             
-            await WaitForEtlStatsAsync(src, $"{etlName1}/{transformationName1}", stats => stats.TransformationErrors == 5, shardNumber);
+            await WaitForEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1), stats => stats.TransformationErrors == 5, shardNumber);
             
             AddEtlTask(src, dest, etlName2, connectionStringName2, [transformationName2, transformationName3], [script2, script3], collections2);
             
@@ -363,8 +364,8 @@ public class RavenDB_21192 : RavenTestBase
                     await bulkInsert.StoreAsync(new Company() { Id = $"Companies/{i}${shardNumber}", Name = "Some Company" });
             }
             
-            await WaitForEtlStatsAsync(src, $"{etlName2}/{transformationName2}", stats => stats.LoadErrors == 5, shardNumber);
-            await WaitForEtlStatsAsync(src, $"{etlName2}/{transformationName3}", stats => stats.LoadErrors == 5, shardNumber);
+            await WaitForEtlStatsAsync(src, EtlProcess.GetProcessName(etlName2, transformationName2), stats => stats.LoadErrors == 5, shardNumber);
+            await WaitForEtlStatsAsync(src, EtlProcess.GetProcessName(etlName2, transformationName3), stats => stats.LoadErrors == 5, shardNumber);
 
             using (var commands = src.Commands())
             {
@@ -378,17 +379,17 @@ public class RavenDB_21192 : RavenTestBase
                 res.TryGet(nameof(EtlHandlerProcessorForGetErrors.Response.Results), out BlittableJsonReaderArray results);
                 var resultsObjectList = JsonConvert.DeserializeObject<List<EtlErrors>>(results.ToString());
 
-                var firstTaskErrors = resultsObjectList.Single(x => x.ProcessName == $"{etlName1}/{transformationName1}");
+                var firstTaskErrors = resultsObjectList.Single(x => x.ProcessName == EtlProcess.GetProcessName(etlName1, transformationName1));
                 
                 Assert.Empty(firstTaskErrors.ProcessErrors);
                 Assert.Equal(5, firstTaskErrors.ItemErrors.Length);
                 
-                var secondTaskErrors = resultsObjectList.Single(x => x.ProcessName == $"{etlName2}/{transformationName2}");
+                var secondTaskErrors = resultsObjectList.Single(x => x.ProcessName == EtlProcess.GetProcessName(etlName2, transformationName2));
                 
                 Assert.Contains(secondTaskErrors.ProcessErrors, x => x.AffectedDocumentsCount == 5);
                 Assert.Empty(secondTaskErrors.ItemErrors);
                 
-                var thirdTaskErrors = resultsObjectList.Single(x => x.ProcessName == $"{etlName2}/{transformationName3}");
+                var thirdTaskErrors = resultsObjectList.Single(x => x.ProcessName == EtlProcess.GetProcessName(etlName2, transformationName3));
                 
                 Assert.Contains(thirdTaskErrors.ProcessErrors, x => x.AffectedDocumentsCount == 5);
                 Assert.Empty(thirdTaskErrors.ItemErrors);
@@ -421,14 +422,14 @@ public class RavenDB_21192 : RavenTestBase
                     await bulkInsert.StoreAsync(new User { Name = "Joe Doe" });
             }
             
-            await WaitForEtlStatsAsync(src, $"{etlName1}/{transformationName1}", stats => stats.TransformationErrors == 5);
+            await WaitForEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1), stats => stats.TransformationErrors == 5);
             
             using (var commands = src.Commands())
             {
-                var deleteErrorsCommand = new DeleteEtlTaskErrorsCommand($"{etlName1}/{transformationName1}");
+                var deleteErrorsCommand = new DeleteEtlTaskErrorsCommand(EtlProcess.GetProcessName(etlName1, transformationName1));
                 await commands.ExecuteAsync(deleteErrorsCommand);
 
-                var getErrorsCommand = new GetEtlTaskErrorsCommand([$"{etlName1}/{transformationName1}"]);
+                var getErrorsCommand = new GetEtlTaskErrorsCommand([EtlProcess.GetProcessName(etlName1, transformationName1)]);
                 await commands.ExecuteAsync(getErrorsCommand);
                 
                 var res = getErrorsCommand.Result as BlittableJsonReaderObject;
@@ -439,7 +440,7 @@ public class RavenDB_21192 : RavenTestBase
                 var resultsObjectList = JsonConvert.DeserializeObject<List<EtlErrors>>(results.ToString());
                 
                 Assert.Single(resultsObjectList);
-                Assert.Equal($"{etlName1}/{transformationName1}", resultsObjectList.Single().ProcessName);
+                Assert.Equal(EtlProcess.GetProcessName(etlName1, transformationName1), resultsObjectList.Single().ProcessName);
                 Assert.Empty(resultsObjectList.Single().ProcessErrors);
                 Assert.Empty(resultsObjectList.Single().ItemErrors);
             }
@@ -472,9 +473,9 @@ public class RavenDB_21192 : RavenTestBase
                     await bulkInsert.StoreAsync(new User { Name = "James Doe", Value = 0 });
             }
             
-            await WaitForEtlStatsAsync(src, $"{etlName1}/{transformationName1}", stats => stats.TransformationErrors == 10);
+            await WaitForEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1), stats => stats.TransformationErrors == 10);
             
-            var etlStats = await GetEtlStatsAsync(src, $"{etlName1}/{transformationName1}");
+            var etlStats = await GetEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1));
             
             Assert.Equal(0, etlStats.LoadSuccesses);
             Assert.Equal(10, etlStats.TransformationErrors);
@@ -486,9 +487,9 @@ public class RavenDB_21192 : RavenTestBase
                     await bulkInsert.StoreAsync(new User { Name = "Joe Doe", Value = 1 });
             }
             
-            await WaitForEtlStatsAsync(src, $"{etlName1}/{transformationName1}", stats => stats.LoadSuccesses == 50);
+            await WaitForEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1), stats => stats.LoadSuccesses == 50);
 
-            etlStats = await GetEtlStatsAsync(src, $"{etlName1}/{transformationName1}");
+            etlStats = await GetEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1));
             
             Assert.Equal(50, etlStats.LoadSuccesses);
             Assert.Equal(20, etlStats.TransformationErrors);
@@ -500,9 +501,9 @@ public class RavenDB_21192 : RavenTestBase
                     await bulkInsert.StoreAsync(new User { Name = "Joe Doe", Value = 1 });
             }
             
-            await WaitForEtlStatsAsync(src, $"{etlName1}/{transformationName1}", stats => stats.LoadSuccesses == 950);
+            await WaitForEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1), stats => stats.LoadSuccesses == 950);
             
-            etlStats = await GetEtlStatsAsync(src, $"{etlName1}/{transformationName1}");
+            etlStats = await GetEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1));
             
             Assert.Equal(950, etlStats.LoadSuccesses);
             Assert.Equal(20, etlStats.TransformationErrors);
@@ -514,9 +515,9 @@ public class RavenDB_21192 : RavenTestBase
                     await bulkInsert.StoreAsync(new User { Name = "James Doe", Value = 0 });
             }
             
-            await WaitForEtlStatsAsync(src, $"{etlName1}/{transformationName1}", stats => stats.TransformationErrors == 1020);
+            await WaitForEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1), stats => stats.TransformationErrors == 1020);
             
-            etlStats = await GetEtlStatsAsync(src, $"{etlName1}/{transformationName1}");
+            etlStats = await GetEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1));
             
             Assert.Equal(950, etlStats.LoadSuccesses);
             Assert.Equal(2021, etlStats.TransformationErrors);
@@ -561,9 +562,9 @@ public class RavenDB_21192 : RavenTestBase
                 await bulkInsert.StoreAsync(new User { Name = "James Doe", Value = 0 });
             }
             
-            await WaitForEtlStatsAsync(src, $"{etlName1}/{transformationName1}", stats => stats.HealthStatus == EtlProcessHealthStatus.Failed);
+            await WaitForEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1), stats => stats.HealthStatus == EtlProcessHealthStatus.Failed);
                     
-            var etlStats = await GetEtlStatsAsync(src, $"{etlName1}/{transformationName1}");
+            var etlStats = await GetEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1));
             Assert.Equal(EtlProcessHealthStatus.Failed, etlStats.HealthStatus);
         }
     }
@@ -593,11 +594,11 @@ public class RavenDB_21192 : RavenTestBase
                     await bulkInsert.StoreAsync(new User { Name = "James Doe", Value = 0 });
             }
             
-            await WaitForEtlStatsAsync(src, $"{etlName1}/{transformationName1}", stats => stats.HealthStatus == EtlProcessHealthStatus.Failed);
+            await WaitForEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1), stats => stats.HealthStatus == EtlProcessHealthStatus.Failed);
             
-            var etlStats = await GetEtlStatsAsync(src, $"{etlName1}/{transformationName1}");
+            var etlStats = await GetEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1));
             Assert.Equal(EtlProcessHealthStatus.Failed, etlStats.HealthStatus);
-            await AssertHealthStatusNotificationAsync(src, processTag, $"{etlName1}/{transformationName1}", EtlProcessHealthStatus.Failed);
+            await AssertHealthStatusNotificationAsync(src, processTag, EtlProcess.GetProcessName(etlName1, transformationName1), EtlProcessHealthStatus.Failed);
         }
     }
 
@@ -628,14 +629,14 @@ public class RavenDB_21192 : RavenTestBase
                     await bulkInsert.StoreAsync(new User { Name = "James Doe", Value = 0 });
             }
             
-            await WaitForEtlStatsAsync(src, $"{etlName1}/{transformationName1}", stats => stats.TransformationErrors == 10);
+            await WaitForEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1), stats => stats.TransformationErrors == 10);
             
-            var etlStats = await GetEtlStatsAsync(src, $"{etlName1}/{transformationName1}");
+            var etlStats = await GetEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1));
             
             Assert.Equal(0, etlStats.LoadSuccesses);
             Assert.Equal(10, etlStats.TransformationErrors);
 
-            await AssertHealthStatusNotificationAsync(src, processTag, $"{etlName1}/{transformationName1}", EtlProcessHealthStatus.Failed);
+            await AssertHealthStatusNotificationAsync(src, processTag, EtlProcess.GetProcessName(etlName1, transformationName1), EtlProcessHealthStatus.Failed);
 
             await using (var bulkInsert = src.BulkInsert())
             {
@@ -643,14 +644,14 @@ public class RavenDB_21192 : RavenTestBase
                     await bulkInsert.StoreAsync(new User { Name = "Joe Doe", Value = 1 });
             }
             
-            await WaitForEtlStatsAsync(src, $"{etlName1}/{transformationName1}", stats => stats.LoadSuccesses == 50);
+            await WaitForEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1), stats => stats.LoadSuccesses == 50);
 
-            etlStats = await GetEtlStatsAsync(src, $"{etlName1}/{transformationName1}");
+            etlStats = await GetEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1));
             
             Assert.Equal(50, etlStats.LoadSuccesses);
             Assert.Equal(20, etlStats.TransformationErrors);
             
-            await AssertHealthStatusNotificationAsync(src, processTag, $"{etlName1}/{transformationName1}", EtlProcessHealthStatus.Impaired);
+            await AssertHealthStatusNotificationAsync(src, processTag, EtlProcess.GetProcessName(etlName1, transformationName1), EtlProcessHealthStatus.Impaired);
 
             await using (var bulkInsert = src.BulkInsert())
             {
@@ -658,9 +659,9 @@ public class RavenDB_21192 : RavenTestBase
                     await bulkInsert.StoreAsync(new User { Name = "Joe Doe", Value = 1 });
             }
             
-            await WaitForEtlStatsAsync(src, $"{etlName1}/{transformationName1}", stats => stats.LoadSuccesses == 1050);
+            await WaitForEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1), stats => stats.LoadSuccesses == 1050);
 
-            etlStats = await GetEtlStatsAsync(src, $"{etlName1}/{transformationName1}");
+            etlStats = await GetEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1));
             
             Assert.Equal(1050, etlStats.LoadSuccesses);
         }
@@ -707,8 +708,8 @@ public class RavenDB_21192 : RavenTestBase
                     await bulkInsert.StoreAsync(new User { Name = "James Doe", Value = 0 });
             }
             
-            await WaitForEtlStatsAsync(src, $"{etlName1}/{transformationName1}", stats => stats.TransformationErrors == 10);
-            await WaitForEtlStatsAsync(src, $"{etlName1}/{transformationName2}", stats => stats.TransformationErrors == 10);
+            await WaitForEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1), stats => stats.TransformationErrors == 10);
+            await WaitForEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName2), stats => stats.TransformationErrors == 10);
             
             var database = GetDatabase(src.Database).GetAwaiter().GetResult();
             
@@ -736,7 +737,7 @@ public class RavenDB_21192 : RavenTestBase
 
             UpdateRavenEtlTask(src, taskId1, updatedConfig);
             
-            await WaitForEtlStatsAsync(src, $"{etlName1}/{transformationName1}", stats => stats.TransformationErrors == 10);
+            await WaitForEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1), stats => stats.TransformationErrors == 10);
             
             itemErrors = database.EtlErrorsStorage.ReadAllItemErrors();
 
@@ -744,7 +745,7 @@ public class RavenDB_21192 : RavenTestBase
 
             foreach (var itemError in itemErrors)
             {
-                Assert.StartsWith($"{etlName1}/{transformationName1}", itemError.Id);
+                Assert.StartsWith(EtlProcess.GetProcessName(etlName1, transformationName1), itemError.Id);
             }
         }
     }
@@ -781,8 +782,8 @@ public class RavenDB_21192 : RavenTestBase
                     await bulkInsert.StoreAsync(new User { Name = "James Doe", Value = 0 });
             }
             
-            await WaitForEtlStatsAsync(src, $"{etlName1}/{transformationName1}", stats => stats.TransformationErrors == 10);
-            await WaitForEtlStatsAsync(src, $"{etlName2}/{transformationName2}", stats => stats.TransformationErrors == 10);
+            await WaitForEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1), stats => stats.TransformationErrors == 10);
+            await WaitForEtlStatsAsync(src, EtlProcess.GetProcessName(etlName2, transformationName2), stats => stats.TransformationErrors == 10);
             
             var database = GetDatabase(src.Database).GetAwaiter().GetResult();
             
@@ -799,7 +800,7 @@ public class RavenDB_21192 : RavenTestBase
 
             foreach (var itemError in itemErrors)
             {
-                Assert.StartsWith($"{etlName2}/{transformationName2}", itemError.Id);
+                Assert.StartsWith(EtlProcess.GetProcessName(etlName2, transformationName2), itemError.Id);
             }
         }
     }
@@ -846,15 +847,15 @@ public class RavenDB_21192 : RavenTestBase
                 session.SaveChanges();
             }
             
-            await WaitForEtlStatsAsync(src, $"{etlName1}/{transformationName1}", stats => stats.TransformationErrors >= 700);
-            await WaitForEtlStatsAsync(src, $"{etlName1}/{transformationName2}", stats => stats.TransformationErrors >= 50);
+            await WaitForEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1), stats => stats.TransformationErrors >= 700);
+            await WaitForEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName2), stats => stats.TransformationErrors >= 50);
             
             var database = GetDatabase(src.Database).Result;
             
             var itemErrors = database.EtlErrorsStorage.ReadAllItemErrors();
 
-            var firstTransformationErrors = itemErrors.Where(x => x.EtlProcessName == $"{etlName1}/{transformationName1}");
-            var secondTransformationErrors = itemErrors.Where(x => x.EtlProcessName == $"{etlName1}/{transformationName2}");
+            var firstTransformationErrors = itemErrors.Where(x => x.EtlProcessName == EtlProcess.GetProcessName(etlName1, transformationName1));
+            var secondTransformationErrors = itemErrors.Where(x => x.EtlProcessName == EtlProcess.GetProcessName(etlName1, transformationName2));
 
             Assert.Equal(500, firstTransformationErrors.Count());
             Assert.Equal(50, secondTransformationErrors.Count());
@@ -957,8 +958,8 @@ public class RavenDB_21192 : RavenTestBase
                 session.SaveChanges();
             }
             
-            await WaitForEtlStatsAsync(src, $"{etlName1}/{transformationName1}", stats => stats.TransformationErrors == 123);
-            await WaitForEtlStatsAsync(src, $"{etlName1}/{transformationName2}", stats => stats.TransformationErrors == 123);
+            await WaitForEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1), stats => stats.TransformationErrors == 123);
+            await WaitForEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName2), stats => stats.TransformationErrors == 123);
 
             using (var session = src.OpenSession())
             {
@@ -968,8 +969,8 @@ public class RavenDB_21192 : RavenTestBase
                 session.SaveChanges();
             }
             
-            await WaitForEtlStatsAsync(src, $"{etlName1}/{transformationName1}", stats => stats.LoadSuccesses == 4);
-            await WaitForEtlStatsAsync(src, $"{etlName1}/{transformationName2}", stats => stats.TransformationErrors == 127);
+            await WaitForEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1), stats => stats.LoadSuccesses == 4);
+            await WaitForEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName2), stats => stats.TransformationErrors == 127);
             
             var ip = new Uri(Server.WebUrl).Host;
             var endpoint = new IPEndPoint(IPAddress.Parse(ip), port);
@@ -1076,7 +1077,7 @@ public class RavenDB_21192 : RavenTestBase
                 
                 Assert.Equal(2, ((Integer32)result.Single().Data).ToInt32());
                 
-                etlEntries.TryGet($"{etlName1}/{transformationName1}", out BlittableJsonReaderArray firstProcessEntries);
+                etlEntries.TryGet(EtlProcess.GetProcessName(etlName1, transformationName1), out BlittableJsonReaderArray firstProcessEntries);
                 var firstProcessOidsObjectList = JsonConvert.DeserializeObject<List<SnmpEntry>>(firstProcessEntries.ToString());
                 var firstProcessEtlErrorsOid = firstProcessOidsObjectList.Single(x => x.Description == "Number of task ETL errors").OID;
                 var firstProcessHealthStatusOid = firstProcessOidsObjectList.Single(x => x.Description == "Health status of particular ETL task").OID;
@@ -1106,7 +1107,7 @@ public class RavenDB_21192 : RavenTestBase
                 
                 Assert.Equal(SnmpType.TimeTicks, result.Single().Data.TypeCode);
                 
-                etlEntries.TryGet($"{etlName1}/{transformationName2}", out BlittableJsonReaderArray secondProcessEntries);
+                etlEntries.TryGet(EtlProcess.GetProcessName(etlName1, transformationName2), out BlittableJsonReaderArray secondProcessEntries);
                 var secondProcessOidsObjectList = JsonConvert.DeserializeObject<List<SnmpEntry>>(secondProcessEntries.ToString());
                 var secondProcessEtlErrorsOid = secondProcessOidsObjectList.Single(x => x.Description == "Number of task ETL errors").OID;
                 var secondProcessHealthStatusOid = secondProcessOidsObjectList.Single(x => x.Description == "Health status of particular ETL task").OID;
@@ -1175,8 +1176,8 @@ public class RavenDB_21192 : RavenTestBase
                 session.SaveChanges();
             }
             
-            await WaitForEtlStatsAsync(src, $"{etlName1}/{transformationName1}", stats => stats.LoadSuccesses == 123);
-            await WaitForEtlStatsAsync(src, $"{etlName1}/{transformationName2}", stats => stats.TransformationErrors == 123);
+            await WaitForEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1), stats => stats.LoadSuccesses == 123);
+            await WaitForEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName2), stats => stats.TransformationErrors == 123);
             
             using (var commands = src.Commands())
             {
@@ -1188,12 +1189,12 @@ public class RavenDB_21192 : RavenTestBase
                 var results = JsonConvert.DeserializeObject<EtlsMetrics>(resBjro.ToString()).Results;
                 var databaseResults = results.Single(x => x.DatabaseName == src.Database);
                 
-                var firstProcessResults = databaseResults.Etls.Single(x => x.ProcessName == $"{etlName1}/{transformationName1}");
+                var firstProcessResults = databaseResults.Etls.Single(x => x.ProcessName == EtlProcess.GetProcessName(etlName1, transformationName1));
                 Assert.Equal(EtlProcessHealthStatus.Healthy, firstProcessResults.HealthStatus);
                 Assert.NotNull(firstProcessResults.LastSuccessfulBatchTimeInSec);
                 Assert.Equal(0, firstProcessResults.ErrorsCount);
                 
-                var secondProcessResults = databaseResults.Etls.Single(x => x.ProcessName == $"{etlName1}/{transformationName2}");
+                var secondProcessResults = databaseResults.Etls.Single(x => x.ProcessName == EtlProcess.GetProcessName(etlName1, transformationName2));
                 Assert.Equal(EtlProcessHealthStatus.Failed, secondProcessResults.HealthStatus);
                 Assert.Null(secondProcessResults.LastSuccessfulBatchTimeInSec);
                 Assert.Equal(123, secondProcessResults.ErrorsCount);
@@ -1436,7 +1437,7 @@ public class RavenDB_21192_Multinode : ClusterTestBase
     {
     }
 
-    [RavenFact(RavenTestCategory.Etl | RavenTestCategory.Cluster)]
+    [RavenFact(RavenTestCategory.Etl | RavenTestCategory.Cluster | RavenTestCategory.Monitoring)]
     public async Task EtlErrorsShouldBeStoredOnResponsibleNodeInCluster()
     {
         const string connectionStringName = "ConnectionString1";
@@ -1452,8 +1453,18 @@ public class RavenDB_21192_Multinode : ClusterTestBase
         var collections = new List<string> { "Users" };
 
         const int clusterSize = 3;
+        const string communityString = "public-test";
 
-        var (nodes, leader) = await CreateRaftCluster(clusterSize);
+        var snmpPorts = Enumerable.Range(0, clusterSize).Select(_ => ReservePort().Port).ToArray();
+        var customSettingsList = snmpPorts.Select(port => (IDictionary<string, string>)new Dictionary<string, string>
+        {
+            [RavenConfiguration.GetKey(x => x.Monitoring.Snmp.Enabled)] = "true",
+            [RavenConfiguration.GetKey(x => x.Monitoring.Snmp.SupportedVersions)] = "V2C",
+            [RavenConfiguration.GetKey(x => x.Monitoring.Snmp.Port)] = port.ToString(),
+            [RavenConfiguration.GetKey(x => x.Monitoring.Snmp.Community)] = communityString
+        }).ToList();
+
+        var (nodes, leader) = await CreateRaftCluster(clusterSize, customSettingsList: customSettingsList);
 
         var srcDatabaseName = GetDatabaseName();
         var dstDatabaseName = GetDatabaseName();
@@ -1586,6 +1597,151 @@ public class RavenDB_21192_Multinode : ClusterTestBase
         Assert.Empty(newMentorItemErrors);
         
         mentorItemErrors = mentorDatabase.EtlErrorsStorage.ReadItemErrorsOfEtl($"{etlName}/{transformationName}");
+        Assert.Equal(5, mentorItemErrors.Count);
+    }
+    
+    [RavenFact(RavenTestCategory.Ai | RavenTestCategory.Cluster)]
+    public async Task EmbeddingsGenerationErrorsShouldBeStoredOnResponsibleNodeInCluster()
+    {
+        const string connectionStringName = "AI-ConnectionString";
+        const string taskName = "EmbeddingsTask1";
+        const string processName = $"{taskName}/embeddings-transform-script";
+        const string script = """
+                              if (this.Name === "Error Document")
+                              {
+                                   throw new Error("dummy error");
+                              }
+                              embeddings.generate({ Name: this.Name });
+                              """;
+
+        const int clusterSize = 3;
+        const string communityString = "public-test";
+
+        var snmpPorts = Enumerable.Range(0, clusterSize).Select(_ => ReservePort().Port).ToArray();
+        var customSettingsList = snmpPorts.Select(port => (IDictionary<string, string>)new Dictionary<string, string>
+        {
+            [RavenConfiguration.GetKey(x => x.Monitoring.Snmp.Enabled)] = "true",
+            [RavenConfiguration.GetKey(x => x.Monitoring.Snmp.SupportedVersions)] = "V2C",
+            [RavenConfiguration.GetKey(x => x.Monitoring.Snmp.Port)] = port.ToString(),
+            [RavenConfiguration.GetKey(x => x.Monitoring.Snmp.Community)] = communityString
+        }).ToList();
+
+        var (nodes, leader) = await CreateRaftCluster(clusterSize, customSettingsList: customSettingsList);
+
+        var databaseName = GetDatabaseName();
+        await CreateDatabaseInCluster(databaseName, 3, leader.WebUrl);
+
+        using var store = new DocumentStore
+        {
+            Urls = nodes.Select(n => n.WebUrl).ToArray(),
+            Database = databaseName
+        }.Initialize();
+
+        var mentorTag = nodes[0].ServerStore.NodeTag;
+
+        var connectionString = new AiConnectionString
+        {
+            Name = connectionStringName,
+            ModelType = AiModelType.TextEmbeddings,
+            EmbeddedSettings = new EmbeddedSettings()
+        };
+        connectionString.Identifier = connectionString.GenerateIdentifier();
+        store.Maintenance.Send(new PutConnectionStringOperation<AiConnectionString>(connectionString));
+
+        var configuration = new EmbeddingsGenerationConfiguration
+        {
+            Name = taskName,
+            ConnectionStringName = connectionStringName,
+            MentorNode = mentorTag,
+            PinToMentorNode = true,
+            Collection = "Users",
+            EmbeddingsTransformation = new EmbeddingsTransformation
+            {
+                Script = script,
+                ChunkingOptions = new ChunkingOptions { ChunkingMethod = ChunkingMethod.PlainTextSplitLines, MaxTokensPerChunk = 2048 }
+            },
+            ChunkingOptionsForQuerying = new ChunkingOptions { ChunkingMethod = ChunkingMethod.PlainTextSplitLines, MaxTokensPerChunk = 2048 }
+        };
+        configuration.Identifier = configuration.GenerateIdentifier();
+
+        var addResult = store.Maintenance.Send(new AddEmbeddingsGenerationOperation(configuration));
+        Assert.NotNull(addResult.RaftCommandIndex);
+
+        using (var session = store.OpenSession())
+        {
+            for (int i = 0; i < 5; i++)
+                session.Store(new User { Name = "Error Document" });
+
+            session.SaveChanges();
+        }
+
+        using (var session = store.OpenSession())
+        {
+            for (int i = 0; i < 3; i++)
+                session.Store(new User { Name = "Joe Doe" });
+
+            session.SaveChanges();
+        }
+
+        var mentorNode = nodes[0];
+        var mentorDatabase = await GetDatabase(mentorNode, databaseName);
+
+        Assert.True(WaitForValue(() =>
+        {
+            var process = mentorDatabase.EtlLoader.Processes.FirstOrDefault(x => x.Name == processName);
+            return process?.Statistics.TransformationErrors >= 5;
+        }, true, timeout: 30_000));
+
+        Assert.True(WaitForValue(() => mentorDatabase.EtlErrorsStorage.ReadItemErrorsOfEtl(processName).Count == 5, true, timeout: 30_000));
+        var mentorItemErrors = mentorDatabase.EtlErrorsStorage.ReadItemErrorsOfEtl(processName);
+        Assert.Equal(5, mentorItemErrors.Count);
+
+        for (int i = 1; i < clusterSize; i++)
+        {
+            var otherDatabase = await GetDatabase(nodes[i], databaseName);
+            var otherItemErrors = otherDatabase.EtlErrorsStorage.ReadItemErrorsOfEtl(processName);
+            Assert.Empty(otherItemErrors);
+        }
+
+        var newMentorTag = nodes[1].ServerStore.NodeTag;
+        configuration.MentorNode = newMentorTag;
+        store.Maintenance.Send(new UpdateEmbeddingsGenerationOperation(addResult.TaskId, configuration));
+
+        var newMentorNode = nodes[1];
+        var newMentorDatabase = await GetDatabase(newMentorNode, databaseName);
+
+        Assert.True(WaitForValue(() =>
+        {
+            return newMentorDatabase.EtlLoader.Processes.Any(x => x.Name == processName);
+        }, true, timeout: 30_000));
+
+        using (var session = store.OpenSession())
+        {
+            for (int i = 0; i < 7; i++)
+                session.Store(new User { Name = "Error Document" });
+
+            session.SaveChanges();
+        }
+
+        Assert.True(WaitForValue(() =>
+        {
+            var process = newMentorDatabase.EtlLoader.Processes.FirstOrDefault(x => x.Name == processName);
+            return process?.Statistics.TransformationErrors >= 7;
+        }, true, timeout: 30_000));
+
+        Assert.True(WaitForValue(() => newMentorDatabase.EtlErrorsStorage.ReadItemErrorsOfEtl(processName).Count == 7, true, timeout: 30_000));
+        var newMentorItemErrors = newMentorDatabase.EtlErrorsStorage.ReadItemErrorsOfEtl(processName);
+        Assert.Equal(7, newMentorItemErrors.Count);
+
+        mentorItemErrors = mentorDatabase.EtlErrorsStorage.ReadItemErrorsOfEtl(processName);
+        Assert.Equal(5, mentorItemErrors.Count);
+
+        newMentorDatabase.EtlErrorsStorage.DeleteErrorsOfEtl(taskName);
+
+        newMentorItemErrors = newMentorDatabase.EtlErrorsStorage.ReadItemErrorsOfEtl(processName);
+        Assert.Empty(newMentorItemErrors);
+
+        mentorItemErrors = mentorDatabase.EtlErrorsStorage.ReadItemErrorsOfEtl(processName);
         Assert.Equal(5, mentorItemErrors.Count);
     }
 
