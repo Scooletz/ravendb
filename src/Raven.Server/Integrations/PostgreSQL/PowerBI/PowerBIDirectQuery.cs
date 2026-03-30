@@ -1163,15 +1163,13 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                         continue;
                     }
 
-                    var id = FormatRqlIdentifier(colName);
-                    if (id == null)
-                        return null;
-
                     var selectField = FormatRqlObjectFieldIdentifier(colName);
                     if (selectField == null)
                         return null;
 
-                    var expr = id;
+                    var expr = BuildFieldExpression(colName, q.From.Alias?.Value);
+                    if (expr == null)
+                        return null;
                     if (projectionExprs != null && projectionExprs.TryGetValue(colName, out var extracted) && string.IsNullOrWhiteSpace(extracted) == false)
                         expr = extracted;
 
@@ -1195,6 +1193,26 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 }
 
                 return sb.ToString();
+            }
+
+            static string BuildFieldExpression(string fieldName, string fromAlias)
+            {
+                if (string.IsNullOrWhiteSpace(fieldName))
+                    return null;
+
+                var id = FormatRqlIdentifier(fieldName);
+                if (id == null)
+                    return null;
+
+                if (string.IsNullOrWhiteSpace(fromAlias))
+                    return id;
+
+                // If it doesn't need escaping, it must be a plain identifier, safe to dot-qualify.
+                if (string.Equals(id, fieldName, StringComparison.Ordinal))
+                    return fromAlias + "." + id;
+
+                // Escaped identifier: use a bracket access on the alias.
+                return fromAlias + id;
             }
 
 

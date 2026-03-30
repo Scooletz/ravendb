@@ -98,6 +98,12 @@ limit 1001";
 
             Assert.True(result.Columns.Contains("Employee"));
             Assert.Equal(1, result.Columns.Count);
+
+            foreach (DataRow row in result.Rows)
+            {
+                var v = row["Employee"];
+                Assert.False(string.IsNullOrWhiteSpace(v.ToString()));
+            }
         }
     }
 
@@ -226,6 +232,13 @@ limit 501";
             Assert.True(result.Columns.Contains("RequireAt"));
             Assert.True(result.Columns.Contains("json()"));
             Assert.Equal(3, result.Columns.Count);
+
+            foreach (DataRow row in result.Rows)
+            {
+                Assert.NotNull(row["Employee"]);
+                Assert.NotNull(row["RequireAt"]);
+                Assert.NotNull(row["json()"]);
+            }
         }
     }
 
