@@ -8,8 +8,8 @@ import { CellWithCopy } from "components/common/virtualTable/cells/CellWithCopy"
 import { databaseSelectors } from "components/common/shell/databaseSliceSelectors";
 import Button from "react-bootstrap/Button";
 import { Icon } from "components/common/Icon";
-import IndexErrorsModal from "components/pages/database/indexes/errors/IndexErrorsModal";
-import useBoolean from "hooks/useBoolean";
+import IndexErrorsSheet from "components/pages/database/indexes/errors/IndexErrorsSheet";
+import { useViewSheet } from "components/common/splitView/ViewSheet";
 import React from "react";
 import PopoverWithHoverWrapper from "components/common/PopoverWithHoverWrapper";
 
@@ -111,21 +111,29 @@ const HyperlinkIndexCellValue = ({ getValue }: HyperlinkIndexCellValueProps) => 
 type CellValueButtonWrapperProps = CellContext<IndexErrorPerDocument, unknown>;
 
 const CellValueButtonWrapper = (args: CellValueButtonWrapperProps) => {
-    const { value: isOpen, toggle: toggleIsOpen } = useBoolean(false);
+    const { open } = useViewSheet();
+
+    const handleOpenSheet = () => {
+        const allRows = args.table.getRowModel().rows;
+        const currentIndex = allRows.findIndex((r) => r.id === args.row.id);
+        open({
+            component: (
+                <IndexErrorsSheet
+                    errorDetails={args.row}
+                    allRows={allRows}
+                    initialIndex={currentIndex >= 0 ? currentIndex : 0}
+                />
+            ),
+            initialWidth: "40%",
+            minWidth: "25%",
+            maxWidth: "60%",
+        });
+    };
 
     return (
-        <>
-            <Button variant="secondary" onClick={toggleIsOpen}>
-                <Icon icon="preview" margin="m-0" />
-            </Button>
-            <IndexErrorsModal
-                isOpen={isOpen}
-                toggleModal={toggleIsOpen}
-                errorDetails={args.row}
-                dataLength={args.table.options.data.length}
-                getRow={args.table.getRow}
-            />
-        </>
+        <Button variant="link" onClick={handleOpenSheet}>
+            <Icon icon="preview" margin="m-0" />
+        </Button>
     );
 };
 
@@ -156,25 +164,34 @@ const CellValueRelativeTimeWrapper = ({ getValue, row }: CellValueRelativeTimeWr
 type IndexErrorsCellWithCopyWrapperProps = CellContext<IndexErrorPerDocument, unknown>;
 
 const IndexErrorsCellWithCopyWrapper = ({ getValue, row, table }: IndexErrorsCellWithCopyWrapperProps) => {
-    const { value: isOpen, toggle: toggleIsOpen } = useBoolean(false);
+    const { open } = useViewSheet();
+
+    const handleOpenSheet = () => {
+        const allRows = table.getRowModel().rows;
+        const currentIndex = allRows.findIndex((r) => r.id === row.id);
+        open({
+            component: (
+                <IndexErrorsSheet
+                    errorDetails={row}
+                    allRows={allRows}
+                    initialIndex={currentIndex >= 0 ? currentIndex : 0}
+                />
+            ),
+            initialWidth: "40%",
+            minWidth: "25%",
+            maxWidth: "60%",
+        });
+    };
+
     const additionalButtons = (
-        <Button size="sm" onClick={toggleIsOpen} title="Show error details">
+        <Button size="sm" onClick={handleOpenSheet} title="Show error details">
             <Icon icon="preview" margin="m-0" />
         </Button>
     );
 
     return (
-        <>
-            <CellWithCopy additionalButtons={additionalButtons} value={getValue()}>
-                <CellValue value={getValue()} />
-            </CellWithCopy>
-            <IndexErrorsModal
-                isOpen={isOpen}
-                toggleModal={toggleIsOpen}
-                errorDetails={row}
-                dataLength={table.options.data.length}
-                getRow={table.getRow}
-            />
-        </>
+        <CellWithCopy additionalButtons={additionalButtons} value={getValue()}>
+            <CellValue value={getValue()} />
+        </CellWithCopy>
     );
 };
