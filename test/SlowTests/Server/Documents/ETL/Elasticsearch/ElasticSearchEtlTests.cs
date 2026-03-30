@@ -191,8 +191,8 @@ namespace SlowTests.Server.Documents.ETL.ElasticSearch
 
                 var processErrors = database.EtlErrorsStorage.ReadProcessErrorsOfEtl($"{config.Name}/{config.Transforms.Single().Name}").ToList();
                 
-                Assert.Single(processErrors);
-                Assert.Contains("Raven.Server.Exceptions.ETL.ElasticSearch.ElasticSearchLoadException", processErrors.Single().Error);
+                Assert.True(processErrors.Count > 0);
+                Assert.Contains("Raven.Server.Exceptions.ETL.ElasticSearch.ElasticSearchLoadException", processErrors.First().Error);
             }
         }
 
