@@ -27,6 +27,12 @@ namespace Raven.Server.Integrations.PostgreSQL
             var normalizedQuery = queryText.NormalizeLineEndings();
             PgTable result = null;
 
+            if (PowerBIHardcodedAstMatcher.TryMatchPowerBIHardcodedQuery(queryText, out result))
+            {
+                hardcodedQuery = new HardcodedQuery(queryText, parametersDataTypes, result);
+                return true;
+            }
+
             if (normalizedQuery.StartsWith(PowerBIConfig.TableSchemaQuery, StringComparison.OrdinalIgnoreCase))
                 result = PowerBIConfig.TableSchemaResponse;
 
