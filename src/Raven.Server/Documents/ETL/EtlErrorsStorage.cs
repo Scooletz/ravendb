@@ -48,15 +48,15 @@ public unsafe class EtlErrorsStorage
     {
         var processErrorsTableName = GetProcessErrorsTableName(processName);
         var itemErrorsTableName = GetItemErrorsTableName(processName);
-        
-        using (_contextPool.AllocateOperationContext(out DocumentsOperationContext context))
-        using (var tx = _environment.WriteTransaction(context.PersistentContext))
-        {
-            tx.DeleteTable(processErrorsTableName);
-            tx.DeleteTable(itemErrorsTableName);
-            
-            tx.Commit();
-        }
+
+        _txMerger.EnqueueSync(new DeleteEtlErrorsTablesForProcessCommand(processErrorsTableName, itemErrorsTableName));
+    }
+
+    internal static void DeleteEtlErrorsTablesForProcess<T>(TransactionOperationContext<T> context, string processErrorsTableName, string itemErrorsTableName)
+        where T : RavenTransaction
+    {
+        context.Transaction.InnerTransaction.DeleteTable(processErrorsTableName);
+        context.Transaction.InnerTransaction.DeleteTable(itemErrorsTableName);
     }
 
     internal void StoreProcessError(EtlProcessError processError)
@@ -360,14 +360,8 @@ public unsafe class EtlErrorsStorage
     
     public void DeleteErrorsOfEtl(string etlProcessName)
     {
-        foreach (var process in _etlLoader.Processes)
-        {
-            if (process.ConfigurationName == etlProcessName)
-            {
-                DeleteEtlErrorsTablesForProcess(process.Name);
-                CreateEtlErrorsTablesForProcess(process.Name);
-            }
-        }
+        DeleteEtlErrorsTablesForProcess(etlProcessName);
+        CreateEtlErrorsTablesForProcess(etlProcessName);
     }
 
     private static void DeleteOldestProcessErrorOfTask<T>(Table table, TransactionOperationContext<T> context, string etlTaskName)
