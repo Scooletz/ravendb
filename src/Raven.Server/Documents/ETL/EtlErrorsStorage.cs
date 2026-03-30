@@ -187,62 +187,6 @@ public unsafe class EtlErrorsStorage
         };
     }
     
-    /*
-    private static IEnumerable<EtlProcessErrorTableValue> ReadProcessErrorsByCreatedAtIndex(string etlProcessName, DocumentsOperationContext context)
-    {
-        var tableName = GetProcessErrorsTableName(etlProcessName);
-        
-        var table = context.Transaction.InnerTransaction.OpenTable(Schemas.EtlProcessErrors.Current, tableName);
-        if (table == null)
-            yield break;
-
-        foreach (var tvr in table.SeekForwardFrom(Schemas.EtlProcessErrors.Current.Indexes[Schemas.EtlProcessErrors.ByCreatedAt], Slices.BeforeAllKeys, 0))
-        {
-            yield return ReadProcessError(ref tvr.Result.Reader);
-        }
-    }
-    
-    private static IEnumerable<EtlItemErrorTableValue> ReadItemErrorsByCreatedAtIndex(string etlProcessName, DocumentsOperationContext context)
-    {
-        var tableName = GetProcessErrorsTableName(etlProcessName);
-        
-        var table = context.Transaction.InnerTransaction.OpenTable(Schemas.EtlItemErrors.Current, tableName);
-        if (table == null)
-            yield break;
-
-        foreach (var tvr in table.SeekForwardFrom(Schemas.EtlItemErrors.Current.Indexes[Schemas.EtlItemErrors.ByCreatedAt], Slices.BeforeAllKeys, 0))
-        {
-            yield return ReadItemError(ref tvr.Result.Reader);
-        }
-    }
-    
-    public IDisposable ReadProcessErrorsOrderedByCreationDate(string etlProcessName, out IEnumerable<EtlProcessErrorTableValue> errors)
-    {
-        using (var scope = new DisposableScope())
-        {
-            scope.EnsureDispose(_contextPool.AllocateOperationContext(out DocumentsOperationContext context));
-            scope.EnsureDispose(context.OpenReadTransaction());
-
-            errors = ReadProcessErrorsByCreatedAtIndex(etlProcessName, context);
-
-            return scope.Delay();
-        }
-    }
-    
-    public IDisposable ReadItemErrorsOrderedByCreationDate(string etlProcessName, out IEnumerable<EtlItemErrorTableValue> errors)
-    {
-        using (var scope = new DisposableScope())
-        {
-            scope.EnsureDispose(_contextPool.AllocateOperationContext(out DocumentsOperationContext context));
-            scope.EnsureDispose(context.OpenReadTransaction());
-
-            errors = ReadItemErrorsByCreatedAtIndex(etlProcessName, context);
-
-            return scope.Delay();
-        }
-    }
-    */
-    
     public List<EtlProcessErrorTableValue> ReadAllProcessErrors()
     {
         var errors = new List<EtlProcessErrorTableValue>();
