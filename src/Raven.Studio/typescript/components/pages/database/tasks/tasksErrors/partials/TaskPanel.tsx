@@ -12,9 +12,11 @@ import {
     useReactTable,
 } from "@tanstack/react-table";
 import { virtualTableUtils } from "components/common/virtualTable/utils/virtualTableUtils";
+import { virtualTableConstants } from "components/common/virtualTable/utils/virtualTableConstants";
 import VirtualTable from "components/common/virtualTable/VirtualTable";
 import SizeGetter from "components/common/SizeGetter";
 import { CellWithCopyWrapper } from "components/common/virtualTable/cells/CellWithCopy";
+import { CellValueWrapper } from "components/common/virtualTable/cells/CellValue";
 import {
     RichPanel,
     RichPanelActions,
@@ -69,7 +71,7 @@ function EtlTypeRichPanelItem({ etlType }: EtlTypeRichPanelItemProps) {
     );
 }
 
-function useTasksErrorsPanelTableColumns(availableWidth: number) {
+function useTasksErrorsPanelTableColumns(availableWidth: number, hasProcessErrors: boolean) {
     const db = useAppSelector(databaseSelectors.activeDatabase);
     const bodyWidth = virtualTableUtils.getTableBodyWidth(availableWidth);
     const getSize = virtualTableUtils.getCellSizeProvider(bodyWidth - SHOW_WIDTH_SIZE);
@@ -105,11 +107,21 @@ function useTasksErrorsPanelTableColumns(availableWidth: number) {
                 accessorKey: "CreatedAt",
                 size: getSize(20),
             },
+            ...(hasProcessErrors
+                ? [
+                      {
+                          header: "Affected Documents",
+                          cell: CellValueWrapper,
+                          accessorKey: "AffectedDocumentsCount",
+                          size: getSize(10),
+                      },
+                  ]
+                : []),
             {
                 header: "Error",
                 cell: CellWithCopyWrapper,
                 accessorKey: "Error",
-                size: getSize(db.isSharded ? 40 : 45),
+                size: getSize((db.isSharded ? 40 : 45) - (hasProcessErrors ? 10 : 0)),
                 enableSorting: false,
             },
             {
@@ -121,7 +133,7 @@ function useTasksErrorsPanelTableColumns(availableWidth: number) {
                 enableColumnFilter: false,
             },
         ],
-        [getSize]
+        [getSize, hasProcessErrors]
     );
 
     if (db.isSharded) {
@@ -144,7 +156,7 @@ interface NestedTaskPanelDetailsTableProps {
 }
 
 function NestedTaskPanelDetailsTable({ width, itemErrors, processErrors }: NestedTaskPanelDetailsTableProps) {
-    const columns = useTasksErrorsPanelTableColumns(width);
+    const columns = useTasksErrorsPanelTableColumns(width, processErrors.length > 0);
     const data = useMemo(() => flattenTransformationErrors(itemErrors, processErrors), [itemErrors, processErrors]);
 
     const tasksErrorsPanelTable = useReactTable({
@@ -156,7 +168,13 @@ function NestedTaskPanelDetailsTable({ width, itemErrors, processErrors }: Neste
         getFilteredRowModel: getFilteredRowModel(),
     });
 
-    return <VirtualTable table={tasksErrorsPanelTable} heightInPx={400} rowHeightInPx={56} />;
+    return (
+        <VirtualTable
+            table={tasksErrorsPanelTable}
+            heightInPx={400}
+            rowHeightInPx={virtualTableConstants.doubleLineRowHeightInPx}
+        />
+    );
 }
 
 interface NestedTaskPanelDetailsProps extends EtlTransformationWithErrors {

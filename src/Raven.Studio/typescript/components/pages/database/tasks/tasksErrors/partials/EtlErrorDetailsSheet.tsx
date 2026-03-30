@@ -2,7 +2,6 @@ import React, { ReactNode } from "react";
 import classNames from "classnames";
 import { Icon } from "components/common/Icon";
 import Badge from "react-bootstrap/Badge";
-import Card from "react-bootstrap/Card";
 import Button from "react-bootstrap/Button";
 import { useViewSheet, ViewSheet } from "components/common/splitView/ViewSheet";
 import CellDocumentValue from "components/common/virtualTable/cells/CellDocumentValue";
@@ -17,6 +16,7 @@ import {
     getStepIcon,
     healthStatusToBadge,
 } from "../utils/tasksErrorsUtils";
+import Code from "components/common/Code";
 
 interface SheetDetailRowProps {
     children: ReactNode;
@@ -170,9 +170,7 @@ export default function EtlErrorDetailsSheet({
 
                     {error.Error && (
                         <div>
-                            <Card className="bg-black p-2">
-                                <pre className="text-wrap mb-0 small">{error.Error}</pre>
-                            </Card>
+                            <Code code={error.Error} language="csharp" />
                         </div>
                     )}
                 </div>

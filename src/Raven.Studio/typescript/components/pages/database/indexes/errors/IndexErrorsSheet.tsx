@@ -40,7 +40,7 @@ export default function IndexErrorsSheet({ errorDetails, allRows, initialIndex }
                     {error.IndexName && (
                         <div className="d-flex justify-content-between align-items-center pb-1 border-bottom border-secondary">
                             <div className="small-label">Index name</div>
-                            <a href={appUrl.forEditIndex(error.IndexName, dbName)} className="fw-bold text-truncate">
+                            <a href={appUrl.forEditIndex(error.IndexName, dbName)} className="text-truncate">
                                 {error.IndexName}
                             </a>
                         </div>

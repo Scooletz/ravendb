@@ -11,10 +11,11 @@ import {
     useReactTable,
 } from "@tanstack/react-table";
 import { virtualTableUtils } from "components/common/virtualTable/utils/virtualTableUtils";
+import { virtualTableConstants } from "components/common/virtualTable/utils/virtualTableConstants";
 import VirtualTable from "components/common/virtualTable/VirtualTable";
 import SizeGetter from "components/common/SizeGetter";
-import DateFormatterCell from "components/common/virtualTable/cells/CellDateFormatter";
 import { CellWithCopyWrapper } from "components/common/virtualTable/cells/CellWithCopy";
+import { CellValueWrapper } from "components/common/virtualTable/cells/CellValue";
 import { EmptySet } from "components/common/EmptySet";
 import TableDisplaySettings from "components/common/virtualTable/commonComponents/columnsSelect/TableDisplaySettings";
 import useBoolean from "hooks/useBoolean";
@@ -29,6 +30,7 @@ import {
     TasksFiltersState,
 } from "../utils/tasksErrorsUtils";
 import {
+    CellDateWithRelativeTimeWrapper,
     CellErrorStepWrapper,
     CellErrorTypeWrapper,
     CellEtlTypeWrapper,
@@ -45,7 +47,7 @@ import EtlTaskStats = Raven.Server.Documents.ETL.Stats.EtlTaskStats;
 import { accessManagerSelectors } from "components/common/shell/accessManagerSliceSelectors";
 import { DatabaseAccessPopover } from "components/common/DatabaseAccessPopover";
 
-function useGroupByNoneTableColumns(availableWidth: number) {
+function useGroupByNoneTableColumns(availableWidth: number, hasProcessErrors: boolean) {
     const db = useAppSelector(databaseSelectors.activeDatabase);
     const bodyWidth = virtualTableUtils.getTableBodyWidth(availableWidth);
     const getSize = virtualTableUtils.getCellSizeProvider(bodyWidth - SHOW_WIDTH_SIZE);
@@ -92,14 +94,24 @@ function useGroupByNoneTableColumns(availableWidth: number) {
             {
                 header: "Date",
                 accessorKey: "CreatedAt",
-                cell: DateFormatterCell,
+                cell: CellDateWithRelativeTimeWrapper,
                 size: getSize(15),
             },
+            ...(hasProcessErrors
+                ? [
+                      {
+                          header: "Affected Documents",
+                          accessorKey: "AffectedDocumentsCount",
+                          cell: CellValueWrapper,
+                          size: getSize(8),
+                      },
+                  ]
+                : []),
             {
                 header: "Content",
                 accessorKey: "Error",
                 cell: CellWithCopyWrapper,
-                size: getSize(db.isSharded ? 25 : 30),
+                size: getSize((db.isSharded ? 20 : 25) - (hasProcessErrors ? 8 : 0)),
                 enableSorting: false,
             },
             {
@@ -127,7 +139,7 @@ function useGroupByNoneTableColumns(availableWidth: number) {
                 enableSorting: false,
             },
         ],
-        [getSize]
+        [getSize, hasProcessErrors]
     );
 
     if (db.isSharded) {
@@ -165,7 +177,6 @@ function GroupByNoneTable({
     const [columnOrder, setColumnOrder] = useState<string[]>([]);
     const [columnPinning, setColumnPinning] = useState<ColumnPinningState>({});
 
-    const columns = useGroupByNoneTableColumns(width);
     const hasDatabaseWriteAccess = useAppSelector(accessManagerSelectors.getHasDatabaseWriteAccess)();
 
     const data = useMemo<FlatError[]>(() => {
@@ -186,6 +197,9 @@ function GroupByNoneTable({
             return matchesSearch && matchesNode && matchesShard && matchesHealth && matchesTaskType;
         });
     }, [tasksWithErrors, etlStats, filters]);
+
+    const hasProcessErrors = data.some((e) => e.errorType === "Process");
+    const columns = useGroupByNoneTableColumns(width, hasProcessErrors);
 
     const table = useReactTable({
         data,
@@ -225,7 +239,13 @@ function GroupByNoneTable({
                 <SizeGetter
                     isHeighRequired
                     className="flex-grow-1 min-h-0"
-                    render={({ height }) => <VirtualTable table={table} heightInPx={height} />}
+                    render={({ height }) => (
+                        <VirtualTable
+                            table={table}
+                            heightInPx={height}
+                            rowHeightInPx={virtualTableConstants.doubleLineRowHeightInPx}
+                        />
+                    )}
                 />
             )}
         </div>
