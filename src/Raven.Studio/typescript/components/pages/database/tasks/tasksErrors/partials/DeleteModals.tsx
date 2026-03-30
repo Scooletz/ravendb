@@ -93,8 +93,8 @@ export function DeleteTaskErrorsModal({ toggle, etlName, errorsCount }: DeleteTa
                     You are about to delete all <b>{errorsCount} errors</b> from <b>{etlName}</b> task.
                 </p>
                 <RichAlert variant="info" icon="info">
-                    While the current AI task errors will be deleted, a task in an <b>Error state</b> will not set back
-                    to the <b>Normal</b> state.
+                    While the current task errors will be deleted, a task in an <b>Error state</b> will not set back to
+                    the <b>Normal</b> state.
                 </RichAlert>
                 {isRequireTypedConfirm && (
                     <FormGroup className="mt-3">

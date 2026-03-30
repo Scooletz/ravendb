@@ -14,7 +14,6 @@ import {
 import { virtualTableUtils } from "components/common/virtualTable/utils/virtualTableUtils";
 import VirtualTable from "components/common/virtualTable/VirtualTable";
 import SizeGetter from "components/common/SizeGetter";
-import DateFormatterCell from "components/common/virtualTable/cells/CellDateFormatter";
 import { CellWithCopyWrapper } from "components/common/virtualTable/cells/CellWithCopy";
 import {
     RichPanel,
@@ -41,6 +40,7 @@ import {
     SHOW_WIDTH_SIZE,
 } from "../utils/tasksErrorsUtils";
 import {
+    CellDateWithRelativeTimeWrapper,
     CellErrorStepWrapper,
     CellErrorTypeWrapper,
     CellNodeValueWrapper,
@@ -101,7 +101,7 @@ function useTasksErrorsPanelTableColumns(availableWidth: number) {
             },
             {
                 header: "Date",
-                cell: DateFormatterCell,
+                cell: CellDateWithRelativeTimeWrapper,
                 accessorKey: "CreatedAt",
                 size: getSize(20),
             },
@@ -156,7 +156,7 @@ function NestedTaskPanelDetailsTable({ width, itemErrors, processErrors }: Neste
         getFilteredRowModel: getFilteredRowModel(),
     });
 
-    return <VirtualTable table={tasksErrorsPanelTable} heightInPx={400} />;
+    return <VirtualTable table={tasksErrorsPanelTable} heightInPx={400} rowHeightInPx={56} />;
 }
 
 interface NestedTaskPanelDetailsProps extends EtlTransformationWithErrors {

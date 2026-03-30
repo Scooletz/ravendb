@@ -136,7 +136,10 @@ export default function EtlErrorDetailsSheet({
                     {error.CreatedAt && (
                         <SheetDetailRow>
                             <div className="small">Date</div>
-                            <div>{moment(error.CreatedAt).format(genUtils.dateFormat)}</div>
+                            <div className="vstack align-items-end">
+                                <span>{moment(error.CreatedAt).format(genUtils.dateFormat)}</span>
+                                <small className="text-muted">{moment(error.CreatedAt).fromNow()}</small>
+                            </div>
                         </SheetDetailRow>
                     )}
 

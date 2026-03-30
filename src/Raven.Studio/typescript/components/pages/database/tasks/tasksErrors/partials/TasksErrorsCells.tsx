@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { CellContext } from "@tanstack/react-table";
 import { Icon } from "components/common/Icon";
 import CellValue from "components/common/virtualTable/cells/CellValue";
@@ -10,8 +10,8 @@ import Button from "react-bootstrap/Button";
 import { useViewSheet } from "components/common/splitView/ViewSheet";
 import { useAppSelector } from "components/store";
 import { databaseSelectors } from "components/common/shell/databaseSliceSelectors";
-import { useAppUrls } from "hooks/useAppUrls";
-import assertUnreachable from "components/utils/assertUnreachable";
+import moment from "moment";
+import genUtils from "common/generalUtils";
 import EtlErrorDetailsSheet from "./EtlErrorDetailsSheet";
 import {
     EtlErrorStep,
@@ -187,6 +187,29 @@ export const CellTaskHealthWrapper = ({ getValue }: CellContext<FlatError, EtlHe
                 {label}
             </Badge>
         </PopoverWithHoverWrapper>
+    );
+};
+
+export const CellDateWithRelativeTimeWrapper = ({ getValue }: CellContext<FlatError, string>) => {
+    const rawValue = getValue();
+
+    const dateValue = useMemo(() => {
+        if (!rawValue) {
+            return null;
+        }
+        const parsed = new Date(rawValue);
+        return isNaN(parsed.getTime()) ? null : parsed;
+    }, [rawValue]);
+
+    if (!dateValue) {
+        return <CellValue value="-" />;
+    }
+
+    return (
+        <small className="vstack cell-value value-string">
+            <span>{moment(dateValue).format(genUtils.dateFormat)}</span>
+            <small>{moment(dateValue).fromNow()}</small>
+        </small>
     );
 };
 
