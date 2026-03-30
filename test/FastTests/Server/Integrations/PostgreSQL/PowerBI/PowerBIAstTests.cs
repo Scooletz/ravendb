@@ -106,6 +106,49 @@ limit 1000001";
             Assert.IsType<PowerBIDirectQuery>(pgQuery);
         }
 
+        [Fact(Skip = "Scalar aggregates are intentionally unsupported (RQL requires group by for sum). Remove/enable when scalar support is implemented.")]
+        public void DirectQuery_aggregate_only_sum_should_be_classified_as_direct_query()
+        {
+            const string sql = @"select sum(""rows"".""Freight"") as ""a0""
+from
+(
+    select ""Freight""
+    from
+    (
+        from Orders
+    ) ""$Table""
+) ""rows""";
+
+            Assert.True(PowerBIQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
+            Assert.IsType<PowerBIDirectQuery>(pgQuery);
+        }
+
+        [Fact]
+        public void DirectQuery_desktop_grouped_sum_two_group_fields_with_inner_filter_on_group_field_should_be_classified_as_direct_query()
+        {
+            const string sql = @"select ""_"".""Employee"",
+    ""_"".""RequireAt"",
+    ""_"".""a0""
+from
+(
+    select ""rows"".""Employee"" as ""Employee"",
+        ""rows"".""RequireAt"" as ""RequireAt"",
+        sum(""rows"".""Freight"") as ""a0""
+    from
+    (
+        from Orders
+        where Employee != null
+    ) ""rows""
+    group by ""Employee"",
+        ""RequireAt""
+) ""_""
+where not ""_"".""a0"" is null
+limit 1000001";
+
+            Assert.True(PowerBIQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
+            Assert.IsType<PowerBIDirectQuery>(pgQuery);
+        }
+
         [Fact]
         public void DirectQuery_desktop_employee_requireAt_json_with_null_order_helper_columns_should_be_classified_as_direct_query()
         {

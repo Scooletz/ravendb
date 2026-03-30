@@ -31,9 +31,6 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
 
         private sealed record DirectQueryShape(
             List<string> ProjectionCols,
-            List<string> GroupByCols,
-            List<string> OrderByCols,
-            List<bool> OrderByDescFlags,
             int Limit);
 
         private sealed record GroupedAggregateShape(
@@ -137,6 +134,15 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                     return true;
                 }
 
+                // Scalar aggregates (aggregate without group by) are not supported in Raven RQL.
+                if (wrapper.GroupByColumns is not { Count: > 0 } &&
+                    (string.IsNullOrWhiteSpace(wrapper.AggregateFunction) == false ||
+                     string.IsNullOrWhiteSpace(wrapper.AggregateField) == false ||
+                     string.IsNullOrWhiteSpace(wrapper.AggregateOutput) == false))
+                    return false;
+
+                // Scalar aggregates (sum without group by) are not supported in Raven RQL.
+                // Keep DirectQuery ownership restricted to non-aggregate wrappers and grouped-aggregate wrappers only.
                 if (TryBuildDirectQueryShape(wrapper, out var shape) == false)
                     return false;
 
@@ -150,14 +156,10 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                     return false;
                 }
 
-                // If the inner RQL doesn't define an alias (`from Orders ...`), we normally allow DirectQuery for plain field projections.
-                // However, some DirectQuery wrapper shapes require alias-based constructs like `"json()": <alias>` / `id(<alias>)`,
-                // or translating an outer SQL WHERE. In those cases synthesize a stable alias so we can still rewrite and execute.
+                // Non-aggregate DirectQuery rewrite always emits `select { ... }` (object projection).
+                // Raven requires a from-alias for object projections, so synthesize a stable alias when missing.
                 if (q.From.Alias == null)
-                {
-                    if (RequiresFromAlias(shape.ProjectionCols, shape.OrderByCols) || selectStmt.WhereClause != null)
-                        q.From.Alias = "_doc";
-                }
+                    q.From.Alias = "_doc";
 
                 if (selectStmt.WhereClause != null)
                 {
@@ -169,11 +171,9 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                         : new BinaryExpression(q.Where, whereExpression, OperatorType.And);
                 }
 
-                var rewrittenRql = RewriteRqlProjection(
+                var rewrittenRql = RewriteSimpleDirectQueryRql(
                     q,
                     projectionCols: shape.ProjectionCols,
-                    shape.OrderByCols,
-                    orderByDescFlags: shape.OrderByDescFlags,
                     shape.Limit);
                 if (rewrittenRql == null)
                     return false;
@@ -190,31 +190,6 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 return false;
             }
 
-            static bool RequiresFromAlias(IReadOnlyList<string> projectionCols, IReadOnlyList<string> orderByCols)
-            {
-                if (projectionCols != null)
-                {
-                    foreach (var c in projectionCols)
-                    {
-                        if (string.Equals(c, "json()", StringComparison.OrdinalIgnoreCase) ||
-                            string.Equals(c, "id()", StringComparison.OrdinalIgnoreCase))
-                            return true;
-                    }
-                }
-                if (orderByCols != null)
-                {
-                    foreach (var c in orderByCols)
-                    {
-                        if (string.Equals(c, "json()", StringComparison.OrdinalIgnoreCase) ||
-                            string.Equals(c, "id()", StringComparison.OrdinalIgnoreCase))
-                            return true;
-                    }
-                }
-
-                return false;
-            }
-
-
             static bool TryNormalizeDirectQueryWrapper(SelectStmt selectStmt, out NormalizedWrapper wrapper)
             {
                 wrapper = null;
@@ -222,7 +197,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 if (selectStmt == null)
                     return false;
 
-                if (TryExtractOuterProjectedColumns(selectStmt, out var outerCols) == false)
+                if (TryExtractProjectedColumnsFromAnyWrapperLevel(selectStmt, out var outerCols) == false)
                     return false;
 
                 int? limit = null;
@@ -300,6 +275,55 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                     AggregateField: aggField,
                     AggregateOutput: aggOutput);
                 return true;
+
+                static bool TryExtractProjectedColumnsFromAnyWrapperLevel(SelectStmt s, out List<string> cols)
+                {
+                    cols = null;
+                    var current = s;
+                    while (current != null)
+                    {
+                        if (TryExtractOuterProjectedColumns(current, out cols))
+                            return true;
+
+                        if (TryExtractSimpleProjectedColumns(current, out cols))
+                            return true;
+
+                        if (current.FromClause is not { Count: 1 } from)
+                            return false;
+
+                        current = from[0]?.RangeSubselect?.Subquery?.SelectStmt;
+                    }
+
+                    return false;
+                }
+
+                static bool TryExtractSimpleProjectedColumns(SelectStmt s, out List<string> cols)
+                {
+                    cols = null;
+
+                    if (s?.TargetList == null || s.TargetList.Count == 0)
+                        return false;
+
+                    cols = new List<string>(capacity: s.TargetList.Count);
+                    foreach (var t in s.TargetList)
+                    {
+                        var rt = t?.ResTarget;
+                        if (rt == null)
+                            return false;
+
+                        var colRef = rt.Val?.ColumnRef;
+                        if (colRef?.Fields is not { Count: 1 })
+                            return false;
+
+                        var colName = colRef.Fields[0]?.String?.Sval;
+                        if (string.IsNullOrWhiteSpace(colName))
+                            return false;
+
+                        cols.Add(colName);
+                    }
+
+                    return cols.Count > 0;
+                }
 
                 static ColumnRef TryUnwrapToColumnRefLocal(Node node)
                 {
@@ -445,12 +469,15 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 if (wrapper == null)
                     return false;
 
-                if (wrapper.GroupByColumns is not { Count: > 0 })
-                    return false;
-
                 if (string.IsNullOrWhiteSpace(wrapper.AggregateFunction) ||
                     string.IsNullOrWhiteSpace(wrapper.AggregateField) ||
                     string.IsNullOrWhiteSpace(wrapper.AggregateOutput))
+                    return false;
+
+                if (string.Equals(wrapper.AggregateFunction, "sum", StringComparison.OrdinalIgnoreCase) == false)
+                    return false;
+
+                if (wrapper.GroupByColumns is not { Count: > 0 })
                     return false;
 
                 if (wrapper.Limit == null || wrapper.Offset != null)
@@ -544,26 +571,14 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 if (wrapper.OuterProjectedColumns is not { Count: > 0 })
                     return false;
 
+                // Non-aggregate DirectQuery: only own the Power BI distinct-list wrapper family.
+                // For current supported scope, require GROUP BY presence.
                 if (wrapper.GroupByColumns is not { Count: > 0 })
                     return false;
 
-                if (IsSubsetIgnoreCase(wrapper.OuterProjectedColumns, wrapper.GroupByColumns) == false)
-                    return false;
-
-                if (wrapper.OrderByColumns is not { Count: > 0 })
-                    return false;
-
-                if (wrapper.OrderByDescFlags == null || wrapper.OrderByDescFlags.Count != wrapper.OrderByColumns.Count)
-                    return false;
-
-                if (IsSubsetIgnoreCase(wrapper.OrderByColumns, wrapper.OuterProjectedColumns) == false &&
-                    IsSubsetIgnoreCase(wrapper.OrderByColumns, wrapper.GroupByColumns) == false)
-                    return false;
-
-                if (wrapper.Limit == null)
-                    return false;
-
-                shape = new DirectQueryShape(wrapper.OuterProjectedColumns, wrapper.GroupByColumns, wrapper.OrderByColumns, wrapper.OrderByDescFlags, wrapper.Limit.Value);
+                // Non-aggregate DirectQuery wrappers: ignore wrapper GROUP BY / ORDER BY.
+                var limit = wrapper.Limit ?? 1000001;
+                shape = new DirectQueryShape(wrapper.OuterProjectedColumns, limit);
                 return true;
             }
 
@@ -812,43 +827,6 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 return true;
             }
 
-            static bool TryExtractInnerGroupBySelect(SelectStmt outerSelectStmt, out SelectStmt groupBySelect)
-            {
-                groupBySelect = null;
-
-                if (outerSelectStmt?.FromClause is not { Count: 1 })
-                    return false;
-
-                var rss = outerSelectStmt.FromClause[0]?.RangeSubselect;
-                if (rss == null)
-                    return false;
-
-                var aliasName = rss.Alias?.Aliasname;
-                if (string.IsNullOrWhiteSpace(aliasName) || string.Equals(aliasName, "_", StringComparison.OrdinalIgnoreCase) == false)
-                    return false;
-
-                var current = rss.Subquery?.SelectStmt;
-                while (current != null)
-                {
-                    if (current.GroupClause is { Count: > 0 })
-                    {
-                        groupBySelect = current;
-                        return true;
-                    }
-
-                    if (current.FromClause is not { Count: 1 } currentFrom)
-                        return false;
-
-                    var next = currentFrom[0]?.RangeSubselect?.Subquery?.SelectStmt;
-                    if (next == null)
-                        return false;
-
-                    current = next;
-                }
-
-                return false;
-            }
-
             static bool TryExtractGroupByColumns(SelectStmt selectStmt, out List<string> cols)
             {
                 cols = null;
@@ -868,40 +846,6 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                         return false;
 
                     cols.Add(colName);
-                }
-
-                return true;
-            }
-
-            static bool TryExtractOrderByColumns(SelectStmt selectStmt, out List<string> cols, out List<bool> descFlags, SelectStmt groupBySelect)
-            {
-                cols = null;
-                descFlags = null;
-
-                if (selectStmt?.SortClause == null || selectStmt.SortClause.Count == 0)
-                    return false;
-
-                cols = new List<string>(capacity: selectStmt.SortClause.Count);
-                descFlags = new List<bool>(capacity: selectStmt.SortClause.Count);
-
-                foreach (var sortNode in selectStmt.SortClause)
-                {
-                    var sortBy = sortNode?.SortBy;
-                    if (sortBy == null)
-                        return false;
-
-                    var colRef = sortBy.Node?.ColumnRef;
-                    if (colRef == null)
-                        return false;
-
-                    if (TryExtractOuterUnderscoreQualifiedColumn(colRef, out var colName) == false)
-                        return false;
-
-                    if (TryNormalizeOrderByHelperColumn(colName, groupBySelect, out var normalized))
-                        colName = normalized;
-
-                    cols.Add(colName);
-                    descFlags.Add(sortBy.SortbyDir == SortByDir.SortbyDesc);
                 }
 
                 return true;
@@ -1117,45 +1061,6 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 return true;
             }
 
-            static bool TryExtractDirectQueryShape(SelectStmt selectStmt, out DirectQueryShape shape)
-            {
-                shape = null;
-
-                if (TryExtractOuterProjectedColumns(selectStmt, out var cols) == false)
-                    return false;
-
-                if (cols.Count == 0)
-                    return false;
-
-                if (TryExtractInnerGroupBySelect(selectStmt, out var groupBySelect) == false)
-                    return false;
-
-                if (TryExtractGroupByColumns(groupBySelect, out var groupByCols) == false)
-                    return false;
-
-                if (groupByCols.Count == 0)
-                    return false;
-
-                if (IsSubsetIgnoreCase(cols, groupByCols) == false)
-                    return false;
-
-                if (TryExtractOrderByColumns(selectStmt, out var orderByCols, out var orderDescFlags, groupBySelect) == false)
-                    return false;
-
-                if (orderByCols.Count == 0)
-                    return false;
-
-                // Be tolerant of PowerBI helper columns used only for ORDER BY (e.g. null-order helper aliases).
-                if (IsSubsetIgnoreCase(orderByCols, cols) == false && IsSubsetIgnoreCase(orderByCols, groupByCols) == false)
-                    return false;
-
-                if (TryExtractLimit(selectStmt, out var limit) == false)
-                    return false;
-
-                shape = new DirectQueryShape(cols, groupByCols, orderByCols, orderDescFlags, limit);
-                return true;
-            }
-
             static bool IsValidRqlSelect(string rql)
             {
                 try
@@ -1167,32 +1072,6 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 {
                     return false;
                 }
-            }
-
-            static bool IsSubsetIgnoreCase(IReadOnlyList<string> subset, IReadOnlyList<string> superset)
-            {
-                if (subset == null || superset == null)
-                    return false;
-
-                var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                foreach (var s in superset)
-                {
-                    if (string.IsNullOrWhiteSpace(s))
-                        continue;
-
-                    set.Add(s);
-                }
-
-                foreach (var s in subset)
-                {
-                    if (string.IsNullOrWhiteSpace(s))
-                        return false;
-
-                    if (set.Contains(s) == false)
-                        return false;
-                }
-
-                return true;
             }
 
             static string TryExtractLastIdentifierSegment(ColumnRef colRef)
@@ -1224,18 +1103,15 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 return string.IsNullOrWhiteSpace(colName) == false;
             }
 
-            static string RewriteRqlProjection(Documents.Queries.AST.Query q, IReadOnlyList<string> projectionCols, IReadOnlyList<string> orderByCols, IReadOnlyList<bool> orderByDescFlags, int limit)
+            static string RewriteSimpleDirectQueryRql(Documents.Queries.AST.Query q, IReadOnlyList<string> projectionCols, int limit)
             {
                 if (q == null)
                     return null;
 
+                if (q.From.Alias == null)
+                    q.From.Alias = "_doc";
+
                 if (projectionCols == null || projectionCols.Count == 0)
-                    return null;
-
-                if (orderByCols == null || orderByCols.Count == 0)
-                    return null;
-
-                if (orderByDescFlags == null || orderByDescFlags.Count != orderByCols.Count)
                     return null;
 
                 Dictionary<string, string> projectionExprs = null;
@@ -1245,57 +1121,22 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                     projectionExprs = TryExtractProjectionExpressions(q.SelectFunctionBody.FunctionText.AsSpan());
                 }
 
-                if (TryRewriteAsAliaslessPlainFieldDistinct(q, projectionCols, orderByCols, orderByDescFlags, limit, projectionExprs, out var rewritten))
-                    return rewritten;
+                var core = q.ShallowCopy();
+                core.IsDistinct = false;
+                core.Filter = null;
+                core.FilterLimit = null;
+                core.OrderBy = null;
+                core.Select = null;
+                core.SelectFunctionBody = default;
+                core.Limit = null;
+                core.Offset = null;
 
-                var prefixQuery = q.ShallowCopy();
-                prefixQuery.IsDistinct = false;
-                prefixQuery.Filter = null;
-                prefixQuery.FilterLimit = null;
-                prefixQuery.OrderBy = null;
-                prefixQuery.Select = null;
-                prefixQuery.SelectFunctionBody = default;
-                prefixQuery.Limit = null;
-                prefixQuery.Offset = null;
-
-                var prefix = prefixQuery.ToString();
+                var prefix = core.ToString();
                 if (string.IsNullOrWhiteSpace(prefix))
                     return null;
 
                 prefix = prefix.TrimEnd();
                 prefix = prefix.Replace("\r\n", "\n", StringComparison.Ordinal);
-
-                var orderByParts = new List<string>(capacity: orderByCols.Count);
-                for (int i = 0; i < orderByCols.Count; i++)
-                {
-                    var colName = orderByCols[i];
-                    if (string.IsNullOrWhiteSpace(colName))
-                        return null;
-
-                    if (string.Equals(colName, "json()", StringComparison.OrdinalIgnoreCase))
-                    {
-                        if (q.From.Alias == null)
-                            return null;
-
-                        orderByParts.Add(q.From.Alias + (orderByDescFlags[i] ? " desc" : string.Empty));
-                        continue;
-                    }
-
-                    if (string.Equals(colName, "id()", StringComparison.OrdinalIgnoreCase))
-                    {
-                        if (q.From.Alias == null)
-                            return null;
-
-                        orderByParts.Add($"id({q.From.Alias})" + (orderByDescFlags[i] ? " desc" : string.Empty));
-                        continue;
-                    }
-
-                    var id = FormatRqlIdentifier(colName);
-                    if (id == null)
-                        return null;
-
-                    orderByParts.Add(id + (orderByDescFlags[i] ? " desc" : string.Empty));
-                }
 
                 var selectParts = new List<string>(capacity: projectionCols.Count);
                 for (int i = 0; i < projectionCols.Count; i++)
@@ -1337,92 +1178,23 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                     selectParts.Add($"{selectField}: {expr}");
                 }
 
+
                 const string nl = "\n";
-                return prefix + nl +
-                       $"order by {string.Join(", ", orderByParts)}" + nl +
-                       $"select distinct {{ {string.Join(", ", selectParts)} }}" + nl +
-                       $"limit 0, {limit}";
-            }
+                var sb = new System.Text.StringBuilder();
+                sb.Append(prefix);
+                sb.Append(nl);
+                sb.Append("select { ");
+                sb.Append(string.Join(", ", selectParts));
+                sb.Append(" }");
 
-            static bool TryRewriteAsAliaslessPlainFieldDistinct(
-                Documents.Queries.AST.Query q,
-                IReadOnlyList<string> projectionCols,
-                IReadOnlyList<string> orderByCols,
-                IReadOnlyList<bool> orderByDescFlags,
-                int limit,
-                Dictionary<string, string> projectionExprs,
-                out string rewritten)
-            {
-                rewritten = null;
-
-                if (q?.From.Alias != null)
-                    return false;
-
-                if (projectionExprs != null)
-                    return false;
-
-                if (projectionCols is not { Count: 1 })
-                    return false;
-
-                var onlyCol = projectionCols[0];
-                if (string.IsNullOrWhiteSpace(onlyCol))
-                    return false;
-
-                if (string.Equals(onlyCol, "json()", StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(onlyCol, "id()", StringComparison.OrdinalIgnoreCase))
-                    return false;
-
-                var selectId = FormatRqlIdentifier(onlyCol);
-                if (selectId == null)
-                    return false;
-
-                if (orderByCols == null || orderByCols.Count == 0)
-                    return false;
-
-                if (orderByDescFlags == null || orderByDescFlags.Count != orderByCols.Count)
-                    return false;
-
-                var prefixQuery = q.ShallowCopy();
-                prefixQuery.IsDistinct = false;
-                prefixQuery.Filter = null;
-                prefixQuery.FilterLimit = null;
-                prefixQuery.OrderBy = null;
-                prefixQuery.Select = null;
-                prefixQuery.SelectFunctionBody = default;
-                prefixQuery.Limit = null;
-                prefixQuery.Offset = null;
-
-                var prefix = prefixQuery.ToString();
-                if (string.IsNullOrWhiteSpace(prefix))
-                    return false;
-
-                prefix = prefix.TrimEnd();
-                prefix = prefix.Replace("\r\n", "\n", StringComparison.Ordinal);
-
-                var orderByParts = new List<string>(capacity: orderByCols.Count);
-                for (int i = 0; i < orderByCols.Count; i++)
+                if (limit >= 0)
                 {
-                    var c = orderByCols[i];
-                    if (string.IsNullOrWhiteSpace(c))
-                        return false;
-
-                    if (string.Equals(c, "json()", StringComparison.OrdinalIgnoreCase) ||
-                        string.Equals(c, "id()", StringComparison.OrdinalIgnoreCase))
-                        return false;
-
-                    var id = FormatRqlIdentifier(c);
-                    if (id == null)
-                        return false;
-
-                    orderByParts.Add(id + (orderByDescFlags[i] ? " desc" : string.Empty));
+                    sb.Append(nl);
+                    sb.Append("limit 0, ");
+                    sb.Append(limit);
                 }
 
-                const string nl = "\n";
-                rewritten = prefix + nl +
-                            $"order by {string.Join(", ", orderByParts)}" + nl +
-                            $"select distinct {selectId}" + nl +
-                            $"limit 0, {limit}";
-                return true;
+                return sb.ToString();
             }
 
 
