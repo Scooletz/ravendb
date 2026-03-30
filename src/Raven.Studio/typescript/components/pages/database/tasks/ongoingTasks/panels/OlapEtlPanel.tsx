@@ -100,13 +100,13 @@ export function OlapEtlPanel(props: OlapEtlPanelProps & ICanShowTransformationSc
                     connectionStringsUrl={connectionStringsUrl}
                 />
                 {data.shared.destinations.map((dst) => (
-                    <RichPanelDetailItem label="Destination" key={dst} title={dst}>
+                    <RichPanelDetailItem data-testid="destination" label="Destination" key={dst} title={dst}>
                         <div className="text-truncate" style={{ maxWidth: "200px" }}>
                             {dst}
                         </div>
                     </RichPanelDetailItem>
                 ))}
-                <RichPanelDetailItem label="Destination" title={data.shared.destinationDescription}>
+                <RichPanelDetailItem label="Destination Description" title={data.shared.destinationDescription}>
                     <div className="text-truncate" style={{ maxWidth: "200px" }}>
                         {data.shared.destinationDescription}
                     </div>

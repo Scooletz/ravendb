@@ -11,6 +11,7 @@ import {
 import {
     ConnectionStringItem,
     DestinationUrlItem,
+    EmptyScriptsWarning,
     ICanShowTransformationScriptPreview,
     OngoingTaskActions,
     OngoingTaskName,
@@ -117,6 +118,7 @@ export function RavenEtlPanel(props: RavenEtlPanelProps & ICanShowTransformation
                 <EtlPanelHealthBadge taskHealth={taskHealth} />
                 <EtlPanelErrors errorCount={errorCount} goToTaskErrors={goToTaskErrors} />
                 <EtlPanelProgressItem etlProgress={etlProgress} />
+                <EmptyScriptsWarning task={data} />
             </RichPanelDetails>
             <Collapse in={detailsVisible}>
                 <div>
