@@ -1,42 +1,33 @@
 import { useAppSelector } from "components/store";
-import { useCallback, useMemo, useReducer } from "react";
-import { loadableData } from "components/models/common";
+import { clusterSelectors } from "components/common/shell/clusterSlice";
+import { useCallback, useReducer } from "react";
+import { nodeAwareLoadableData } from "components/models/common";
 import assertUnreachable from "components/utils/assertUnreachable";
 import { produce } from "immer";
 import { useAsync } from "react-async-hook";
-import DatabaseUtils from "components/utils/DatabaseUtils";
-import { databaseSelectors } from "components/common/shell/databaseSliceSelectors";
-
-export interface nodeAwareLoadableData<T> extends loadableData<T> {
-    nodeTag: string;
-    shard?: number;
-}
 
 interface ClusterWideReducerState<T> {
     result: nodeAwareLoadableData<T>[];
 }
 
-export function useClusterWideAsync<T>(perNodeProvider: (location: databaseLocationSpecifier) => Promise<T>) {
-    const db = useAppSelector(databaseSelectors.activeDatabase);
-    const locations = useMemo(() => DatabaseUtils.getLocations(db), [db]);
+export function useClusterWideAsync<T>(perNodeProvider: (nodeTag: string) => Promise<T>) {
+    const nodeTags = useAppSelector(clusterSelectors.allNodeTags);
 
-    const [state, dispatch] = useReducer(clusterWideReducer<T>, locations, initReducer<T>);
+    const [state, dispatch] = useReducer(clusterWideReducer<T>, nodeTags, initReducer<T>);
 
-    const handleLocation = useCallback(
-        async (location: databaseLocationSpecifier) => {
+    const handleNode = useCallback(
+        async (nodeTag: string) => {
             try {
-                const result = await perNodeProvider(location);
+                const result = await perNodeProvider(nodeTag);
                 dispatch({
                     type: "NodeDataLoaded",
-                    nodeTag: location.nodeTag,
-                    shard: location.shardNumber,
+                    nodeTag,
                     data: result,
                 });
             } catch (error) {
                 dispatch({
                     type: "NodeDataError",
-                    nodeTag: location.nodeTag,
-                    shard: location.shardNumber,
+                    nodeTag,
                     error,
                 });
             }
@@ -44,24 +35,19 @@ export function useClusterWideAsync<T>(perNodeProvider: (location: databaseLocat
         [perNodeProvider]
     );
 
-    const { execute, loading } = useAsync(
-        () => Promise.allSettled(locations.map(handleLocation)),
-        [locations, handleLocation]
-    );
+    const { execute } = useAsync(() => Promise.allSettled(nodeTags.map(handleNode)), [nodeTags, handleNode]);
 
     return {
         result: state.result,
         refresh: execute,
-        loading,
     };
 }
 
-function initReducer<T>(locations: databaseLocationSpecifier[]): ClusterWideReducerState<T> {
+export function initReducer<T>(nodeTags: string[]): ClusterWideReducerState<T> {
     return {
-        result: locations.map(
-            (location): nodeAwareLoadableData<T> => ({
-                nodeTag: location.nodeTag,
-                shard: location.shardNumber,
+        result: nodeTags.map(
+            (tag): nodeAwareLoadableData<T> => ({
+                nodeTag: tag,
                 data: undefined,
                 status: "loading",
                 error: undefined,
@@ -74,14 +60,12 @@ type ClusterWideReducerAction<T> = ActionNodeDataLoaded<T> | ActionNodeDataError
 
 interface ActionNodeDataLoaded<T> {
     nodeTag: string;
-    shard?: number;
     type: "NodeDataLoaded";
     data: T;
 }
 
 interface ActionNodeDataError {
     nodeTag: string;
-    shard?: number;
     type: "NodeDataError";
     error: any;
 }
@@ -94,7 +78,7 @@ function clusterWideReducer<T>(
     switch (type) {
         case "NodeDataLoaded":
             return produce(state, (draft) => {
-                const itemToModify = draft.result.find((t) => t.nodeTag === action.nodeTag && t.shard === action.shard);
+                const itemToModify = draft.result.find((t) => t.nodeTag === action.nodeTag);
                 if (!itemToModify) {
                     throw new Error("Unable to find data for node = " + action.nodeTag);
                 }
@@ -104,7 +88,7 @@ function clusterWideReducer<T>(
             });
         case "NodeDataError":
             return produce(state, (draft) => {
-                const itemToModify = draft.result.find((t) => t.nodeTag === action.nodeTag && t.shard === action.shard);
+                const itemToModify = draft.result.find((t) => t.nodeTag === action.nodeTag);
                 if (!itemToModify) {
                     throw new Error("Unable to find data for node = " + action.nodeTag);
                 }

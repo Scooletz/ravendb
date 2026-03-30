@@ -70,7 +70,7 @@ import { SnowflakeEtlPanel } from "components/pages/database/tasks/ongoingTasks/
 import { AmazonSqsEtlPanel } from "components/pages/database/tasks/ongoingTasks/panels/AmazonSqsEtlPanel";
 import { EmbeddingsGenerationPanel } from "components/pages/database/tasks/ongoingTasks/panels/EmbeddingsGenerationPanel";
 import { GenAiPanel } from "./panels/GenAiPanel";
-import { useClusterWideAsync } from "components/hooks/useClusterWideAsync";
+import { useDatabaseWideAsync } from "components/hooks/useDatabaseWideAsync";
 import EtlTaskProgress = Raven.Server.Documents.ETL.Stats.EtlTaskProgress;
 import ReplicationTaskProgress = Raven.Server.Documents.Replication.Stats.ReplicationTaskProgress;
 import InternalReplicationTaskProgress = Raven.Server.Documents.Replication.Stats.InternalReplicationTaskProgress;
@@ -107,8 +107,8 @@ export function OngoingTasksPage({ isAiOnly = false }: OngoingTasksPageProps) {
         []
     );
 
-    const { result: etlStatsResult } = useClusterWideAsync(getEtlStats);
-    const { result: etlErrorsResult } = useClusterWideAsync(getEtlErrors);
+    const { result: etlStatsResult } = useDatabaseWideAsync(getEtlStats);
+    const { result: etlErrorsResult } = useDatabaseWideAsync(getEtlErrors);
 
     const upgradeLicenseLink = useRavenLink({ hash: "FLDLO4", isDocs: false });
 

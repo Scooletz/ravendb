@@ -5,7 +5,7 @@ import "./TasksErrorsPage.scss";
 import { useServices } from "hooks/useServices";
 import { useAppSelector } from "components/store";
 import { databaseSelectors } from "components/common/shell/databaseSliceSelectors";
-import { useClusterWideAsync } from "hooks/useClusterWideAsync";
+import { useDatabaseWideAsync } from "hooks/useDatabaseWideAsync";
 import { LoadingView } from "components/common/LoadingView";
 import { EmptySet } from "components/common/EmptySet";
 import { LoadError } from "components/common/LoadError";
@@ -152,13 +152,13 @@ function useTasksErrorsData() {
         result: asyncFetchAllEtlErrors,
         loading: isLoadingEtlErrors,
         refresh: refreshEtlErrors,
-    } = useClusterWideAsync(getEtlErrors);
+    } = useDatabaseWideAsync(getEtlErrors);
 
     const {
         result: asyncFetchAllEtlStats,
         loading: isLoadingEtlStats,
         refresh: refreshEtlStats,
-    } = useClusterWideAsync(getEtlStats);
+    } = useDatabaseWideAsync(getEtlStats);
 
     const isLoading = isLoadingEtlErrors || isLoadingEtlStats;
 
@@ -174,7 +174,11 @@ function useTasksErrorsData() {
         ? []
         : getTasksWithErrors(
               asyncFetchAllEtlErrors.flatMap((x) =>
-                  (x.data ?? []).map((error) => ({ ...error, nodeTag: x.nodeTag, shard: x.shard }))
+                  (x.data ?? []).map((error) => ({
+                      ...error,
+                      nodeTag: x.location.nodeTag,
+                      shard: x.location.shardNumber,
+                  }))
               )
           );
 
