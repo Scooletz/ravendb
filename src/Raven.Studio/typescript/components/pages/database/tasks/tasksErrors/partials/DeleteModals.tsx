@@ -50,20 +50,16 @@ export function DeleteTaskErrorsModal({ toggle, etlName, errorsCount }: DeleteTa
 
     const asyncDeleteErrors = useAsyncCallback(async () => {
         try {
-            if (db.isSharded) {
-                const locations = DatabaseUtils.getLocations(db);
-                await Promise.all(
-                    locations.map((location) =>
-                        tasksService.deleteEtlErrors(db.name, {
-                            name: [etlName],
-                            nodeTag: location.nodeTag,
-                            shardNumber: location.shardNumber,
-                        })
-                    )
-                );
-            } else {
-                await tasksService.deleteEtlErrors(db.name, { name: [etlName] });
-            }
+            const locations = DatabaseUtils.getLocations(db);
+            await Promise.all(
+                locations.map((location) =>
+                    tasksService.deleteEtlErrors(db.name, {
+                        name: [etlName],
+                        nodeTag: location.nodeTag,
+                        shardNumber: location.shardNumber,
+                    })
+                )
+            );
             toggle();
         } catch (e) {
             console.error(e);
