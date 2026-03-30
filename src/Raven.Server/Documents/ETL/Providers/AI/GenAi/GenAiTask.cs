@@ -142,8 +142,6 @@ public sealed class GenAiTask : EtlProcess<GenAiItem, GenAiScriptResult, GenAiCo
 
     protected override int LoadInternal(IEnumerable<GenAiScriptResult> items, DocumentsOperationContext context, GenAiStatsScope scope)
     {
-        LoadErrorStep = TaskErrorStep.ModelInference;
-        
         var (results, docIdsToClearTaskHashes) = PrepareItemsBeforeSendingToModel(items);
         if (docIdsToClearTaskHashes.Count > 0)
         {
@@ -155,17 +153,20 @@ public sealed class GenAiTask : EtlProcess<GenAiItem, GenAiScriptResult, GenAiCo
             return 0;
 
         List<Exception> exceptions;
-        
+
         // Prevent database unloading during long-running AI operations
         using (Database.PreventFromUnloadingByIdleOperations())
+        using (EnterLoadStep(TaskErrorStep.ModelInference))
         using (var cts = CancellationTokenSource.CreateLinkedTokenSource(CancellationToken))
         {
             cts.CancelAfter(Database.Configuration.Ai.GenAiSendToModelTimeout.AsTimeSpan);
             exceptions = SendToModel(results, context, scope, cts.Token);
         }
 
-        LoadErrorStep = TaskErrorStep.Persistence;
-        ApplyUpdateScript(results, scope);
+        using (EnterLoadStep(TaskErrorStep.Persistence))
+        {
+            ApplyUpdateScript(results, scope);
+        }
 
         if (exceptions?.Count > 0)
         {

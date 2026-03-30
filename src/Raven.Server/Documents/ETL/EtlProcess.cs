@@ -516,6 +516,13 @@ namespace Raven.Server.Documents.ETL
 
         protected TaskErrorStep LoadErrorStep { get; set; } = TaskErrorStep.Load;
 
+        protected IDisposable EnterLoadStep(TaskErrorStep step)
+        {
+            var previousStep = LoadErrorStep;
+            LoadErrorStep = step;
+            return new DisposableAction(() => LoadErrorStep = previousStep);
+        }
+
         protected virtual void EnterFallbackMode(Exception ex, DateTime? lastErrorTime)
         {
             var now = Database.Time.GetUtcNow();
