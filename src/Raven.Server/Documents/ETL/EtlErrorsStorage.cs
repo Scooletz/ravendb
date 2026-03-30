@@ -225,9 +225,13 @@ public unsafe class EtlErrorsStorage
     {
         var errorsCount = 0L;
 
-        foreach (var processName in _etlLoader.GetEtlProcessNamesFromRecord())
+        using (_contextPool.AllocateOperationContext(out DocumentsOperationContext context))
+        using (context.OpenReadTransaction())
         {
-            errorsCount += ReadErrorsCountOfEtl(processName);
+            foreach (var processName in _etlLoader.GetEtlProcessNamesFromRecord())
+            {
+                errorsCount += ReadErrorsCountOfEtl(processName, context);
+            }
         }
 
         return errorsCount;
@@ -237,9 +241,13 @@ public unsafe class EtlErrorsStorage
     {
         var errorsCount = 0L;
 
-        foreach (var processName in _etlLoader.GetAiProcessNamesFromRecord())
+        using (_contextPool.AllocateOperationContext(out DocumentsOperationContext context))
+        using (context.OpenReadTransaction())
         {
-            errorsCount += ReadErrorsCountOfEtl(processName);
+            foreach (var processName in _etlLoader.GetAiProcessNamesFromRecord())
+            {
+                errorsCount += ReadErrorsCountOfEtl(processName, context);
+            }
         }
 
         return errorsCount;
@@ -255,6 +263,14 @@ public unsafe class EtlErrorsStorage
 
             return processErrorsCount + itemErrorsCount;
         }
+    }
+    
+    private static long ReadErrorsCountOfEtl(string etlProcessName, DocumentsOperationContext context)
+    {
+        var processErrorsCount = ReadProcessErrorsCountOfEtl(etlProcessName, context);
+        var itemErrorsCount = ReadItemErrorsCountOfEtl(etlProcessName, context);
+
+        return processErrorsCount + itemErrorsCount;
     }
 
     private static long ReadProcessErrorsCountOfEtl(string etlProcessName, DocumentsOperationContext context)
