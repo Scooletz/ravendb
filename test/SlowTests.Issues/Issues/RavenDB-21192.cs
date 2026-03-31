@@ -674,7 +674,7 @@ public class RavenDB_21192 : RavenTestBase
 
         await WaitForAssertionAsync(() =>
         {
-            var alert = db.NotificationCenter.EtlNotifications.GetAlert<MessageDetails>(processTag, processName, AlertReason.Etl_HealthStatusChange);
+            var alert = db.NotificationCenter.EtlNotifications.GetAlert<EtlTaskHealthChangeDetails>(processTag, processName, AlertReason.Etl_HealthStatusChange);
             Assert.NotNull(alert);
             Assert.Equal($"ETL task health status was changed to {healthStatus}.", alert.Message);
             return Task.CompletedTask;

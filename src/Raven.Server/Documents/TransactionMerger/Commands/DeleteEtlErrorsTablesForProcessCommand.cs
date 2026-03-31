@@ -1,23 +1,20 @@
 using System;
-using Raven.Server.Documents.ETL;
 using Raven.Server.ServerWide.Context;
 
 namespace Raven.Server.Documents.TransactionMerger.Commands;
 
 public sealed class DeleteEtlErrorsTablesForProcessCommand : MergedTransactionCommand<DocumentsOperationContext, DocumentsTransaction>
 {
-    private readonly string _processErrorsTableName;
-    private readonly string _itemErrorsTableName;
+    private readonly string _processName;
 
-    public DeleteEtlErrorsTablesForProcessCommand(string processErrorsTableName, string itemErrorsTableName)
+    public DeleteEtlErrorsTablesForProcessCommand(string processName)
     {
-        _processErrorsTableName = processErrorsTableName;
-        _itemErrorsTableName = itemErrorsTableName;
+        _processName = processName;
     }
 
     protected override long ExecuteCmd(DocumentsOperationContext context)
     {
-        EtlErrorsStorage.DeleteEtlErrorsTablesForProcess(context, _processErrorsTableName, _itemErrorsTableName);
+        context.DocumentDatabase.EtlErrorsStorage.DeleteEtlErrorsTablesForProcess(context, _processName);
         return 1;
     }
 

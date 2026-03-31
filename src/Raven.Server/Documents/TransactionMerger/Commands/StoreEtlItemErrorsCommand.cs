@@ -5,20 +5,20 @@ using Raven.Server.ServerWide.Context;
 
 namespace Raven.Server.Documents.TransactionMerger.Commands;
 
-public class StoreEtlItemErrorsCommand : MergedTransactionCommand<DocumentsOperationContext, DocumentsTransaction> 
+public class StoreEtlItemErrorsCommand : MergedTransactionCommand<DocumentsOperationContext, DocumentsTransaction>
 {
+    private readonly string _processName;
     private readonly List<EtlItemError> _itemErrors;
-    private readonly string _tableName;
 
-    public StoreEtlItemErrorsCommand(List<EtlItemError> itemErrors, string tableName)
+    public StoreEtlItemErrorsCommand(string processName, List<EtlItemError> itemErrors)
     {
+        _processName = processName;
         _itemErrors = itemErrors;
-        _tableName = tableName;
     }
 
     protected override long ExecuteCmd(DocumentsOperationContext context)
     {
-        EtlErrorsStorage.StoreItemErrors(context, _itemErrors, _tableName);
+        context.DocumentDatabase.EtlErrorsStorage.StoreItemErrors(context, _processName, _itemErrors);
         return 1;
     }
 

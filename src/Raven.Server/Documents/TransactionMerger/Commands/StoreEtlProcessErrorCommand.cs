@@ -4,20 +4,18 @@ using Raven.Server.ServerWide.Context;
 
 namespace Raven.Server.Documents.TransactionMerger.Commands;
 
-public sealed class StoreEtlProcessErrorCommand : MergedTransactionCommand<DocumentsOperationContext, DocumentsTransaction> 
+public sealed class StoreEtlProcessErrorCommand : MergedTransactionCommand<DocumentsOperationContext, DocumentsTransaction>
 {
     private readonly EtlProcessError _processError;
-    private readonly string _tableName;
 
-    public StoreEtlProcessErrorCommand(EtlProcessError processError, string tableName)
+    public StoreEtlProcessErrorCommand(EtlProcessError processError)
     {
         _processError = processError;
-        _tableName = tableName;
     }
 
     protected override long ExecuteCmd(DocumentsOperationContext context)
     {
-        EtlErrorsStorage.StoreProcessError(context, _processError, _tableName);
+        context.DocumentDatabase.EtlErrorsStorage.StoreProcessError(context, _processError);
         return 1;
     }
 
