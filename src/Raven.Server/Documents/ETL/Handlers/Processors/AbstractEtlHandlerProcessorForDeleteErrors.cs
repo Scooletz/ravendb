@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using Microsoft.Extensions.Primitives;
 using Raven.Client.Http;
 using Raven.Server.Documents.Commands.ETL;
 using Raven.Server.Documents.Handlers.Processors;
@@ -13,13 +14,13 @@ internal abstract class AbstractEtlHandlerProcessorForDeleteErrors<TRequestHandl
     protected AbstractEtlHandlerProcessorForDeleteErrors([NotNull] TRequestHandler requestHandler) : base(requestHandler)
     {
     }
-    
+
     protected override RavenCommand<object> CreateCommandForNode(string nodeTag)
     {
-        var etlProcessName = GetEtlProcessName();
+        var names = GetEtlProcessNames();
 
-        return new DeleteEtlErrorsCommand(nodeTag, etlProcessName);
+        return new DeleteEtlErrorsCommand(nodeTag, names);
     }
 
-    protected string GetEtlProcessName() => RequestHandler.GetStringQueryString("name", required: false);
+    protected StringValues GetEtlProcessNames() => RequestHandler.GetStringValuesQueryString("name", required: false);
 }

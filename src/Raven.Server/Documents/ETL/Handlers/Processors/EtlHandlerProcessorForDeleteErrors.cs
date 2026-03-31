@@ -15,13 +15,18 @@ internal sealed class EtlHandlerProcessorForDeleteErrors : AbstractEtlHandlerPro
     
     protected override ValueTask HandleCurrentNodeAsync()
     {
-        var etlProcessName = GetEtlProcessName();
-        
-        if (etlProcessName != null)
-            RequestHandler.Database.EtlErrorsStorage.DeleteErrorsOfEtl(etlProcessName);
-        else
+        var names = GetEtlProcessNames();
+
+        if (names.Count == 0)
+        {
             RequestHandler.Database.EtlErrorsStorage.DeleteAllEtlErrors();
-        
+        }
+        else
+        {
+            foreach (var name in names)
+                RequestHandler.Database.EtlErrorsStorage.DeleteErrorsOfEtl(name);
+        }
+
         return ValueTask.CompletedTask;
     }
 
