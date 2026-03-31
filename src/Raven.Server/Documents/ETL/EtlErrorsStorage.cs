@@ -14,7 +14,7 @@ namespace Raven.Server.Documents.ETL;
 
 public unsafe class EtlErrorsStorage
 {
-    private const int ErrorsLimitPerEtl = 500;
+    private const int ErrorsLimitPerEtlErrorType = 500;
 
     private StorageEnvironment _environment;
     private DocumentsContextPool _contextPool;
@@ -82,7 +82,7 @@ public unsafe class EtlErrorsStorage
                     
         using (Slice.From(context.Transaction.InnerTransaction.Allocator, etlProcessName, out Slice etlProcessNameSlice))
         {
-            if (table.GetCountOfMatchesFor(Schemas.EtlProcessErrors.Current.Indexes[Schemas.EtlProcessErrors.ByEtlProcessName], etlProcessNameSlice) >= ErrorsLimitPerEtl)
+            if (table.GetCountOfMatchesFor(Schemas.EtlProcessErrors.Current.Indexes[Schemas.EtlProcessErrors.ByEtlProcessName], etlProcessNameSlice) >= ErrorsLimitPerEtlErrorType)
             {
                 DeleteOldestProcessErrorOfTask(table, context, processError.EtlProcessName);
             }
@@ -406,10 +406,10 @@ public unsafe class EtlErrorsStorage
 
     private static void DeleteOldestItemErrorsOfEtl(Table table)
     {
-        if (table == null || table.NumberOfEntries <= ErrorsLimitPerEtl)
+        if (table == null || table.NumberOfEntries <= ErrorsLimitPerEtlErrorType)
             return;
 
-        var numberOfEntriesToDelete = table.NumberOfEntries - ErrorsLimitPerEtl;
+        var numberOfEntriesToDelete = table.NumberOfEntries - ErrorsLimitPerEtlErrorType;
         table.DeleteForwardFrom(Schemas.EtlItemErrors.Current.Indexes[Schemas.EtlItemErrors.ByCreatedAt], Slices.BeforeAllKeys, false, numberOfEntriesToDelete);
     }
     
