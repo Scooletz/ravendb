@@ -120,10 +120,6 @@ namespace Raven.Server.Documents.ETL
                 };
             }
             
-            // We don't want to create notification about task returning to healthy state
-            if (HealthStatus == EtlProcessHealthStatus.Healthy)
-                return;
-            
             if (HealthStatus != previousStatus)
                 _notificationCenter.EtlNotifications.AddTaskHealthChangeNotification(_processTag, _processName, HealthStatus);
         }

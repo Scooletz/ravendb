@@ -67,6 +67,7 @@ import cpuCreditsBalanceDetails = require("viewmodels/common/notificationCenter/
 import groupedVirtualNotification = require("common/notifications/models/groupedVirtualNotification");
 import typeUtils = require("common/typeUtils");
 import aiAgentExceededTokenThreshold = require("viewmodels/common/notificationCenter/detailViewer/alerts/aiAgentExceededTokenThreshold");
+import etlTaskHealthChangeDetails = require("viewmodels/common/notificationCenter/detailViewer/alerts/etlTaskHealthChangeDetails");
 
 interface detailsProvider {
     supportsDetailsFor(notification: abstractNotification): boolean;
@@ -200,6 +201,7 @@ class notificationCenter {
             complexFieldsAlertDetails,
             aiAgentExceededTokenThreshold,
             remoteAttachmentErrorDetails,
+            etlTaskHealthChangeDetails,
             genericAlertDetails  // leave it as last item on this list - this is fallback handler for all alert types
         );
 

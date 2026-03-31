@@ -35,12 +35,30 @@ namespace Raven.Server.NotificationCenter
 
         public void AddTaskHealthChangeNotification(string processTag, string processName, EtlProcessHealthStatus status)
         {
-            var alert = GetOrCreateAlert<MessageDetails>(processTag,
-                processName,
+            var existingAlert = GetAlert<EtlTaskHealthChangeDetails>(processTag, processName, AlertReason.Etl_HealthStatusChange);
+
+            var details = new EtlTaskHealthChangeDetails { HealthStatus = status };
+
+            if (existingAlert != null)
+            {
+                var existingDetails = existingAlert.Details as EtlTaskHealthChangeDetails;
+                details.PreviousHealthStatus = existingDetails?.HealthStatus;
+                details.PreviousHealthStatusChangeAt = existingAlert.CreatedAt;
+            }
+
+            var key = $"{processTag}/{processName}";
+
+            var message = status == EtlProcessHealthStatus.Healthy ? $"ETL task recovered to {nameof(EtlProcessHealthStatus.Healthy)} status." : $"ETL task health status was changed to {status}.";
+
+            var alert = AlertRaised.Create(
+                _notificationCenter.Database,
+                $"{processTag}: '{processName}'",
+                message,
                 AlertReason.Etl_HealthStatusChange,
-                $"ETL task health status was changed to {status}.",
-                out _);
-            
+                NotificationSeverity.Warning,
+                key: key,
+                details: details);
+
             _notificationCenter.Add(alert);
         }
         public AlertRaised AddWarning(string processTag, string processName, string message, string documentId, string timeSeriesName)

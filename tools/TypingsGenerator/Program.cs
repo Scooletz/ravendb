@@ -321,6 +321,7 @@ namespace TypingsGenerator
             scripter.AddType(typeof(NewVersionAvailableDetails));
             scripter.AddType(typeof(MessageDetails));
             scripter.AddType(typeof(ExceptionDetails));
+            scripter.AddType(typeof(EtlTaskHealthChangeDetails));
 
             // alerts
             scripter.AddType(typeof(EtlWarningDetails));
