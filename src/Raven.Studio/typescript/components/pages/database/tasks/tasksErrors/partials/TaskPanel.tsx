@@ -16,7 +16,6 @@ import { virtualTableConstants } from "components/common/virtualTable/utils/virt
 import VirtualTable from "components/common/virtualTable/VirtualTable";
 import SizeGetter from "components/common/SizeGetter";
 import { CellWithCopyWrapper } from "components/common/virtualTable/cells/CellWithCopy";
-import { CellValueWrapper } from "components/common/virtualTable/cells/CellValue";
 import {
     RichPanel,
     RichPanelActions,
@@ -42,6 +41,7 @@ import {
     SHOW_WIDTH_SIZE,
 } from "../utils/tasksErrorsUtils";
 import {
+    CellAffectedDocumentsWrapper,
     CellDateWithRelativeTimeWrapper,
     CellErrorStepWrapper,
     CellErrorTypeWrapper,
@@ -111,7 +111,7 @@ function useTasksErrorsPanelTableColumns(availableWidth: number, hasProcessError
                 ? [
                       {
                           header: "Affected Documents",
-                          cell: CellValueWrapper,
+                          cell: CellAffectedDocumentsWrapper,
                           accessorKey: "AffectedDocumentsCount",
                           size: getSize(10),
                       },

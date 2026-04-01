@@ -15,7 +15,6 @@ import { virtualTableConstants } from "components/common/virtualTable/utils/virt
 import VirtualTable from "components/common/virtualTable/VirtualTable";
 import SizeGetter from "components/common/SizeGetter";
 import { CellWithCopyWrapper } from "components/common/virtualTable/cells/CellWithCopy";
-import { CellValueWrapper } from "components/common/virtualTable/cells/CellValue";
 import { EmptySet } from "components/common/EmptySet";
 import TableDisplaySettings from "components/common/virtualTable/commonComponents/columnsSelect/TableDisplaySettings";
 import useBoolean from "hooks/useBoolean";
@@ -30,6 +29,7 @@ import {
     TasksFiltersState,
 } from "../utils/tasksErrorsUtils";
 import {
+    CellAffectedDocumentsWrapper,
     CellDateWithRelativeTimeWrapper,
     CellErrorStepWrapper,
     CellErrorTypeWrapper,
@@ -43,9 +43,9 @@ import {
     HyperLinkDocumentCellValue,
 } from "./TasksErrorsCells";
 import { DeleteAllErrorsModal } from "./DeleteModals";
-import EtlTaskStats = Raven.Server.Documents.ETL.Stats.EtlTaskStats;
 import { accessManagerSelectors } from "components/common/shell/accessManagerSliceSelectors";
 import { DatabaseAccessPopover } from "components/common/DatabaseAccessPopover";
+import EtlTaskStats = Raven.Server.Documents.ETL.Stats.EtlTaskStats;
 
 function useGroupByNoneTableColumns(availableWidth: number, hasProcessErrors: boolean) {
     const db = useAppSelector(databaseSelectors.activeDatabase);
@@ -102,7 +102,7 @@ function useGroupByNoneTableColumns(availableWidth: number, hasProcessErrors: bo
                       {
                           header: "Affected Documents",
                           accessorKey: "AffectedDocumentsCount",
-                          cell: CellValueWrapper,
+                          cell: CellAffectedDocumentsWrapper,
                           size: getSize(8),
                       },
                   ]

@@ -213,6 +213,10 @@ export const CellDateWithRelativeTimeWrapper = ({ getValue }: CellContext<FlatEr
     );
 };
 
+export const CellAffectedDocumentsWrapper = ({ getValue, row }: CellContext<FlatError, number>) => {
+    return <CellValue value={row.original.errorType === "Item" ? 1 : getValue()} />;
+};
+
 export const CellEtlTypeWrapper = ({ getValue }: CellContext<FlatError, StudioEtlType>) => {
     const icon = getEtlTypeIcon(getValue());
     const label = getEtlTypeLabel(getValue());
