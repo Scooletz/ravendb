@@ -50,10 +50,7 @@ export function TaskPillGroupMessage({ etlTaskStatsList, tasksWithErrors }: Task
             </div>
             <div className="d-flex flex-column gap-1">
                 {rows.map((row) => (
-                    <TaskPillRow
-                        key={row.taskName}
-                        {...row}
-                    />
+                    <TaskPillRow key={row.taskName} {...row} />
                 ))}
             </div>
         </div>
