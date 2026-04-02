@@ -57,7 +57,12 @@ export const Default: StoryObj<TasksErrorsPageArgs> = {
         });
 
         tasksService.withEtlErrors(hasErrors ? TasksStubs.etlErrors() : []);
-        tasksService.withEtlStats(hasErrors ? TasksStubs.etlStats() : []);
+
+        const etlStats = hasErrors ? TasksStubs.etlStats() : [];
+        if (databaseType === "sharded") {
+            etlStats.forEach((stat) => (stat.ShardNumber = 0));
+        }
+        tasksService.withEtlStats(etlStats);
         return <TasksErrorsPage />;
     },
     argTypes: {

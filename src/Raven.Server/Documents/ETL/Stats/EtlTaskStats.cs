@@ -11,6 +11,10 @@ namespace Raven.Server.Documents.ETL.Stats
 
         public long TaskId {get; set; }
 
+        public string NodeTag { get; set; }
+
+        public int? ShardNumber { get; set; }
+
         public EtlProcessTransformationStats[] Stats { get; set; }
 
         public DynamicJsonValue ToJson()
@@ -20,6 +24,8 @@ namespace Raven.Server.Documents.ETL.Stats
                 [nameof(TaskName)] = TaskName,
                 [nameof(TaskId)] = TaskId,
                 [nameof(EtlType)] = EtlType,
+                [nameof(NodeTag)] = NodeTag,
+                [nameof(ShardNumber)] = ShardNumber,
                 [nameof(Stats)] = new DynamicJsonArray(Stats)
             };
         }

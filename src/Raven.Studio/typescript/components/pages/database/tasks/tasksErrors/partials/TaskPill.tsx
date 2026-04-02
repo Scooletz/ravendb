@@ -2,7 +2,7 @@ import React from "react";
 import classNames from "classnames";
 import { Icon } from "components/common/Icon";
 import Badge from "react-bootstrap/Badge";
-import { EtlTaskWithErrors, EtlHealthStatus, getTaskPillColor, healthStatusToBadge } from "../utils/tasksErrorsUtils";
+import { EtlHealthStatus, EtlTaskWithErrors, getTaskPillColor, healthStatusToBadge } from "../utils/tasksErrorsUtils";
 import EtlTaskStats = Raven.Server.Documents.ETL.Stats.EtlTaskStats;
 
 export interface TaskPillProps {
@@ -11,57 +11,6 @@ export interface TaskPillProps {
 
 export function TaskPill({ color }: TaskPillProps) {
     return <div className={classNames("tasks-pill rounded", color)} />;
-}
-
-interface TaskPillMessageProps {
-    etlTaskStats: EtlTaskStats;
-    tasksWithErrors: EtlTaskWithErrors[];
-}
-
-export function TaskPillMessage({ etlTaskStats, tasksWithErrors }: TaskPillMessageProps) {
-    const overallHealth = getOverallHealth(etlTaskStats);
-    const { bg, icon, label } = healthStatusToBadge(overallHealth);
-
-    const taskWithErrors = tasksWithErrors.find((t) => t.etlName === etlTaskStats.TaskName);
-
-    const scripts = etlTaskStats.Stats.map((stat) => {
-        const transformation = taskWithErrors?.transformations.find(
-            (t) => t.transformationName === stat.TransformationName
-        );
-        const errorCount = transformation ? transformation.itemErrors.length + transformation.processErrors.length : 0;
-
-        return {
-            name: stat.TransformationName || "(default)",
-            errorCount,
-        };
-    });
-
-    return (
-        <div className="task-pill-message">
-            <div className="d-flex align-items-center gap-2 mb-2">
-                <b className="flex-grow text-nowrap text-truncate">{etlTaskStats.TaskName}</b>
-                <Badge bg={bg} className="rounded-pill ms-2 text-nowrap flex-shrink-0">
-                    <Icon icon={icon} />
-                    {label}
-                </Badge>
-            </div>
-            {scripts.length > 0 && (
-                <div className="d-flex flex-column gap-1">
-                    {scripts.map((script) => (
-                        <div key={script.name} className="d-flex align-items-center gap-2">
-                            <span className="text-truncate flex-grow-1 small">
-                                {etlTaskStats.TaskName}/{script.name}
-                            </span>
-                            <span className="small text-muted ms-auto text-nowrap flex-shrink-0">
-                                <Icon icon="warning" color="danger" margin="m-0" />
-                                <b> {script.errorCount}</b> {script.errorCount === 1 ? "error" : "errors"}
-                            </span>
-                        </div>
-                    ))}
-                </div>
-            )}
-        </div>
-    );
 }
 
 function getOverallHealth(etlTaskStats: EtlTaskStats): EtlHealthStatus {
@@ -87,21 +36,18 @@ export function TaskPillGroupMessage({ etlTaskStatsList, tasksWithErrors }: Task
     const overallHealth = getOverallHealth(etlTaskStatsList[0]);
     const { bg, icon, label } = healthStatusToBadge(overallHealth);
 
-    const rows = etlTaskStatsList.flatMap((etlTaskStats) => {
+    const rows = etlTaskStatsList.map((etlTaskStats) => {
         const taskWithErrors = tasksWithErrors.find((t) => t.etlName === etlTaskStats.TaskName);
-        return etlTaskStats.Stats.map((stat) => {
-            const transformation = taskWithErrors?.transformations.find(
-                (t) => t.transformationName === stat.TransformationName
-            );
-            const errorCount = transformation
-                ? transformation.itemErrors.length + transformation.processErrors.length
-                : 0;
-            return {
-                taskName: etlTaskStats.TaskName,
-                scriptName: stat.TransformationName || "(default)",
-                errorCount,
-            };
-        });
+        const errorCount = taskWithErrors
+            ? taskWithErrors.transformations.reduce((acc, t) => acc + t.itemErrors.length + t.processErrors.length, 0)
+            : 0;
+
+        return {
+            taskName: etlTaskStats.TaskName,
+            errorCount,
+            nodeTag: etlTaskStats.NodeTag,
+            shardNumber: etlTaskStats.ShardNumber,
+        };
     });
 
     return (
@@ -111,24 +57,52 @@ export function TaskPillGroupMessage({ etlTaskStatsList, tasksWithErrors }: Task
                     <b className="flex-grow text-nowrap">{etlTaskStatsList.length}</b>{" "}
                     {etlTaskStatsList.length === 1 ? "task" : "tasks"}
                 </div>
-                <Badge bg={bg} className="rounded-pill ms-2 text-nowrap">
+                <Badge bg={bg} className="rounded-pill">
                     <Icon icon={icon} />
                     {label}
                 </Badge>
             </div>
             <div className="d-flex flex-column gap-1">
                 {rows.map((row) => (
-                    <div key={`${row.taskName}/${row.scriptName}`} className="d-flex align-items-center gap-2">
-                        <span className="text-truncate flex-grow-1 small">
-                            {row.taskName}/{row.scriptName}
-                        </span>
-                        <span className="small text-muted ms-auto text-nowrap flex-shrink-0">
-                            <Icon icon="warning" color="danger" margin="m-0" />
-                            <b> {row.errorCount}</b> {row.errorCount === 1 ? "error" : "errors"}
-                        </span>
-                    </div>
+                    <TaskPillRow
+                        key={row.taskName}
+                        {...row}
+                    />
                 ))}
             </div>
+        </div>
+    );
+}
+
+interface TaskPillRowProps {
+    nodeTag: string;
+    shardNumber?: number;
+    taskName: string;
+    errorCount: number;
+}
+
+function TaskPillRow({ nodeTag, shardNumber, taskName, errorCount }: TaskPillRowProps) {
+    return (
+        <div className="d-flex align-items-center gap-2">
+            <div className="d-flex flex-grow-1 gap-1">
+                <span className="text-truncate small">{taskName}</span>
+                {nodeTag && (
+                    <span className="text-nowrap small flex-shrink-0">
+                        <Icon icon="node" color="node" />
+                        <span>{nodeTag}</span>
+                    </span>
+                )}
+                {shardNumber != null && (
+                    <span className="text-nowrap small flex-shrink-0">
+                        <Icon icon="shard" color="shard" />
+                        <span>#{shardNumber}</span>
+                    </span>
+                )}
+            </div>
+            <span className="small text-muted ms-auto text-nowrap flex-shrink-0">
+                <Icon icon="warning" color="danger" margin="m-0" />
+                <b> {errorCount}</b> {errorCount === 1 ? "error" : "errors"}
+            </span>
         </div>
     );
 }

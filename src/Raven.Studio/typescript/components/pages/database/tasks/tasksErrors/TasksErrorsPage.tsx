@@ -89,7 +89,6 @@ function TasksErrorsPageBody({ tasksWithErrors, flattenAllEtlStats, initialSearc
                     {getPillGroups(flattenAllEtlStats).map((group) => (
                         <PopoverWithHoverWrapper
                             key={group.color}
-                            placement="left-end"
                             inline={false}
                             wrapperClassName="d-flex gap-1 pill-group"
                             message={

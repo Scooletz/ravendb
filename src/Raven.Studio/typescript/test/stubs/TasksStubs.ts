@@ -1303,6 +1303,7 @@ namespace Orders
         return [
             {
                 TaskName: "ETL1",
+                NodeTag: "A",
                 Stats: [
                     {
                         TransformationName: "Transformation1",

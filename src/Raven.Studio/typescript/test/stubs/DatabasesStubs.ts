@@ -1304,6 +1304,7 @@ return docs[0];`,
         return [
             {
                 TaskName: "ETL1",
+                NodeTag: "A",
                 Stats: [
                     {
                         TransformationName: "Transformation1",
