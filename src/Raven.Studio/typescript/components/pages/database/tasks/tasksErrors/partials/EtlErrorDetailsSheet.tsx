@@ -17,6 +17,7 @@ import {
     healthStatusToBadge,
 } from "../utils/tasksErrorsUtils";
 import Code from "components/common/Code";
+import { AnimatePresence, motion } from "motion/react";
 
 interface SheetDetailRowProps {
     children: ReactNode;
@@ -47,19 +48,31 @@ export default function EtlErrorDetailsSheet({
     allErrors = [],
     initialIndex = 0,
 }: EtlErrorDetailsSheetProps) {
-    const { close } = useViewSheet();
+    useViewSheet();
     const dbName = useAppSelector(databaseSelectors.activeDatabaseName);
 
     const [currentIndex, setCurrentIndex] = React.useState(initialIndex);
+    const [direction, setDirection] = React.useState<1 | -1>(1);
     const error = allErrors.length > 0 ? allErrors[currentIndex] : initialError;
 
     const hasPrevious = currentIndex > 0;
     const hasNext = currentIndex < allErrors.length - 1;
 
+    const navigate = (dir: 1 | -1) => {
+        setDirection(dir);
+        setCurrentIndex((i) => i + dir);
+    };
+
     const { bg, icon, label } = healthStatusToBadge(error.healthStatus);
     const stepIcon = getStepIcon(error.Step);
     const etlTypeIcon = getEtlTypeIcon(error.etlType);
     const etlTypeLabel = getEtlTypeLabel(error.etlType);
+
+    const slideVariants = {
+        enter: (d: number) => ({ x: d * 40, opacity: 0 }),
+        center: { x: 0, opacity: 1 },
+        exit: (d: number) => ({ x: d * -40, opacity: 0 }),
+    };
 
     return (
         <ViewSheet>
@@ -69,111 +82,122 @@ export default function EtlErrorDetailsSheet({
                     ETL error details
                 </h3>
             </ViewSheet.Header>
-            <ViewSheet.Body className="m-2">
-                <div className="vstack gap-0">
-                    {error.etlName && error.transformationName ? (
-                        <SheetDetailRow>
-                            <div className="small">Task name/Script name</div>
-                            <div className="d-flex align-items-center">
-                                {etlTypeIcon && <Icon icon={etlTypeIcon} />}
-                                <div>
-                                    {error.etlName}/{error.transformationName}
-                                </div>
-                            </div>
-                        </SheetDetailRow>
-                    ) : (
-                        error.EtlProcessName && (
+            <ViewSheet.Body className="m-2 overflow-hidden">
+                <AnimatePresence mode="wait" custom={direction} initial={false}>
+                    <motion.div
+                        key={currentIndex}
+                        custom={direction}
+                        variants={slideVariants}
+                        initial="enter"
+                        animate="center"
+                        exit="exit"
+                        transition={{ duration: 0.2, ease: "easeInOut" }}
+                        className="vstack gap-0"
+                    >
+                        {error.etlName && error.transformationName ? (
                             <SheetDetailRow>
                                 <div className="small">Task name/Script name</div>
                                 <div className="d-flex align-items-center">
                                     {etlTypeIcon && <Icon icon={etlTypeIcon} />}
-                                    <div>{error.EtlProcessName}</div>
+                                    <div>
+                                        {error.etlName}/{error.transformationName}
+                                    </div>
                                 </div>
                             </SheetDetailRow>
-                        )
-                    )}
+                        ) : (
+                            error.EtlProcessName && (
+                                <SheetDetailRow>
+                                    <div className="small">Task name/Script name</div>
+                                    <div className="d-flex align-items-center">
+                                        {etlTypeIcon && <Icon icon={etlTypeIcon} />}
+                                        <div>{error.EtlProcessName}</div>
+                                    </div>
+                                </SheetDetailRow>
+                            )
+                        )}
 
-                    {error.etlType && (
-                        <SheetDetailRow>
-                            <div className="small">Task type</div>
-                            <div className="d-flex align-items-center">
-                                {etlTypeIcon && <Icon icon={etlTypeIcon} />}
-                                {etlTypeLabel}
-                            </div>
-                        </SheetDetailRow>
-                    )}
-
-                    {error.errorType && (
-                        <SheetDetailRow>
-                            <div className="small">Error type</div>
-                            <Badge
-                                bg={error.errorType === "Item" ? "secondary" : "info"}
-                                className="rounded-pill cell-value"
-                            >
-                                <Icon icon={error.errorType === "Item" ? "tasks" : "hammer-driver"} />
-                                {error.errorType === "Item" ? "Item Error" : "Process Error"}
-                            </Badge>
-                        </SheetDetailRow>
-                    )}
-
-                    {error.Step && (
-                        <SheetDetailRow>
-                            <div className="small">Error step</div>
-                            <div>
-                                {stepIcon && <Icon icon={stepIcon} />}
-                                {error.Step}
-                            </div>
-                        </SheetDetailRow>
-                    )}
-
-                    {error.errorType === "Item" && error.DocumentId && (
-                        <SheetDetailRow>
-                            <div className="small">Document ID</div>
-                            <CellDocumentValue value={error.DocumentId} databaseName={dbName} hasHyperlinkForIds />
-                        </SheetDetailRow>
-                    )}
-
-                    {error.CreatedAt && (
-                        <SheetDetailRow>
-                            <div className="small">Date</div>
-                            <div className="vstack align-items-end">
-                                <span>{moment(error.CreatedAt).format(genUtils.dateFormat)}</span>
-                                <small className="text-muted">{moment(error.CreatedAt).fromNow()}</small>
-                            </div>
-                        </SheetDetailRow>
-                    )}
-
-                    {error.healthStatus && (
-                        <SheetDetailRow>
-                            <div className="small">Current Task Health</div>
-                            <Badge bg={bg} className="rounded-pill">
-                                <Icon icon={icon} />
-                                {label}
-                            </Badge>
-                        </SheetDetailRow>
-                    )}
-
-                    <SheetDetailRow className="border-bottom-0">
-                        <div className="small">Localization</div>
-                        <div className="d-flex align-items-center gap-2">
-                            <div className="d-flex align-items-center justify-content-center">
-                                <Icon icon="node" color="node" />
-                                {error.nodeTag}
-                            </div>
-                            {error.shard != null && (
-                                <div className="d-flex align-items-center justify-content-center">
-                                    <Icon icon="shard" color="shard" />#{error.shard}
+                        {error.etlType && (
+                            <SheetDetailRow>
+                                <div className="small">Task type</div>
+                                <div className="d-flex align-items-center">
+                                    {etlTypeIcon && <Icon icon={etlTypeIcon} />}
+                                    {etlTypeLabel}
                                 </div>
-                            )}
-                        </div>
-                    </SheetDetailRow>
+                            </SheetDetailRow>
+                        )}
 
-                    {error.Error && (
-                        <div>
-                            <Code code={error.Error} language="csharp" />
-                        </div>
-                    )}
-                </div>
+                        {error.errorType && (
+                            <SheetDetailRow>
+                                <div className="small">Error type</div>
+                                <Badge
+                                    bg={error.errorType === "Item" ? "secondary" : "info"}
+                                    className="rounded-pill cell-value"
+                                >
+                                    <Icon icon={error.errorType === "Item" ? "tasks" : "hammer-driver"} />
+                                    {error.errorType === "Item" ? "Item Error" : "Process Error"}
+                                </Badge>
+                            </SheetDetailRow>
+                        )}
+
+                        {error.Step && (
+                            <SheetDetailRow>
+                                <div className="small">Error step</div>
+                                <div>
+                                    {stepIcon && <Icon icon={stepIcon} />}
+                                    {error.Step}
+                                </div>
+                            </SheetDetailRow>
+                        )}
+
+                        {error.errorType === "Item" && error.DocumentId && (
+                            <SheetDetailRow>
+                                <div className="small">Document ID</div>
+                                <CellDocumentValue value={error.DocumentId} databaseName={dbName} hasHyperlinkForIds />
+                            </SheetDetailRow>
+                        )}
+
+                        {error.CreatedAt && (
+                            <SheetDetailRow>
+                                <div className="small">Date</div>
+                                <div className="vstack align-items-end">
+                                    <span>{moment(error.CreatedAt).format(genUtils.dateFormat)}</span>
+                                    <small className="text-muted">{moment(error.CreatedAt).fromNow()}</small>
+                                </div>
+                            </SheetDetailRow>
+                        )}
+
+                        {error.healthStatus && (
+                            <SheetDetailRow>
+                                <div className="small">Current Task Health</div>
+                                <Badge bg={bg} className="rounded-pill">
+                                    <Icon icon={icon} />
+                                    {label}
+                                </Badge>
+                            </SheetDetailRow>
+                        )}
+
+                        <SheetDetailRow className="border-bottom-0">
+                            <div className="small">Localization</div>
+                            <div className="d-flex align-items-center gap-2">
+                                <div className="d-flex align-items-center justify-content-center">
+                                    <Icon icon="node" color="node" />
+                                    {error.nodeTag}
+                                </div>
+                                {error.shard != null && (
+                                    <div className="d-flex align-items-center justify-content-center">
+                                        <Icon icon="shard" color="shard" />#{error.shard}
+                                    </div>
+                                )}
+                            </div>
+                        </SheetDetailRow>
+
+                        {error.Error && (
+                            <div>
+                                <Code code={error.Error} language="csharp" />
+                            </div>
+                        )}
+                    </motion.div>
+                </AnimatePresence>
             </ViewSheet.Body>
             <ViewSheet.Footer className="d-flex justify-content-between">
                 <div className="d-flex gap-2">
@@ -181,7 +205,7 @@ export default function EtlErrorDetailsSheet({
                         className="rounded-pill"
                         variant="secondary"
                         disabled={!hasPrevious}
-                        onClick={() => setCurrentIndex((i) => i - 1)}
+                        onClick={() => navigate(-1)}
                     >
                         <Icon icon="arrow-thin-left" />
                         Previous
@@ -190,7 +214,7 @@ export default function EtlErrorDetailsSheet({
                         className="rounded-pill"
                         variant="secondary"
                         disabled={!hasNext}
-                        onClick={() => setCurrentIndex((i) => i + 1)}
+                        onClick={() => navigate(1)}
                     >
                         Next
                         <Icon icon="arrow-thin-right" margin="ms-1" />

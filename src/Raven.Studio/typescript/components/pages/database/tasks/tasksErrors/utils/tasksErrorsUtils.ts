@@ -272,7 +272,7 @@ export function getEtlTypeLabel(etlType: StudioEtlType): string {
         case "GenAi":
             return "GenAI";
         default:
-            return assertUnreachable(etlType);
+            return etlType
     }
 }
 
