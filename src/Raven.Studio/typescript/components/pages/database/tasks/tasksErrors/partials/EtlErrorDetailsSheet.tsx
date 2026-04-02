@@ -161,6 +161,13 @@ export default function EtlErrorDetailsSheet({
                                 </SheetDetailRow>
                             )}
 
+                            {error.errorType === "Process" && error.AffectedDocumentsCount != null && (
+                                <SheetDetailRow>
+                                    <div className="small">Affected Documents</div>
+                                    <div>{error.AffectedDocumentsCount}</div>
+                                </SheetDetailRow>
+                            )}
+
                             {error.CreatedAt && (
                                 <SheetDetailRow>
                                     <div className="small">Date</div>
