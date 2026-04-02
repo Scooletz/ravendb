@@ -139,7 +139,7 @@ export function DeleteAllErrorsModal({ toggle, tasksWithErrors }: DeleteAllError
     const { confirmText, handleTextChange, isConfirmed } = useDeleteConfirmation(isRequireTypedConfirm);
 
     const asyncDeleteAllErrors = useAsyncCallback(() => {
-        const etlNames = tasksWithErrors.map((task) => task.etlName);
+        const names = tasksWithErrors.map((task) => task.etlName);
 
         return tryHandleSubmit(async () => {
             if (db.isSharded) {
@@ -147,14 +147,14 @@ export function DeleteAllErrorsModal({ toggle, tasksWithErrors }: DeleteAllError
                 await Promise.all(
                     locations.map((location) =>
                         tasksService.deleteEtlErrors(db.name, {
-                            name: etlNames,
+                            name: names,
                             nodeTag: location.nodeTag,
                             shardNumber: location.shardNumber,
                         })
                     )
                 );
             } else {
-                await tasksService.deleteEtlErrors(db.name, { name: etlNames });
+                await tasksService.deleteEtlErrors(db.name, { name: names });
             }
             toggle();
         });
