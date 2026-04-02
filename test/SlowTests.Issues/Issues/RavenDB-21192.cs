@@ -304,8 +304,6 @@ public class RavenDB_21192 : RavenTestBase
                 Assert.Contains(thirdTaskErrors.ProcessErrors, x => x.AffectedDocumentsCount == 5);
                 Assert.Empty(thirdTaskErrors.ItemErrors);
             }
-            
-            WaitForUserToContinueTheTest(src);
         }
     }
     
