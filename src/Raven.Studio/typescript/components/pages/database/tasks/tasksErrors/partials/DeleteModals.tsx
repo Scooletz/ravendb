@@ -147,7 +147,7 @@ export function DeleteAllErrorsModal({ toggle, tasksWithErrors }: DeleteAllError
                 await Promise.all(
                     locations.map((location) =>
                         tasksService.deleteEtlErrors(db.name, {
-                            name: [tasksWithErrors[0].etlName],
+                            name: etlNames,
                             nodeTag: location.nodeTag,
                             shardNumber: location.shardNumber,
                         })

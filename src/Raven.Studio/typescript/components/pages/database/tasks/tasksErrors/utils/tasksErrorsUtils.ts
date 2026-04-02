@@ -1,10 +1,10 @@
 import genUtils from "common/generalUtils";
 import IconName from "typings/server/icons";
-import EtlTaskStats = Raven.Server.Documents.ETL.Stats.EtlTaskStats;
-import EtlErrors = Raven.Server.Documents.ETL.Stats.EtlErrors;
 import { RavenBadgeBgVariants } from "react-bootstrap/Badge";
 import appUrl from "common/appUrl";
 import assertUnreachable from "components/utils/assertUnreachable";
+import EtlTaskStats = Raven.Server.Documents.ETL.Stats.EtlTaskStats;
+import EtlErrors = Raven.Server.Documents.ETL.Stats.EtlErrors;
 
 export type EtlErrorStep = Raven.Server.Documents.ETL.TaskErrorStep;
 export type EtlHealthStatus = Raven.Server.Documents.ETL.EtlProcessHealthStatus;
@@ -165,9 +165,7 @@ export function flattenAllTasksErrors(tasksWithErrors: EtlTaskWithErrors[], etlS
     });
 }
 
-export function getTaskHealthStatus(etlStats: EtlTaskStats[], etlName: string): EtlHealthStatus {
-    const stats = etlStats.find((s) => s.TaskName === etlName)?.Stats ?? [];
-
+export function getHealthStatusFromStats(stats: EtlTaskStats["Stats"]): EtlHealthStatus {
     if (stats.some((s) => s.Statistics.HealthStatus === "Failed")) {
         return "Failed";
     }
@@ -179,12 +177,18 @@ export function getTaskHealthStatus(etlStats: EtlTaskStats[], etlName: string): 
     return "Healthy";
 }
 
+export function getTaskHealthStatus(etlStats: EtlTaskStats[], etlName: string): EtlHealthStatus {
+    const stats = etlStats.find((s) => s.TaskName === etlName)?.Stats ?? [];
+    return getHealthStatusFromStats(stats);
+}
+
 export function getTaskPillColor(stats: EtlTaskStats["Stats"]): "bg-warning" | "bg-danger" | "bg-success" {
-    if (stats.some((s) => s.Statistics.HealthStatus === "Failed")) {
+    const health = getHealthStatusFromStats(stats);
+    if (health === "Failed") {
         return "bg-danger";
     }
 
-    if (stats.some((s) => s.Statistics.HealthStatus === "Impaired")) {
+    if (health === "Impaired") {
         return "bg-warning";
     }
 
@@ -248,19 +252,27 @@ export function getEtlTypeLabel(etlType: StudioEtlType): string {
         case "Raven":
             return "RavenDB ETL";
         case "Sql":
-            return "SQL";
+            return "SQL ETL";
+        case "Snowflake":
+            return "Snowflake ETL";
         case "Olap":
-            return "OLAP";
+            return "OLAP ETL";
         case "ElasticSearch":
             return "ElasticSearch ETL";
         case "Kafka":
             return "Kafka ETL";
-        case "AzureQueueStorage":
-            return "Azure Queue Storage ETL";
         case "RabbitMQ":
             return "RabbitMQ ETL";
+        case "AzureQueueStorage":
+            return "Azure Queue Storage ETL";
+        case "AmazonSqs":
+            return "Amazon SQS ETL";
+        case "EmbeddingsGeneration":
+            return "Embeddings Generation";
+        case "GenAi":
+            return "GenAI";
         default:
-            return etlType;
+            return assertUnreachable(etlType);
     }
 }
 

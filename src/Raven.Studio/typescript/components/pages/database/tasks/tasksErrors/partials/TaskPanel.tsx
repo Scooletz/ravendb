@@ -171,7 +171,7 @@ function NestedTaskPanelDetailsTable({ width, itemErrors, processErrors }: Neste
     return (
         <VirtualTable
             table={tasksErrorsPanelTable}
-            heightInPx={400}
+            heightInPx={virtualTableUtils.getHeightInPx(data.length, virtualTableConstants.defaultTableHeightInPx)}
             rowHeightInPx={virtualTableConstants.doubleLineRowHeightInPx}
         />
     );

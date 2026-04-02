@@ -2,7 +2,7 @@ import React from "react";
 import classNames from "classnames";
 import { Icon } from "components/common/Icon";
 import Badge from "react-bootstrap/Badge";
-import { EtlHealthStatus, EtlTaskWithErrors, getTaskPillColor, healthStatusToBadge } from "../utils/tasksErrorsUtils";
+import { EtlTaskWithErrors, getHealthStatusFromStats, healthStatusToBadge } from "../utils/tasksErrorsUtils";
 import EtlTaskStats = Raven.Server.Documents.ETL.Stats.EtlTaskStats;
 
 export interface TaskPillProps {
@@ -13,27 +13,13 @@ export function TaskPill({ color }: TaskPillProps) {
     return <div className={classNames("tasks-pill rounded", color)} />;
 }
 
-function getOverallHealth(etlTaskStats: EtlTaskStats): EtlHealthStatus {
-    const color = getTaskPillColor(etlTaskStats.Stats);
-
-    if (color === "bg-danger") {
-        return "Failed";
-    }
-
-    if (color === "bg-warning") {
-        return "Impaired";
-    }
-
-    return "Healthy";
-}
-
 interface TaskPillGroupMessageProps {
     etlTaskStatsList: EtlTaskStats[];
     tasksWithErrors: EtlTaskWithErrors[];
 }
 
 export function TaskPillGroupMessage({ etlTaskStatsList, tasksWithErrors }: TaskPillGroupMessageProps) {
-    const overallHealth = getOverallHealth(etlTaskStatsList[0]);
+    const overallHealth = getHealthStatusFromStats(etlTaskStatsList[0].Stats);
     const { bg, icon, label } = healthStatusToBadge(overallHealth);
 
     const rows = etlTaskStatsList.map((etlTaskStats) => {
