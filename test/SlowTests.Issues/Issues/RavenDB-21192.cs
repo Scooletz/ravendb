@@ -1081,6 +1081,7 @@ public class RavenDB_21192 : RavenTestBase
                 var firstProcessEtlErrorsOid = firstProcessOidsObjectList.Single(x => x.Description == "Number of task ETL errors").OID;
                 var firstProcessHealthStatusOid = firstProcessOidsObjectList.Single(x => x.Description == "Health status of particular ETL task").OID;
                 var firstProcessLastSuccessfulBatchTimeOid = firstProcessOidsObjectList.Single(x => x.Description == "Last successful batch time").OID;
+                var firstProcessResponsibleNodeOid = firstProcessOidsObjectList.Single(x => x.Description == "Responsible node tag of particular ETL task").OID;
                 
                 result = Messenger.Get(VersionCode.V2,
                     endpoint,
@@ -1105,12 +1106,21 @@ public class RavenDB_21192 : RavenTestBase
                     10000);
                 
                 Assert.Equal(SnmpType.TimeTicks, result.Single().Data.TypeCode);
-                
+
+                result = Messenger.Get(VersionCode.V2,
+                    endpoint,
+                    new OctetString(communityString),
+                    [new Variable(new ObjectIdentifier(firstProcessResponsibleNodeOid))],
+                    10000);
+
+                Assert.Equal(Server.ServerStore.NodeTag, result.Single().Data.ToString());
+
                 etlEntries.TryGet(EtlProcess.GetProcessName(etlName1, transformationName2), out BlittableJsonReaderArray secondProcessEntries);
                 var secondProcessOidsObjectList = JsonConvert.DeserializeObject<List<SnmpEntry>>(secondProcessEntries.ToString());
                 var secondProcessEtlErrorsOid = secondProcessOidsObjectList.Single(x => x.Description == "Number of task ETL errors").OID;
                 var secondProcessHealthStatusOid = secondProcessOidsObjectList.Single(x => x.Description == "Health status of particular ETL task").OID;
                 var secondProcessLastSuccessfulBatchTimeOid = secondProcessOidsObjectList.Single(x => x.Description == "Last successful batch time").OID;
+                var secondProcessResponsibleNodeOid = secondProcessOidsObjectList.Single(x => x.Description == "Responsible node tag of particular ETL task").OID;
                 
                 result = Messenger.Get(VersionCode.V2,
                     endpoint,
@@ -1133,8 +1143,17 @@ public class RavenDB_21192 : RavenTestBase
                    new OctetString(communityString),
                    [new Variable(new ObjectIdentifier(secondProcessLastSuccessfulBatchTimeOid))],
                    10000);
-               
-               Assert.Equal(SnmpType.NoSuchInstance, result.Single().Data.TypeCode);
+
+               Assert.Equal(SnmpType.TimeTicks, result.Single().Data.TypeCode);
+               Assert.Equal(0u, ((TimeTicks)result.Single().Data).ToUInt32());
+
+               result = Messenger.Get(VersionCode.V2,
+                   endpoint,
+                   new OctetString(communityString),
+                   [new Variable(new ObjectIdentifier(secondProcessResponsibleNodeOid))],
+                   10000);
+
+               Assert.Equal(Server.ServerStore.NodeTag, result.Single().Data.ToString());
             }
         }
     }

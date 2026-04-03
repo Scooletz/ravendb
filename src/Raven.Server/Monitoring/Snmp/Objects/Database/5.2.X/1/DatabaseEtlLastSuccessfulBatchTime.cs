@@ -19,7 +19,9 @@ public class DatabaseEtlLastSuccessfulBatchTime : DatabaseEtlScalarObjectBase<Ti
 
         if (lastSuccessfulBatchTime.HasValue)
             return SnmpValuesHelper.TimeSpanToTimeTicks(SystemTime.UtcNow - lastSuccessfulBatchTime.Value);
-        
-        return null;
+
+        return DefaultValue;
     }
+
+    private static readonly TimeTicks DefaultValue = new TimeTicks(0);
 }
