@@ -1040,7 +1040,10 @@ namespace Raven.Server.Monitoring.Snmp
 
                 [Description("Documents processed per second (one minute rate)")]
                 public const string DocumentsProcessedPerSec = "5.2.{0}.2.{{0}}.4";
-                
+
+                [Description("Responsible node tag of particular AI task")]
+                public const string TaskResponsibleNode = "5.2.{0}.2.{{0}}.5";
+
                 public static Dictionary<string, string> CreateMapping(long ignoreIndex)
                 {
                     var dictionary = new Dictionary<string, string>();

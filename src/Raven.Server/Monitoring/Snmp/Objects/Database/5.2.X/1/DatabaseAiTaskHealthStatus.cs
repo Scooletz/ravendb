@@ -14,9 +14,11 @@ public sealed class DatabaseAiTaskHealthStatus : DatabaseEtlScalarObjectBase<Oct
     {
         var etl = GetEtl(database);
         if (etl == null)
-            return null;
+            return DefaultValue;
 
         return new OctetString(etl.Statistics.HealthStatus.ToString());
     }
+
+    private static readonly OctetString DefaultValue = new OctetString("N/A");
 }
 
