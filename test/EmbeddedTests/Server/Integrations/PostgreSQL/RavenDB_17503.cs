@@ -12,10 +12,6 @@ public class RavenDB_17503 : PostgreSqlIntegrationTestBase
     [Fact]
     public async Task DirectQuery_distinct_list_wrapper_with_inner_rql_load_two_columns_should_work_end_to_end()
     {
-        // Ownership note:
-        // - `FastTests.Server.Integrations.PostgreSQL.PowerBI.PowerBIAstTests.DirectQuery_distinct_list_wrapper_with_inner_rql_load_should_report_actual_parser_classification`
-        //   asserts parser classification (`PowerBIDirectQuery`).
-        // - This test asserts end-to-end execution and result shape.
         using (var store = GetDocumentStore())
         {
             await store.Maintenance.SendAsync(new CreateSampleDataOperation());
@@ -66,10 +62,6 @@ limit 501";
     [Fact]
     public async Task DirectQuery_distinct_list_wrapper_single_column_employee_should_return_exactly_one_column_end_to_end()
     {
-        // Ownership note:
-        // - `FastTests.Server.Integrations.PostgreSQL.PowerBI.PowerBIAstTests.DirectQuery_distinct_list_wrapper_single_column_orders_employee_should_be_classified_as_direct_query`
-        //   asserts parser classification (`PowerBIDirectQuery`).
-        // - This test asserts end-to-end execution and result shape (exactly one column).
         using (var store = GetDocumentStore())
         {
             await store.Maintenance.SendAsync(new CreateSampleDataOperation());
@@ -196,10 +188,6 @@ limit 1000001";
     [Fact]
     public async Task DirectQuery_desktop_employee_requireAt_json_with_null_order_helper_columns_should_return_exactly_three_columns_end_to_end()
     {
-        // Ownership note:
-        // - `FastTests.Server.Integrations.PostgreSQL.PowerBI.PowerBIAstTests.DirectQuery_desktop_employee_requireAt_json_with_null_order_helper_columns_should_be_classified_as_direct_query`
-        //   asserts parser classification (`PowerBIDirectQuery`).
-        // - This test asserts end-to-end execution and exact result shape (3 columns).
         using (var store = GetDocumentStore())
         {
             await store.Maintenance.SendAsync(new CreateSampleDataOperation());
@@ -811,7 +799,19 @@ limit 1001";
     [Fact(Skip = "Unsupported: grouped aggregate wrapper + inner filter on non-grouped field.")]
     public async Task DirectQuery_desktop_grouped_sum_two_group_fields_with_outer_where_not_null_should_work_end_to_end()
     {
+        // not supported in rql:
+        // from orders
+        // where Company in ('Companies/1-A', 'Companies/2-A', 'Companies/3-A')
+        // group by Employee, RequireAt
+        // select Employee, RequireAt, sum(Freight) as a0
 
+
+        // from "Orders" 
+        // group by Company, Employee, RequireAt
+        // where Company in ('Companies/1-A', 'Companies/2-A', 'Companies/3-A')
+        // select sum(Freight)
+
+        // try it out with index
 
         using (var store = GetDocumentStore())
         {
@@ -833,7 +833,6 @@ from
     group by ""Employee"",
         ""RequireAt""
 ) ""_""
-where not ""_"".""a0"" is null
 limit 1000001";
 
             var result = await Act(store, sql);
@@ -865,6 +864,10 @@ from
     ) ""$Table""
 ) ""rows""";
 
+            // try it out
+            // from orders
+            // select facet(Freight, sum)
+
             var result = await Act(store, sql);
 
             Assert.NotNull(result);
@@ -877,6 +880,55 @@ from
             Assert.NotEqual(System.DBNull.Value, raw);
             Assert.True(decimal.TryParse(raw.ToString(), out var sum));
             Assert.True(sum > 0);
+        }
+    }
+
+    [Fact(Skip = "Unsupported DirectQuery wrapper family: count(distinct(...)) + max(...) summary-card shape.")]
+    public async Task DirectQuery_summary_card_count_distinct_with_max_helpers_is_not_supported_yet()
+    {
+        using (var store = GetDocumentStore())
+        {
+            await store.Maintenance.SendAsync(new CreateSampleDataOperation());
+
+            const string sql = @"select count(distinct(""rows"".""OrderedAt"")) + max(""rows"".""08aba381d6ce4b7ca6b81ef186373995..1"") as ""a0"",
+    count(distinct(""rows"".""Company"")) + max(""rows"".""08aba381d6ce4b7ca6b81ef186373995..2"") as ""a1"",
+    count(distinct(""rows"".""RequireAt"")) + max(""rows"".""08aba381d6ce4b7ca6b81ef186373995..3"") as ""a2""
+from 
+(
+    select ""_"".""Company"" as ""Company"",
+        ""_"".""OrderedAt"" as ""OrderedAt"",
+        ""_"".""RequireAt"" as ""RequireAt"",
+        case
+            when ""_"".""OrderedAt"" is null
+            then 1
+            else 0
+        end as ""08aba381d6ce4b7ca6b81ef186373995..1"",
+        case
+            when ""_"".""Company"" is null
+            then 1
+            else 0
+        end as ""08aba381d6ce4b7ca6b81ef186373995..2"",
+        case
+            when ""_"".""RequireAt"" is null
+            then 1
+            else 0
+        end as ""08aba381d6ce4b7ca6b81ef186373995..3""
+    from 
+    (
+        select ""Company"",
+            ""OrderedAt"",
+            ""RequireAt""
+        from 
+        (
+            from Orders
+            where Company in ('Companies/1-A', 'Companies/2-A', 'Companies/3-A')
+        ) ""$Table""
+    ) ""_""
+) ""rows""";
+
+            var result = await Act(store, sql);
+
+            Assert.NotNull(result);
         }
     }
 }
