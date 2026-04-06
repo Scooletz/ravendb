@@ -315,5 +315,6 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
         {
             return string.Equals(schema, "information_schema", StringComparison.OrdinalIgnoreCase);
         }
+
     }
 }

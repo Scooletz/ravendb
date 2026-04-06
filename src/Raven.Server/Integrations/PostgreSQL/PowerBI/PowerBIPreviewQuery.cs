@@ -16,7 +16,11 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
     {
         private const string InformationSchema = "information_schema";
         private const string Columns = "columns";
-        private const string PublicSchema = "public";
+
+        // Columns this handler can produce. Every projected column in the incoming query must
+        // be a member of this set; otherwise we cannot satisfy the client's projection.
+        private static readonly System.Collections.Generic.HashSet<string> ProduceableColumns =
+            new(StringComparer.OrdinalIgnoreCase) { "COLUMN_NAME", "ORDINAL_POSITION", "IS_NULLABLE", "DATA_TYPE" };
 
         private readonly List<PgDataRow> _results;
 
@@ -58,105 +62,69 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             if (PgSqlAstHelpers.TryGetSingleRangeVarFromClause(selectStmt, out var rangeVar) == false)
                 return false;
 
-            // FROM
+            // FROM must be information_schema.columns.
             if (rangeVar.Schemaname.Equals(InformationSchema, StringComparison.OrdinalIgnoreCase) == false)
                 return false;
 
             if (rangeVar.Relname.Equals(Columns, StringComparison.OrdinalIgnoreCase) == false)
                 return false;
 
-            // SELECT
-            if (selectStmt.TargetList is not { Count: >= 3 } targets)
+            // Every projected column must be one this handler can produce.
+            // Flexible about order and aliases; strict about the column set.
+            if (PgSqlAstHelpers.ProjectionSubsetOf(selectStmt.TargetList, ProduceableColumns) == false)
                 return false;
 
-            if (PgSqlAstHelpers.IsSelectColumn(targets[0], "COLUMN_NAME") == false)
-                return false;
-
-            if (PgSqlAstHelpers.IsSelectColumn(targets[1], "ORDINAL_POSITION") == false)
-                return false;
-
-            if (PgSqlAstHelpers.IsSelectColumn(targets[2], "IS_NULLABLE") == false)
-                return false;
-
-            // WHERE
-            if (TryExtractWhereTableSchemaAndName(selectStmt.WhereClause, out var schemaName, out tableName) == false)
-                return false;
-
-            if (schemaName.Equals(PublicSchema, StringComparison.OrdinalIgnoreCase) == false)
-                return false;
-
-            // ORDER BY
-            if (IsPowerBiPreviewOrderBy(selectStmt.SortClause) == false)
-                return false;
-
-            return true;
+            // WHERE must contain TABLE_NAME = 'X' — required for execution.
+            // TABLE_SCHEMA and any other predicates are optional and ignored.
+            return TryExtractTableNameFromWhere(selectStmt.WhereClause, out tableName);
         }
 
-        private static bool TryExtractWhereTableSchemaAndName(Node whereNode, out string schemaName, out string tableName)
+        // Recursively searches the WHERE tree for a TABLE_NAME = '<value>' equality predicate.
+        private static bool TryExtractTableNameFromWhere(Node whereNode, out string tableName)
         {
-            schemaName = null;
             tableName = null;
 
-            if (whereNode?.BoolExpr is not { Boolop: BoolExprType.AndExpr, Args: { Count: 2 } args })
+            if (whereNode == null)
                 return false;
 
-            var tableSchemaExpr = args[0]?.AExpr;
-            if (tableSchemaExpr == null)
-                return false;
+            // Simple equality: TABLE_NAME = 'X'
+            var aExpr = whereNode.AExpr;
+            if (aExpr != null)
+                return TryGetTableNameEquality(aExpr, out tableName);
 
-            if (tableSchemaExpr.Kind != A_Expr_Kind.AexprOp)
-                return false;
+            // AND / OR expression: recurse into each arg
+            var boolExpr = whereNode.BoolExpr;
+            if (boolExpr?.Args != null)
+            {
+                foreach (var arg in boolExpr.Args)
+                {
+                    if (TryExtractTableNameFromWhere(arg, out tableName))
+                        return true;
+                }
+            }
 
-            if (tableSchemaExpr.Name is not { Count: 1 } || tableSchemaExpr.Name[0].String?.Sval != "=")
-                return false;
-
-            var tableSchemaColRef = tableSchemaExpr.Lexpr?.ColumnRef;
-            if (tableSchemaColRef?.Fields is not { Count: 1 })
-                return false;
-
-            if (tableSchemaColRef.Fields[0].String?.Sval?.Equals("TABLE_SCHEMA", StringComparison.OrdinalIgnoreCase) != true)
-                return false;
-
-            schemaName = tableSchemaExpr.Rexpr?.AConst?.Sval?.Sval;
-            if (string.IsNullOrWhiteSpace(schemaName))
-                return false;
-
-            var tableNameExpr = args[1]?.AExpr;
-            if (tableNameExpr == null)
-                return false;
-
-            if (tableNameExpr.Kind != A_Expr_Kind.AexprOp)
-                return false;
-
-            if (tableNameExpr.Name is not { Count: 1 } || tableNameExpr.Name[0].String?.Sval != "=")
-                return false;
-
-            var tableNameColRef = tableNameExpr.Lexpr?.ColumnRef;
-            if (tableNameColRef?.Fields is not { Count: 1 })
-                return false;
-
-            if (tableNameColRef.Fields[0].String?.Sval?.Equals("TABLE_NAME", StringComparison.OrdinalIgnoreCase) != true)
-                return false;
-
-            tableName = tableNameExpr.Rexpr?.AConst?.Sval?.Sval;
-            return string.IsNullOrWhiteSpace(tableName) == false;
+            return false;
         }
 
-        private static bool IsPowerBiPreviewOrderBy(IList<Node> sortClause)
+        private static bool TryGetTableNameEquality(A_Expr aExpr, out string tableName)
         {
-            if (sortClause is not { Count: 3 })
+            tableName = null;
+
+            if (aExpr.Kind != A_Expr_Kind.AexprOp)
                 return false;
 
-            if (PgSqlAstHelpers.IsOrderByAsc(sortClause[0], "TABLE_SCHEMA") == false)
+            if (aExpr.Name is not { Count: 1 } || aExpr.Name[0].String?.Sval != "=")
                 return false;
 
-            if (PgSqlAstHelpers.IsOrderByAsc(sortClause[1], "TABLE_NAME") == false)
+            var colRef = aExpr.Lexpr?.ColumnRef;
+            if (colRef?.Fields is not { Count: 1 })
                 return false;
 
-            if (PgSqlAstHelpers.IsOrderByAsc(sortClause[2], "ORDINAL_POSITION") == false)
+            if (colRef.Fields[0].String?.Sval?.Equals("TABLE_NAME", StringComparison.OrdinalIgnoreCase) != true)
                 return false;
 
-            return true;
+            tableName = aExpr.Rexpr?.AConst?.Sval?.Sval;
+            return string.IsNullOrWhiteSpace(tableName) == false;
         }
 
         public override async Task Execute(MessageBuilder builder, PipeWriter writer, CancellationToken token)

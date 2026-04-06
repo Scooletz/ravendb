@@ -33,20 +33,8 @@ namespace Raven.Server.Integrations.PostgreSQL
                 return true;
             }
 
-            if (normalizedQuery.StartsWith(PowerBIConfig.TableSchemaQuery, StringComparison.OrdinalIgnoreCase))
-                result = PowerBIConfig.TableSchemaResponse;
-
-            else if (normalizedQuery.StartsWith(PowerBIConfig.TableSchemaSecondaryQuery, StringComparison.OrdinalIgnoreCase))
-                result = PowerBIConfig.TableSchemaSecondaryResponse;
-
-            else if (normalizedQuery.StartsWith(PowerBIConfig.ConstraintsQuery, StringComparison.OrdinalIgnoreCase))
-                result = PowerBIConfig.ConstraintsResponse;
-
-            else if (normalizedQuery.Equals(PowerBIConfig.CharacterSetsQuery, StringComparison.OrdinalIgnoreCase))
-                result = PowerBIConfig.CharacterSetsResponse;
-
             // Npgsql
-            else if (normalizedQuery.Equals(NpgsqlConfig.TypesQuery, StringComparison.OrdinalIgnoreCase))
+            if (normalizedQuery.Equals(NpgsqlConfig.TypesQuery, StringComparison.OrdinalIgnoreCase))
                 result = NpgsqlConfig.TypesResponse;
 
             else if (normalizedQuery.Equals(NpgsqlConfig.CompositeTypesQuery, StringComparison.OrdinalIgnoreCase))

@@ -9,7 +9,6 @@ using Raven.Server.Documents;
 using Raven.Server.Integrations.PostgreSQL.Messages;
 using Raven.Server.Integrations.PostgreSQL.Types;
 using Raven.Server.ServerWide.Context;
-using Node = PgSqlParser.Node;
 
 namespace Raven.Server.Integrations.PostgreSQL.PowerBI
 {
@@ -18,11 +17,15 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
         private const string InformationSchema = "information_schema";
         private const string Tables = "tables";
         private const string PublicSchema = "public";
-        private const string PgCatalog = "pg_catalog";
         private const string BaseTableType = "BASE TABLE";
 
         private static readonly byte[] PublicSchemaBytes = Encoding.UTF8.GetBytes(PublicSchema);
         private static readonly byte[] BaseTableTypeBytes = Encoding.UTF8.GetBytes(BaseTableType);
+
+        // Columns this handler can produce. Every projected column in the incoming query must
+        // be a member of this set; otherwise we cannot satisfy the client's projection.
+        private static readonly System.Collections.Generic.HashSet<string> ProduceableColumns =
+            new(StringComparer.OrdinalIgnoreCase) { "TABLE_SCHEMA", "TABLE_NAME", "TABLE_TYPE" };
 
         public PowerBIAllCollectionsQuery(string queryText, int[] parametersDataTypes, DocumentDatabase documentDatabase)
             : base(queryText, parametersDataTypes, documentDatabase)
@@ -59,80 +62,17 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             if (PgSqlAstHelpers.TryGetSingleRangeVarFromClause(selectStmt, out var rangeVar) == false)
                 return false;
 
-            // FROM
+            // FROM must be information_schema.tables.
             if (rangeVar.Schemaname.Equals(InformationSchema, StringComparison.OrdinalIgnoreCase) == false)
                 return false;
 
             if (rangeVar.Relname.Equals(Tables, StringComparison.OrdinalIgnoreCase) == false)
                 return false;
 
-            // SELECT
-            if (selectStmt.TargetList is not { Count: 3 } targets)
-                return false;
-
-            if (PgSqlAstHelpers.IsSelectColumn(targets[0], "TABLE_SCHEMA") == false)
-                return false;
-
-            if (PgSqlAstHelpers.IsSelectColumn(targets[1], "TABLE_NAME") == false)
-                return false;
-
-            if (PgSqlAstHelpers.IsSelectColumn(targets[2], "TABLE_TYPE") == false)
-                return false;
-
-            // WHERE
-            if (TryMatchTableSchemaNotInWhereClause(selectStmt.WhereClause) == false)
-                return false;
-
-            // ORDER BY
-            if (selectStmt.SortClause is not { Count: 2 } sortClause)
-                return false;
-
-            if (PgSqlAstHelpers.IsOrderByAsc(sortClause[0], "TABLE_SCHEMA") == false)
-                return false;
-
-            if (PgSqlAstHelpers.IsOrderByAsc(sortClause[1], "TABLE_NAME") == false)
-                return false;
-
-            return true;
-        }
-
-        private static bool TryMatchTableSchemaNotInWhereClause(Node whereClause)
-        {
-            var aExpr = whereClause?.AExpr;
-            if (aExpr == null)
-                return false;
-
-            if (aExpr.Kind != A_Expr_Kind.AexprIn)
-                return false;
-
-            // check left side is "TABLE_SCHEMA"
-            if (aExpr.Lexpr?.ColumnRef?.Fields is not { Count: 1 } leftFields ||
-                leftFields[0].String?.Sval?.Equals("TABLE_SCHEMA", StringComparison.OrdinalIgnoreCase) == false)
-                return false;
-
-            if (aExpr.Rexpr?.List?.Items is not { Count: 2 } items)
-                return false;
-
-            // check values in the list are 'information_schema' and 'pg_catalog'
-            string v0 = items[0]?.AConst?.Sval?.Sval;
-            string v1 = items[1]?.AConst?.Sval?.Sval;
-
-            if (v0 == null || v1 == null)
-                return false;
-
-            var v0IsInfo = v0.Equals(InformationSchema, StringComparison.OrdinalIgnoreCase);
-            var v0IsPgCatalog = v0.Equals(PgCatalog, StringComparison.OrdinalIgnoreCase);
-            var v1IsInfo = v1.Equals(InformationSchema, StringComparison.OrdinalIgnoreCase);
-            var v1IsPgCatalog = v1.Equals(PgCatalog, StringComparison.OrdinalIgnoreCase);
-
-            if ((v0IsInfo && v1IsPgCatalog) == false && (v0IsPgCatalog && v1IsInfo) == false)
-                return false;
-
-            // check operator is "<>"
-            if (aExpr.Name is not { Count: 1 } || aExpr.Name[0].String?.Sval == null)
-                return false;
-
-            return aExpr.Name[0].String.Sval.Equals("<>");
+            // Every projected column must be one this handler can produce.
+            // Flexible about order and aliases; strict about the column set.
+            // ORDER BY and WHERE are ignored — we always return the full collection list.
+            return PgSqlAstHelpers.ProjectionSubsetOf(selectStmt.TargetList, ProduceableColumns);
         }
 
         public override Task<ICollection<PgColumn>> Init(bool allowMultipleStatements = false)

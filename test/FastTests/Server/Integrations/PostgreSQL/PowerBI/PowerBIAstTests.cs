@@ -1085,5 +1085,172 @@ limit 1000";
 
         private static string Normalize(string s) => s.Replace("\r\n", "\n").Trim();
 
+        // ---- AllCollections intent recognition ----
+
+        [Fact]
+        public void AllCollections_no_order_by_should_still_match()
+        {
+            const string sql = "select TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE\n" +
+                               "from INFORMATION_SCHEMA.tables";
+
+            Assert.True(PowerBIAllCollectionsQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
+            Assert.IsType<PowerBIAllCollectionsQuery>(pgQuery);
+        }
+
+        [Fact]
+        public void AllCollections_different_where_should_still_match()
+        {
+            const string sql = "select TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE\n" +
+                               "from INFORMATION_SCHEMA.tables\n" +
+                               "where TABLE_TYPE = 'BASE TABLE'";
+
+            Assert.True(PowerBIAllCollectionsQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
+            Assert.IsType<PowerBIAllCollectionsQuery>(pgQuery);
+        }
+
+        [Fact]
+        public void AllCollections_reordered_supported_columns_should_match()
+        {
+            const string sql = "select TABLE_TYPE, TABLE_NAME, TABLE_SCHEMA\n" +
+                               "from INFORMATION_SCHEMA.tables";
+
+            Assert.True(PowerBIAllCollectionsQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
+            Assert.IsType<PowerBIAllCollectionsQuery>(pgQuery);
+        }
+
+        [Fact]
+        public void AllCollections_aliased_supported_columns_should_match()
+        {
+            const string sql = "select TABLE_SCHEMA as ts, TABLE_NAME as tn, TABLE_TYPE as tt\n" +
+                               "from INFORMATION_SCHEMA.tables";
+
+            Assert.True(PowerBIAllCollectionsQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
+            Assert.IsType<PowerBIAllCollectionsQuery>(pgQuery);
+        }
+
+        [Fact]
+        public void AllCollections_extra_unsupported_columns_should_NOT_match()
+        {
+            const string sql = "select TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE, SELF_REFERENCING_COLUMN_NAME\n" +
+                               "from INFORMATION_SCHEMA.tables\n" +
+                               "where TABLE_SCHEMA not in ('information_schema', 'pg_catalog')\n" +
+                               "order by TABLE_SCHEMA, TABLE_NAME";
+
+            Assert.False(PowerBIAllCollectionsQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out _));
+        }
+
+        [Fact]
+        public void AllCollections_wrong_source_table_should_not_match()
+        {
+            const string sql = "select TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE\n" +
+                               "from INFORMATION_SCHEMA.columns\n" +
+                               "where TABLE_SCHEMA not in ('information_schema', 'pg_catalog')";
+
+            Assert.False(PowerBIAllCollectionsQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out _));
+        }
+
+        [Fact]
+        public void AllCollections_non_information_schema_source_should_not_match()
+        {
+            const string sql = "select TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE from public.tables";
+
+            Assert.False(PowerBIAllCollectionsQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out _));
+        }
+
+        // ---- Preview intent recognition ----
+
+        [Fact]
+        public void Preview_no_order_by_should_still_match()
+        {
+            const string sql = "select COLUMN_NAME, ORDINAL_POSITION, IS_NULLABLE\n" +
+                               "from INFORMATION_SCHEMA.columns\n" +
+                               "where TABLE_SCHEMA = 'public' and TABLE_NAME = 'Employees'";
+
+            Assert.True(PowerBIPreviewQuery.TryParse(sql, documentDatabase: null, out var pgQuery));
+            Assert.IsType<PowerBIPreviewQuery>(pgQuery);
+            Assert.Equal("from 'Employees'", GetQueryString(pgQuery));
+        }
+
+        [Fact]
+        public void Preview_table_name_only_in_where_no_schema_filter_should_match()
+        {
+            const string sql = "select COLUMN_NAME from INFORMATION_SCHEMA.columns where TABLE_NAME = 'Products'";
+
+            Assert.True(PowerBIPreviewQuery.TryParse(sql, documentDatabase: null, out var pgQuery));
+            Assert.IsType<PowerBIPreviewQuery>(pgQuery);
+            Assert.Equal("from 'Products'", GetQueryString(pgQuery));
+        }
+
+        [Fact]
+        public void Preview_table_name_first_in_and_where_should_match()
+        {
+            const string sql = "select COLUMN_NAME, ORDINAL_POSITION, IS_NULLABLE\n" +
+                               "from INFORMATION_SCHEMA.columns\n" +
+                               "where TABLE_NAME = 'Categories' and TABLE_SCHEMA = 'public'";
+
+            Assert.True(PowerBIPreviewQuery.TryParse(sql, documentDatabase: null, out var pgQuery));
+            Assert.IsType<PowerBIPreviewQuery>(pgQuery);
+            Assert.Equal("from 'Categories'", GetQueryString(pgQuery));
+        }
+
+        [Fact]
+        public void Preview_reordered_supported_columns_should_match()
+        {
+            const string sql = "select IS_NULLABLE, DATA_TYPE, ORDINAL_POSITION, COLUMN_NAME\n" +
+                               "from INFORMATION_SCHEMA.columns\n" +
+                               "where TABLE_NAME = 'Orders'";
+
+            Assert.True(PowerBIPreviewQuery.TryParse(sql, documentDatabase: null, out var pgQuery));
+            Assert.IsType<PowerBIPreviewQuery>(pgQuery);
+            Assert.Equal("from 'Orders'", GetQueryString(pgQuery));
+        }
+
+        [Fact]
+        public void Preview_aliased_supported_columns_should_match()
+        {
+            const string sql = "select COLUMN_NAME as col, ORDINAL_POSITION as pos, IS_NULLABLE as nullable\n" +
+                               "from INFORMATION_SCHEMA.columns\n" +
+                               "where TABLE_NAME = 'Employees'";
+
+            Assert.True(PowerBIPreviewQuery.TryParse(sql, documentDatabase: null, out var pgQuery));
+            Assert.IsType<PowerBIPreviewQuery>(pgQuery);
+            Assert.Equal("from 'Employees'", GetQueryString(pgQuery));
+        }
+
+        [Fact]
+        public void Preview_extra_unsupported_columns_should_NOT_match()
+        {
+            const string sql = "select COLUMN_NAME, ORDINAL_POSITION, IS_NULLABLE, DATA_TYPE, CHARACTER_MAXIMUM_LENGTH\n" +
+                               "from INFORMATION_SCHEMA.columns\n" +
+                               "where TABLE_SCHEMA = 'public' and TABLE_NAME = 'Orders'\n" +
+                               "order by TABLE_SCHEMA, TABLE_NAME, ORDINAL_POSITION";
+
+            Assert.False(PowerBIPreviewQuery.TryParse(sql, documentDatabase: null, out _));
+        }
+
+        [Fact]
+        public void Preview_missing_table_name_in_where_should_not_match()
+        {
+            const string sql = "select COLUMN_NAME from INFORMATION_SCHEMA.columns where TABLE_SCHEMA = 'public'";
+
+            Assert.False(PowerBIPreviewQuery.TryParse(sql, documentDatabase: null, out _));
+        }
+
+        [Fact]
+        public void Preview_no_where_clause_should_not_match()
+        {
+            const string sql = "select COLUMN_NAME from INFORMATION_SCHEMA.columns";
+
+            Assert.False(PowerBIPreviewQuery.TryParse(sql, documentDatabase: null, out _));
+        }
+
+        [Fact]
+        public void Preview_wrong_source_table_should_not_match()
+        {
+            const string sql = "select COLUMN_NAME from INFORMATION_SCHEMA.tables where TABLE_NAME = 'Orders'";
+
+            Assert.False(PowerBIPreviewQuery.TryParse(sql, documentDatabase: null, out _));
+        }
+
     }
 }

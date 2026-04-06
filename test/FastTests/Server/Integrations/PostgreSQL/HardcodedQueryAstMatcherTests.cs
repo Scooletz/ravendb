@@ -106,5 +106,67 @@ join information_schema.table_constraints fkcon on 1=1";
 
             Assert.False(PowerBIHardcodedAstMatcher.TryMatchPowerBIHardcodedQuery(sql, out _));
         }
+
+        // ---- CharacterSets: WHERE tolerance + wrong-table rejection ----
+
+        [Fact]
+        public void PowerBI_CharacterSetsQuery_with_where_clause_should_still_match()
+        {
+            const string sql = "SELECT character_set_name FROM information_schema.character_sets WHERE character_set_name = 'UTF8'";
+
+            Assert.True(PowerBIHardcodedAstMatcher.TryMatchPowerBIHardcodedQuery(sql, out var table));
+            Assert.Same(PowerBIConfig.CharacterSetsResponse, table);
+        }
+
+        [Fact]
+        public void PowerBI_CharacterSetsQuery_targeting_wrong_table_should_not_match()
+        {
+            const string sql = "SELECT character_set_name FROM information_schema.tables";
+
+            Assert.False(PowerBIHardcodedAstMatcher.TryMatchPowerBIHardcodedQuery(sql, out _));
+        }
+
+        // ---- Constraints: ORDER BY tolerance + wrong-table rejection ----
+
+        [Fact]
+        public void PowerBI_ConstraintsQuery_with_order_by_should_still_match()
+        {
+            // ConstraintsQuery with an ORDER BY appended — source tables and projected columns are what matter.
+            var sql = PowerBIConfig.ConstraintsQuery + "\norder by index_name";
+
+            Assert.True(PowerBIHardcodedAstMatcher.TryMatchPowerBIHardcodedQuery(sql, out var table));
+            Assert.Same(PowerBIConfig.ConstraintsResponse, table);
+        }
+
+        [Fact]
+        public void PowerBI_ConstraintsQuery_missing_required_table_should_not_match()
+        {
+            // Only key_column_usage present — table_constraints is missing.
+            const string sql = "SELECT ii.CONSTRAINT_SCHEMA || '_' || ii.CONSTRAINT_NAME as INDEX_NAME, ii.COLUMN_NAME, ii.ORDINAL_POSITION, 'N' as PRIMARY_KEY FROM information_schema.key_column_usage ii";
+
+            Assert.False(PowerBIHardcodedAstMatcher.TryMatchPowerBIHardcodedQuery(sql, out _));
+        }
+
+        // ---- TableSchema: wrong-table rejection ----
+
+        [Fact]
+        public void PowerBI_TableSchemaQuery_targeting_wrong_tables_should_not_match()
+        {
+            // Uses information_schema.columns instead of the required key_column_usage + table_constraints.
+            const string sql = "select col.column_name as pk_column_name, col.table_schema as fk_table_schema, col.table_name as fk_table_name, col.column_name as fk_column_name, col.ordinal_position as ordinal, 'x' as fk_name from information_schema.columns col";
+
+            Assert.False(PowerBIHardcodedAstMatcher.TryMatchPowerBIHardcodedQuery(sql, out _));
+        }
+
+        // ---- TableSchemaSecondary: wrong-table rejection ----
+
+        [Fact]
+        public void PowerBI_TableSchemaSecondaryQuery_targeting_wrong_tables_should_not_match()
+        {
+            const string sql = "select col.table_schema as pk_table_schema, col.table_name as pk_table_name, col.column_name as pk_column_name, col.column_name as fk_column_name, col.ordinal_position as ordinal, col.table_schema from information_schema.columns col";
+
+            Assert.False(PowerBIHardcodedAstMatcher.TryMatchPowerBIHardcodedQuery(sql, out _));
+        }
+
     }
 }
