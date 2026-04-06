@@ -1252,5 +1252,112 @@ limit 1000";
             Assert.False(PowerBIPreviewQuery.TryParse(sql, documentDatabase: null, out _));
         }
 
+        // ---- DirectQuery: CASE helper columns at outermost SELECT level ----
+
+        [Fact]
+        public void DirectQuery_outermost_select_with_case_helper_columns_should_be_classified_as_direct_query()
+        {
+            // Outer SELECT contains real business columns plus CASE-based t<N>_0 helper columns.
+            // The helpers must be skipped; the real columns (Employee, RequireAt) must be extracted.
+            const string sql = @"select ""_"".""Employee"" as ""c3"",
+    ""_"".""RequireAt"" as ""c7"",
+    case when ""_"".""o2"" is not null then ""_"".""o2"" else timestamp '1899-12-28 00:00:00' end as ""t2_0"",
+    case when ""_"".""o2"" is null then 0 else 1 end as ""t3_0""
+from
+(
+    select ""rows"".""Employee"" as ""Employee"",
+        ""rows"".""RequireAt"" as ""RequireAt"",
+        ""rows"".""RequireAt"" as ""o2""
+    from
+    (
+        select ""Employee"" as ""Employee"",
+            ""RequireAt"" as ""RequireAt"",
+            ""RequireAt"" as ""o2""
+        from
+        (
+            from Orders
+            where Company in ('Companies/1-A', 'Companies/2-A', 'Companies/3-A')
+        ) ""$Table""
+    ) ""rows""
+    group by ""Employee"", ""RequireAt"", ""o2""
+) ""_""
+order by ""_"".""t2_0"", ""_"".""t3_0""
+limit 501";
+
+            Assert.True(PowerBIQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
+            Assert.IsType<PowerBIDirectQuery>(pgQuery);
+
+            // Business columns must appear in the rewritten RQL; helper aliases must not.
+            var queryString = GetQueryString(pgQuery);
+            Assert.NotNull(queryString);
+            Assert.Contains("Employee", queryString, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("RequireAt", queryString, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("t2_0", queryString, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("t3_0", queryString, StringComparison.OrdinalIgnoreCase);
+        }
+
+        [Fact]
+        public void DirectQuery_outermost_select_with_only_helper_columns_should_NOT_classify_as_direct_query()
+        {
+            // Every column at every wrapper level is a helper alias (t<N>_0 or o<N>).
+            // After skipping all helpers, cols.Count == 0 at each level, so TryParse must fail.
+            // This validates the cols.Count > 0 guard in TryExtractOuterProjectedColumns
+            // and TryExtractSimpleProjectedColumns.
+            const string sql = @"select ""_"".""t2_0"" as ""t2_0"",
+    ""_"".""t3_0"" as ""t3_0""
+from
+(
+    select ""_"".""t2_0"" as ""t2_0"",
+        ""_"".""t3_0"" as ""t3_0""
+    from
+    (
+        select ""o2"" as ""o2""
+        from
+        (
+            from Orders
+            where Company = 'Companies/1-A'
+        ) ""$Table""
+        group by ""o2""
+    ) ""_""
+) ""_""
+order by ""_"".""t2_0""
+limit 501";
+
+            Assert.False(PowerBIDirectQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out _));
+        }
+
+        [Fact]
+        public void DirectQuery_outer_case_expression_with_non_helper_alias_should_NOT_classify_as_direct_query()
+        {
+            // The outer SELECT includes a CASE expression with a non-helper alias ("delivery_status").
+            // Because the alias doesn't match the t<N>_0 / o<N> helper pattern, it must NOT be skipped.
+            // Classification must fail — we do not silently accept arbitrary expressions.
+            //
+            // Inner levels use only helper-named columns (t<N>_0, o<N>) so the
+            // projection-column walker cannot find real columns at any fallback level.
+            const string sql = @"select ""_"".""Employee"" as ""c3"",
+    case when ""_"".""RequireAt"" > 5 then 'late' else 'on-time' end as ""delivery_status""
+from
+(
+    select ""_"".""t2_0"" as ""t2_0"",
+        ""_"".""o2"" as ""o2""
+    from
+    (
+        select ""t2_0"" as ""t2_0"",
+            ""o2"" as ""o2""
+        from
+        (
+            from Orders
+            where Company = 'Companies/1-A'
+        ) ""$Table""
+        group by ""t2_0"", ""o2""
+    ) ""_""
+) ""_""
+order by ""_"".""Employee""
+limit 501";
+
+            Assert.False(PowerBIDirectQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out _));
+        }
+
     }
 }

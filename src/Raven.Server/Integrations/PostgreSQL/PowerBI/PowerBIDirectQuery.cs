@@ -312,12 +312,31 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                             return false;
 
                         var colRef = rt.Val?.ColumnRef;
-                        if (colRef?.Fields is not { Count: 1 })
+                        if (colRef == null)
+                        {
+                            // Non-col-ref expression (e.g. CASE): skip only when BOTH the alias matches
+                            // a known helper pattern AND the expression is a CASE expression.
+                            // Intentional conservative tolerance for PowerBI null-order CASE helpers;
+                            // not a general expression interpreter.
+                            if (IsHelperColumnAlias(rt.Name) && rt.Val?.CaseExpr != null)
+                                continue;
                             return false;
+                        }
+
+                        if (colRef.Fields is not { Count: 1 })
+                        {
+                            // Multi-field qualified ref (e.g. "_"."t2_0"): skip if known helper alias.
+                            if (IsHelperColumnAlias(rt.Name))
+                                continue;
+                            return false;
+                        }
 
                         var colName = colRef.Fields[0]?.String?.Sval;
                         if (string.IsNullOrWhiteSpace(colName))
                             return false;
+
+                        if (IsHelperColumnAlias(colName))
+                            continue;
 
                         cols.Add(colName);
                     }
@@ -815,15 +834,55 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
 
                     var colRef = resTarget.Val?.ColumnRef;
                     if (colRef == null)
+                    {
+                        // Non-col-ref expression (e.g. CASE): skip only when BOTH the alias matches
+                        // a known helper pattern AND the expression is a CASE expression.
+                        // Intentional conservative tolerance for PowerBI null-order CASE helpers;
+                        // not a general expression interpreter.
+                        if (IsHelperColumnAlias(resTarget.Name) && resTarget.Val?.CaseExpr != null)
+                            continue;
                         return false;
+                    }
 
                     if (TryExtractOuterUnderscoreQualifiedColumn(colRef, out var colName) == false)
+                    {
+                        // Qualified ref that doesn't follow the "_"."X" pattern:
+                        // skip if it has a helper alias.
+                        if (IsHelperColumnAlias(resTarget.Name))
+                            continue;
                         return false;
+                    }
+
+                    if (IsHelperColumnAlias(colName))
+                        continue;
 
                     cols.Add(colName);
                 }
 
-                return true;
+                return cols.Count > 0;
+            }
+
+            static bool IsHelperColumnAlias(string name)
+            {
+                if (string.IsNullOrWhiteSpace(name))
+                    return false;
+
+                // t<N>_0 pattern — null-order CASE helper (e.g. "t2_0", "t3_0")
+                if (name.Length >= 4 && (name[0] == 't' || name[0] == 'T'))
+                {
+                    var u = name.IndexOf('_');
+                    if (u >= 2 && u < name.Length - 1 &&
+                        name.AsSpan(u).Equals("_0", StringComparison.OrdinalIgnoreCase) &&
+                        int.TryParse(name.AsSpan(1, u - 1), out _))
+                        return true;
+                }
+
+                // o<N> pattern — order alias passthrough (e.g. "o2", "o3")
+                if (name.Length >= 2 && (name[0] == 'o' || name[0] == 'O') &&
+                    int.TryParse(name.AsSpan(1), out _))
+                    return true;
+
+                return false;
             }
 
             static bool TryExtractGroupByColumns(SelectStmt selectStmt, out List<string> cols)

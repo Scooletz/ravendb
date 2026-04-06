@@ -796,6 +796,91 @@ limit 1001";
         }
     }
 
+    [Fact]
+    public async Task DirectQuery_desktop_grouped_sum_company_orderedAt_freight_where_company_is_group_key_should_return_exact_values_end_to_end()
+    {
+        // Two-query approach: first fetch raw rows and compute the ground-truth sums in C#,
+        // then run the grouped-sum DirectQuery and verify each row matches exactly.
+        // This avoids hard-coding expected values that depend on the sample dataset.
+        using (var store = GetDocumentStore())
+        {
+            await store.Maintenance.SendAsync(new CreateSampleDataOperation());
+
+            // Step 1: fetch the raw rows that will be grouped.
+            // Uses the non-aggregate simple-fetch path so we get the real document values.
+            const string rawSql = @"select ""_"".""Company"",
+    ""_"".""OrderedAt"",
+    ""_"".""Freight""
+from
+(
+    from Orders
+    where Company in ('Companies/1-A', 'Companies/2-A', 'Companies/3-A')
+) ""_""
+limit 1000001";
+
+            var rawResult = await Act(store, rawSql);
+            Assert.NotNull(rawResult);
+            Assert.NotEmpty(rawResult.Rows);
+
+            // Compute ground-truth sums grouped by (Company, OrderedAt).
+            var expected = new Dictionary<(string Company, string OrderedAt), decimal>();
+            foreach (DataRow row in rawResult.Rows)
+            {
+                var company = row["Company"].ToString();
+                var orderedAt = row["OrderedAt"].ToString();
+                var freight = Convert.ToDecimal(row["Freight"]);
+                var key = (company, orderedAt);
+                expected.TryGetValue(key, out var existing);
+                expected[key] = existing + freight;
+            }
+
+            Assert.NotEmpty(expected);
+
+            // Step 2: run the grouped-sum DirectQuery and verify against ground truth.
+            const string sql = @"select ""_"".""Company"",
+    ""_"".""OrderedAt"",
+    ""_"".""a0""
+from
+(
+    select ""rows"".""Company"" as ""Company"",
+        ""rows"".""OrderedAt"" as ""OrderedAt"",
+        sum(""rows"".""Freight"") as ""a0""
+    from
+    (
+        from Orders
+        where Company in ('Companies/1-A', 'Companies/2-A', 'Companies/3-A')
+    ) ""rows""
+    group by ""Company"",
+        ""OrderedAt""
+) ""_""
+where not ""_"".""a0"" is null
+limit 1000001";
+
+            var result = await Act(store, sql);
+
+            Assert.NotNull(result);
+            Assert.NotEmpty(result.Rows);
+            Assert.Equal(3, result.Columns.Count);
+            Assert.True(result.Columns.Contains("Company"));
+            Assert.True(result.Columns.Contains("OrderedAt"));
+            Assert.True(result.Columns.Contains("a0"));
+            Assert.Equal(expected.Count, result.Rows.Count);
+
+            foreach (DataRow row in result.Rows)
+            {
+                var company = row["Company"].ToString();
+                var orderedAt = row["OrderedAt"].ToString();
+                var freight = Convert.ToDecimal(row["a0"]);
+                var key = (company, orderedAt);
+                Assert.True(expected.ContainsKey(key),
+                    $"Unexpected group (Company={company}, OrderedAt={orderedAt}) in result");
+                var expectedFreight = expected[key];
+                Assert.True(Math.Abs(freight - expectedFreight) < 0.01m,
+                    $"Freight mismatch for (Company={company}, OrderedAt={orderedAt}): expected {expectedFreight}, got {freight}");
+            }
+        }
+    }
+
     [Fact(Skip = "Unsupported: grouped aggregate wrapper + inner filter on non-grouped field.")]
     public async Task DirectQuery_desktop_grouped_sum_two_group_fields_with_outer_where_not_null_should_work_end_to_end()
     {
