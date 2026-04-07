@@ -120,4 +120,5 @@ interface computedAppUrls {
     chatAiAgent: (id: string) => KnockoutComputed<string>;
     aiTasks: KnockoutComputed<string>;
     aiTasksStats: KnockoutComputed<string>;
+    aiTasksErrors: KnockoutComputed<string>;
 }

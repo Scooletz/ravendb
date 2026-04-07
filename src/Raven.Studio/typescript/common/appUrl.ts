@@ -141,6 +141,7 @@ class appUrl {
         chatAiAgent: (id: string) => ko.pureComputed(() => appUrl.forChatAiAgent(appUrl.currentDatabase(), id)),
         aiTasks: ko.pureComputed(() => appUrl.forAiTasks(appUrl.currentDatabase())),
         aiTasksStats: ko.pureComputed(() => appUrl.forAiTasksStats(appUrl.currentDatabase())),
+        aiTasksErrors: ko.pureComputed(() => appUrl.forAiTasksErrors(appUrl.currentDatabase())),
     };
 
     static checkIsAreaActive(routeRoot: string): boolean {
@@ -831,6 +832,11 @@ class appUrl {
     static forAiTasksStats(db: database | string): string {
         const databasePart = appUrl.getEncodedDbPart(db);
         return "#databases/ai/tasksStats?" + databasePart;
+    }
+
+    static forAiTasksErrors(db: database | string): string {
+        const databasePart = appUrl.getEncodedDbPart(db);
+        return "#databases/ai/tasksErrors?" + databasePart;
     }
 
     static getDatabaseNameFromUrl(): string {

@@ -9,7 +9,13 @@ import { useDatabaseWideAsync } from "hooks/useDatabaseWideAsync";
 import { LoadingView } from "components/common/LoadingView";
 import { EmptySet } from "components/common/EmptySet";
 import { LoadError } from "components/common/LoadError";
-import { EtlTaskWithErrors, getTaskPillColor, getTasksWithErrors, GroupByType } from "./utils/tasksErrorsUtils";
+import {
+    AI_ONLY_TASK_TYPES,
+    EtlTaskWithErrors,
+    getTaskPillColor,
+    getTasksWithErrors,
+    GroupByType,
+} from "./utils/tasksErrorsUtils";
 import TasksErrorsAboutView from "./partials/TasksErrorsAboutView";
 import { TaskPill, TaskPillGroupMessage } from "./partials/TaskPill";
 import { TasksFilters, useTasksFilters } from "./partials/TasksFilters";
@@ -22,7 +28,11 @@ interface TasksErrorsPageQueryParams {
     taskName?: string;
 }
 
-export default function TasksErrorsPage({ queryParams }: ReactQueryParamsProps<TasksErrorsPageQueryParams>) {
+interface TasksErrorsPageProps {
+    aiOnly?: boolean;
+}
+
+export default function TasksErrorsPage({ queryParams, aiOnly }: ReactQueryParamsProps<TasksErrorsPageQueryParams> & TasksErrorsPageProps) {
     const { isLoading, hasAnyError, handleRefresh, tasksWithErrors, flattenAllEtlStats } = useTasksErrorsData();
 
     if (isLoading) {
@@ -46,6 +56,7 @@ export default function TasksErrorsPage({ queryParams }: ReactQueryParamsProps<T
                 tasksWithErrors={tasksWithErrors}
                 flattenAllEtlStats={flattenAllEtlStats}
                 initialSearchText={queryParams?.taskName}
+                initialTaskTypes={aiOnly ? AI_ONLY_TASK_TYPES : []}
                 onRefresh={handleRefresh}
             />
         </div>
@@ -56,6 +67,7 @@ interface TasksErrorsPageBodyProps {
     tasksWithErrors: EtlTaskWithErrors[];
     flattenAllEtlStats: EtlTaskStats[];
     initialSearchText?: string;
+    initialTaskTypes?: StudioEtlType[];
     onRefresh: () => void;
 }
 
@@ -67,9 +79,9 @@ function getPillGroups(etlStats: EtlTaskStats[]) {
         .filter((group) => group.stats.length > 0);
 }
 
-function TasksErrorsPageBody({ tasksWithErrors, flattenAllEtlStats, initialSearchText, onRefresh }: TasksErrorsPageBodyProps) {
+function TasksErrorsPageBody({ tasksWithErrors, flattenAllEtlStats, initialSearchText, initialTaskTypes, onRefresh }: TasksErrorsPageBodyProps) {
     const [selectedGroupByType, setSelectedGroupByType] = useState<GroupByType>("task");
-    const [filters, updateFilters] = useTasksFilters(initialSearchText);
+    const [filters, updateFilters] = useTasksFilters(initialSearchText, initialTaskTypes);
 
     if (tasksWithErrors.length === 0) {
         return (

@@ -301,3 +301,6 @@ export function getPopoverMessageForTaskHealth(status: EtlHealthStatus): string 
 }
 
 export const SHOW_WIDTH_SIZE = 70;
+
+export const AI_ONLY_TASK_TYPES: StudioEtlType[] = ["EmbeddingsGeneration", "GenAi"];
+

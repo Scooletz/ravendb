@@ -2,8 +2,6 @@ import React, { useMemo, useState } from "react";
 import { Icon } from "components/common/Icon";
 import Form from "react-bootstrap/Form";
 import Button from "react-bootstrap/Button";
-import Row from "react-bootstrap/Row";
-import Col from "react-bootstrap/Col";
 import Select, { SelectOption } from "components/common/select/Select";
 import { InputItem } from "components/models/common";
 import { MultiRadioToggle } from "components/common/toggles/MultiRadioToggle";
@@ -40,14 +38,15 @@ export const groupByOptions: InputItem<GroupByType>[] = [
 ];
 
 export function useTasksFilters(
-    initialSearchText = ""
+    initialSearchText = "",
+    initialTaskTypes: StudioEtlType[] = []
 ): [TasksFiltersState, (patch: Partial<TasksFiltersState>) => void] {
     const [filters, setFilters] = useState<TasksFiltersState>({
         searchText: initialSearchText,
         nodeTags: [],
         shardNumbers: [],
         healthStatuses: [],
-        taskTypes: [],
+        taskTypes: initialTaskTypes,
     });
 
     const updateFilters = (patch: Partial<TasksFiltersState>) => setFilters((prev) => ({ ...prev, ...patch }));
@@ -139,6 +138,7 @@ export function TasksFilters({
                     isMulti
                     isClearable
                     options={taskTypeOptions}
+                    value={taskTypeOptions.filter((o) => filters.taskTypes.includes(o.value))}
                     onChange={(options) =>
                         updateFilters({
                             taskTypes: options ? options.map((o) => o.value) : [],
