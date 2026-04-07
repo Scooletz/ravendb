@@ -256,9 +256,10 @@ interface GroupByNoneViewProps {
     tasksWithErrors: EtlTaskWithErrors[];
     etlStats: EtlTaskStats[];
     filters: TasksFiltersState;
+    onRefresh: () => void;
 }
 
-export function GroupByNoneView({ tasksWithErrors, etlStats, filters }: GroupByNoneViewProps) {
+export function GroupByNoneView({ tasksWithErrors, etlStats, filters, onRefresh }: GroupByNoneViewProps) {
     const { value: isDeleteAllErrorsModalOpen, toggle: toggleDeleteAllErrorsModal } = useBoolean(false);
 
     return (
@@ -279,7 +280,7 @@ export function GroupByNoneView({ tasksWithErrors, etlStats, filters }: GroupByN
                 />
             </div>
             {isDeleteAllErrorsModalOpen && (
-                <DeleteAllErrorsModal tasksWithErrors={tasksWithErrors} toggle={toggleDeleteAllErrorsModal} />
+                <DeleteAllErrorsModal tasksWithErrors={tasksWithErrors} toggle={toggleDeleteAllErrorsModal} onRefresh={onRefresh} />
             )}
         </>
     );

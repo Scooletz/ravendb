@@ -33,12 +33,13 @@ function useDeleteConfirmation(isRequireTypedConfirm: boolean) {
 
 interface DeleteTaskErrorsModalProps {
     toggle: () => void;
+    onRefresh: () => void;
     etlName: string;
     transformations: EtlTransformationWithErrors[];
     errorsCount: number;
 }
 
-export function DeleteTaskErrorsModal({ toggle, etlName, transformations, errorsCount }: DeleteTaskErrorsModalProps) {
+export function DeleteTaskErrorsModal({ toggle, onRefresh, etlName, transformations, errorsCount }: DeleteTaskErrorsModalProps) {
     const db = useAppSelector(databaseSelectors.activeDatabase);
     const { tasksService } = useServices();
 
@@ -63,6 +64,7 @@ export function DeleteTaskErrorsModal({ toggle, etlName, transformations, errors
                 )
             );
             toggle();
+            onRefresh();
         } catch (e) {
             console.error(e);
         }
@@ -126,10 +128,11 @@ export function DeleteTaskErrorsModal({ toggle, etlName, transformations, errors
 
 interface DeleteAllErrorsModalProps {
     toggle: () => void;
+    onRefresh: () => void;
     tasksWithErrors: EtlTaskWithErrors[];
 }
 
-export function DeleteAllErrorsModal({ toggle, tasksWithErrors }: DeleteAllErrorsModalProps) {
+export function DeleteAllErrorsModal({ toggle, onRefresh, tasksWithErrors }: DeleteAllErrorsModalProps) {
     const db = useAppSelector(databaseSelectors.activeDatabase);
     const { tasksService } = useServices();
 
@@ -156,6 +159,7 @@ export function DeleteAllErrorsModal({ toggle, tasksWithErrors }: DeleteAllError
                 )
             );
             toggle();
+            onRefresh();
         });
     });
 

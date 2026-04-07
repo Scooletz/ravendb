@@ -46,6 +46,7 @@ export default function TasksErrorsPage({ queryParams }: ReactQueryParamsProps<T
                 tasksWithErrors={tasksWithErrors}
                 flattenAllEtlStats={flattenAllEtlStats}
                 initialSearchText={queryParams?.taskName}
+                onRefresh={handleRefresh}
             />
         </div>
     );
@@ -55,6 +56,7 @@ interface TasksErrorsPageBodyProps {
     tasksWithErrors: EtlTaskWithErrors[];
     flattenAllEtlStats: EtlTaskStats[];
     initialSearchText?: string;
+    onRefresh: () => void;
 }
 
 const pillGroupOrder: Array<"bg-success" | "bg-warning" | "bg-danger"> = ["bg-success", "bg-warning", "bg-danger"];
@@ -65,7 +67,7 @@ function getPillGroups(etlStats: EtlTaskStats[]) {
         .filter((group) => group.stats.length > 0);
 }
 
-function TasksErrorsPageBody({ tasksWithErrors, flattenAllEtlStats, initialSearchText }: TasksErrorsPageBodyProps) {
+function TasksErrorsPageBody({ tasksWithErrors, flattenAllEtlStats, initialSearchText, onRefresh }: TasksErrorsPageBodyProps) {
     const [selectedGroupByType, setSelectedGroupByType] = useState<GroupByType>("task");
     const [filters, updateFilters] = useTasksFilters(initialSearchText);
 
@@ -119,6 +121,7 @@ function TasksErrorsPageBody({ tasksWithErrors, flattenAllEtlStats, initialSearc
                         tasksWithErrors={tasksWithErrors}
                         etlStats={flattenAllEtlStats}
                         filters={filters}
+                        onRefresh={onRefresh}
                     />
                 )}
                 {selectedGroupByType === "none" && (
@@ -126,6 +129,7 @@ function TasksErrorsPageBody({ tasksWithErrors, flattenAllEtlStats, initialSearc
                         tasksWithErrors={tasksWithErrors}
                         etlStats={flattenAllEtlStats}
                         filters={filters}
+                        onRefresh={onRefresh}
                     />
                 )}
             </div>

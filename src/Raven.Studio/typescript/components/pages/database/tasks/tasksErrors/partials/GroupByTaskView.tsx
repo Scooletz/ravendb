@@ -8,9 +8,10 @@ interface GroupByTaskViewProps {
     tasksWithErrors: EtlTaskWithErrors[];
     etlStats: EtlTaskStats[];
     filters: TasksFiltersState;
+    onRefresh: () => void;
 }
 
-export function GroupByTaskView({ tasksWithErrors, etlStats, filters }: GroupByTaskViewProps) {
+export function GroupByTaskView({ tasksWithErrors, etlStats, filters, onRefresh }: GroupByTaskViewProps) {
     const filteredTasksWithErrors = useMemo(() => {
         const { searchText, nodeTags, shardNumbers, healthStatuses, taskTypes } = filters;
 
@@ -50,7 +51,7 @@ export function GroupByTaskView({ tasksWithErrors, etlStats, filters }: GroupByT
     return (
         <>
             {filteredTasksWithErrors.map((task) => (
-                <TaskPanel {...task} etlStats={etlStats} key={task.etlName} />
+                <TaskPanel {...task} etlStats={etlStats} onRefresh={onRefresh} key={task.etlName} />
             ))}
         </>
     );

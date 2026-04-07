@@ -213,9 +213,10 @@ function NestedTaskPanelDetails({ width, transformationName, processErrors, item
 
 interface TaskPanelProps extends EtlTaskWithErrors {
     etlStats: EtlTaskStats[];
+    onRefresh: () => void;
 }
 
-export function TaskPanel({ etlName, transformations, etlStats }: TaskPanelProps) {
+export function TaskPanel({ etlName, transformations, etlStats, onRefresh }: TaskPanelProps) {
     const hasDatabaseWriteAccess = useAppSelector(accessManagerSelectors.getHasDatabaseWriteAccess)();
     const databaseName = useAppSelector(databaseSelectors.activeDatabaseName);
     const { value: isDetailsVisible, toggle: toggleDetails } = useBoolean(true);
@@ -307,6 +308,7 @@ export function TaskPanel({ etlName, transformations, etlStats }: TaskPanelProps
                     transformations={transformations}
                     errorsCount={errorsCount}
                     toggle={toggleDeleteModal}
+                    onRefresh={onRefresh}
                 />
             )}
         </>
