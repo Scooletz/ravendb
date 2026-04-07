@@ -280,7 +280,11 @@ export function GroupByNoneView({ tasksWithErrors, etlStats, filters, onRefresh 
                 />
             </div>
             {isDeleteAllErrorsModalOpen && (
-                <DeleteAllErrorsModal tasksWithErrors={tasksWithErrors} toggle={toggleDeleteAllErrorsModal} onRefresh={onRefresh} />
+                <DeleteAllErrorsModal
+                    tasksWithErrors={tasksWithErrors}
+                    toggle={toggleDeleteAllErrorsModal}
+                    onRefresh={onRefresh}
+                />
             )}
         </>
     );

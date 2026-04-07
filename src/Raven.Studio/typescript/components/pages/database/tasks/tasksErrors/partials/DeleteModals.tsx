@@ -39,7 +39,13 @@ interface DeleteTaskErrorsModalProps {
     errorsCount: number;
 }
 
-export function DeleteTaskErrorsModal({ toggle, onRefresh, etlName, transformations, errorsCount }: DeleteTaskErrorsModalProps) {
+export function DeleteTaskErrorsModal({
+    toggle,
+    onRefresh,
+    etlName,
+    transformations,
+    errorsCount,
+}: DeleteTaskErrorsModalProps) {
     const db = useAppSelector(databaseSelectors.activeDatabase);
     const { tasksService } = useServices();
 

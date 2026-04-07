@@ -32,7 +32,10 @@ interface TasksErrorsPageProps {
     aiOnly?: boolean;
 }
 
-export default function TasksErrorsPage({ queryParams, aiOnly }: ReactQueryParamsProps<TasksErrorsPageQueryParams> & TasksErrorsPageProps) {
+export default function TasksErrorsPage({
+    queryParams,
+    aiOnly,
+}: ReactQueryParamsProps<TasksErrorsPageQueryParams> & TasksErrorsPageProps) {
     const { isLoading, hasAnyError, handleRefresh, tasksWithErrors, flattenAllEtlStats } = useTasksErrorsData();
 
     if (isLoading) {
@@ -79,7 +82,13 @@ function getPillGroups(etlStats: EtlTaskStats[]) {
         .filter((group) => group.stats.length > 0);
 }
 
-function TasksErrorsPageBody({ tasksWithErrors, flattenAllEtlStats, initialSearchText, initialTaskTypes, onRefresh }: TasksErrorsPageBodyProps) {
+function TasksErrorsPageBody({
+    tasksWithErrors,
+    flattenAllEtlStats,
+    initialSearchText,
+    initialTaskTypes,
+    onRefresh,
+}: TasksErrorsPageBodyProps) {
     const [selectedGroupByType, setSelectedGroupByType] = useState<GroupByType>("task");
     const [filters, updateFilters] = useTasksFilters(initialSearchText, initialTaskTypes);
 

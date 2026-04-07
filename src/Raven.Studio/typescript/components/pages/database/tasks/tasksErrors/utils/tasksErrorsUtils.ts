@@ -242,6 +242,14 @@ export function getEtlTypeIcon(value: StudioEtlType): IconName {
             return "azure-queue-storage-etl";
         case "RabbitMQ":
             return "rabbitmq-etl";
+        case "EmbeddingsGeneration":
+            return "ai-etl";
+        case "AmazonSqs":
+            return "amazon-sqs-etl";
+        case "Snowflake":
+            return "snowflake-etl";
+        case "GenAi":
+            return "genai";
         default:
             return null;
     }
@@ -279,7 +287,7 @@ export function getEtlTypeLabel(etlType: StudioEtlType): string {
 export function getPopoverMessageForErrorType(errorType: "Item" | "Process"): string {
     switch (errorType) {
         case "Item":
-            return "Error that applies to the single document and doesn't affect the whole task process.";
+            return "An error that applies to a single document. It has been skipped, and the task continues processing other documents.";
         case "Process":
             return "Error that affects the process and the whole batch of documents.";
         default:
@@ -303,4 +311,3 @@ export function getPopoverMessageForTaskHealth(status: EtlHealthStatus): string 
 export const SHOW_WIDTH_SIZE = 70;
 
 export const AI_ONLY_TASK_TYPES: StudioEtlType[] = ["EmbeddingsGeneration", "GenAi"];
-
