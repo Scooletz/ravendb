@@ -171,7 +171,11 @@ function NestedTaskPanelDetailsTable({ width, itemErrors, processErrors }: Neste
     return (
         <VirtualTable
             table={tasksErrorsPanelTable}
-            heightInPx={virtualTableUtils.getHeightInPx(data.length, virtualTableConstants.defaultTableHeightInPx)}
+            heightInPx={virtualTableUtils.getHeightInPx(
+                data.length,
+                virtualTableConstants.defaultTableHeightInPx,
+                virtualTableConstants.doubleLineRowHeightInPx
+            )}
             rowHeightInPx={virtualTableConstants.doubleLineRowHeightInPx}
         />
     );
@@ -298,7 +302,12 @@ export function TaskPanel({ etlName, transformations, etlStats }: TaskPanelProps
                 />
             </RichPanel>
             {isDeleteModalOpen && (
-                <DeleteTaskErrorsModal etlName={etlName} errorsCount={errorsCount} toggle={toggleDeleteModal} />
+                <DeleteTaskErrorsModal
+                    etlName={etlName}
+                    transformations={transformations}
+                    errorsCount={errorsCount}
+                    toggle={toggleDeleteModal}
+                />
             )}
         </>
     );

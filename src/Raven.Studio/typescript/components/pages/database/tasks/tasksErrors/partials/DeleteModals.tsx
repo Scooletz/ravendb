@@ -15,7 +15,7 @@ import studioSettings from "common/settings/studioSettings";
 import messagePublisher from "common/messagePublisher";
 import DatabaseUtils from "components/utils/DatabaseUtils";
 import { tryHandleSubmit } from "components/utils/common";
-import { EtlTaskWithErrors } from "../utils/tasksErrorsUtils";
+import { EtlTaskWithErrors, EtlTransformationWithErrors } from "../utils/tasksErrorsUtils";
 
 function useDeleteConfirmation(isRequireTypedConfirm: boolean) {
     const [confirmText, setConfirmText] = useState("");
@@ -34,10 +34,11 @@ function useDeleteConfirmation(isRequireTypedConfirm: boolean) {
 interface DeleteTaskErrorsModalProps {
     toggle: () => void;
     etlName: string;
+    transformations: EtlTransformationWithErrors[];
     errorsCount: number;
 }
 
-export function DeleteTaskErrorsModal({ toggle, etlName, errorsCount }: DeleteTaskErrorsModalProps) {
+export function DeleteTaskErrorsModal({ toggle, etlName, transformations, errorsCount }: DeleteTaskErrorsModalProps) {
     const db = useAppSelector(databaseSelectors.activeDatabase);
     const { tasksService } = useServices();
 
@@ -50,11 +51,12 @@ export function DeleteTaskErrorsModal({ toggle, etlName, errorsCount }: DeleteTa
 
     const asyncDeleteErrors = useAsyncCallback(async () => {
         try {
+            const processNames = transformations.map((t) => `${etlName}/${t.transformationName}`);
             const locations = DatabaseUtils.getLocations(db);
             await Promise.all(
                 locations.map((location) =>
                     tasksService.deleteEtlErrors(db.name, {
-                        name: [etlName],
+                        name: processNames,
                         nodeTag: location.nodeTag,
                         shardNumber: location.shardNumber,
                     })
@@ -139,23 +141,20 @@ export function DeleteAllErrorsModal({ toggle, tasksWithErrors }: DeleteAllError
     const { confirmText, handleTextChange, isConfirmed } = useDeleteConfirmation(isRequireTypedConfirm);
 
     const asyncDeleteAllErrors = useAsyncCallback(() => {
-        const names = tasksWithErrors.map((task) => task.etlName);
+        const processNames = tasksWithErrors.flatMap((task) =>
+            task.transformations.map((t) => `${task.etlName}/${t.transformationName}`)
+        );
 
         return tryHandleSubmit(async () => {
-            if (db.isSharded) {
-                const locations = DatabaseUtils.getLocations(db);
-                await Promise.all(
-                    locations.map((location) =>
-                        tasksService.deleteEtlErrors(db.name, {
-                            name: names,
-                            nodeTag: location.nodeTag,
-                            shardNumber: location.shardNumber,
-                        })
-                    )
-                );
-            } else {
-                await tasksService.deleteEtlErrors(db.name, { name: names });
-            }
+            const locations = DatabaseUtils.getLocations(db);
+            await Promise.all(
+                locations.map((location) =>
+                    tasksService.deleteEtlErrors(db.name, {
+                        name: processNames,
+                        ...location,
+                    })
+                )
+            );
             toggle();
         });
     });
