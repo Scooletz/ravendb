@@ -14,7 +14,6 @@ import { useAsync, useAsyncCallback } from "react-async-hook";
 import studioSettings from "common/settings/studioSettings";
 import messagePublisher from "common/messagePublisher";
 import DatabaseUtils from "components/utils/DatabaseUtils";
-import { tryHandleSubmit } from "components/utils/common";
 import { EtlTaskWithErrors, EtlTransformationWithErrors } from "../utils/tasksErrorsUtils";
 import footer from "common/shell/footer";
 
@@ -70,6 +69,7 @@ export function DeleteTaskErrorsModal({
                     })
                 )
             );
+            messagePublisher.reportSuccess("ETL errors were deleted.");
             footer.default.refreshStats();
             toggle();
             onRefresh();
@@ -151,12 +151,12 @@ export function DeleteAllErrorsModal({ toggle, onRefresh, tasksWithErrors }: Del
 
     const { confirmText, handleTextChange, isConfirmed } = useDeleteConfirmation(isRequireTypedConfirm);
 
-    const asyncDeleteAllErrors = useAsyncCallback(() => {
+    const asyncDeleteAllErrors = useAsyncCallback(async () => {
         const processNames = tasksWithErrors.flatMap((task) =>
             task.transformations.map((t) => `${task.etlName}/${t.transformationName}`)
         );
 
-        return tryHandleSubmit(async () => {
+        try {
             const locations = DatabaseUtils.getLocations(db);
             await Promise.all(
                 locations.map((location) =>
@@ -166,10 +166,13 @@ export function DeleteAllErrorsModal({ toggle, onRefresh, tasksWithErrors }: Del
                     })
                 )
             );
+            messagePublisher.reportSuccess("ETL errors were deleted.");
             footer.default.refreshStats();
             toggle();
             onRefresh();
-        });
+        } catch (e) {
+            messagePublisher.reportError("Failed to delete ETL errors.", e?.responseText, e?.statusText);
+        }
     });
 
     const toggleIsRequireTypedConfirm = async () => {
