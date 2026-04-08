@@ -1328,6 +1328,7 @@ namespace Orders
                 ],
                 EtlType: "Raven",
                 TaskId: 0,
+                EtlSubType: null,
             },
         ];
     }

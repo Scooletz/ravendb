@@ -1329,6 +1329,7 @@ return docs[0];`,
                 ],
                 EtlType: "Raven",
                 TaskId: 1,
+                EtlSubType: null,
             },
         ];
     }
