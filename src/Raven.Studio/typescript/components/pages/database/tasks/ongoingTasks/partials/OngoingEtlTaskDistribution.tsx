@@ -281,7 +281,7 @@ function ItemWithTooltip(props: ItemWithTooltipProps) {
         );
         const allErrors = flattenAllTasksErrors(tasksWithErrors, etlStats ?? []);
 
-        const firstError: FlatError = allErrors[0] ?? {
+        const lastError: FlatError = allErrors.at(-1) ?? {
             Error: nodeInfo.details?.error,
             nodeTag: nodeInfo.location.nodeTag,
             shard: nodeInfo.location.shardNumber,
@@ -300,7 +300,7 @@ function ItemWithTooltip(props: ItemWithTooltipProps) {
         };
 
         open({
-            component: <EtlErrorDetailsSheet error={firstError} allErrors={allErrors} initialIndex={0} />,
+            component: <EtlErrorDetailsSheet error={lastError} allErrors={allErrors} initialIndex={0} />,
             initialWidth: "40%",
             minWidth: "25%",
             maxWidth: "60%",

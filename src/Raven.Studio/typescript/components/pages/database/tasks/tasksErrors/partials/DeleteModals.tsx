@@ -16,6 +16,7 @@ import messagePublisher from "common/messagePublisher";
 import DatabaseUtils from "components/utils/DatabaseUtils";
 import { tryHandleSubmit } from "components/utils/common";
 import { EtlTaskWithErrors, EtlTransformationWithErrors } from "../utils/tasksErrorsUtils";
+import footer from "common/shell/footer";
 
 function useDeleteConfirmation(isRequireTypedConfirm: boolean) {
     const [confirmText, setConfirmText] = useState("");
@@ -69,6 +70,7 @@ export function DeleteTaskErrorsModal({
                     })
                 )
             );
+            footer.default.refreshStats();
             toggle();
             onRefresh();
         } catch (e) {
@@ -164,6 +166,7 @@ export function DeleteAllErrorsModal({ toggle, onRefresh, tasksWithErrors }: Del
                     })
                 )
             );
+            footer.default.refreshStats();
             toggle();
             onRefresh();
         });

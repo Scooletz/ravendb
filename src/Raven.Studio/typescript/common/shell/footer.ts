@@ -99,6 +99,21 @@ class footer {
             });
     }
 
+    refreshStats() {
+        this.fetchStats()
+            .done((stats) => {
+                const currentStats = this.stats();
+                if (!currentStats) {
+                    return;
+                }
+                currentStats.countOfDocuments(stats.CountOfDocuments);
+                currentStats.countOfIndexes(stats.CountOfIndexes);
+                currentStats.countOfStaleIndexes(stats.CountOfStaleIndexes);
+                currentStats.countOfIndexingErrors(stats.CountOfIndexingErrors);
+                currentStats.countOfTasksErrors(stats.CountOfEtlTaskErrors);
+            });
+    }
+
     private fetchStats(): JQueryPromise<Raven.Server.Documents.Studio.FooterStatistics> {
         const db = this.db();
         return new getDatabaseFooterStatsCommand(db)
