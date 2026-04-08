@@ -2,6 +2,7 @@ import React, { useMemo } from "react";
 import { EmptySet } from "components/common/EmptySet";
 import { EtlTaskWithErrors, TasksFiltersState, getTaskHealthStatus } from "../utils/tasksErrorsUtils";
 import { TaskPanel } from "./TaskPanel";
+import TaskUtils from "components/utils/TaskUtils";
 import EtlTaskStats = Raven.Server.Documents.ETL.Stats.EtlTaskStats;
 
 interface GroupByTaskViewProps {
@@ -17,7 +18,8 @@ export function GroupByTaskView({ tasksWithErrors, etlStats, filters, onRefresh 
 
         return tasksWithErrors
             .filter((task) => {
-                const taskEtlType = etlStats.find((s) => s.TaskName === task.etlName)?.EtlType as StudioEtlType;
+                const taskStats = etlStats.find((s) => s.TaskName === task.etlName);
+                const taskEtlType = TaskUtils.etlTypeToStudioType(taskStats?.EtlType, taskStats?.EtlSubType);
                 const matchesTaskType = !taskTypes.length || (taskEtlType != null && taskTypes.includes(taskEtlType));
 
                 const taskHealth = getTaskHealthStatus(etlStats, task.etlName);

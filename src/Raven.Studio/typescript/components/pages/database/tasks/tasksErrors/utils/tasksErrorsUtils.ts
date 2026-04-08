@@ -3,6 +3,7 @@ import IconName from "typings/server/icons";
 import { RavenBadgeBgVariants } from "react-bootstrap/Badge";
 import appUrl from "common/appUrl";
 import assertUnreachable from "components/utils/assertUnreachable";
+import TaskUtils from "components/utils/TaskUtils";
 import EtlTaskStats = Raven.Server.Documents.ETL.Stats.EtlTaskStats;
 import EtlErrors = Raven.Server.Documents.ETL.Stats.EtlErrors;
 
@@ -134,7 +135,7 @@ export function flattenAllTasksErrors(tasksWithErrors: EtlTaskWithErrors[], etlS
     return tasksWithErrors.flatMap((task) => {
         const taskStats = etlStats.find((s) => s.TaskName === task.etlName);
         const taskId = taskStats?.TaskId;
-        const etlType = taskStats?.EtlType as StudioEtlType;
+        const etlType = TaskUtils.etlTypeToStudioType(taskStats?.EtlType, taskStats?.EtlSubType);
 
         return task.transformations.flatMap((transformation) => {
             const healthStatus =

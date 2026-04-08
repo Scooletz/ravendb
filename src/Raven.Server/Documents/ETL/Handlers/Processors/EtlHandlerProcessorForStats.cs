@@ -32,6 +32,7 @@ internal sealed class EtlHandlerProcessorForStats : AbstractEtlHandlerProcessorF
             TaskName = x.Key,
             TaskId = x.Value.First().TaskId,
             EtlType = x.Value.First().EtlType,
+            EtlSubType = x.Value.First().EtlSubType,
             NodeTag = nodeTag,
             ShardNumber = shardNumber,
             Stats = x.Value.Select(y => new EtlProcessTransformationStats

@@ -40,6 +40,7 @@ import {
     healthStatusToBadge,
     SHOW_WIDTH_SIZE,
 } from "../utils/tasksErrorsUtils";
+import TaskUtils from "components/utils/TaskUtils";
 import {
     CellAffectedDocumentsWrapper,
     CellDateWithRelativeTimeWrapper,
@@ -230,8 +231,8 @@ export function TaskPanel({ etlName, transformations, etlStats, onRefresh }: Tas
     const taskHealth = getTaskHealthStatus(etlStats, etlName);
     const { bg, icon, label } = healthStatusToBadge(taskHealth);
     const taskStats = etlStats.find((s) => s.TaskName === etlName);
-    const etlType = taskStats?.EtlType as StudioEtlType;
     const taskId = taskStats?.TaskId;
+    const etlType = TaskUtils.etlTypeToStudioType(taskStats?.EtlType, taskStats?.EtlSubType);
 
     const taskLink = getEtlEditLink(databaseName, taskId, etlType);
 
