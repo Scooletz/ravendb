@@ -128,12 +128,12 @@ if($output.Blocked)
             IEnumerable<EtlItemErrorTableValue> errors = null;
             var value = await WaitForValueAsync(async () =>
             {
-                errors = await Etl.GetItemTransformationErrorsAsync(store.Database, config);
+                errors = await Etl.GetItemLoadErrorsAsync(store.Database, config);
                 return errors.Any();
             }, true, timeout: 60_000);
 
             Assert.True(value, await Etl.GetEtlDebugInfo(store.Database, TimeSpan.FromSeconds(60)));
-            
+
             Assert.NotEmpty(errors);
 
             var error = errors.First();
