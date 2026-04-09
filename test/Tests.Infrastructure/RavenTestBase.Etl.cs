@@ -249,6 +249,15 @@ namespace FastTests
                 return errors.Where(error => error.Step == (int)TaskErrorStep.Load);
             }
 
+            public async Task<IEnumerable<EtlProcessErrorTableValue>> GetProcessLoadErrorsAsync<T>(string databaseName, EtlConfiguration<T> config) where T : ConnectionString
+            {
+                var database = await _parent.GetDatabase(databaseName);
+
+                var errors = database.EtlErrorsStorage.ReadProcessErrorsOfEtl($"{config.Name}/{config.Transforms.First().Name}");
+
+                return errors.Where(error => error.Step == (int)TaskErrorStep.Load);
+            }
+
             public async Task<IEnumerable<EtlItemErrorTableValue>> GetItemTransformationErrorsAsync<T>(string databaseName, EtlConfiguration<T> config) where T : ConnectionString
             {
                 var database = await _parent.GetDatabase(databaseName);
