@@ -510,18 +510,21 @@ public class RavenDB_21192 : RavenTestBase
             Assert.Equal(20, etlStats.TransformationErrors);
             Assert.Equal(EtlProcessHealthStatus.Impaired, etlStats.HealthStatus);
 
-            await using (var bulkInsert = src.BulkInsert())
+            using (var session = src.OpenAsyncSession())
             {
                 for (int i = 0; i < 1000; i++)
-                    await bulkInsert.StoreAsync(new User { Name = "James Doe", Value = 0 });
+                    await session.StoreAsync(new User { Name = "James Doe", Value = 0 });
+                for (int i = 0; i < 10; i++)
+                    await session.StoreAsync(new User { Name = "Joe Doe", Value = 1 });
+                await session.SaveChangesAsync();
             }
-            
-            await WaitForEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1), stats => stats.TransformationErrors == 1020);
-            
+
+            await WaitForEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1), stats => stats.LoadSuccesses == 960);
+
             etlStats = await GetEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1));
-            
-            Assert.Equal(950, etlStats.LoadSuccesses);
-            Assert.Equal(2021, etlStats.TransformationErrors);
+
+            Assert.Equal(960, etlStats.LoadSuccesses);
+            Assert.Equal(1020, etlStats.TransformationErrors);
 
             Assert.Equal(EtlProcessHealthStatus.Impaired, etlStats.HealthStatus);
         }
