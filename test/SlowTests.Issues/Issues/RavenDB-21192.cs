@@ -206,19 +206,22 @@ public class RavenDB_21192 : RavenTestBase
             Assert.Equal(20, etlStats.TransformationErrors);
             Assert.InRange(etlStats.AverageErrorsRatio.GetRate(), 0.15, 0.20);
 
-            await using (var bulkInsert = src.BulkInsert())
+            using (var session = src.OpenAsyncSession())
             {
                 for (int i = 0; i < 500; i++)
-                    await bulkInsert.StoreAsync(new User { Name = "James Doe", Value = 0 });
+                    await session.StoreAsync(new User { Name = "James Doe", Value = 0 });
+                for (int i = 0; i < 10; i++)
+                    await session.StoreAsync(new User { Name = "Joe Doe", Value = 1 });
+                await session.SaveChangesAsync();
             }
-            
-            await WaitForEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1), stats => stats.TransformationErrors == 510);
-            
+
+            await WaitForEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1), stats => stats.LoadSuccesses == 960);
+
             etlStats = await GetEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1));
-            
-            Assert.Equal(950, etlStats.LoadSuccesses);
-            Assert.Equal(1021, etlStats.TransformationErrors);
-            Assert.InRange(etlStats.AverageErrorsRatio.GetRate(), 0.55, 0.60);
+
+            Assert.Equal(960, etlStats.LoadSuccesses);
+            Assert.Equal(520, etlStats.TransformationErrors);
+            Assert.InRange(etlStats.AverageErrorsRatio.GetRate(), 0.42, 0.44);
         }
     }
     
