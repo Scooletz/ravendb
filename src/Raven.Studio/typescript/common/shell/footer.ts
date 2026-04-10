@@ -17,7 +17,8 @@ class footerStats {
     countOfIndexes = ko.observable<number>();
     countOfStaleIndexes = ko.observable<number>();
     countOfIndexingErrors = ko.observable<number>();
-    countOfTasksErrors = ko.observable<number>();
+    countOfEtlTasksErrors = ko.observable<number>();
+    countOfAiTasksErrors = ko.observable<number>();
 }
 
 class footer {
@@ -80,7 +81,8 @@ class footer {
                 newStats.countOfIndexes(stats.CountOfIndexes);
                 newStats.countOfStaleIndexes(stats.CountOfStaleIndexes);
                 newStats.countOfIndexingErrors(stats.CountOfIndexingErrors);
-                newStats.countOfTasksErrors(stats.CountOfEtlTaskErrors);
+                newStats.countOfEtlTasksErrors(stats.CountOfEtlTasksErrors);
+                newStats.countOfAiTasksErrors(stats.CountOfAiTasksErrors);
                 this.stats(newStats);
             })
             .always(() => this.spinners.loading(false));
@@ -110,7 +112,8 @@ class footer {
                 currentStats.countOfIndexes(stats.CountOfIndexes);
                 currentStats.countOfStaleIndexes(stats.CountOfStaleIndexes);
                 currentStats.countOfIndexingErrors(stats.CountOfIndexingErrors);
-                currentStats.countOfTasksErrors(stats.CountOfEtlTaskErrors);
+                currentStats.countOfEtlTasksErrors(stats.CountOfEtlTasksErrors);
+                currentStats.countOfAiTasksErrors(stats.CountOfAiTasksErrors);
             });
     }
 

@@ -81,7 +81,7 @@ function getAiHubMenuItem(appUrls: computedAppUrls) {
             css: 'icon-tasks-errors ai-hub',
             requiredAccess: "DatabaseReadWrite",
             dynamicHash: appUrls.aiTasksErrors,
-            badgeData: ko.pureComputed(() => { return footer.default.stats() ? footer.default.stats().countOfTasksErrors() : null; })
+            badgeData: ko.pureComputed(() => { return footer.default.stats() ? footer.default.stats().countOfAiTasksErrors() : null; })
         }),
     ];
 

@@ -16,7 +16,9 @@ namespace Raven.Server.Documents.Studio
 
         public long CountOfIndexingErrors { get; set; }
 
-        public long CountOfEtlTaskErrors { get; set; }
+        public long CountOfEtlTasksErrors { get; set; }
+        
+        public long CountOfAiTasksErrors { get; set; }
 
         public void CombineWith(FooterStatistics stats)
         {
@@ -24,7 +26,8 @@ namespace Raven.Server.Documents.Studio
 
             CountOfIndexes = stats.CountOfIndexes; // every node has the same amount of indexes
             CountOfIndexingErrors += stats.CountOfIndexingErrors;
-            CountOfEtlTaskErrors += stats.CountOfEtlTaskErrors;
+            CountOfEtlTasksErrors += stats.CountOfEtlTasksErrors;
+            CountOfAiTasksErrors += stats.CountOfAiTasksErrors;
 
             if (StaleIndexes == null)
                 StaleIndexes = stats.StaleIndexes;
@@ -34,7 +37,7 @@ namespace Raven.Server.Documents.Studio
                 staleIndexes.UnionWith(stats.StaleIndexes);
 
                 StaleIndexes = staleIndexes.ToArray();
-;            }
+            }
 
             CountOfStaleIndexes = StaleIndexes?.Length ?? 0;
         }

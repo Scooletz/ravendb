@@ -414,7 +414,9 @@ function getTasksMenuItem(appUrls: computedAppUrls) {
             css: 'icon-tasks-errors',
             dynamicHash: appUrls.tasksError,
             requiredAccess: "DatabaseReadWrite",
-            badgeData: ko.pureComputed(() => { return footer.default.stats() ? footer.default.stats().countOfTasksErrors() : null; })
+            badgeData: ko.pureComputed(() => { 
+                return footer.default.stats() ? footer.default.stats().countOfEtlTasksErrors() + footer.default.stats().countOfAiTasksErrors() : null; 
+            })
         }),
     ];
 

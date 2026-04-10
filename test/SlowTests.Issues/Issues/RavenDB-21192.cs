@@ -18,6 +18,7 @@ using Raven.Client.Http;
 using Raven.Client.ServerWide.Operations;
 using Raven.Server.Config;
 using Raven.Server.Documents;
+using Raven.Server.Documents.Commands.Studio;
 using Raven.Server.Documents.ETL;
 using Raven.Server.Documents.ETL.Handlers.Processors;
 using Raven.Server.Documents.ETL.Providers.Raven;
@@ -143,7 +144,118 @@ public class RavenDB_21192 : RavenTestBase
             Assert.Equal(error1.Error, processErrors[0].Error);
         }
     }
-    
+
+    [RavenFact(RavenTestCategory.Etl | RavenTestCategory.Ai)]
+    public async Task FooterStatistics_ShouldReturnSeparateCountsForEtlAndAiTasksErrors()
+    {
+        const string etlConnectionStringName = "EtlConnectionString";
+        const string etlName = "ETL1";
+        const string etlTransformationName = "Transformation1";
+        const string etlScript = "loadToUsers(this);";
+        var etlCollections = new List<string> { "Users" };
+
+        const string aiConnectionStringName = "AiConnectionString";
+        const string aiTaskName = "EmbeddingsTask1";
+
+        using (var src = GetDocumentStore())
+        using (var dest = GetDocumentStore())
+        {
+            AddEtlTask(src, dest, etlName, etlConnectionStringName, [etlTransformationName], [etlScript], etlCollections);
+            
+            var aiConnectionString = new AiConnectionString
+            {
+                Name = aiConnectionStringName,
+                ModelType = AiModelType.TextEmbeddings,
+                EmbeddedSettings = new EmbeddedSettings()
+            };
+            aiConnectionString.Identifier = aiConnectionString.GenerateIdentifier();
+            src.Maintenance.Send(new PutConnectionStringOperation<AiConnectionString>(aiConnectionString));
+
+            var aiConfiguration = new EmbeddingsGenerationConfiguration
+            {
+                Name = aiTaskName,
+                ConnectionStringName = aiConnectionStringName,
+                Collection = "Users",
+                EmbeddingsTransformation = new EmbeddingsTransformation
+                {
+                    Script = "embeddings.generate({ Name: this.Name });",
+                    ChunkingOptions = new ChunkingOptions { ChunkingMethod = ChunkingMethod.PlainTextSplitLines, MaxTokensPerChunk = 2048 }
+                },
+                ChunkingOptionsForQuerying = new ChunkingOptions { ChunkingMethod = ChunkingMethod.PlainTextSplitLines, MaxTokensPerChunk = 2048 }
+            };
+            aiConfiguration.Identifier = aiConfiguration.GenerateIdentifier();
+            src.Maintenance.Send(new AddEmbeddingsGenerationOperation(aiConfiguration));
+
+            var database = await GetDatabase(src.Database);
+
+            var etlProcessName = EtlProcess.GetProcessName(etlName, etlTransformationName);
+            var aiProcessName = EtlProcess.GetProcessName(aiTaskName, "embeddings-transform-script");
+
+            var now = DateTime.Now;
+            
+            database.EtlErrorsStorage.StoreProcessError(new EtlProcessError
+            {
+                CreatedAt = now,
+                EtlProcessName = etlProcessName,
+                AffectedDocumentsCount = 1,
+                Step = TaskErrorStep.Transformation,
+                Error = "ETL transformation error"
+            });
+            
+            database.EtlErrorsStorage.StoreProcessError(new EtlProcessError
+            {
+                CreatedAt = now.AddSeconds(1),
+                EtlProcessName = etlProcessName,
+                AffectedDocumentsCount = 5,
+                Step = TaskErrorStep.Load,
+                Error = "ETL load error"
+            });
+            
+            database.EtlErrorsStorage.StoreItemErrors(etlProcessName, [new EtlItemError
+            {
+                DocumentId = "users/1",
+                EtlProcessName = etlProcessName,
+                CreatedAt = now,
+                Step = TaskErrorStep.Transformation,
+                Error = "ETL item error"
+            }]);
+            
+            database.EtlErrorsStorage.StoreProcessError(new EtlProcessError
+            {
+                CreatedAt = now,
+                EtlProcessName = aiProcessName,
+                AffectedDocumentsCount = 3,
+                Step = TaskErrorStep.Transformation,
+                Error = "AI transformation error"
+            });
+            
+            database.EtlErrorsStorage.StoreItemErrors(aiProcessName, [
+                new EtlItemError
+                {
+                    DocumentId = "users/2",
+                    EtlProcessName = aiProcessName,
+                    CreatedAt = now,
+                    Step = TaskErrorStep.Transformation,
+                    Error = "AI item error 1"
+                },
+                new EtlItemError
+                {
+                    DocumentId = "users/3",
+                    EtlProcessName = aiProcessName,
+                    CreatedAt = now.AddSeconds(1),
+                    Step = TaskErrorStep.Transformation,
+                    Error = "AI item error 2"
+                }
+            ]);
+            
+            var stats = src.Maintenance.Send(new GetStudioFooterStatisticsOperation());
+
+            Assert.NotNull(stats);
+            Assert.Equal(3, stats.CountOfEtlTasksErrors);
+            Assert.Equal(3, stats.CountOfAiTasksErrors);
+        }
+    }
+
     [RavenFact(RavenTestCategory.Etl)]
     public async Task TestEwmaCalculation()
     {
