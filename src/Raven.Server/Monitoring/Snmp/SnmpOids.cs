@@ -428,7 +428,7 @@ namespace Raven.Server.Monitoring.Snmp
             public const string TotalNumberOfEtls = "1.20.5";
 
             [SnmpDataType(SnmpType.Integer32)]
-            [Description("Number of ETL tasks currently performing some work")]
+            [Description("Number of ETL tasks that performed some work in the last minute")]
             public const string NumberOfActiveEtls = "1.20.6";
             
             [SnmpDataType(SnmpType.Integer32)]
@@ -452,7 +452,7 @@ namespace Raven.Server.Monitoring.Snmp
             public const string TotalNumberOfAiTasks = "1.21.5";
 
             [SnmpDataType(SnmpType.Integer32)]
-            [Description("Number of AI tasks currently performing some work")]
+            [Description("Number of AI tasks that performed some work in the last minute")]
             public const string NumberOfActiveAiTasks = "1.21.6";
 
             public static Dictionary<string, string> CreateMapping()
@@ -822,7 +822,7 @@ namespace Raven.Server.Monitoring.Snmp
             public const string TotalNumberOfEtls = "5.2.{0}.7.4";
 
             [SnmpDataType(SnmpType.Integer32)]
-            [Description("Number of ETL tasks currently performing some work")]
+            [Description("Number of ETL tasks that performed some work in the last minute")]
             public const string NumberOfActiveEtls = "5.2.{0}.7.5";
             
             [SnmpDataType(SnmpType.Integer32)]
@@ -842,7 +842,7 @@ namespace Raven.Server.Monitoring.Snmp
             public const string TotalNumberOfAiTasks = "5.2.{0}.8.4";
 
             [SnmpDataType(SnmpType.Integer32)]
-            [Description("Number of AI tasks currently performing some work")]
+            [Description("Number of AI tasks that performed some work in the last minute")]
             public const string NumberOfActiveAiTasks = "5.2.{0}.8.5";
 
             public sealed class Indexes

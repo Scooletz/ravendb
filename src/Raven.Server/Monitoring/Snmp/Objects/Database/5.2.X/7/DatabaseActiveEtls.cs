@@ -1,3 +1,4 @@
+using System;
 using System.Linq;
 using Lextm.SharpSnmpLib;
 using Raven.Server.Documents;
@@ -13,7 +14,8 @@ public sealed class DatabaseActiveEtls : DatabaseScalarObjectBase<Integer32>
 
     protected override Integer32 GetData(DocumentDatabase database)
     {
+        var oneMinuteAgo = DateTime.UtcNow.AddMinutes(-1);
         return new Integer32(database.EtlLoader.GetEtlProcesses()
-            .Count(x => x.GetLatestPerformanceStats()?.Completed == false));
+            .Count(x => x.GetLatestPerformanceStats()?.StartTime > oneMinuteAgo));
     }
 }
