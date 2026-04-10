@@ -1290,10 +1290,35 @@ public class RavenDB_21192 : RavenTestBase
                    10000);
 
                Assert.Equal(Server.ServerStore.NodeTag, result.Single().Data.ToString());
+
+               databases.TryGet("@General", out BlittableJsonReaderArray databasesGeneralEntries);
+               var databasesGeneralOidsList = JsonConvert.DeserializeObject<List<SnmpEntry>>(databasesGeneralEntries.ToString());
+
+               var totalEtlDocumentsProcessedPerSecOid = databasesGeneralOidsList
+                   .Single(x => x.Description == "Number of documents processed per second by all ETL tasks across all databases (one minute rate)").OID;
+
+               result = Messenger.Get(VersionCode.V2,
+                   endpoint,
+                   new OctetString(communityString),
+                   [new Variable(new ObjectIdentifier(totalEtlDocumentsProcessedPerSecOid))],
+                   10000);
+
+               Assert.Equal(SnmpType.Gauge32, result.Single().Data.TypeCode);
+
+               var totalAiTaskDocumentsProcessedPerSecOid = databasesGeneralOidsList
+                   .Single(x => x.Description == "Number of documents processed per second by all AI tasks across all databases (one minute rate)").OID;
+
+               result = Messenger.Get(VersionCode.V2,
+                   endpoint,
+                   new OctetString(communityString),
+                   [new Variable(new ObjectIdentifier(totalAiTaskDocumentsProcessedPerSecOid))],
+                   10000);
+
+               Assert.Equal(SnmpType.Gauge32, result.Single().Data.TypeCode);
             }
         }
     }
-    
+
     [RavenFact(RavenTestCategory.Monitoring | RavenTestCategory.Etl)]
     public async Task EtlsMonitoringEndpointShouldWork()
     {

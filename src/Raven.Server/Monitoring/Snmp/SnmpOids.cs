@@ -1280,6 +1280,14 @@ namespace Raven.Server.Monitoring.Snmp
                 [Description("Number of active Gen AI tasks for all databases")]
                 public const string TotalNumberOfActiveGenAiTasks = "5.1.11.28";
 
+                [SnmpDataType(SnmpType.Gauge32)]
+                [Description("Number of documents processed per second by all ETL tasks across all databases (one minute rate)")]
+                public const string TotalEtlDocumentsProcessedPerSec = "5.1.12.1";
+
+                [SnmpDataType(SnmpType.Gauge32)]
+                [Description("Number of documents processed per second by all AI tasks across all databases (one minute rate)")]
+                public const string TotalAiTaskDocumentsProcessedPerSec = "5.1.12.2";
+
                 internal static Dictionary<string, string> CreateMapping()
                 {
                     var dictionary = new Dictionary<string, string>();
