@@ -276,40 +276,43 @@ public class RavenDB_21192 : RavenTestBase
             
             AddEtlTask(src, dest, etlName1, connectionStringName1, [transformationName1], [script1], collections1);
 
-            await using (var bulkInsert = src.BulkInsert())
+            using (var session = src.OpenAsyncSession())
             {
                 for (int i = 0; i < 10; i++)
-                    await bulkInsert.StoreAsync(new User { Name = "James Doe", Value = 0 });
+                    await session.StoreAsync(new User { Name = "James Doe", Value = 0 });
+                await session.SaveChangesAsync();
             }
 
             await WaitForEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1), stats => stats.TransformationErrors == 10);
 
             var etlStats = await GetEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1));
-            
+
             Assert.Equal(0, etlStats.LoadSuccesses);
             Assert.Equal(10, etlStats.TransformationErrors);
             Assert.Equal(1.0, etlStats.AverageErrorsRatio.GetRate());
 
-            await using (var bulkInsert = src.BulkInsert())
+            using (var session = src.OpenAsyncSession())
             {
                 for (int i = 0; i < 50; i++)
-                    await bulkInsert.StoreAsync(new User { Name = "Joe Doe", Value = 1 });
+                    await session.StoreAsync(new User { Name = "Joe Doe", Value = 1 });
+                await session.SaveChangesAsync();
             }
-            
+
             await WaitForEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1), stats => stats.LoadSuccesses == 50);
-            
+
             etlStats = await GetEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1));
-            
+
             Assert.Equal(50, etlStats.LoadSuccesses);
             Assert.Equal(20, etlStats.TransformationErrors);
             Assert.InRange(etlStats.AverageErrorsRatio.GetRate(), 0.75, 0.83);
 
-            await using (var bulkInsert = src.BulkInsert())
+            using (var session = src.OpenAsyncSession())
             {
                 for (int i = 0; i < 900; i++)
-                    await bulkInsert.StoreAsync(new User { Name = "Joe Doe", Value = 1 });
+                    await session.StoreAsync(new User { Name = "Joe Doe", Value = 1 });
+                await session.SaveChangesAsync();
             }
-            
+
             await WaitForEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1), stats => stats.LoadSuccesses == 950);
             
             etlStats = await GetEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1));
@@ -369,26 +372,28 @@ public class RavenDB_21192 : RavenTestBase
             
             AddEtlTask(src, dest, etlName1, connectionStringName1, [transformationName1], [script1], collections1);
 
-            await using (var bulkInsert = src.BulkInsert())
+            using (var session = src.OpenAsyncSession())
             {
                 for (int i = 0; i < 5; i++)
-                    await bulkInsert.StoreAsync(new User { Name = "Joe Doe" });
+                    await session.StoreAsync(new User { Name = "Joe Doe" });
+                await session.SaveChangesAsync();
             }
-            
+
             await WaitForEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1), stats => stats.TransformationErrors == 5);
-            
+
             AddEtlTask(src, dest, etlName2, connectionStringName2, [transformationName2, transformationName3], [script2, script3], collections2);
-            
+
             var disableDatabaseResult = dest.Maintenance.Server.SendAsync(new ToggleDatabasesStateOperation(dest.Database, disable: true)).GetAwaiter().GetResult();
-            
+
             Assert.True(disableDatabaseResult.Disabled);
 
-            await using (var bulkInsert = src.BulkInsert())
+            using (var session = src.OpenAsyncSession())
             {
                 for (int i = 0; i < 5; i++)
-                    await bulkInsert.StoreAsync(new Company() { Name = "Some Company" });
+                    await session.StoreAsync(new Company() { Name = "Some Company" });
+                await session.SaveChangesAsync();
             }
-            
+
             await WaitForEtlStatsAsync(src, EtlProcess.GetProcessName(etlName2, transformationName2), stats => stats.LoadErrors == 5);
             await WaitForEtlStatsAsync(src, EtlProcess.GetProcessName(etlName2, transformationName3), stats => stats.LoadErrors == 5);
 
@@ -457,24 +462,26 @@ public class RavenDB_21192 : RavenTestBase
             
             AddEtlTask(src, dest, etlName1, connectionStringName1, [transformationName1], [script1], collections1);
 
-            await using (var bulkInsert = src.BulkInsert())
+            using (var session = src.OpenAsyncSession())
             {
                 for (int i = 0; i < 5; i++)
-                    await bulkInsert.StoreAsync(new User { Id = $"Users/{i}${shardNumber}", Name = "Joe Doe" });
+                    await session.StoreAsync(new User { Id = $"Users/{i}${shardNumber}", Name = "Joe Doe" });
+                await session.SaveChangesAsync();
             }
-            
+
             await WaitForEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1), stats => stats.TransformationErrors == 5, shardNumber);
-            
+
             AddEtlTask(src, dest, etlName2, connectionStringName2, [transformationName2, transformationName3], [script2, script3], collections2);
-            
+
             var disableDatabaseResult = dest.Maintenance.Server.SendAsync(new ToggleDatabasesStateOperation(dest.Database, disable: true)).GetAwaiter().GetResult();
-            
+
             Assert.True(disableDatabaseResult.Disabled);
 
-            await using (var bulkInsert = src.BulkInsert())
+            using (var session = src.OpenAsyncSession())
             {
                 for (int i = 0; i < 5; i++)
-                    await bulkInsert.StoreAsync(new Company() { Id = $"Companies/{i}${shardNumber}", Name = "Some Company" });
+                    await session.StoreAsync(new Company() { Id = $"Companies/{i}${shardNumber}", Name = "Some Company" });
+                await session.SaveChangesAsync();
             }
             
             await WaitForEtlStatsAsync(src, EtlProcess.GetProcessName(etlName2, transformationName2), stats => stats.LoadErrors == 5, shardNumber);
@@ -529,14 +536,15 @@ public class RavenDB_21192 : RavenTestBase
                 
             AddEtlTask(src, dest, etlName1, connectionStringName1, [transformationName1], [script1], collections1);
 
-            await using (var bulkInsert = src.BulkInsert())
+            using (var session = src.OpenAsyncSession())
             {
                 for (int i = 0; i < 5; i++)
-                    await bulkInsert.StoreAsync(new User { Name = "Joe Doe" });
+                    await session.StoreAsync(new User { Name = "Joe Doe" });
+                await session.SaveChangesAsync();
             }
-            
+
             await WaitForEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1), stats => stats.TransformationErrors == 5);
-            
+
             using (var commands = src.Commands())
             {
                 var deleteErrorsCommand = new DeleteEtlTaskErrorsCommand(EtlProcess.GetProcessName(etlName1, transformationName1));
@@ -580,40 +588,43 @@ public class RavenDB_21192 : RavenTestBase
             
             AddEtlTask(src, dest, etlName1, connectionStringName1, [transformationName1], [script1], collections1);
 
-            await using (var bulkInsert = src.BulkInsert())
+            using (var session = src.OpenAsyncSession())
             {
                 for (int i = 0; i < 10; i++)
-                    await bulkInsert.StoreAsync(new User { Name = "James Doe", Value = 0 });
+                    await session.StoreAsync(new User { Name = "James Doe", Value = 0 });
+                await session.SaveChangesAsync();
             }
-            
+
             await WaitForEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1), stats => stats.TransformationErrors == 10);
-            
+
             var etlStats = await GetEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1));
-            
+
             Assert.Equal(0, etlStats.LoadSuccesses);
             Assert.Equal(10, etlStats.TransformationErrors);
             Assert.Equal(EtlProcessHealthStatus.Failed, etlStats.HealthStatus);
 
-            await using (var bulkInsert = src.BulkInsert())
+            using (var session = src.OpenAsyncSession())
             {
                 for (int i = 0; i < 50; i++)
-                    await bulkInsert.StoreAsync(new User { Name = "Joe Doe", Value = 1 });
+                    await session.StoreAsync(new User { Name = "Joe Doe", Value = 1 });
+                await session.SaveChangesAsync();
             }
-            
+
             await WaitForEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1), stats => stats.LoadSuccesses == 50);
 
             etlStats = await GetEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1));
-            
+
             Assert.Equal(50, etlStats.LoadSuccesses);
             Assert.Equal(20, etlStats.TransformationErrors);
             Assert.Equal(EtlProcessHealthStatus.Impaired, etlStats.HealthStatus);
 
-            await using (var bulkInsert = src.BulkInsert())
+            using (var session = src.OpenAsyncSession())
             {
                 for (int i = 0; i < 900; i++)
-                    await bulkInsert.StoreAsync(new User { Name = "Joe Doe", Value = 1 });
+                    await session.StoreAsync(new User { Name = "Joe Doe", Value = 1 });
+                await session.SaveChangesAsync();
             }
-            
+
             await WaitForEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1), stats => stats.LoadSuccesses == 950);
             
             etlStats = await GetEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1));
@@ -671,12 +682,13 @@ public class RavenDB_21192 : RavenTestBase
                     
             AddEtlTask(src, dest, etlName1, connectionStringName1, [transformationName1], [script1], collections1);
 
-            await using (var bulkInsert = src.BulkInsert())
+            using (var session = src.OpenAsyncSession())
             {
                 for (int i = 0; i < 9; i++)
-                    await bulkInsert.StoreAsync(new User { Name = "Joe Doe", Value = 0 });
-                
-                await bulkInsert.StoreAsync(new User { Name = "James Doe", Value = 0 });
+                    await session.StoreAsync(new User { Name = "Joe Doe", Value = 0 });
+
+                await session.StoreAsync(new User { Name = "James Doe", Value = 0 });
+                await session.SaveChangesAsync();
             }
             
             await WaitForEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1), stats => stats.HealthStatus == EtlProcessHealthStatus.Failed);
@@ -705,14 +717,15 @@ public class RavenDB_21192 : RavenTestBase
             
             AddEtlTask(src, dest, etlName1, connectionStringName1, [transformationName1], [script1], collections1);
 
-            await using (var bulkInsert = src.BulkInsert())
+            using (var session = src.OpenAsyncSession())
             {
                 for (int i = 0; i < 10; i++)
-                    await bulkInsert.StoreAsync(new User { Name = "James Doe", Value = 0 });
+                    await session.StoreAsync(new User { Name = "James Doe", Value = 0 });
+                await session.SaveChangesAsync();
             }
-            
+
             await WaitForEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1), stats => stats.HealthStatus == EtlProcessHealthStatus.Failed);
-            
+
             var etlStats = await GetEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1));
             Assert.Equal(EtlProcessHealthStatus.Failed, etlStats.HealthStatus);
             await AssertHealthStatusNotificationAsync(src, processTag, EtlProcess.GetProcessName(etlName1, transformationName1), EtlProcessHealthStatus.Failed);
@@ -740,42 +753,45 @@ public class RavenDB_21192 : RavenTestBase
             
             AddEtlTask(src, dest, etlName1, connectionStringName1, [transformationName1], [script1], collections1);
 
-            await using (var bulkInsert = src.BulkInsert())
+            using (var session = src.OpenAsyncSession())
             {
                 for (int i = 0; i < 10; i++)
-                    await bulkInsert.StoreAsync(new User { Name = "James Doe", Value = 0 });
+                    await session.StoreAsync(new User { Name = "James Doe", Value = 0 });
+                await session.SaveChangesAsync();
             }
-            
+
             await WaitForEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1), stats => stats.TransformationErrors == 10);
-            
+
             var etlStats = await GetEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1));
-            
+
             Assert.Equal(0, etlStats.LoadSuccesses);
             Assert.Equal(10, etlStats.TransformationErrors);
 
             await AssertHealthStatusNotificationAsync(src, processTag, EtlProcess.GetProcessName(etlName1, transformationName1), EtlProcessHealthStatus.Failed);
 
-            await using (var bulkInsert = src.BulkInsert())
+            using (var session = src.OpenAsyncSession())
             {
                 for (int i = 0; i < 50; i++)
-                    await bulkInsert.StoreAsync(new User { Name = "Joe Doe", Value = 1 });
+                    await session.StoreAsync(new User { Name = "Joe Doe", Value = 1 });
+                await session.SaveChangesAsync();
             }
-            
+
             await WaitForEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1), stats => stats.LoadSuccesses == 50);
 
             etlStats = await GetEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1));
-            
+
             Assert.Equal(50, etlStats.LoadSuccesses);
             Assert.Equal(20, etlStats.TransformationErrors);
-            
+
             await AssertHealthStatusNotificationAsync(src, processTag, EtlProcess.GetProcessName(etlName1, transformationName1), EtlProcessHealthStatus.Impaired);
 
-            await using (var bulkInsert = src.BulkInsert())
+            using (var session = src.OpenAsyncSession())
             {
                 for (int i = 0; i < 1000; i++)
-                    await bulkInsert.StoreAsync(new User { Name = "Joe Doe", Value = 1 });
+                    await session.StoreAsync(new User { Name = "Joe Doe", Value = 1 });
+                await session.SaveChangesAsync();
             }
-            
+
             await WaitForEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1), stats => stats.LoadSuccesses == 1050);
 
             etlStats = await GetEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1));
@@ -819,12 +835,13 @@ public class RavenDB_21192 : RavenTestBase
 
             var taskId1 = AddEtlTask(src, dest, etlName1, connectionStringName1, [transformationName1, transformationName2], [script1, script2], collections1);
 
-            await using (var bulkInsert = src.BulkInsert())
+            using (var session = src.OpenAsyncSession())
             {
                 for (int i = 0; i < 10; i++)
-                    await bulkInsert.StoreAsync(new User { Name = "James Doe", Value = 0 });
+                    await session.StoreAsync(new User { Name = "James Doe", Value = 0 });
+                await session.SaveChangesAsync();
             }
-            
+
             await WaitForEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1), stats => stats.TransformationErrors == 10);
             await WaitForEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName2), stats => stats.TransformationErrors == 10);
             
@@ -893,12 +910,13 @@ public class RavenDB_21192 : RavenTestBase
             var taskId1 = AddEtlTask(src, dest, etlName1, connectionStringName1, [transformationName1], [script1], collections1);
             _ = AddEtlTask(src, dest, etlName2, connectionStringName1, [transformationName2], [script2], collections1);
 
-            await using (var bulkInsert = src.BulkInsert())
+            using (var session = src.OpenAsyncSession())
             {
                 for (int i = 0; i < 10; i++)
-                    await bulkInsert.StoreAsync(new User { Name = "James Doe", Value = 0 });
+                    await session.StoreAsync(new User { Name = "James Doe", Value = 0 });
+                await session.SaveChangesAsync();
             }
-            
+
             await WaitForEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1), stats => stats.TransformationErrors == 10);
             await WaitForEtlStatsAsync(src, EtlProcess.GetProcessName(etlName2, transformationName2), stats => stats.TransformationErrors == 10);
             
