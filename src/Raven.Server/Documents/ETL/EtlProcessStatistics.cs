@@ -205,7 +205,6 @@ namespace Raven.Server.Documents.ETL
             return _itemErrors.ToList();
         }
 
-
         public DynamicJsonValue ToJson()
         {
             var json = new DynamicJsonValue

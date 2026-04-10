@@ -5,6 +5,7 @@ using System.Linq;
 using Raven.Client.Documents.Operations.ConnectionStrings;
 using Raven.Client.Documents.Operations.Counters;
 using Raven.Client.Documents.Operations.ETL;
+using Raven.Client.Util;
 using Raven.Server.Documents.ETL.Providers.RelationalDatabase.Common.Enumerators;
 using Raven.Server.Documents.ETL.Providers.RelationalDatabase.Common.Metrics;
 using Raven.Server.Documents.ETL.Providers.RelationalDatabase.Common.RelationalWriters;
@@ -167,7 +168,15 @@ public abstract class RelationalDatabaseEtlBase<TRelationalEtlConfiguration, TRe
             }
             catch (Exception e)
             {
-                Statistics.RecordItemLoadError(e.ToString(), documentId: null);
+                Database.EtlErrorsStorage.StoreProcessError(new EtlProcessError
+                {
+                    CreatedAt = SystemTime.UtcNow,
+                    EtlProcessName = Name,
+                    AffectedDocumentsCount = 0,
+                    Step = TaskErrorStep.Load,
+                    Error = e.ToString()
+                });
+                Statistics.RecordProcessLoadError(count: 0);
             }
         }
         else

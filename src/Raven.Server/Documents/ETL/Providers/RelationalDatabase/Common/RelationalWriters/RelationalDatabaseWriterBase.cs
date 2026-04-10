@@ -282,7 +282,15 @@ public abstract class RelationalDatabaseWriterBase<TRelationalConnectionString, 
                                         "will continue trying." + Environment.NewLine + cmd.CommandText, e);
 
                         var errorMessage = $"Delete statement:{Environment.NewLine}{cmd.CommandText}{Environment.NewLine}Error:{Environment.NewLine}{e}";
-                        _statistics.RecordItemLoadError(errorMessage, documentId: null);
+                        Database.EtlErrorsStorage.StoreProcessError(new EtlProcessError
+                        {
+                            CreatedAt = SystemTime.UtcNow,
+                            EtlProcessName = _etlName,
+                            AffectedDocumentsCount = countOfDeletes,
+                            Step = TaskErrorStep.Load,
+                            Error = errorMessage
+                        });
+                        _statistics.RecordProcessLoadError(countOfDeletes);
                     }
                 }
                 finally
