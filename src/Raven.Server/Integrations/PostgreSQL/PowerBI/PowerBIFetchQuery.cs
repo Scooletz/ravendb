@@ -37,7 +37,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             {
                 var sql = queryText;
 
-                if (PowerBIInnerRqlExtractor.TryExtractInnerRqlSpan(sql, out var innerStart, out var innerEnd, out var innerRql) == false)
+                if (PowerBIInnerRqlExtractor.TryExtractInnerRqlSpan(sql, out var innerStart, out var innerEnd, out var innerRql, out var fromTwoParsersPath) == false)
                     return false;
 
                 var sanitizedSql = sql[..innerStart] + "select 1" + sql[innerEnd..];
@@ -60,15 +60,9 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 if (TryExtractLimit(selectStmt.LimitCount, out var limit) == false)
                     return false;
 
-                Documents.Queries.AST.Query query;
-                try
-                {
-                    query = QueryMetadata.ParseQuery(innerRql, QueryType.Select);
-                }
-                catch
-                {
+                var query = PowerBIInnerRqlExtractor.TryResolveExtractedInnerTextToRqlQuery(innerRql, fromTwoParsersPath);
+                if (query == null)
                     return false;
-                }
 
                 Dictionary<string, ReplaceColumnValue> allReplaces = null;
                 List<Dictionary<string, ReplaceColumnValue>> wrapperReplaces = null;

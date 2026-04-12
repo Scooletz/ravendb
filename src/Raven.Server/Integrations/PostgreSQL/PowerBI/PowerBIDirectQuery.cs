@@ -88,7 +88,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 // On any mismatch, return false so the other PowerBI parsers can handle it.
                 var sql = queryText;
 
-                if (PowerBIInnerRqlExtractor.TryExtractInnerRqlSpan(sql, out var innerStart, out var innerEnd, out var innerRql) == false)
+                if (PowerBIInnerRqlExtractor.TryExtractInnerRqlSpan(sql, out var innerStart, out var innerEnd, out var innerRql, out var fromTwoParsersPath) == false)
                     return false;
 
                 // Replace the inner RQL (which PgSqlParser cannot parse) with a trivial SQL subquery.
@@ -146,15 +146,12 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 if (TryBuildDirectQueryShape(wrapper, out var shape) == false)
                     return false;
 
-                Documents.Queries.AST.Query q;
-                try
-                {
-                    q = QueryMetadata.ParseQuery(innerRql, QueryType.Select);
-                }
-                catch
-                {
+                // Reuse the shared extraction-path-aware resolver: treats the inner text as RQL when
+                // the preferred two-parsers path confirmed embedded RQL, and as ambiguous otherwise
+                // (tries RQL first, then SQL→RQL translation – the SQL-textbox POC path).
+                var q = PowerBIInnerRqlExtractor.TryResolveExtractedInnerTextToRqlQuery(innerRql, fromTwoParsersPath);
+                if (q == null)
                     return false;
-                }
 
                 // Non-aggregate DirectQuery rewrite always emits `select { ... }` (object projection).
                 // Raven requires a from-alias for object projections, so synthesize a stable alias when missing.
