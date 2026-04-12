@@ -37,6 +37,7 @@ internal class AiConversation : IAiConversationOperations
     private delegate Task HandleActionDelegate(JsonOperationContext context, AiAgentActionRequest actionRequest, CancellationToken token);
 
     private readonly Dictionary<string, HandleActionDelegate> _invocations = new();
+    private readonly HashSet<string> _dispatchedToolIds = new();
 
     public AiConversation(AiOperations aiOperations, string agentId, string conversationId, AiConversationCreationOptions options, string changeVector)
     {
@@ -235,6 +236,8 @@ internal class AiConversation : IAiConversationOperations
 
     public async Task<AiAnswer<TAnswer>> RunAsync<TAnswer>(CancellationToken token = default)
     {
+        _dispatchedToolIds.Clear();
+
         while (true)
         {
             var r = await RunAsyncInternal<TAnswer>(streamPropertyPath: null, streamedChunksCallback: null, token).ConfigureAwait(false);
@@ -255,6 +258,9 @@ internal class AiConversation : IAiConversationOperations
         {
             foreach (var action in _actionRequests)
             {
+                if (_dispatchedToolIds.Add(action.ToolId) == false)
+                    continue;
+
                 if (_invocations.TryGetValue(action.Name, out var invocation))
                 {
                     // error handling here is expected to be done by the invocation based on the error strategy the user choose
@@ -284,7 +290,7 @@ internal class AiConversation : IAiConversationOperations
     {
         if (
             // if this is null, it is the first time we call RunAsync, so we are going to the server to get the pending actions
-            _actionRequests != null &&
+            _actionRequests is { Count: 0 } &&
             // otherwise, we already went to the server and have nothing new to tell it, so we are done
             _promptParts.Count == 0 && _actionResponses.Count == 0 && _attachmentsCommands.Count == 0)
         {
