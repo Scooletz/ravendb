@@ -45,6 +45,14 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 return true;
             }
 
+            if (TryMatchReferentialConstraintsFk(selectStmt))
+            {
+                // RavenDB has no SQL foreign keys, so the correct answer is always empty rows
+                // with the same schema shape that PowerBI expects for its FK metadata query.
+                result = PowerBIConfig.TableSchemaResponse;
+                return true;
+            }
+
             return false;
         }
 
@@ -295,6 +303,79 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 return TryGetJoinTables(joinExpr.Larg?.JoinExpr, schema, table) ||
                        TryGetJoinTables(joinExpr.Rarg?.JoinExpr, schema, table);
             }
+        }
+
+        /// <summary>
+        /// Matches the Power BI FK metadata query that uses INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS
+        /// (inside a subquery) together with KEY_COLUMN_USAGE JOINs.  This is a newer Power BI Desktop
+        /// variant of the FK-schema probe; the separator in the FK_NAME expression may vary ('*' or '_').
+        /// RavenDB has no real foreign keys, so the response is always the same empty-row schema table.
+        /// </summary>
+        private static bool TryMatchReferentialConstraintsFk(SelectStmt s)
+        {
+            if (s.FromClause == null)
+                return false;
+
+            // Must reference KEY_COLUMN_USAGE in the JOIN tree (appears twice: fkcol and pkcol).
+            if (ContainsFromTable(s, "information_schema", "key_column_usage") == false)
+                return false;
+
+            // Distinguishing signature: REFERENTIAL_CONSTRAINTS is used inside a subquery in the FROM clause.
+            if (ContainsSubqueryReferencingTable(s, "information_schema", "referential_constraints") == false)
+                return false;
+
+            // All known Power BI FK metadata variants project exactly 6 columns.
+            if (s.TargetList is not { Count: 6 })
+                return false;
+
+            // Column positions 0-4 differ between Power BI versions (e.g. FK_TABLE_SCHEMA vs PK_TABLE_SCHEMA
+            // at position 0).  The structural signature above is already conservative; we only check that the
+            // final column is the FK_NAME expression, which is consistent across all known variants.
+            return TryMatchFkNameTarget(s.TargetList[5]?.ResTarget);
+        }
+
+        /// <summary>
+        /// Returns true if any node in the FROM clause of <paramref name="s"/> is a subquery
+        /// (RangeSubselect) whose own FROM references the given schema.table.  Walks JOIN trees.
+        /// </summary>
+        private static bool ContainsSubqueryReferencingTable(SelectStmt s, string schema, string table)
+        {
+            if (s?.FromClause == null)
+                return false;
+
+            foreach (var from in s.FromClause)
+            {
+                if (NodeContainsSubqueryReferencingTable(from, schema, table))
+                    return true;
+            }
+
+            return false;
+        }
+
+        private static bool NodeContainsSubqueryReferencingTable(Node node, string schema, string table)
+        {
+            if (node == null)
+                return false;
+
+            // If this node is a subquery, inspect its inner SELECT for the target table.
+            var rss = node.RangeSubselect;
+            if (rss?.Subquery?.SelectStmt != null)
+            {
+                if (ContainsFromTable(rss.Subquery.SelectStmt, schema, table))
+                    return true;
+            }
+
+            // Recurse into JOIN tree.
+            var join = node.JoinExpr;
+            if (join != null)
+            {
+                if (NodeContainsSubqueryReferencingTable(join.Larg, schema, table))
+                    return true;
+                if (NodeContainsSubqueryReferencingTable(join.Rarg, schema, table))
+                    return true;
+            }
+
+            return false;
         }
 
         private static bool TryGetFromTable(Node fromNode, out string schema, out string table)
