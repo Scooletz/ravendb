@@ -33,33 +33,29 @@ namespace Raven.Server.Integrations.PostgreSQL
                 return true;
             }
 
-            // Npgsql
+            // Simple Npgsql function queries — AST-based (version(), current_setting('max_index_keys')).
+            // These are structurally trivial and safe to match via AST; tolerates whitespace variations.
+            if (NpgsqlSimpleQueryAstMatcher.TryMatch(queryText, out result))
+            {
+                hardcodedQuery = new HardcodedQuery(queryText, parametersDataTypes, result);
+                return true;
+            }
+
+            // Npgsql enum/composite metadata queries — AST-based.
+            // All version variants (4.0.0–current) differ only in comment style or ORDER BY column
+            // but return identical response schemas, so a single AST matcher covers all versions.
+            if (NpgsqlMetadataQueryAstMatcher.TryMatch(queryText, out result))
+            {
+                hardcodedQuery = new HardcodedQuery(queryText, parametersDataTypes, result);
+                return true;
+            }
+
+            // Npgsql — complex pg_catalog type-loading queries; matched by exact string for safety.
             if (normalizedQuery.Equals(NpgsqlConfig.TypesQuery, StringComparison.OrdinalIgnoreCase))
                 result = NpgsqlConfig.TypesResponse;
 
-            else if (normalizedQuery.Equals(NpgsqlConfig.CompositeTypesQuery, StringComparison.OrdinalIgnoreCase))
-                result = NpgsqlConfig.CompositeTypesResponse;
-
-            else if (normalizedQuery.Equals(NpgsqlConfig.EnumTypesQuery, StringComparison.OrdinalIgnoreCase))
-                result = NpgsqlConfig.EnumTypesResponse;
-
-            else if (normalizedQuery.Replace("\n", "").Equals(NpgsqlConfig.VersionQuery, StringComparison.OrdinalIgnoreCase))
-                result = NpgsqlConfig.VersionResponse;
-                
-            else if (normalizedQuery.Equals(NpgsqlConfig.VersionCurrentSettingQuery, StringComparison.OrdinalIgnoreCase))
-                result = NpgsqlConfig.VersionCurrentSettingResponse;
-            
-            else if (normalizedQuery.Equals(NpgsqlConfig.CurrentSettingQuery, StringComparison.OrdinalIgnoreCase))
-                result = NpgsqlConfig.CurrentSettingResponse;
-
             else if (normalizedQuery.Equals(NpgsqlConfig.Npgsql5TypesQuery, StringComparison.OrdinalIgnoreCase))
                 result = NpgsqlConfig.Npgsql5TypesResponse;
-
-            else if (normalizedQuery.Equals(NpgsqlConfig.Npgsql5CompositeTypesQuery, StringComparison.OrdinalIgnoreCase))
-                result = NpgsqlConfig.Npgsql5CompositeTypesResponse;
-
-            else if (normalizedQuery.Equals(NpgsqlConfig.Npgsql5EnumTypesQuery, StringComparison.OrdinalIgnoreCase))
-                result = NpgsqlConfig.Npgsql5EnumTypesResponse;
 
             else if (normalizedQuery.Equals(NpgsqlConfig.Npgsql4TypesQuery, StringComparison.OrdinalIgnoreCase))
                 result = NpgsqlConfig.Npgsql4TypesResponse;
@@ -72,9 +68,6 @@ namespace Raven.Server.Integrations.PostgreSQL
 
             else if (normalizedQuery.Equals(NpgsqlConfig.Npgsql4_0_0TypesQuery, StringComparison.OrdinalIgnoreCase))
                 result = NpgsqlConfig.Npgsql4_0_0TypesResponse;
-
-            else if (normalizedQuery.Equals(NpgsqlConfig.Npgsql4_0_0CompositeTypesQuery, StringComparison.OrdinalIgnoreCase))
-                result = NpgsqlConfig.Npgsql4_0_0CompositeTypesResponse;
 
             else if (normalizedQuery.Equals(NpgsqlConfig.Npgsql3TypesQuery, StringComparison.OrdinalIgnoreCase))
                 result = NpgsqlConfig.Npgsql3TypesResponse;
