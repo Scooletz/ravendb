@@ -32,7 +32,7 @@ import copyToClipboard from "common/copyToClipboard";
 type EmbeddingsGenerationPanelProps = EtlPanelBaseProps<OngoingTaskEmbeddingsGenerationInfo>;
 
 export function EmbeddingsGenerationPanel(props: EmbeddingsGenerationPanelProps & ICanShowTransformationScriptPreview) {
-    const { data, toggleSelection, isSelected, onTaskOperation, isDeleting, isTogglingState, etlStats, etlErrors } =
+    const { data, toggleSelection, isSelected, onTaskOperation, isDeleting, isTogglingState, etlStats } =
         props;
 
     const { forCurrentDatabase, appUrl } = useAppUrls();
@@ -124,7 +124,6 @@ export function EmbeddingsGenerationPanel(props: EmbeddingsGenerationPanelProps 
                         task={data}
                         showPreview={showPreview}
                         etlStats={etlStats}
-                        etlErrors={etlErrors}
                     />
                 </div>
             </Collapse>

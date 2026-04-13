@@ -31,7 +31,7 @@ import { EtlPanelErrors, EtlPanelHealthBadge, EtlPanelProgressItem, EtlPanelTogg
 type AzureQueueStorageEtlPanelProps = EtlPanelBaseProps<OngoingTaskAzureQueueStorageEtlInfo>;
 
 export function AzureQueueStorageEtlPanel(props: AzureQueueStorageEtlPanelProps & ICanShowTransformationScriptPreview) {
-    const { data, toggleSelection, isSelected, onTaskOperation, isDeleting, isTogglingState, etlStats, etlErrors } =
+    const { data, toggleSelection, isSelected, onTaskOperation, isDeleting, isTogglingState, etlStats } =
         props;
 
     const { forCurrentDatabase, appUrl } = useAppUrls();
@@ -114,7 +114,6 @@ export function AzureQueueStorageEtlPanel(props: AzureQueueStorageEtlPanelProps 
                         task={data}
                         showPreview={showPreview}
                         etlStats={etlStats}
-                        etlErrors={etlErrors}
                     />
                 </div>
             </Collapse>

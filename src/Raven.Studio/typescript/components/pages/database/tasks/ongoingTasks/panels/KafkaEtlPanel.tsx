@@ -31,7 +31,7 @@ import { EtlPanelErrors, EtlPanelHealthBadge, EtlPanelProgressItem, EtlPanelTogg
 type KafkaEtlPanelProps = EtlPanelBaseProps<OngoingTaskKafkaEtlInfo>;
 
 export function KafkaEtlPanel(props: KafkaEtlPanelProps & ICanShowTransformationScriptPreview) {
-    const { data, toggleSelection, isSelected, onTaskOperation, isDeleting, isTogglingState, etlStats, etlErrors } =
+    const { data, toggleSelection, isSelected, onTaskOperation, isDeleting, isTogglingState, etlStats } =
         props;
 
     const { forCurrentDatabase, appUrl } = useAppUrls();
@@ -111,7 +111,6 @@ export function KafkaEtlPanel(props: KafkaEtlPanelProps & ICanShowTransformation
                         task={data}
                         showPreview={showPreview}
                         etlStats={etlStats}
-                        etlErrors={etlErrors}
                     />
                 </div>
             </Collapse>
