@@ -50,27 +50,23 @@ namespace Raven.Server.Integrations.PostgreSQL
                 return true;
             }
 
-            // Npgsql — complex pg_catalog type-loading queries; matched by exact string for safety.
+            // Npgsql type-loading queries — AST-based (families migrated so far: A, B, E).
+            // Covers Npgsql 3.x and 4.1.0–5.x+; see NpgsqlTypesQueryAstMatcher for per-family details.
+            if (NpgsqlTypesQueryAstMatcher.TryMatch(queryText, out result))
+            {
+                hardcodedQuery = new HardcodedQuery(queryText, parametersDataTypes, result);
+                return true;
+            }
+
+            // Npgsql — remaining type-loading queries (C/D: 4.0.x); matched by exact string for safety.
             if (normalizedQuery.Equals(NpgsqlConfig.TypesQuery, StringComparison.OrdinalIgnoreCase))
                 result = NpgsqlConfig.TypesResponse;
-
-            else if (normalizedQuery.Equals(NpgsqlConfig.Npgsql5TypesQuery, StringComparison.OrdinalIgnoreCase))
-                result = NpgsqlConfig.Npgsql5TypesResponse;
-
-            else if (normalizedQuery.Equals(NpgsqlConfig.Npgsql4TypesQuery, StringComparison.OrdinalIgnoreCase))
-                result = NpgsqlConfig.Npgsql4TypesResponse;
-
-            else if (normalizedQuery.Equals(NpgsqlConfig.Npgsql4_1_2TypesQuery, StringComparison.OrdinalIgnoreCase))
-                result = NpgsqlConfig.Npgsql4_1_2TypesResponse;
 
             else if (normalizedQuery.Equals(NpgsqlConfig.Npgsql4_0_3TypesQuery, StringComparison.OrdinalIgnoreCase))
                 result = NpgsqlConfig.Npgsql4_0_3TypesResponse;
 
             else if (normalizedQuery.Equals(NpgsqlConfig.Npgsql4_0_0TypesQuery, StringComparison.OrdinalIgnoreCase))
                 result = NpgsqlConfig.Npgsql4_0_0TypesResponse;
-
-            else if (normalizedQuery.Equals(NpgsqlConfig.Npgsql3TypesQuery, StringComparison.OrdinalIgnoreCase))
-                result = NpgsqlConfig.Npgsql3TypesResponse;
 
             else if (normalizedQuery.StartsWith("DISCARD ALL", StringComparison.OrdinalIgnoreCase))
                 result = new PgTable();
