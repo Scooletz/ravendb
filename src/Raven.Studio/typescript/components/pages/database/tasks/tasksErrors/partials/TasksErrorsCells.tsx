@@ -101,12 +101,14 @@ export const CellValueButtonWrapper = (args: CellContext<FlatError, unknown>) =>
         const allErrors = allRows.map((r) => r.original);
         const currentIndex = allRows.findIndex((r) => r.id === args.row.id);
 
+        const index = currentIndex >= 0 ? currentIndex : 0;
         open({
             component: (
                 <EtlErrorDetailsSheet
+                    key={index}
                     error={args.row.original}
                     allErrors={allErrors}
-                    initialIndex={currentIndex >= 0 ? currentIndex : 0}
+                    initialIndex={index}
                 />
             ),
             initialWidth: "40%",

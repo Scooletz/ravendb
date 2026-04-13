@@ -1,4 +1,4 @@
-import React, { ReactNode } from "react";
+import React, { ReactNode, useState } from "react";
 import classNames from "classnames";
 import { Icon } from "components/common/Icon";
 import Badge from "react-bootstrap/Badge";
@@ -51,8 +51,8 @@ export default function EtlErrorDetailsSheet({
     useViewSheet();
     const dbName = useAppSelector(databaseSelectors.activeDatabaseName);
 
-    const [currentIndex, setCurrentIndex] = React.useState(initialIndex);
-    const [direction, setDirection] = React.useState<1 | -1>(1);
+    const [currentIndex, setCurrentIndex] = useState(initialIndex);
+    const [direction, setDirection] = useState<1 | -1>(1);
     const error = allErrors.length > 0 ? allErrors[currentIndex] : initialError;
 
     const hasPrevious = currentIndex > 0;
