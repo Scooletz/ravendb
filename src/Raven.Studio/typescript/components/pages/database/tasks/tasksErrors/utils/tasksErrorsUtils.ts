@@ -179,7 +179,7 @@ export function getHealthStatusFromStats(stats: EtlTaskStats["Stats"]): EtlHealt
 }
 
 export function getTaskHealthStatus(etlStats: EtlTaskStats[], etlName: string): EtlHealthStatus {
-    const stats = etlStats.find((s) => s.TaskName === etlName)?.Stats ?? [];
+    const stats = etlStats.filter((s) => s.TaskName === etlName).flatMap((s) => s.Stats);
     return getHealthStatusFromStats(stats);
 }
 
