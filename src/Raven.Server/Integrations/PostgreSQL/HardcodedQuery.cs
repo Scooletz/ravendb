@@ -50,25 +50,16 @@ namespace Raven.Server.Integrations.PostgreSQL
                 return true;
             }
 
-            // Npgsql type-loading queries — AST-based (families migrated so far: A, B, E).
-            // Covers Npgsql 3.x and 4.1.0–5.x+; see NpgsqlTypesQueryAstMatcher for per-family details.
+            // Npgsql type-loading queries — AST-based (all families: A, B, C, D, E).
+            // Covers all supported Npgsql versions (3.x through 5.x+).
+            // See NpgsqlTypesQueryAstMatcher for per-family details.
             if (NpgsqlTypesQueryAstMatcher.TryMatch(queryText, out result))
             {
                 hardcodedQuery = new HardcodedQuery(queryText, parametersDataTypes, result);
                 return true;
             }
 
-            // Npgsql — remaining type-loading queries (C/D: 4.0.x); matched by exact string for safety.
-            if (normalizedQuery.Equals(NpgsqlConfig.TypesQuery, StringComparison.OrdinalIgnoreCase))
-                result = NpgsqlConfig.TypesResponse;
-
-            else if (normalizedQuery.Equals(NpgsqlConfig.Npgsql4_0_3TypesQuery, StringComparison.OrdinalIgnoreCase))
-                result = NpgsqlConfig.Npgsql4_0_3TypesResponse;
-
-            else if (normalizedQuery.Equals(NpgsqlConfig.Npgsql4_0_0TypesQuery, StringComparison.OrdinalIgnoreCase))
-                result = NpgsqlConfig.Npgsql4_0_0TypesResponse;
-
-            else if (normalizedQuery.StartsWith("DISCARD ALL", StringComparison.OrdinalIgnoreCase))
+            if (normalizedQuery.StartsWith("DISCARD ALL", StringComparison.OrdinalIgnoreCase))
                 result = new PgTable();
 
             else if (normalizedQuery.StartsWith("ROLLBACK", StringComparison.OrdinalIgnoreCase))

@@ -172,10 +172,6 @@ join information_schema.table_constraints fkcon on 1=1";
 
         // ---- ReferentialConstraintsFk: exact failing query + variants + negative cases ----
 
-        /// <summary>
-        /// The exact query that Power BI Desktop sends after selecting a collection in DirectQuery mode.
-        /// This is the real-world failing case that prompted this fix.
-        /// </summary>
         [Fact]
         public void PowerBI_ReferentialConstraintsFkQuery_exact_failing_query_should_match()
         {
@@ -197,11 +193,7 @@ join information_schema.table_constraints fkcon on 1=1";
             Assert.Same(PowerBIConfig.TableSchemaResponse, table);
         }
 
-        /// <summary>
-        /// Same query shape but for a different collection (Products).
-        /// The collection name appears in the WHERE clause and FK_NAME expression;
-        /// neither affects the structural match, so any collection must be handled.
-        /// </summary>
+        // Same shape, different collection name in WHERE/FK_NAME — must still match.
         [Fact]
         public void PowerBI_ReferentialConstraintsFkQuery_different_collection_should_match()
         {
@@ -222,9 +214,6 @@ join information_schema.table_constraints fkcon on 1=1";
             Assert.Same(PowerBIConfig.TableSchemaResponse, table);
         }
 
-        /// <summary>
-        /// Lowercase identifier variant — confirms the match is case-insensitive.
-        /// </summary>
         [Fact]
         public void PowerBI_ReferentialConstraintsFkQuery_lowercase_identifiers_should_match()
         {
@@ -244,10 +233,7 @@ join information_schema.table_constraints fkcon on 1=1";
             Assert.Same(PowerBIConfig.TableSchemaResponse, table);
         }
 
-        /// <summary>
-        /// Negative: has the REFERENTIAL_CONSTRAINTS subquery and KEY_COLUMN_USAGE JOINs,
-        /// but projection uses wrong column count (5 instead of 6) — must not match.
-        /// </summary>
+        // Negative: right structure but 5 projected columns instead of 6.
         [Fact]
         public void PowerBI_ReferentialConstraintsFkQuery_wrong_column_count_should_not_match()
         {
@@ -264,10 +250,7 @@ join information_schema.table_constraints fkcon on 1=1";
             Assert.False(PowerBIHardcodedAstMatcher.TryMatchPowerBIHardcodedQuery(sql, out _));
         }
 
-        /// <summary>
-        /// Negative: projection looks right but the subquery references a non-REFERENTIAL_CONSTRAINTS table.
-        /// The query must not be matched (and must not fall into the table_constraints family either).
-        /// </summary>
+        // Negative: subquery targets information_schema.columns instead of referential_constraints.
         [Fact]
         public void PowerBI_ReferentialConstraintsFkQuery_wrong_subquery_source_should_not_match()
         {
@@ -287,11 +270,6 @@ join information_schema.table_constraints fkcon on 1=1";
 
         // ---- ReferentialConstraintsFk: secondary variant (PK_TABLE_SCHEMA/PK_TABLE_NAME projection) ----
 
-        /// <summary>
-        /// The second Power BI FK metadata variant — the exact new failing query.
-        /// Projects PK_TABLE_SCHEMA, PK_TABLE_NAME, PK_COLUMN_NAME, FK_COLUMN_NAME, ORDINAL, FK_NAME.
-        /// The previous matcher hard-coded column positions and missed this sibling shape.
-        /// </summary>
         [Fact]
         public void PowerBI_ReferentialConstraintsFkQuery_secondary_variant_exact_failing_query_should_match()
         {
@@ -313,11 +291,7 @@ join information_schema.table_constraints fkcon on 1=1";
             Assert.Same(PowerBIConfig.TableSchemaResponse, table);
         }
 
-        /// <summary>
-        /// Confirms both known FK metadata variants are treated as the same family:
-        /// the first variant (FK_TABLE_SCHEMA at position 1) must still match after the broadening.
-        /// Regression guard: broadening must not break the original positive case.
-        /// </summary>
+        // Regression guard: original primary variant must still match after the secondary variant was added.
         [Fact]
         public void PowerBI_ReferentialConstraintsFkQuery_primary_variant_still_matches_after_broadening()
         {
@@ -339,11 +313,6 @@ join information_schema.table_constraints fkcon on 1=1";
             Assert.Same(PowerBIConfig.TableSchemaResponse, table);
         }
 
-        /// <summary>
-        /// Dispatch-level test: proves the query no longer falls through to "Unhandled query".
-        /// Calls HardcodedQuery.TryParse directly (session=null is safe; session is only
-        /// accessed in the DEALLOCATE branch, which this query never reaches).
-        /// </summary>
         [Fact]
         public void HardcodedQuery_ReferentialConstraintsFkVariant2_is_claimed_at_dispatch_level()
         {
@@ -360,7 +329,6 @@ join information_schema.table_constraints fkcon on 1=1";
                 "where fkcol.TABLE_SCHEMA = 'public' and fkcol.TABLE_NAME = 'Employees' and pkcol.ORDINAL_POSITION = fkcol.ORDINAL_POSITION\n" +
                 "order by FK_NAME, fkcol.ORDINAL_POSITION";
 
-            // session=null is safe here: PowerBIHardcodedAstMatcher fires before session is touched.
             Assert.True(HardcodedQuery.TryParse(sql, Array.Empty<int>(), session: null, out var hardcodedQuery));
             Assert.NotNull(hardcodedQuery);
         }

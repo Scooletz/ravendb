@@ -6,7 +6,7 @@ namespace Raven.Server.Integrations.PostgreSQL.Npgsql
 {
     /// <summary>
     /// AST-based matchers for the Npgsql pg_catalog type-loading query families.
-    /// One method per family; families are added incrementally (plan: A → B → E → C/D).
+    /// One method per family; families are added incrementally (plan: A → B → E → C → D).
     /// </summary>
     internal static class NpgsqlTypesQueryAstMatcher
     {
@@ -41,6 +41,19 @@ namespace Raven.Server.Integrations.PostgreSQL.Npgsql
             if (IsLegacyNpgsql3TypesQuery(select))
             {
                 result = NpgsqlConfig.Npgsql3TypesResponse;
+                return true;
+            }
+
+            if (IsOldFlatFamilyCTypesQuery(select))
+            {
+                // TypesResponse and Npgsql4_0_3TypesResponse are data-identical (confirmed by diff).
+                result = NpgsqlConfig.TypesResponse;
+                return true;
+            }
+
+            if (IsOldFlatFamilyDTypesQuery(select))
+            {
+                result = NpgsqlConfig.Npgsql4_0_0TypesResponse;
                 return true;
             }
 
@@ -124,6 +137,162 @@ namespace Raven.Server.Integrations.PostgreSQL.Npgsql
             }
 
             return true;
+        }
+
+        // ── Family C — Old flat with pseudo-type arrays (Npgsql 4.0.1–4.0.12) ─────────────────────
+        // Anchors (all required):
+        //   1. Exactly 8 projected columns.
+        //   2. pg_type, pg_proc, pg_class all present in FROM.
+        //   3. Projected names match the Family C/E column set (identical sets, confirmed).
+        //   4. WHERE: the array_recv-gated OR block contains a branch whose RHS is 'p' — the
+        //      pseudo-type condition (b.typtype='p') that Family D lacks.
+        // TypesQuery and Npgsql4_0_3TypesQuery differ only by a leading \n → identical ASTs.
+        private static bool IsOldFlatFamilyCTypesQuery(SelectStmt s)
+        {
+            if (s.TargetList is not { Count: 8 })
+                return false;
+
+            if (s.FromClause == null)
+                return false;
+
+            if (FromContainsTable(s, "pg_type") == false)
+                return false;
+
+            if (FromContainsTable(s, "pg_proc") == false)
+                return false;
+
+            // pg_class presence is the key FROM discriminator vs. Family E.
+            if (FromContainsTable(s, "pg_class") == false)
+                return false;
+
+            // Column-set check (identical to Family E; both project the same 8 names).
+            foreach (var col in _familyEExpectedColumns)
+            {
+                if (HasTargetNamed(s, col) == false)
+                    return false;
+            }
+
+            // WHERE discriminator: Family C has a pseudo-type branch inside the array_recv
+            // sub-expression (b.typtype='p'); Family D does not — this is the only C/D difference.
+            return HasPseudoTypeBranchInArrayRecvBlock(s);
+        }
+
+        // ── Family D — Old flat without pseudo-type arrays (Npgsql 4.0.0 only) ─────────────────────
+        // Anchors 1–5 are identical to Family C. Anchor 6 is a scoped absence check — NOT a plain
+        // negation of the whole C matcher; the array_recv block must be positively located first.
+        //   1. Exactly 8 projected columns.
+        //   2. pg_type, pg_proc, pg_class all present in FROM.
+        //   3. Projected names match the Family C/D/E column set.
+        //   4–5. Top-level WHERE OR present; array_recv AND-block located within it.
+        //   6.   That block does NOT contain an A_Expr with RHS 'p'.
+        private static bool IsOldFlatFamilyDTypesQuery(SelectStmt s)
+        {
+            if (s.TargetList is not { Count: 8 })
+                return false;
+
+            if (s.FromClause == null)
+                return false;
+
+            if (FromContainsTable(s, "pg_type") == false)
+                return false;
+
+            if (FromContainsTable(s, "pg_proc") == false)
+                return false;
+
+            if (FromContainsTable(s, "pg_class") == false)
+                return false;
+
+            foreach (var col in _familyEExpectedColumns)
+            {
+                if (HasTargetNamed(s, col) == false)
+                    return false;
+            }
+
+            // Positive anchor: block must exist. Absence anchor: 'p' must not be inside it.
+            return TryGetArrayRecvInnerOrBlock(s, out var innerOr)
+                && SubtreeContainsAExprRhsStringConstant(innerOr, "p") == false;
+        }
+
+        // Locates the inner OR node inside the (proname='array_recv' AND <inner-OR>) AND-branch
+        // of the top-level WHERE OR. Shared by Family C (asserts 'p' present) and
+        // Family D (asserts 'p' absent).
+        private static bool TryGetArrayRecvInnerOrBlock(SelectStmt s, out Node innerOrNode)
+        {
+            innerOrNode = null;
+
+            if (s.WhereClause?.BoolExpr is not { Boolop: BoolExprType.OrExpr } topOr)
+                return false;
+
+            foreach (var arg in topOr.Args)
+            {
+                var andExpr = arg?.BoolExpr;
+                if (andExpr is not { Boolop: BoolExprType.AndExpr })
+                    continue;
+
+                bool hasArrayRecvGuard = false;
+                Node candidateInnerOr = null;
+
+                foreach (var andArg in andExpr.Args)
+                {
+                    if (IsAExprRhsStringConstant(andArg, "array_recv"))
+                        hasArrayRecvGuard = true;
+                    else if (andArg?.BoolExpr is { Boolop: BoolExprType.OrExpr })
+                        candidateInnerOr = andArg;
+                }
+
+                if (hasArrayRecvGuard && candidateInnerOr != null)
+                {
+                    innerOrNode = candidateInnerOr;
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        // Family C WHERE discriminator: array_recv block present AND 'p' branch found inside it.
+        private static bool HasPseudoTypeBranchInArrayRecvBlock(SelectStmt s)
+            => TryGetArrayRecvInnerOrBlock(s, out var innerOr)
+               && SubtreeContainsAExprRhsStringConstant(innerOr, "p");
+
+        // Returns true if node is an A_Expr of any kind whose direct Rexpr is the string constant value.
+        private static bool IsAExprRhsStringConstant(Node node, string value)
+        {
+            var expr = node?.AExpr;
+            return expr != null && expr.Rexpr?.AConst?.Sval?.Sval == value;
+        }
+
+        // Recursively scans a node subtree for any A_Expr whose direct RHS string constant equals value.
+        // Only descends into BoolExpr args and AExpr Lexpr/Rexpr — does not walk INTO list literals,
+        // so IN-list values (stored in List nodes off Rexpr) are not inadvertently inspected.
+        private static bool SubtreeContainsAExprRhsStringConstant(Node node, string value)
+        {
+            if (node == null)
+                return false;
+
+            if (IsAExprRhsStringConstant(node, value))
+                return true;
+
+            var be = node.BoolExpr;
+            if (be != null)
+            {
+                foreach (var arg in be.Args)
+                {
+                    if (SubtreeContainsAExprRhsStringConstant(arg, value))
+                        return true;
+                }
+            }
+
+            var ae = node.AExpr;
+            if (ae != null)
+            {
+                if (SubtreeContainsAExprRhsStringConstant(ae.Lexpr, value))
+                    return true;
+                if (SubtreeContainsAExprRhsStringConstant(ae.Rexpr, value))
+                    return true;
+            }
+
+            return false;
         }
 
         // ── Shared helpers ────────────────────────────────────────────────────────────────────────
