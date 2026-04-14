@@ -205,6 +205,9 @@ function GroupByNoneTable({
         data,
         columns,
         columnResizeMode: "onChange",
+        initialState: {
+            sorting: [{ id: "CreatedAt", desc: true }],
+        },
         state: {
             rowSelection,
             columnVisibility,

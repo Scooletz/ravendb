@@ -164,6 +164,9 @@ function NestedTaskPanelDetailsTable({ width, itemErrors, processErrors }: Neste
         data,
         columns,
         columnResizeMode: "onChange",
+        initialState: {
+            sorting: [{ id: "CreatedAt", desc: true }],
+        },
         getCoreRowModel: getCoreRowModel(),
         getSortedRowModel: getSortedRowModel(),
         getFilteredRowModel: getFilteredRowModel(),
