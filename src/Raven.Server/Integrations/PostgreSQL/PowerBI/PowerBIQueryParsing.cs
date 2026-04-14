@@ -95,10 +95,10 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 // Not RQL – fall through to SQL translation.
             }
 
-            // 2. Try SQL→RQL translation (POC: SQL-statement textbox support for Fetch/Import).
-            // PgSqlToRqlTranslator handles the SELECT…FROM…WHERE shape that BI generates in the
-            // textbox subquery. The global-fallback translator in PgQuery.CreateInstance is
-            // intentionally not reused here to avoid false positives.
+            // 2. Try SQL→RQL translation (SQL-statement textbox support).
+            // PgSqlToRqlTranslator handles the SELECT…FROM…WHERE shape that the user types in the
+            // textbox. The global-fallback translator in PgQuery.CreateInstance is intentionally
+            // not reused here to avoid false positives.
             if (PgSqlToRqlTranslator.TryParse(innerText, parameterTypes: Array.Empty<int>(), out var translatedRql) == false)
                 return null;
 
@@ -303,13 +303,15 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             innerStart = 0;
             innerEnd = 0;
 
-            const string endTokenTable = ") \"$Table\"";
+            const string endTokenTable      = ") \"$Table\"";
             const string endTokenUnderscore = ") \"_\"";
+            const string endTokenRows       = ") \"rows\"";
 
-            var endTable = sql.LastIndexOf(endTokenTable, StringComparison.OrdinalIgnoreCase);
+            var endTable      = sql.LastIndexOf(endTokenTable,      StringComparison.OrdinalIgnoreCase);
             var endUnderscore = sql.LastIndexOf(endTokenUnderscore, StringComparison.OrdinalIgnoreCase);
+            var endRows       = sql.LastIndexOf(endTokenRows,       StringComparison.OrdinalIgnoreCase);
 
-            var end = Math.Max(endTable, endUnderscore);
+            var end = Math.Max(Math.Max(endTable, endUnderscore), endRows);
             if (end == -1)
                 return false;
 
