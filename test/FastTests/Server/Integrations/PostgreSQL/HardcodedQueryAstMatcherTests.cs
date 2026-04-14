@@ -8,15 +8,40 @@ namespace FastTests.Server.Integrations.PostgreSQL
 {
     public sealed class HardcodedQueryAstMatcherTests
     {
+        // Canonical SQL strings sent by PowerBI Desktop — used as test inputs for the AST matchers.
+        // These are reference examples only; the AST matchers are structurally tolerant of
+        // equivalent rewrites (different casing, added ORDER BY, etc.).
+        private const string CharacterSetsQuery =
+            "select character_set_name from INFORMATION_SCHEMA.character_sets";
+
+        private const string ConstraintsQuery =
+            "select i.CONSTRAINT_SCHEMA || '_' || i.CONSTRAINT_NAME as INDEX_NAME, ii.COLUMN_NAME, ii.ORDINAL_POSITION, " +
+            "case when i.CONSTRAINT_TYPE = 'PRIMARY KEY' then 'Y' else 'N' end as PRIMARY_KEY\n" +
+            "from INFORMATION_SCHEMA.table_constraints i inner join INFORMATION_SCHEMA.key_column_usage ii " +
+            "on i.CONSTRAINT_SCHEMA = ii.CONSTRAINT_SCHEMA and i.CONSTRAINT_NAME = ii.CONSTRAINT_NAME " +
+            "and i.TABLE_SCHEMA = ii.TABLE_SCHEMA and i.TABLE_NAME = ii.TABLE_NAME";
+
+        // Just the SELECT clause prefix; tests wrap it in a full FROM via BuildTableSchemaSql.
+        private const string TableSchemaQuery =
+            "select\n    pkcol.COLUMN_NAME as PK_COLUMN_NAME,\n    fkcol.TABLE_SCHEMA AS FK_TABLE_SCHEMA,\n" +
+            "    fkcol.TABLE_NAME AS FK_TABLE_NAME,\n    fkcol.COLUMN_NAME as FK_COLUMN_NAME,\n" +
+            "    fkcol.ORDINAL_POSITION as ORDINAL,\n    fkcon.CONSTRAINT_SCHEMA || '_' || fkcol.TABLE_NAME";
+
+        // SELECT clause prefix for the secondary TableSchema variant.
+        private const string TableSchemaSecondaryQuery =
+            "select\n    pkcol.TABLE_SCHEMA AS PK_TABLE_SCHEMA,\n    pkcol.TABLE_NAME AS PK_TABLE_NAME,\n" +
+            "    pkcol.COLUMN_NAME as PK_COLUMN_NAME,\n    fkcol.COLUMN_NAME as FK_COLUMN_NAME,\n" +
+            "    fkcol.ORDINAL_POSITION as ORDINAL,\n    fkcon.CONSTRAINT_SCHEMA ";
+
         public static IEnumerable<object[]> CharacterSetsQueries()
         {
-            yield return new object[] { PowerBIConfig.CharacterSetsQuery };
+            yield return new object[] { CharacterSetsQuery };
             yield return new object[] { "SELECT character_set_name\nFROM information_schema.character_sets" };
         }
 
         public static IEnumerable<object[]> ConstraintsQueries()
         {
-            yield return new object[] { PowerBIConfig.ConstraintsQuery };
+            yield return new object[] { ConstraintsQuery };
             yield return new object[]
             {
                 "SELECT i.CONSTRAINT_SCHEMA || '_' || i.CONSTRAINT_NAME as INDEX_NAME, ii.COLUMN_NAME, ii.ORDINAL_POSITION, CASE WHEN i.CONSTRAINT_TYPE = 'PRIMARY KEY' THEN 'Y' ELSE 'N' END as PRIMARY_KEY FROM information_schema.table_constraints i INNER JOIN information_schema.key_column_usage ii ON i.constraint_schema = ii.constraint_schema AND i.constraint_name = ii.constraint_name AND i.table_schema = ii.table_schema AND i.table_name = ii.table_name"
@@ -25,7 +50,7 @@ namespace FastTests.Server.Integrations.PostgreSQL
 
         public static IEnumerable<object[]> TableSchemaQueries()
         {
-            yield return new object[] { BuildTableSchemaSql(PowerBIConfig.TableSchemaQuery) };
+            yield return new object[] { BuildTableSchemaSql(TableSchemaQuery) };
 
             yield return new object[]
             {
@@ -42,7 +67,7 @@ namespace FastTests.Server.Integrations.PostgreSQL
 
         public static IEnumerable<object[]> TableSchemaSecondaryQueries()
         {
-            yield return new object[] { BuildTableSchemaSecondarySql(PowerBIConfig.TableSchemaSecondaryQuery + "|| '_' || fkcol.table_name") };
+            yield return new object[] { BuildTableSchemaSecondarySql(TableSchemaSecondaryQuery + "|| '_' || fkcol.table_name") };
 
             yield return new object[]
             {
@@ -134,7 +159,7 @@ join information_schema.table_constraints fkcon on 1=1";
         public void PowerBI_ConstraintsQuery_with_order_by_should_still_match()
         {
             // ConstraintsQuery with an ORDER BY appended — source tables and projected columns are what matter.
-            var sql = PowerBIConfig.ConstraintsQuery + "\norder by index_name";
+            var sql = ConstraintsQuery + "\norder by index_name";
 
             Assert.True(PowerBIHardcodedAstMatcher.TryMatchPowerBIHardcodedQuery(sql, out var table));
             Assert.Same(PowerBIConfig.ConstraintsResponse, table);

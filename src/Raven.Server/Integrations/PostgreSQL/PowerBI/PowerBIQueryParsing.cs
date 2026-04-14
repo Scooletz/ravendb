@@ -13,58 +13,50 @@ using Sparrow.Extensions;
 
 namespace Raven.Server.Integrations.PostgreSQL.PowerBI
 {
+    /// <summary>
+    /// Result of <see cref="PowerBIInnerRqlExtractor.TryExtractAndResolve"/>.
+    /// <see cref="InnerStart"/> and <see cref="InnerEnd"/> are character offsets into the original SQL string;
+    /// callers use them to splice in a placeholder (e.g. <c>"select 1"</c>) so pgsqlparser can parse
+    /// the outer wrapper without tripping on embedded RQL or SQL.
+    /// </summary>
+    internal sealed record InnerTextResult(
+        int InnerStart,
+        int InnerEnd,
+        string InnerText,
+        RavenQuery ResolvedQuery);
+
     internal static class PowerBIInnerRqlExtractor
     {
         /// <summary>
-        /// Extracts the inner textbox span from a PowerBI-wrapped SQL query.
-        /// Prefer the overload with <paramref name="fromTwoParsersPath"/> when the caller needs to
-        /// distinguish RQL-confirmed content (two-parsers path) from ambiguous content (structural fallback).
+        /// Extracts the inner textbox span from a PowerBI-wrapped SQL query and resolves it to a
+        /// <see cref="RavenQuery"/> in one step. Returns <c>null</c> when extraction or resolution fails.
         /// </summary>
-        public static bool TryExtractInnerRqlSpan(string sql, out int innerStart, out int innerEnd, out string innerRql)
+        public static InnerTextResult TryExtractAndResolve(string sql)
         {
-            return TryExtractInnerRqlSpan(sql, out innerStart, out innerEnd, out innerRql, out _);
+            if (TryExtractInnerTextSpan(sql, out var start, out var end, out var innerText, out var fromTwoParsersPath) == false)
+                return null;
+
+            var resolved = TryResolveInnerTextToQuery(innerText, fromTwoParsersPath);
+            if (resolved == null)
+                return null;
+
+            return new InnerTextResult(start, end, innerText, resolved);
         }
 
-        /// <summary>
-        /// Extracts the inner textbox span and reports which extraction path was used.
-        /// <para>
-        /// <paramref name="fromTwoParsersPath"/> is <c>true</c> when the preferred two-parsers path
-        /// succeeded (pgsqlparser failed on the full wrapper, indicating embedded RQL), which strongly
-        /// suggests the extracted inner text is RQL.  When <c>false</c>, the preferred path did not
-        /// succeed and the inner content was located via structural/deepest-inner extraction – it should
-        /// be treated as ambiguous (try RQL first, then SQL→RQL).
-        /// </para>
-        /// </summary>
-        public static bool TryExtractInnerRqlSpan(string sql, out int innerStart, out int innerEnd, out string innerRql, out bool fromTwoParsersPath)
+        private static bool TryExtractInnerTextSpan(string sql, out int innerStart, out int innerEnd, out string innerText, out bool fromTwoParsersPath)
         {
             fromTwoParsersPath = false;
 
-            if (TryExtractInnerRqlSpanViaTwoParsers(sql, out innerStart, out innerEnd, out innerRql))
+            if (TryExtractInnerRqlSpanViaTwoParsers(sql, out innerStart, out innerEnd, out innerText))
             {
                 fromTwoParsersPath = true;
                 return true;
             }
 
-            return TryExtractDeepestInnerRqlSpan(sql, out innerStart, out innerEnd, out innerRql);
+            return TryExtractDeepestInnerRqlSpan(sql, out innerStart, out innerEnd, out innerText);
         }
 
-        /// <summary>
-        /// Resolves extracted inner textbox text to a parsed RQL <see cref="RavenQuery"/>, applying the
-        /// appropriate strategy based on which extraction path produced the text.
-        /// <list type="number">
-        ///   <item>
-        ///     When <paramref name="fromTwoParsersPath"/> is <c>true</c> the preferred two-parsers path
-        ///     confirmed embedded RQL in the outer wrapper, so the text is parsed as RQL only.
-        ///   </item>
-        ///   <item>
-        ///     When <paramref name="fromTwoParsersPath"/> is <c>false</c> the preferred path did not
-        ///     succeed and the inner text is treated as ambiguous: RQL is tried first, and if that
-        ///     fails SQL→RQL translation is attempted (POC for the PowerBI SQL-statement textbox).
-        ///   </item>
-        /// </list>
-        /// Returns <c>null</c> when no path succeeds.
-        /// </summary>
-        public static RavenQuery TryResolveExtractedInnerTextToRqlQuery(string innerText, bool fromTwoParsersPath)
+        private static RavenQuery TryResolveInnerTextToQuery(string innerText, bool fromTwoParsersPath)
         {
             if (string.IsNullOrWhiteSpace(innerText))
                 return null;
@@ -718,6 +710,13 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             return true;
         }
 
+        /// <summary>
+        /// Reflection-based fallback for timestamp literal extraction used when the primary strongly-typed
+        /// path is not available (e.g. when the <c>TypeCast.TypeName.Names</c> or <c>TypeCast.Arg</c>
+        /// properties are absent in the current pgsqlparser build). Accessing via reflection lets us handle
+        /// minor API-surface differences across pgsqlparser versions without a hard compile-time dependency
+        /// on the exact member layout.
+        /// </summary>
         private static bool TryExtractTimestampLiteralViaReflection(Node node, out ValueExpression valueExpression)
         {
             valueExpression = null;

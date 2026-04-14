@@ -20,10 +20,6 @@ namespace Raven.Server.Integrations.PostgreSQL
 
         public static bool TryParse(string queryText, int[] parametersDataTypes, PgSession session, out HardcodedQuery hardcodedQuery)
         {
-            // TODO: The hardcoded queries in NpgsqlConfig might look a bit different for every user because they are generated using a function. Add support to more than just the current queries by not matching the entire string but ignoring parts of it.
-            // TODO: For more accurate implementation, use the `resultsFormat` and send an appropriate _result table (Binary or Text). So for example return PowerBIConfig.TableScheamResponseBinary when the foramt is binary, and PowerBIConfig.TableScheamResponseText otherwise.
-            // var resultsFormat = GetDefaultResultsFormat();
-
             var normalizedQuery = queryText.NormalizeLineEndings();
             PgTable result = null;
 
@@ -50,7 +46,6 @@ namespace Raven.Server.Integrations.PostgreSQL
                 return true;
             }
 
-            // Npgsql type-loading queries — AST-based (all families: A, B, C, D, E).
             // Covers all supported Npgsql versions (3.x through 5.x+).
             // See NpgsqlTypesQueryAstMatcher for per-family details.
             if (NpgsqlTypesQueryAstMatcher.TryMatch(queryText, out result))
