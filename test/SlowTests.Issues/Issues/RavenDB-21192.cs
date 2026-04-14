@@ -14,8 +14,10 @@ using Raven.Client.Documents.Operations.AI;
 using Raven.Client.Documents.Operations.ConnectionStrings;
 using Raven.Client.Documents.Operations.ETL;
 using Raven.Client.Documents.Operations.OngoingTasks;
+using Raven.Client.Exceptions;
 using Raven.Client.Http;
 using Raven.Client.ServerWide.Operations;
+using Raven.Client.ServerWide.Operations.Configuration;
 using Raven.Server.Config;
 using Raven.Server.Documents;
 using Raven.Server.Documents.Commands.Studio;
@@ -695,6 +697,17 @@ public class RavenDB_21192 : RavenTestBase
                     
             var etlStats = await GetEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1));
             Assert.Equal(EtlProcessHealthStatus.Failed, etlStats.HealthStatus);
+
+            await src.Maintenance.SendAsync(new PutDatabaseSettingsOperation(src.Database, new Dictionary<string, string>
+            {
+                [RavenConfiguration.GetKey(x => x.Etl.ProcessHealthStatusFailedThreshold)] = "0.1",
+                [RavenConfiguration.GetKey(x => x.Etl.ProcessHealthStatusImpairedThreshold)] = "0.9"
+            }));
+
+            var ex = Assert.Throws<InvalidOperationException>(() =>
+                Server.ServerStore.DatabasesLandlord.CreateDatabaseConfiguration(src.Database));
+            Assert.Contains(RavenConfiguration.GetKey(x => x.Etl.ProcessHealthStatusFailedThreshold), ex.Message);
+            Assert.Contains(RavenConfiguration.GetKey(x => x.Etl.ProcessHealthStatusImpairedThreshold), ex.Message);
         }
     }
     
