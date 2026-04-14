@@ -115,7 +115,9 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                     string rewritten;
                     try
                     {
-                        var innerQuery = QueryMetadata.ParseQuery(innerRql, QueryType.Select);
+                        var innerQuery = PowerBIInnerRqlExtractor.TryResolveExtractedInnerTextToRqlQuery(innerRql, fromTwoParsersPath);
+                        if (innerQuery == null)
+                            return false;
 
                         rewritten = RewriteGroupedAggregateRql(innerQuery, aggregateShape);
                     }

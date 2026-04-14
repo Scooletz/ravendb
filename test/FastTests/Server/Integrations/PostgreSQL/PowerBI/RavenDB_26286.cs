@@ -253,6 +253,97 @@ limit 501";
         }
 
         [Fact]
+        public void DirectQuery_InnerSql_NoWhereClause_TranslatesToRql()
+        {
+            // Simplest SQL-textbox shape: SELECT + FROM only, no WHERE filter.
+            const string sql =
+                @"select ""_"".""Company""
+from
+(
+    select ""rows"".""Company"" as ""Company""
+    from
+    (
+        select ""Company""
+        from ""public"".""Orders""
+    ) ""rows""
+    group by ""Company""
+) ""_""
+order by ""_"".""Company""
+limit 501";
+
+            Assert.True(PowerBIDirectQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
+            Assert.IsType<PowerBIDirectQuery>(pgQuery);
+
+            var queryString = GetQueryString(pgQuery);
+            Assert.NotNull(queryString);
+            Assert.Contains("Orders", queryString, StringComparison.OrdinalIgnoreCase);
+        }
+
+        [Fact]
+        public void DirectQuery_InnerSql_OrFilter_TranslatesToRql()
+        {
+            const string sql =
+                @"select ""_"".""Status""
+from
+(
+    select ""rows"".""Status"" as ""Status""
+    from
+    (
+        select ""Status""
+        from ""public"".""Orders""
+        where ""Status"" = 'Pending' or ""Status"" = 'Shipped'
+    ) ""rows""
+    group by ""Status""
+) ""_""
+order by ""_"".""Status""
+limit 501";
+
+            Assert.True(PowerBIDirectQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
+            Assert.IsType<PowerBIDirectQuery>(pgQuery);
+
+            var queryString = GetQueryString(pgQuery);
+            Assert.NotNull(queryString);
+            Assert.Contains("Orders", queryString, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("Pending", queryString, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("Shipped", queryString, StringComparison.OrdinalIgnoreCase);
+        }
+
+        [Fact]
+        public void DirectQuery_InnerSql_4LevelWrapper_TranslatesToRql()
+        {
+            // 4-level: outer "_" → "rows" (GROUP BY) → "$Table" pass-through → user SQL.
+            // This exercises the "$Table" drill-through token that was already in the extractor
+            // but had no SQL-textbox test.
+            const string sql =
+                @"select ""_"".""Company""
+from
+(
+    select ""rows"".""Company"" as ""Company""
+    from
+    (
+        select ""Company""
+        from
+        (
+            select ""Company""
+            from ""public"".""Orders""
+            where ""Company"" = 'Companies/1-A'
+        ) ""$Table""
+    ) ""rows""
+    group by ""Company""
+) ""_""
+order by ""_"".""Company""
+limit 501";
+
+            Assert.True(PowerBIDirectQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
+            Assert.IsType<PowerBIDirectQuery>(pgQuery);
+
+            var queryString = GetQueryString(pgQuery);
+            Assert.NotNull(queryString);
+            Assert.Contains("Orders", queryString, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("Companies/1-A", queryString, StringComparison.OrdinalIgnoreCase);
+        }
+
+        [Fact]
         public void DirectQuery_InnerSql_SubqueryInFrom_ReturnsFalse()
         {
             // Inner SQL with a subquery in FROM — translator requires a plain collection RangeVar.
@@ -270,6 +361,181 @@ from
 limit 501";
 
             Assert.False(PowerBIDirectQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out _));
+        }
+
+        [Fact]
+        public void DirectQuery_InnerSql_NoFromClause_ReturnsFalse()
+        {
+            // Inner SQL with no FROM — translator requires a collection source.
+            const string sql =
+                @"select ""_"".""X""
+from
+(
+    select ""rows"".""X"" as ""X""
+    from
+    (
+        select 1 as ""X""
+    ) ""rows""
+    group by ""X""
+) ""_""
+limit 501";
+
+            Assert.False(PowerBIDirectQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out _));
+        }
+
+        // ── DirectQuery – SQL-textbox grouped aggregate ───────────────────────────────
+
+        [Fact]
+        public void DirectQuery_GroupedAggregate_InnerSql_SumWithWhereAndGroupBy_TranslatesToRql()
+        {
+            const string sql =
+                @"select ""_"".""Company"", ""_"".""a0""
+from
+(
+    select ""rows"".""Company"" as ""Company"", sum(""rows"".""Freight"") as ""a0""
+    from
+    (
+        select ""Company"", ""Freight""
+        from ""public"".""Orders""
+        where ""Status"" = 'Pending'
+    ) ""rows""
+    group by ""Company""
+) ""_""
+where not ""_"".""a0"" is null
+order by ""_"".""a0"" desc
+limit 1000001";
+
+            Assert.True(PowerBIDirectQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
+            Assert.IsType<PowerBIDirectQuery>(pgQuery);
+
+            var queryString = GetQueryString(pgQuery);
+            Assert.NotNull(queryString);
+            Assert.Contains("Orders", queryString, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("Pending", queryString, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("sum", queryString, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("Company", queryString, StringComparison.OrdinalIgnoreCase);
+        }
+
+        [Fact]
+        public void DirectQuery_GroupedAggregate_InnerSql_MultiKeyGroupBy_TranslatesToRql()
+        {
+            // SUM with two group-by fields.
+            const string sql =
+                @"select ""_"".""Employee"", ""_"".""RequireAt"", ""_"".""a0""
+from
+(
+    select ""rows"".""Employee"" as ""Employee"",
+           ""rows"".""RequireAt"" as ""RequireAt"",
+           sum(""rows"".""Freight"") as ""a0""
+    from
+    (
+        select ""Employee"", ""RequireAt"", ""Freight""
+        from ""public"".""Orders""
+        where ""Company"" = 'Companies/1-A'
+    ) ""rows""
+    group by ""Employee"", ""RequireAt""
+) ""_""
+where not ""_"".""a0"" is null
+order by ""_"".""a0"" desc
+limit 1000001";
+
+            Assert.True(PowerBIDirectQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
+            Assert.IsType<PowerBIDirectQuery>(pgQuery);
+
+            var queryString = GetQueryString(pgQuery);
+            Assert.NotNull(queryString);
+            Assert.Contains("Orders", queryString, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("Companies/1-A", queryString, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("sum", queryString, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("Employee", queryString, StringComparison.OrdinalIgnoreCase);
+        }
+
+        [Fact]
+        public void DirectQuery_GroupedAggregate_InnerSql_NoOuterWhereOrOrderBy_TranslatesToRql()
+        {
+            // SUM without outer WHERE (no not-null guard) and no ORDER BY.
+            const string sql =
+                @"select ""_"".""Company"", ""_"".""a0""
+from
+(
+    select ""rows"".""Company"" as ""Company"", sum(""rows"".""Freight"") as ""a0""
+    from
+    (
+        select ""Company"", ""Freight""
+        from ""public"".""Orders""
+    ) ""rows""
+    group by ""Company""
+) ""_""
+limit 1000001";
+
+            Assert.True(PowerBIDirectQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
+            Assert.IsType<PowerBIDirectQuery>(pgQuery);
+
+            var queryString = GetQueryString(pgQuery);
+            Assert.NotNull(queryString);
+            Assert.Contains("Orders", queryString, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("sum", queryString, StringComparison.OrdinalIgnoreCase);
+        }
+
+        [Fact]
+        public void DirectQuery_GroupedAggregate_InnerSql_OrderByGroupKey_TranslatesToRql()
+        {
+            // ORDER BY on the group key (Company), not the aggregate output (a0).
+            const string sql =
+                @"select ""_"".""Company"", ""_"".""a0""
+from
+(
+    select ""rows"".""Company"" as ""Company"", sum(""rows"".""Freight"") as ""a0""
+    from
+    (
+        select ""Company"", ""Freight""
+        from ""public"".""Orders""
+        where ""Status"" = 'Pending'
+    ) ""rows""
+    group by ""Company""
+) ""_""
+where not ""_"".""a0"" is null
+order by ""_"".""Company"" asc
+limit 1000001";
+
+            Assert.True(PowerBIDirectQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
+            Assert.IsType<PowerBIDirectQuery>(pgQuery);
+
+            var queryString = GetQueryString(pgQuery);
+            Assert.NotNull(queryString);
+            Assert.Contains("Orders", queryString, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("Pending", queryString, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("sum", queryString, StringComparison.OrdinalIgnoreCase);
+            // ORDER BY group key is emitted without "as double" modifier.
+            Assert.DoesNotContain("as double", queryString, StringComparison.OrdinalIgnoreCase);
+        }
+
+        [Fact]
+        public void DirectQuery_GroupedAggregate_InnerRql_StillParsesCorrectly()
+        {
+            // Regression guard: existing grouped-aggregate RQL-in-textbox must still work.
+            const string sql =
+                @"select ""_"".""Employee"", ""_"".""a0""
+from
+(
+    select ""rows"".""Employee"" as ""Employee"", sum(""rows"".""Freight"") as ""a0""
+    from
+    (
+        from Orders
+        where Company in ('Companies/1-A', 'Companies/2-A')
+    ) ""rows""
+    group by ""Employee""
+) ""_""
+where not ""_"".""a0"" is null
+limit 1000001";
+
+            Assert.True(PowerBIDirectQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
+            Assert.IsType<PowerBIDirectQuery>(pgQuery);
+
+            var queryString = GetQueryString(pgQuery);
+            Assert.NotNull(queryString);
+            Assert.Contains("Orders", queryString, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("sum", queryString, StringComparison.OrdinalIgnoreCase);
         }
 
         // ── DirectQuery – regression ──────────────────────────────────────────────────
