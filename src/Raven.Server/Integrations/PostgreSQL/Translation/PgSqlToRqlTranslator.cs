@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
@@ -59,7 +59,7 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
                 if (stmt?.Stmt?.SelectStmt == null)
                     throw new NotSupportedException("Only SELECT statements are supported.");
 
-                rql = TranslateSelectStatement(stmt.Stmt.SelectStmt);
+                rql = TranslateSelectStatement(stmt.Stmt.SelectStmt, sql);
                 return LogSuccess(sql, rql);
             }
             catch (NotSupportedException)
@@ -83,10 +83,10 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
             return false;
         }
 
-        private static string TranslateSelectStatement(SelectStmt selectStmt)
+        private static string TranslateSelectStatement(SelectStmt selectStmt, string sql)
         {
             if (selectStmt.FromClause is [{ JoinExpr: not null }])
-                return TranslateSimpleJoin(selectStmt);
+                return TranslateSimpleJoin(selectStmt, sql);
 
             if (selectStmt.FromClause is not [{ RangeVar: { Relname: var relname } rangeVar }])
                 throw new NotSupportedException("FROM clause with collection or index name is required");
@@ -98,19 +98,19 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
 
             // Build WHERE clause (must be applied before GROUP BY)
             if (selectStmt.WhereClause != null)
-                TranslateWhereClause(q, selectStmt.WhereClause, fromAlias);
+                TranslateWhereClause(q, selectStmt.WhereClause, fromAlias, sql: sql);
 
             if (isGroupBy)
             {
-                ApplyGroupBy(q, selectStmt);
+                ApplyGroupBy(q, selectStmt, sql);
             }
             else
             {
-                ApplySelectProjection(q, selectStmt, fromAlias);
+                ApplySelectProjection(q, selectStmt, fromAlias, sql);
 
                 // Build ORDER BY clause
                 if (selectStmt.SortClause != null && selectStmt.SortClause.Count > 0)
-                    TranslateOrderBy(q, selectStmt.SortClause, fromAlias);
+                    TranslateOrderBy(q, selectStmt.SortClause, fromAlias, sql);
             }
 
             // Build OFFSET clause
@@ -257,7 +257,7 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
             return "'" + s.Replace("'", "''", StringComparison.Ordinal) + "'";
         }
 
-        private static string TranslateSimpleJoin(SelectStmt selectStmt)
+        private static string TranslateSimpleJoin(SelectStmt selectStmt, string sql)
         {
             if (selectStmt.FromClause is not [{ JoinExpr: { } joinExpr }])
                 throw new NotSupportedException("FROM clause with join is required");
@@ -269,7 +269,7 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
                 selectStmt.LimitCount != null || selectStmt.LimitOffset != null || selectStmt.DistinctClause is { Count: > 0 })
                 throw new NotSupportedException(UnsupportedJoinMessage);
 
-            if (TryExtractSimpleJoinInfo(joinExpr, out var drivingCollection, out var drivingAlias, out var loadPath, out var loadAlias) == false)
+            if (TryExtractSimpleJoinInfo(joinExpr, sql, out var drivingCollection, out var drivingAlias, out var loadPath, out var loadAlias) == false)
                 throw new NotSupportedException(UnsupportedJoinMessage);
 
             return $"from '{drivingCollection}' as {drivingAlias} load {drivingAlias}.{loadPath} as {loadAlias} select {{ {drivingAlias}: {drivingAlias}, {loadAlias}: {loadAlias} }}";
@@ -277,6 +277,7 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
 
         private static bool TryExtractSimpleJoinInfo(
             JoinExpr joinExpr,
+            string sql,
             out string drivingCollection,
             out string drivingAlias,
             out string loadPath,
@@ -301,8 +302,8 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
             if (onExpr.Lexpr?.ColumnRef == null || onExpr.Rexpr?.ColumnRef == null)
                 return false;
 
-            var leftRef = ExtractFieldName(onExpr.Lexpr);
-            var rightRef = ExtractFieldName(onExpr.Rexpr);
+            var leftRef = ExtractFieldName(onExpr.Lexpr, sql: sql);
+            var rightRef = ExtractFieldName(onExpr.Rexpr, sql: sql);
             if (string.IsNullOrWhiteSpace(leftRef) || string.IsNullOrWhiteSpace(rightRef))
                 return false;
 
@@ -368,7 +369,7 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
             return string.IsNullOrWhiteSpace(alias) == false && string.IsNullOrWhiteSpace(path) == false;
         }
 
-        private static void ApplyGroupBy(AsyncDocumentQuery<JObject> q, SelectStmt selectStmt)
+        private static void ApplyGroupBy(AsyncDocumentQuery<JObject> q, SelectStmt selectStmt, string sql)
         {
             if (selectStmt.GroupClause is not { Count: 1 })
                 throw new NotSupportedException(UnsupportedGroupByMessage);
@@ -377,7 +378,7 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
             if (groupKeyNode.ColumnRef == null)
                 throw new NotSupportedException(UnsupportedGroupByMessage);
 
-            var groupFieldName = ExtractFieldName(groupKeyNode);
+            var groupFieldName = ExtractFieldName(groupKeyNode, sql: sql);
             if (string.IsNullOrWhiteSpace(groupFieldName))
                 throw new NotSupportedException(UnsupportedGroupByMessage);
 
@@ -400,7 +401,7 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
                 if (val == null)
                     throw new NotSupportedException(UnsupportedGroupByMessage);
 
-                projections.Add(BuildProjectionForGroupByTarget(val, groupFieldName));
+                projections.Add(BuildProjectionForGroupByTarget(val, groupFieldName, sql));
 
                 if (val.FuncCall != null)
                     hasAnyAggregate = true;
@@ -417,14 +418,15 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
             q.SelectFields<JObject>(projections.ToArray());
 
             if (selectStmt.SortClause != null && selectStmt.SortClause.Count > 0)
-                TranslateOrderByForGroupBy(q, selectStmt.SortClause, groupFieldName, projections);
+                TranslateOrderByForGroupBy(q, selectStmt.SortClause, groupFieldName, projections, sql);
         }
 
         private static void TranslateOrderByForGroupBy(
             AsyncDocumentQuery<JObject> q,
             Google.Protobuf.Collections.RepeatedField<Node> sortClause,
             string groupFieldName,
-            IReadOnlyList<string> projections)
+            IReadOnlyList<string> projections,
+            string sql)
         {
             foreach (var sortNode in sortClause)
             {
@@ -436,7 +438,7 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
 
                 if (sortBy.Node?.ColumnRef != null)
                 {
-                    var fieldName = ExtractFieldName(sortBy.Node);
+                    var fieldName = ExtractFieldName(sortBy.Node, sql: sql);
                     if (string.IsNullOrWhiteSpace(fieldName))
                         throw new NotSupportedException(UnsupportedOrderByForGroupByMessage);
 
@@ -447,7 +449,7 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
                 }
                 else if (sortBy.Node?.FuncCall != null)
                 {
-                    var projection = BuildAggregateProjectionForGroupByOrderBy(sortBy.Node.FuncCall);
+                    var projection = BuildAggregateProjectionForGroupByOrderBy(sortBy.Node.FuncCall, sql);
 
                     if (projections.Any(p => string.Equals(p, projection, StringComparison.OrdinalIgnoreCase)) == false)
                         throw new NotSupportedException(UnsupportedOrderByForGroupByMessage);
@@ -466,7 +468,7 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
             }
         }
 
-        private static void ApplySelectProjection(AsyncDocumentQuery<JObject> q, SelectStmt selectStmt, string fromAlias)
+        private static void ApplySelectProjection(AsyncDocumentQuery<JObject> q, SelectStmt selectStmt, string fromAlias, string sql)
         {
             var targets = selectStmt.TargetList;
             if (targets == null || targets.Count == 0)
@@ -487,11 +489,11 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
 
             if (allAgg)
             {
-                q.SelectFields<JObject>(BuildAggregateProjections(targets));
+                q.SelectFields<JObject>(BuildAggregateProjections(targets, sql));
                 return;
             }
 
-            var projectionFields = BuildColumnProjections(targets, fromAlias);
+            var projectionFields = BuildColumnProjections(targets, fromAlias, sql);
             if (isDistinct && projectionFields.Length != 1)
                 throw new NotSupportedException(UnsupportedDistinctMessage);
 
@@ -516,7 +518,7 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
             return target.ResTarget?.Val?.FuncCall != null;
         }
 
-        private static string[] BuildColumnProjections(IReadOnlyList<Node> targetList, string fromAlias)
+        private static string[] BuildColumnProjections(IReadOnlyList<Node> targetList, string fromAlias, string sql)
         {
             var projectionFields = new List<string>(capacity: targetList.Count);
 
@@ -526,7 +528,7 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
                 if (val == null)
                     throw new NotSupportedException(UnsupportedSelectProjectionMessage);
 
-                var fieldName = TranslateSelectTargetValue(val, fromAlias);
+                var fieldName = TranslateSelectTargetValue(val, fromAlias, sql);
                 if (fieldName == null)
                     continue; // e.g. PowerBI pseudo-column json()
 
@@ -536,11 +538,11 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
             return projectionFields.ToArray();
         }
 
-        private static string TranslateSelectTargetValue(Node val, string fromAlias)
+        private static string TranslateSelectTargetValue(Node val, string fromAlias, string sql)
         {
             if (val.ColumnRef != null)
             {
-                var fieldName = ExtractFieldName(val, fromAlias);
+                var fieldName = ExtractFieldName(val, fromAlias, sql);
                 if (string.IsNullOrWhiteSpace(fieldName))
                     throw new NotSupportedException("Unsupported column reference in SELECT projection");
 
@@ -556,7 +558,7 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
             throw new NotSupportedException(UnsupportedSelectProjectionMessage);
         }
 
-        private static string[] BuildAggregateProjections(IReadOnlyList<Node> targetList)
+        private static string[] BuildAggregateProjections(IReadOnlyList<Node> targetList, string sql)
         {
             var projections = new List<string>(capacity: targetList.Count);
 
@@ -571,12 +573,12 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
                 switch (funcName)
                 {
                     case "count":
-                        projections.Add(BuildCountProjection(funcCall));
+                        projections.Add(BuildCountProjection(funcCall, sql));
                         break;
 
                     case "sum":
                     case "avg":
-                        projections.Add(BuildSingleColumnAggregateProjection(funcName, funcCall));
+                        projections.Add(BuildSingleColumnAggregateProjection(funcName, funcCall, sql));
                         break;
 
                     default:
@@ -603,7 +605,7 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
             return funcCall.Args[0];
         }
 
-        private static string BuildCountProjection(FuncCall funcCall)
+        private static string BuildCountProjection(FuncCall funcCall, string sql)
         {
             if (funcCall.AggStar)
                 return "count()";
@@ -611,7 +613,7 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
             var countArg = GetSingleArgOrThrow(funcCall);
             if (countArg.ColumnRef != null)
             {
-                var countFieldName = ExtractFieldName(countArg);
+                var countFieldName = ExtractFieldName(countArg, sql: sql);
                 if (string.IsNullOrWhiteSpace(countFieldName))
                     throw new NotSupportedException(UnsupportedSelectAggregateMessage);
                 return $"count({countFieldName})";
@@ -623,24 +625,24 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
             throw new NotSupportedException(UnsupportedSelectAggregateMessage);
         }
 
-        private static string BuildSingleColumnAggregateProjection(string funcName, FuncCall funcCall)
+        private static string BuildSingleColumnAggregateProjection(string funcName, FuncCall funcCall, string sql)
         {
             var arg0 = GetSingleArgOrThrow(funcCall);
             if (arg0?.ColumnRef == null)
                 throw new NotSupportedException(UnsupportedSelectAggregateMessage);
 
-            var fieldName = ExtractFieldName(arg0);
+            var fieldName = ExtractFieldName(arg0, sql: sql);
             if (string.IsNullOrWhiteSpace(fieldName))
                 throw new NotSupportedException(UnsupportedSelectAggregateMessage);
 
             return $"{funcName}({fieldName})";
         }
 
-        private static string BuildProjectionForGroupByTarget(Node val, string groupFieldName)
+        private static string BuildProjectionForGroupByTarget(Node val, string groupFieldName, string sql)
         {
             if (val.ColumnRef != null)
             {
-                var field = ExtractFieldName(val);
+                var field = ExtractFieldName(val, sql: sql);
                 if (string.Equals(field, groupFieldName, StringComparison.OrdinalIgnoreCase) == false)
                     throw new NotSupportedException(UnsupportedGroupByMessage);
 
@@ -652,8 +654,8 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
                 var funcName = GetFuncNameOrThrow(val.FuncCall);
                 return funcName switch
                 {
-                    "count" => BuildCountProjection(val.FuncCall),
-                    "sum" or "avg" => BuildSingleColumnAggregateProjection(funcName, val.FuncCall),
+                    "count" => BuildCountProjection(val.FuncCall, sql),
+                    "sum" or "avg" => BuildSingleColumnAggregateProjection(funcName, val.FuncCall, sql),
                     _ => throw new NotSupportedException(UnsupportedGroupByMessage)
                 };
             }
@@ -661,18 +663,18 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
             throw new NotSupportedException(UnsupportedGroupByMessage);
         }
 
-        private static string BuildAggregateProjectionForGroupByOrderBy(FuncCall funcCall)
+        private static string BuildAggregateProjectionForGroupByOrderBy(FuncCall funcCall, string sql)
         {
             var funcName = GetFuncNameOrThrow(funcCall);
             return funcName switch
             {
-                "count" => BuildCountProjection(funcCall),
-                "sum" or "avg" => BuildSingleColumnAggregateProjection(funcName, funcCall),
+                "count" => BuildCountProjection(funcCall, sql),
+                "sum" or "avg" => BuildSingleColumnAggregateProjection(funcName, funcCall, sql),
                 _ => throw new NotSupportedException(UnsupportedOrderByForGroupByMessage)
             };
         }
 
-        private static void TranslateWhereClause(AsyncDocumentQuery<JObject> q, Node whereNode, string fromAlias, BoolExprType? parentBoolOp = null)
+        private static void TranslateWhereClause(AsyncDocumentQuery<JObject> q, Node whereNode, string fromAlias, BoolExprType? parentBoolOp = null, string sql = null)
         {
             // BoolExpr: AND / OR (recursive)
             if (whereNode.BoolExpr != null)
@@ -699,7 +701,7 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
                             q.OrElse();
                     }
 
-                    TranslateWhereClause(q, be.Args[i], fromAlias, be.Boolop);
+                    TranslateWhereClause(q, be.Args[i], fromAlias, be.Boolop, sql);
                 }
 
                 if (shouldWrap)
@@ -711,7 +713,7 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
             // AExpr: BETWEEN
             if (whereNode.AExpr is { Kind: A_Expr_Kind.AexprBetween } betweenExpr)
             {
-                var leftField = ExtractFieldName(betweenExpr.Lexpr, fromAlias);
+                var leftField = ExtractFieldName(betweenExpr.Lexpr, fromAlias, sql);
                 if (string.IsNullOrEmpty(leftField))
                     throw new NotSupportedException("Unsupported BETWEEN (missing field)");
 
@@ -730,7 +732,7 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
             // AExpr: IN
             if (whereNode.AExpr is { Kind: A_Expr_Kind.AexprIn } inExpr)
             {
-                var leftField = ExtractFieldName(inExpr.Lexpr, fromAlias);
+                var leftField = ExtractFieldName(inExpr.Lexpr, fromAlias, sql);
                 if (string.IsNullOrEmpty(leftField))
                     throw new NotSupportedException("Unsupported IN (missing field)");
 
@@ -762,7 +764,7 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
             {
                 var operatorNode = expr.Name[0];
                 var operatorName = GetStringValue(operatorNode) ?? "";
-                var leftField = ExtractFieldName(expr.Lexpr, fromAlias);
+                var leftField = ExtractFieldName(expr.Lexpr, fromAlias, sql);
                 var rightValue = ExtractValue(expr.Rexpr);
 
                 if (string.IsNullOrEmpty(leftField) || rightValue is null)
@@ -799,7 +801,7 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
             {
                 var nt = whereNode.NullTest;
 
-                var field = ExtractFieldName(nt.Arg, fromAlias);
+                var field = ExtractFieldName(nt.Arg, fromAlias, sql);
                 if (string.IsNullOrEmpty(field))
                     throw new NotSupportedException("Unsupported NULL test (missing field)");
 
@@ -821,7 +823,7 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
             throw new NotSupportedException("Unsupported WHERE clause node");
         }
 
-        private static void TranslateOrderBy(AsyncDocumentQuery<JObject> q, Google.Protobuf.Collections.RepeatedField<Node> sortClause, string fromAlias)
+        private static void TranslateOrderBy(AsyncDocumentQuery<JObject> q, Google.Protobuf.Collections.RepeatedField<Node> sortClause, string fromAlias, string sql)
         {
             foreach (var sortNode in sortClause)
             {
@@ -829,7 +831,7 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
                     continue;
 
                 var sortBy = sortNode.SortBy;
-                var fieldName = ExtractFieldName(sortBy.Node, fromAlias);
+                var fieldName = ExtractFieldName(sortBy.Node, fromAlias, sql);
 
                 if (string.IsNullOrEmpty(fieldName))
                     continue;
@@ -849,7 +851,13 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
             return null;
         }
 
-        private static string ExtractFieldName(Node node, string fromAlias = null)
+        /// <summary>
+        /// Extracts a dotted field-path name from a <see cref="ColumnRef"/> node.
+        /// When <paramref name="sql"/> is provided, uses <see cref="TryRecoverFieldFromSource"/>
+        /// to restore original identifier casing from the source text (pgsqlparser folds
+        /// unquoted identifiers to lowercase).  Falls back to joining <c>Sval</c> values.
+        /// </summary>
+        private static string ExtractFieldName(Node node, string fromAlias = null, string sql = null)
         {
             if (node?.ColumnRef != null && node.ColumnRef.Fields != null)
             {
@@ -861,12 +869,85 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
                     if (fields.Any(f => GetStringValue(f) == null))
                         throw new NotSupportedException("Unsupported field reference");
 
-                    var field = string.Join('.', fields.Select(GetStringValue));
+                    // Attempt source-text recovery to preserve original identifier casing.
+                    // pgsqlparser folds unquoted identifiers to lowercase; Location lets us
+                    // read the original spelling back from the raw SQL.
+                    var field = (sql != null ? TryRecoverFieldFromSource(sql, node.ColumnRef) : null)
+                                ?? string.Join('.', fields.Select(GetStringValue));
+
                     return StripAliasPrefix(field, fromAlias);
                 }
             }
 
             return null;
+        }
+
+        /// <summary>
+        /// Reads the original identifier spelling from <paramref name="sql"/> using
+        /// <see cref="ColumnRef.Location"/> as a 0-based byte offset into the source text.
+        /// Returns <c>null</c> if location data is unavailable or the scan fails, so the
+        /// caller can fall back to joining <c>Sval</c> values.
+        /// </summary>
+        private static string TryRecoverFieldFromSource(string sql, ColumnRef columnRef)
+        {
+            var loc = columnRef.Location;
+            // pgsqlparser sets Location to -1 for nodes without source position.
+            // Protobuf int32 default is 0, which is a valid offset (first char).
+            if (loc < 0 || loc >= sql.Length)
+                return null;
+
+            var segments = columnRef.Fields;
+            if (segments.Count == 0)
+                return null;
+
+            var sb = new StringBuilder();
+            int pos = loc;
+
+            for (int i = 0; i < segments.Count; i++)
+            {
+                if (pos >= sql.Length)
+                    return null;
+
+                if (i > 0)
+                {
+                    // Expect a dot separator between dotted-path segments.
+                    if (sql[pos] != '.')
+                        return null;
+                    sb.Append('.');
+                    pos++;
+                }
+
+                if (pos >= sql.Length)
+                    return null;
+
+                if (sql[pos] == '"')
+                {
+                    // Quoted identifier: extract content between the double-quote delimiters.
+                    // Sval already preserves case for quoted identifiers, but we extract from
+                    // source here to keep the method self-contained.
+                    pos++; // skip opening quote
+                    var start = pos;
+                    while (pos < sql.Length && sql[pos] != '"')
+                        pos++;
+                    if (pos >= sql.Length)
+                        return null; // unclosed quote — fall back
+                    sb.Append(sql, start, pos - start);
+                    pos++; // skip closing quote
+                }
+                else
+                {
+                    // Unquoted identifier: scan alphanumeric and underscore characters.
+                    var start = pos;
+                    while (pos < sql.Length && (char.IsLetterOrDigit(sql[pos]) || sql[pos] == '_'))
+                        pos++;
+                    if (pos == start)
+                        return null; // nothing scanned — fall back
+                    sb.Append(sql, start, pos - start);
+                }
+            }
+
+            var result = sb.ToString();
+            return string.IsNullOrEmpty(result) ? null : result;
         }
 
         private static string StripAliasPrefix(string field, string fromAlias)

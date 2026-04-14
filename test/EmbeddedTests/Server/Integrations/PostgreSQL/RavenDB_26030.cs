@@ -18,7 +18,7 @@ public class RavenDB_26030 : PostgreSqlIntegrationTestBase
                 await session.SaveChangesAsync();
             }
 
-            const string sql = "SELECT * FROM Users WHERE \"Name\" = 'oren'";
+            const string sql = "SELECT * FROM Users WHERE Name = 'oren'";
 
             var result = await Act(store, sql);
 

@@ -7,23 +7,16 @@ using Xunit;
 namespace FastTests.Server.Integrations.PostgreSQL.PowerBI
 {
     /// <summary>
-    /// Tests for RavenDB-26286: SQL-statement textbox support for PowerBI Fetch/Import and DirectQuery.
-    /// <para>
-    /// PowerBI Desktop wraps the user's SQL-textbox query inside an outer schema-probe subselect.
-    /// These tests verify that the inner content can be SQL (not just RQL), and that translation
-    /// to RQL is applied so the existing fetch/direct-query pipeline can continue normally.
-    /// </para>
+    /// RavenDB-26286: SQL-statement textbox support for PowerBI Fetch/Import and DirectQuery.
     /// </summary>
     public sealed class RavenDB_26286
     {
         // ── Regression ────────────────────────────────────────────────────────────────
 
-        /// <summary>
-        /// Inner content is RQL: must still succeed unchanged (regression guard).
-        /// </summary>
         [Fact]
         public void WrappedFetch_InnerRql_StillParsesCorrectly()
         {
+            // Inner content is RQL — regression guard.
             const string sql = @"select * from (from Employees) ""$Table"" limit 1000";
 
             Assert.True(PowerBIFetchQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
@@ -37,22 +30,20 @@ namespace FastTests.Server.Integrations.PostgreSQL.PowerBI
         // ── Fetch/Import – positive SQL-textbox cases ─────────────────────────────────
 
         /// <summary>
-        /// Primary target: the exact shape PowerBI Desktop sends when the user types SQL into the
-        /// statement textbox.  Inner content is a SQL SELECT with a string filter; outer is the
-        /// standard schema-probe wrapper.
+        /// PowerBI Fetch SQL-textbox: inner SQL SELECT with a string filter.
         /// </summary>
         [Fact]
         public void WrappedFetch_InnerSqlWithWhereFilter_TranslatesToRql()
         {
             const string sql =
-                "select *\n" +
-                "from\n" +
-                "(\n" +
-                "select \"FirstName\", \"LastName\", \"Address\"\n" +
-                "from \"Employees\"\n" +
-                "where \"Title\" = 'Sales Representative'\n" +
-                ") \"_\"\n" +
-                "limit 0";
+                @"select *
+from
+(
+select ""FirstName"", ""LastName"", ""Address""
+from ""Employees""
+where ""Title"" = 'Sales Representative'
+) ""_""
+limit 0";
 
             Assert.True(PowerBIFetchQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
             Assert.IsType<PowerBIRqlQuery>(pgQuery);
@@ -64,22 +55,18 @@ namespace FastTests.Server.Integrations.PostgreSQL.PowerBI
             Assert.Equal(0, GetLimit(pgQuery));
         }
 
-        /// <summary>
-        /// Variation: SELECT * with a string equality filter on a different collection.
-        /// Confirms the translation is not collection-specific.
-        /// </summary>
         [Fact]
         public void WrappedFetch_InnerSqlStarProjection_TranslatesToRql()
         {
             const string sql =
-                "select *\n" +
-                "from\n" +
-                "(\n" +
-                "select *\n" +
-                "from \"Orders\"\n" +
-                "where \"Company\" = 'Companies/1-A'\n" +
-                ") \"_\"\n" +
-                "limit 0";
+                @"select *
+from
+(
+select *
+from ""Orders""
+where ""Company"" = 'Companies/1-A'
+) ""_""
+limit 0";
 
             Assert.True(PowerBIFetchQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
             Assert.IsType<PowerBIRqlQuery>(pgQuery);
@@ -90,20 +77,18 @@ namespace FastTests.Server.Integrations.PostgreSQL.PowerBI
             Assert.Equal(0, GetLimit(pgQuery));
         }
 
-        /// <summary>
-        /// AND filter: two conditions joined with AND (PgSqlToRqlTranslator Easy_06 shape).
-        /// </summary>
+        /// <summary>AND filter.</summary>
         [Fact]
         public void WrappedFetch_InnerSqlAndFilter_TranslatesToRql()
         {
             const string sql =
-                "select *\n" +
-                "from\n" +
-                "(\n" +
-                "select * from \"Orders\"\n" +
-                "where \"Status\" = 'Pending' AND \"Freight\" > 10\n" +
-                ") \"_\"\n" +
-                "limit 0";
+                @"select *
+from
+(
+select * from ""Orders""
+where ""Status"" = 'Pending' AND ""Freight"" > 10
+) ""_""
+limit 0";
 
             Assert.True(PowerBIFetchQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
             Assert.IsType<PowerBIRqlQuery>(pgQuery);
@@ -114,20 +99,18 @@ namespace FastTests.Server.Integrations.PostgreSQL.PowerBI
             Assert.Equal(0, GetLimit(pgQuery));
         }
 
-        /// <summary>
-        /// IN list: status must be one of a set of values (PgSqlToRqlTranslator Mid_13 shape).
-        /// </summary>
+        /// <summary>IN list filter.</summary>
         [Fact]
         public void WrappedFetch_InnerSqlInListFilter_TranslatesToRql()
         {
             const string sql =
-                "select *\n" +
-                "from\n" +
-                "(\n" +
-                "select * from \"Orders\"\n" +
-                "where \"Status\" IN ('Pending', 'Shipped')\n" +
-                ") \"_\"\n" +
-                "limit 0";
+                @"select *
+from
+(
+select * from ""Orders""
+where ""Status"" IN ('Pending', 'Shipped')
+) ""_""
+limit 0";
 
             Assert.True(PowerBIFetchQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
             Assert.IsType<PowerBIRqlQuery>(pgQuery);
@@ -139,20 +122,18 @@ namespace FastTests.Server.Integrations.PostgreSQL.PowerBI
             Assert.Equal(0, GetLimit(pgQuery));
         }
 
-        /// <summary>
-        /// IS NULL filter: field null check (PgSqlToRqlTranslator Mid_19 shape).
-        /// </summary>
+        /// <summary>IS NULL filter.</summary>
         [Fact]
         public void WrappedFetch_InnerSqlIsNullFilter_TranslatesToRql()
         {
             const string sql =
-                "select *\n" +
-                "from\n" +
-                "(\n" +
-                "select * from \"Orders\"\n" +
-                "where \"ShippedAt\" IS NULL\n" +
-                ") \"_\"\n" +
-                "limit 0";
+                @"select *
+from
+(
+select * from ""Orders""
+where ""ShippedAt"" IS NULL
+) ""_""
+limit 0";
 
             Assert.True(PowerBIFetchQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
             Assert.IsType<PowerBIRqlQuery>(pgQuery);
@@ -165,52 +146,70 @@ namespace FastTests.Server.Integrations.PostgreSQL.PowerBI
 
         // ── Fetch/Import – negative cases ─────────────────────────────────────────────
 
-        /// <summary>
-        /// Inner content that is neither valid RQL nor translatable SQL must be rejected cleanly.
-        /// </summary>
         [Fact]
         public void WrappedFetch_InnerTextNeitherRqlNorSupportedSql_ReturnsFalse()
         {
             const string sql =
-                "select *\n" +
-                "from\n" +
-                "(\n" +
-                "GIBBERISH $$$ NOT VALID ANYTHING\n" +
-                ") \"_\"\n" +
-                "limit 0";
+                @"select *
+from
+(
+GIBBERISH $$$ NOT VALID ANYTHING
+) ""_""
+limit 0";
 
             Assert.False(PowerBIFetchQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out _));
         }
 
-        // ── DirectQuery – regression ──────────────────────────────────────────────────
+        // ── DirectQuery – SQL-textbox (simple non-aggregate) ─────────────────────────
+        // 3-level wrapper: outer "_" → "rows" (with GROUP BY) → user SQL.
 
-        /// <summary>
-        /// Existing DirectQuery inner RQL must still parse correctly after the shared-helper change.
-        /// <para>
-        /// SQL-textbox support for DirectQuery requires additional work beyond the shared helper:
-        /// the current DirectQuery non-aggregate path requires GROUP BY presence in the outer wrapper,
-        /// and the structural extractor only reaches the immediately innermost `) "_"` subquery (not
-        /// the plain SQL SELECT nested inside the GROUP BY layer).  Full DirectQuery SQL-textbox
-        /// support is left as a follow-up task.
-        /// </para>
-        /// </summary>
         [Fact]
-        public void DirectQuery_InnerRql_StillParsesCorrectly_AfterSharedHelperChange()
+        public void DirectQuery_InnerSql_SimpleSelectWithWhere_TranslatesToRql()
         {
             const string sql =
-                "select \"_\".\"Employee\"\n" +
-                "from\n" +
-                "(\n" +
-                "    select \"rows\".\"Employee\" as \"Employee\"\n" +
-                "    from\n" +
-                "    (\n" +
-                "        from Orders\n" +
-                "        where Company in ('Companies/1-A', 'Companies/2-A')\n" +
-                "    ) \"rows\"\n" +
-                "    group by \"Employee\"\n" +
-                ") \"_\"\n" +
-                "order by \"_\".\"Employee\"\n" +
-                "limit 501";
+                @"select ""_"".""Title""
+from
+(
+    select ""rows"".""Title"" as ""Title""
+    from
+    (
+        select ""Title""
+        from ""public"".""Employees""
+        where ""Title"" = 'Sales Representative'
+    ) ""rows""
+    group by ""Title""
+) ""_""
+order by ""_"".""Title""
+limit 501";
+
+            Assert.True(PowerBIDirectQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
+            Assert.IsType<PowerBIDirectQuery>(pgQuery);
+
+            var queryString = GetQueryString(pgQuery);
+            Assert.NotNull(queryString);
+            Assert.Contains("Employees", queryString, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("Sales Representative", queryString, StringComparison.OrdinalIgnoreCase);
+        }
+
+        [Fact]
+        public void DirectQuery_InnerSql_SingleColumnSelect_TranslatesToRql()
+        {
+            // Different collection (Orders); confirms translation is not collection-specific.
+            const string sql =
+                @"select ""_"".""Company""
+from
+(
+    select ""rows"".""Company"" as ""Company""
+    from
+    (
+        select ""Company""
+        from ""public"".""Orders""
+        where ""Company"" = 'Companies/1-A'
+    ) ""rows""
+    group by ""Company""
+) ""_""
+order by ""_"".""Company""
+limit 501";
 
             Assert.True(PowerBIDirectQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
             Assert.IsType<PowerBIDirectQuery>(pgQuery);
@@ -218,6 +217,144 @@ namespace FastTests.Server.Integrations.PostgreSQL.PowerBI
             var queryString = GetQueryString(pgQuery);
             Assert.NotNull(queryString);
             Assert.Contains("Orders", queryString, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("Companies/1-A", queryString, StringComparison.OrdinalIgnoreCase);
+        }
+
+        [Fact]
+        public void DirectQuery_InnerSql_MultiColumn_TranslatesToRql()
+        {
+            // Two projected columns, AND filter.
+            const string sql =
+                @"select ""_"".""FirstName"",
+       ""_"".""LastName""
+from
+(
+    select ""rows"".""FirstName"" as ""FirstName"",
+           ""rows"".""LastName"" as ""LastName""
+    from
+    (
+        select ""FirstName"", ""LastName""
+        from ""public"".""Employees""
+        where ""Title"" = 'Sales Representative'
+          and ""Country"" = 'USA'
+    ) ""rows""
+    group by ""FirstName"", ""LastName""
+) ""_""
+order by ""_"".""FirstName"", ""_"".""LastName""
+limit 501";
+
+            Assert.True(PowerBIDirectQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
+            Assert.IsType<PowerBIDirectQuery>(pgQuery);
+
+            var queryString = GetQueryString(pgQuery);
+            Assert.NotNull(queryString);
+            Assert.Contains("Employees", queryString, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("Sales Representative", queryString, StringComparison.OrdinalIgnoreCase);
+        }
+
+        [Fact]
+        public void DirectQuery_InnerSql_SubqueryInFrom_ReturnsFalse()
+        {
+            // Inner SQL with a subquery in FROM — translator requires a plain collection RangeVar.
+            const string sql =
+                @"select ""_"".""X""
+from
+(
+    select ""rows"".""X"" as ""X""
+    from
+    (
+        select ""X"" from (select 1 as ""X"") ""sub""
+    ) ""rows""
+    group by ""X""
+) ""_""
+limit 501";
+
+            Assert.False(PowerBIDirectQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out _));
+        }
+
+        // ── DirectQuery – regression ──────────────────────────────────────────────────
+
+        /// <summary>
+        /// Existing DirectQuery inner RQL must still parse correctly (regression guard).
+        /// </summary>
+        [Fact]
+        public void DirectQuery_InnerRql_StillParsesCorrectly_AfterSharedHelperChange()
+        {
+            const string sql =
+                @"select ""_"".""Employee""
+from
+(
+    select ""rows"".""Employee"" as ""Employee""
+    from
+    (
+        from Orders
+        where Company in ('Companies/1-A', 'Companies/2-A')
+    ) ""rows""
+    group by ""Employee""
+) ""_""
+order by ""_"".""Employee""
+limit 501";
+
+            Assert.True(PowerBIDirectQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
+            Assert.IsType<PowerBIDirectQuery>(pgQuery);
+
+            var queryString = GetQueryString(pgQuery);
+            Assert.NotNull(queryString);
+            Assert.Contains("Orders", queryString, StringComparison.OrdinalIgnoreCase);
+        }
+
+        // ── Identifier case recovery – Fetch/Import ──────────────────────────────────
+
+        [Fact]
+        public void WrappedFetch_UnquotedFieldNames_CasePreservedInRql()
+        {
+            const string sql =
+                @"select *
+from
+(
+select * from ""Orders""
+where Company = 'Companies/1-A'
+) ""_""
+limit 0";
+
+            Assert.True(PowerBIFetchQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
+            Assert.IsType<PowerBIRqlQuery>(pgQuery);
+
+            var queryString = GetQueryString(pgQuery);
+            Assert.NotNull(queryString);
+            Assert.Contains("Company", queryString, StringComparison.Ordinal);
+            Assert.DoesNotContain(" company ", queryString, StringComparison.Ordinal);
+        }
+
+        // ── Identifier case recovery – DirectQuery ────────────────────────────────────
+
+        [Fact]
+        public void DirectQuery_InnerSql_UnquotedFieldNames_CasePreservedInRql()
+        {
+            const string sql =
+                @"select ""_"".""Company""
+from
+(
+    select ""rows"".""Company"" as ""Company""
+    from
+    (
+        select Company
+        from ""public"".""Orders""
+        where Company = 'Companies/1-A'
+    ) ""rows""
+    group by ""Company""
+) ""_""
+order by ""_"".""Company""
+limit 501";
+
+            Assert.True(PowerBIDirectQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
+            Assert.IsType<PowerBIDirectQuery>(pgQuery);
+
+            var queryString = GetQueryString(pgQuery);
+            Assert.NotNull(queryString);
+            Assert.Contains("Orders", queryString, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("Company", queryString, StringComparison.Ordinal);
+            Assert.DoesNotContain(" company ", queryString, StringComparison.Ordinal);
         }
 
         // ── Helpers ───────────────────────────────────────────────────────────────────

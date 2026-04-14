@@ -890,14 +890,6 @@ limit 1000001";
         // group by Employee, RequireAt
         // select Employee, RequireAt, sum(Freight) as a0
 
-
-        // from "Orders" 
-        // group by Company, Employee, RequireAt
-        // where Company in ('Companies/1-A', 'Companies/2-A', 'Companies/3-A')
-        // select sum(Freight)
-
-        // try it out with index
-
         using (var store = GetDocumentStore())
         {
             await store.Maintenance.SendAsync(new CreateSampleDataOperation());
@@ -948,10 +940,6 @@ from
         from Orders
     ) ""$Table""
 ) ""rows""";
-
-            // try it out
-            // from orders
-            // select facet(Freight, sum)
 
             var result = await Act(store, sql);
 
