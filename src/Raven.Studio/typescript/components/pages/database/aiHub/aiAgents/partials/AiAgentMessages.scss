@@ -3,6 +3,8 @@
 @use "Content/scss/sizes";
 
 .ai-agent-messages {
+    $tool-icon-size: 32px;
+
     .icon-sparkles::before {
         background: colors.$ai-gradient;
         background-clip: text;
@@ -13,7 +15,7 @@
     .accordion-button {
         border-radius: sizes.$gutter-xxs !important;
         font-size: sizes.$font-size-sm !important;
-        padding: sizes.$gutter-xxs !important;
+        padding: sizes.$gutter-xs !important;
         background-color: colors.$panel-bg-1-var !important;
     }
 
@@ -30,5 +32,126 @@
         display: flex;
         justify-content: center;
         align-items: center;
+    }
+
+    .tool-icon {
+        width: $tool-icon-size;
+        height: $tool-icon-size;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: sizes.$gutter-xxs;
+        border-radius: sizes.$gutter-xxs;
+        border: 1px solid colors.$primary-var;
+        z-index: 1;
+    }
+
+    .sub-agent-transcript {
+        .accordion-item {
+            &:has(.accordion-collapse) {
+                .accordion-button {
+                    padding-bottom: 0 !important;
+                }
+            }
+        }
+
+        &__steps {
+            display: grid;
+            gap: sizes.$gutter-sm;
+            width: 100%;
+            min-width: 0;
+        }
+
+        &__step {
+            position: relative;
+            display: flex;
+            align-items: flex-start;
+            gap: sizes.$gutter-xs;
+            width: 100%;
+            min-width: 0;
+        }
+
+        &__step:not(:last-child)::before {
+            content: "";
+            position: absolute;
+            left: calc(#{$tool-icon-size} / 2);
+            top: 0;
+            bottom: calc(-1 * #{sizes.$gutter-sm});
+            width: 1px;
+            background-color: colors.$border-color-light-var;
+        }
+
+        &__content {
+            min-width: 0;
+            flex: 1 1 auto;
+            width: 100%;
+            max-width: 100%;
+        }
+
+        &__link {
+            display: flex;
+            width: 100%;
+            min-width: 0;
+            max-width: 100%;
+            margin-top: sizes.$gutter-xxs;
+
+            span {
+                min-width: 0;
+                flex: 1 1 auto;
+                text-align: left;
+            }
+        }
+
+        .accordion-body {
+            overflow: hidden;
+            padding: 0 sizes.$gutter-xs sizes.$gutter-xs sizes.$gutter-xs !important;
+        }
+
+        .ace_editor {
+            width: 100% !important;
+            max-width: 100%;
+        }
+    }
+
+    .assistant-summary {
+        position: relative;
+        border: 1px solid transparent;
+        border-radius: sizes.$gutter-xxs;
+        overflow: hidden;
+        background:
+            linear-gradient(colors.$panel-bg-1-var 0 0) padding-box,
+            linear-gradient(120deg, #4ac8f9 13.4%, #5058ff 50%, #8b42f5 86.6%) border-box;
+
+        &__content {
+            border-radius: sizes.$gutter-xxs;
+            padding: sizes.$gutter-sm;
+            background: linear-gradient(135.89deg, rgba(56, 142, 233, 0.3) 0%, colors.$panel-bg-1-var 85.4%);
+        }
+
+        &__show-more {
+            position: absolute;
+            bottom: sizes.$gutter-xs;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        &__show-less {
+            position: absolute;
+            bottom: -22px;
+            right: 0;
+        }
+
+        &:has(.assistant-summary__show-more) {
+            &::before {
+                content: "";
+                position: absolute;
+                inset: 0;
+                background: linear-gradient(180deg, transparent, colors.$panel-bg-1-var);
+            }
+        }
+
+        &:has(.assistant-summary__show-less) {
+            overflow: visible;
+        }
     }
 }

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using Raven.Client;
+using Raven.Client.Documents.Indexes;
 using Raven.Client.Exceptions.Sharding;
 using Raven.Server.Documents.Queries;
 using Raven.Server.Documents.Queries.AST;
@@ -15,12 +16,16 @@ public sealed class DocumentsComparer : IComparer<BlittableJsonReaderObject>
 {
     private readonly OrderByField[] _orderByFields;
     private readonly bool _extractFromData;
+    private readonly bool _nullFirst;
+    private readonly bool _acceptMissingValues;
     private readonly Random[] _randoms;
 
-    public DocumentsComparer(OrderByField[] orderByFields, bool extractFromData, bool hasOrderByRandom)
+    public DocumentsComparer(OrderByField[] orderByFields, bool extractFromData, bool hasOrderByRandom, bool nullFirst, bool acceptMissingValues)
     {
         _orderByFields = orderByFields;
         _extractFromData = extractFromData;
+        _nullFirst = nullFirst;
+        _acceptMissingValues = acceptMissingValues;
         _randoms = hasOrderByRandom == false
             ? null
             : GetRandom(_orderByFields);
@@ -46,12 +51,16 @@ public sealed class DocumentsComparer : IComparer<BlittableJsonReaderObject>
 
     public int Compare(BlittableJsonReaderObject x, BlittableJsonReaderObject y)
     {
+        int arrayIndex = 0;
         for (var i = 0; i < _orderByFields.Length; i++)
         {
             ref var orderByField = ref _orderByFields[i];
-            var cmp = CompareField(in orderByField, i, x, y);
+            var cmp = CompareField(in orderByField, arrayIndex, x, y);
             if (cmp != 0)
                 return orderByField.Ascending ? cmp : -cmp;
+
+            if (orderByField.OrderingType != OrderByFieldType.Score)
+                arrayIndex++;
         }
 
         return 0;
@@ -66,12 +75,36 @@ public sealed class DocumentsComparer : IComparer<BlittableJsonReaderObject>
                 {
                     var xVal = GetString(x, order.Name, index);
                     var yVal = GetString(y, order.Name, index);
+
+                    if (_acceptMissingValues && (xVal == null || yVal == null))
+                    {
+                        if (xVal == null && yVal == null)
+                            return 0;
+                        
+                        if (yVal == null)
+                            return _nullFirst ? 1 : -1;
+                        
+                        return _nullFirst ? -1 : 1;
+                    }
+                    
                     return string.Compare(xVal, yVal, StringComparison.OrdinalIgnoreCase);
                 }
             case OrderByFieldType.Long:
                 {
                     var hasX = TryGetLongValue(x, order.Name, index, out long xLng);
                     var hasY = TryGetLongValue(y, order.Name, index, out long yLng);
+                    
+                    if (_acceptMissingValues && (hasX == false || hasY == false))
+                    {
+                        if (hasX == false && hasY == false)
+                            return 0;
+                        
+                        if (hasY == false)
+                            return _nullFirst ? 1 : -1;
+                        
+                        return _nullFirst ? -1 : 1;
+                    }
+                    
                     if (hasX == false && hasY == false)
                         return 0;
                     if (hasX == false)
@@ -85,6 +118,18 @@ public sealed class DocumentsComparer : IComparer<BlittableJsonReaderObject>
                 {
                     var hasX = TryGetDoubleValue(x, order.Name, index, out double xDbl);
                     var hasY = TryGetDoubleValue(y, order.Name, index, out double yDbl);
+                    
+                    if (_acceptMissingValues && (hasX == false || hasY == false))
+                    {
+                        if (hasX == false && hasY == false)
+                            return 0;
+                        
+                        if (hasY == false)
+                            return _nullFirst ? 1 : -1;
+                        
+                        return _nullFirst ? -1 : 1;
+                    }
+                    
                     if (hasX == false && hasY == false)
                         return 0;
                     if (hasX == false)
@@ -97,6 +142,18 @@ public sealed class DocumentsComparer : IComparer<BlittableJsonReaderObject>
                 {
                     var xVal = GetString(x, order.Name, index);
                     var yVal = GetString(y, order.Name, index);
+                    
+                    if (_acceptMissingValues && (xVal == null || yVal == null))
+                    {
+                        if (xVal == null && yVal == null)
+                            return 0;
+                        
+                        if (yVal == null)
+                            return _nullFirst ? 1 : -1;
+                        
+                        return _nullFirst ? -1 : 1;
+                    }
+                    
                     if (xVal == null && yVal == null)
                         return 0;
                     if (xVal == null)
@@ -105,12 +162,25 @@ public sealed class DocumentsComparer : IComparer<BlittableJsonReaderObject>
                         return 1;
                     return AlphaNumericFieldComparator.StringAlphanumComparer.Instance.Compare(xVal, yVal);
                 }
+            case OrderByFieldType.Score:
+                {
+                    // Note: reversed parameters. Ascending score is actually descending on values.
+                    var hasX = TryGetScoreValue(y, out double xDbl);
+                    var hasY = TryGetScoreValue(x, out double yDbl);
+                    
+                    if (hasX == false && hasY == false)
+                        return 0;
+                    if (hasX == false)
+                        return 1;
+                    if (hasY == false)
+                        return -1;
+                    return xDbl.CompareTo(yDbl);
+                }
             case OrderByFieldType.Random:
                 return _randoms[index].Next(int.MinValue, int.MaxValue);
 
             case OrderByFieldType.Custom:
                 throw new NotSupportedInShardingException("Custom sorting is not supported in sharding as of yet");
-            case OrderByFieldType.Score:
             default:
                 throw new ArgumentException("Unknown OrderingType: " + order.OrderingType);
         }
@@ -125,10 +195,20 @@ public sealed class DocumentsComparer : IComparer<BlittableJsonReaderObject>
         }
 
         if (blittable.TryGet(Constants.Documents.Metadata.Key, out BlittableJsonReaderObject metadata) == false)
+        {
+            if (_acceptMissingValues)
+                return null;
+            
             ThrowIfCannotFindMetadata(blittable);
+        }
 
         if (metadata.TryGet(Constants.Documents.Metadata.Sharding.Querying.OrderByFields, out BlittableJsonReaderArray orderByFields) == false)
+        {
+            if (_acceptMissingValues)
+                return null;
+            
             ThrowIfCannotFindOrderByFields(metadata);
+        }
 
         return orderByFields[index]?.ToString();
     }
@@ -141,12 +221,34 @@ public sealed class DocumentsComparer : IComparer<BlittableJsonReaderObject>
         }
 
         if (blittable.TryGet(Constants.Documents.Metadata.Key, out BlittableJsonReaderObject metadata) == false)
+        {
+            if (_acceptMissingValues)
+            {
+                value = 0;
+                return false;
+            }
+            
             ThrowIfCannotFindMetadata(blittable);
+        }
 
         if (metadata.TryGet(Constants.Documents.Metadata.Sharding.Querying.OrderByFields, out BlittableJsonReaderArray orderByFields) == false)
+        {
+            if (_acceptMissingValues)
+            {
+                value = 0;
+                return false;
+            }
             ThrowIfCannotFindOrderByFields(metadata);
+        }
 
         var arrayValue = orderByFields[index];
+
+        if (arrayValue is null)
+        {
+            value = 0;
+            return false;
+        }
+        
         if (arrayValue is long v)
         {
             value = v;
@@ -166,12 +268,33 @@ public sealed class DocumentsComparer : IComparer<BlittableJsonReaderObject>
         }
 
         if (blittable.TryGet(Constants.Documents.Metadata.Key, out BlittableJsonReaderObject metadata) == false)
+        {
+            if (_acceptMissingValues)
+            {
+                value = 0;
+                return false;
+            }
             ThrowIfCannotFindMetadata(blittable);
+        }
 
         if (metadata.TryGet(Constants.Documents.Metadata.Sharding.Querying.OrderByFields, out BlittableJsonReaderArray orderByFields) == false)
+        {
+            if (_acceptMissingValues)
+            {
+                value = 0;
+                return false;
+            }
             ThrowIfCannotFindOrderByFields(metadata);
+        }
 
         var arrayValue = orderByFields[index];
+        
+        if (arrayValue is null)
+        {
+            value = 0;
+            return false;
+        }
+        
         if (arrayValue is LazyNumberValue lnv)
         {
             value = lnv.ToDouble(CultureInfo.InvariantCulture);
@@ -185,6 +308,54 @@ public sealed class DocumentsComparer : IComparer<BlittableJsonReaderObject>
         }
 
         ThrowIfNotExpectedType(nameof(LazyNumberValue), arrayValue);
+        value = 0;
+        return false;
+    }
+
+    private bool TryGetScoreValue(BlittableJsonReaderObject blittable, out double value)
+    {
+        if (blittable.TryGet(Constants.Documents.Metadata.Key, out BlittableJsonReaderObject metadata) == false)
+        {
+            value = 0;
+            return false;
+        }
+
+        if (metadata.TryGet(Constants.Documents.Metadata.IndexScore, out object scoreValue) == false)
+        {
+            value = 0;
+            return false;
+        }
+
+        if (scoreValue is LazyNumberValue lnv)
+        {
+            value = lnv.ToDouble(CultureInfo.InvariantCulture);
+            return true;
+        }
+
+        if (scoreValue is double d)
+        {
+            value = d;
+            return true;
+        }
+
+        if (scoreValue is float f)
+        {
+            value = f;
+            return true;
+        }
+
+        if (scoreValue is long l)
+        {
+            value = l;
+            return true;
+        }
+
+        if (scoreValue is int i)
+        {
+            value = i;
+            return true;
+        }
+
         value = 0;
         return false;
     }
@@ -205,5 +376,28 @@ public sealed class DocumentsComparer : IComparer<BlittableJsonReaderObject>
     private static void ThrowIfNotExpectedType(string expectedType, object actualValue)
     {
         throw new InvalidOperationException($"Expected to get type: {expectedType} but got: {actualValue} of type: {actualValue.GetType()}");
+    }
+    
+    public static void RetrieveConfigurationForDocumentsComparer(ShardedDatabaseContext databaseContext, string indexName, out bool nullFirst, out bool acceptMissing)
+    {
+        nullFirst = true;
+        acceptMissing = false;
+
+        if (indexName == null)
+            return;
+    
+        var index = databaseContext.Indexes.GetIndex(indexName);
+        if (index == null)
+            return;
+
+        var searchEngine = index.Type.IsAuto() 
+            ? index.Configuration.AutoIndexingEngineType 
+            : index.Configuration.StaticIndexingEngineType;
+    
+        if (searchEngine == SearchEngineType.Lucene)
+            return;
+
+        nullFirst = index.Configuration.NullFirst;
+        acceptMissing = true;
     }
 }

@@ -5,10 +5,13 @@ using Sparrow.Json.Parsing;
 
 namespace Raven.Client.Documents.Operations.AI;
 
+/// <summary>
+/// Base configuration for OpenAI-compatible providers (OpenAI, Azure OpenAI),
+/// including common fields like API key, endpoint, model and embedding dimensions.
+/// </summary>
 public abstract class OpenAiBaseSettings : AbstractAiSettings, IAiSettings
 {
     protected OpenAiBaseSettings(string apiKey, string endpoint, string model, int? dimensions = null, double? temperature = null)
-
     {
         ApiKey = apiKey;
         Endpoint = endpoint;
@@ -46,6 +49,7 @@ public abstract class OpenAiBaseSettings : AbstractAiSettings, IAiSettings
     /// </summary>
     public string Model { get; set; }
 
+
     /// <summary>
     /// The number of dimensions that the model should use.
     /// </summary>
@@ -58,13 +62,18 @@ public abstract class OpenAiBaseSettings : AbstractAiSettings, IAiSettings
     /// </summary>
     public double? Temperature { get; set; } = null;
 
+    /// <summary>
+    /// Enables sending a <c>prompt_cache_key</c> field in chat completion requests,
+    /// allowing providers that support it to cache and reuse prompt prefixes across
+    /// requests with the same key.
+    /// When <c>null</c>, the server applies a provider-specific default
+    /// </summary>
+    public bool? EnablePromptCache { get; set; }
+
     public override void ValidateFields(List<string> errors)
     {
         if (string.IsNullOrWhiteSpace(ApiKey))
             errors.Add($"Value of `{nameof(ApiKey)}` field cannot be empty.");
-
-        if (string.IsNullOrWhiteSpace(Endpoint))
-            errors.Add($"Value of `{nameof(Endpoint)}` field cannot be empty.");
 
         if (string.IsNullOrWhiteSpace(Model))
             errors.Add($"Value of `{nameof(Model)}` field cannot be empty.");
@@ -99,6 +108,9 @@ public abstract class OpenAiBaseSettings : AbstractAiSettings, IAiSettings
             (Temperature.HasValue && openAiSettings.Temperature.HasValue && Temperature.Value.AlmostEquals(openAiSettings.Temperature.Value) == false))
             differences |= AiSettingsCompareDifferences.EndpointConfiguration;
 
+        if (EnablePromptCache != openAiSettings.EnablePromptCache)
+            differences |= AiSettingsCompareDifferences.EndpointConfiguration;
+
         return differences;
     }
 
@@ -116,6 +128,9 @@ public abstract class OpenAiBaseSettings : AbstractAiSettings, IAiSettings
 
         if (Temperature.HasValue)
             json[nameof(Temperature)] = Temperature;
+
+        if (EnablePromptCache.HasValue)
+            json[nameof(EnablePromptCache)] = EnablePromptCache.Value;
 
         return json;
     }

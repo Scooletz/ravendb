@@ -1,42 +1,41 @@
-import { createAsyncThunk, createSlice, PayloadAction } from "@reduxjs/toolkit";
+import { createAsyncThunk, createSelector, createSlice, PayloadAction } from "@reduxjs/toolkit";
 import { RootState } from "components/store";
-import { AiAgentDocMessage, AiAgentMessage, AiAgentToolCall } from "../../utils/aiAgentsTypes";
+import { AiAgentToolCall } from "../../utils/aiAgentsTypes";
 import { services } from "components/hooks/useServices";
 import { loadableData, loadStatus } from "components/models/common";
 import { createSuccessState, createIdleState, createFailureState } from "components/utils/common";
 import document from "models/database/documents/document";
 import { aiAgentsUtils } from "../../utils/aiAgentsUtils";
+import { aiAgentParametersUtils } from "../../utils/aiAgentParametersUtils";
 import { ChatAiAgentFormData } from "../utils/chatAiAgentValidation";
 import { RunAiAgentRequestDto } from "commands/database/aiAgents/runAiAgentCommand";
 
-interface EditAiAgentState {
+type NewAttachmentTab = { tab: "source" } | { tab: "document" } | { tab: "documentAttachments"; documentId: string };
+
+interface ChatAiAgentState {
     config: loadableData<Raven.Client.Documents.Operations.AI.Agents.AiAgentConfiguration>;
     document: loadableData<documentDto>;
     runChatState: loadStatus;
     conversationId: string;
-    messages: AiAgentMessage[];
     isRawData: boolean;
-    isWaitingForActionToolSubmit: boolean;
-    hasScroll: boolean;
     isDocumentExpirationEnabled: loadableData<boolean>;
     isDocumentDeleted: boolean;
     isDocumentChanged: boolean;
     activePromptIndex: number;
+    newAttachmentTab: NewAttachmentTab;
 }
 
-const initialState: EditAiAgentState = {
+const initialState: ChatAiAgentState = {
     config: createIdleState(),
     document: createIdleState(),
     runChatState: "idle",
     conversationId: "",
-    messages: [],
     isRawData: false,
-    isWaitingForActionToolSubmit: false,
-    hasScroll: false,
     isDocumentExpirationEnabled: createIdleState(),
     isDocumentDeleted: false,
     isDocumentChanged: false,
     activePromptIndex: 0,
+    newAttachmentTab: null,
 };
 
 export const chatAiAgentSlice = createSlice({
@@ -46,20 +45,11 @@ export const chatAiAgentSlice = createSlice({
         conversationIdSet: (state, action: PayloadAction<string>) => {
             state.conversationId = action.payload;
         },
-        messagesSet: (state, action: PayloadAction<AiAgentMessage[]>) => {
-            state.messages = action.payload;
-        },
         documentSet: (state, action: PayloadAction<documentDto>) => {
             state.document = createSuccessState(action.payload);
         },
         isRawDataSet: (state, action: PayloadAction<boolean>) => {
             state.isRawData = action.payload;
-        },
-        isWaitingForActionToolSubmitSet: (state, action: PayloadAction<boolean>) => {
-            state.isWaitingForActionToolSubmit = action.payload;
-        },
-        hasScrollSet: (state, action: PayloadAction<boolean>) => {
-            state.hasScroll = action.payload;
         },
         isDocumentDeletedSet: (state, action: PayloadAction<boolean>) => {
             state.isDocumentDeleted = action.payload;
@@ -69,6 +59,9 @@ export const chatAiAgentSlice = createSlice({
         },
         activePromptIndexSet: (state, action: PayloadAction<number>) => {
             state.activePromptIndex = action.payload;
+        },
+        newAttachmentTabSet: (state, action: PayloadAction<NewAttachmentTab>) => {
+            state.newAttachmentTab = action.payload;
         },
         reset: () => initialState,
     },
@@ -92,15 +85,6 @@ export const chatAiAgentSlice = createSlice({
             .addCase(getDocument.fulfilled, (state, action) => {
                 state.document = createSuccessState(action.payload);
                 state.isDocumentChanged = false;
-
-                const messages: AiAgentMessage[] = action.payload.Messages.map((x: AiAgentDocMessage) =>
-                    aiAgentsUtils.mapMessageFromDoc(x)
-                );
-
-                state.messages = aiAgentsUtils.mergeToolResults(
-                    messages,
-                    state.config.data?.Queries.map((x) => x.Name) ?? []
-                );
             })
             .addCase(runChat.pending, (state) => {
                 state.runChatState = "loading";
@@ -167,17 +151,16 @@ const runChat = createAsyncThunk(
         const result = await services.aiAgentService.runAiAgent(
             databaseName,
             {
-                UserPrompt: getUserPrompt(toolCallParameters?.length ?? 0, formValues.prompts),
+                UserPrompt: createUserPromptDto(toolCallParameters?.length ?? 0, formValues.prompts),
                 ArtificialActions: [],
                 ActionResponses: toolCallParameters?.map((x) => ({
                     ToolId: x.id,
                     Content: x.arguments,
                 })),
+                AttachmentCommands: null,
+                attachments: formValues.attachments,
                 CreationOptions: {
-                    Parameters:
-                        conversationId == null
-                            ? Object.fromEntries(formValues.parameters.map((x) => [x.name, x.value]))
-                            : null,
+                    Parameters: createParametersDto(conversationId, formValues.parameters),
                     ExpirationInSec:
                         (isDocumentExpirationEnabled || formValues.isEnableDocumentExpiration) &&
                         formValues.isDocumentExpireInCustomizeEnabled
@@ -189,13 +172,14 @@ const runChat = createAsyncThunk(
             conversationId != null ? conversationId : formValues.persistenceConversationIdPrefix,
             changeVector
         );
+
         dispatch(chatAiAgentActions.activePromptIndexSet(0));
         dispatch(chatAiAgentActions.conversationIdSet(result.ConversationId));
         await dispatch(chatAiAgentActions.getDocument({ databaseName, id: result.ConversationId })).unwrap();
     }
 );
 
-function getUserPrompt(
+function createUserPromptDto(
     toolCallParametersCount: number,
     prompts: ChatAiAgentFormData["prompts"]
 ): RunAiAgentRequestDto["UserPrompt"] {
@@ -203,15 +187,32 @@ function getUserPrompt(
         return null;
     }
 
-    if (!prompts?.length) {
-        throw new Error("Prompt is required");
-    }
+    const validPrompts = prompts?.filter((x) => x?.text?.trim()) ?? [];
 
-    if (prompts.length > 1) {
-        return prompts.map((x) => ({ type: "text", text: x.text }));
+    if (validPrompts.length > 1) {
+        return validPrompts.map((x) => ({ type: "text", text: x.text.trim() }));
     }
 
     return prompts[0].text;
+}
+
+function createParametersDto(
+    conversationId: string,
+    formParameters: ChatAiAgentFormData["parameters"]
+): Record<string, Raven.Client.Documents.AI.AiConversationParameter> {
+    if (conversationId) {
+        return null;
+    }
+
+    return Object.fromEntries(
+        formParameters.map((x) => [
+            x.name,
+            {
+                Value: aiAgentParametersUtils.mapParameterValueToType(x.value, x.type),
+                SendToModel: x.isSendToModel,
+            },
+        ])
+    );
 }
 
 const getIsDocumentExpirationEnabled = createAsyncThunk(
@@ -233,21 +234,36 @@ export const chatAiAgentActions = {
     getIsDocumentExpirationEnabled,
 };
 
+const selectChatAiAgentConfig = (state: RootState) => state.chatAiAgent.config.data;
+const selectChatAiAgentDocument = (state: RootState) => state.chatAiAgent.document.data;
+
+const selectChatAiAgentMessages = createSelector(
+    [selectChatAiAgentDocument, selectChatAiAgentConfig],
+    (conversationDocument, config) =>
+        aiAgentsUtils.mapMessagesFromDoc({
+            conversationDocument,
+            config,
+        })
+);
+
 export const chatAiAgentSelectors = {
-    messages: (state: RootState) => state.chatAiAgent.messages,
+    messages: selectChatAiAgentMessages,
     conversationId: (state: RootState) => state.chatAiAgent.conversationId,
     config: (state: RootState) => state.chatAiAgent.config,
     isRawData: (state: RootState) => state.chatAiAgent.isRawData,
     document: (state: RootState) => state.chatAiAgent.document,
+    documentAttachments: (state: RootState) => state.chatAiAgent.document.data?.["@metadata"]?.["@attachments"] ?? [],
     runChatState: (state: RootState) => state.chatAiAgent.runChatState,
     isLoading: (state: RootState) =>
         state.chatAiAgent.runChatState === "loading" ||
         state.chatAiAgent.config.status === "loading" ||
         state.chatAiAgent.document.status === "loading",
-    isWaitingForActionToolSubmit: (state: RootState) => state.chatAiAgent.isWaitingForActionToolSubmit,
-    hasScroll: (state: RootState) => state.chatAiAgent.hasScroll,
+    isActionToolSubmitRequired: createSelector([selectChatAiAgentDocument], (conversationDocument) =>
+        aiAgentsUtils.hasOpenActionCalls(conversationDocument)
+    ),
     isDocumentExpirationEnabled: (state: RootState) => state.chatAiAgent.isDocumentExpirationEnabled,
     isDocumentDeleted: (state: RootState) => state.chatAiAgent.isDocumentDeleted,
     isDocumentChanged: (state: RootState) => state.chatAiAgent.isDocumentChanged,
     activePromptIndex: (state: RootState) => state.chatAiAgent.activePromptIndex,
+    newAttachmentTab: (state: RootState) => state.chatAiAgent.newAttachmentTab,
 };

@@ -4,7 +4,6 @@ using Raven.Server.Config;
 using Raven.Server.Config.Attributes;
 using Tests.Infrastructure;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace FastTests.Issues
 {
@@ -86,6 +85,7 @@ namespace FastTests.Issues
                 "Indexing.Corax.UnmanagedAllocationsBatchSizeLimitInMb",
                 "Indexing.ElapsedSinceQueriedPersistIntervalInMin",
                 "Indexing.Querying.UseSearchAnalyzerForDynamicFieldsIfNotSetExplicitlyInSearchQuery",
+                "Indexing.Querying.Corax.NullFirst",
                 
                 "Indexing.Corax.VectorSearch.DefaultMinimumSimilarity",
                 "Indexing.Corax.VectorSearch.DefaultNumberOfEdges",
@@ -93,6 +93,8 @@ namespace FastTests.Issues
                 "Indexing.Corax.VectorSearch.DefaultNumberOfCandidatesForQuerying",
                 "Indexing.Corax.VectorSearch.OrderByScoreAutomatically",
                 "Indexing.Corax.VectorSearch.MaximumConcurrentBatchesForHnswAcceleration",
+                "Indexing.Corax.VectorSearch.VectorSearchScanningThreshold",
+                
                 //Obsolete studio keys:
                 "Indexing.Static.SearchEngineType",
                 "Indexing.Analyzers.NGram.MaxGram",

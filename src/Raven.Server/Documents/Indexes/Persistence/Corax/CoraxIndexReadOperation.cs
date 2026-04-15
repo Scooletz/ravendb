@@ -98,6 +98,7 @@ namespace Raven.Server.Documents.Indexes.Persistence.Corax
 
         private TermsReader _documentIdReader;
 
+        public override bool IsSharded => false;
 
         public CoraxIndexReadOperation(Index index, RavenLogger logger, Transaction readTransaction, QueryBuilderFactories queryBuilderFactories, IndexFieldsMapping fieldsMapping, IndexQueryServerSide query) : base(index, logger, queryBuilderFactories, query)
         {
@@ -105,8 +106,11 @@ namespace Raven.Server.Documents.Indexes.Persistence.Corax
             _fieldMappings = fieldsMapping;
             IndexSearcher = new IndexSearcher(readTransaction, _fieldMappings)
             {
-                MaxMemoizationSizeInBytes = index.Configuration.MaxMemoizationSize.GetValue(SizeUnit.Bytes) 
+                MaxMemoizationSizeInBytes = index.Configuration.MaxMemoizationSize.GetValue(SizeUnit.Bytes),
             };
+            
+            if (index is {_forTestingPurposes: {CoraxConfiguration: not null}})
+                IndexSearcher.SetTestingConfiguration(index._forTestingPurposes.CoraxConfiguration);
             
             var primaryKey = index.Type.IsMap() 
                 ? Constants.Documents.Indexing.Fields.DocumentIdFieldName
@@ -571,7 +575,7 @@ namespace Raven.Server.Documents.Indexes.Persistence.Corax
                     Reference<long> totalResults, Reference<long> skippedResults, Reference<long> scannedDocuments,
                     IQueryResultRetriever retriever, DocumentsOperationContext documentsContext,
                     Func<string, SpatialField> getSpatialField,
-                    CancellationToken token)
+                    QueryTimeScope queryTime, CancellationToken token)
                 where TDistinct : struct, IHasDistinct
                 where THasProjection : struct, IHasProjection
                 where THighlighting : struct, ISupportsHighlighting
@@ -639,7 +643,7 @@ namespace Raven.Server.Documents.Indexes.Persistence.Corax
                         }
 
                         builderParameters = new CoraxQueryBuilder.Parameters(IndexSearcher, _allocator, serverContext, documentsContext, query, _index,
-                            query.QueryParameters, QueryBuilderFactories, _fieldMappings, fieldsToFetch, highlightings.Terms, (int)take, deduplicationDisabled: false, indexReadOperation: this, token: token);
+                            query.QueryParameters, QueryBuilderFactories, _fieldMappings, fieldsToFetch, highlightings.Terms, (int)take, deduplicationDisabled: false, indexReadOperation: this, token: token, queryTime: queryTime);
 
                         using (closeServerTransaction)
                         {
@@ -647,7 +651,6 @@ namespace Raven.Server.Documents.Indexes.Persistence.Corax
                                 yield break;
                         }
 
-                        queryTimings?.SetQueryPlan(queryMatch.Inspect());
                     }
                     finally
                     {
@@ -670,7 +673,7 @@ namespace Raven.Server.Documents.Indexes.Persistence.Corax
                 {
                     sortingData = new()
                     {
-                        ScoresBuffer = _index.Configuration.CoraxIncludeDocumentScore && builderParameters is {HasBoost: true}
+                        ScoresBuffer = builderParameters.NeedsScoresBuffer()
                             ? ScorePool.Rent(bufferSize)
                             : null,
                         DistancesBuffer = _index.Configuration.CoraxIncludeSpatialDistance && hasOrderByDistance
@@ -806,9 +809,13 @@ namespace Raven.Server.Documents.Indexes.Persistence.Corax
                     } 
                     while (read != 0);
                 }
+                
+                
 
                 Done:
-
+                // Since some primitives are lazily initialized, we must call Inspect after at least one Fill call.
+                queryTimings?.SetQueryPlan(queryMatch.Inspect());
+                
                 QueryPool.Return(ids);
                 if (sortingData.IncludeScores)
                     ScorePool.Return(sortingData.ScoresBuffer);
@@ -891,7 +898,7 @@ namespace Raven.Server.Documents.Indexes.Persistence.Corax
         public override IEnumerable<QueryResult> Query(IndexQueryServerSide query, QueryTimingsScope queryTimings, FieldsToFetch fieldsToFetch,
             Reference<long> totalResults, Reference<long> skippedResults,
             Reference<long> scannedDocuments, IQueryResultRetriever retriever, DocumentsOperationContext documentsContext, Func<string, SpatialField> getSpatialField,
-            CancellationToken token)
+            QueryTimeScope queryTime, CancellationToken token)
         {
             // We've a chain-like builder here.
             return BuildHighlightings();
@@ -939,7 +946,7 @@ namespace Raven.Server.Documents.Indexes.Persistence.Corax
                     totalResults, skippedResults, scannedDocuments,
                     retriever, documentsContext,
                     getSpatialField,
-                    token);
+                    queryTime, token);
         }
 
         private static int ProcessHighlightings(HighlightingField current, CoraxHighlightingTermIndex highlightingTerm, ReadOnlySpan<char> fieldFragment, List<string> fragments, int maxFragmentCount)
@@ -1021,7 +1028,7 @@ namespace Raven.Server.Documents.Indexes.Persistence.Corax
 
         public override IEnumerable<QueryResult> IntersectQuery(IndexQueryServerSide query, FieldsToFetch fieldsToFetch, Reference<long> totalResults,
             Reference<long> skippedResults, Reference<long> scannedDocuments, IQueryResultRetriever retriever,
-            DocumentsOperationContext documentsContext, Func<string, SpatialField> getSpatialField, CancellationToken token)
+            DocumentsOperationContext documentsContext, Func<string, SpatialField> getSpatialField, QueryTimeScope queryTime, CancellationToken token)
         {
             throw new NotImplementedException($"{nameof(Corax)} does not support intersect queries.");
         }

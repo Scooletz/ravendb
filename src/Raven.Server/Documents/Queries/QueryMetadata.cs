@@ -230,6 +230,19 @@ function execute(doc, args){
 
         public bool HasOrderByRandom;
 
+        public bool HasNow;
+
+        public bool HasToday;
+
+        /// <summary>
+        /// Parsed offsets from now('+1h') calls. Used for ETag computation.
+        /// </summary>
+        internal List<TimeFunctionOffset> NowOffsets;
+
+        public bool HasTimeBasedFunction => HasNow || HasToday || NowOffsets is { Count: > 0 };
+
+        public bool HasNonDeterministicFunction => HasOrderByRandom || HasNow;
+
         public DateTime CreatedAt;
 
         public DateTime LastQueriedAt;
@@ -289,6 +302,22 @@ function execute(doc, args){
                 }
                 return _queryData;
             }
+        }
+
+        internal void TrackTimeBasedOffset(MethodExpression me)
+        {
+            if (me.Arguments[0] is ValueExpression ve && ve.Value == ValueTokenType.String)
+            {
+                if (TimeFunctionOffset.TryParse(ve.Token.Value.AsSpan(), out var offset))
+                {
+                    NowOffsets ??= new List<TimeFunctionOffset>();
+                    NowOffsets.Add(offset);
+                    return;
+                }
+            }
+
+            // parameter-based offset or unparseable literal — treat as non-deterministic
+            HasNow = true;
         }
 
         private void AddExistField(QueryFieldName fieldName, BlittableJsonReaderObject parameters)
@@ -1190,7 +1219,22 @@ function execute(doc, args){
                 {
                     var visitor = new FillWhereFieldsAndParametersVisitor(this, fromAlias, QueryText);
                     visitor.HandleSpatial("spatial.distance", me.Arguments, withoutAlias: true, parameters);
-                    fieldName = new QueryFieldName(firstArgME.GetText(null), true);
+                    
+                    var stringFieldName = $"{firstArgME.Name}({string.Join(", ", firstArgME.Arguments.Select(GetParameterForDistance))})";
+                    
+                    fieldName = new QueryFieldName(stringFieldName, true);
+
+                    string GetParameterForDistance(QueryExpression argument)
+                    {
+                        if (argument is FieldExpression fe)
+                        {
+                            return ShouldStripAlias(fe) 
+                                ? fe.GetText(null) 
+                                : fe.GetTextWithAlias(null);
+                        }
+                        
+                        return argument.GetText(null);
+                    }
                 }
                 else
                 {
@@ -2188,6 +2232,15 @@ function execute(doc, args){
 
                             _metadata.HasCmpXchg = true;
                             break;
+                        case MethodType.Now:
+                            if (rme.Arguments is { Count: > 0 })
+                                _metadata.TrackTimeBasedOffset(rme);
+                            else
+                                _metadata.HasNow = true;
+                            break;
+                        case MethodType.Today:
+                            _metadata.HasToday = true;
+                            break;
                     }
                 }
             }
@@ -2342,6 +2395,16 @@ function execute(doc, args){
                             _metadata.AddWhereField(fieldName, parameters, exact: _insideExact > 0, methodName: methodName.Value);
                         break;
 
+                    case MethodType.When:
+                        if (arguments.Count != 2)
+                        {
+                            throw new InvalidQueryException($"Method `when` requires two arguments, but got {arguments.Count}.");
+
+                        }
+
+                        Visit(arguments[1], parameters);
+                        break;
+                    
                     case MethodType.Exists:
                         fieldName = _metadata.ExtractFieldNameFromFirstArgument(arguments, methodName.Value, parameters);
                         _metadata.AddExistField(fieldName, parameters);

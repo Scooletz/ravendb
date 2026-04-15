@@ -221,6 +221,53 @@ namespace Raven.Client.Documents.Queries
         }
 
         /// <summary>
+        /// Returns the current UTC date and time on the server. Translates to the <c>now()</c> RQL function.
+        /// For use in LINQ queries only. For DocumentQuery and AsyncDocumentQuery, use <see cref="RavenDocumentQuery.Now"/> instead.
+        /// </summary>
+        /// <returns>The current UTC date and time.</returns>
+        /// <exception cref="NotSupportedException">Thrown when called directly in client code.</exception>
+        public static DateTime Now()
+        {
+            throw new NotSupportedException("This method is here for strongly type support of server side call during Linq queries and should never be directly called");
+        }
+
+        /// <summary>
+        /// Returns the current UTC date and time on the server, adjusted by the specified offset and floor-rounded
+        /// to the smallest precision unit. Translates to the <c>now(offset)</c> RQL function.
+        /// For use in LINQ queries only. For DocumentQuery and AsyncDocumentQuery, use <see cref="RavenDocumentQuery.Now(string)"/> instead.
+        /// </summary>
+        /// <param name="offset">
+        /// A duration string representing the time offset. The result is floor-rounded to the smallest unit specified.
+        /// <para>
+        /// Format: <c>[+|-]Ny[Nmo][Nd][Nh][Nm][Ns]</c> — units must appear in descending order (year to second).
+        /// Not all units are required; only the ones you need. Spaces between components are allowed.
+        /// </para>
+        /// <para>
+        /// Each unit supports aliases:
+        /// <c>[+|-]N(y|year|years)[N(mo|month|months)][N(d|day|days)][N(h|hour|hours)][N(m|min|minute|minutes)][N(s|sec|second|seconds)]</c>
+        /// </para>
+        /// Examples: <c>"+1y6mo"</c>, <c>"-2hours30minutes"</c>, <c>"1 year 6 months"</c>, <c>"15d"</c> (defaults to positive).
+        /// </param>
+        /// <returns>The adjusted and rounded UTC date and time.</returns>
+        /// <exception cref="NotSupportedException">Thrown when called directly in client code.</exception>
+        public static DateTime Now(string offset)
+        {
+            throw new NotSupportedException("This method is here for strongly type support of server side call during Linq queries and should never be directly called");
+        }
+
+        /// <summary>
+        /// Returns the start of the current UTC day (midnight) on the server. Translates to the <c>today()</c> RQL function.
+        /// For use in LINQ queries only. For DocumentQuery and AsyncDocumentQuery, use <see cref="RavenDocumentQuery.Today"/> instead.
+        /// </summary>
+        /// <returns>The start of the current UTC day.</returns>
+        /// <exception cref="NotSupportedException">Thrown when called directly in client code.</exception>
+        public static DateTime Today()
+        {
+            throw new NotSupportedException("This method is here for strongly type support of server side call during Linq queries and should never be directly called");
+        }
+
+
+        /// <summary>
         /// Includes a related document path in the query for loading. This method is for server-side LINQ query translation only.
         /// </summary>
         /// <typeparam name="T">The type of the document.</typeparam>

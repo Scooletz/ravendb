@@ -36,6 +36,18 @@ export class AiAgentStubs {
                                 AllowModelQueries: null,
                             },
                         },
+                        {
+                            Name: "TEST_parameters",
+                            Description: "Test",
+                            Query: "from @all_docs as doc\r\nselect {\r\n  anyParam: $anyParam,\r\n  stringParam: $stringParam,\r\n  numberParam: $numberParam,\r\n  numberArray: $numberArrayLongNameNumbersVeryLongNameNumbersVeryLongNameNumbersVeryLongNameNumbersVeryLongNameNumbersVeryLongNameNumbersVeryLongNameNumbersVeryLongNameNumbersVeryLongNameNumbersVeryLongName,\r\n  boolParam: $boolParam,\r\n  stringArrayParam: $stringArrayParam,\r\n  boolArrayParam: $boolArrayParam,\r\n  nullParam: $nullParam,\r\n  testLLMParam_number: $testLLMParam_number,\r\n  testLLMParam_numberArray: $testLLMParam_numberArray\r\n}\r\nlimit 1\r\n",
+                            ParametersSampleObject:
+                                '{\n  "testLLMParam_string": "string",\n  "testLLMParam_stringArray": ["string1", "string2"],\n  "testLLMParam_number": 123,\n  "testLLMParam_numberArray": [1,2,3],\n  "testLLMParam_bool": true,\n  "testLLMParam_boolArray": [true, false]\n}',
+                            ParametersSchema: null,
+                            Options: {
+                                AllowModelQueries: null,
+                                AddToInitialContext: null,
+                            },
+                        },
                     ],
                     Actions: [
                         {
@@ -51,10 +63,70 @@ export class AiAgentStubs {
                             ParametersSchema: null,
                         },
                     ],
+                    SubAgents: [
+                        {
+                            Identifier: "raven-expert-agent",
+                            Description:
+                                "An expert in RavenDB, who can answer any question about RavenDB and its features.",
+                        },
+                    ],
                     Parameters: [
                         {
-                            Name: "company",
+                            Name: "anyParam",
+                            Description: "Some long descritpion ",
+                            SendToModel: false,
+                            Policy: "Default",
+                            Type: "Default",
+                        },
+                        {
+                            Name: "stringParam",
                             Description: null,
+                            SendToModel: false,
+                            Policy: "Default",
+                            Type: "String",
+                        },
+                        {
+                            Name: "numberParam",
+                            Description: "Currently used server version of RavenDB",
+                            SendToModel: true,
+                            Policy: "Default",
+                            Type: "Number",
+                        },
+                        {
+                            Name: "numberArrayLongNameNumbersVeryLongNameNumbersVeryLongNameNumbersVeryLongNameNumbersVeryLongNameNumbersVeryLongNameNumbersVeryLongNameNumbersVeryLongNameNumbersVeryLongNameNumbersVeryLongName",
+                            Description:
+                                "Some long descritpion Some long descritpion Some long descritpion Some long descritpion Some long descritpion Some long descritpion Some long descritpion Some long descritpion \nSome long descritpion Some long descritpion Some long descritpion Some long descritpion Some long descritpion Some long descritpion Some long descritpion Some long descritpion \nSome long descritpion Some long descritpion Some long descritpion Some long descritpion Some long descritpion Some long descritpion Some long descritpion Some long descritpion \nSome long descritpion Some long descritpion Some long descritpion Some long descritpion Some long descritpion Some long descritpion Some long descritpion Some long descritpion \nSome long descritpion Some long descritpion Some long descritpion Some long descritpion Some long descritpion Some long descritpion Some long descritpion Some long descritpion ",
+                            SendToModel: true,
+                            Policy: "ForbidModelGeneration",
+                            Type: "ArrayOfNumber",
+                        },
+                        {
+                            Name: "boolParam",
+                            Description: null,
+                            SendToModel: true,
+                            Policy: "Default",
+                            Type: "Boolean",
+                        },
+                        {
+                            Name: "stringArrayParam",
+                            Description: null,
+                            SendToModel: true,
+                            Policy: "Default",
+                            Type: "ArrayOfString",
+                        },
+                        {
+                            Name: "boolArrayParam",
+                            Description: null,
+                            SendToModel: true,
+                            Policy: "Default",
+                            Type: "ArrayOfBoolean",
+                        },
+                        {
+                            Name: "nullParam",
+                            Description: null,
+                            SendToModel: true,
+                            Policy: "Default",
+                            Type: "Null",
                         },
                     ],
                     ChatTrimming: null,
@@ -69,7 +141,39 @@ export class AiAgentStubs {
         return new document({
             Agent: "first-agent",
             Parameters: {
-                company: "companies/90-A",
+                anyParam: {
+                    Value: "any value",
+                    SendToModel: false,
+                },
+                stringParam: {
+                    Value: "some string",
+                    SendToModel: false,
+                },
+                numberParam: {
+                    Value: 7.1,
+                    SendToModel: true,
+                },
+                numberArrayLongNameNumbersVeryLongNameNumbersVeryLongNameNumbersVeryLongNameNumbersVeryLongNameNumbersVeryLongNameNumbersVeryLongNameNumbersVeryLongNameNumbersVeryLongNameNumbersVeryLongName:
+                    {
+                        Value: [1, 2, 3, 4],
+                        SendToModel: true,
+                    },
+                boolParam: {
+                    Value: true,
+                    SendToModel: true,
+                },
+                stringArrayParam: {
+                    Value: ["aa", "bb"],
+                    SendToModel: true,
+                },
+                boolArrayParam: {
+                    Value: [true, false],
+                    SendToModel: true,
+                },
+                nullParam: {
+                    Value: null,
+                    SendToModel: true,
+                },
             },
             Messages: [
                 {
@@ -77,6 +181,19 @@ export class AiAgentStubs {
                     content:
                         "You are an AI agent of an online shop, helping customers answer queries about that topic only. When talking about orders or products, include the ids as well.",
                     date: "2025-08-08T10:28:20.5582526Z",
+                },
+                {
+                    role: "assistant",
+                    content:
+                        "Summary of previous conversation: - The conversation began with the user saying “Hello,” and the assistant responded politely with “Hello! How can I help you today?”\n- The user then requested: “Answer with some long text.” The assistant complied with a long, imaginative, narrative-style story about a mountain village and an explorer searching for a legendary library of every season. The story included advice from an old shepherd and encounters with a merchant, poet, and mechanic, and ended with the reveal that the library contained blank pages meant for the visitor to write their own chapter. The assistant closed by offering to make the text more poetic, more formal, or much longer.\n- The user then said “thanks,” and the assistant replied briefly and warmly: “You're welcome! If you'd like, I can also help with a new question or continue the conversation.”\n- The user then issued a reminder to go over the entire previous conversation and summarize it according to the original instructions, emphasizing that the final summary should include any essential tool results for future turns.\n- No tools were called at any point, so there are no external IDs, codes, prices, dates, or other tool outputs to preserve.\n\nResults Cache:\n- None (no tools were used).",
+                    date: "2026-04-08T11:48:12.4936949Z",
+                    usage: {
+                        PromptTokens: 730,
+                        CompletionTokens: 300,
+                        TotalTokens: 1030,
+                        CachedTokens: 0,
+                        ReasoningTokens: 0,
+                    },
                 },
                 {
                     role: "user",
@@ -89,6 +206,11 @@ export class AiAgentStubs {
                     date: "2025-08-08T10:28:20.5582920Z",
                 },
                 {
+                    role: "user",
+                    content: "[Attachments: screen.png, screen(1).png]",
+                    date: "2025-08-08T10:28:20.5582921Z",
+                },
+                {
                     role: "assistant",
                     content: null,
                     tool_calls: [
@@ -98,6 +220,15 @@ export class AiAgentStubs {
                             function: {
                                 name: "QueryRecentCategories",
                                 arguments: "{}",
+                            },
+                        },
+                        {
+                            id: "call_whzFC5Mlx17thYJYOvdWf7RZ",
+                            type: "function",
+                            function: {
+                                name: "TEST_parameters",
+                                arguments:
+                                    '{"testLLMParam_string":"7.1","testLLMParam_stringArray":["aa","bb"],"testLLMParam_number":7,"testLLMParam_numberArray":[1,2,3,4],"testLLMParam_bool":true,"testLLMParam_boolArray":[true,false]}',
                             },
                         },
                     ],
@@ -134,6 +265,85 @@ export class AiAgentStubs {
                         ReasoningTokens: 20,
                     },
                 },
+                {
+                    content: null,
+                    role: "assistant",
+                    tool_calls: [
+                        {
+                            function: {
+                                arguments: '{"Query":["test"]}',
+                                name: "ActionProductSearch",
+                            },
+                            id: "call_MdKvWaFtl0cJAc5a0q26Lo98",
+                            type: "function",
+                        },
+                    ],
+                    date: "2025-08-08T10:28:31.5884757Z",
+                },
+                {
+                    tool_call_id: "call_MdKvWaFtl0cJAc5a0q26Lo98",
+                    role: "tool",
+                    content: "Submitted content",
+                    date: "2025-08-08T10:28:32.5884757Z",
+                },
+                {
+                    role: "assistant",
+                    content: null,
+                    tool_calls: [
+                        {
+                            id: "call_whzFC5Mlx17thYJYOvdWf7RZ",
+                            type: "function",
+                            function: {
+                                name: "UnknownTool",
+                                arguments: "{}",
+                            },
+                        },
+                    ],
+                    date: "2025-08-08T10:28:01.5884757Z",
+                },
+                {
+                    tool_call_id: "call_whzFC5Mlx17thYJYOvdWf7RZ",
+                    role: "tool",
+                    content: '[{"Name":"Beverages","Description":"Soft drinks, coffees, teas, beers, and ales"}]',
+                    date: "2025-08-08T10:28:02.5884757Z",
+                },
+                {
+                    content: null,
+                    role: "assistant",
+                    tool_calls: [
+                        {
+                            function: {
+                                arguments: '{"subAgentUserPrompt":"Explain how to query documents in RavenDB"}',
+                                name: "raven-expert-agent",
+                            },
+                            id: "call_CscbrKZ4VC1GibM2oERi7nF9",
+                            type: "function",
+                        },
+                    ],
+                    date: "2025-08-08T10:28:33.5884757Z",
+                },
+                {
+                    tool_call_id: "call_CscbrKZ4VC1GibM2oERi7nF9",
+                    role: "tool",
+                    content: "Sub agent answer",
+                    subConversationId: "Chats/2",
+                    date: "2025-08-08T10:28:34.5884757Z",
+                },
+                {
+                    content: null,
+                    role: "assistant",
+                    tool_calls: [
+                        {
+                            function: {
+                                arguments: '{"Query":["test"]}',
+                                name: "ActionProductSearch",
+                            },
+                            id: "call_MdKvWaFtl0cJAc5a0q26Lo99",
+                            type: "function",
+                        },
+                    ],
+                    date: "2025-08-08T10:28:35.5884757Z",
+                },
             ],
             LinkedConversations: [],
             TotalUsage: {
@@ -143,7 +353,15 @@ export class AiAgentStubs {
                 CachedTokens: 0,
                 ReasoningTokens: 20,
             },
-            OpenActionCalls: {},
+            OpenActionCalls: {
+                call_MdKvWaFtl0cJAc5a0q26Lo97: {
+                    Name: "ActionProductSearch",
+                    ToolId: "call_MdKvWaFtl0cJAc5a0q26Lo99",
+                    Arguments: "{}",
+                    Type: "UserAction",
+                    SubConversationId: null,
+                },
+            },
             LastMessageAt: "2025-08-08T10:28:30.5884757Z",
             CreatedAt: "2025-08-08T10:28:20.5582091Z",
             Expires: null,

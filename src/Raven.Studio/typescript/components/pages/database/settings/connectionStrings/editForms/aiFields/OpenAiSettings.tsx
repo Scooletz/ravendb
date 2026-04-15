@@ -18,6 +18,7 @@ import EmbeddingsMaxConcurrentBatches from "./EmbeddingsMaxConcurrentBatchesFiel
 import { SelectOption } from "components/common/select/Select";
 import { useAsyncDebounce } from "components/hooks/useAsyncDebounce";
 import TemperatureField from "./TemperatureField";
+import PromptCacheField from "./PromptCacheField";
 
 type FormData = ConnectionFormData<AiConnection>;
 
@@ -37,6 +38,7 @@ export default function OpenAiSettings({ isUsedByAnyTask }: { isUsedByAnyTask: b
         return tasksService.testAiConnectionString(databaseName, "OpenAi", formValues.modelType, {
             ApiKey: formValues.openAiSettings.apiKey,
             Endpoint: formValues.openAiSettings.endpoint,
+            EnablePromptCache: formValues.openAiSettings.enablePromptCache,
             Model: formValues.openAiSettings.model,
             OrganizationId: formValues.openAiSettings.organizationId,
             ProjectId: formValues.openAiSettings.projectId,
@@ -59,7 +61,7 @@ export default function OpenAiSettings({ isUsedByAnyTask }: { isUsedByAnyTask: b
                 ConnectorType: "OpenAi",
                 OpenAiSettings: {
                     ApiKey: apiKey,
-                    Endpoint: endpoint || "https://api.openai.com/v1/",
+                    Endpoint: endpoint,
                     OrganizationId: organizationId,
                     ProjectId: projectId,
                 },
@@ -94,7 +96,7 @@ export default function OpenAiSettings({ isUsedByAnyTask }: { isUsedByAnyTask: b
             </div>
             <div className="mb-2">
                 <FormLabel>
-                    Endpoint
+                    Endpoint <OptionalLabel />
                     <PopoverWithHoverWrapper message="The endpoint for generating responses using OpenAI or any OpenAI-compatible provider.">
                         <Icon icon="info" color="info" id="endpoint" margin="ms-1" />
                     </PopoverWithHoverWrapper>
@@ -191,6 +193,7 @@ export default function OpenAiSettings({ isUsedByAnyTask }: { isUsedByAnyTask: b
                     />
                 </div>
             )}
+            <PromptCacheField baseName="openAiSettings" serverDefaultValue={true} />
             <TemperatureField baseName="openAiSettings" />
             {formValues.modelType === "TextEmbeddings" && <EmbeddingsMaxConcurrentBatches baseName="openAiSettings" />}
             <div className="d-flex mb-2">

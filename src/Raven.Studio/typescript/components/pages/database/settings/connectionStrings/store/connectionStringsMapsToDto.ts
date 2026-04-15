@@ -218,6 +218,7 @@ export function mapAiConnectionStringToDto(connection: AiConnection): Connection
                       DeploymentName: connection.azureOpenAiSettings.deploymentName,
                       Dimensions: mapDimensionsToDto(connection),
                       EmbeddingsMaxConcurrentBatches: mapEmbeddingsMaxConcurrentBatchesToDto(connection),
+                      EnablePromptCache: connection.azureOpenAiSettings.enablePromptCache,
                       Temperature: mapTemperatureToDto(connection),
                   }
                 : null,
@@ -228,7 +229,9 @@ export function mapAiConnectionStringToDto(connection: AiConnection): Connection
                       Model: connection.googleSettings.model,
                       AiVersion: connection.googleSettings.aiVersion,
                       Dimensions: mapDimensionsToDto(connection),
+                      Endpoint: connection.googleSettings.endpoint,
                       EmbeddingsMaxConcurrentBatches: mapEmbeddingsMaxConcurrentBatchesToDto(connection),
+                      EnablePromptCache: connection.googleSettings.enablePromptCache,
                   }
                 : null,
         HuggingFaceSettings:
@@ -268,6 +271,7 @@ export function mapAiConnectionStringToDto(connection: AiConnection): Connection
                       ProjectId: connection.openAiSettings.projectId,
                       Dimensions: mapDimensionsToDto(connection),
                       EmbeddingsMaxConcurrentBatches: mapEmbeddingsMaxConcurrentBatchesToDto(connection),
+                      EnablePromptCache: connection.openAiSettings.enablePromptCache,
                       Temperature: mapTemperatureToDto(connection),
                   }
                 : null,

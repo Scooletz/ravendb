@@ -4,16 +4,16 @@ using Raven.Client.Documents.Indexes.Vector;
 using Raven.Client.Exceptions;
 using Tests.Infrastructure;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace FastTests.Corax.Vectors;
 
 public class RavenDB_23656(ITestOutputHelper output) : RavenTestBase(output)
 {
-    [RavenFact(RavenTestCategory.Vector | RavenTestCategory.Indexes)]
-    public void DifferentDimensionsWillNotCrashTheServer()
+    [RavenTheory(RavenTestCategory.Vector | RavenTestCategory.Indexes)]
+    [RavenData(DatabaseMode = RavenDatabaseMode.All, SearchEngineMode = RavenSearchEngineMode.Corax)]
+    public void DifferentDimensionsWillNotCrashTheServer(Options options)
     {
-        using var store = GetDocumentStore();
+        using var store = GetDocumentStore(options);
         using var session = store.OpenSession();
         session.Store(new Vector
         {

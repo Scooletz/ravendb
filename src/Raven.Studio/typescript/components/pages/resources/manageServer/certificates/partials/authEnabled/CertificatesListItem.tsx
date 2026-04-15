@@ -10,16 +10,18 @@ import {
     RichPanelDetailItem,
     RichPanelDetails,
     RichPanelHeader,
-    RichPanelNameMultiLine,
-    RichPanelStatus,
 } from "components/common/RichPanel";
 import { accessManagerSelectors } from "components/common/shell/accessManagerSliceSelectors";
 import { useEventsCollector } from "components/hooks/useEventsCollector";
 import { useServices } from "components/hooks/useServices";
 import { ThemeColor } from "components/models/common";
+import CertificatesItemStatus from "components/pages/resources/manageServer/certificates/partials/authEnabled/CertificatesItemStatus";
 import { certificatesActions } from "components/pages/resources/manageServer/certificates/store/certificatesSlice";
 import { certificatesSelectors } from "components/pages/resources/manageServer/certificates/store/certificatesSliceSelectors";
-import { CertificateItem } from "components/pages/resources/manageServer/certificates/utils/certificatesTypes";
+import {
+    CertificateItem,
+    UpdateCertificateDto,
+} from "components/pages/resources/manageServer/certificates/utils/certificatesTypes";
 import { certificatesUtils } from "components/pages/resources/manageServer/certificates/utils/certificatesUtils";
 import { useAppDispatch, useAppSelector } from "components/store";
 import assertUnreachable from "components/utils/assertUnreachable";
@@ -48,16 +50,24 @@ export default function CertificatesListItem({ certificate }: CertificatesListIt
     const clientCertificateThumbprint = useAppSelector(accessManagerSelectors.clientCertificateThumbprint);
     const isClusterAdminOrClusterNode = useAppSelector(accessManagerSelectors.isClusterAdminOrClusterNode);
 
-    const state = certificatesUtils.getState(certificate.NotAfter);
+    const state = certificatesUtils.getState(certificate);
     const clearance = certificatesUtils.getClearance(certificate.SecurityClearance);
     const isServerCert = certificate.Thumbprints.includes(serverCertificateThumbprint);
     const isServerCertForCommunication = certificate.Thumbprints.includes(serverCertificateForCommunicationThumbprint);
     const isCurrentBrowserCert = certificate.Thumbprints.includes(clientCertificateThumbprint);
     const has2fa = certificate.HasTwoFactor ?? false;
+    const certDisplayName = certificate.Name ?? "<empty name>";
 
+    const isDisabled = certificate.Disabled ?? false;
     const canBeAutomaticallyRenewed = isServerCert && serverCertificateSetupMode === "LetsEncrypt";
     const canEdit = !isServerCert && !isServerCertForCommunication && state !== "Expired";
     const canClone = !isServerCert && !isServerCertForCommunication;
+    const canToggleDisable =
+        !isServerCert &&
+        !isServerCertForCommunication &&
+        !isCurrentBrowserCert &&
+        certificate.SecurityClearance !== "ClusterNode" &&
+        (isClusterAdminOrClusterNode || clearance !== "Admin");
     const canDelete = (() => {
         if (isServerCert || isServerCertForCommunication) {
             return false;
@@ -87,6 +97,45 @@ export default function CertificatesListItem({ certificate }: CertificatesListIt
         }
     };
 
+    const asyncToggleDisable = useAsyncCallback(async () => {
+        const newDisabledState = !isDisabled;
+        reportEvent("certificates", newDisabledState ? "disable" : "enable");
+
+        const dto: UpdateCertificateDto = {
+            Name: certificate.Name,
+            Thumbprint: certificate.Thumbprint,
+            SecurityClearance: certificate.SecurityClearance,
+            Permissions: certificate.Permissions,
+            TwoFactorAuthenticationKey: null,
+            Disabled: newDisabledState,
+        };
+
+        await manageServerService.updateCertificate(dto, false);
+        await dispatch(certificatesActions.fetchData());
+    });
+
+    const handleToggleDisable = async () => {
+        const isConfirmed = await confirm({
+            icon: isDisabled ? "play" : "stop",
+            title: isDisabled ? "Do you want to enable this certificate?" : "Do you want to disable this certificate?",
+            message: (
+                <span>
+                    Certificate: <strong>{certificate.Name}</strong>
+                    <br />
+                    Thumbprint: <code>{certificate.Thumbprint}</code>
+                </span>
+            ),
+            actionColor: isDisabled ? "success" : "warning",
+            confirmText: isDisabled ? "Enable certificate" : "Disable certificate",
+        });
+
+        if (!isConfirmed) {
+            return;
+        }
+
+        asyncToggleDisable.execute();
+    };
+
     const asyncDeleteCertificate = useAsyncCallback(async () => {
         reportEvent("certificates", "delete");
         await manageServerService.deleteCertificate(certificate.Thumbprint);
@@ -113,13 +162,24 @@ export default function CertificatesListItem({ certificate }: CertificatesListIt
 
     return (
         <RichPanel className="flex-row with-status" hover>
-            <RichPanelStatus color={certificatesUtils.getStateColor(state)}>{state}</RichPanelStatus>
-
+            <CertificatesItemStatus state={state} />
             <div className="flex-grow">
                 <RichPanelHeader>
-                    <div>
-                        <RichPanelNameMultiLine className="d-flex align-items-center">
-                            {certificate.Name ?? "<empty name>"}
+                    <div className="flex-grow">
+                        <div className="d-flex align-items-center justify-content-start flex-wrap w-100">
+                            <span className="fs-4 text-truncate" title={certDisplayName} style={{ maxWidth: "400px" }}>
+                                {certDisplayName}
+                            </span>
+                            {state === "About to expire" && (
+                                <Badge
+                                    bg="warning"
+                                    className="ms-1 fs-6"
+                                    pill
+                                    title="This certificate is about to expire"
+                                >
+                                    <Icon icon="clock" margin="m-0" /> About to expire
+                                </Badge>
+                            )}
                             {isCurrentBrowserCert && (
                                 <Badge
                                     bg="success"
@@ -140,7 +200,7 @@ export default function CertificatesListItem({ certificate }: CertificatesListIt
                                     2FA
                                 </Badge>
                             )}
-                        </RichPanelNameMultiLine>
+                        </div>
                         {certificate.Thumbprints.join(", ")}
                         <Button
                             variant="link"
@@ -173,6 +233,15 @@ export default function CertificatesListItem({ certificate }: CertificatesListIt
                             >
                                 <Icon icon="edit" margin="m-0" />
                             </Button>
+                        )}
+                        {canToggleDisable && (
+                            <ButtonWithSpinner
+                                title={isDisabled ? "Enable certificate" : "Disable certificate"}
+                                variant={isDisabled ? "success" : "warning"}
+                                onClick={handleToggleDisable}
+                                icon={isDisabled ? "play" : "stop"}
+                                isSpinning={asyncToggleDisable.loading}
+                            />
                         )}
                         {canDelete && (
                             <ButtonWithSpinner

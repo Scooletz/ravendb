@@ -4,7 +4,6 @@ using Raven.Server.Config;
 using Tests.Infrastructure;
 using Voron.Data.Graphs;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace FastTests.Corax.Vectors;
 
@@ -15,7 +14,7 @@ public class Int8VectorSimilarityTests : RavenTestBase
     }
 
     [RavenTheory(RavenTestCategory.Indexes)]
-    [RavenData(SearchEngineMode = RavenSearchEngineMode.Corax)]
+    [RavenData(SearchEngineMode = RavenSearchEngineMode.Corax, DatabaseMode = RavenDatabaseMode.All)]
     public void Test(Options options)
     {
         options.ModifyDatabaseRecord += record =>

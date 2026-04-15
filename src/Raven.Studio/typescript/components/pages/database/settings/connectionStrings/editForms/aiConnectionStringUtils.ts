@@ -51,22 +51,28 @@ function mapAiConnectionStringToSettingsDto(connection: AiConnectionString): AiC
 
 type FormData = ConnectionFormData<AiConnection>;
 
-const chatConnectorTypes: FormData["connectorType"][] = ["ollamaSettings", "openAiSettings", "azureOpenAiSettings"];
+const chatConnectorTypes: FormData["connectorType"][] = [
+    "azureOpenAiSettings",
+    "googleSettings",
+    "ollamaSettings",
+    "openAiSettings",
+];
 
 function getConnectorOptions(modelType: FormData["modelType"]): SelectOptionWithIcon<FormData["connectorType"]>[] {
+    // Alphabetical order beside of Embedded
     const allOptions: SelectOptionWithIcon<FormData["connectorType"]>[] = [
         { label: "Azure OpenAI", value: "azureOpenAiSettings", icon: "openai" },
         { label: "Google AI", value: "googleSettings", icon: "google-gemini" },
         { label: "Hugging Face", value: "huggingFaceSettings", icon: "huggingface" },
+        { label: "Mistral AI", value: "mistralAiSettings", icon: "mistralai" },
         { label: "Ollama", value: "ollamaSettings", icon: "ollama" },
         { label: "OpenAI", value: "openAiSettings", icon: "openai" },
-        { label: "Mistral AI", value: "mistralAiSettings", icon: "mistralai" },
         { label: "Vertex AI", value: "vertexSettings", icon: "vertex-ai" },
         { label: "Embedded (bge-micro-v2)", value: "embeddedSettings", icon: "onnx" },
     ];
 
     if (modelType === "Chat") {
-        return [...allOptions.filter((x) => chatConnectorTypes.includes(x.value))].reverse();
+        return [...allOptions.filter((x) => chatConnectorTypes.includes(x.value))];
     }
 
     return allOptions;
@@ -150,6 +156,7 @@ const schema = yupObjectSchema<FormData>({
             }),
         dimensions: getDimensionsSchema("azureOpenAiSettings"),
         embeddingsMaxConcurrentBatches: getEmbeddingsMaxConcurrentBatchesSchema("azureOpenAiSettings"),
+        enablePromptCache: yup.boolean().nullable(),
         isSetTemperature: yup.boolean().nullable(),
         temperature: getTemperatureSchema("azureOpenAiSettings"),
     }),
@@ -162,6 +169,7 @@ const schema = yupObjectSchema<FormData>({
                 is: "googleSettings",
                 then: (schema) => schema.trim().required(),
             }),
+        endpoint: yup.string().nullable(),
         model: yup
             .string()
             .nullable()
@@ -171,6 +179,7 @@ const schema = yupObjectSchema<FormData>({
             }),
         dimensions: getDimensionsSchema("googleSettings"),
         embeddingsMaxConcurrentBatches: getEmbeddingsMaxConcurrentBatchesSchema("googleSettings"),
+        enablePromptCache: yup.boolean().nullable(),
     }),
     huggingFaceSettings: yupObjectSchema<FormData["huggingFaceSettings"]>({
         apiKey: yup
@@ -221,13 +230,7 @@ const schema = yupObjectSchema<FormData>({
                 is: "openAiSettings",
                 then: (schema) => schema.trim().required(),
             }),
-        endpoint: yup
-            .string()
-            .nullable()
-            .when("$connectorType", {
-                is: "openAiSettings",
-                then: (schema) => schema.trim().required(),
-            }),
+        endpoint: yup.string().nullable(),
         model: yup
             .string()
             .nullable()
@@ -239,6 +242,7 @@ const schema = yupObjectSchema<FormData>({
         projectId: yup.string().nullable(),
         dimensions: getDimensionsSchema("openAiSettings"),
         embeddingsMaxConcurrentBatches: getEmbeddingsMaxConcurrentBatchesSchema("openAiSettings"),
+        enablePromptCache: yup.boolean().nullable(),
         isSetTemperature: yup.boolean().nullable(),
         temperature: getTemperatureSchema("openAiSettings"),
     }),
@@ -307,6 +311,7 @@ function getDefaultValues(initialConnection: AiConnection, isForNewConnection: b
                 deploymentName: null,
                 dimensions: null,
                 embeddingsMaxConcurrentBatches: null,
+                enablePromptCache: null,
                 isSetTemperature: false,
                 temperature: null,
             } satisfies Required<FormData["azureOpenAiSettings"]>,
@@ -315,7 +320,9 @@ function getDefaultValues(initialConnection: AiConnection, isForNewConnection: b
                 apiKey: null,
                 model: null,
                 dimensions: null,
+                endpoint: null,
                 embeddingsMaxConcurrentBatches: null,
+                enablePromptCache: null,
             } satisfies Required<FormData["googleSettings"]>,
             huggingFaceSettings: {
                 apiKey: null,
@@ -342,6 +349,7 @@ function getDefaultValues(initialConnection: AiConnection, isForNewConnection: b
                 projectId: null,
                 dimensions: null,
                 embeddingsMaxConcurrentBatches: null,
+                enablePromptCache: null,
                 isSetTemperature: false,
                 temperature: null,
             } satisfies Required<FormData["openAiSettings"]>,

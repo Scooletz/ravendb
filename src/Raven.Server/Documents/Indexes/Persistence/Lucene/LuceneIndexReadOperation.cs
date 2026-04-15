@@ -66,6 +66,8 @@ namespace Raven.Server.Documents.Indexes.Persistence.Lucene
 
         private static readonly LuceneCleaner _luceneCleaner;
 
+        public override bool IsSharded => false;
+        
         static LuceneIndexReadOperation()
         {
             _luceneCleaner = new LuceneCleaner();
@@ -97,7 +99,7 @@ namespace Raven.Server.Documents.Indexes.Persistence.Lucene
         }
 
         public override IEnumerable<QueryResult> Query(IndexQueryServerSide query, QueryTimingsScope queryTimings, FieldsToFetch fieldsToFetch, Reference<long> totalResults, Reference<long> skippedResults,
-            Reference<long> scannedDocuments, IQueryResultRetriever retriever, DocumentsOperationContext documentsContext, Func<string, SpatialField> getSpatialField, CancellationToken token)
+            Reference<long> scannedDocuments, IQueryResultRetriever retriever, DocumentsOperationContext documentsContext, Func<string, SpatialField> getSpatialField, QueryTimeScope queryTime, CancellationToken token)
         {
             ExplanationOptions explanationOptions = null;
 
@@ -134,7 +136,7 @@ namespace Raven.Server.Documents.Indexes.Persistence.Lucene
             var returnedResults = 0;
 
             // We are going to get the actual Lucene query evaluator. 
-            var luceneQuery = GetLuceneQuery(documentsContext, query.Metadata, query.QueryParameters, _analyzer, QueryBuilderFactories);
+            var luceneQuery = GetLuceneQuery(documentsContext, query.Metadata, query.QueryParameters, _analyzer, QueryBuilderFactories, queryTime);
 
             using (var queryFilter = GetQueryFilter(_index, query, documentsContext, skippedResults, scannedDocuments, retriever, queryTimings))
             using (GetSort(query, _index, getSpatialField, documentsContext, out var sort))
@@ -406,7 +408,7 @@ namespace Raven.Server.Documents.Indexes.Persistence.Lucene
         }
 
 
-        public override IEnumerable<QueryResult> IntersectQuery(IndexQueryServerSide query, FieldsToFetch fieldsToFetch, Reference<long> totalResults, Reference<long> skippedResults, Reference<long> scannedDocuments, IQueryResultRetriever retriever, DocumentsOperationContext documentsContext, Func<string, SpatialField> getSpatialField, CancellationToken token)
+        public override IEnumerable<QueryResult> IntersectQuery(IndexQueryServerSide query, FieldsToFetch fieldsToFetch, Reference<long> totalResults, Reference<long> skippedResults, Reference<long> scannedDocuments, IQueryResultRetriever retriever, DocumentsOperationContext documentsContext, Func<string, SpatialField> getSpatialField, QueryTimeScope queryTime, CancellationToken token)
         {
             var method = query.Metadata.Query.Where as MethodExpression;
             if (query.Start > int.MaxValue || query.PageSize > int.MaxValue)
@@ -432,7 +434,7 @@ namespace Raven.Server.Documents.Indexes.Persistence.Lucene
                 if (whereExpression == null)
                     throw new InvalidQueryException($"Invalid intersect query. The intersect clause at position {i} isn't a valid expression", query.Metadata.QueryText, query.QueryParameters);
 
-                subQueries[i] = GetLuceneQuery(documentsContext, query.Metadata, whereExpression, query.QueryParameters, _analyzer, QueryBuilderFactories);
+                subQueries[i] = GetLuceneQuery(documentsContext, query.Metadata, whereExpression, query.QueryParameters, _analyzer, QueryBuilderFactories, queryTime);
             }
 
             //Not sure how to select the page size here??? The problem is that only docs in this search can be part

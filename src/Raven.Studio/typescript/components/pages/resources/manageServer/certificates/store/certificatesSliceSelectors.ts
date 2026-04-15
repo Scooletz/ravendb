@@ -38,19 +38,25 @@ const selectStateFilterOptions = createSelector(
     (certificates): InputItem<CertificatesState>[] => {
         let validCount = 0,
             aboutToExpireCount = 0,
-            expiredCount = 0;
+            expiredCount = 0,
+            disabledCount = 0;
 
-        certificates.forEach(({ NotAfter }) => {
-            const state = certificatesUtils.getState(NotAfter);
+        certificates.forEach((cert) => {
+            const state = certificatesUtils.getState(cert);
 
             if (state === "Valid") {
                 validCount++;
             }
             if (state === "About to expire") {
                 aboutToExpireCount++;
+                // About to expire certificates are still valid
+                validCount++;
             }
             if (state === "Expired") {
                 expiredCount++;
+            }
+            if (state === "Disabled") {
+                disabledCount++;
             }
         });
 
@@ -58,6 +64,7 @@ const selectStateFilterOptions = createSelector(
             { value: "Valid", label: "Valid", count: validCount },
             { value: "About to expire", label: "About to expire", count: aboutToExpireCount },
             { value: "Expired", label: "Expired", count: expiredCount },
+            { value: "Disabled", label: "Disabled", count: disabledCount },
         ];
     }
 );
@@ -91,7 +98,12 @@ const selectFilteredCertificates = createSelector(
                 return false;
             }
 
-            if (stateFilter.length > 0 && !stateFilter.includes(certificatesUtils.getState(cert.NotAfter))) {
+            const state = certificatesUtils.getState(cert);
+            if (stateFilter.includes("Valid") && (state === "Valid" || state === "About to expire")) {
+                return true;
+            }
+
+            if (stateFilter.length > 0 && !stateFilter.includes(state)) {
                 return false;
             }
 

@@ -17,6 +17,8 @@ import { useFormContext, useWatch } from "react-hook-form";
 import PopoverWithHoverWrapper from "components/common/PopoverWithHoverWrapper";
 import RichAlert from "components/common/RichAlert";
 import EmbeddingsMaxConcurrentBatches from "./EmbeddingsMaxConcurrentBatchesField";
+import assertUnreachable from "components/utils/assertUnreachable";
+import PromptCacheField from "./PromptCacheField";
 
 type FormData = ConnectionFormData<AiConnection>;
 
@@ -36,14 +38,16 @@ export default function GoogleSettings({ isUsedByAnyTask }: { isUsedByAnyTask: b
         return tasksService.testAiConnectionString(databaseName, "Google", formValues.modelType, {
             AiVersion: formValues.googleSettings.aiVersion,
             ApiKey: formValues.googleSettings.apiKey,
+            EnablePromptCache: formValues.googleSettings.enablePromptCache,
             Model: formValues.googleSettings.model,
+            Endpoint: formValues.googleSettings.endpoint,
         });
     });
 
     return (
         <>
             <RichAlert variant="info">
-                This configuration supports Google AI embeddings only. Not compatible with Vertex AI.
+                This configuration supports Google AI only. Not compatible with Vertex AI.
             </RichAlert>
             <div className="mb-2">
                 <FormLabel className="col-form-label">
@@ -77,6 +81,20 @@ export default function GoogleSettings({ isUsedByAnyTask }: { isUsedByAnyTask: b
             </div>
             <div className="mb-2">
                 <FormLabel>
+                    Endpoint <OptionalLabel />
+                    <PopoverWithHoverWrapper message="The endpoint for generating responses using Google's AI services.">
+                        <Icon icon="info" color="info" id="endpoint" margin="ms-1" />
+                    </PopoverWithHoverWrapper>
+                </FormLabel>
+                <FormSelectAutocomplete
+                    control={control}
+                    name="googleSettings.endpoint"
+                    placeholder="Select an endpoint (or enter new one)"
+                    options={endpointOptions}
+                />
+            </div>
+            <div className="mb-2">
+                <FormLabel>
                     Model
                     <PopoverWithHoverWrapper message="The Google AI text embedding model to use.">
                         <Icon icon="info" color="info" margin="ms-1" />
@@ -87,9 +105,10 @@ export default function GoogleSettings({ isUsedByAnyTask }: { isUsedByAnyTask: b
                     name="googleSettings.model"
                     isDisabled={isUsedByAnyTask}
                     placeholder="Select a model (or enter new one)"
-                    options={modelOptions}
+                    options={getModelOptions(formValues.modelType)}
                 />
             </div>
+            <PromptCacheField baseName="googleSettings" serverDefaultValue={false} />
             <div className="mb-2">
                 <FormLabel>
                     Dimensions <OptionalLabel />
@@ -121,7 +140,19 @@ export default function GoogleSettings({ isUsedByAnyTask }: { isUsedByAnyTask: b
     );
 }
 
-const modelOptions: SelectOption[] = [
+// For now we use hardcoded values. Only these models have been tested
+function getModelOptions(modelType: FormData["modelType"]): SelectOption[] {
+    switch (modelType) {
+        case "Chat":
+            return chatModelOptions;
+        case "TextEmbeddings":
+            return embeddingsModelOptions;
+        default:
+            assertUnreachable(modelType);
+    }
+}
+
+const embeddingsModelOptions: SelectOption[] = [
     ...[
         "text-embedding-004",
         "text-embedding-005",
@@ -133,3 +164,13 @@ const modelOptions: SelectOption[] = [
     ].map((x) => ({ label: x, value: x })),
     { value: "text-embedding-large-exp-03-07", label: "text-embedding-large-exp-03-07 (experimental)" },
 ];
+
+const chatModelOptions: SelectOption[] = ["gemini-3-pro-preview", "gemini-3-flash-preview"].map((x) => ({
+    label: x,
+    value: x,
+}));
+
+const endpointOptions: SelectOption[] = ["https://generativelanguage.googleapis.com"].map((x) => ({
+    label: x,
+    value: x,
+}));

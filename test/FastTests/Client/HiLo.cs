@@ -10,7 +10,6 @@ using Raven.Tests.Core.Utils.Entities;
 using Sparrow.Collections;
 using Tests.Infrastructure;
 using Xunit;
-using Xunit.Abstractions;
 #pragma warning disable CS0618
 
 namespace FastTests.Client
@@ -528,6 +527,51 @@ namespace FastTests.Client
                 await SetupReplicationAsync(store1, store2);
                 var marker = WaitForDocumentToReplicate<User>(store2, "marker/doc", 15 * 1000);
                 Assert.NotNull(marker);
+            }
+        }
+
+        [RavenFact(RavenTestCategory.ClientApi)]
+        public void SaveChanges_After_Store_Dispose_Should_Throw()
+        {
+            var name = GetDatabaseName();
+            var store = GetDocumentStore(new Options
+            {
+                RunInMemory = false,
+                ModifyDatabaseName = _ => name,
+                DeleteDatabaseOnDispose = false,
+                ModifyDocumentStore = s => s.Conventions = new Raven.Client.Documents.Conventions.DocumentConventions { UseOptimisticConcurrency = true }
+            });
+
+            using (var session = store.OpenSession())
+            {
+                session.Store(new User());
+                session.SaveChanges();
+            }
+
+            // open a session before dispose
+            using (var session = store.OpenSession())
+            {
+                session.Store(new User());
+
+                store.Dispose();
+
+                session.Store(new User());
+                Assert.Throws<ObjectDisposedException>(() => session.SaveChanges());
+            }
+
+            // verify that reopening the store and saving doesn't cause a concurrency conflict from a corrupted HiLo
+            using (var store2 = GetDocumentStore(new Options
+            {
+                RunInMemory = false,
+                ModifyDatabaseName = _ => name,
+                ModifyDocumentStore = s => s.Conventions = new Raven.Client.Documents.Conventions.DocumentConventions { UseOptimisticConcurrency = true }
+            }))
+            {
+                using (var session = store2.OpenSession())
+                {
+                    session.Store(new User());
+                    session.SaveChanges();
+                }
             }
         }
 

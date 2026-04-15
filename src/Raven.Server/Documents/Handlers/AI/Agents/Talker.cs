@@ -18,21 +18,21 @@ internal class Talker(ConversationHandler handler, JsonOperationContext context,
 
     public AiUsage AiUsage;
     public ChatCompletionClient Client;
+    public ConversationDocument Document => document;
 
     public void Init()
     {
         document.EnsureInitialized();
 
         _schema = ChatCompletionClient.GetSchemaForRequest(configuration.OutputSchema, configuration.SampleObject);
-        _tools = ConversationDocument.GenerateTools(context, configuration);
-
         Client = handler.CreateClient();
+        _tools = Client.GenerateTools(context, configuration, handler);
     }
 
     public HttpRequestMessage CreateCompletionRequest(List<AiAttachment> attachments)
     {
         AiUsage = new();
-        return Client.CreateCompletionRequest(context, document.Messages, attachments, _tools, useTools: document.RemainingToolIterations-- > 0, streaming != null, _schema);
+        return Client.CreateCompletionRequest(context, document.Messages, attachments, _tools, useTools: document.RemainingToolIterations-- > 0, streaming != null, _schema, promptCacheKey: document.Id);
     }
 
     public async Task<AiResponse> RunAsync(IMemoryContextPool contextPool, HttpRequestMessage request, CancellationToken token)

@@ -14,7 +14,9 @@ namespace Raven.Client.Documents.Session.Tokens
 
         public enum MethodsType
         {
-            CmpXchg
+            CmpXchg,
+            Now,
+            Today
         }
 
         public sealed class WhereMethodCall
@@ -116,6 +118,18 @@ namespace Raven.Client.Documents.Session.Tokens
                     case MethodsType.CmpXchg:
                         writer.Append("cmpxchg(");
                         break;
+                    case MethodsType.Now:
+                        writer.Append("now(");
+                        if (Options.Method.Parameters is { Length: > 0 })
+                        {
+                            writer.Append("$");
+                            writer.Append(Options.Method.Parameters[0]);
+                        }
+                        writer.Append(")");
+                        return true;
+                    case MethodsType.Today:
+                        writer.Append("today()");
+                        return true;
                     default:
                         throw new ArgumentOutOfRangeException();
                 }

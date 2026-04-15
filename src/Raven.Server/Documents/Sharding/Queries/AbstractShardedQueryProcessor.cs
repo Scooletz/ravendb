@@ -11,6 +11,7 @@ using Raven.Client.Documents.Queries;
 using Raven.Client.Documents.Session;
 using Raven.Client.Documents.Session.Loaders;
 using Raven.Client.Documents.Session.Tokens;
+using Raven.Client.Exceptions;
 using Raven.Client.Exceptions.Documents.Indexes;
 using Raven.Client.Exceptions.Sharding;
 using Raven.Client.Extensions;
@@ -31,6 +32,7 @@ using Raven.Server.ServerWide.Sharding;
 using Sparrow;
 using Sparrow.Json;
 using Sparrow.Json.Parsing;
+using Sparrow.Extensions;
 using Sparrow.Utils;
 using Voron;
 
@@ -38,7 +40,7 @@ namespace Raven.Server.Documents.Sharding.Queries;
 
 public abstract class AbstractShardedQueryProcessor<TCommand, TResult, TCombinedResult> where TCommand : RavenCommand<TResult>
 {
-    const string LimitToken = "__raven_limit";
+    private const string LimitToken = "__raven_limit";
 
     private Dictionary<int, BlittableJsonReaderObject> _queryTemplates;
     private Dictionary<int, TCommand> _commands;
@@ -46,6 +48,7 @@ public abstract class AbstractShardedQueryProcessor<TCommand, TResult, TCombined
     private readonly bool _ignoreLimit;
     private readonly string _raftUniqueRequestId;
     private HashSet<int> _filteredShardIndexes;
+    protected DateTime? QueryTime;
 
     protected readonly TransactionOperationContext Context;
     protected readonly ShardedDatabaseRequestHandler RequestHandler;
@@ -439,6 +442,47 @@ public abstract class AbstractShardedQueryProcessor<TCommand, TResult, TCombined
             }
         }
 
+        if (queryChanges.HasFlag(QueryChanges.RewriteTimeBasedFunctions))
+        {
+            // In sharded queries, each shard resolves now()/today() independently, which can lead to
+            // slightly different values across shards. We resolve them once on the orchestrator and
+            // replace the function calls with query parameters to ensure consistency.
+            var now = DateTime.UtcNow;
+            queryTemplate.TryGet(nameof(IndexQuery.QueryParameters), out BlittableJsonReaderObject existingArgs);
+            var rewriteContext = new TimeBasedRewriteContext(now, existingArgs);
+
+            if (clone.Where != null)
+                clone.Where = ReplaceTimeBasedFunctions(clone.Where, rewriteContext);
+
+            if (clone.Filter != null)
+                clone.Filter = ReplaceTimeBasedFunctions(clone.Filter, rewriteContext);
+
+            if (rewriteContext.ResolvedParameters.Count > 0)
+            {
+                QueryTime = now;
+
+                DynamicJsonValue modifiedArgs;
+                if (existingArgs != null)
+                {
+                    modifiedArgs = new DynamicJsonValue(existingArgs);
+                    existingArgs.Modifications = modifiedArgs;
+                }
+                else
+                {
+                    modifications[nameof(IndexQuery.QueryParameters)] = modifiedArgs = new DynamicJsonValue();
+                }
+
+                foreach (var (token, resolvedValue) in rewriteContext.ResolvedParameters)
+                    modifiedArgs[token] = resolvedValue;
+            }
+        }
+
+        if (queryChanges.HasFlag(QueryChanges.AddOrderByScoreForVectorSearch))
+        {
+            clone.OrderBy = [(new MethodExpression("score", new List<QueryExpression>()), OrderByFieldType.Score, true)];
+            Query.Metadata.OrderBy = [new OrderByField(null, OrderByFieldType.Score, ascending: true)];
+        }
+
         modifications[nameof(IndexQuery.Query)] = clone.ToString();
 
         queryTemplate.Modifications = modifications;
@@ -454,6 +498,145 @@ public abstract class AbstractShardedQueryProcessor<TCommand, TResult, TCombined
             modifications.Remove(nameof(IndexQueryServerSide.PageSize));
 
             queryChanges &= ~QueryChanges.RewriteForPaging;
+        }
+    }
+
+    private sealed class TimeBasedRewriteContext
+    {
+        private readonly DateTime _now;
+        private readonly DateTime _today;
+        private readonly BlittableJsonReaderObject _queryParameters;
+        private int _counter;
+
+        public readonly List<(string Token, string Value)> ResolvedParameters = new();
+
+        public TimeBasedRewriteContext(DateTime now, BlittableJsonReaderObject queryParameters)
+        {
+            _now = now;
+            _today = now.Date;
+            _queryParameters = queryParameters;
+        }
+
+        public ValueExpression ResolveNow(MethodExpression me)
+        {
+            DateTime resolved;
+
+            if (me.Arguments is { Count: 1 })
+            {
+                var offsetString = GetOffsetString(me.Arguments[0]);
+
+                if (string.IsNullOrEmpty(offsetString))
+                    throw new InvalidQueryException($"Method {me.Name.Value}() offset argument must be a non-empty string.");
+
+                if (TimeFunctionOffset.TryParse(offsetString.AsSpan(), out var offset) == false)
+                    throw new InvalidQueryException(
+                        $"Invalid offset format '{offsetString}' for {me.Name.Value}(). " +
+                        "Expected format: [+|-]N(y|year|years)[N(mo|month|months)][N(d|day|days)][N(h|hour|hours)][N(m|min|minute|minutes)][N(s|sec|second|seconds)]. " +
+                        "Units must appear in descending order. Spaces between components are allowed. " +
+                        "Examples: '+1y6mo', '-2hours30minutes', '1 year 6 months', '15d'.");
+
+                resolved = offset.Apply(_now);
+            }
+            else
+            {
+                resolved = _now;
+            }
+
+            var token = $"__raven_now_{_counter++}";
+            ResolvedParameters.Add((token, resolved.GetDefaultRavenFormat(isUtc: true)));
+            return new ValueExpression(token, ValueTokenType.Parameter);
+        }
+
+        public ValueExpression ResolveToday()
+        {
+            var token = $"__raven_today_{_counter++}";
+            ResolvedParameters.Add((token, _today.GetDefaultRavenFormat(isUtc: true)));
+            return new ValueExpression(token, ValueTokenType.Parameter);
+        }
+
+        private string GetOffsetString(QueryExpression arg)
+        {
+            if (arg is ValueExpression ve)
+            {
+                if (ve.Value == ValueTokenType.String)
+                    return ve.Token.Value;
+
+                if (ve.Value == ValueTokenType.Parameter && _queryParameters != null)
+                {
+                    if (_queryParameters.TryGetMember(ve.Token.Value, out var paramValue))
+                        return paramValue?.ToString();
+                }
+            }
+
+            return null;
+        }
+    }
+
+    private static QueryExpression ReplaceTimeBasedFunctions(QueryExpression expr, TimeBasedRewriteContext context)
+    {
+        switch (expr)
+        {
+            case MethodExpression me when me.Name.Value.Equals("now", StringComparison.OrdinalIgnoreCase):
+                return context.ResolveNow(me);
+
+            case MethodExpression me when me.Name.Value.Equals("today", StringComparison.OrdinalIgnoreCase):
+                if (me.Arguments is { Count: > 0 })
+                    throw new InvalidQueryException("Method today() does not accept arguments. Use now() with an offset instead (e.g., now('+1d')).");
+                return context.ResolveToday();
+
+            case BinaryExpression be:
+                var newLeft = ReplaceTimeBasedFunctions(be.Left, context);
+                var newRight = ReplaceTimeBasedFunctions(be.Right, context);
+
+                if (ReferenceEquals(newLeft, be.Left) && ReferenceEquals(newRight, be.Right))
+                    return be;
+
+                return new BinaryExpression(newLeft, newRight, be.Operator) { Parenthesis = be.Parenthesis };
+
+            case NegatedExpression ne:
+                var newInner = ReplaceTimeBasedFunctions(ne.Expression, context);
+
+                if (ReferenceEquals(newInner, ne.Expression))
+                    return ne;
+
+                return new NegatedExpression(newInner);
+
+            case MethodExpression me:
+                var changed = false;
+                var newArgs = new List<QueryExpression>(me.Arguments.Count);
+
+                foreach (var arg in me.Arguments)
+                {
+                    var newArg = ReplaceTimeBasedFunctions(arg, context);
+                    if (ReferenceEquals(newArg, arg) == false)
+                        changed = true;
+                    newArgs.Add(newArg);
+                }
+
+                if (changed == false)
+                    return me;
+
+                return new MethodExpression(me.Name, newArgs);
+
+            case InExpression ie:
+                var valuesChanged = false;
+                var newValues = new List<QueryExpression>(ie.Values.Count);
+
+                foreach (var val in ie.Values)
+                {
+                    var newVal = ReplaceTimeBasedFunctions(val, context);
+                    if (ReferenceEquals(newVal, val) == false)
+                        valuesChanged = true;
+                    newValues.Add(newVal);
+                }
+
+                if (valuesChanged == false)
+                    return ie;
+
+                return new InExpression(ie.Source, newValues, ie.All);
+
+            default:
+                return expr;
         }
     }
 
@@ -581,6 +764,14 @@ public abstract class AbstractShardedQueryProcessor<TCommand, TResult, TCombined
                         queryChanges &= ~QueryChanges.RewriteForProjectionFromMapReduceIndex;
                 }
             }
+        }
+
+        if (indexQuery.Metadata.HasTimeBasedFunction)
+            queryChanges |= QueryChanges.RewriteTimeBasedFunctions;
+
+        if (indexQuery.Metadata.HasVectorSearch && indexQuery.Metadata.OrderBy is null or {Length: 0})
+        {
+            queryChanges |= QueryChanges.AddOrderByScoreForVectorSearch;
         }
 
         return queryChanges;
@@ -835,7 +1026,7 @@ public abstract class AbstractShardedQueryProcessor<TCommand, TResult, TCombined
         }
     }
 
-    protected IComparer<BlittableJsonReaderObject> GetComparer(IndexQueryServerSide query)
+    protected IComparer<BlittableJsonReaderObject> ComparerCreator(ShardedDatabaseContext databaseContext, string indexName, IndexQueryServerSide query)
     {
         var queryType = GetQueryType();
 
@@ -846,7 +1037,10 @@ public abstract class AbstractShardedQueryProcessor<TCommand, TResult, TCombined
             return ConstantComparer.Instance;
 
         if (query.Metadata.OrderBy?.Length > 0)
-            return new DocumentsComparer(query.Metadata.OrderBy, extractFromData: queryType == QueryType.IndexEntries, query.Metadata.HasOrderByRandom);
+        {
+            DocumentsComparer.RetrieveConfigurationForDocumentsComparer(databaseContext, indexName, out var nullFirst, out var acceptMissing);
+            return new DocumentsComparer(query.Metadata.OrderBy, extractFromData: queryType == QueryType.IndexEntries, query.Metadata.HasOrderByRandom, nullFirst, acceptMissing);
+        }
 
         if (queryType == QueryType.IndexEntries)
             return ConstantComparer.Instance;
@@ -876,8 +1070,11 @@ public abstract class AbstractShardedQueryProcessor<TCommand, TResult, TCombined
         RewriteForFilterInMapReduce = 1 << 3,
         RewriteForLimitWithOrderByInMapReduce = 1 << 4,
         UpdateOrderByFieldsInMapReduce = 1 << 5,
-        UseCachedOrderByFieldsInMapReduce = 1 << 6
+        UseCachedOrderByFieldsInMapReduce = 1 << 6,
+        RewriteTimeBasedFunctions = 1 << 7,
+        AddOrderByScoreForVectorSearch = 1 << 8
     }
+
 
     protected enum QueryType
     {

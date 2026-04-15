@@ -183,6 +183,14 @@ class trafficWatch extends viewModelBase {
     
     onlyErrors = ko.observable<boolean>(false);
 
+    requestSizeMin = ko.observable<number>();
+    requestSizeMax = ko.observable<number>();
+    responseSizeMin = ko.observable<number>();
+    responseSizeMax = ko.observable<number>();
+
+    requestSizeSummary: KnockoutComputed<string>;
+    responseSizeSummary: KnockoutComputed<string>;
+
     adminLogsUrl = appUrl.forAdminLogs() + "?highlightTrafficWatch=true"
 
     stats = {
@@ -216,6 +224,14 @@ class trafficWatch extends viewModelBase {
         
         this.selectedTypeNamesHttp.subscribe(() => this.refresh());
         this.selectedTypeNamesTcp.subscribe(() => this.refresh());
+        
+        this.requestSizeMin.throttle(500).subscribe(() => this.refresh());
+        this.requestSizeMax.throttle(500).subscribe(() => this.refresh());
+        this.responseSizeMin.throttle(500).subscribe(() => this.refresh());
+        this.responseSizeMax.throttle(500).subscribe(() => this.refresh());
+
+        this.requestSizeSummary = ko.pureComputed(() => trafficWatch.formatSizeRangeSummary(this.requestSizeMin(), this.requestSizeMax()));
+        this.responseSizeSummary = ko.pureComputed(() => trafficWatch.formatSizeRangeSummary(this.responseSizeMin(), this.responseSizeMax()));
     }
     
     activate(args: any) {
@@ -303,7 +319,17 @@ class trafficWatch extends viewModelBase {
             const typeMatch = _.includes(this.selectedTypeNamesHttp(), item.Type);
             const statusMatch = !this.onlyErrors() || item.ResponseStatusCode >= 400;
 
-            return textFilterMatch && typeMatch && statusMatch;
+            const reqMin = trafficWatch.parseNumberFilter(this.requestSizeMin());
+            const reqMax = trafficWatch.parseNumberFilter(this.requestSizeMax());
+            const resMin = trafficWatch.parseNumberFilter(this.responseSizeMin());
+            const resMax = trafficWatch.parseNumberFilter(this.responseSizeMax());
+
+            const requestSizeMatch = (reqMin == null || item.RequestSizeInBytes >= reqMin) &&
+                                     (reqMax == null || item.RequestSizeInBytes <= reqMax);
+            const responseSizeMatch = (resMin == null || item.ResponseSizeInBytes >= resMin) &&
+                                      (resMax == null || item.ResponseSizeInBytes <= resMax);
+
+            return textFilterMatch && typeMatch && statusMatch && requestSizeMatch && responseSizeMatch;
         }
         
         if (trafficWatch.isTcpItem(item)) {
@@ -331,6 +357,22 @@ class trafficWatch extends viewModelBase {
     
     private static isPostgresItem(item: Raven.Client.Documents.Changes.TrafficWatchChangeBase): item is TrafficWatchPostgresChange {
         return item.TrafficWatchType === "Postgres";
+    }
+
+    private static parseNumberFilter(value: any): number | null {
+        if (value == null || value === "") {
+            return null;
+        }
+        const num = Number(value);
+        return isNaN(num) ? null : num;
+    }
+
+    private static formatSizeRangeSummary(minVal: any, maxVal: any): string {
+        const min = trafficWatch.parseNumberFilter(minVal);
+        const max = trafficWatch.parseNumberFilter(maxVal);
+        const minText = min != null ? generalUtils.formatBytesToSize(min) : "0";
+        const maxText = max != null ? generalUtils.formatBytesToSize(max) : "\u221E";
+        return minText + " - " + maxText;
     }
 
     private updateStats(): void {
@@ -444,13 +486,37 @@ class trafficWatch extends viewModelBase {
 
     private static formatDetails(item: Raven.Client.Documents.Changes.TrafficWatchChangeBase): string {
         if (trafficWatch.isHttpItem(item)) {
-            return item.RequestUri;
+            return trafficWatch.stripHostFromUrl(item.RequestUri);
         }
         if (trafficWatch.isTcpItem(item)) {
             return item.Operation + (item.Source ? " from node " + item.Source : "") + (item.OperationVersion ? " (version " + item.OperationVersion + ")" : "");
         }
 
         return "n/a";
+    }
+
+    private static tryParseUrl(url: string) {
+        try {
+            return new URL(url, location.origin);
+        } catch {
+            return null;
+        }
+    }
+
+    private static stripHostFromUrl(url: string) {
+        const parsed = this.tryParseUrl(url);
+        if (!parsed) {
+            return url;
+        }
+
+        return parsed.host === location.host
+            ? parsed.pathname + parsed.search + parsed.hash
+            : url;
+    }
+
+    private static extractTagFromUrl(url: string) {
+        const parsed = this.tryParseUrl(url);
+        return parsed?.searchParams.get("tag") ?? "";
     }
 
     compositionComplete() {
@@ -515,7 +581,7 @@ class trafficWatch extends viewModelBase {
             [
                 new textColumn<Raven.Client.Documents.Changes.TrafficWatchChangeBase>(grid,
                     x => generalUtils.formatUtcDateAsLocal(x.TimeStamp, trafficWatch.dateTimeFormat),
-                    "Timestamp", "12%", {
+                    "Timestamp", "11%", {
                     extraClass: rowHighlightRules,
                     sortable: "string"
                 }),
@@ -525,7 +591,7 @@ class trafficWatch extends viewModelBase {
                     extraClass: rowHighlightRules,
                     useRawValue: () => true
                 }),
-                new textColumn<Raven.Client.Documents.Changes.TrafficWatchChangeBase>(grid, 
+                new textColumn<Raven.Client.Documents.Changes.TrafficWatchChangeBase>(grid,
                     x => trafficWatch.isHttpItem(x) ? x.ResponseStatusCode : "n/a",
                     "HTTP Status", "4%", {
                         extraClass: rowHighlightRules,
@@ -554,30 +620,36 @@ class trafficWatch extends viewModelBase {
                 }),
                 new textColumn<Raven.Client.Documents.Changes.TrafficWatchChangeBase>(grid,
                     x => trafficWatch.isHttpItem(x) ? x.ElapsedMilliseconds : null,
-                    "Duration", "6%", {
+                    "Duration", "5%", {
                         extraClass: rowHighlightRules,
-                        sortable: "number", 
+                        sortable: "number",
                         transformValue: (v, item) => durationProvider(item),
                         useRawValue: () => true
                 }),
                 new textColumn<Raven.Client.Documents.Changes.TrafficWatchChangeBase>(grid,
                     x => trafficWatch.isHttpItem(x) ? x.HttpMethod : "TCP",
-                    "Method", "6%", {
+                    "Method", "5%", {
                         extraClass: rowHighlightRules,
                         sortable: "string"
                 }),
                 new textColumn<Raven.Client.Documents.Changes.TrafficWatchChangeBase>(grid,
                     x => trafficWatch.isHttpItem(x) ? x.Type : (trafficWatch.isTcpItem(x) ? x.Operation : "n/a"),
-                    "Type", "6%", {
+                    "Type", "5%", {
                         extraClass: rowHighlightRules,
                         sortable: "string"
                 }),
                 new textColumn<Raven.Client.Documents.Changes.TrafficWatchChangeBase>(grid,
-                    x => trafficWatch.isPostgresItem(x) ? x.Username : "n/a",
-                    "Username", "6%", {
+                    x => trafficWatch.formatDetails(x),
+                    "Details", "13%", {
                         extraClass: rowHighlightRules,
-                        sortable: "string",
+                        sortable: "string"
                     }),
+                new textColumn<Raven.Client.Documents.Changes.TrafficWatchChangeBase>(grid,
+                    x => trafficWatch.isHttpItem(x) ? trafficWatch.extractTagFromUrl(x.RequestUri) : "",
+                    "Tag", "5%", {
+                        extraClass: rowHighlightRules,
+                        sortable: "string"
+                }),
                 new textColumn<Raven.Client.Documents.Changes.TrafficWatchChangeBase>(grid,
                     x => x.CustomInfo,
                     "Custom Info", "8%", {
@@ -585,18 +657,18 @@ class trafficWatch extends viewModelBase {
                         sortable: "string"
                 }),
                 new textColumn<Raven.Client.Documents.Changes.TrafficWatchChangeBase>(grid,
-                    x => trafficWatch.formatDetails(x),
-                    "Details", "14%", {
-                        extraClass: rowHighlightRules,
-                        sortable: "string"
-                    }),
-                new textColumn<Raven.Client.Documents.Changes.TrafficWatchChangeBase>(grid,
                     x => trafficWatch.isHttpItem(x) ? x.QueryTimings : null,
                     "<i class='icon-play' title='Query timings'></i>", "4%", {
                         extraClass: rowHighlightRules,
                         transformValue: (_, item) => timingsProvider(item),
                         useRawValue: () => true,
-                    })
+                    }),
+                new textColumn<Raven.Client.Documents.Changes.TrafficWatchChangeBase>(grid,
+                    x => trafficWatch.isPostgresItem(x) ? x.Username : "n/a",
+                    "Username", "6%", {
+                        extraClass: rowHighlightRules,
+                        sortable: "string",
+                    }),
             ]
         );
 
@@ -640,8 +712,13 @@ class trafficWatch extends viewModelBase {
         const filterUsingTypeTcp = this.selectedTypeNamesTcp().length !== this.filteredTypeDataTcp.length;
         
         const filterUsingStatus = this.onlyErrors();
+
+        const filterUsingSize = trafficWatch.parseNumberFilter(this.requestSizeMin()) != null ||
+                                trafficWatch.parseNumberFilter(this.requestSizeMax()) != null ||
+                                trafficWatch.parseNumberFilter(this.responseSizeMin()) != null ||
+                                trafficWatch.parseNumberFilter(this.responseSizeMax()) != null;
         
-        if (textFilterDefined || filterUsingTypeHttp || filterUsingTypeTcp || filterUsingStatus) {
+        if (textFilterDefined || filterUsingTypeHttp || filterUsingTypeTcp || filterUsingStatus || filterUsingSize) {
             this.filteredData = this.allData.filter(item => this.matchesFilters(item));
             this.isDataFiltered(true);
         } else {

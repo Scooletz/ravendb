@@ -22,16 +22,8 @@ import AiTokensUsagePopoverBody from "components/common/AiTokensUsagePopoverBody
 import AiAgentLinkedConversationsDropdown from "../partials/AiAgentLinkedConversationsDropdown";
 
 export default function ChatAiAgent({ queryParams }: ReactQueryParamsProps<ChatAiAgentQueryParams>) {
-    const {
-        handleSend,
-        reloadForm,
-        handleNewChat,
-        chatForm,
-        asyncGetDefaultValues,
-        handleSubmit,
-        runChat,
-        promptsFieldsArray,
-    } = useChatAiAgent(queryParams);
+    const { handleSend, reloadForm, handleNewChat, chatForm, asyncGetDefaultValues, handleSubmit, runChat } =
+        useChatAiAgent(queryParams);
 
     const dispatch = useAppDispatch();
     const { appUrl } = useAppUrls();
@@ -75,7 +67,7 @@ export default function ChatAiAgent({ queryParams }: ReactQueryParamsProps<ChatA
                 <ChatAiAgentInfoHub />
             </div>
             <div className="hstack mb-2 justify-content-between px-3">
-                <div className="hstack gap-2">
+                <div className="hstack gap-2 flex-wrap">
                     <Button
                         variant="primary"
                         className="rounded-pill"
@@ -91,6 +83,15 @@ export default function ChatAiAgent({ queryParams }: ReactQueryParamsProps<ChatA
                             target="_blank"
                         >
                             <Icon icon="document" /> Edit document
+                        </a>
+                    )}
+                    {config.data && (
+                        <a
+                            href={appUrl.forEditAiAgent(databaseName, config.data.Identifier)}
+                            className="btn btn-secondary rounded-pill"
+                            target="_blank"
+                        >
+                            <Icon icon="settings" /> Edit configuration
                         </a>
                     )}
                     <a className="btn btn-secondary rounded-pill" href={appUrl.forAiAgents(databaseName)}>
@@ -130,7 +131,6 @@ export default function ChatAiAgent({ queryParams }: ReactQueryParamsProps<ChatA
                                     handleSend={handleSend}
                                     runChat={runChat}
                                     isHistory={queryParams?.isHistory}
-                                    promptsFieldsArray={promptsFieldsArray}
                                 />
                             </form>
                         </FormProvider>

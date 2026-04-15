@@ -8,7 +8,6 @@ import { databaseSelectors } from "components/common/shell/databaseSliceSelector
 import ButtonWithSpinner from "components/common/ButtonWithSpinner";
 import { useRef, useEffect } from "react";
 import _ from "lodash";
-import AiAgentMessages from "../../partials/AiAgentMessages";
 import AiAgentParametersField from "../../partials/AiAgentParametersField";
 import { editAiAgentUtils } from "../utils/editAiAgentUtils";
 import Button from "react-bootstrap/Button";
@@ -18,19 +17,24 @@ import AceEditor from "components/common/ace/AceEditor";
 import ReactAce from "react-ace";
 import { tryHandleSubmit } from "components/utils/common";
 import messagePublisher from "common/messagePublisher";
-import { AiAgentToolCall } from "../../utils/aiAgentsTypes";
 import PopoverWithHoverWrapper from "components/common/PopoverWithHoverWrapper";
 import { compareSets } from "common/typeUtils";
 import AiAgentParametersDropdown from "../../partials/AiAgentParametersDropdown";
 import classNames from "classnames";
+import { AiAgentToolCall } from "components/pages/database/aiHub/aiAgents/utils/aiAgentsTypes";
+import EditAiAgentTestMessages from "./EditAiAgentTestMessages";
 
 interface EditAiAgentTestPanelProps {
     testForm: UseFormReturn<TestAiAgentFormData>;
     editForm: UseFormReturn<EditAiAgentFormData>;
-    allQueriesNames: string[];
+    generateTestParameters: () => void;
 }
 
-export default function EditAiAgentTestPanel({ testForm, editForm, allQueriesNames }: EditAiAgentTestPanelProps) {
+export default function EditAiAgentTestPanel({
+    testForm,
+    editForm,
+    generateTestParameters,
+}: EditAiAgentTestPanelProps) {
     const dispatch = useAppDispatch();
     const databaseName = useAppSelector(databaseSelectors.activeDatabaseName);
     const rawDataRef = useRef<ReactAce>(null);
@@ -42,11 +46,11 @@ export default function EditAiAgentTestPanel({ testForm, editForm, allQueriesNam
         control: editForm.control,
     });
 
-    const testDocument = useAppSelector(editAiAgentSelectors.testDocument);
+    const testDocument = useAppSelector(editAiAgentSelectors.mainTestDocument);
+    const messages = useAppSelector(editAiAgentSelectors.mainTestMessages);
     const isRawData = useAppSelector(editAiAgentSelectors.isRawData);
-    const messages = useAppSelector(editAiAgentSelectors.testMessages);
     const runTestState = useAppSelector(editAiAgentSelectors.runTestState);
-    const isWaitingForActionToolSubmit = useAppSelector(editAiAgentSelectors.isWaitingForActionToolSubmit);
+    const isActionToolSubmitRequired = useAppSelector(editAiAgentSelectors.isActionToolSubmitRequired);
     const isTestPinned = useAppSelector(editAiAgentSelectors.isTestPinned);
 
     const hasLatestParameters = compareSets(
@@ -54,10 +58,11 @@ export default function EditAiAgentTestPanel({ testForm, editForm, allQueriesNam
         testFormValues.parameters?.map((x) => x.name) ?? []
     );
 
-    const hasMissingParameters = messages.length > 0 && testFormValues.parameters.some((x) => !x.value);
+    const hasMissingParameters =
+        messages.length > 0 && testFormValues.parameters.some((x) => x.type !== "Null" && x.value == null);
 
-    const isLoading = runTestState === "loading" || isWaitingForActionToolSubmit;
-    const isTestDisabled = !hasLatestParameters || hasMissingParameters || isLoading;
+    const isLoading = runTestState === "loading";
+    const isTestDisabled = !hasLatestParameters || hasMissingParameters || isLoading || isActionToolSubmitRequired;
 
     const configuration = editAiAgentUtils.mapToDto(editFormValues);
 
@@ -69,7 +74,6 @@ export default function EditAiAgentTestPanel({ testForm, editForm, allQueriesNam
                     configuration,
                     testFormValues,
                     toolCallParameters,
-                    allQueriesNames,
                 })
             ).unwrap();
 
@@ -79,7 +83,7 @@ export default function EditAiAgentTestPanel({ testForm, editForm, allQueriesNam
 
     const handleSend = async () => {
         return tryHandleSubmit(async () => {
-            runTest();
+            await runTest();
         });
     };
 
@@ -89,7 +93,7 @@ export default function EditAiAgentTestPanel({ testForm, editForm, allQueriesNam
             throw new Error(parametersNotUpToDateText);
         }
 
-        runTest(toolCallParameters);
+        await runTest(toolCallParameters);
     };
 
     const messagesPanelRef = useRef<HTMLDivElement>(null);
@@ -105,17 +109,9 @@ export default function EditAiAgentTestPanel({ testForm, editForm, allQueriesNam
     }, [messages.length]);
 
     const handleNewChat = () => {
-        dispatch(editAiAgentActions.testDocumentSet(null));
-        dispatch(editAiAgentActions.testMessagesSet([]));
-        dispatch(editAiAgentActions.isWaitingForActionToolSubmitSet(false));
+        dispatch(editAiAgentActions.testResultsReset());
         testForm.setValue("prompt", "");
-        testForm.setValue(
-            "parameters",
-            editFormValues.parameters.map((x) => ({
-                name: x.name,
-                value: testFormValues.parameters.find((y) => y.name === x.name)?.value ?? "",
-            }))
-        );
+        generateTestParameters();
     };
 
     return (
@@ -174,26 +170,18 @@ export default function EditAiAgentTestPanel({ testForm, editForm, allQueriesNam
             <div className="w-100 flex-grow-1 vstack justify-content-center align-items-center overflow-auto">
                 <div className="flex-grow-1 vstack w-100 overflow-auto p-2 position-relative" ref={messagesPanelRef}>
                     {messages.length === 0 && (
-                        <div className="h-100 vstack justify-content-center">
+                        <div className="h-100 vstack justify-content-center mx-auto" style={{ maxWidth: "600px" }}>
                             <AiAgentParametersField
                                 control={testForm.control}
-                                name="parameters"
                                 value={testFormValues.parameters}
-                                isTest
+                                panelClassName="panel-bg-2"
+                                wrapperClassName="justify-content-center"
+                                headerClassName="text-center"
                             />
                         </div>
                     )}
                     {!isRawData && messages.length > 0 && (
-                        <AiAgentMessages
-                            messages={messages}
-                            toolQueries={configuration.Queries}
-                            toolActions={configuration.Actions}
-                            handleSaveParameters={handleSaveParameters}
-                            setIsWaitingForActionToolSubmit={(value: boolean) =>
-                                dispatch(editAiAgentActions.isWaitingForActionToolSubmitSet(value))
-                            }
-                            parametersFromUser={testDocument?.Parameters}
-                        />
+                        <EditAiAgentTestMessages handleSaveParameters={handleSaveParameters} />
                     )}
                     {isRawData && testDocument && (
                         <SizeGetter

@@ -11,7 +11,6 @@ using Raven.Client.Documents.Operations.Revisions;
 using Raven.Server.ServerWide;
 using Tests.Infrastructure;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace SlowTests.Issues
 {
@@ -174,7 +173,7 @@ namespace SlowTests.Issues
             var db = await Databases.GetDocumentDatabaseInstanceFor(store);
             using (var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(timeout)))
             using (var token = new OperationCancelToken(db.Configuration.Databases.OperationTimeout.AsTimeSpan, cts.Token, db.DatabaseShutdown))
-                await db.DocumentsStorage.RevisionsStorage.EnforceConfigurationAsync(_ => { }, includeForceCreated: false, collections, token: token);
+                await db.DocumentsStorage.RevisionsStorage.EnforceConfigurationAsync(_ => { }, new EnforceRevisionsConfigurationOperation.Parameters { IncludeForceCreated = false, Collections = collections?.ToArray() }, token);
         }
 
         private class User
