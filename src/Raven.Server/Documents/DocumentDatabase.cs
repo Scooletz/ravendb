@@ -80,6 +80,8 @@ namespace Raven.Server.Documents
         private readonly ServerStore _serverStore;
         private readonly Action<LogMode, string> _addToInitLog;
         private readonly Logger _logger;
+        public Logger Logger => _logger;
+
         private readonly DisposeOnce<SingleAttempt> _disposeOnce;
         internal TestingStuff ForTestingPurposes;
 
@@ -1312,7 +1314,8 @@ namespace Raven.Server.Documents
                     CompareExchangeCount = ServerStore.Cluster.GetNumberOfCompareExchange(transactionContext, DocumentsStorage.DocumentDatabase.Name),
                     CompareExchangeTombstonesCount = ServerStore.Cluster.GetNumberOfCompareExchangeTombstones(transactionContext, DocumentsStorage.DocumentDatabase.Name),
                     IdentitiesCount = ServerStore.Cluster.GetNumberOfIdentities(transactionContext, DocumentsStorage.DocumentDatabase.Name),
-                    TimeSeriesSegmentsCount = DocumentsStorage.TimeSeriesStorage.GetNumberOfTimeSeriesSegments(documentsContext)
+                    TimeSeriesSegmentsCount = DocumentsStorage.TimeSeriesStorage.GetNumberOfTimeSeriesSegments(documentsContext),
+                    TimeSeriesDeletedRangesCount = DocumentsStorage.TimeSeriesStorage.GetNumberOfTimeSeriesDeletedRanges(documentsContext)
                 };
             }
         }

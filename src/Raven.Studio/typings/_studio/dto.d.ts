@@ -652,6 +652,7 @@ interface explainQueryResponse extends resultsDto<Raven.Server.Documents.Queries
 
 interface virtualBulkOperationItem {
     id: string;
+    operationId: number;
     date: string;
     duration: number;
     totalItemsProcessed: number;
@@ -663,6 +664,7 @@ interface virtualBulkOperationItem {
 
 interface virtualBulkOperationFailureItem {
     id: string;
+    operationId: number;
     date: string;
     duration: number;
     errorMsg: string;
@@ -1052,7 +1054,7 @@ interface ReactLocationProps {
 
 interface ReactInKnockoutOptions<T> {
     component: T;
-    props?: Parameters<typeof T>[0];
+    props?: Parameters<T>[0];
     dirtyFlag?: ReactDirtyFlag;
 }
 
