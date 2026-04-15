@@ -126,7 +126,7 @@ export function flattenTransformationErrors(
     processErrors: EtlTransformationWithErrors["processErrors"]
 ) {
     return [
-        ...itemErrors.map((e) => ({ ...e, errorType: "Item" as const })),
+        ...itemErrors.map((e) => ({ ...e, errorType: "Item" as const, AffectedDocumentsCount: 1 })),
         ...processErrors.map((e) => ({ ...e, errorType: "Process" as const })),
     ];
 }
@@ -146,6 +146,7 @@ export function flattenAllTasksErrors(tasksWithErrors: EtlTaskWithErrors[], etlS
                 ...transformation.itemErrors.map((e) => ({
                     ...e,
                     errorType: "Item" as const,
+                    AffectedDocumentsCount: 1,
                     etlName: task.etlName,
                     transformationName: transformation.transformationName,
                     healthStatus,
