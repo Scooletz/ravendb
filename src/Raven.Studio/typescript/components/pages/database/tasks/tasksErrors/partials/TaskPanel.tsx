@@ -223,6 +223,7 @@ interface TaskPanelProps extends EtlTaskWithErrors {
 export function TaskPanel({ etlName, transformations, etlStats, onRefresh }: TaskPanelProps) {
     const hasDatabaseWriteAccess = useAppSelector(accessManagerSelectors.getHasDatabaseWriteAccess)();
     const databaseName = useAppSelector(databaseSelectors.activeDatabaseName);
+    const db = useAppSelector(databaseSelectors.activeDatabase);
     const { value: isDetailsVisible, toggle: toggleDetails } = useBoolean(true);
     const { value: isDeleteModalOpen, toggle: toggleDeleteModal } = useBoolean(false);
 
@@ -289,6 +290,16 @@ export function TaskPanel({ etlName, transformations, etlStats, onRefresh }: Tas
                             </Badge>
                         </PopoverWithHoverWrapper>
                     </RichPanelDetailItem>
+                    <RichPanelDetailItem contentClassName="d-flex gap-1 align-items-center">
+                        <Icon icon="node" />
+                        <span>{taskStats?.NodeTag ?? "-"}</span>
+                    </RichPanelDetailItem>
+                    {db.isSharded && (
+                        <RichPanelDetailItem contentClassName="d-flex gap-1 align-items-center">
+                            <Icon icon="shard" color="shard" />
+                            <span>{taskStats?.ShardNumber ?? "-"}</span>
+                        </RichPanelDetailItem>
+                    )}
                 </RichPanelDetails>
                 <SizeGetter
                     render={(sizeProps) => (
