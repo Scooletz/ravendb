@@ -23,6 +23,7 @@ using Raven.Server.Commercial;
 using Raven.Server.Config;
 using Raven.Server.Config.Settings;
 using Raven.Server.Documents;
+using Raven.Server.Documents.Handlers.AI.Agents;
 using Raven.Server.Documents.Indexes.Static.NuGet;
 using Raven.Server.Documents.PeriodicBackup;
 using Raven.Server.Documents.PeriodicBackup.Restore;
@@ -64,6 +65,8 @@ namespace FastTests
         private readonly ConcurrentSet<string> _localPathsToDelete = new(StringComparer.OrdinalIgnoreCase);
 
         private static RavenServer _globalServer;
+
+        private static readonly ConcurrentDictionary<string, long> AiTokensPerDatabase = new(StringComparer.OrdinalIgnoreCase);
 
         protected static bool IsGlobalServer(RavenServer server)
         {
@@ -147,8 +150,15 @@ namespace FastTests
                 Console.WriteLine($"Execution of GC due to IO failure on path '{x.Path}' took {x.Duration} (attempt: {x.Attempt})");
             };
 
-            LowMemoryNotification.Instance.SupportsCompactionOfLargeObjectHeap = true;
+            ConversationHandler.OnUpdateUsage += (sender, usage) =>
+            {
+                if (usage == null)
+                    return;
 
+                AiTokensPerDatabase.AddOrUpdate(sender ?? string.Empty, _ => usage.TotalTokens, (_, l) => l + usage.TotalTokens);
+            };
+
+            LowMemoryNotification.Instance.SupportsCompactionOfLargeObjectHeap = true;
 #if DEBUG2
             TaskScheduler.UnobservedTaskException += (sender, args) =>
             {
@@ -383,6 +393,27 @@ namespace FastTests
                     catch (Exception e)
                     {
                         Console.WriteLine($"Could not retrieve list of non-deleted databases. Exception: {e}");
+                    }
+
+                    if (AiTokensPerDatabase.IsEmpty == false)
+                    {
+                        var sb = new StringBuilder();
+                        sb.AppendLine("List of AI tokens used per database:");
+                        var totalTokens = 0L;
+                        foreach (var kvp in AiTokensPerDatabase.OrderByDescending(x => x.Value))
+                        {
+                            totalTokens += kvp.Value;
+
+                            sb
+                                .Append("- ")
+                                .Append(kvp.Key)
+                                .Append(": ")
+                                .AppendLine(kvp.Value.ToString());
+                        }
+
+                        sb.AppendLine($"Total tokens: {totalTokens}");
+
+                        Console.WriteLine(sb.ToString());
                     }
 
                     DisposeServer(copyGlobalServer);

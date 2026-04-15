@@ -11,6 +11,7 @@ using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using Corax.Utils;
 using Microsoft.AspNetCore.Http;
 using Nito.AsyncEx;
 using Raven.Client.Documents.Changes;
@@ -3331,7 +3332,7 @@ namespace Raven.Server.Documents.Indexes
             DocumentDatabase.QueryMetadataCache.MaybeAddToCache(query.Metadata, Name);
         }
 
-        public virtual async Task<DocumentIdQueryResult> IdQuery(
+        public virtual Task<DocumentIdQueryResult> IdQuery(
             IndexQueryServerSide query,
             QueryOperationContext queryContext,
             DeterminateProgress progress,
@@ -3339,21 +3340,19 @@ namespace Raven.Server.Documents.Indexes
             OperationCancelToken token)
         {
             var result = new DocumentIdQueryResult(progress, onProgress, Definition.ClusterState.LastIndex, token);
-            await QueryInternal(result, query, queryContext, pulseDocsReadingTransaction: false, token: token);
-            return result;
+            return QueryInternal(result, query, queryContext, pulseDocsReadingTransaction: false, token: token);
         }
 
-        public virtual async Task<DocumentQueryResult> Query(
+        public virtual Task<DocumentQueryResult> Query(
             IndexQueryServerSide query,
             QueryOperationContext queryContext,
             OperationCancelToken token)
         {
             var result = new DocumentQueryResult(Definition.ClusterState.LastIndex);
-            await QueryInternal(result, query, queryContext, pulseDocsReadingTransaction: false, token: token);
-            return result;
+            return QueryInternal(result, query, queryContext, pulseDocsReadingTransaction: false, token: token);
         }
 
-        private async Task QueryInternal<TQueryResult>(
+        private async Task<TQueryResult> QueryInternal<TQueryResult>(
             TQueryResult resultToFill,
             IndexQueryServerSide query,
             QueryOperationContext queryContext,
@@ -3613,7 +3612,7 @@ namespace Raven.Server.Documents.Indexes
                             }
                         }
 
-                        return;
+                        return resultToFill;
                     }
                 }
             }
@@ -5626,6 +5625,8 @@ namespace Raven.Server.Documents.Indexes
 
         internal sealed class TestingStuff
         {
+            internal CoraxTestingConfiguration CoraxConfiguration;
+            
             internal Action ActionToCallInFinallyOfExecuteIndexing;
 
             internal bool ShouldRenewTransaction;

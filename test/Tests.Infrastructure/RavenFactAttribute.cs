@@ -117,7 +117,7 @@ public class RavenFactAttribute : FactAttribute, ITraitAttribute
         return null;
     }
 
-    internal static string ShouldSkip(string skip, RavenTestCategory category, bool licenseRequired, bool nightlyBuildRequired)
+    private static string ShouldSkip(string skip, RavenTestCategory category, bool licenseRequired, bool nightlyBuildRequired)
     {
         if (skip != null)
             return skip;

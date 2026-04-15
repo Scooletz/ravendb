@@ -144,6 +144,7 @@ namespace Raven.Server.ServerWide
         public readonly FeedbackSender FeedbackSender;
         public readonly StorageSpaceMonitor StorageSpaceMonitor;
         public readonly ServerLimitsMonitor ServerLimitsMonitor;
+        public readonly GcThreadContentionDetector GcThreadContentionDetector;
         public readonly SecretProtection Secrets;
         public readonly AsyncManualResetEvent InitializationCompleted;
         public readonly GlobalIndexingScratchSpaceMonitor GlobalIndexingScratchSpaceMonitor;
@@ -211,6 +212,8 @@ namespace Raven.Server.ServerWide
             StorageSpaceMonitor = new StorageSpaceMonitor(NotificationCenter);
 
             ServerLimitsMonitor = new ServerLimitsMonitor(this, NotificationCenter, _notificationsStorage);
+
+            GcThreadContentionDetector = new GcThreadContentionDetector(this, NotificationCenter);
 
             DatabaseInfoCache = new DatabaseInfoCache(this);
 
@@ -2859,6 +2862,7 @@ namespace Raven.Server.ServerWide
                     {
                         StorageSpaceMonitor,
                         ServerLimitsMonitor,
+                        GcThreadContentionDetector,
                         NotificationCenter,
                         LicenseManager,
                         DatabasesLandlord,
@@ -3843,7 +3847,7 @@ namespace Raven.Server.ServerWide
                     };
                     var journalIoStatsResult = Server.DiskStatsGetter.Get(driveInfo?.JournalPath.DriveName);
                     if (journalIoStatsResult != null)
-                        usage.IoStatsResult = FillIoStatsResult(ioStatsResult);
+                        journalUsage.IoStatsResult = FillIoStatsResult(journalIoStatsResult);
 
                     yield return journalUsage;
                 }
@@ -3869,7 +3873,7 @@ namespace Raven.Server.ServerWide
                         };
                         var tempBufferIoStatsResult = Server.DiskStatsGetter.Get(driveInfo?.TempPath.DriveName);
                         if (tempBufferIoStatsResult != null)
-                            tempBuffersUsage.IoStatsResult = FillIoStatsResult(ioStatsResult);
+                            tempBuffersUsage.IoStatsResult = FillIoStatsResult(tempBufferIoStatsResult);
 
                         yield return tempBuffersUsage;
                     }

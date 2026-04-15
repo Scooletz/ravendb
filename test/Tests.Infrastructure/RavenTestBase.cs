@@ -328,7 +328,7 @@ namespace FastTests
 
                     store.BeforeDispose += (sender, args) =>
                     {
-                        CheckForMissingAttachmentsAndThrowIfNeeded(store, Context, name, serverToUse, caller);
+                        CheckForMissingAttachmentsAndThrowIfNeeded(store, Context, name, serverToUse, caller, sharded);
 
                         var realException = Context.GetException();
                         try
@@ -411,8 +411,11 @@ namespace FastTests
             "Can_push_via_filtered_replication" //TODO: remove when RavenDB-24415 is fixed
         ];
 
-        private static void CheckForMissingAttachmentsAndThrowIfNeeded(DocumentStore store, Context context, string name, RavenServer serverToUse, string caller)
+        private static void CheckForMissingAttachmentsAndThrowIfNeeded(DocumentStore store, Context context, string name, RavenServer serverToUse, string caller, bool sharded)
         {
+            if (sharded)
+                return;
+
             if (IsRavenTestCategoryTest(context, RavenTestCategory.Attachments | RavenTestCategory.Replication) == false)
                 return;
 

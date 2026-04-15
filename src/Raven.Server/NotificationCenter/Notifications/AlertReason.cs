@@ -100,5 +100,7 @@ namespace Raven.Server.NotificationCenter.Notifications
         ConflictRevisionsExceeded = 65,
         
         SqlConnectionString_DeprecatedFactoryReplaced = 66,
+
+        GcThreadContention = 71, // 67-70 are used in 7.2
     }
 }

@@ -472,7 +472,7 @@ public abstract class SmugglerProgressBase : IOperationProgress
 
         public override string ToString()
         {
-            return $"Skipped: {SkippedCount}. {base.ToString()}";
+            return $"Skipped: {SkippedCount:#,#;;0}. {base.ToString()}";
         }
     }
 
@@ -490,7 +490,7 @@ public abstract class SmugglerProgressBase : IOperationProgress
         public override string ToString()
         {
             if (SkippedCount > 0)
-                return $"Skipped: {SkippedCount}. {base.ToString()}";
+                return $"Skipped: {SkippedCount:#,#;;0}. {base.ToString()}";
 
             return base.ToString();
         }

@@ -30,6 +30,13 @@ namespace Corax.Querying;
 
 public sealed unsafe partial class IndexSearcher : IDisposable
 {
+    /// <summary>
+    /// Used for testing purposes only.
+    /// </summary>
+    private CoraxTestingConfiguration _testingConfiguration;
+
+    public void SetTestingConfiguration(CoraxTestingConfiguration testingConfiguration) => _testingConfiguration = testingConfiguration;
+    
     internal static readonly long BitmapMemoryRequiredThresholdInBytes = new Size(32, SizeUnit.Megabytes).GetValue(SizeUnit.Bytes);
     internal readonly Transaction _transaction;
     private Dictionary<string, Slice> _dynamicFieldNameMapping;
@@ -42,14 +49,8 @@ public sealed unsafe partial class IndexSearcher : IDisposable
     private long? _numberOfEntries;
     private bool _nullTermsMarkersLoaded;
     private bool _nonExistingTermsMarkersLoaded;
-
-    /// <summary>
-    /// When true no SIMD instruction will be used. Useful for checking that optimized algorithms behave in the same
-    /// way than reference algorithms. 
-    /// </summary>
-    public bool ForceNonAccelerated { get; set; }
-
-    public bool IsAccelerated => AdvInstructionSet.IsAcceleratedVector256 && !ForceNonAccelerated;
+    
+    public bool IsAccelerated => AdvInstructionSet.IsAcceleratedVector256 && (_testingConfiguration?.IsAccelerated ?? true);
 
     public long NumberOfEntries => _numberOfEntries ??= _metadataTree?.ReadInt64(Constants.IndexWriter.NumberOfEntriesSlice) ?? 0;
 
@@ -129,18 +130,7 @@ public sealed unsafe partial class IndexSearcher : IDisposable
         _transaction = tx;
         Init();
     }
-
-    private void Init()
-    {
-        _fieldsTree = _transaction.ReadTree(Constants.IndexWriter.FieldsSlice);
-        _entriesToTermsTree = _transaction.ReadTree(Constants.IndexWriter.EntriesToTermsSlice);
-        _metadataTree = _transaction.ReadTree(Constants.IndexMetadataSlice);
-        _multipleTermsInField = _transaction.ReadTree(Constants.IndexWriter.MultipleTermsInField);
-        _entryIdToLocation = _transaction.LookupFor<Int64LookupKey>(Constants.IndexWriter.EntryIdToLocationSlice);
-        _dictionaryId = CompactTree.GetDictionaryId(_transaction.LowLevelTransaction);
-        FieldCache = new FieldsCache(_transaction, _fieldsTree);
-    }
-
+    
     private IndexSearcher(IndexFieldsMapping fieldsMapping)
     {
         if (fieldsMapping is null)
@@ -155,7 +145,18 @@ public sealed unsafe partial class IndexSearcher : IDisposable
         }
     }
 
-    public EntryTermsReader GetEntryTermsReader(long id, ref Page p)
+    private void Init()
+    {
+        _fieldsTree = _transaction.ReadTree(Constants.IndexWriter.FieldsSlice);
+        _entriesToTermsTree = _transaction.ReadTree(Constants.IndexWriter.EntriesToTermsSlice);
+        _metadataTree = _transaction.ReadTree(Constants.IndexMetadataSlice);
+        _multipleTermsInField = _transaction.ReadTree(Constants.IndexWriter.MultipleTermsInField);
+        _entryIdToLocation = _transaction.LookupFor<Int64LookupKey>(Constants.IndexWriter.EntryIdToLocationSlice);
+        _dictionaryId = CompactTree.GetDictionaryId(_transaction.LowLevelTransaction);
+        FieldCache = new FieldsCache(_transaction, _fieldsTree);
+    }
+    
+    public EntryTermsReader GetEntryTermsReader(long id, ref Page p, CompactKey key = null)
     {
         if (_entryIdToLocation.TryGetValue(id, out var locLong) == false)
             throw new InvalidOperationException("Unable to find entry id: " + id);
@@ -163,7 +164,7 @@ public sealed unsafe partial class IndexSearcher : IDisposable
         InitializeSpecialTermsMarkers();
         ContainerEntryId loc = (ContainerEntryId)locLong;
         var item = Container.MaybeGetFromSamePage(_transaction.LowLevelTransaction, ref p, loc);
-        return new EntryTermsReader(_transaction.LowLevelTransaction, _nullTermsMarkers, _nonExistingTermsMarkers, item.Address, item.Length, _dictionaryId, _vectorFieldsMarkers);
+        return new EntryTermsReader(_transaction.LowLevelTransaction, _nullTermsMarkers, _nonExistingTermsMarkers, item.Address, item.Length, _dictionaryId, _vectorFieldsMarkers, key);
     }
 
     internal void EncodeAndApplyAnalyzerForMultipleTerms(in FieldMetadata binding, ReadOnlySpan<char> term, ref ContextBoundNativeList<Slice> terms)
