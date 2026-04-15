@@ -538,28 +538,31 @@ limit 1000001";
             Assert.Contains("sum", queryString, StringComparison.OrdinalIgnoreCase);
         }
 
-        // ── DirectQuery – regression ──────────────────────────────────────────────────
+        // ── DirectQuery – grouped aggregate – average (multi-aggregate limitation) ──────
 
         /// <summary>
-        /// Existing DirectQuery inner RQL must still parse correctly (regression guard).
+        /// PowerBI "Average" visual sends sum + count together. Only sum is captured (first aggregate
+        /// wins); count is silently dropped. This is a known limitation — multi-aggregate not supported.
+        /// PowerBI computes average client-side from both columns, so returning sum only is insufficient.
         /// </summary>
         [Fact]
-        public void DirectQuery_InnerRql_StillParsesCorrectly_AfterSharedHelperChange()
+        public void DirectQuery_GroupedAverage_SumPlusCount_InnerSql_ParsesAsSumOnly()
         {
+            // PowerBI sends both sum and count; we only capture sum (first aggregate wins).
             const string sql =
-                @"select ""_"".""Employee""
+                @"select ""rows"".""Company"" as ""Company"",
+    ""rows"".""Employee"" as ""Employee"",
+    sum(""rows"".""Freight"") as ""a0"",
+    count(""rows"".""Freight"") as ""a1""
 from
 (
-    select ""rows"".""Employee"" as ""Employee""
-    from
-    (
-        from Orders
-        where Company in ('Companies/1-A', 'Companies/2-A')
-    ) ""rows""
-    group by ""Employee""
-) ""_""
-order by ""_"".""Employee""
-limit 501";
+    select *
+    from Orders
+    where Company in ('Companies/1-A', 'Companies/2-A', 'Companies/3-A')
+) ""rows""
+group by ""Company"",
+    ""Employee""
+limit 1000001";
 
             Assert.True(PowerBIDirectQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
             Assert.IsType<PowerBIDirectQuery>(pgQuery);
@@ -567,6 +570,9 @@ limit 501";
             var queryString = GetQueryString(pgQuery);
             Assert.NotNull(queryString);
             Assert.Contains("Orders", queryString, StringComparison.OrdinalIgnoreCase);
+            // Only sum is emitted — count column is silently dropped (multi-aggregate not supported).
+            Assert.Contains("sum", queryString, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("count", queryString, StringComparison.OrdinalIgnoreCase);
         }
 
         // ── Identifier case recovery – Fetch/Import ──────────────────────────────────

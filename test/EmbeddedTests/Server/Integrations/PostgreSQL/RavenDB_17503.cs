@@ -881,12 +881,14 @@ limit 1000001";
         }
     }
 
-    [Fact(Skip = "Unsupported: grouped aggregate wrapper + inner filter on non-grouped field.")]
+    [Fact(Skip = "Unsupported: Raven grouped-RQL WHERE is HAVING (group-keys/aggregates only). Pre-group filter on non-group-key field (Company) cannot be expressed.")]
     public async Task DirectQuery_desktop_grouped_sum_two_group_fields_with_outer_where_not_null_should_work_end_to_end()
     {
-        // not supported in rql:
-        // from orders
-        // where Company in ('Companies/1-A', 'Companies/2-A', 'Companies/3-A')
+        // The inner RQL filters on Company (not a group key) before grouping by Employee + RequireAt.
+        // Raven grouped-RQL WHERE is a HAVING clause; it only allows group-key and aggregate expressions.
+        // There is no pre-aggregate filter syntax in Raven RQL for grouped queries.
+        // from Orders
+        // where Company in ('Companies/1-A', 'Companies/2-A', 'Companies/3-A')   ← not expressible
         // group by Employee, RequireAt
         // select Employee, RequireAt, sum(Freight) as a0
 
@@ -921,6 +923,81 @@ limit 1000001";
             Assert.True(result.Columns.Contains("Employee"));
             Assert.True(result.Columns.Contains("RequireAt"));
             Assert.True(result.Columns.Contains("a0"));
+        }
+    }
+
+    [Fact]
+    public async Task DirectQuery_grouped_count_flat_shape_inner_sql_should_work_end_to_end()
+    {
+        // PowerBI "Count" visual: flat grouped shape — GROUP BY at outermost select level,
+        // count() aggregate, inner SQL with SELECT *.
+        // Verifies: (a) TryParse succeeds, (b) Raven executes and returns rows,
+        // (c) the count column values equal the number of matching documents per group.
+        using (var store = GetDocumentStore())
+        {
+            await store.Maintenance.SendAsync(new CreateSampleDataOperation());
+
+            // Step 1: fetch raw rows to compute expected counts client-side.
+            const string rawSql = @"select ""_"".""Company"",
+    ""_"".""Employee""
+from
+(
+    from Orders
+    where Company in ('Companies/1-A', 'Companies/2-A', 'Companies/3-A')
+) ""_""
+limit 1000001";
+
+            var rawResult = await Act(store, rawSql);
+            Assert.NotNull(rawResult);
+            Assert.NotEmpty(rawResult.Rows);
+
+            var expected = new Dictionary<(string Company, string Employee), int>();
+            foreach (DataRow row in rawResult.Rows)
+            {
+                var company = row["Company"].ToString();
+                var employee = row["Employee"].ToString();
+                var key = (company, employee);
+                expected.TryGetValue(key, out var existing);
+                expected[key] = existing + 1;
+            }
+
+            Assert.NotEmpty(expected);
+
+            // Step 2: run the flat grouped count query.
+            const string sql =
+                @"select ""rows"".""Company"" as ""Company"",
+    ""rows"".""Employee"" as ""Employee"",
+    count(""rows"".""Freight"") as ""a0""
+from
+(
+    select *
+    from Orders
+    where Company in ('Companies/1-A', 'Companies/2-A', 'Companies/3-A')
+) ""rows""
+group by ""Company"",
+    ""Employee""
+limit 1000001";
+
+            var result = await Act(store, sql);
+
+            Assert.NotNull(result);
+            Assert.NotEmpty(result.Rows);
+            Assert.True(result.Columns.Contains("Company"));
+            Assert.True(result.Columns.Contains("Employee"));
+            Assert.True(result.Columns.Contains("a0"));
+
+            foreach (DataRow row in result.Rows)
+            {
+                var company = row["Company"].ToString();
+                var employee = row["Employee"].ToString();
+                var countVal = Convert.ToInt64(row["a0"]);
+
+                Assert.True(expected.TryGetValue((company, employee), out var expectedCount),
+                    $"Unexpected group ({company}, {employee}) in result");
+                Assert.Equal(expectedCount, (int)countVal);
+            }
+
+            Assert.Equal(expected.Count, result.Rows.Count);
         }
     }
 

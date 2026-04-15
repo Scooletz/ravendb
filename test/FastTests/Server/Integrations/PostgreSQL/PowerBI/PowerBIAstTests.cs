@@ -76,7 +76,7 @@ from ""public"".""Orders"" ""$Table"" limit 200";
             // Use the same PowerBI parsing entry point as production.
             Assert.True(PowerBIQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
 
-            // This assertion is expected to FAIL today (falls back to Fetch), making the mismatch explicit.
+            // 4-level null-order-helper wrapper with inner RQL — classified as DirectQuery (non-aggregate path).
             Assert.IsType<PowerBIDirectQuery>(pgQuery);
         }
 
@@ -1357,6 +1357,135 @@ order by ""_"".""Employee""
 limit 501";
 
             Assert.False(PowerBIDirectQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out _));
+        }
+
+        [Fact]
+        public void DirectQuery_InnerRql_4LevelWrapper_AiringNameDistinctList_Parses()
+        {
+            const string sql =
+                @"select ""_"".""AiringName""
+from
+(
+    select ""rows"".""AiringName"" as ""AiringName""
+    from
+    (
+        select ""AiringName""
+        from
+        (
+            from ""AiringSummaries""
+            select
+                AiringLegacyId,
+                AiringId,
+                ProgramId,
+                ProgramCodeId,
+                ProgramCategoryCodeId,
+                AiringName,
+                Air.AirDateTime,
+                Air.EndAirDateTime,
+                Air.Duration,
+                BroadcastAiringDetail.AirDateTime,
+                BroadcastAiringDetail.EstimatedAirDateTime,
+                BroadcastAiringDetail.ActualAirDateTime
+        ) ""$Table""
+    ) ""rows""
+    group by ""AiringName""
+) ""_""
+order by ""_"".""AiringName""
+limit 501";
+
+            Assert.True(PowerBIDirectQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
+            Assert.IsType<PowerBIDirectQuery>(pgQuery);
+
+            var queryString = GetQueryString(pgQuery);
+            Assert.NotNull(queryString);
+            Assert.Contains("AiringSummaries", queryString, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("AiringName", queryString, StringComparison.OrdinalIgnoreCase);
+        }
+
+        // ── DirectQuery – grouped count ───────────────────────────────────────────────
+
+        [Fact]
+        public void DirectQuery_grouped_count_flat_shape_inner_sql_should_parse_and_emit_count_with_no_argument()
+        {
+            // PowerBI "Count" visual: GROUP BY at outermost level, count() aggregate, inner SQL with SELECT *.
+            // Tests: (a) flat-grouped normalizer path, (b) count() emitted without field argument,
+            // (c) "as long" sort type used instead of "as double".
+            const string sql =
+                @"select ""rows"".""Company"" as ""Company"",
+    ""rows"".""Employee"" as ""Employee"",
+    count(""rows"".""Freight"") as ""a0""
+from
+(
+    select *
+    from Orders
+    where Company in ('Companies/1-A', 'Companies/2-A', 'Companies/3-A')
+) ""rows""
+group by ""Company"",
+    ""Employee""
+limit 1000001";
+
+            Assert.True(PowerBIDirectQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
+            Assert.IsType<PowerBIDirectQuery>(pgQuery);
+
+            var queryString = GetQueryString(pgQuery);
+            Assert.NotNull(queryString);
+            Assert.Contains("Orders", queryString, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("count()", queryString, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("Freight", queryString, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("as double", queryString, StringComparison.OrdinalIgnoreCase);
+        }
+
+        [Fact]
+        public void DirectQuery_grouped_count_flat_shape_inner_rql_should_parse_and_emit_count()
+        {
+            // Same flat-grouped shape, but inner is plain RQL (not SQL).
+            const string sql =
+                @"select ""rows"".""Company"" as ""Company"",
+    count(""rows"".""Freight"") as ""a0""
+from
+(
+    from Orders
+    where Company in ('Companies/1-A', 'Companies/2-A')
+) ""rows""
+group by ""Company""
+limit 1000001";
+
+            Assert.True(PowerBIDirectQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
+            Assert.IsType<PowerBIDirectQuery>(pgQuery);
+
+            var queryString = GetQueryString(pgQuery);
+            Assert.NotNull(queryString);
+            Assert.Contains("Orders", queryString, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("count()", queryString, StringComparison.OrdinalIgnoreCase);
+        }
+
+        // ── DirectQuery – regression ──────────────────────────────────────────────────
+
+        [Fact]
+        public void DirectQuery_inner_rql_non_aggregate_wrapper_should_still_parse_correctly()
+        {
+            // Regression: DirectQuery with inner RQL (non-aggregate distinct-list wrapper).
+            const string sql =
+                @"select ""_"".""Employee""
+from
+(
+    select ""rows"".""Employee"" as ""Employee""
+    from
+    (
+        from Orders
+        where Company in ('Companies/1-A', 'Companies/2-A')
+    ) ""rows""
+    group by ""Employee""
+) ""_""
+order by ""_"".""Employee""
+limit 501";
+
+            Assert.True(PowerBIDirectQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
+            Assert.IsType<PowerBIDirectQuery>(pgQuery);
+
+            var queryString = GetQueryString(pgQuery);
+            Assert.NotNull(queryString);
+            Assert.Contains("Orders", queryString, StringComparison.OrdinalIgnoreCase);
         }
 
     }

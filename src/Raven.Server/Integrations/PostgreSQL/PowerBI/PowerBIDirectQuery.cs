@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Text;
 using PgSqlParser;
 using Raven.Server.Documents;
 using Raven.Server.Documents.Queries;
@@ -88,12 +89,12 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 // On any mismatch, return false so the other PowerBI parsers can handle it.
                 var sql = queryText;
 
-                if (PowerBIInnerRqlExtractor.TryExtractInnerRqlSpan(sql, out var innerStart, out var innerEnd, out var innerRql, out var fromTwoParsersPath) == false)
+                var inner = PowerBIInnerRqlExtractor.TryExtractAndResolve(sql);
+                if (inner == null)
                     return false;
 
-                // Replace the inner RQL (which PgSqlParser cannot parse) with a trivial SQL subquery.
-                // Keep parentheses and surrounding SQL intact.
-                var sanitizedSql = sql[..innerStart] + "select 1" + sql[innerEnd..];
+                // Replace the inner content with a trivial SQL subquery so pgsqlparser can parse the outer wrapper.
+                var sanitizedSql = sql[..inner.InnerStart] + "select 1" + sql[inner.InnerEnd..];
 
                 var parseResult = Parser.Parse(sanitizedSql);
                 if (parseResult.IsSuccess == false || parseResult.Value == null)
@@ -115,11 +116,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                     string rewritten;
                     try
                     {
-                        var innerQuery = PowerBIInnerRqlExtractor.TryResolveExtractedInnerTextToRqlQuery(innerRql, fromTwoParsersPath);
-                        if (innerQuery == null)
-                            return false;
-
-                        rewritten = RewriteGroupedAggregateRql(innerQuery, aggregateShape);
+                        rewritten = RewriteGroupedAggregateRql(inner.ResolvedQuery, aggregateShape);
                     }
                     catch
                     {
@@ -136,24 +133,17 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                     return true;
                 }
 
-                // Scalar aggregates (aggregate without group by) are not supported in Raven RQL.
+                // Scalar aggregates (no GROUP BY) are not supported in Raven RQL.
                 if (wrapper.GroupByColumns is not { Count: > 0 } &&
                     (string.IsNullOrWhiteSpace(wrapper.AggregateFunction) == false ||
                      string.IsNullOrWhiteSpace(wrapper.AggregateField) == false ||
                      string.IsNullOrWhiteSpace(wrapper.AggregateOutput) == false))
                     return false;
 
-                // Scalar aggregates (sum without group by) are not supported in Raven RQL.
-                // Keep DirectQuery ownership restricted to non-aggregate wrappers and grouped-aggregate wrappers only.
                 if (TryBuildDirectQueryShape(wrapper, out var shape) == false)
                     return false;
 
-                // Reuse the shared extraction-path-aware resolver: treats the inner text as RQL when
-                // the preferred two-parsers path confirmed embedded RQL, and as ambiguous otherwise
-                // (tries RQL first, then SQL→RQL translation – the SQL-textbox POC path).
-                var q = PowerBIInnerRqlExtractor.TryResolveExtractedInnerTextToRqlQuery(innerRql, fromTwoParsersPath);
-                if (q == null)
-                    return false;
+                var q = inner.ResolvedQuery;
 
                 // Non-aggregate DirectQuery rewrite always emits `select { ... }` (object projection).
                 // Raven requires a from-alias for object projections, so synthesize a stable alias when missing.
@@ -196,6 +186,54 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 if (selectStmt == null)
                     return false;
 
+                // "Flat grouped" shape: GROUP BY is at the outermost select level (no outer "_" wrapper).
+                // Example: PowerBI count / average queries where the aggregate and group-by live in the
+                // same SELECT, with a raw subquery ("rows") as the FROM clause.
+                //   SELECT "rows"."Company", count("rows"."Freight") as "a0"
+                //   FROM (...) "rows"
+                //   GROUP BY "Company"
+                //   LIMIT ...
+                if (selectStmt.GroupClause is { Count: > 0 })
+                {
+                    int? limitFlat = null;
+                    if (selectStmt.LimitCount != null)
+                    {
+                        if (TryExtractLimit(selectStmt, out var l) == false)
+                            return false;
+                        limitFlat = l;
+                    }
+
+                    int? offsetFlat = null;
+                    if (selectStmt.LimitOffset != null)
+                    {
+                        if (selectStmt.LimitOffset.AConst?.Ival == null)
+                            return false;
+                        offsetFlat = (int)selectStmt.LimitOffset.AConst.Ival.Ival;
+                    }
+
+                    if (TryExtractGroupByColumns(selectStmt, out var groupByColsFlat) == false)
+                        return false;
+
+                    TryExtractSingleAggregate(selectStmt, out var aggFuncFlat, out var aggFieldFlat, out var aggOutputFlat);
+
+                    // ORDER BY in flat grouped shapes is not yet supported; treat the group-by fields as
+                    // the outer projection (aggregate output alias is captured in AggregateOutput).
+                    wrapper = new NormalizedWrapper(
+                        OuterProjectedColumns: new List<string>(groupByColsFlat),
+                        GroupByColumns: groupByColsFlat,
+                        OrderByColumns: new List<string>(),
+                        OrderByDescFlags: new List<bool>(),
+                        OuterWhereClause: selectStmt.WhereClause,
+                        Limit: limitFlat,
+                        Offset: offsetFlat,
+                        AggregateFunction: aggFuncFlat,
+                        AggregateField: aggFieldFlat,
+                        AggregateOutput: aggOutputFlat);
+                    return true;
+                }
+
+                // Standard wrapped shape: GROUP BY lives in an inner subquery (e.g. the three-level
+                // PowerBI sum shape with an outer "_" null-guard wrapper).
                 if (TryExtractProjectedColumnsFromAnyWrapperLevel(selectStmt, out var outerCols) == false)
                     return false;
 
@@ -313,10 +351,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                         var colRef = rt.Val?.ColumnRef;
                         if (colRef == null)
                         {
-                            // Non-col-ref expression (e.g. CASE): skip only when BOTH the alias matches
-                            // a known helper pattern AND the expression is a CASE expression.
-                            // Intentional conservative tolerance for PowerBI null-order CASE helpers;
-                            // not a general expression interpreter.
+                            // Tolerate PowerBI null-order CASE helper columns; reject anything else.
                             if (IsHelperColumnAlias(rt.Name) && rt.Val?.CaseExpr != null)
                                 continue;
                             return false;
@@ -492,7 +527,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                     string.IsNullOrWhiteSpace(wrapper.AggregateOutput))
                     return false;
 
-                if (string.Equals(wrapper.AggregateFunction, "sum", StringComparison.OrdinalIgnoreCase) == false)
+                if (IsSupportedGroupedAggregateFunction(wrapper.AggregateFunction) == false)
                     return false;
 
                 if (wrapper.GroupByColumns is not { Count: > 0 })
@@ -589,12 +624,10 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 if (wrapper.OuterProjectedColumns is not { Count: > 0 })
                     return false;
 
-                // Non-aggregate DirectQuery: only own the Power BI distinct-list wrapper family.
-                // For current supported scope, require GROUP BY presence.
+                // Require GROUP BY — non-aggregate DirectQuery owns the distinct-list wrapper shape.
                 if (wrapper.GroupByColumns is not { Count: > 0 })
                     return false;
 
-                // Non-aggregate DirectQuery wrappers: ignore wrapper GROUP BY / ORDER BY.
                 var limit = wrapper.Limit ?? 1000001;
                 shape = new DirectQueryShape(wrapper.OuterProjectedColumns, limit);
                 return true;
@@ -618,7 +651,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 if (q.From.From == null)
                     return false;
 
-                if (string.Equals(shape.FunctionName, "sum", StringComparison.OrdinalIgnoreCase) == false)
+                if (IsSupportedGroupedAggregateFunction(shape.FunctionName) == false)
                     return false;
 
                 if (shape.GroupByFields is not { Count: > 0 })
@@ -653,7 +686,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                     FromText: fromText,
                     WhereText: whereText,
                     GroupByFields: groupIds,
-                    AggregateFunction: "sum",
+                    AggregateFunction: shape.FunctionName,
                     AggregateField: fieldId,
                     AggregateOutput: outId,
                     OrderBy: orderBy,
@@ -718,7 +751,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 // limit 0, <limit>
 
                 const string nl = "\n";
-                var sb = new System.Text.StringBuilder();
+                var sb = new StringBuilder();
                 sb.Append(parts.FromText);
                 sb.Append(nl);
                 sb.Append("group by ");
@@ -745,7 +778,8 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                         {
                             case GroupedOrderByKind.Output:
                                 sb.Append(parts.AggregateOutput);
-                                sb.Append(" as double");
+                                // count() returns a long integer; sum() returns a double.
+                                sb.Append(IsCountFunction(parts.AggregateFunction) ? " as long" : " as double");
                                 break;
                             case GroupedOrderByKind.GroupKey:
                                 if (parts.GroupByFields is not { Count: > 0 })
@@ -773,11 +807,20 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                     sb.Append(parts.GroupByFields[i]);
                 }
                 sb.Append(", ");
-                sb.Append(parts.AggregateFunction);
-                sb.Append('(');
-                sb.Append(parts.AggregateField);
-                sb.Append(") as ");
-                sb.Append(parts.AggregateOutput);
+                if (IsCountFunction(parts.AggregateFunction))
+                {
+                    // Raven grouped RQL uses count() with no argument; the SQL-side field name is irrelevant.
+                    sb.Append("count() as ");
+                    sb.Append(parts.AggregateOutput);
+                }
+                else
+                {
+                    sb.Append(parts.AggregateFunction);
+                    sb.Append('(');
+                    sb.Append(parts.AggregateField);
+                    sb.Append(") as ");
+                    sb.Append(parts.AggregateOutput);
+                }
 
                 sb.Append(nl);
                 sb.Append("limit 0, ");
@@ -793,7 +836,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 if (q?.From.From == null)
                     return false;
 
-                var sb = new System.Text.StringBuilder();
+                var sb = new StringBuilder();
                 var v = new StringQueryVisitor(sb);
                 v.VisitFromClause(q.From.From, q.From.Alias, q.From.Filter, q.From.Index);
                 fromText = sb.ToString().Trim();
@@ -807,7 +850,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 if (q?.Where == null)
                     return true;
 
-                var sb = new System.Text.StringBuilder();
+                var sb = new StringBuilder();
                 var v = new StringQueryVisitor(sb);
                 v.VisitWhereClause(q.Where);
                 var rendered = sb.ToString().Trim();
@@ -817,6 +860,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 whereText = rendered;
                 return true;
             }
+
             static bool TryExtractOuterProjectedColumns(SelectStmt selectStmt, out List<string> cols)
             {
                 cols = null;
@@ -834,10 +878,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                     var colRef = resTarget.Val?.ColumnRef;
                     if (colRef == null)
                     {
-                        // Non-col-ref expression (e.g. CASE): skip only when BOTH the alias matches
-                        // a known helper pattern AND the expression is a CASE expression.
-                        // Intentional conservative tolerance for PowerBI null-order CASE helpers;
-                        // not a general expression interpreter.
+                        // Tolerate PowerBI null-order CASE helper columns; reject anything else.
                         if (IsHelperColumnAlias(resTarget.Name) && resTarget.Val?.CaseExpr != null)
                             continue;
                         return false;
@@ -1233,9 +1274,8 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                     selectParts.Add($"{selectField}: {expr}");
                 }
 
-
                 const string nl = "\n";
-                var sb = new System.Text.StringBuilder();
+                var sb = new StringBuilder();
                 sb.Append(prefix);
                 sb.Append(nl);
                 sb.Append("select { ");
@@ -1271,7 +1311,6 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 // Escaped identifier: use a bracket access on the alias.
                 return fromAlias + id;
             }
-
 
             static Dictionary<string, string> TryExtractProjectionExpressions(ReadOnlySpan<char> selectClause)
             {
@@ -1516,6 +1555,14 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                     return true;
                 }
             }
+
+            static bool IsSupportedGroupedAggregateFunction(string name) =>
+                string.Equals(name, "sum", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(name, "count", StringComparison.OrdinalIgnoreCase);
+
+            // Raven grouped RQL uses count() with no argument; emit differently from field-taking functions.
+            static bool IsCountFunction(string name) =>
+                string.Equals(name, "count", StringComparison.OrdinalIgnoreCase);
 
             static string FormatRqlIdentifier(string identifier)
             {
