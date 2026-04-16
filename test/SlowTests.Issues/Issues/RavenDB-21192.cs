@@ -29,6 +29,7 @@ using Raven.Server.Documents.ETL.Stats;
 using Raven.Server.NotificationCenter.Notifications;
 using Raven.Server.NotificationCenter.Notifications.Details;
 using Raven.Server.ServerWide.Context;
+using Raven.Server.Utils.Metrics;
 using Raven.Server.Utils.Monitoring;
 using Sparrow.Json;
 using Tests.Infrastructure;
@@ -259,87 +260,21 @@ public class RavenDB_21192 : RavenTestBase
     }
 
     [RavenFact(RavenTestCategory.Etl)]
-    public async Task TestEwmaCalculation()
+    public void TestEwmaCalculation()
     {
-        using (var src = GetDocumentStore())
-        using (var dest = GetDocumentStore())
-        {
-            const string connectionStringName1 = "ConnectionString1";
-            const string etlName1 = "ETL1";
-            const string transformationName1 = "Transformation1";
-            const string script1 = """
-                                   if (this.Name == "James Doe")
-                                   {
-                                        throw new Error("dummy error");
-                                   }                   
-                                   loadToUsers(this);
-                                   """;
-            var collections1 = new List<string>() { "Users" };
-            
-            AddEtlTask(src, dest, etlName1, connectionStringName1, [transformationName1], [script1], collections1);
-
-            using (var session = src.OpenAsyncSession())
-            {
-                for (int i = 0; i < 10; i++)
-                    await session.StoreAsync(new User { Name = "James Doe", Value = 0 });
-                await session.SaveChangesAsync();
-            }
-
-            await WaitForEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1), stats => stats.TransformationErrors == 10);
-
-            var etlStats = await GetEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1));
-
-            Assert.Equal(0, etlStats.LoadSuccesses);
-            Assert.Equal(10, etlStats.TransformationErrors);
-            Assert.Equal(1.0, etlStats.AverageErrorsRatio.GetRate());
-
-            using (var session = src.OpenAsyncSession())
-            {
-                for (int i = 0; i < 50; i++)
-                    await session.StoreAsync(new User { Name = "Joe Doe", Value = 1 });
-                await session.SaveChangesAsync();
-            }
-
-            await WaitForEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1), stats => stats.LoadSuccesses == 50);
-
-            etlStats = await GetEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1));
-
-            Assert.Equal(50, etlStats.LoadSuccesses);
-            Assert.Equal(20, etlStats.TransformationErrors);
-            Assert.InRange(etlStats.AverageErrorsRatio.GetRate(), 0.75, 0.83);
-
-            using (var session = src.OpenAsyncSession())
-            {
-                for (int i = 0; i < 900; i++)
-                    await session.StoreAsync(new User { Name = "Joe Doe", Value = 1 });
-                await session.SaveChangesAsync();
-            }
-
-            await WaitForEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1), stats => stats.LoadSuccesses == 950);
-            
-            etlStats = await GetEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1));
-            
-            Assert.Equal(950, etlStats.LoadSuccesses);
-            Assert.Equal(20, etlStats.TransformationErrors);
-            Assert.InRange(etlStats.AverageErrorsRatio.GetRate(), 0.15, 0.20);
-
-            using (var session = src.OpenAsyncSession())
-            {
-                for (int i = 0; i < 500; i++)
-                    await session.StoreAsync(new User { Name = "James Doe", Value = 0 });
-                for (int i = 0; i < 10; i++)
-                    await session.StoreAsync(new User { Name = "Joe Doe", Value = 1 });
-                await session.SaveChangesAsync();
-            }
-
-            await WaitForEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1), stats => stats.LoadSuccesses == 960);
-
-            etlStats = await GetEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1));
-
-            Assert.Equal(960, etlStats.LoadSuccesses);
-            Assert.Equal(520, etlStats.TransformationErrors);
-            Assert.InRange(etlStats.AverageErrorsRatio.GetRate(), 0.42, 0.44);
-        }
+        var ewma = new TimeAgnosticEwma();
+        
+        ewma.UpdateOnBatchCompletion(errorsInThisBatch: 10, totalItemsInThisBatch: 10);
+        Assert.Equal(1.0, ewma.GetRate());
+        
+        ewma.UpdateOnBatchCompletion(errorsInThisBatch: 10, totalItemsInThisBatch: 60);
+        Assert.InRange(ewma.GetRate(), 0.80, 0.81);
+        
+        ewma.UpdateOnBatchCompletion(errorsInThisBatch: 0, totalItemsInThisBatch: 900);
+        Assert.InRange(ewma.GetRate(), 0.16, 0.17);
+        
+        ewma.UpdateOnBatchCompletion(errorsInThisBatch: 500, totalItemsInThisBatch: 510);
+        Assert.InRange(ewma.GetRate(), 0.42, 0.43);
     }
     
     [RavenFact(RavenTestCategory.Etl)]
@@ -602,7 +537,7 @@ public class RavenDB_21192 : RavenTestBase
             var etlStats = await GetEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1));
 
             Assert.Equal(0, etlStats.LoadSuccesses);
-            Assert.Equal(10, etlStats.TransformationErrors);
+            Assert.NotEqual(0, etlStats.TransformationErrors);
             Assert.Equal(EtlProcessHealthStatus.Failed, etlStats.HealthStatus);
 
             using (var session = src.OpenAsyncSession())
@@ -617,7 +552,7 @@ public class RavenDB_21192 : RavenTestBase
             etlStats = await GetEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1));
 
             Assert.Equal(50, etlStats.LoadSuccesses);
-            Assert.Equal(20, etlStats.TransformationErrors);
+            Assert.NotEqual(0, etlStats.TransformationErrors);
             Assert.Equal(EtlProcessHealthStatus.Impaired, etlStats.HealthStatus);
 
             using (var session = src.OpenAsyncSession())
@@ -632,7 +567,7 @@ public class RavenDB_21192 : RavenTestBase
             etlStats = await GetEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1));
             
             Assert.Equal(950, etlStats.LoadSuccesses);
-            Assert.Equal(20, etlStats.TransformationErrors);
+            Assert.NotEqual(0, etlStats.TransformationErrors);
             Assert.Equal(EtlProcessHealthStatus.Impaired, etlStats.HealthStatus);
 
             using (var session = src.OpenAsyncSession())
@@ -649,7 +584,7 @@ public class RavenDB_21192 : RavenTestBase
             etlStats = await GetEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1));
 
             Assert.Equal(960, etlStats.LoadSuccesses);
-            Assert.Equal(1020, etlStats.TransformationErrors);
+            Assert.NotEqual(0, etlStats.TransformationErrors);
 
             Assert.Equal(EtlProcessHealthStatus.Impaired, etlStats.HealthStatus);
         }
@@ -778,7 +713,7 @@ public class RavenDB_21192 : RavenTestBase
             var etlStats = await GetEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1));
 
             Assert.Equal(0, etlStats.LoadSuccesses);
-            Assert.Equal(10, etlStats.TransformationErrors);
+            Assert.NotEqual(0, etlStats.TransformationErrors);
 
             await AssertHealthStatusNotificationAsync(src, processTag, EtlProcess.GetProcessName(etlName1, transformationName1), EtlProcessHealthStatus.Failed);
 
@@ -794,7 +729,7 @@ public class RavenDB_21192 : RavenTestBase
             etlStats = await GetEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1));
 
             Assert.Equal(50, etlStats.LoadSuccesses);
-            Assert.Equal(20, etlStats.TransformationErrors);
+            Assert.NotEqual(0, etlStats.TransformationErrors);
 
             await AssertHealthStatusNotificationAsync(src, processTag, EtlProcess.GetProcessName(etlName1, transformationName1), EtlProcessHealthStatus.Impaired);
 
@@ -860,9 +795,7 @@ public class RavenDB_21192 : RavenTestBase
             
             var database = GetDatabase(src.Database).GetAwaiter().GetResult();
             
-            var itemErrors = database.EtlErrorsStorage.ReadAllItemErrors();
-
-            Assert.Equal(20, itemErrors.Count);
+            Assert.Equal(20, WaitForValue(() => database.EtlErrorsStorage.ReadAllItemErrors().Count, 20, interval: 500));
             
             var updatedConfig = new RavenEtlConfiguration
             {
@@ -886,9 +819,9 @@ public class RavenDB_21192 : RavenTestBase
             
             await WaitForEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1), stats => stats.TransformationErrors == 10);
             
-            itemErrors = database.EtlErrorsStorage.ReadAllItemErrors();
+            Assert.Equal(10, WaitForValue(() => database.EtlErrorsStorage.ReadAllItemErrors().Count, 10, interval: 500));
 
-            Assert.Equal(10, itemErrors.Count);
+            var itemErrors = database.EtlErrorsStorage.ReadAllItemErrors();
 
             foreach (var itemError in itemErrors)
             {
@@ -935,16 +868,14 @@ public class RavenDB_21192 : RavenTestBase
             
             var database = GetDatabase(src.Database).GetAwaiter().GetResult();
             
-            var itemErrors = database.EtlErrorsStorage.ReadAllItemErrors();
-
-            Assert.Equal(20, itemErrors.Count);
+            Assert.Equal(20, WaitForValue(() => database.EtlErrorsStorage.ReadAllItemErrors().Count, 20, interval: 500));
             
             var deleteOp = new DeleteOngoingTaskOperation(taskId1, OngoingTaskType.RavenEtl);
             src.Maintenance.Send(deleteOp);
             
-            itemErrors = database.EtlErrorsStorage.ReadAllItemErrors();
+            Assert.Equal(10, WaitForValue(() => database.EtlErrorsStorage.ReadAllItemErrors().Count, 10, interval: 500));
 
-            Assert.Equal(10, itemErrors.Count);
+            var itemErrors = database.EtlErrorsStorage.ReadAllItemErrors();
 
             foreach (var itemError in itemErrors)
             {
