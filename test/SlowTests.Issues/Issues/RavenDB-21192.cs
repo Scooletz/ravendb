@@ -1394,6 +1394,55 @@ public class RavenDB_21192 : RavenTestBase
         }
     }
 
+    [RavenFact(RavenTestCategory.Etl)]
+    public async Task ForceBatchRetryShouldWakeUpEtlProcessFromFallbackMode()
+    {
+        using (var src = GetDocumentStore())
+        using (var dest = GetDocumentStore())
+        {
+            const string connectionStringName = "ConnectionString1";
+            const string etlName = "ETL1";
+            const string transformationName = "Transformation1";
+            const string script = "loadToUsers(this);";
+            var collections = new List<string> { "Users" };
+
+            var database = await GetDatabase(src.Database);
+            
+            database.ForTestingPurposes ??= new DocumentDatabase.TestingStuff();
+            database.ForTestingPurposes.EtlFallbackTime = TimeSpan.FromMinutes(60);
+
+            AddEtlTask(src, dest, etlName, connectionStringName, [transformationName], [script], collections);
+
+            var processName = EtlProcess.GetProcessName(etlName, transformationName);
+            
+            var disableResult = await dest.Maintenance.Server.SendAsync(new ToggleDatabasesStateOperation(dest.Database, disable: true));
+            Assert.True(disableResult.Disabled);
+
+            using (var session = src.OpenAsyncSession())
+            {
+                for (int i = 0; i < 5; i++)
+                    await session.StoreAsync(new User { Name = "Joe Doe" });
+                await session.SaveChangesAsync();
+            }
+            
+            await WaitForEtlStatsAsync(src, processName, stats => stats.LoadErrors > 0);
+
+            var process = database.EtlLoader.Processes.Single(x => x.Name == processName);
+
+            Assert.Equal(OngoingTaskConnectionStatus.Reconnect, process.GetConnectionStatus());
+            
+            await dest.Maintenance.Server.SendAsync(new ToggleDatabasesStateOperation(dest.Database, disable: false));
+            
+            process.ForceBatchRetry();
+            
+            await WaitForEtlStatsAsync(src, processName, stats => stats.LoadSuccesses >= 5, timeout: 30_000);
+
+            var etlStats = await GetEtlStatsAsync(src, processName);
+            Assert.True(etlStats.LoadSuccesses >= 5);
+            Assert.Equal(OngoingTaskConnectionStatus.Active, process.GetConnectionStatus());
+        }
+    }
+
     private async Task<EtlProcessStatistics> GetEtlStatsAsync(DocumentStore store, string etlName, int shardNumber = 0)
     {
         var record = store.Maintenance.Server.Send(new GetDatabaseRecordOperation(store.Database));
