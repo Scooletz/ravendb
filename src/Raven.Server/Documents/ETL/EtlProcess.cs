@@ -135,12 +135,15 @@ namespace Raven.Server.Documents.ETL
         
         public static string GetProcessName(string configurationName, string transformationName) => $"{configurationName}/{transformationName}";
 
+        protected readonly ManualResetEventSlim ForceBatchRetryEvent = new ManualResetEventSlim();
+
         public void ForceBatchRetry()
         {
             if (Logger.IsInfoEnabled)
                 Logger.Info($"Forced batch retry was requested for {Tag} process: '{Name}'.");
 
             FallbackTime = null;
+            ForceBatchRetryEvent.Set();
         }
     }
 
@@ -901,9 +904,13 @@ namespace Raven.Server.Documents.ETL
                                 EnterFallbackMode(e, lastUpdateStateErrorTime);
                                 lastUpdateStateErrorTime = Database.Time.GetUtcNow();
 
-                                if (CancellationToken.WaitHandle.WaitOne(FallbackTime.Value))
+                                const int cancellationIndex = 0;
+                                var handles = new[] { CancellationToken.WaitHandle, ForceBatchRetryEvent.WaitHandle };
+                                var signaledIndex = WaitHandle.WaitAny(handles, FallbackTime.Value);
+                                if (signaledIndex == cancellationIndex)
                                     return;
 
+                                ForceBatchRetryEvent.Reset();
                                 FallbackTime = null;
                             }
                         }
@@ -923,19 +930,41 @@ namespace Raven.Server.Documents.ETL
                         }
                         else
                         {
+                            var fallbackTime = FallbackTime.Value;
                             var sp = Stopwatch.StartNew();
 
-                            if (_waitForChanges.Wait(FallbackTime.Value, CancellationToken))
+                            const int cancellationHandleIndex = 0;
+                            const int forceBatchRetryHandleIndex = 1;
+                            var handles = new[] { CancellationToken.WaitHandle, ForceBatchRetryEvent.WaitHandle, _waitForChanges.WaitHandle };
+                            var signaledIndex = WaitHandle.WaitAny(handles, fallbackTime);
+
+                            if (signaledIndex == cancellationHandleIndex)
+                                return;
+
+                            if (signaledIndex == forceBatchRetryHandleIndex)
                             {
-                                // we are in the fallback mode but got new docs to process
-                                // let's wait full time and retry the process then
+                                // ForceBatchRetry() was called - skip the remaining wait and retry immediately
+                                ForceBatchRetryEvent.Reset();
+                            }
+                            else
+                            {
+                                // we are in the fallback mode but got new docs to process (or timeout expired)
+                                // let's wait full time and retry the process then,
+                                // unless ForceBatchRetry() clears FallbackTime - in that case skip the remaining wait
 
-                                var timeLeftToWait = FallbackTime.Value - sp.Elapsed;
-
-                                if (timeLeftToWait > TimeSpan.Zero)
+                                if (FallbackTime != null)
                                 {
-                                    if (CancellationToken.WaitHandle.WaitOne(timeLeftToWait))
-                                        return;
+                                    var timeLeftToWait = fallbackTime - sp.Elapsed;
+
+                                    if (timeLeftToWait > TimeSpan.Zero)
+                                    {
+                                        var remainingHandles = new[] { CancellationToken.WaitHandle, ForceBatchRetryEvent.WaitHandle };
+                                        var remainingSignaledIndex = WaitHandle.WaitAny(remainingHandles, timeLeftToWait);
+                                        if (remainingSignaledIndex == cancellationHandleIndex)
+                                            return;
+
+                                        ForceBatchRetryEvent.Reset();
+                                    }
                                 }
                             }
 
@@ -1678,6 +1707,7 @@ namespace Raven.Server.Documents.ETL
 
             exceptionAggregator.Execute(() => _cts.Dispose());
             exceptionAggregator.Execute(() => _waitForChanges.Dispose());
+            exceptionAggregator.Execute(() => ForceBatchRetryEvent.Dispose());
 
             exceptionAggregator.ThrowIfNeeded();
         }

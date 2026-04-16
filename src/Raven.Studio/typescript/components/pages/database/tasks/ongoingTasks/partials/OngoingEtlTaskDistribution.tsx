@@ -54,7 +54,7 @@ interface ItemWithTooltipProps {
 
 interface ConnectionStatusCellProps {
     status: Raven.Client.Documents.Operations.OngoingTasks.OngoingTaskConnectionStatus;
-    taskName: string;
+    processNames: string[];
     location: databaseLocationSpecifier;
     toggleErrorModal: () => void;
     nextBatchRetryTime?: string;
@@ -169,7 +169,7 @@ function TransactionalIdLegend({ txIdLayout }: TransactionalIdLegendProps) {
 
 function ConnectionStatusCell({
     status,
-    taskName,
+    processNames,
     location,
     toggleErrorModal,
     nextBatchRetryTime,
@@ -180,17 +180,15 @@ function ConnectionStatusCell({
     const hasDatabaseWriteAccess = useAppSelector(accessManagerSelectors.getHasDatabaseWriteAccess)();
 
     const retryBatch = useAsyncCallback(async () => {
-        await tasksService.retryBatch(databaseName, taskName, location);
+        await Promise.all(processNames.map((name) => tasksService.retryBatch(databaseName, name, location)));
         await onRetrySuccess?.();
     });
-
-    const isRetryPending = nextBatchRetryTime ? new Date() < new Date(nextBatchRetryTime) : false;
 
     if (status !== "Reconnect") {
         return <span>{status}</span>;
     }
 
-    const isRetryDisabled = isRetryPending || retryBatch.loading || !hasDatabaseWriteAccess;
+    const isRetryDisabled = retryBatch.loading || !hasDatabaseWriteAccess;
 
     return (
         <div className="hstack gap-1">
@@ -332,7 +330,7 @@ function ItemWithTooltip(props: ItemWithTooltipProps) {
                     <div>
                         <ConnectionStatusCell
                             status={nodeInfo.details.taskConnectionStatus}
-                            taskName={task.shared.taskName}
+                            processNames={processNames}
                             location={nodeInfo.location}
                             toggleErrorModal={openErrorSheet}
                             nextBatchRetryTime={nextBatchRetryTime}
