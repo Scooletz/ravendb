@@ -1609,7 +1609,7 @@ public class RavenDB_21192_Multinode : ClusterTestBase
     {
     }
 
-    [RavenFact(RavenTestCategory.Etl | RavenTestCategory.Cluster | RavenTestCategory.Monitoring)]
+    [RavenFact(RavenTestCategory.Etl | RavenTestCategory.Cluster)]
     public async Task EtlErrorsShouldBeStoredOnResponsibleNodeInCluster()
     {
         const string connectionStringName = "ConnectionString1";
@@ -1625,18 +1625,8 @@ public class RavenDB_21192_Multinode : ClusterTestBase
         var collections = new List<string> { "Users" };
 
         const int clusterSize = 3;
-        const string communityString = "public-test";
 
-        var snmpPorts = Enumerable.Range(0, clusterSize).Select(_ => ReservePort().Port).ToArray();
-        var customSettingsList = snmpPorts.Select(port => (IDictionary<string, string>)new Dictionary<string, string>
-        {
-            [RavenConfiguration.GetKey(x => x.Monitoring.Snmp.Enabled)] = "true",
-            [RavenConfiguration.GetKey(x => x.Monitoring.Snmp.SupportedVersions)] = "V2C",
-            [RavenConfiguration.GetKey(x => x.Monitoring.Snmp.Port)] = port.ToString(),
-            [RavenConfiguration.GetKey(x => x.Monitoring.Snmp.Community)] = communityString
-        }).ToList();
-
-        var (nodes, leader) = await CreateRaftCluster(clusterSize, customSettingsList: customSettingsList);
+        var (nodes, leader) = await CreateRaftCluster(clusterSize);
 
         var srcDatabaseName = GetDatabaseName();
         var dstDatabaseName = GetDatabaseName();
@@ -1763,7 +1753,7 @@ public class RavenDB_21192_Multinode : ClusterTestBase
         mentorItemErrors = mentorDatabase.EtlErrorsStorage.ReadItemErrorsOfEtl($"{etlName}/{transformationName}");
         Assert.Equal(5, mentorItemErrors.Count);
         
-        newMentorDatabase.EtlErrorsStorage.DeleteErrorsOfEtl(etlName);
+        newMentorDatabase.EtlErrorsStorage.DeleteErrorsOfEtl($"{etlName}/{transformationName}");
         
         newMentorItemErrors = newMentorDatabase.EtlErrorsStorage.ReadItemErrorsOfEtl($"{etlName}/{transformationName}");
         Assert.Empty(newMentorItemErrors);
@@ -1787,18 +1777,8 @@ public class RavenDB_21192_Multinode : ClusterTestBase
                               """;
 
         const int clusterSize = 3;
-        const string communityString = "public-test";
 
-        var snmpPorts = Enumerable.Range(0, clusterSize).Select(_ => ReservePort().Port).ToArray();
-        var customSettingsList = snmpPorts.Select(port => (IDictionary<string, string>)new Dictionary<string, string>
-        {
-            [RavenConfiguration.GetKey(x => x.Monitoring.Snmp.Enabled)] = "true",
-            [RavenConfiguration.GetKey(x => x.Monitoring.Snmp.SupportedVersions)] = "V2C",
-            [RavenConfiguration.GetKey(x => x.Monitoring.Snmp.Port)] = port.ToString(),
-            [RavenConfiguration.GetKey(x => x.Monitoring.Snmp.Community)] = communityString
-        }).ToList();
-
-        var (nodes, leader) = await CreateRaftCluster(clusterSize, customSettingsList: customSettingsList);
+        var (nodes, leader) = await CreateRaftCluster(clusterSize);
 
         var databaseName = GetDatabaseName();
         await CreateDatabaseInCluster(databaseName, 3, leader.WebUrl);
@@ -1908,7 +1888,7 @@ public class RavenDB_21192_Multinode : ClusterTestBase
         mentorItemErrors = mentorDatabase.EtlErrorsStorage.ReadItemErrorsOfEtl(processName);
         Assert.Equal(5, mentorItemErrors.Count);
 
-        newMentorDatabase.EtlErrorsStorage.DeleteErrorsOfEtl(taskName);
+        newMentorDatabase.EtlErrorsStorage.DeleteErrorsOfEtl(processName);
 
         newMentorItemErrors = newMentorDatabase.EtlErrorsStorage.ReadItemErrorsOfEtl(processName);
         Assert.Empty(newMentorItemErrors);
