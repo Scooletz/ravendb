@@ -904,6 +904,8 @@ namespace Raven.Server.Documents.ETL
                                 EnterFallbackMode(e, lastUpdateStateErrorTime);
                                 lastUpdateStateErrorTime = Database.Time.GetUtcNow();
 
+                                RecordLoadError(e.ToString(), TaskErrorStep.Persistence, count: 0);
+
                                 const int cancellationIndex = 0;
                                 var handles = new[] { CancellationToken.WaitHandle, ForceBatchRetryEvent.WaitHandle };
                                 var signaledIndex = WaitHandle.WaitAny(handles, FallbackTime.Value);

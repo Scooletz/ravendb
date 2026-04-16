@@ -174,8 +174,12 @@ public sealed class AmazonSqsEtl : QueueEtl<AmazonSqsItem>
         }
         catch (Exception ex)
         {
+            var message = $"ETL process: {Name}. Failed to send messages in a batch: {ex}";
+
             if (Logger.IsWarnEnabled)
-                Logger.Warn($"ETL process: {Name}. Failed to send messages in a batch.", ex);
+                Logger.Warn(message, ex);
+
+            RecordLoadError(message, TaskErrorStep.Load, batchMessages.Count);
             return false;
         }
     }
