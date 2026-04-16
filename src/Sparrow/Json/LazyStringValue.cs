@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Text;
 using Sparrow.Binary;
 using Sparrow.Utils;
@@ -51,7 +52,7 @@ namespace Sparrow.Json
             {
                 //PERF: JIT will remove the corresponding line based on the target architecture using dead code removal.
                 if (IntPtr.Size == 4)
-                    return (int)Hashing.XXHash32.CalculateInline(obj.Buffer, obj.Size);
+                    return (int)Hashing.XXHash32.CalculateInline(obj.AsReadOnlySpan());
                 return (int)Hashing.XXHash64.CalculateInline(obj.Buffer, (ulong)obj.Size);
             }
         }
@@ -61,20 +62,55 @@ namespace Sparrow.Json
     public sealed unsafe class LazyStringValue : IComparable<string>, IEquatable<string>,
         IComparable<LazyStringValue>, IEquatable<LazyStringValue>, IDisposable, IComparable, IConvertible, IEnumerable<char>
 #if NET8_0_OR_GREATER
-    , ISpanFormattable
+        , ISpanFormattable
 #endif
     {
+        // Small-string optimization: values whose UTF-8 bytes fit in 11 bytes are stored directly
+        // inside the object, overlaying what was byte* _buffer (8 B) + int _size (4 B).
+        // The sign bit of _storage.ExternalSize acts as the inline discriminator: external sizes are
+        // always in [0, int.MaxValue) (byte 11 MSB = 0); inline mode sets byte 11 to (0x80 | length).
+        // The 11 inline data bytes lie contiguously at offsets [0..10] of _storage (little-endian).
+        [StructLayout(LayoutKind.Explicit, Size = SizeOf)]
+        private struct InlineStorage
+        {
+            public const int SizeOf = 12;
+            public const byte MSB = 0b1000_0000;
+
+            [FieldOffset(0)]
+            public byte* ExternalBuffer;
+
+            [FieldOffset(8)]
+            public int ExternalSize; // MSB == 0 ⇒ external; MSB == 1 ⇒ inline
+
+            [FieldOffset(0)]
+            public byte Head; // ref anchor for both inline data and external ptr bytes
+
+            [FieldOffset(SizeOf - 1)]
+            public byte Tail;
+
+            public bool IsInline
+            {
+                [MethodImpl(MethodImplOptions.AggressiveInlining)]
+                get => (Tail & MSB) == MSB;
+            }
+
+            public int Size => IsInline ? Tail & ~MSB : ExternalSize;
+        }
+
         internal JsonOperationContext _context;
         private string _string;
 
         private string MaterializeStringValue => ToString();
 
-        private byte* _buffer;
-        public byte this[int index] => Buffer[index];
-        public byte* Buffer => _buffer;
+        private InlineStorage _storage;
+        public byte this[int index] => Unsafe.Add(ref Buffer, index);
 
-        private int _size;
-        public int Size => _size;
+        public ref byte Buffer
+        {
+            get => ref _storage.IsInline ? ref _storage.Head : ref Unsafe.AsRef<byte>(_storage.ExternalBuffer);
+        }
+
+        public int Size => _storage.Size;
 
         private int _length;
 
@@ -85,7 +121,7 @@ namespace Sparrow.Json
             {
                 // Lazily load the length from the buffer. This is an O(n)
                 if (_length == -1 && Buffer != null)
-                    _length = Encodings.Utf8.GetCharCount(Buffer, Size);
+                    _length = Encodings.Utf8.GetCharCount(AsReadOnlySpan());
                 return _length;
             }
         }
@@ -110,7 +146,8 @@ namespace Sparrow.Json
 
                     if (charA == charB)
                     {
-                        a++; b++;
+                        a++;
+                        b++;
                         length--;
                         continue;
                     }
@@ -124,7 +161,8 @@ namespace Sparrow.Json
                         return charA - charB;
 
                     // Next char
-                    a++; b++;
+                    a++;
+                    b++;
                     length--;
                 }
 
@@ -138,16 +176,11 @@ namespace Sparrow.Json
             }
         }
 
-        public Span<byte> AsSpan()
-        {
-            return new Span<byte>(_buffer, _size);
-        }
+        // TODO: optmize by checking _storage.IsInline only once and branching
+        public Span<byte> AsSpan() => MemoryMarshal.CreateSpan(ref Buffer, Size);
 
-        public ReadOnlySpan<byte> AsReadOnlySpan()
-        {
-            return new ReadOnlySpan<byte>(_buffer, _size);
-        }
-
+        // TODO: optmize by checking _storage.IsInline only once and branching
+        public ReadOnlySpan<byte> AsReadOnlySpan() => MemoryMarshal.CreateReadOnlySpan(ref Buffer, Size);
 
         public void CopyTo(byte* dest)
         {
@@ -156,7 +189,7 @@ namespace Sparrow.Json
 
         public LazyStringValue Clone(JsonOperationContext context)
         {
-            if (_size == 0)
+            if (Size == 0)
                 return context.Empty;
 
             return context.GetLazyString(_buffer, _size, longLived: false);
@@ -169,7 +202,7 @@ namespace Sparrow.Json
 
             return _context.GetLazyString(_buffer, _size, longLived: false);
         }
-        
+
         public LazyStringValue CloneForConcurrentRead(JsonOperationContext context)
         {
             if (_size == 0)
@@ -202,6 +235,7 @@ namespace Sparrow.Json
                 if (_lazyStringTempComparisonBuffer == null || _lazyStringTempComparisonBuffer.Length < charCount)
                     _lazyStringTempComparisonBuffer = new byte[Bits.NextAllocationSize(sizeInBytes)];
             }
+
             return _lazyStringTempComparisonBuffer;
         }
 
@@ -466,7 +500,7 @@ namespace Sparrow.Json
         {
             return (string)this; // invoke the implicit string conversion
         }
-        
+
 #if NET8_0_OR_GREATER
         public string ToString(string format, IFormatProvider formatProvider) => ToString();
 
@@ -480,7 +514,7 @@ namespace Sparrow.Json
                 charsWritten = 0;
                 return false;
             }
-            
+
             if (_string != null)
             {
                 if (_string.AsSpan().TryCopyTo(destination))
@@ -489,17 +523,15 @@ namespace Sparrow.Json
                     return true;
                 }
             }
-            else 
+            else
             {
-                fixed (char* pDestination = destination)
+                if (Encodings.Utf8.GetChars(AsReadOnlySpan(), destination) == Length)
                 {
-                    if(Encodings.Utf8.GetChars(Buffer, Size, pDestination, destination.Length) == Length)
-                    {
-                        charsWritten = Length;
-                        return true;
-                    }
+                    charsWritten = Length;
+                    return true;
                 }
             }
+
             charsWritten = 0;
             return false;
         }
@@ -509,7 +541,7 @@ namespace Sparrow.Json
             return TryFormat(destination, out _, default, null);
         }
 #endif
-        
+
         public int CompareTo(object obj)
         {
             if (IsDisposed)
@@ -712,8 +744,7 @@ namespace Sparrow.Json
             ValidateIndexes(startIndex, count);
 
             var buffer = GetlazyStringTempBuffer(Length);
-            fixed (char* pChars = buffer)
-                Encodings.Utf8.GetChars(Buffer, Size, pChars, Length);
+            Encodings.Utf8.GetChars(AsReadOnlySpan(), buffer.AsSpan());
 
             for (int i = startIndex; i < startIndex + count; i++)
             {
@@ -775,8 +806,7 @@ namespace Sparrow.Json
             ValidateIndexes(startIndex, count);
 
             var buffer = GetlazyStringTempBuffer(Length);
-            fixed (char* pChars = buffer)
-                Encodings.Utf8.GetChars(Buffer, Size, pChars, Length);
+            Encodings.Utf8.GetChars(AsReadOnlySpan(), buffer.AsSpan());
 
             for (int i = startIndex; i < startIndex + count; i++)
             {
@@ -814,8 +844,7 @@ namespace Sparrow.Json
 
             var buffer = GetlazyStringTempBuffer(Length);
 
-            fixed (char* pChars = buffer)
-                Encodings.Utf8.GetChars(Buffer, Size, pChars, Length);
+            Encodings.Utf8.GetChars(AsReadOnlySpan(), buffer.AsSpan());
 
             for (int i = startIndex; i > startIndex - count; i--)
             {
@@ -880,9 +909,7 @@ namespace Sparrow.Json
             ValidateIndexes(Length - startIndex - 1, count);
 
             var buffer = GetlazyStringTempBuffer(Length);
-
-            fixed (char* pChars = buffer)
-                Encodings.Utf8.GetChars(Buffer, Size, pChars, Length);
+            Encodings.Utf8.GetChars(AsReadOnlySpan(), buffer.AsSpan());
 
             for (int i = startIndex; i > startIndex - count; i--)
             {
@@ -1365,7 +1392,7 @@ namespace Sparrow.Json
                 return false;
 
             return CompareToOrdinalIgnoreCase(this.Buffer, prefix.Size,
-                       prefix.Buffer, prefix.Size) == 0;
+                prefix.Buffer, prefix.Size) == 0;
         }
 
         public void Truncate(int size)

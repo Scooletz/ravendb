@@ -212,35 +212,35 @@ namespace Sparrow.Json
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal unsafe bool TryParseLong(out long longValue)
         {
-            return Utf8Parser.TryParse(new ReadOnlySpan<byte>(Inner.Buffer, Inner.Size), out longValue, out var consumed) &&
+            return Utf8Parser.TryParse(Inner.AsReadOnlySpan(), out longValue, out var consumed) &&
                    Inner.Size == consumed;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal unsafe bool TryParseULong(out ulong ulongValue)
         {
-            return Utf8Parser.TryParse(new ReadOnlySpan<byte>(Inner.Buffer, Inner.Size), out ulongValue, out var consumed) &&
+            return Utf8Parser.TryParse(Inner.AsReadOnlySpan(), out ulongValue, out var consumed) &&
                    Inner.Size == consumed;
         }
         
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal unsafe bool TryParseDouble(out double doubleVal)
         {
-            return Utf8Parser.TryParse(new ReadOnlySpan<byte>(Inner.Buffer, Inner.Size), out doubleVal, out var consumed) &&
+            return Utf8Parser.TryParse(Inner.AsReadOnlySpan(), out doubleVal, out var consumed) &&
                    Inner.Size == consumed;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal unsafe bool TryParseFloat(out float floatVal)
         {
-            return Utf8Parser.TryParse(new ReadOnlySpan<byte>(Inner.Buffer, Inner.Size), out floatVal, out var consumed) &&
+            return Utf8Parser.TryParse(Inner.AsReadOnlySpan(), out floatVal, out var consumed) &&
                    Inner.Size == consumed;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal unsafe bool TryParseDecimal(out decimal decimalValue)
         {
-            return Utf8Parser.TryParse(new ReadOnlySpan<byte>(Inner.Buffer, Inner.Size), out decimalValue, out var consumed) &&
+            return Utf8Parser.TryParse(Inner.AsReadOnlySpan(), out decimalValue, out var consumed) &&
                 Inner.Size == consumed;
         }
 
