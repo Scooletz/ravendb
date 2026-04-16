@@ -31,8 +31,7 @@ import { EtlPanelErrors, EtlPanelHealthBadge, EtlPanelProgressItem, EtlPanelTogg
 type SqlEtlPanelProps = EtlPanelBaseProps<OngoingTaskSqlEtlInfo>;
 
 export function SqlEtlPanel(props: SqlEtlPanelProps & ICanShowTransformationScriptPreview) {
-    const { data, toggleSelection, isSelected, onTaskOperation, isDeleting, isTogglingState, etlStats } =
-        props;
+    const { data, toggleSelection, isSelected, onTaskOperation, isDeleting, isTogglingState, etlStats } = props;
 
     const { forCurrentDatabase, appUrl } = useAppUrls();
     const editUrl = forCurrentDatabase.editSqlEtl(data.shared.taskId)();
@@ -112,11 +111,7 @@ export function SqlEtlPanel(props: SqlEtlPanelProps & ICanShowTransformationScri
             </RichPanelDetails>
             <Collapse in={detailsVisible}>
                 <div>
-                    <OngoingEtlTaskDistribution
-                        task={data}
-                        showPreview={showPreview}
-                        etlStats={etlStats}
-                    />
+                    <OngoingEtlTaskDistribution task={data} showPreview={showPreview} etlStats={etlStats} />
                 </div>
             </Collapse>
         </RichPanel>

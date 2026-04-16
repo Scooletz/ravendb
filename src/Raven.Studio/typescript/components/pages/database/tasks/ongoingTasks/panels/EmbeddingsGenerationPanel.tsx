@@ -32,8 +32,7 @@ import copyToClipboard from "common/copyToClipboard";
 type EmbeddingsGenerationPanelProps = EtlPanelBaseProps<OngoingTaskEmbeddingsGenerationInfo>;
 
 export function EmbeddingsGenerationPanel(props: EmbeddingsGenerationPanelProps & ICanShowTransformationScriptPreview) {
-    const { data, toggleSelection, isSelected, onTaskOperation, isDeleting, isTogglingState, etlStats } =
-        props;
+    const { data, toggleSelection, isSelected, onTaskOperation, isDeleting, isTogglingState, etlStats } = props;
 
     const { forCurrentDatabase, appUrl } = useAppUrls();
     const editUrl = forCurrentDatabase.editEmbeddingsGeneration(data.shared.taskId)();
@@ -120,11 +119,7 @@ export function EmbeddingsGenerationPanel(props: EmbeddingsGenerationPanelProps 
             </RichPanelDetails>
             <Collapse in={detailsVisible}>
                 <div>
-                    <OngoingEtlTaskDistribution
-                        task={data}
-                        showPreview={showPreview}
-                        etlStats={etlStats}
-                    />
+                    <OngoingEtlTaskDistribution task={data} showPreview={showPreview} etlStats={etlStats} />
                 </div>
             </Collapse>
         </RichPanel>

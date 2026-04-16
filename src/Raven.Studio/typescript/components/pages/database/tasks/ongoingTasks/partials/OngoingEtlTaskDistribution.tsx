@@ -276,7 +276,9 @@ function ItemWithTooltip(props: ItemWithTooltipProps) {
         );
         const allErrors = flattenAllTasksErrors(tasksWithErrors, etlStats ?? []);
 
-        const mostRecentError: FlatError = allErrors.sort((a, b) => new Date(b.CreatedAt).getTime() - new Date(a.CreatedAt).getTime()).at(0) ?? {
+        const mostRecentError: FlatError = allErrors
+            .sort((a, b) => new Date(b.CreatedAt).getTime() - new Date(a.CreatedAt).getTime())
+            .at(0) ?? {
             Error: nodeInfo.details?.error,
             nodeTag: nodeInfo.location.nodeTag,
             shard: nodeInfo.location.shardNumber,

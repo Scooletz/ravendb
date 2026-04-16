@@ -31,8 +31,7 @@ import { EtlPanelErrors, EtlPanelHealthBadge, EtlPanelProgressItem, EtlPanelTogg
 type RabbitMqEtlPanelProps = EtlPanelBaseProps<OngoingTaskRabbitMqEtlInfo>;
 
 export function RabbitMqEtlPanel(props: RabbitMqEtlPanelProps & ICanShowTransformationScriptPreview) {
-    const { data, toggleSelection, isSelected, onTaskOperation, isDeleting, isTogglingState, etlStats } =
-        props;
+    const { data, toggleSelection, isSelected, onTaskOperation, isDeleting, isTogglingState, etlStats } = props;
 
     const { forCurrentDatabase, appUrl } = useAppUrls();
     const editUrl = forCurrentDatabase.editRabbitMqEtl(data.shared.taskId)();
@@ -110,11 +109,7 @@ export function RabbitMqEtlPanel(props: RabbitMqEtlPanelProps & ICanShowTransfor
             </RichPanelDetails>
             <Collapse in={detailsVisible}>
                 <div>
-                    <OngoingEtlTaskDistribution
-                        task={data}
-                        showPreview={showPreview}
-                        etlStats={etlStats}
-                    />
+                    <OngoingEtlTaskDistribution task={data} showPreview={showPreview} etlStats={etlStats} />
                 </div>
             </Collapse>
         </RichPanel>

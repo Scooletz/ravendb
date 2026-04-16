@@ -31,8 +31,7 @@ import { EtlPanelErrors, EtlPanelHealthBadge, EtlPanelProgressItem, EtlPanelTogg
 type OlapEtlPanelProps = EtlPanelBaseProps<OngoingTaskOlapEtlInfo>;
 
 export function OlapEtlPanel(props: OlapEtlPanelProps & ICanShowTransformationScriptPreview) {
-    const { data, toggleSelection, isSelected, onTaskOperation, isDeleting, isTogglingState, etlStats } =
-        props;
+    const { data, toggleSelection, isSelected, onTaskOperation, isDeleting, isTogglingState, etlStats } = props;
 
     const { forCurrentDatabase, appUrl } = useAppUrls();
     const editUrl = forCurrentDatabase.editOlapEtl(data.shared.taskId)();
@@ -118,11 +117,7 @@ export function OlapEtlPanel(props: OlapEtlPanelProps & ICanShowTransformationSc
             </RichPanelDetails>
             <Collapse in={detailsVisible}>
                 <div>
-                    <OngoingEtlTaskDistribution
-                        task={data}
-                        showPreview={showPreview}
-                        etlStats={etlStats}
-                    />
+                    <OngoingEtlTaskDistribution task={data} showPreview={showPreview} etlStats={etlStats} />
                 </div>
             </Collapse>
         </RichPanel>

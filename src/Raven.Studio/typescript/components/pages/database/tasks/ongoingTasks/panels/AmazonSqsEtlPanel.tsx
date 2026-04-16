@@ -31,8 +31,7 @@ import { EtlPanelErrors, EtlPanelHealthBadge, EtlPanelProgressItem, EtlPanelTogg
 type AmazonSqsEtlPanelProps = EtlPanelBaseProps<OngoingTaskAmazonSqsEtlInfo>;
 
 export function AmazonSqsEtlPanel(props: AmazonSqsEtlPanelProps & ICanShowTransformationScriptPreview) {
-    const { data, toggleSelection, isSelected, onTaskOperation, isDeleting, isTogglingState, etlStats } =
-        props;
+    const { data, toggleSelection, isSelected, onTaskOperation, isDeleting, isTogglingState, etlStats } = props;
 
     const { forCurrentDatabase, appUrl } = useAppUrls();
     const editUrl = forCurrentDatabase.editAmazonSqsEtl(data.shared.taskId)();
@@ -110,11 +109,7 @@ export function AmazonSqsEtlPanel(props: AmazonSqsEtlPanelProps & ICanShowTransf
             </RichPanelDetails>
             <Collapse in={detailsVisible}>
                 <div>
-                    <OngoingEtlTaskDistribution
-                        task={data}
-                        showPreview={showPreview}
-                        etlStats={etlStats}
-                    />
+                    <OngoingEtlTaskDistribution task={data} showPreview={showPreview} etlStats={etlStats} />
                 </div>
             </Collapse>
         </RichPanel>

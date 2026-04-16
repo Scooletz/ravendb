@@ -33,8 +33,7 @@ import PopoverWithHoverWrapper from "components/common/PopoverWithHoverWrapper";
 type GenAiPanelProps = EtlPanelBaseProps<OngoingTaskGenAiInfo>;
 
 export function GenAiPanel(props: GenAiPanelProps & ICanShowTransformationScriptPreview) {
-    const { data, toggleSelection, isSelected, onTaskOperation, isDeleting, isTogglingState, etlStats } =
-        props;
+    const { data, toggleSelection, isSelected, onTaskOperation, isDeleting, isTogglingState, etlStats } = props;
 
     const { forCurrentDatabase, appUrl } = useAppUrls();
     const editUrl = forCurrentDatabase.editGenAi(data.shared.taskId)();
@@ -134,11 +133,7 @@ export function GenAiPanel(props: GenAiPanelProps & ICanShowTransformationScript
             </RichPanelDetails>
             <Collapse in={detailsVisible}>
                 <div>
-                    <OngoingEtlTaskDistribution
-                        task={data}
-                        showPreview={showPreview}
-                        etlStats={etlStats}
-                    />
+                    <OngoingEtlTaskDistribution task={data} showPreview={showPreview} etlStats={etlStats} />
                 </div>
             </Collapse>
         </RichPanel>
