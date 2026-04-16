@@ -93,8 +93,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 if (inner == null)
                     return false;
 
-                // Replace the inner content with a trivial SQL subquery so pgsqlparser can parse the outer wrapper.
-                var sanitizedSql = sql[..inner.InnerStart] + "select 1" + sql[inner.InnerEnd..];
+                var sanitizedSql = inner.SanitizedSql;
 
                 var parseResult = Parser.Parse(sanitizedSql);
                 if (parseResult.IsSuccess == false || parseResult.Value == null)

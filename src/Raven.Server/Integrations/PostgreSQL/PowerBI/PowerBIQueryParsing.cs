@@ -15,14 +15,13 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
 {
     /// <summary>
     /// Result of <see cref="PowerBIInnerRqlExtractor.TryExtractAndResolve"/>.
-    /// <see cref="InnerStart"/> and <see cref="InnerEnd"/> are character offsets into the original SQL string;
-    /// callers use them to splice in a placeholder (e.g. <c>"select 1"</c>) so pgsqlparser can parse
-    /// the outer wrapper without tripping on embedded RQL or SQL.
+    /// <see cref="InnerText"/> is the extracted innermost query text (RQL or SQL).
+    /// <see cref="SanitizedSql"/> is the outer wrapper SQL with the innermost query replaced by
+    /// a trivial <c>select 1</c> subquery so pgsqlparser can safely parse the wrapper structure.
     /// </summary>
     internal sealed record InnerTextResult(
-        int InnerStart,
-        int InnerEnd,
         string InnerText,
+        string SanitizedSql,
         RavenQuery ResolvedQuery);
 
     internal static class PowerBIInnerRqlExtractor
@@ -33,27 +32,30 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
         /// </summary>
         public static InnerTextResult TryExtractAndResolve(string sql)
         {
-            if (TryExtractInnerTextSpan(sql, out var start, out var end, out var innerText, out var fromTwoParsersPath) == false)
+            if (TryExtractInnerText(sql, out var innerText, out var sanitizedSql, out var fromTwoParsersPath) == false)
                 return null;
 
             var resolved = TryResolveInnerTextToQuery(innerText, fromTwoParsersPath);
             if (resolved == null)
                 return null;
 
-            return new InnerTextResult(start, end, innerText, resolved);
+            return new InnerTextResult(innerText, sanitizedSql, resolved);
         }
 
-        private static bool TryExtractInnerTextSpan(string sql, out int innerStart, out int innerEnd, out string innerText, out bool fromTwoParsersPath)
+        private static bool TryExtractInnerText(string sql, out string innerText, out string sanitizedSql, out bool fromTwoParsersPath)
         {
+            innerText = null;
+            sanitizedSql = null;
             fromTwoParsersPath = false;
 
-            if (TryExtractInnerRqlSpanViaTwoParsers(sql, out innerStart, out innerEnd, out innerText))
+            if (TryExtractInnerRqlSpanViaTwoParsers(sql, out var innerStart, out var innerEnd, out innerText))
             {
                 fromTwoParsersPath = true;
+                sanitizedSql = sql[..innerStart] + "select 1" + sql[innerEnd..];
                 return true;
             }
 
-            return TryExtractDeepestInnerRqlSpan(sql, out innerStart, out innerEnd, out innerText);
+            return TryExtractInnerSqlViaAst(sql, out innerText, out sanitizedSql);
         }
 
         private static RavenQuery TryResolveInnerTextToQuery(string innerText, bool fromTwoParsersPath)
@@ -121,14 +123,15 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             var cursorPos1Based = parseResult.Error?.CursorPos ?? 0;
             if (cursorPos1Based <= 0)
                 return false;
-
             var start = cursorPos1Based - 1;
             if (TryNormalizeStartIndex(sql, start, out start) == false)
                 return false;
 
-            if (StartsWithKeywordAtWordBoundary(sql, start, "from") == false &&
-                StartsWithKeywordAtWordBoundary(sql, start, "declare") == false)
-                return false;
+            if (StartsWithKeywordAtWordBoundary(sql, start, "from") == false)
+            {
+                if (TryRecoverDeclareFunctionStart(sql, start, out start) == false)
+                    return false;
+            }
 
             if (TryParseRqlPrefixAndGetEnd(sql, start, out var end) == false)
                 return false;
@@ -143,6 +146,187 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             innerEnd = end;
             innerRql = sql.Substring(innerStart, innerEnd - innerStart).Trim();
             return true;
+        }
+
+        private static bool TryRecoverDeclareFunctionStart(string sql, int cursorStart, out int recoveredStart)
+        {
+            recoveredStart = 0;
+
+            if (string.IsNullOrWhiteSpace(sql))
+                return false;
+
+            if ((uint)cursorStart >= (uint)sql.Length)
+                return false;
+
+            int i = cursorStart - 1;
+
+            // Allow whitespace between the function name and the 'function' keyword.
+            while (i >= 0 && char.IsWhiteSpace(sql[i]))
+                i--;
+
+            if (i < 0)
+                return false;
+
+            var functionStart = i - "function".Length + 1;
+            if (functionStart < 0)
+                return false;
+
+            if (StartsWithKeywordAtWordBoundary(sql, functionStart, "function") == false)
+                return false;
+
+            i = functionStart - 1;
+
+            // Allow whitespace between 'declare' and 'function'.
+            while (i >= 0 && char.IsWhiteSpace(sql[i]))
+                i--;
+
+            if (i < 0)
+                return false;
+
+            var declareStart = i - "declare".Length + 1;
+            if (declareStart < 0)
+                return false;
+
+            if (StartsWithKeywordAtWordBoundary(sql, declareStart, "declare") == false)
+                return false;
+
+            recoveredStart = declareStart;
+            return true;
+        }
+
+        private static bool TryExtractInnerSqlViaAst(string sql, out string innerSql, out string sanitizedSql)
+        {
+            innerSql = null;
+            sanitizedSql = null;
+
+            if (string.IsNullOrWhiteSpace(sql))
+                return false;
+
+            var parseResult = Parser.Parse(sql);
+            if (parseResult.IsSuccess == false || parseResult.Value?.Stmts is not { Count: 1 })
+                return false;
+
+            var rootSelect = parseResult.Value.Stmts[0]?.Stmt?.SelectStmt;
+            if (rootSelect == null)
+                return false;
+
+            if (TryFindDeepestWrapperSubquery(rootSelect, out var wrapperSubqueryNode, out var innerSelect) == false)
+                return false;
+
+            if (TryDeparseSelect(innerSelect, out innerSql) == false)
+                return false;
+
+            wrapperSubqueryNode.Subquery = CreateSelect1Node();
+
+            if (TryDeparseParseResult(parseResult.Value, out sanitizedSql) == false)
+                return false;
+
+            return string.IsNullOrWhiteSpace(innerSql) == false &&
+                   string.IsNullOrWhiteSpace(sanitizedSql) == false;
+        }
+
+        private static bool TryFindDeepestWrapperSubquery(SelectStmt rootSelect, out RangeSubselect wrapperSubqueryNode, out SelectStmt innerSelect)
+        {
+            wrapperSubqueryNode = null;
+            innerSelect = null;
+
+            var current = rootSelect;
+            var found = false;
+
+            while (current != null)
+            {
+                if (current.FromClause is not { Count: 1 })
+                    break;
+
+                var rss = current.FromClause[0]?.RangeSubselect;
+                if (rss == null)
+                    break;
+
+                if (IsPowerBiWrapperAlias(rss.Alias?.Aliasname) == false)
+                    break;
+
+                var next = rss.Subquery?.SelectStmt;
+                if (next == null)
+                    return false;
+
+                wrapperSubqueryNode = rss;
+                innerSelect = next;
+                current = next;
+                found = true;
+            }
+
+            return found;
+        }
+
+        private static bool IsPowerBiWrapperAlias(string alias)
+        {
+            if (string.IsNullOrWhiteSpace(alias))
+                return false;
+
+            return string.Equals(alias, "$Table", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(alias, "_", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(alias, "rows", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static bool TryDeparseSelect(SelectStmt selectStmt, out string sql)
+        {
+            sql = null;
+
+            if (selectStmt == null)
+                return false;
+
+            var parseResult = new ParseResult();
+            parseResult.Stmts.Add(new RawStmt
+            {
+                Stmt = new Node
+                {
+                    SelectStmt = selectStmt
+                }
+            });
+
+            return TryDeparseParseResult(parseResult, out sql);
+        }
+
+        private static bool TryDeparseParseResult(ParseResult parseResult, out string sql)
+        {
+            sql = null;
+
+            if (parseResult == null)
+                return false;
+
+            var deparseResult = Parser.Deparse(parseResult);
+            if (deparseResult.IsSuccess == false)
+                return false;
+
+            sql = deparseResult.Value;
+            return string.IsNullOrWhiteSpace(sql) == false;
+        }
+
+        private static Node CreateSelect1Node()
+        {
+            var selectStmt = new SelectStmt();
+
+            selectStmt.TargetList.Add(new Node
+            {
+                ResTarget = new ResTarget
+                {
+                    Val = new Node
+                    {
+                        AConst = new A_Const
+                        {
+                            Ival = new Integer
+                            {
+                                Ival = 1
+                            }
+                        }
+                    }
+                }
+            });
+
+            return new Node
+            {
+                SelectStmt = selectStmt
+            };
         }
 
         private static bool TryNormalizeStartIndex(string s, int start, out int normalizedStart)
@@ -265,110 +449,6 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             (ch is >= '0' and <= '9') ||
             ch == '_';
 
-        private static bool TryExtractDeepestInnerRqlSpan(string sql, out int innerStartAbs, out int innerEndAbs, out string innerRql)
-        {
-            innerStartAbs = 0;
-            innerEndAbs = 0;
-            innerRql = null;
-
-            var currentSlice = sql;
-            var baseOffsetAbs = 0;
-            var found = false;
-
-            while (TryExtractInnermostRql(currentSlice, out var extractedInnerRql, out var currentStartRel, out var currentEndRel))
-            {
-                innerStartAbs = baseOffsetAbs + currentStartRel;
-                innerEndAbs = baseOffsetAbs + currentEndRel;
-                innerRql = extractedInnerRql;
-                found = true;
-
-                baseOffsetAbs += currentStartRel;
-                currentSlice = extractedInnerRql;
-            }
-
-            return found;
-        }
-
-        private static bool TryExtractInnermostRql(string sql, out string innerRql, out int innerStart, out int innerEnd)
-        {
-            innerRql = null;
-            innerStart = 0;
-            innerEnd = 0;
-
-            const string endTokenTable      = ") \"$Table\"";
-            const string endTokenUnderscore = ") \"_\"";
-            const string endTokenRows       = ") \"rows\"";
-
-            var endTable      = sql.LastIndexOf(endTokenTable,      StringComparison.OrdinalIgnoreCase);
-            var endUnderscore = sql.LastIndexOf(endTokenUnderscore, StringComparison.OrdinalIgnoreCase);
-            var endRows       = sql.LastIndexOf(endTokenRows,       StringComparison.OrdinalIgnoreCase);
-
-            var end = Math.Max(Math.Max(endTable, endUnderscore), endRows);
-            if (end == -1)
-                return false;
-
-            int depth = 0;
-            int open = -1;
-            for (int i = end - 1; i >= 0; i--)
-            {
-                var ch = sql[i];
-                if (ch == ')')
-                {
-                    depth++;
-                    continue;
-                }
-
-                if (ch != '(')
-                    continue;
-
-                if (depth > 0)
-                {
-                    depth--;
-                    continue;
-                }
-
-                open = i;
-                break;
-            }
-
-            if (open == -1)
-                return false;
-
-            int j = open - 1;
-            while (j >= 0 && char.IsWhiteSpace(sql[j]))
-                j--;
-
-            if (j < 3)
-                return false;
-
-            var fromStart = j - 3;
-            if (fromStart < 0)
-                return false;
-
-            if (string.Equals(sql.Substring(fromStart, 4), "from", StringComparison.OrdinalIgnoreCase) == false)
-                return false;
-
-            var untrimmedStart = open + 1;
-            var untrimmedEnd = end;
-            if (untrimmedStart >= untrimmedEnd)
-                return false;
-
-            var trimmedStart = untrimmedStart;
-            var trimmedEnd = untrimmedEnd;
-            while (trimmedStart < trimmedEnd && char.IsWhiteSpace(sql[trimmedStart]))
-                trimmedStart++;
-            while (trimmedEnd > trimmedStart && char.IsWhiteSpace(sql[trimmedEnd - 1]))
-                trimmedEnd--;
-
-            if (trimmedStart >= trimmedEnd)
-                return false;
-
-            innerRql = sql.Substring(trimmedStart, trimmedEnd - trimmedStart);
-
-            innerStart = trimmedStart;
-            innerEnd = trimmedEnd;
-            return string.IsNullOrWhiteSpace(innerRql) == false;
-        }
     }
 
     internal static class PowerBIOuterWhereTranslator

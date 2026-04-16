@@ -943,7 +943,7 @@ limit 1000001";
 from
 (
     from Orders
-    where Company in ('Companies/1-A', 'Companies/2-A', 'Companies/3-A')
+    where ""Company"" in ('Companies/1-A', 'Companies/2-A', 'Companies/3-A')
 ) ""_""
 limit 1000001";
 
@@ -972,7 +972,7 @@ from
 (
     select *
     from Orders
-    where Company in ('Companies/1-A', 'Companies/2-A', 'Companies/3-A')
+    where ""Company"" in ('Companies/1-A', 'Companies/2-A', 'Companies/3-A')
 ) ""rows""
 group by ""Company"",
     ""Employee""

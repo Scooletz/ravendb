@@ -195,10 +195,10 @@ join information_schema.table_constraints fkcon on 1=1";
             Assert.False(PowerBIHardcodedAstMatcher.TryMatchPowerBIHardcodedQuery(sql, out _));
         }
 
-        // ---- ReferentialConstraintsFk: exact failing query + variants + negative cases ----
+        // ---- ReferentialConstraintsFk ----
 
         [Fact]
-        public void PowerBI_ReferentialConstraintsFkQuery_exact_failing_query_should_match()
+        public void PowerBI_ReferentialConstraintsFkQuery_query_should_match()
         {
             const string sql =
                 "select pkcol.COLUMN_NAME as PK_COLUMN_NAME, fkcol.TABLE_SCHEMA AS FK_TABLE_SCHEMA, " +

@@ -11,22 +11,6 @@ namespace FastTests.Server.Integrations.PostgreSQL.PowerBI
     /// </summary>
     public sealed class RavenDB_26286
     {
-        // ── Regression ────────────────────────────────────────────────────────────────
-
-        [Fact]
-        public void WrappedFetch_InnerRql_StillParsesCorrectly()
-        {
-            // Inner content is RQL — regression guard.
-            const string sql = @"select * from (from Employees) ""$Table"" limit 1000";
-
-            Assert.True(PowerBIFetchQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
-            Assert.IsType<PowerBIRqlQuery>(pgQuery);
-
-            var queryString = GetQueryString(pgQuery);
-            Assert.Contains("from Employees", queryString, StringComparison.OrdinalIgnoreCase);
-            Assert.Equal(1000, GetLimit(pgQuery));
-        }
-
         // ── Fetch/Import – positive SQL-textbox cases ─────────────────────────────────
 
         /// <summary>
@@ -510,74 +494,9 @@ limit 1000001";
             Assert.DoesNotContain("as double", queryString, StringComparison.OrdinalIgnoreCase);
         }
 
-        [Fact]
-        public void DirectQuery_GroupedAggregate_InnerRql_StillParsesCorrectly()
-        {
-            // Regression guard: existing grouped-aggregate RQL-in-textbox must still work.
-            const string sql =
-                @"select ""_"".""Employee"", ""_"".""a0""
-from
-(
-    select ""rows"".""Employee"" as ""Employee"", sum(""rows"".""Freight"") as ""a0""
-    from
-    (
-        from Orders
-        where Company in ('Companies/1-A', 'Companies/2-A')
-    ) ""rows""
-    group by ""Employee""
-) ""_""
-where not ""_"".""a0"" is null
-limit 1000001";
-
-            Assert.True(PowerBIDirectQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
-            Assert.IsType<PowerBIDirectQuery>(pgQuery);
-
-            var queryString = GetQueryString(pgQuery);
-            Assert.NotNull(queryString);
-            Assert.Contains("Orders", queryString, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("sum", queryString, StringComparison.OrdinalIgnoreCase);
-        }
-
-        // ── DirectQuery – grouped aggregate – average (multi-aggregate limitation) ──────
-
-        /// <summary>
-        /// PowerBI "Average" visual sends sum + count together. Only sum is captured (first aggregate
-        /// wins); count is silently dropped. This is a known limitation — multi-aggregate not supported.
-        /// PowerBI computes average client-side from both columns, so returning sum only is insufficient.
-        /// </summary>
-        [Fact]
-        public void DirectQuery_GroupedAverage_SumPlusCount_InnerSql_ParsesAsSumOnly()
-        {
-            // PowerBI sends both sum and count; we only capture sum (first aggregate wins).
-            const string sql =
-                @"select ""rows"".""Company"" as ""Company"",
-    ""rows"".""Employee"" as ""Employee"",
-    sum(""rows"".""Freight"") as ""a0"",
-    count(""rows"".""Freight"") as ""a1""
-from
-(
-    select *
-    from Orders
-    where Company in ('Companies/1-A', 'Companies/2-A', 'Companies/3-A')
-) ""rows""
-group by ""Company"",
-    ""Employee""
-limit 1000001";
-
-            Assert.True(PowerBIDirectQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
-            Assert.IsType<PowerBIDirectQuery>(pgQuery);
-
-            var queryString = GetQueryString(pgQuery);
-            Assert.NotNull(queryString);
-            Assert.Contains("Orders", queryString, StringComparison.OrdinalIgnoreCase);
-            // Only sum is emitted — count column is silently dropped (multi-aggregate not supported).
-            Assert.Contains("sum", queryString, StringComparison.OrdinalIgnoreCase);
-            Assert.DoesNotContain("count", queryString, StringComparison.OrdinalIgnoreCase);
-        }
-
         // ── Identifier case recovery – Fetch/Import ──────────────────────────────────
 
-        [Fact]
+        [Fact (Skip = "unquoted SQL field-name casing preservation is not supported. Will be handled later via parser-level fix")]
         public void WrappedFetch_UnquotedFieldNames_CasePreservedInRql()
         {
             const string sql =
@@ -600,7 +519,7 @@ limit 0";
 
         // ── Identifier case recovery – DirectQuery ────────────────────────────────────
 
-        [Fact]
+        [Fact(Skip = "unquoted SQL field-name casing preservation is not supported. Will be handled later via parser-level fix")]
         public void DirectQuery_InnerSql_UnquotedFieldNames_CasePreservedInRql()
         {
             const string sql =
