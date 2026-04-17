@@ -824,7 +824,11 @@ namespace Raven.Server.Monitoring.Snmp
             [SnmpDataType(SnmpType.Integer32)]
             [Description("Number of ETL tasks that performed some work in the last minute")]
             public const string NumberOfActiveEtls = "5.2.{0}.7.5";
-            
+
+            [SnmpDataType(SnmpType.Gauge32)]
+            [Description("Documents processed per second by all ETL tasks in the database (one minute rate)")]
+            public const string EtlDocumentsProcessedPerSec = "5.2.{0}.7.6";
+
             [SnmpDataType(SnmpType.Integer32)]
             [Description($"Number of AI tasks with {nameof(EtlProcessHealthStatus.Healthy)} health status")]
             public const string NumberOfHealthyAiTasks = "5.2.{0}.8.1";
@@ -844,6 +848,10 @@ namespace Raven.Server.Monitoring.Snmp
             [SnmpDataType(SnmpType.Integer32)]
             [Description("Number of AI tasks that performed some work in the last minute")]
             public const string NumberOfActiveAiTasks = "5.2.{0}.8.5";
+
+            [SnmpDataType(SnmpType.Gauge32)]
+            [Description("Documents processed per second by all AI tasks in the database (one minute rate)")]
+            public const string AiTaskDocumentsProcessedPerSec = "5.2.{0}.8.6";
 
             public sealed class Indexes
             {

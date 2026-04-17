@@ -111,12 +111,14 @@ namespace Raven.Server.Monitoring.Snmp
             _objectStore.Add(new DatabaseFailedEtls(_databaseName, _databaseLandlord, _databaseIndex));
             _objectStore.Add(new DatabaseTotalNumberOfEtls(_databaseName, _databaseLandlord, _databaseIndex));
             _objectStore.Add(new DatabaseActiveEtls(_databaseName, _databaseLandlord, _databaseIndex));
+            _objectStore.Add(new DatabaseEtlTotalDocumentsProcessedPerSec(_databaseName, _databaseLandlord, _databaseIndex));
 
             _objectStore.Add(new DatabaseHealthyAiTasks(_databaseName, _databaseLandlord, _databaseIndex));
             _objectStore.Add(new DatabaseImpairedAiTasks(_databaseName, _databaseLandlord, _databaseIndex));
             _objectStore.Add(new DatabaseFailedAiTasks(_databaseName, _databaseLandlord, _databaseIndex));
             _objectStore.Add(new DatabaseTotalNumberOfAiTasks(_databaseName, _databaseLandlord, _databaseIndex));
             _objectStore.Add(new DatabaseActiveAiTasks(_databaseName, _databaseLandlord, _databaseIndex));
+            _objectStore.Add(new DatabaseAiTaskTotalDocumentsProcessedPerSec(_databaseName, _databaseLandlord, _databaseIndex));
 
             //AddIndexesFromMappingDocument();
         }
