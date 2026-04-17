@@ -75,12 +75,17 @@ namespace Sparrow.Json
         {
             public const int SizeOf = 12;
             public const byte MSB = 0b1000_0000;
+            private const byte InlineSizeMask = 0b0111_1111;
 
             [FieldOffset(0)]
             public byte* ExternalBuffer;
 
+            /// <summary>
+            /// MSB == 0 ⇒ external;
+            /// MSB == 1 ⇒ inline
+            /// </summary>
             [FieldOffset(8)]
-            public int ExternalSize; // MSB == 0 ⇒ external; MSB == 1 ⇒ inline
+            public int RawSize;
 
             [FieldOffset(0)]
             public byte Head; // ref anchor for both inline data and external ptr bytes
@@ -94,7 +99,9 @@ namespace Sparrow.Json
                 get => (Tail & MSB) == MSB;
             }
 
-            public int Size => IsInline ? Tail & ~MSB : ExternalSize;
+            public int Size => IsInline ? Tail & InlineSizeMask : RawSize;
+
+            public int InlineSize => Tail & InlineSizeMask;
         }
 
         internal JsonOperationContext _context;
@@ -176,39 +183,59 @@ namespace Sparrow.Json
             }
         }
 
-        // TODO: optmize by checking _storage.IsInline only once and branching
-        public Span<byte> AsSpan() => MemoryMarshal.CreateSpan(ref Buffer, Size);
+        public Span<byte> AsSpan() => _storage.IsInline ? MemoryMarshal.CreateSpan(ref Buffer, _storage.InlineSize) : new Span<byte>(_storage.ExternalBuffer, _storage.RawSize);
 
-        // TODO: optmize by checking _storage.IsInline only once and branching
-        public ReadOnlySpan<byte> AsReadOnlySpan() => MemoryMarshal.CreateReadOnlySpan(ref Buffer, Size);
+        public ReadOnlySpan<byte> AsReadOnlySpan() => _storage.IsInline ? MemoryMarshal.CreateReadOnlySpan(ref Buffer, _storage.InlineSize) : new ReadOnlySpan<byte>(_storage.ExternalBuffer, _storage.RawSize);
 
         public void CopyTo(byte* dest)
         {
-            Memory.Copy(dest, _buffer, _size);
+            if (_storage.IsInline)
+            {
+                fixed (byte* ptr = &_storage.Head)
+                {
+                    Memory.Copy(dest, ptr, _storage.InlineSize);
+                }
+            }
+            else
+            {
+                Memory.Copy(dest, _storage.ExternalBuffer, _storage.RawSize);
+            }
         }
 
         public LazyStringValue Clone(JsonOperationContext context)
         {
-            if (Size == 0)
+            // Inline requires no cloning. Can be directly reused.
+            if (_storage.IsInline)
+                return this;
+
+            if (_storage.RawSize == 0)
                 return context.Empty;
 
-            return context.GetLazyString(_buffer, _size, longLived: false);
+            return context.GetLazyString(_storage.ExternalBuffer, _storage.RawSize, longLived: false);
         }
 
         public LazyStringValue CloneOnSameContext()
         {
-            if (_size == 0)
+            // Inline requires no cloning. Can be directly reused.
+            if (_storage.IsInline)
+                return this;
+
+            if (_storage.RawSize == 0)
                 return _context.Empty;
 
-            return _context.GetLazyString(_buffer, _size, longLived: false);
+            return _context.GetLazyString(_storage.ExternalBuffer, _storage.RawSize, longLived: false);
         }
 
         public LazyStringValue CloneForConcurrentRead(JsonOperationContext context)
         {
-            if (_size == 0)
+            // Inline requires no cloning. Can be directly reused.
+            if (_storage.IsInline)
+                return this;
+
+            if (_storage.RawSize == 0)
                 return context.Empty;
 
-            return context.AllocateStringValue(_string, _buffer, _size);
+            return _context.GetLazyString(_storage.ExternalBuffer, _storage.RawSize, longLived: false);
         }
 
         public bool HasStringValue => _string != null;
@@ -376,8 +403,22 @@ namespace Sparrow.Json
             if (self.IsDisposed)
                 self.ThrowAlreadyDisposed();
 #endif
-            return self._string ??
-                   (self._string = Encodings.Utf8.GetString(self._buffer, self._size));
+            if (self._string == null)
+            {
+                if (self._storage.IsInline)
+                {
+                    fixed (byte* ptr = &self._storage.Head)
+                    {
+                        self._string = Encodings.Utf8.GetString(ptr, self._storage.InlineSize);
+                    }
+                }
+                else
+                {
+                    self._string = Encodings.Utf8.GetString(self._storage.ExternalBuffer, self._storage.RawSize);
+                }
+            }
+
+            return self._string;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
