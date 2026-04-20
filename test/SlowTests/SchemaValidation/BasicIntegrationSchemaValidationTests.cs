@@ -512,12 +512,12 @@ public class BasicIntegrationSchemaValidationTests : ReplicationTestBase
 
             var database = await GetDatabase(source.Database);
 
-            var itemErrors = database.EtlErrorsStorage.ReadAllItemErrors();
-            if (itemErrors.Count == 0)
+            var processErrors = database.EtlErrorsStorage.ReadAllProcessErrors();
+            if (processErrors.Count == 0)
                 return false;
-                
-            var itemError = itemErrors.First();
-            return itemError.Error.StartsWith("Raven.Client.Exceptions.SchemaValidation.SchemaValidationException: Raven.Client.Exceptions.SchemaValidation.SchemaValidationException: The value at 'Prop' must be '\"123\"', but it is '\"1234\"");
+
+            var processError = processErrors.First();
+            return processError.Error.Contains("Raven.Client.Exceptions.SchemaValidation.SchemaValidationException: The value at 'Prop' must be '\"123\"', but it is '\"1234\"");
         }
     }
 
