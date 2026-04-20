@@ -8,6 +8,13 @@ public sealed class TimeAgnosticEwma
 
     private bool _initialized;
 
+    public void Reset()
+    {
+        _ewmaErrors = 0;
+        _ewmaTotalItems = 0;
+        _initialized = false;
+    }
+
     public void UpdateOnBatchCompletion(long errorsInThisBatch, long totalItemsInThisBatch)
     {
         if (totalItemsInThisBatch == 0)

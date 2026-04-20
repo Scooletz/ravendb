@@ -14,7 +14,6 @@ using Raven.Client.Documents.Operations.AI;
 using Raven.Client.Documents.Operations.ConnectionStrings;
 using Raven.Client.Documents.Operations.ETL;
 using Raven.Client.Documents.Operations.OngoingTasks;
-using Raven.Client.Exceptions;
 using Raven.Client.Http;
 using Raven.Client.ServerWide.Operations;
 using Raven.Client.ServerWide.Operations.Configuration;
@@ -256,6 +255,126 @@ public class RavenDB_21192 : RavenTestBase
             Assert.NotNull(stats);
             Assert.Equal(3, stats.CountOfEtlTasksErrors);
             Assert.Equal(3, stats.CountOfAiTasksErrors);
+        }
+    }
+    
+    [RavenFact(RavenTestCategory.Etl)]
+    public async Task HealthStatusShouldBecomeFailedOnScriptErrorsAndRecoverAfterFix()
+    {
+        const string connectionStringName = "ConnectionString1";
+        const string etlName = "ETL1";
+        const string transformationName = "Transformation1";
+
+        const string goodScript = "loadToUsers(this);";
+        const string badScript = """
+                                 throw new Error("always fails");
+                                 loadToUsers(this);
+                                 """;
+
+        var collections = new List<string> { "Users" };
+        var processName = EtlProcess.GetProcessName(etlName, transformationName);
+
+        using (var src = GetDocumentStore())
+        using (var dest = GetDocumentStore())
+        {
+            var taskId = AddEtlTask(src, dest, etlName, connectionStringName, [transformationName], [goodScript], collections);
+            
+            using (var session = src.OpenAsyncSession())
+            {
+                for (int i = 0; i < 10; i++)
+                    await session.StoreAsync(new User { Name = "Joe Doe" });
+                await session.SaveChangesAsync();
+            }
+
+            await WaitForEtlStatsAsync(src, processName, stats => stats.LoadSuccesses == 10);
+
+            var etlStats = await GetEtlStatsAsync(src, processName);
+            Assert.Equal(0, etlStats.TransformationErrors);
+            Assert.Equal(EtlProcessHealthStatus.Healthy, etlStats.HealthStatus);
+            
+            var brokenConfig = new RavenEtlConfiguration
+            {
+                Name = etlName,
+                ConnectionStringName = connectionStringName,
+                MentorNode = null,
+                PinToMentorNode = false,
+                Transforms =
+                [
+                    new Transformation
+                    {
+                        Name = transformationName,
+                        Collections = collections,
+                        Script = badScript,
+                        ApplyToAllDocuments = false,
+                        Disabled = false
+                    }
+                ]
+            };
+            var brokenUpdateResult = src.Maintenance.Send(new UpdateEtlOperation<RavenConnectionString>(taskId, brokenConfig));
+            taskId = brokenUpdateResult.TaskId;
+
+            using (var session = src.OpenAsyncSession())
+            {
+                for (int i = 0; i < 10; i++)
+                    await session.StoreAsync(new User { Name = "Joe Doe" });
+                await session.SaveChangesAsync();
+            }
+
+            await WaitForEtlStatsAsync(src, processName, stats => stats.TransformationErrors >= 10);
+
+            etlStats = await GetEtlStatsAsync(src, processName);
+            Assert.True(etlStats.TransformationErrors >= 10);
+            Assert.Equal(EtlProcessHealthStatus.Failed, etlStats.HealthStatus);
+            
+            var fixedConfig = new RavenEtlConfiguration
+            {
+                Name = etlName,
+                ConnectionStringName = connectionStringName,
+                MentorNode = null,
+                PinToMentorNode = false,
+                Transforms =
+                [
+                    new Transformation
+                    {
+                        Name = transformationName,
+                        Collections = collections,
+                        Script = goodScript,
+                        ApplyToAllDocuments = false,
+                        Disabled = false
+                    }
+                ]
+            };
+            var fixUpdateResult = src.Maintenance.Send(new UpdateEtlOperation<RavenConnectionString>(taskId, fixedConfig));
+            taskId = fixUpdateResult.TaskId;
+
+            using (var commands = src.Commands())
+            {
+                var deleteErrorsCommand = new DeleteEtlTaskErrorsCommand(processName);
+                await commands.ExecuteAsync(deleteErrorsCommand);
+            }
+
+            using (var session = src.OpenAsyncSession())
+            {
+                for (int i = 0; i < 10; i++)
+                    await session.StoreAsync(new User { Name = "Joe Doe" });
+                await session.SaveChangesAsync();
+            }
+
+            await WaitForEtlStatsAsync(src, processName, stats => stats.LoadSuccesses == 10);
+
+            etlStats = await GetEtlStatsAsync(src, processName);
+            Assert.Equal(0, etlStats.TransformationErrors);
+            Assert.Equal(EtlProcessHealthStatus.Healthy, etlStats.HealthStatus);
+            
+            var disableResult = await dest.Maintenance.Server.SendAsync(new ToggleDatabasesStateOperation(dest.Database, disable: true));
+            Assert.True(disableResult.Disabled);
+
+            src.Maintenance.Send(new UpdateEtlOperation<RavenConnectionString>(taskId, fixedConfig, [transformationName]));
+            await WaitForEtlStatsAsync(src, processName, stats => stats.LoadErrors > 0 && stats.HealthStatus == EtlProcessHealthStatus.Failed);
+
+            etlStats = await GetEtlStatsAsync(src, processName);
+            Assert.True(etlStats.LoadErrors > 0);
+            Assert.Equal(EtlProcessHealthStatus.Failed, etlStats.HealthStatus);
         }
     }
 

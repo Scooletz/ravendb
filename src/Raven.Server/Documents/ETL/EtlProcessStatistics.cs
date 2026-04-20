@@ -246,6 +246,9 @@ namespace Raven.Server.Documents.ETL
             BatchErrors = 0;
             LastChangeVector = null;
             LastSlowSqlWarningsInCurrentBatch.Statements.Clear();
+            AverageErrorsRatio.Reset();
+            HealthStatus = EtlProcessHealthStatus.Healthy;
+            SetHealthStatusToFailedOnScriptParseError = false;
         }
 
         private sealed class OnDisposeActions : IDisposable
