@@ -1001,6 +1001,101 @@ limit 1000001";
         }
     }
 
+    [Fact]
+    public async Task DirectQuery_grouped_avg_flat_shape_sum_plus_count_should_work_end_to_end()
+    {
+        // PowerBI "AVG" visual is sent as SUM + COUNT so that PowerBI can compute AVG client-side.
+        // Verifies: (a) TryParse succeeds via the multi-aggregate grouped path,
+        // (b) Raven executes and returns rows,
+        // (c) each row's sum/count matches the ground truth computed from raw rows,
+        // (d) the client-side AVG (a0 / a1) equals the ground-truth average per group.
+        //
+        // KNOWN LIMITATION — the "count" column here is the group's ROW count (Raven count()),
+        // not SQL's non-null count. Because the sample dataset's Freight is non-null on every
+        // order, the two values coincide and AVG = SUM/COUNT is correct here. If Freight ever
+        // contained nulls, the COUNT value would over-count vs. SQL semantics and AVG would be
+        // off. See EmitGroupedAggregateRql for the full note on this mapping.
+        using (var store = GetDocumentStore())
+        {
+            await store.Maintenance.SendAsync(new CreateSampleDataOperation());
+
+            // Step 1: fetch raw rows to compute expected sums and counts client-side.
+            const string rawSql = @"select ""_"".""Company"",
+    ""_"".""Employee"",
+    ""_"".""Freight""
+from
+(
+    from Orders
+    where ""Company"" in ('Companies/1-A', 'Companies/2-A', 'Companies/3-A')
+) ""_""
+limit 1000001";
+
+            var rawResult = await Act(store, rawSql);
+            Assert.NotNull(rawResult);
+            Assert.NotEmpty(rawResult.Rows);
+
+            var expectedSum = new Dictionary<(string Company, string Employee), decimal>();
+            var expectedCount = new Dictionary<(string Company, string Employee), int>();
+            foreach (DataRow row in rawResult.Rows)
+            {
+                var company = row["Company"].ToString();
+                var employee = row["Employee"].ToString();
+                var freight = Convert.ToDecimal(row["Freight"]);
+                var key = (company, employee);
+                expectedSum.TryGetValue(key, out var existingSum);
+                expectedSum[key] = existingSum + freight;
+                expectedCount.TryGetValue(key, out var existingCount);
+                expectedCount[key] = existingCount + 1;
+            }
+
+            Assert.NotEmpty(expectedSum);
+
+            // Step 2: run the AVG-shape (sum + count) query.
+            const string sql =
+                @"select ""rows"".""Company"" as ""Company"",
+    ""rows"".""Employee"" as ""Employee"",
+    sum(""rows"".""Freight"") as ""a0"",
+    count(""rows"".""Freight"") as ""a1""
+from
+(
+    select *
+    from Orders
+    where ""Company"" in ('Companies/1-A', 'Companies/2-A', 'Companies/3-A')
+) ""rows""
+group by ""Company"",
+    ""Employee""
+limit 1000001";
+
+            var result = await Act(store, sql);
+
+            Assert.NotNull(result);
+            Assert.NotEmpty(result.Rows);
+            Assert.True(result.Columns.Contains("Company"));
+            Assert.True(result.Columns.Contains("Employee"));
+            Assert.True(result.Columns.Contains("a0"));
+            Assert.True(result.Columns.Contains("a1"));
+
+            Assert.Equal(expectedSum.Count, result.Rows.Count);
+
+            foreach (DataRow row in result.Rows)
+            {
+                var company = row["Company"].ToString();
+                var employee = row["Employee"].ToString();
+                var sumVal = Convert.ToDecimal(row["a0"]);
+                var countVal = Convert.ToInt64(row["a1"]);
+                var key = (company, employee);
+
+                Assert.True(expectedSum.TryGetValue(key, out var expSum),
+                    $"Unexpected group ({company}, {employee}) in result");
+                Assert.True(Math.Abs(sumVal - expSum) < 0.01m,
+                    $"SUM mismatch for ({company}, {employee}): expected {expSum}, got {sumVal}");
+
+                Assert.True(expectedCount.TryGetValue(key, out var expCount));
+                Assert.Equal(expCount, (int)countVal);
+            }
+        }
+    }
+
     [Fact(Skip = "Unsupported: scalar sum() without group by is rejected by Raven RQL.")]
     public async Task DirectQuery_aggregate_only_sum_should_work_end_to_end()
     {

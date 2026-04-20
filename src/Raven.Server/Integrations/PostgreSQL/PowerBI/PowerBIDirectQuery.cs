@@ -35,11 +35,17 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             List<string> ProjectionCols,
             int Limit);
 
-        private sealed record GroupedAggregateShape(
-            List<string> GroupByFields,
+        // Single aggregate extracted from the PowerBI wrapper (e.g. sum("Freight") as "a0").
+        // A grouped DirectQuery shape holds a list of these; the canonical SUM-only and COUNT-only
+        // shapes produce a list of length 1, while the AVG-style SUM+COUNT shape produces two.
+        private sealed record Aggregate(
             string FunctionName,
             string FieldName,
-            string OutputColumn,
+            string OutputColumn);
+
+        private sealed record GroupedAggregateShape(
+            List<string> GroupByFields,
+            List<Aggregate> Aggregates,
             List<string> OrderByCols,
             List<bool> OrderByDescFlags,
             int Limit);
@@ -53,15 +59,14 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
         private sealed record GroupedAggregateOrderByPart(
             GroupedOrderByKind Kind,
             int? GroupKeyIndex,
+            int? AggregateIndex,
             bool Desc);
 
         private sealed record GroupedAggregateRqlParts(
             string FromText,
             string WhereText,
             List<string> GroupByFields,
-            string AggregateFunction,
-            string AggregateField,
-            string AggregateOutput,
+            List<Aggregate> Aggregates,
             List<GroupedAggregateOrderByPart> OrderBy,
             int Limit);
 
@@ -73,9 +78,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             Node OuterWhereClause,
             int? Limit,
             int? Offset,
-            string AggregateFunction,
-            string AggregateField,
-            string AggregateOutput);
+            List<Aggregate> Aggregates);
 
         public static bool TryParse(string queryText, int[] parametersDataTypes, DocumentDatabase documentDatabase, out PgQuery pgQuery)
         {
@@ -135,9 +138,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
 
                 // Scalar aggregates (no GROUP BY) are not supported in Raven RQL.
                 if (wrapper.GroupByColumns is not { Count: > 0 } &&
-                    (string.IsNullOrWhiteSpace(wrapper.AggregateFunction) == false ||
-                     string.IsNullOrWhiteSpace(wrapper.AggregateField) == false ||
-                     string.IsNullOrWhiteSpace(wrapper.AggregateOutput) == false))
+                    wrapper.Aggregates is { Count: > 0 })
                     return false;
 
                 if (TryBuildDirectQueryShape(wrapper, out var shape) == false)
@@ -216,10 +217,10 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                     if (TryExtractGroupByColumns(selectStmt, out var groupByColsFlat) == false)
                         return false;
 
-                    TryExtractSingleAggregate(selectStmt, out var aggFuncFlat, out var aggFieldFlat, out var aggOutputFlat);
+                    TryExtractAggregates(selectStmt, out var aggregatesFlat);
 
                     // ORDER BY in flat grouped shapes is not yet supported; treat the group-by fields as
-                    // the outer projection (aggregate output alias is captured in AggregateOutput).
+                    // the outer projection (aggregate output aliases are captured in Aggregates).
                     wrapper = new NormalizedWrapper(
                         OuterProjectedColumns: new List<string>(groupByColsFlat),
                         GroupByColumns: groupByColsFlat,
@@ -228,9 +229,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                         OuterWhereClause: selectStmt.WhereClause,
                         Limit: limitFlat,
                         Offset: offsetFlat,
-                        AggregateFunction: aggFuncFlat,
-                        AggregateField: aggFieldFlat,
-                        AggregateOutput: aggOutputFlat);
+                        Aggregates: aggregatesFlat);
                     return true;
                 }
 
@@ -290,15 +289,13 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
 
                 // Best-effort: if the wrapper contains an inner GROUP BY, capture it. Otherwise leave null.
                 List<string> groupByCols = null;
-                string aggFunc = null;
-                string aggField = null;
-                string aggOutput = null;
+                List<Aggregate> aggregates = null;
                 if (TryFindInnerGroupedSelect(selectStmt, out var groupedSelect))
                 {
                     if (TryExtractGroupByColumns(groupedSelect, out groupByCols) == false)
                         return false;
 
-                    TryExtractSingleAggregate(groupedSelect, out aggFunc, out aggField, out aggOutput);
+                    TryExtractAggregates(groupedSelect, out aggregates);
 
                     // Normalize ORDER BY helper columns now that we have access to the grouped select.
                     if (orderByCols.Count > 0)
@@ -319,9 +316,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                     OuterWhereClause: selectStmt.WhereClause,
                     Limit: limit,
                     Offset: offset,
-                    AggregateFunction: aggFunc,
-                    AggregateField: aggField,
-                    AggregateOutput: aggOutput);
+                    Aggregates: aggregates);
                 return true;
 
                 static bool TryExtractProjectedColumnsFromAnyWrapperLevel(SelectStmt s, out List<string> cols)
@@ -497,15 +492,19 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                     return false;
                 }
 
-                static bool TryExtractSingleAggregate(SelectStmt groupedSelect, out string functionName, out string fieldName, out string outputColumn)
+                // Collects every aggregate FuncCall in the grouped select's target list.
+                // Non-FuncCall targets are silently skipped (not validated against the group-by list);
+                // this matches the previous single-aggregate behavior. Callers get the group-by list
+                // separately via TryExtractGroupByColumns.
+                // Returns true when at least one well-formed aggregate was found.
+                static bool TryExtractAggregates(SelectStmt groupedSelect, out List<Aggregate> aggregates)
                 {
-                    functionName = null;
-                    fieldName = null;
-                    outputColumn = null;
+                    aggregates = null;
 
                     if (groupedSelect?.TargetList == null || groupedSelect.TargetList.Count == 0)
                         return false;
 
+                    var list = new List<Aggregate>();
                     foreach (var t in groupedSelect.TargetList)
                     {
                         var rt = t?.ResTarget;
@@ -530,13 +529,19 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                         if (arg?.Fields is not { Count: > 0 } fields)
                             continue;
 
-                        functionName = name;
-                        fieldName = fields[^1].String?.Sval;
-                        outputColumn = rt.Name;
-                        return string.IsNullOrWhiteSpace(fieldName) == false && string.IsNullOrWhiteSpace(outputColumn) == false;
+                        var fieldName = fields[^1].String?.Sval;
+                        var outputColumn = rt.Name;
+                        if (string.IsNullOrWhiteSpace(fieldName) || string.IsNullOrWhiteSpace(outputColumn))
+                            continue;
+
+                        list.Add(new Aggregate(FunctionName: name, FieldName: fieldName, OutputColumn: outputColumn));
                     }
 
-                    return false;
+                    if (list.Count == 0)
+                        return false;
+
+                    aggregates = list;
+                    return true;
                 }
             }
 
@@ -546,13 +551,21 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 if (wrapper == null)
                     return false;
 
-                if (string.IsNullOrWhiteSpace(wrapper.AggregateFunction) ||
-                    string.IsNullOrWhiteSpace(wrapper.AggregateField) ||
-                    string.IsNullOrWhiteSpace(wrapper.AggregateOutput))
+                if (wrapper.Aggregates is not { Count: > 0 } aggregates)
                     return false;
 
-                if (IsSupportedGroupedAggregateFunction(wrapper.AggregateFunction) == false)
-                    return false;
+                // All aggregates must be supported. A single unsupported aggregate fails the whole shape
+                // (we don't want to partially emit — PowerBI expects every requested output column).
+                foreach (var agg in aggregates)
+                {
+                    if (string.IsNullOrWhiteSpace(agg.FunctionName) ||
+                        string.IsNullOrWhiteSpace(agg.FieldName) ||
+                        string.IsNullOrWhiteSpace(agg.OutputColumn))
+                        return false;
+
+                    if (IsSupportedGroupedAggregateFunction(agg.FunctionName) == false)
+                        return false;
+                }
 
                 if (wrapper.GroupByColumns is not { Count: > 0 })
                     return false;
@@ -565,15 +578,26 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
 
                 if (wrapper.OuterWhereClause != null)
                 {
-                    if (TryIsOuterAggregateNotNullFilter(wrapper.OuterWhereClause, expectedName: wrapper.AggregateOutput) == false)
+                    // For multi-aggregate shapes the PowerBI wrapper's outer "is not null" guard (when
+                    // present) targets one of the aggregate outputs. Accept the WHERE if it matches any
+                    // of them — PowerBI only emits one guard column, but which one is not stable.
+                    var matchedAnyAggregateOutput = false;
+                    foreach (var agg in aggregates)
+                    {
+                        if (TryIsOuterAggregateNotNullFilter(wrapper.OuterWhereClause, expectedName: agg.OutputColumn))
+                        {
+                            matchedAnyAggregateOutput = true;
+                            break;
+                        }
+                    }
+
+                    if (matchedAnyAggregateOutput == false)
                         return false;
                 }
 
                 shape = new GroupedAggregateShape(
                     GroupByFields: wrapper.GroupByColumns,
-                    FunctionName: wrapper.AggregateFunction,
-                    FieldName: wrapper.AggregateField,
-                    OutputColumn: wrapper.AggregateOutput,
+                    Aggregates: aggregates,
                     OrderByCols: wrapper.OrderByColumns,
                     OrderByDescFlags: wrapper.OrderByDescFlags,
                     Limit: wrapper.Limit.Value);
@@ -670,7 +694,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 if (q.From.From == null)
                     return false;
 
-                if (IsSupportedGroupedAggregateFunction(shape.FunctionName) == false)
+                if (shape.Aggregates is not { Count: > 0 } aggregates)
                     return false;
 
                 if (shape.GroupByFields is not { Count: > 0 })
@@ -685,35 +709,44 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                     groupIds.Add(groupId);
                 }
 
-                var fieldId = FormatRqlIdentifier(shape.FieldName);
-                if (fieldId == null)
-                    return false;
+                // Format each aggregate's field + output alias as RQL identifiers in one pass;
+                // reject the whole shape on any formatting failure to avoid partial emission.
+                var formattedAggregates = new List<Aggregate>(capacity: aggregates.Count);
+                foreach (var agg in aggregates)
+                {
+                    if (IsSupportedGroupedAggregateFunction(agg.FunctionName) == false)
+                        return false;
 
-                var outId = FormatRqlIdentifier(shape.OutputColumn);
-                if (outId == null)
-                    return false;
+                    var fieldId = FormatRqlIdentifier(agg.FieldName);
+                    if (fieldId == null)
+                        return false;
+
+                    var outId = FormatRqlIdentifier(agg.OutputColumn);
+                    if (outId == null)
+                        return false;
+
+                    formattedAggregates.Add(new Aggregate(FunctionName: agg.FunctionName, FieldName: fieldId, OutputColumn: outId));
+                }
 
                 if (TryBuildFromText(q, out var fromText) == false)
                     return false;
 
                 TryBuildWhereText(q, out var whereText);
 
-                if (TryBuildGroupedAggregateOrderBy(shape, groupIds, outId, out var orderBy) == false)
+                if (TryBuildGroupedAggregateOrderBy(shape, groupIds, out var orderBy) == false)
                     return false;
 
                 parts = new GroupedAggregateRqlParts(
                     FromText: fromText,
                     WhereText: whereText,
                     GroupByFields: groupIds,
-                    AggregateFunction: shape.FunctionName,
-                    AggregateField: fieldId,
-                    AggregateOutput: outId,
+                    Aggregates: formattedAggregates,
                     OrderBy: orderBy,
                     Limit: shape.Limit);
                 return true;
             }
 
-            static bool TryBuildGroupedAggregateOrderBy(GroupedAggregateShape shape, List<string> groupIds, string outId, out List<GroupedAggregateOrderByPart> orderBy)
+            static bool TryBuildGroupedAggregateOrderBy(GroupedAggregateShape shape, List<string> groupIds, out List<GroupedAggregateOrderByPart> orderBy)
             {
                 orderBy = null;
 
@@ -729,11 +762,24 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                     var c = shape.OrderByCols[i];
                     var desc = shape.OrderByDescFlags[i];
 
-                    if (string.Equals(c, shape.OutputColumn, StringComparison.OrdinalIgnoreCase))
+                    // Match against any aggregate's output alias (multi-aggregate shapes may expose
+                    // several sortable columns, e.g. "a0" = sum, "a1" = count).
+                    var matchedAggregate = false;
+                    if (shape.Aggregates != null)
                     {
-                        parts.Add(new GroupedAggregateOrderByPart(Kind: GroupedOrderByKind.Output, GroupKeyIndex: null, Desc: desc));
-                        continue;
+                        for (int aIndex = 0; aIndex < shape.Aggregates.Count; aIndex++)
+                        {
+                            if (string.Equals(c, shape.Aggregates[aIndex].OutputColumn, StringComparison.OrdinalIgnoreCase))
+                            {
+                                parts.Add(new GroupedAggregateOrderByPart(Kind: GroupedOrderByKind.Output, GroupKeyIndex: null, AggregateIndex: aIndex, Desc: desc));
+                                matchedAggregate = true;
+                                break;
+                            }
+                        }
                     }
+
+                    if (matchedAggregate)
+                        continue;
 
                     if (shape.GroupByFields != null)
                     {
@@ -742,7 +788,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                             var gb = shape.GroupByFields[gbIndex];
                             if (string.Equals(c, gb, StringComparison.OrdinalIgnoreCase))
                             {
-                                parts.Add(new GroupedAggregateOrderByPart(Kind: GroupedOrderByKind.GroupKey, GroupKeyIndex: gbIndex, Desc: desc));
+                                parts.Add(new GroupedAggregateOrderByPart(Kind: GroupedOrderByKind.GroupKey, GroupKeyIndex: gbIndex, AggregateIndex: null, Desc: desc));
                                 goto next;
                             }
                         }
@@ -761,12 +807,15 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 if (parts == null)
                     return null;
 
+                if (parts.Aggregates is not { Count: > 0 })
+                    return null;
+
                 // Build Raven grouped query explicitly (grammar differs from regular select projection).
                 // from <collection>
                 // group by <field>
                 // where <predicate>
                 // order by <aggregate alias> as double [desc], <group field> [desc]
-                // select key() as <field>, sum(<field>) as <output>
+                // select key() as <field>, sum(<field>) as <sumOut>, count() as <countOut>
                 // limit 0, <limit>
 
                 const string nl = "\n";
@@ -796,9 +845,13 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                         switch (ob.Kind)
                         {
                             case GroupedOrderByKind.Output:
-                                sb.Append(parts.AggregateOutput);
+                                var aIndex = ob.AggregateIndex ?? 0;
+                                if ((uint)aIndex >= (uint)parts.Aggregates.Count)
+                                    return null;
+                                var targetAgg = parts.Aggregates[aIndex];
+                                sb.Append(targetAgg.OutputColumn);
                                 // count() returns a long integer; sum() returns a double.
-                                sb.Append(IsCountFunction(parts.AggregateFunction) ? " as long" : " as double");
+                                sb.Append(IsCountFunction(targetAgg.FunctionName) ? " as long" : " as double");
                                 break;
                             case GroupedOrderByKind.GroupKey:
                                 if (parts.GroupByFields is not { Count: > 0 })
@@ -825,20 +878,24 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                         sb.Append(", ");
                     sb.Append(parts.GroupByFields[i]);
                 }
-                sb.Append(", ");
-                if (IsCountFunction(parts.AggregateFunction))
+
+                foreach (var agg in parts.Aggregates)
                 {
-                    // Raven grouped RQL uses count() with no argument; the SQL-side field name is irrelevant.
-                    sb.Append("count() as ");
-                    sb.Append(parts.AggregateOutput);
-                }
-                else
-                {
-                    sb.Append(parts.AggregateFunction);
-                    sb.Append('(');
-                    sb.Append(parts.AggregateField);
-                    sb.Append(") as ");
-                    sb.Append(parts.AggregateOutput);
+                    sb.Append(", ");
+                    if (IsCountFunction(agg.FunctionName))
+                    {
+
+                        sb.Append("count() as ");
+                        sb.Append(agg.OutputColumn);
+                    }
+                    else
+                    {
+                        sb.Append(agg.FunctionName);
+                        sb.Append('(');
+                        sb.Append(agg.FieldName);
+                        sb.Append(") as ");
+                        sb.Append(agg.OutputColumn);
+                    }
                 }
 
                 sb.Append(nl);

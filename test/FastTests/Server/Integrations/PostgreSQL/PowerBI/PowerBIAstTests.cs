@@ -1547,6 +1547,71 @@ limit 1000001";
             Assert.Contains("count()", queryString, StringComparison.OrdinalIgnoreCase);
         }
 
+        // ── DirectQuery – grouped AVG (sum + count) ───────────────────────────────────
+
+        [Fact]
+        public void DirectQuery_grouped_avg_shape_sum_plus_count_should_parse_and_emit_both_aggregates()
+        {
+            // PowerBI "AVG" visual: AVG is sent as SUM + COUNT so PowerBI can divide on the client.
+            // Verifies: (a) TryParse succeeds, (b) classified as PowerBIDirectQuery, (c) emitted RQL
+            // contains both group keys and both aggregate projections with their original aliases.
+            const string sql = @"select ""rows"".""Company"" as ""Company"",
+    ""rows"".""Employee"" as ""Employee"",
+    sum(""rows"".""Freight"") as ""a0"",
+    count(""rows"".""Freight"") as ""a1""
+from
+(
+    select *
+from Orders
+where Company in ('Companies/1-A', 'Companies/2-A', 'Companies/3-A')
+) ""rows""
+group by ""Company"",
+    ""Employee""
+limit 1000001";
+
+            Assert.True(PowerBIQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
+            Assert.IsType<PowerBIDirectQuery>(pgQuery);
+
+            var queryString = GetQueryString(pgQuery);
+            Assert.NotNull(queryString);
+            Assert.Contains("Orders", queryString, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("group by Company, Employee", queryString, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("sum(Freight) as a0", queryString, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("count() as a1", queryString, StringComparison.OrdinalIgnoreCase);
+            // Pins the known-limitation mapping: SQL count(field) -> RQL count() (row count, not non-null count).
+            // Raven grouped RQL has no field-specific non-null aggregate. Matches the emitted grouped COUNT behavior.
+            // See EmitGroupedAggregateRql for the full explanation; revisit if RQL gains a non-null aggregate.
+            Assert.DoesNotContain("count(Freight)", queryString, StringComparison.OrdinalIgnoreCase);
+        }
+
+        [Fact]
+        public void DirectQuery_grouped_multi_aggregate_count_plus_sum_ordering_should_be_preserved()
+        {
+            // Swap of the AVG shape: count first, sum second. Verifies aggregate ordering follows
+            // the target list, not some hard-coded sum-first convention.
+            const string sql = @"select ""rows"".""Company"" as ""Company"",
+    count(""rows"".""Freight"") as ""a0"",
+    sum(""rows"".""Freight"") as ""a1""
+from
+(
+    select *
+from Orders
+) ""rows""
+group by ""Company""
+limit 1000001";
+
+            Assert.True(PowerBIDirectQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
+            Assert.IsType<PowerBIDirectQuery>(pgQuery);
+
+            var queryString = GetQueryString(pgQuery);
+            Assert.NotNull(queryString);
+            var countIdx = queryString.IndexOf("count() as a0", StringComparison.OrdinalIgnoreCase);
+            var sumIdx = queryString.IndexOf("sum(Freight) as a1", StringComparison.OrdinalIgnoreCase);
+            Assert.True(countIdx > 0, "expected count() as a0 in emitted RQL: " + queryString);
+            Assert.True(sumIdx > 0, "expected sum(Freight) as a1 in emitted RQL: " + queryString);
+            Assert.True(countIdx < sumIdx, "aggregate order should match target-list order: " + queryString);
+        }
+
         // ── DirectQuery – regression ──────────────────────────────────────────────────
 
         [Fact]
