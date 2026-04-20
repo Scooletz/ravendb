@@ -68,6 +68,94 @@ from ""public"".""Orders"" ""$Table"" limit 200";
             Assert.Equal(1000, GetLimit(pgQuery));
         }
 
+        // --- Item B: wrapper interpretation tolerance ---
+
+        [Fact]
+        public void Fetch_rows_alias_at_wrapper_level_should_be_accepted()
+        {
+            // Sub-item 1 of Item B: the "rows" wrapper alias variant must be accepted by the Fetch
+            // walker just like "_" and "$Table". Pinned here so future narrowing of the alias list
+            // (e.g. accidentally returning to the old "_/$Table" only check) regresses loudly.
+            const string sql = "select * from (from Employees) \"rows\" limit 1000";
+
+            Assert.True(PowerBIFetchQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
+
+            Assert.IsType<PowerBIRqlQuery>(pgQuery);
+            Assert.Equal(1000, GetLimit(pgQuery));
+        }
+
+        [Fact]
+        public void DirectQuery_aggregate_with_offset_zero_should_be_accepted()
+        {
+            // Item B relax #1: LIMIT N OFFSET 0 is a semantic no-op at the outer aggregate level.
+            // PowerBI occasionally emits it; DirectQuery must accept it instead of bailing out.
+            const string sql = @"select ""_"".""Employee"",
+    ""_"".""a0""
+from
+(
+    select ""rows"".""Employee"" as ""Employee"",
+        sum(""rows"".""Freight"") as ""a0""
+    from
+    (
+        from Orders
+    ) ""rows""
+    group by ""Employee""
+) ""_""
+limit 1000 offset 0";
+
+            Assert.True(PowerBIQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
+            Assert.IsType<PowerBIDirectQuery>(pgQuery);
+        }
+
+        [Fact]
+        public void DirectQuery_group_by_with_typecast_should_be_accepted()
+        {
+            // Item B relax #2: GROUP BY through TypeCast/RelabelType must unwrap to the underlying
+            // ColumnRef. PowerBI sometimes emits explicit type coercions in GROUP BY; the cast is
+            // semantically irrelevant for RQL grouping.
+            const string sql = @"select ""_"".""Employee"",
+    ""_"".""a0""
+from
+(
+    select ""rows"".""Employee"" as ""Employee"",
+        sum(""rows"".""Freight"") as ""a0""
+    from
+    (
+        from Orders
+    ) ""rows""
+    group by ""Employee""::text
+) ""_""
+limit 1000";
+
+            Assert.True(PowerBIQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
+            Assert.IsType<PowerBIDirectQuery>(pgQuery);
+        }
+
+        [Fact]
+        public void DirectQuery_aggregate_with_non_underscore_order_by_alias_should_be_accepted()
+        {
+            // Item B relax #4: ORDER BY on a non-"_" wrapper alias (e.g. "rows"."a0") must be
+            // tolerated. The qualifier is a wrapper alias; only the last identifier segment is
+            // meaningful for RQL. Also exercises relax #3 (multi-segment projection via "rows".X).
+            const string sql = @"select ""rows"".""Employee"" as ""Employee"",
+    ""rows"".""a0"" as ""a0""
+from
+(
+    select ""$Table"".""Employee"" as ""Employee"",
+        sum(""$Table"".""Freight"") as ""a0""
+    from
+    (
+        from Orders
+    ) ""$Table""
+    group by ""Employee""
+) ""rows""
+order by ""rows"".""a0""
+limit 1000";
+
+            Assert.True(PowerBIQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
+            Assert.IsType<PowerBIDirectQuery>(pgQuery);
+        }
+
         [Fact]
         public void DirectQuery_desktop_null_order_helper_wrapper_should_be_handled_by_direct_query_parser_not_fetch()
         {

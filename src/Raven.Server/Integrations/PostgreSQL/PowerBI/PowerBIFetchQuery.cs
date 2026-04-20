@@ -31,9 +31,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
 
             try
             {
-                var sql = queryText;
-
-                var inner = PowerBIInnerRqlExtractor.TryExtractAndResolve(sql);
+                var inner = PowerBIInnerRqlExtractor.TryExtractAndResolve(queryText);
                 if (inner == null)
                     return false;
 
@@ -51,11 +49,12 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 if (selectStmt == null)
                     return false;
 
-                if (selectStmt.LimitOffset != null)
-                    return false;
-
-                if (TryExtractLimit(selectStmt.LimitCount, out var limit) == false)
-                    return false;
+                int? limit = null;
+                if (selectStmt.LimitCount != null)
+                {
+                    if (TryExtractNonNegativeIntConst(selectStmt.LimitCount, out var l))
+                        limit = l;
+                }
 
                 var query = inner.ResolvedQuery;
 
@@ -73,12 +72,6 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                             return false;
 
                         break;
-                    }
-
-                    if (isOuterMost == false)
-                    {
-                        if (currentSelect.LimitCount != null || currentSelect.LimitOffset != null)
-                            return false;
                     }
 
                     if (TryExtractPowerBiReplaceColumns(currentSelect, wrapperAlias, out var levelReplaces) == false)
@@ -145,11 +138,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
 
                 var rss = fromItem.RangeSubselect;
                 alias = rss.Alias?.Aliasname;
-                if (string.IsNullOrWhiteSpace(alias))
-                    return false;
-
-                if (string.Equals(alias, "_", StringComparison.OrdinalIgnoreCase) == false &&
-                    string.Equals(alias, "$Table", StringComparison.OrdinalIgnoreCase) == false)
+                if (PowerBIInnerRqlExtractor.IsPowerBiWrapperAlias(alias) == false)
                     return false;
 
                 nextSelect = rss.Subquery?.SelectStmt;
@@ -217,7 +206,8 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             return true;
         }
 
-        private static bool TryExtractLimit(Node node, out int value)
+        // Tolerates all three constant kinds pgsqlparser emits: Sval, Ival, Fval.
+        private static bool TryExtractNonNegativeIntConst(Node node, out int value)
         {
             value = 0;
 
@@ -225,14 +215,14 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             if (c == null)
                 return false;
 
-            if (c.Sval != null && int.TryParse(c.Sval.Sval, NumberStyles.Integer, CultureInfo.InvariantCulture, out value))
-                return value >= 0;
-
             if (c.Ival != null)
             {
                 value = (int)c.Ival.Ival;
                 return value >= 0;
             }
+
+            if (c.Sval != null && int.TryParse(c.Sval.Sval, NumberStyles.Integer, CultureInfo.InvariantCulture, out value))
+                return value >= 0;
 
             if (c.Fval != null && int.TryParse(c.Fval.Fval, NumberStyles.Integer, CultureInfo.InvariantCulture, out value))
                 return value >= 0;
@@ -290,6 +280,5 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             return true;
         }
 
-        
     }
 }

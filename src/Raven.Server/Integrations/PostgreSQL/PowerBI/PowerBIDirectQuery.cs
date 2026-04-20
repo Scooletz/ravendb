@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Text;
 using PgSqlParser;
 using Raven.Server.Documents;
@@ -205,9 +206,11 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                     int? offsetFlat = null;
                     if (selectStmt.LimitOffset != null)
                     {
-                        if (selectStmt.LimitOffset.AConst?.Ival == null)
+                        // Match the LIMIT path's literal-kind tolerance (Sval/Ival/Fval), not just Ival.
+                        // PowerBI sometimes emits OFFSET as a typed string-literal constant.
+                        if (TryExtractOffset(selectStmt, out var o) == false)
                             return false;
-                        offsetFlat = (int)selectStmt.LimitOffset.AConst.Ival.Ival;
+                        offsetFlat = o;
                     }
 
                     if (TryExtractGroupByColumns(selectStmt, out var groupByColsFlat) == false)
@@ -247,9 +250,10 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 int? offset = null;
                 if (selectStmt.LimitOffset != null)
                 {
-                    if (selectStmt.LimitOffset.AConst?.Ival == null)
+                    // See note above: accept the same constant kinds as the LIMIT path.
+                    if (TryExtractOffset(selectStmt, out var o) == false)
                         return false;
-                    offset = (int)selectStmt.LimitOffset.AConst.Ival.Ival;
+                    offset = o;
                 }
 
                 var orderByCols = new List<string>();
@@ -268,8 +272,16 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                         if (colRef == null)
                             return false;
 
+                        // Primary extraction: expect the strict "_"-qualified shape that PowerBI's
+                        // standard wrapper emits. If the wrapper alias is different (e.g. "rows",
+                        // "$Table", or any other benign alias), fall back to the last identifier
+                        // segment — the qualifier is irrelevant for RQL, only the field name matters.
                         if (TryExtractOuterUnderscoreQualifiedColumn(colRef, out var colName) == false)
-                            return false;
+                        {
+                            colName = TryExtractLastIdentifierSegment(colRef);
+                            if (string.IsNullOrWhiteSpace(colName))
+                                return false;
+                        }
 
                         orderByCols.Add(colName);
                         orderByDescFlags.Add(sortBy.SortbyDir == SortByDir.SortbyDesc);
@@ -356,15 +368,28 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                             return false;
                         }
 
-                        if (colRef.Fields is not { Count: 1 })
+                        // Multi-segment refs (e.g. "rows"."Company", "_"."Employee") are harmless:
+                        // the qualifier is a wrapper alias, and the last identifier is the real
+                        // projected field. Helper-named multi-segment refs (e.g. "_"."t2_0") are
+                        // still skipped so they don't leak into the projection list.
+                        string colName;
+                        if (colRef.Fields is { Count: > 1 })
                         {
-                            // Multi-field qualified ref (e.g. "_"."t2_0"): skip if known helper alias.
                             if (IsHelperColumnAlias(rt.Name))
                                 continue;
-                            return false;
+
+                            colName = TryExtractLastIdentifierSegment(colRef);
+                            if (string.IsNullOrWhiteSpace(colName))
+                                return false;
+
+                            if (IsHelperColumnAlias(colName))
+                                continue;
+
+                            cols.Add(colName);
+                            continue;
                         }
 
-                        var colName = colRef.Fields[0]?.String?.Sval;
+                        colName = TryExtractLastIdentifierSegment(colRef);
                         if (string.IsNullOrWhiteSpace(colName))
                             return false;
 
@@ -532,7 +557,10 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 if (wrapper.GroupByColumns is not { Count: > 0 })
                     return false;
 
-                if (wrapper.Limit == null || wrapper.Offset != null)
+                // Limit is required (no safe default), but OFFSET 0 is a semantic no-op and should be
+                // accepted — PowerBI sometimes emits LIMIT N OFFSET 0 in aggregate wrappers. Any other
+                // offset would skip rows and is still rejected.
+                if (wrapper.Limit == null || (wrapper.Offset != null && wrapper.Offset != 0))
                     return false;
 
                 if (wrapper.OuterWhereClause != null)
@@ -597,19 +625,11 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                         colRef = innerNt.Arg?.ColumnRef;
                         return colRef != null;
 
-                        static bool IsNotNullTest(NullTest nt)
-                        {
-                            var t = nt.Nulltesttype.ToString();
-                            return string.Equals(t, "IsNotNull", StringComparison.OrdinalIgnoreCase) ||
-                                   string.Equals(t, "NulltestIsNotNull", StringComparison.OrdinalIgnoreCase);
-                        }
+                        static bool IsNotNullTest(NullTest nt) =>
+                            nt.Nulltesttype == NullTestType.IsNotNull;
 
-                        static bool IsNullTest(NullTest nt)
-                        {
-                            var t = nt.Nulltesttype.ToString();
-                            return string.Equals(t, "IsNull", StringComparison.OrdinalIgnoreCase) ||
-                                   string.Equals(t, "NulltestIsNull", StringComparison.OrdinalIgnoreCase);
-                        }
+                        static bool IsNullTest(NullTest nt) =>
+                            nt.Nulltesttype == NullTestType.IsNull;
                     }
                 }
             }
@@ -934,7 +954,11 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 cols = new List<string>(capacity: selectStmt.GroupClause.Count);
                 foreach (var node in selectStmt.GroupClause)
                 {
-                    var colRef = node?.ColumnRef;
+                    // Walk through harmless wrapping nodes (TypeCast, RelabelType) to reach the
+                    // underlying ColumnRef. PowerBI sometimes emits explicit type coercions in
+                    // GROUP BY, e.g. "GROUP BY ""Employee""::text". The cast is irrelevant for
+                    // RQL grouping (Raven groups by field reference, not by typed expression).
+                    var colRef = UnwrapToColumnRef(node);
                     if (colRef == null)
                         return false;
 
@@ -946,6 +970,27 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 }
 
                 return true;
+
+                static ColumnRef UnwrapToColumnRef(Node n)
+                {
+                    while (n != null)
+                    {
+                        if (n.ColumnRef != null)
+                            return n.ColumnRef;
+                        if (n.TypeCast != null)
+                        {
+                            n = n.TypeCast.Arg;
+                            continue;
+                        }
+                        if (n.RelabelType != null)
+                        {
+                            n = n.RelabelType.Arg;
+                            continue;
+                        }
+                        break;
+                    }
+                    return null;
+                }
             }
 
             static bool TryNormalizeOrderByHelperColumn(string colName, SelectStmt groupBySelect, out string normalized)
@@ -1149,13 +1194,36 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
 
             static bool TryExtractLimit(SelectStmt selectStmt, out int limit)
             {
-                limit = 0;
+                return TryReadAConstNonNegativeInt(selectStmt?.LimitCount, out limit);
+            }
 
-                if (selectStmt?.LimitCount?.AConst?.Ival == null)
+            static bool TryExtractOffset(SelectStmt selectStmt, out int offset)
+            {
+                return TryReadAConstNonNegativeInt(selectStmt?.LimitOffset, out offset);
+            }
+
+            // Tolerates all three constant kinds pgsqlparser emits: Ival, Sval, Fval.
+            static bool TryReadAConstNonNegativeInt(Node node, out int value)
+            {
+                value = 0;
+
+                var c = node?.AConst;
+                if (c == null)
                     return false;
 
-                limit = (int)selectStmt.LimitCount.AConst.Ival.Ival;
-                return true;
+                if (c.Ival != null)
+                {
+                    value = (int)c.Ival.Ival;
+                    return value >= 0;
+                }
+
+                if (c.Sval != null && int.TryParse(c.Sval.Sval, NumberStyles.Integer, CultureInfo.InvariantCulture, out value))
+                    return value >= 0;
+
+                if (c.Fval != null && int.TryParse(c.Fval.Fval, NumberStyles.Integer, CultureInfo.InvariantCulture, out value))
+                    return value >= 0;
+
+                return false;
             }
 
             static bool IsValidRqlSelect(string rql)
@@ -1568,27 +1636,12 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 if (string.IsNullOrWhiteSpace(identifier))
                     return null;
 
-                bool IsAsciiLetter(char ch) => (ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z');
-                bool IsAsciiDigit(char ch) => ch >= '0' && ch <= '9';
-                bool IsStart(char ch) => IsAsciiLetter(ch) || ch == '_';
-                bool IsPart(char ch) => IsStart(ch) || IsAsciiDigit(ch);
+                var s = identifier;
+                bool plain = char.IsAsciiLetter(s[0]) || s[0] == '_';
+                for (int i = 1; i < s.Length && plain; i++)
+                    plain = char.IsAsciiLetterOrDigit(s[i]) || s[i] == '_';
 
-                if (IsStart(identifier[0]) == false)
-                    return Escape(identifier);
-
-                for (int i = 1; i < identifier.Length; i++)
-                {
-                    if (IsPart(identifier[i]) == false)
-                        return Escape(identifier);
-                }
-
-                return identifier;
-
-                static string Escape(string raw)
-                {
-                    var escaped = raw.Replace("\"", "\\\"", StringComparison.Ordinal);
-                    return $"[\"{escaped}\"]";
-                }
+                return plain ? s : $"[\"{s.Replace("\"", "\\\"", StringComparison.Ordinal)}\"]";
             }
 
             static string FormatRqlObjectFieldIdentifier(string identifier)
@@ -1596,27 +1649,16 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 if (string.IsNullOrWhiteSpace(identifier))
                     return null;
 
-                bool IsAsciiLetter(char ch) => (ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z');
-                bool IsAsciiDigit(char ch) => ch >= '0' && ch <= '9';
-                bool IsStart(char ch) => IsAsciiLetter(ch) || ch == '_';
-                bool IsPart(char ch) => IsStart(ch) || IsAsciiDigit(ch);
+                var s = identifier;
+                bool plain = char.IsAsciiLetter(s[0]) || s[0] == '_';
+                for (int i = 1; i < s.Length && plain; i++)
+                    plain = char.IsAsciiLetterOrDigit(s[i]) || s[i] == '_';
 
-                if (IsStart(identifier[0]) == false)
-                    return Quote(identifier);
+                if (plain)
+                    return s;
 
-                for (int i = 1; i < identifier.Length; i++)
-                {
-                    if (IsPart(identifier[i]) == false)
-                        return Quote(identifier);
-                }
-
-                return identifier;
-
-                static string Quote(string raw)
-                {
-                    var escaped = raw.Replace("\"", "\\\"", StringComparison.Ordinal);
-                    return "\"" + escaped + "\"";
-                }
+                var escaped = s.Replace("\"", "\\\"", StringComparison.Ordinal);
+                return "\"" + escaped + "\"";
             }
         }
     }

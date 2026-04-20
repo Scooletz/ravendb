@@ -97,8 +97,10 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
         [Fact]
         public void Easy_10_OrderByDescLimit()
         {
+            // Unquoted identifiers follow PostgreSQL semantics (folded to lowercase).
+            // Users who need exact RavenDB field casing must quote the identifier.
             var sql = "SELECT * FROM orders ORDER BY createdAt LIMIT 5";
-            var expected = "from 'orders' order by createdAt limit 0, 5";
+            var expected = "from 'orders' order by createdat limit 0, 5";
 
             Assert.Equal(expected, Translate(sql));
         }
@@ -109,7 +111,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
         public void Mid_11_WhereDottedPathEquals()
         {
             var sql = "SELECT * FROM orders WHERE ShipTo.City = 'London'";
-            var expected = "from 'orders' where ShipTo.City = 'London'";
+            var expected = "from 'orders' where shipto.city = 'London'";
 
             Assert.Equal(expected, Translate(sql));
         }
@@ -136,7 +138,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
         public void Mid_14_InListOnDottedPath()
         {
             var sql = "SELECT * FROM orders WHERE shipTo.city IN ('London','Paris')";
-            var expected = "from 'orders' where shipTo.city in ('London', 'Paris')";
+            var expected = "from 'orders' where shipto.city in ('London', 'Paris')";
 
             Assert.Equal(expected, Translate(sql));
         }
@@ -154,7 +156,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
         public void Mid_16_OrderByTwoFields()
         {
             var sql = "SELECT * FROM orders ORDER BY createdAt DESC, amount ASC";
-            var expected = "from 'orders' order by createdAt desc, amount";
+            var expected = "from 'orders' order by createdat desc, amount";
 
             Assert.Equal(expected, Translate(sql));
         }
@@ -172,7 +174,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
         public void Mid_18_AndWithDottedPath()
         {
             var sql = "SELECT * FROM orders WHERE status = 'Pending' AND shipTo.city = 'London'";
-            var expected = "from 'orders' where status = 'Pending' and shipTo.city = 'London'";
+            var expected = "from 'orders' where status = 'Pending' and shipto.city = 'London'";
 
             Assert.Equal(expected, Translate(sql));
         }
@@ -181,7 +183,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
         public void Mid_19_IsNull()
         {
             var sql = "SELECT * FROM orders WHERE shippedAt IS NULL";
-            var expected = "from 'orders' where shippedAt = null";
+            var expected = "from 'orders' where shippedat = null";
 
             Assert.Equal(expected, Translate(sql));
         }
@@ -210,7 +212,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
         public void Complex_22_SelectColumnsWithWhere()
         {
             var sql = "SELECT id, status, shipTo.city FROM orders WHERE amount > 10";
-            var expected = "from 'orders' where amount > 10 select id, status, shipTo.city";
+            var expected = "from 'orders' where amount > 10 select id, status, shipto.city";
 
             Assert.Equal(expected, Translate(sql));
         }
@@ -285,59 +287,33 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
             Assert.Equal(expected, Translate(sql));
         }
 
-        // ── Source-text identifier case recovery ─────────────────────────────────────
-        // pgsqlparser folds unquoted identifiers to lowercase; ColumnRef.Location (byte
-        // offset into the original SQL) is used to recover the original mixed-case spelling.
+        // ── Identifier case handling ─────────────────────────────────────────────────
+        // Unquoted identifiers follow PostgreSQL semantics: pgsqlparser folds them to
+        // lowercase before the AST is built (SQL standard behaviour). Quoted identifiers
+        // preserve case via Sval. Users who need exact RavenDB field casing must quote
+        // the identifier in SQL. See libpg_query issue #59 for upstream background.
 
         [Fact]
-        public void SourceRecovery_UnquotedSingleFieldInSelect_PreservesCase()
+        public void IdentifierCasing_QuotedIdentifier_PreservesCase()
         {
-            var sql = "SELECT Company FROM orders";
+            var sql = "SELECT \"Company\" FROM orders WHERE \"Title\" = 'Manager'";
             var rql = Translate(sql);
 
             Assert.Contains("Company", rql, StringComparison.Ordinal);
-            Assert.DoesNotContain("company", rql, StringComparison.Ordinal);
-        }
-
-        [Fact]
-        public void SourceRecovery_UnquotedFieldInWhere_PreservesCase()
-        {
-            var sql = "SELECT * FROM orders WHERE Title = 'Manager'";
-            var rql = Translate(sql);
-
             Assert.Contains("Title", rql, StringComparison.Ordinal);
-            Assert.DoesNotContain(" title ", rql, StringComparison.Ordinal);
         }
 
         [Fact]
-        public void SourceRecovery_UnquotedDottedPathInWhere_PreservesCase()
+        public void IdentifierCasing_UnquotedIdentifier_FoldedToLowercase()
         {
-            // Both segments of a dotted path must be recovered independently.
-            var sql = "SELECT * FROM orders WHERE ShipTo.City = 'London'";
+            var sql = "SELECT Company FROM orders WHERE Title = 'Manager'";
             var rql = Translate(sql);
 
-            Assert.Contains("ShipTo.City", rql, StringComparison.Ordinal);
-        }
-
-        [Fact]
-        public void SourceRecovery_UnquotedFieldInOrderBy_PreservesCase()
-        {
-            var sql = "SELECT * FROM orders ORDER BY CreatedAt DESC";
-            var rql = Translate(sql);
-
-            Assert.Contains("CreatedAt", rql, StringComparison.Ordinal);
-            Assert.DoesNotContain("createdat", rql, StringComparison.Ordinal);
-        }
-
-        [Fact]
-        public void SourceRecovery_QuotedField_AlreadyCorrect_Unchanged()
-        {
-            // Quoted identifiers already preserve case in Sval; both paths produce identical RQL.
-            var unquoted = Translate("SELECT Company FROM orders WHERE Company = 'x'");
-            var quoted   = Translate("SELECT \"Company\" FROM orders WHERE \"Company\" = 'x'");
-
-            Assert.Equal(quoted, unquoted);
-            Assert.Contains("Company", unquoted, StringComparison.Ordinal);
+            // Per PostgreSQL semantics: unquoted folded to lowercase.
+            Assert.Contains("company", rql, StringComparison.Ordinal);
+            Assert.DoesNotContain("Company", rql, StringComparison.Ordinal);
+            Assert.Contains("title", rql, StringComparison.Ordinal);
+            Assert.DoesNotContain("Title", rql, StringComparison.Ordinal);
         }
     }
 }

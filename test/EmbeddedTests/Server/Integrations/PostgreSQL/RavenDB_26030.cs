@@ -18,7 +18,9 @@ public class RavenDB_26030 : PostgreSqlIntegrationTestBase
                 await session.SaveChangesAsync();
             }
 
-            const string sql = "SELECT * FROM Users WHERE Name = 'oren'";
+            // Identifiers must be quoted to preserve case for RavenDB's case-sensitive field lookup.
+            // Unquoted identifiers follow PostgreSQL semantics (folded to lowercase by pgsqlparser).
+            const string sql = "SELECT * FROM \"Users\" WHERE \"Name\" = 'oren'";
 
             var result = await Act(store, sql);
 
