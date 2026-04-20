@@ -1079,7 +1079,7 @@ public class RavenDB_21192 : RavenTestBase
                 
                 Assert.Equal(250, ((Integer32)result.Single().Data).ToInt32());
                 
-                var serverHealthyEtlsCount = serverOidsObjectList.Single(x => x.Description == $"Number of ETL tasks with {nameof(EtlProcessHealthStatus.Healthy)} health status").OID;
+                var serverHealthyEtlsCount = serverOidsObjectList.Single(x => x.Description == $"{nameof(EtlProcessHealthStatus.Healthy)} ETL tasks count").OID;
                 
                 result = Messenger.Get(VersionCode.V2,
                     endpoint,
@@ -1089,7 +1089,7 @@ public class RavenDB_21192 : RavenTestBase
                 
                 Assert.Equal(0, ((Integer32)result.Single().Data).ToInt32());
                 
-                var serverImpairedEtlsCount = serverOidsObjectList.Single(x => x.Description == $"Number of ETL tasks with {nameof(EtlProcessHealthStatus.Impaired)} health status").OID;
+                var serverImpairedEtlsCount = serverOidsObjectList.Single(x => x.Description == $"{nameof(EtlProcessHealthStatus.Impaired)} ETL tasks count").OID;
                 
                 result = Messenger.Get(VersionCode.V2,
                     endpoint,
@@ -1099,7 +1099,7 @@ public class RavenDB_21192 : RavenTestBase
                 
                 Assert.Equal(0, ((Integer32)result.Single().Data).ToInt32());
                 
-                var serverFailedEtlsCount = serverOidsObjectList.Single(x => x.Description == $"Number of ETL tasks with {nameof(EtlProcessHealthStatus.Failed)} health status").OID;
+                var serverFailedEtlsCount = serverOidsObjectList.Single(x => x.Description == $"{nameof(EtlProcessHealthStatus.Failed)} ETL tasks count").OID;
                                 
                 result = Messenger.Get(VersionCode.V2,
                     endpoint,
@@ -1126,7 +1126,7 @@ public class RavenDB_21192 : RavenTestBase
                 
                 Assert.Equal(250, ((Integer32)result.Single().Data).ToInt32());
                 
-                var databaseHealthyEtlsCount = databaseOidsObjectList.Single(x => x.Description == $"Number of ETL tasks with {nameof(EtlProcessHealthStatus.Healthy)} health status").OID;
+                var databaseHealthyEtlsCount = databaseOidsObjectList.Single(x => x.Description == $"{nameof(EtlProcessHealthStatus.Healthy)} ETL tasks count").OID;
                 
                 result = Messenger.Get(VersionCode.V2,
                     endpoint,
@@ -1136,7 +1136,7 @@ public class RavenDB_21192 : RavenTestBase
                 
                 Assert.Equal(0, ((Integer32)result.Single().Data).ToInt32());
                 
-                var databaseImpairedEtlsCount = databaseOidsObjectList.Single(x => x.Description == $"Number of ETL tasks with {nameof(EtlProcessHealthStatus.Impaired)} health status").OID;
+                var databaseImpairedEtlsCount = databaseOidsObjectList.Single(x => x.Description == $"{nameof(EtlProcessHealthStatus.Impaired)} ETL tasks count").OID;
                 
                 result = Messenger.Get(VersionCode.V2,
                     endpoint,
@@ -1146,7 +1146,7 @@ public class RavenDB_21192 : RavenTestBase
                 
                 Assert.Equal(0, ((Integer32)result.Single().Data).ToInt32());
                 
-                var databaseFailedEtlsCount = databaseOidsObjectList.Single(x => x.Description == $"Number of ETL tasks with {nameof(EtlProcessHealthStatus.Failed)} health status").OID;
+                var databaseFailedEtlsCount = databaseOidsObjectList.Single(x => x.Description == $"{nameof(EtlProcessHealthStatus.Failed)} ETL tasks count").OID;
                 
                 result = Messenger.Get(VersionCode.V2,
                     endpoint,

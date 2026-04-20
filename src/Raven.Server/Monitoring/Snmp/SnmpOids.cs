@@ -412,15 +412,15 @@ namespace Raven.Server.Monitoring.Snmp
             public const string EtlErrors = "1.20.1";
             
             [SnmpDataType(SnmpType.Integer32)]
-            [Description($"Number of ETL tasks with {nameof(EtlProcessHealthStatus.Healthy)} health status")]
+            [Description($"{nameof(EtlProcessHealthStatus.Healthy)} ETL tasks count")]
             public const string NumberOfHealthyEtls = "1.20.2";
-            
+
             [SnmpDataType(SnmpType.Integer32)]
-            [Description($"Number of ETL tasks with {nameof(EtlProcessHealthStatus.Impaired)} health status")]
+            [Description($"{nameof(EtlProcessHealthStatus.Impaired)} ETL tasks count")]
             public const string NumberOfImpairedEtls = "1.20.3";
-            
+
             [SnmpDataType(SnmpType.Integer32)]
-            [Description($"Number of ETL tasks with {nameof(EtlProcessHealthStatus.Failed)} health status")]
+            [Description($"{nameof(EtlProcessHealthStatus.Failed)} ETL tasks count")]
             public const string NumberOfFailedEtls = "1.20.4";
 
             [SnmpDataType(SnmpType.Integer32)]
@@ -428,7 +428,7 @@ namespace Raven.Server.Monitoring.Snmp
             public const string TotalNumberOfEtls = "1.20.5";
 
             [SnmpDataType(SnmpType.Integer32)]
-            [Description("Number of ETL tasks that performed some work in the last minute")]
+            [Description("ETL tasks processing in the last minute")]
             public const string NumberOfActiveEtls = "1.20.6";
             
             [SnmpDataType(SnmpType.Integer32)]
@@ -436,15 +436,15 @@ namespace Raven.Server.Monitoring.Snmp
             public const string AiTasksErrors = "1.21.1";
 
             [SnmpDataType(SnmpType.Integer32)]
-            [Description($"Number of AI tasks with {nameof(EtlProcessHealthStatus.Healthy)} health status")]
+            [Description($"{nameof(EtlProcessHealthStatus.Healthy)} AI tasks count")]
             public const string NumberOfHealthyAiTasks = "1.21.2";
 
             [SnmpDataType(SnmpType.Integer32)]
-            [Description($"Number of AI tasks with {nameof(EtlProcessHealthStatus.Impaired)} health status")]
+            [Description($"{nameof(EtlProcessHealthStatus.Impaired)} AI tasks count")]
             public const string NumberOfImpairedAiTasks = "1.21.3";
 
             [SnmpDataType(SnmpType.Integer32)]
-            [Description($"Number of AI tasks with {nameof(EtlProcessHealthStatus.Failed)} health status")]
+            [Description($"{nameof(EtlProcessHealthStatus.Failed)} AI tasks count")]
             public const string NumberOfFailedAiTasks = "1.21.4";
 
             [SnmpDataType(SnmpType.Integer32)]
@@ -452,7 +452,7 @@ namespace Raven.Server.Monitoring.Snmp
             public const string TotalNumberOfAiTasks = "1.21.5";
 
             [SnmpDataType(SnmpType.Integer32)]
-            [Description("Number of AI tasks that performed some work in the last minute")]
+            [Description("AI tasks processing in the last minute")]
             public const string NumberOfActiveAiTasks = "1.21.6";
 
             public static Dictionary<string, string> CreateMapping()
@@ -806,15 +806,15 @@ namespace Raven.Server.Monitoring.Snmp
             public const string DataWrittenPerSecond = "5.2.{0}.6.2";
             
             [SnmpDataType(SnmpType.Integer32)]
-            [Description($"Number of ETL tasks with {nameof(EtlProcessHealthStatus.Healthy)} health status")]
+            [Description($"{nameof(EtlProcessHealthStatus.Healthy)} ETL tasks count")]
             public const string NumberOfHealthyEtls = "5.2.{0}.7.1";
-            
+
             [SnmpDataType(SnmpType.Integer32)]
-            [Description($"Number of ETL tasks with {nameof(EtlProcessHealthStatus.Impaired)} health status")]
+            [Description($"{nameof(EtlProcessHealthStatus.Impaired)} ETL tasks count")]
             public const string NumberOfImpairedEtls = "5.2.{0}.7.2";
-            
+
             [SnmpDataType(SnmpType.Integer32)]
-            [Description($"Number of ETL tasks with {nameof(EtlProcessHealthStatus.Failed)} health status")]
+            [Description($"{nameof(EtlProcessHealthStatus.Failed)} ETL tasks count")]
             public const string NumberOfFailedEtls = "5.2.{0}.7.3";
 
             [SnmpDataType(SnmpType.Integer32)]
@@ -822,7 +822,7 @@ namespace Raven.Server.Monitoring.Snmp
             public const string TotalNumberOfEtls = "5.2.{0}.7.4";
 
             [SnmpDataType(SnmpType.Integer32)]
-            [Description("Number of ETL tasks that performed some work in the last minute")]
+            [Description("ETL tasks processing in the last minute")]
             public const string NumberOfActiveEtls = "5.2.{0}.7.5";
 
             [SnmpDataType(SnmpType.Gauge32)]
@@ -830,15 +830,15 @@ namespace Raven.Server.Monitoring.Snmp
             public const string EtlDocumentsProcessedPerSec = "5.2.{0}.7.6";
 
             [SnmpDataType(SnmpType.Integer32)]
-            [Description($"Number of AI tasks with {nameof(EtlProcessHealthStatus.Healthy)} health status")]
+            [Description($"{nameof(EtlProcessHealthStatus.Healthy)} AI tasks count")]
             public const string NumberOfHealthyAiTasks = "5.2.{0}.8.1";
-            
+
             [SnmpDataType(SnmpType.Integer32)]
-            [Description($"Number of AI tasks with {nameof(EtlProcessHealthStatus.Impaired)} health status")]
+            [Description($"{nameof(EtlProcessHealthStatus.Impaired)} AI tasks count")]
             public const string NumberOfImpairedAiTasks = "5.2.{0}.8.2";
-            
+
             [SnmpDataType(SnmpType.Integer32)]
-            [Description($"Number of AI tasks with {nameof(EtlProcessHealthStatus.Failed)} health status")]
+            [Description($"{nameof(EtlProcessHealthStatus.Failed)} AI tasks count")]
             public const string NumberOfFailedAiTasks = "5.2.{0}.8.3";
 
             [SnmpDataType(SnmpType.Integer32)]
@@ -846,7 +846,7 @@ namespace Raven.Server.Monitoring.Snmp
             public const string TotalNumberOfAiTasks = "5.2.{0}.8.4";
 
             [SnmpDataType(SnmpType.Integer32)]
-            [Description("Number of AI tasks that performed some work in the last minute")]
+            [Description("AI tasks processing in the last minute")]
             public const string NumberOfActiveAiTasks = "5.2.{0}.8.5";
 
             [SnmpDataType(SnmpType.Gauge32)]
