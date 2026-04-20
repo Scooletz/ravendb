@@ -22,7 +22,6 @@ class getEtlErrorsCommand extends commandBase {
         const url = endpoints.databases.etl.etlErrors + this.urlEncodeArgs(args);
 
         return this.query<EtlErrors[]>(url, null, this.db, (res) => res.Results)
-            .fail((response: JQueryXHR) => this.reportError("Failed to get info about the ETL errors", response.responseText, response.statusText));
     }
 }
 
