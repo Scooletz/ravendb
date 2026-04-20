@@ -144,13 +144,15 @@ export const CellTaskWrapper = ({ row }: CellContext<FlatError, string>) => {
         etlName && taskId != null && etlType != null ? getEtlEditLink(databaseName, taskId, etlType) : null;
 
     const isAiTask = AI_ONLY_TASK_TYPES.includes(etlType);
-    const content = isAiTask ? <>{etlName}</> : <>{etlName}/{transformationName}</>;
-
-    return (
-        <div className="cell-value">
-            {taskLink ? <a href={taskLink}>{content}</a> : content}
-        </div>
+    const content = isAiTask ? (
+        <>{etlName}</>
+    ) : (
+        <>
+            {etlName}/{transformationName}
+        </>
     );
+
+    return <div className="cell-value">{taskLink ? <a href={taskLink}>{content}</a> : content}</div>;
 };
 
 export const CellTaskHealthWrapper = ({ getValue }: CellContext<FlatError, EtlHealthStatus | null>) => {
