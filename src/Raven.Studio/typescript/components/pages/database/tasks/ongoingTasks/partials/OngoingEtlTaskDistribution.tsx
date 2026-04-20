@@ -196,10 +196,19 @@ function ConnectionStatusCell({
             <PopoverWithHoverWrapper
                 message={
                     <div className="vstack gap-2 p-1">
-                        <div className="d-flex align-items-center gap-1">
-                            <Icon icon="clock" margin="m-0" />
-                            Next batch retry time:{" "}
-                            <b>{nextBatchRetryTime ? moment(nextBatchRetryTime).format(genUtils.dateFormat) : "N/A"}</b>
+                        <div className="vstack">
+                            <div className="hstack gap-1">
+                                <Icon icon="clock" margin="m-0" />
+                                Next batch retry time:{" "}
+                                <b>
+                                    {nextBatchRetryTime
+                                        ? moment(nextBatchRetryTime).format(genUtils.dateFormat)
+                                        : "N/A"}
+                                </b>
+                            </div>
+                            {nextBatchRetryTime && (
+                                <small className="text-right"> ({moment(nextBatchRetryTime).fromNow()})</small>
+                            )}
                         </div>
                         <div className="d-flex gap-2">
                             <ButtonWithSpinner
