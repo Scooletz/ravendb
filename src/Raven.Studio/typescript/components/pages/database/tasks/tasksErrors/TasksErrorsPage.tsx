@@ -22,10 +22,16 @@ import { TasksFilters, useTasksFilters } from "./partials/TasksFilters";
 import { GroupByTaskView } from "./partials/GroupByTaskView";
 import { GroupByNoneView } from "./partials/GroupByNoneView";
 import PopoverWithHoverWrapper from "components/common/PopoverWithHoverWrapper";
+import appUrl from "common/appUrl";
 import EtlTaskStats = Raven.Server.Documents.ETL.Stats.EtlTaskStats;
 
 interface TasksErrorsPageQueryParams {
     taskName?: string;
+    nodeTags?: string;
+    shardNumbers?: string;
+    healthStatuses?: string;
+    taskTypes?: string;
+    groupBy?: string;
 }
 
 interface TasksErrorsPageProps {
@@ -59,7 +65,19 @@ export default function TasksErrorsPage({
                 tasksWithErrors={tasksWithErrors}
                 flattenAllEtlStats={flattenAllEtlStats}
                 initialSearchText={queryParams?.taskName}
-                initialTaskTypes={aiOnly ? AI_ONLY_TASK_TYPES : []}
+                initialTaskTypes={
+                    aiOnly
+                        ? AI_ONLY_TASK_TYPES
+                        : (queryParams?.taskTypes?.split(",").filter(Boolean) as StudioEtlType[])
+                }
+                initialNodeTags={queryParams?.nodeTags?.split(",").filter(Boolean)}
+                initialShardNumbers={queryParams?.shardNumbers?.split(",").filter(Boolean)}
+                initialHealthStatuses={
+                    queryParams?.healthStatuses
+                        ?.split(",")
+                        .filter(Boolean) as Raven.Server.Documents.ETL.EtlProcessHealthStatus[]
+                }
+                initialGroupBy={queryParams?.groupBy as GroupByType}
                 onRefresh={handleRefresh}
             />
         </div>
@@ -71,6 +89,10 @@ interface TasksErrorsPageBodyProps {
     flattenAllEtlStats: EtlTaskStats[];
     initialSearchText?: string;
     initialTaskTypes?: StudioEtlType[];
+    initialNodeTags?: string[];
+    initialShardNumbers?: string[];
+    initialHealthStatuses?: Raven.Server.Documents.ETL.EtlProcessHealthStatus[];
+    initialGroupBy?: GroupByType;
     onRefresh: () => void;
 }
 
@@ -87,10 +109,32 @@ function TasksErrorsPageBody({
     flattenAllEtlStats,
     initialSearchText,
     initialTaskTypes,
+    initialNodeTags,
+    initialShardNumbers,
+    initialHealthStatuses,
+    initialGroupBy,
     onRefresh,
 }: TasksErrorsPageBodyProps) {
-    const [selectedGroupByType, setSelectedGroupByType] = useState<GroupByType>("task");
-    const [filters, updateFilters] = useTasksFilters(initialSearchText, initialTaskTypes);
+    const databaseName = useAppSelector(databaseSelectors.activeDatabaseName);
+    const [selectedGroupByType, setSelectedGroupByType] = useState<GroupByType>(initialGroupBy ?? "task");
+
+    const [filters, updateFilters] = useTasksFilters(
+        (f) =>
+            appUrl.forTasksErrors(databaseName, {
+                taskName: f.searchText || undefined,
+                nodeTags: f.nodeTags,
+                shardNumbers: f.shardNumbers,
+                healthStatuses: f.healthStatuses,
+                taskTypes: f.taskTypes,
+                groupBy: selectedGroupByType !== "task" ? selectedGroupByType : undefined,
+            }),
+        initialSearchText,
+        initialTaskTypes,
+        initialNodeTags,
+        initialShardNumbers,
+        initialHealthStatuses,
+        [selectedGroupByType]
+    );
 
     if (tasksWithErrors.length === 0) {
         return (

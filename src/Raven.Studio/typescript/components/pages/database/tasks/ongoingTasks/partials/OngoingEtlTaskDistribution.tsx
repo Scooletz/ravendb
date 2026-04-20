@@ -305,12 +305,12 @@ function ItemWithTooltip(props: ItemWithTooltipProps) {
     };
 
     const locationEtlStats = (etlStats ?? []).filter(
-        (s) => s.NodeTag === nodeInfo.location.nodeTag && s.ShardNumber === nodeInfo.location.shardNumber
+        (s) => s.NodeTag === nodeInfo.location.nodeTag && (s.ShardNumber ?? undefined) === nodeInfo.location.shardNumber
     );
     const taskHealth = getTaskHealthStatus(locationEtlStats, task.shared.taskName);
     const { bg, icon: heathIcon, label: healthLabel } = healthStatusToBadge(taskHealth);
     const errorCount = getTaskErrorCount(asyncEtlErrors.result ?? [], task.shared.taskName);
-    const goToTaskErrors = appUrl.forTasksErrors(databaseName, task.shared.taskName);
+    const goToTaskErrors = appUrl.forTasksErrors(databaseName, { taskName: task.shared.taskName });
 
     const nextBatchRetryTime =
         asyncLocalEtlStats.result

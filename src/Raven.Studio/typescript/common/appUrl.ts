@@ -454,10 +454,29 @@ class appUrl {
         return "#databases/settings/revisionsBinCleaner?" + appUrl.getEncodedDbPart(db);
     }
     
-    static forTasksErrors(db: database | string, taskName?: string): string {
+    static forTasksErrors(
+        db: database | string,
+        params: {
+            taskName?: string;
+            nodeTags?: string[];
+            shardNumbers?: string[];
+            healthStatuses?: string[];
+            taskTypes?: string[];
+            groupBy?: string;
+        } = {}
+    ): string {
+        const encodeArray = (key: string, values?: string[]) =>
+            values?.length ? "&" + key + "=" + encodeURIComponent(values.join(",")) : "";
+
+        const { taskName, nodeTags, shardNumbers, healthStatuses, taskTypes, groupBy } = params;
         const databasePart = appUrl.getEncodedDbPart(db);
         const taskNamePart = taskName ? "&taskName=" + encodeURIComponent(taskName) : "";
-        return "#databases/tasks/tasksErrors?" + databasePart + taskNamePart;
+        return "#databases/tasks/tasksErrors?" + databasePart + taskNamePart
+            + encodeArray("nodeTags", nodeTags)
+            + encodeArray("shardNumbers", shardNumbers)
+            + encodeArray("healthStatuses", healthStatuses)
+            + encodeArray("taskTypes", taskTypes)
+            + encodeArray("groupBy", groupBy ? [groupBy] : undefined);
     }
 
     static forRemoteAttachments(db: database): string {

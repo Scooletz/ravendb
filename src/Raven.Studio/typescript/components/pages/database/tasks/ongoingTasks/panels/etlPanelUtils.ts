@@ -103,7 +103,7 @@ export function useEtlPanel<T extends AnyEtlOngoingTaskInfo>(props: EtlPanelBase
     const databaseName = useAppSelector(databaseSelectors.activeDatabaseName);
 
     const canEdit = hasDatabaseAdminAccess && !data.shared.serverWide;
-    const goToTaskErrors = appUrl.forTasksErrors(databaseName, data.shared.taskName);
+    const goToTaskErrors = appUrl.forTasksErrors(databaseName, { taskName: data.shared.taskName });
 
     const { detailsVisible, toggleDetails, onEdit } = useTasksOperations(editUrl, props);
 

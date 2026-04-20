@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo } from "react";
 import { Icon } from "components/common/Icon";
 import Form from "react-bootstrap/Form";
 import Button from "react-bootstrap/Button";
@@ -9,6 +9,7 @@ import { useAppSelector } from "components/store";
 import { databaseSelectors } from "components/common/shell/databaseSliceSelectors";
 import DatabaseUtils from "components/utils/DatabaseUtils";
 import { EtlHealthStatus, GroupByType, TasksFiltersState } from "../utils/tasksErrorsUtils";
+import { useUrlFilters } from "components/hooks/useUrlFilters";
 
 export type { TasksFiltersState };
 
@@ -38,20 +39,25 @@ export const groupByOptions: InputItem<GroupByType>[] = [
 ];
 
 export function useTasksFilters(
+    buildUrl: (filters: TasksFiltersState) => string,
     initialSearchText = "",
-    initialTaskTypes: StudioEtlType[] = []
+    initialTaskTypes: StudioEtlType[] = [],
+    initialNodeTags: string[] = [],
+    initialShardNumbers: string[] = [],
+    initialHealthStatuses: EtlHealthStatus[] = [],
+    extraDeps: unknown[] = []
 ): [TasksFiltersState, (patch: Partial<TasksFiltersState>) => void] {
-    const [filters, setFilters] = useState<TasksFiltersState>({
-        searchText: initialSearchText,
-        nodeTags: [],
-        shardNumbers: [],
-        healthStatuses: [],
-        taskTypes: initialTaskTypes,
-    });
-
-    const updateFilters = (patch: Partial<TasksFiltersState>) => setFilters((prev) => ({ ...prev, ...patch }));
-
-    return [filters, updateFilters];
+    return useUrlFilters<TasksFiltersState>(
+        {
+            searchText: initialSearchText,
+            nodeTags: initialNodeTags,
+            shardNumbers: initialShardNumbers,
+            healthStatuses: initialHealthStatuses,
+            taskTypes: initialTaskTypes,
+        },
+        buildUrl,
+        extraDeps
+    );
 }
 
 interface TasksFiltersProps {
@@ -116,6 +122,7 @@ export function TasksFilters({
                     isMulti
                     isClearable
                     options={nodeOptions}
+                    value={nodeOptions.filter((o) => filters.nodeTags.includes(o.value))}
                     onChange={(options) => updateFilters({ nodeTags: options ? options.map((o) => o.value) : [] })}
                 />
             </div>
@@ -126,6 +133,7 @@ export function TasksFilters({
                         isMulti
                         isClearable
                         options={shardOptions}
+                        value={shardOptions.filter((o) => filters.shardNumbers.includes(o.value))}
                         onChange={(options) =>
                             updateFilters({ shardNumbers: options ? options.map((o) => o.value) : [] })
                         }
@@ -152,6 +160,7 @@ export function TasksFilters({
                     isMulti
                     isClearable
                     options={taskHealthOptions}
+                    value={taskHealthOptions.filter((o) => filters.healthStatuses.includes(o.value))}
                     onChange={(options) =>
                         updateFilters({
                             healthStatuses: options ? options.map((o) => o.value) : [],
