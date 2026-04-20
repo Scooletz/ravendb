@@ -208,12 +208,18 @@ export const CellDateWithRelativeTimeWrapper = ({ getValue }: CellContext<FlatEr
     }
 
     return (
-        <small className="vstack cell-value value-string">
-            <span>
-                {moment(dateValue).utc().format(genUtils.dateFormat)} <small>(UTC)</small>
-            </span>
-            <small>{moment(dateValue).fromNow()}</small>
-        </small>
+        <PopoverWithHoverWrapper
+            message={
+                <>
+                    <b>UTC:</b> {moment(dateValue).utc().format(genUtils.dateFormat)}
+                </>
+            }
+        >
+            <small className="vstack cell-value value-string">
+                <span>{moment(dateValue).format(genUtils.dateFormat)}</span>
+                <small>{moment(dateValue).fromNow()}</small>
+            </small>
+        </PopoverWithHoverWrapper>
     );
 };
 
