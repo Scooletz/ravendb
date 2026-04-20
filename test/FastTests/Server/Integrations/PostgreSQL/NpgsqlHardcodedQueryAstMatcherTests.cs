@@ -1,97 +1,97 @@
 using System;
 using Raven.Server.Integrations.PostgreSQL;
+using Raven.Server.Integrations.PostgreSQL.Classification;
 using Raven.Server.Integrations.PostgreSQL.Npgsql;
 using Xunit;
 
 namespace FastTests.Server.Integrations.PostgreSQL
 {
-    // Tests for all Npgsql AST hardcoded-query matchers:
-    // NpgsqlSimpleQueryAstMatcher, NpgsqlMetadataQueryAstMatcher, NpgsqlTypesQueryAstMatcher.
-    public sealed class NpgsqlHardcodedQueryAstMatcherTests
+    // Tests for NpgsqlQueryClassifier: TryMatchSimpleQuery, TryMatchMetadataQuery, TryMatchTypesQuery.
+    public sealed class NpgsqlQueryClassifierTests
     {
         // ── Simple queries — version() and current_setting(...) ──────────────────────────────────
 
         [Fact]
         public void Version_canonical_lowercase_should_match()
         {
-            Assert.True(NpgsqlSimpleQueryAstMatcher.TryMatch("select version()", out var table));
+            Assert.True(NpgsqlQueryClassifier.TryMatchSimpleQuery("select version()", out var table));
             Assert.Same(NpgsqlConfig.VersionResponse, table);
         }
 
         [Fact]
         public void Version_uppercase_should_match()
         {
-            Assert.True(NpgsqlSimpleQueryAstMatcher.TryMatch("SELECT VERSION()", out var table));
+            Assert.True(NpgsqlQueryClassifier.TryMatchSimpleQuery("SELECT VERSION()", out var table));
             Assert.Same(NpgsqlConfig.VersionResponse, table);
         }
 
         [Fact]
         public void Version_with_extra_whitespace_should_match()
         {
-            Assert.True(NpgsqlSimpleQueryAstMatcher.TryMatch("  select   version(  )  ", out var table));
+            Assert.True(NpgsqlQueryClassifier.TryMatchSimpleQuery("  select   version(  )  ", out var table));
             Assert.Same(NpgsqlConfig.VersionResponse, table);
         }
 
         [Fact]
         public void Version_with_leading_newline_should_match()
         {
-            Assert.True(NpgsqlSimpleQueryAstMatcher.TryMatch("\nselect version()", out var table));
+            Assert.True(NpgsqlQueryClassifier.TryMatchSimpleQuery("\nselect version()", out var table));
             Assert.Same(NpgsqlConfig.VersionResponse, table);
         }
 
         [Fact]
         public void Version_with_crlf_line_endings_should_match()
         {
-            Assert.True(NpgsqlSimpleQueryAstMatcher.TryMatch("select\r\nversion()", out var table));
+            Assert.True(NpgsqlQueryClassifier.TryMatchSimpleQuery("select\r\nversion()", out var table));
             Assert.Same(NpgsqlConfig.VersionResponse, table);
         }
 
         [Fact]
         public void Version_with_trailing_semicolon_should_match()
         {
-            Assert.True(NpgsqlSimpleQueryAstMatcher.TryMatch("select version();", out var table));
+            Assert.True(NpgsqlQueryClassifier.TryMatchSimpleQuery("select version();", out var table));
             Assert.Same(NpgsqlConfig.VersionResponse, table);
         }
 
         [Fact]
         public void CurrentSetting_canonical_lowercase_should_match()
         {
-            Assert.True(NpgsqlSimpleQueryAstMatcher.TryMatch("select current_setting('max_index_keys')", out var table));
+            Assert.True(NpgsqlQueryClassifier.TryMatchSimpleQuery("select current_setting('max_index_keys')", out var table));
             Assert.Same(NpgsqlConfig.CurrentSettingResponse, table);
         }
 
         [Fact]
         public void CurrentSetting_uppercase_should_match()
         {
-            Assert.True(NpgsqlSimpleQueryAstMatcher.TryMatch("SELECT CURRENT_SETTING('max_index_keys')", out var table));
+            Assert.True(NpgsqlQueryClassifier.TryMatchSimpleQuery("SELECT CURRENT_SETTING('max_index_keys')", out var table));
             Assert.Same(NpgsqlConfig.CurrentSettingResponse, table);
         }
 
         [Fact]
         public void CurrentSetting_with_extra_whitespace_should_match()
         {
-            Assert.True(NpgsqlSimpleQueryAstMatcher.TryMatch("  select  current_setting( 'max_index_keys' )  ", out var table));
+            Assert.True(NpgsqlQueryClassifier.TryMatchSimpleQuery("  select  current_setting( 'max_index_keys' )  ", out var table));
             Assert.Same(NpgsqlConfig.CurrentSettingResponse, table);
         }
 
         [Fact]
         public void CurrentSetting_with_crlf_line_endings_should_match()
         {
-            Assert.True(NpgsqlSimpleQueryAstMatcher.TryMatch("select\r\ncurrent_setting('max_index_keys')", out var table));
+            Assert.True(NpgsqlQueryClassifier.TryMatchSimpleQuery("select\r\ncurrent_setting('max_index_keys')", out var table));
             Assert.Same(NpgsqlConfig.CurrentSettingResponse, table);
         }
 
         [Fact]
         public void CurrentSetting_with_trailing_semicolon_should_match()
         {
-            Assert.True(NpgsqlSimpleQueryAstMatcher.TryMatch("select current_setting('max_index_keys');", out var table));
+            Assert.True(NpgsqlQueryClassifier.TryMatchSimpleQuery("select current_setting('max_index_keys');", out var table));
             Assert.Same(NpgsqlConfig.CurrentSettingResponse, table);
         }
 
         [Fact]
         public void VersionAndCurrentSetting_combined_should_match()
         {
-            Assert.True(NpgsqlSimpleQueryAstMatcher.TryMatch(
+            Assert.True(NpgsqlQueryClassifier.TryMatchSimpleQuery(
                 "select version();select current_setting('max_index_keys')", out var table));
             Assert.Same(NpgsqlConfig.VersionCurrentSettingResponse, table);
         }
@@ -99,7 +99,7 @@ namespace FastTests.Server.Integrations.PostgreSQL
         [Fact]
         public void VersionAndCurrentSetting_combined_with_whitespace_should_match()
         {
-            Assert.True(NpgsqlSimpleQueryAstMatcher.TryMatch(
+            Assert.True(NpgsqlQueryClassifier.TryMatchSimpleQuery(
                 "SELECT VERSION() ; SELECT CURRENT_SETTING('max_index_keys')", out var table));
             Assert.Same(NpgsqlConfig.VersionCurrentSettingResponse, table);
         }
@@ -107,26 +107,26 @@ namespace FastTests.Server.Integrations.PostgreSQL
         [Fact]
         public void Simple_different_function_name_should_not_match()
         {
-            Assert.False(NpgsqlSimpleQueryAstMatcher.TryMatch("select pg_version()", out _));
+            Assert.False(NpgsqlQueryClassifier.TryMatchSimpleQuery("select pg_version()", out _));
         }
 
         [Fact]
         public void CurrentSetting_with_wrong_key_should_not_match()
         {
-            Assert.False(NpgsqlSimpleQueryAstMatcher.TryMatch("select current_setting('some_other_key')", out _));
+            Assert.False(NpgsqlQueryClassifier.TryMatchSimpleQuery("select current_setting('some_other_key')", out _));
         }
 
         [Fact]
         public void Version_with_from_clause_should_not_match()
         {
-            Assert.False(NpgsqlSimpleQueryAstMatcher.TryMatch("select version() from pg_catalog.pg_settings", out _));
+            Assert.False(NpgsqlQueryClassifier.TryMatchSimpleQuery("select version() from pg_catalog.pg_settings", out _));
         }
 
         [Fact]
         public void Simple_empty_query_should_not_match()
         {
-            Assert.False(NpgsqlSimpleQueryAstMatcher.TryMatch("", out _));
-            Assert.False(NpgsqlSimpleQueryAstMatcher.TryMatch("   ", out _));
+            Assert.False(NpgsqlQueryClassifier.TryMatchSimpleQuery("", out _));
+            Assert.False(NpgsqlQueryClassifier.TryMatchSimpleQuery("   ", out _));
         }
 
         // ── Metadata queries — enum types and composite types ─────────────────────────────────────
@@ -134,7 +134,7 @@ namespace FastTests.Server.Integrations.PostgreSQL
         [Fact]
         public void EnumTypes_block_comment_variant_should_match()
         {
-            Assert.True(NpgsqlMetadataQueryAstMatcher.TryMatch(NpgsqlConfig.EnumTypesQuery, out var table));
+            Assert.True(NpgsqlQueryClassifier.TryMatchMetadataQuery(NpgsqlConfig.EnumTypesQuery, out var table));
             Assert.Same(NpgsqlConfig.EnumTypesResponse, table);
         }
 
@@ -142,7 +142,7 @@ namespace FastTests.Server.Integrations.PostgreSQL
         public void EnumTypes_line_comment_variant_should_match_same_response()
         {
             // Comments stripped by parser → AST identical to block-comment variant.
-            Assert.True(NpgsqlMetadataQueryAstMatcher.TryMatch(NpgsqlConfig.Npgsql5EnumTypesQuery, out var table));
+            Assert.True(NpgsqlQueryClassifier.TryMatchMetadataQuery(NpgsqlConfig.Npgsql5EnumTypesQuery, out var table));
             Assert.Same(NpgsqlConfig.EnumTypesResponse, table);
         }
 
@@ -154,7 +154,7 @@ namespace FastTests.Server.Integrations.PostgreSQL
                 "FROM  pg_enum  " +
                 "JOIN  pg_type  ON  pg_type.oid = enumtypid  " +
                 "ORDER BY  oid ,  enumsortorder";
-            Assert.True(NpgsqlMetadataQueryAstMatcher.TryMatch(query, out var table));
+            Assert.True(NpgsqlQueryClassifier.TryMatchMetadataQuery(query, out var table));
             Assert.Same(NpgsqlConfig.EnumTypesResponse, table);
         }
 
@@ -163,21 +163,21 @@ namespace FastTests.Server.Integrations.PostgreSQL
         {
             const string query =
                 "SELECT PG_TYPE.OID, ENUMLABEL FROM PG_ENUM JOIN PG_TYPE ON PG_TYPE.OID=ENUMTYPID ORDER BY OID, ENUMSORTORDER";
-            Assert.True(NpgsqlMetadataQueryAstMatcher.TryMatch(query, out var table));
+            Assert.True(NpgsqlQueryClassifier.TryMatchMetadataQuery(query, out var table));
             Assert.Same(NpgsqlConfig.EnumTypesResponse, table);
         }
 
         [Fact]
         public void CompositeTypes_block_comment_variant_should_match()
         {
-            Assert.True(NpgsqlMetadataQueryAstMatcher.TryMatch(NpgsqlConfig.CompositeTypesQuery, out var table));
+            Assert.True(NpgsqlQueryClassifier.TryMatchMetadataQuery(NpgsqlConfig.CompositeTypesQuery, out var table));
             Assert.Same(NpgsqlConfig.CompositeTypesResponse, table);
         }
 
         [Fact]
         public void CompositeTypes_line_comment_variant_should_match()
         {
-            Assert.True(NpgsqlMetadataQueryAstMatcher.TryMatch(NpgsqlConfig.Npgsql5CompositeTypesQuery, out var table));
+            Assert.True(NpgsqlQueryClassifier.TryMatchMetadataQuery(NpgsqlConfig.Npgsql5CompositeTypesQuery, out var table));
             Assert.Same(NpgsqlConfig.CompositeTypesResponse, table);
         }
 
@@ -185,15 +185,15 @@ namespace FastTests.Server.Integrations.PostgreSQL
         public void CompositeTypes_old_orderby_variant_should_match()
         {
             // 4.0.0–4.0.3: ORDER BY typ.typname instead of typ.oid — AST matcher ignores ORDER BY.
-            Assert.True(NpgsqlMetadataQueryAstMatcher.TryMatch(NpgsqlConfig.Npgsql4_0_0CompositeTypesQuery, out var table));
+            Assert.True(NpgsqlQueryClassifier.TryMatchMetadataQuery(NpgsqlConfig.Npgsql4_0_0CompositeTypesQuery, out var table));
             Assert.Same(NpgsqlConfig.CompositeTypesResponse, table);
         }
 
         [Fact]
         public void Metadata_empty_query_should_not_match()
         {
-            Assert.False(NpgsqlMetadataQueryAstMatcher.TryMatch("", out _));
-            Assert.False(NpgsqlMetadataQueryAstMatcher.TryMatch("   ", out _));
+            Assert.False(NpgsqlQueryClassifier.TryMatchMetadataQuery("", out _));
+            Assert.False(NpgsqlQueryClassifier.TryMatchMetadataQuery("   ", out _));
         }
 
         [Fact]
@@ -201,7 +201,7 @@ namespace FastTests.Server.Integrations.PostgreSQL
         {
             const string query =
                 "SELECT pg_type.oid, enumlabel, enumsortorder FROM pg_enum JOIN pg_type ON pg_type.oid=enumtypid ORDER BY oid";
-            Assert.False(NpgsqlMetadataQueryAstMatcher.TryMatch(query, out _));
+            Assert.False(NpgsqlQueryClassifier.TryMatchMetadataQuery(query, out _));
         }
 
         [Fact]
@@ -209,7 +209,7 @@ namespace FastTests.Server.Integrations.PostgreSQL
         {
             const string query =
                 "SELECT typ.oid, att.attname FROM pg_type AS typ JOIN pg_class AS cls ON cls.oid = typ.typrelid JOIN pg_attribute AS att ON att.attrelid = typ.typrelid";
-            Assert.False(NpgsqlMetadataQueryAstMatcher.TryMatch(query, out _));
+            Assert.False(NpgsqlQueryClassifier.TryMatchMetadataQuery(query, out _));
         }
 
         [Fact]
@@ -217,13 +217,13 @@ namespace FastTests.Server.Integrations.PostgreSQL
         {
             const string query =
                 "SELECT typ.oid, att.attname, att.atttypid FROM pg_type AS typ JOIN pg_class AS cls ON cls.oid = typ.typrelid WHERE typ.typtype = 'c'";
-            Assert.False(NpgsqlMetadataQueryAstMatcher.TryMatch(query, out _));
+            Assert.False(NpgsqlQueryClassifier.TryMatchMetadataQuery(query, out _));
         }
 
         [Fact]
         public void Unrelated_pg_catalog_query_should_not_match()
         {
-            Assert.False(NpgsqlMetadataQueryAstMatcher.TryMatch(
+            Assert.False(NpgsqlQueryClassifier.TryMatchMetadataQuery(
                 "SELECT oid, typname FROM pg_type WHERE typtype = 'b' ORDER BY oid", out _));
         }
 
@@ -232,7 +232,7 @@ namespace FastTests.Server.Integrations.PostgreSQL
         [Fact]
         public void FamilyA_Npgsql5TypesQuery_should_match()
         {
-            Assert.True(NpgsqlTypesQueryAstMatcher.TryMatch(NpgsqlConfig.Npgsql5TypesQuery, out var table));
+            Assert.True(NpgsqlQueryClassifier.TryMatchTypesQuery(NpgsqlConfig.Npgsql5TypesQuery, out var table));
             Assert.Same(NpgsqlConfig.Npgsql5TypesResponse, table);
         }
 
@@ -240,14 +240,14 @@ namespace FastTests.Server.Integrations.PostgreSQL
         public void FamilyA_Npgsql4TypesQuery_should_match_same_response()
         {
             // Differs from Npgsql5TypesQuery only by a leading \n → identical AST → same response.
-            Assert.True(NpgsqlTypesQueryAstMatcher.TryMatch(NpgsqlConfig.Npgsql4TypesQuery, out var table));
+            Assert.True(NpgsqlQueryClassifier.TryMatchTypesQuery(NpgsqlConfig.Npgsql4TypesQuery, out var table));
             Assert.Same(NpgsqlConfig.Npgsql5TypesResponse, table);
         }
 
         [Fact]
         public void FamilyA_leading_newline_variant_should_match()
         {
-            Assert.True(NpgsqlTypesQueryAstMatcher.TryMatch("\n" + NpgsqlConfig.Npgsql5TypesQuery, out var table));
+            Assert.True(NpgsqlQueryClassifier.TryMatchTypesQuery("\n" + NpgsqlConfig.Npgsql5TypesQuery, out var table));
             Assert.Same(NpgsqlConfig.Npgsql5TypesResponse, table);
         }
 
@@ -257,7 +257,7 @@ namespace FastTests.Server.Integrations.PostgreSQL
             // Has a RangeSubselect in FROM but only 2 targets and no .* wildcard.
             const string query =
                 "SELECT typname, oid FROM (SELECT typname, oid FROM pg_type WHERE typtype = 'b') AS base_types";
-            Assert.False(NpgsqlTypesQueryAstMatcher.TryMatch(query, out _));
+            Assert.False(NpgsqlQueryClassifier.TryMatchTypesQuery(query, out _));
         }
 
         [Fact]
@@ -265,14 +265,14 @@ namespace FastTests.Server.Integrations.PostgreSQL
         {
             const string query =
                 "SELECT a, b, c FROM (SELECT a, b, c FROM pg_type) AS sub JOIN pg_namespace AS ns ON true";
-            Assert.False(NpgsqlTypesQueryAstMatcher.TryMatch(query, out _));
+            Assert.False(NpgsqlQueryClassifier.TryMatchTypesQuery(query, out _));
         }
 
         [Fact]
         public void FamilyA_empty_query_should_not_match()
         {
-            Assert.False(NpgsqlTypesQueryAstMatcher.TryMatch("", out _));
-            Assert.False(NpgsqlTypesQueryAstMatcher.TryMatch("   ", out _));
+            Assert.False(NpgsqlQueryClassifier.TryMatchTypesQuery("", out _));
+            Assert.False(NpgsqlQueryClassifier.TryMatchTypesQuery("   ", out _));
         }
 
         // ── Type-loading — Family B (mid flat, Npgsql 4.1.0–4.1.2) ──────────────────────────────
@@ -280,7 +280,7 @@ namespace FastTests.Server.Integrations.PostgreSQL
         [Fact]
         public void FamilyB_Npgsql4_1_2TypesQuery_should_match()
         {
-            Assert.True(NpgsqlTypesQueryAstMatcher.TryMatch(NpgsqlConfig.Npgsql4_1_2TypesQuery, out var table));
+            Assert.True(NpgsqlQueryClassifier.TryMatchTypesQuery(NpgsqlConfig.Npgsql4_1_2TypesQuery, out var table));
             Assert.Same(NpgsqlConfig.Npgsql4_1_2TypesResponse, table);
         }
 
@@ -290,7 +290,7 @@ namespace FastTests.Server.Integrations.PostgreSQL
             const string query =
                 "SELECT ns.nspname, a.typname, a.oid, a.typbasetype, a.typtype, a.typalign, a.ord " +
                 "FROM pg_type AS a JOIN pg_namespace AS ns ON ns.oid = a.typnamespace";
-            Assert.False(NpgsqlTypesQueryAstMatcher.TryMatch(query, out _));
+            Assert.False(NpgsqlQueryClassifier.TryMatchTypesQuery(query, out _));
         }
 
         // ── Type-loading — Family E (legacy Npgsql 3, 3.2.3–3.2.7) ─────────────────────────────
@@ -298,7 +298,7 @@ namespace FastTests.Server.Integrations.PostgreSQL
         [Fact]
         public void FamilyE_Npgsql3TypesQuery_should_match()
         {
-            Assert.True(NpgsqlTypesQueryAstMatcher.TryMatch(NpgsqlConfig.Npgsql3TypesQuery, out var table));
+            Assert.True(NpgsqlQueryClassifier.TryMatchTypesQuery(NpgsqlConfig.Npgsql3TypesQuery, out var table));
             Assert.Same(NpgsqlConfig.Npgsql3TypesResponse, table);
         }
 
@@ -308,7 +308,7 @@ namespace FastTests.Server.Integrations.PostgreSQL
             const string query =
                 "SELECT ns.nspname, a.typname, a.oid, a.typrelid, a.typbasetype, a.typtype, a.typelem, a.ord " +
                 "FROM pg_type AS a JOIN pg_namespace AS ns ON ns.oid = a.typnamespace";
-            Assert.False(NpgsqlTypesQueryAstMatcher.TryMatch(query, out _));
+            Assert.False(NpgsqlQueryClassifier.TryMatchTypesQuery(query, out _));
         }
 
         [Fact]
@@ -320,7 +320,7 @@ namespace FastTests.Server.Integrations.PostgreSQL
                 "FROM pg_type AS a " +
                 "JOIN pg_namespace AS ns ON ns.oid = a.typnamespace " +
                 "JOIN pg_proc AS p ON p.oid = a.typreceive";
-            Assert.False(NpgsqlTypesQueryAstMatcher.TryMatch(query, out _));
+            Assert.False(NpgsqlQueryClassifier.TryMatchTypesQuery(query, out _));
         }
 
         // ── Type-loading — Family C (old flat + pseudo-type arrays, Npgsql 4.0.1–4.0.12) ─────────
@@ -328,7 +328,7 @@ namespace FastTests.Server.Integrations.PostgreSQL
         [Fact]
         public void FamilyC_TypesQuery_should_match()
         {
-            Assert.True(NpgsqlTypesQueryAstMatcher.TryMatch(NpgsqlConfig.TypesQuery, out var table));
+            Assert.True(NpgsqlQueryClassifier.TryMatchTypesQuery(NpgsqlConfig.TypesQuery, out var table));
             Assert.Same(NpgsqlConfig.TypesResponse, table);
         }
 
@@ -336,7 +336,7 @@ namespace FastTests.Server.Integrations.PostgreSQL
         public void FamilyC_Npgsql4_0_3TypesQuery_should_match_same_response()
         {
             // Differs from TypesQuery only by leading comment/whitespace → identical AST → same response.
-            Assert.True(NpgsqlTypesQueryAstMatcher.TryMatch(NpgsqlConfig.Npgsql4_0_3TypesQuery, out var table));
+            Assert.True(NpgsqlQueryClassifier.TryMatchTypesQuery(NpgsqlConfig.Npgsql4_0_3TypesQuery, out var table));
             Assert.Same(NpgsqlConfig.TypesResponse, table);
         }
 
@@ -345,7 +345,7 @@ namespace FastTests.Server.Integrations.PostgreSQL
         [Fact]
         public void FamilyD_Npgsql4_0_0TypesQuery_should_match()
         {
-            Assert.True(NpgsqlTypesQueryAstMatcher.TryMatch(NpgsqlConfig.Npgsql4_0_0TypesQuery, out var table));
+            Assert.True(NpgsqlQueryClassifier.TryMatchTypesQuery(NpgsqlConfig.Npgsql4_0_0TypesQuery, out var table));
             Assert.Same(NpgsqlConfig.Npgsql4_0_0TypesResponse, table);
         }
 
@@ -353,7 +353,7 @@ namespace FastTests.Server.Integrations.PostgreSQL
         public void FamilyD_TypesQuery_still_maps_to_C_not_D()
         {
             // Family C claims TypesQuery (pseudo-type branch present); Family D must not steal it.
-            Assert.True(NpgsqlTypesQueryAstMatcher.TryMatch(NpgsqlConfig.TypesQuery, out var table));
+            Assert.True(NpgsqlQueryClassifier.TryMatchTypesQuery(NpgsqlConfig.TypesQuery, out var table));
             Assert.Same(NpgsqlConfig.TypesResponse, table);
         }
 
@@ -369,7 +369,7 @@ namespace FastTests.Server.Integrations.PostgreSQL
                 "JOIN pg_proc AS p ON p.oid = a.typreceive " +
                 "LEFT JOIN pg_class AS cls ON cls.oid = a.typrelid " +
                 "WHERE a.typtype IN ('b', 'r', 'e', 'd')";
-            Assert.False(NpgsqlTypesQueryAstMatcher.TryMatch(query, out _));
+            Assert.False(NpgsqlQueryClassifier.TryMatchTypesQuery(query, out _));
         }
 
         // ── Dispatch-level (through HardcodedQuery.TryParse; session=null is safe here) ──────────
@@ -486,6 +486,83 @@ namespace FastTests.Server.Integrations.PostgreSQL
         {
             Assert.True(HardcodedQuery.TryParse(NpgsqlConfig.Npgsql4_0_0TypesQuery, Array.Empty<int>(), session: null, out var query));
             Assert.NotNull(query);
+        }
+
+        // ── Intent-based tolerance: reordered projections in metadata queries ────────────
+
+        // Set-based projection-name matching: {oid, enumlabel} in any order should match EnumTypes.
+        [Fact]
+        public void EnumTypes_reordered_projection_should_match()
+        {
+            const string query =
+                "SELECT enumlabel, pg_type.oid FROM pg_enum JOIN pg_type ON pg_type.oid = enumtypid";
+
+            Assert.True(NpgsqlQueryClassifier.TryMatchMetadataQuery(query, out var table));
+            Assert.Same(NpgsqlConfig.EnumTypesResponse, table);
+        }
+
+        // {oid, attname, atttypid} in any order should match CompositeTypes.
+        [Fact]
+        public void CompositeTypes_reordered_projection_should_match()
+        {
+            const string query =
+                "SELECT att.atttypid, att.attname, typ.oid FROM pg_type AS typ " +
+                "JOIN pg_class AS cls ON cls.oid = typ.typrelid " +
+                "JOIN pg_attribute AS att ON att.attrelid = typ.typrelid WHERE typ.typtype = 'c'";
+
+            Assert.True(NpgsqlQueryClassifier.TryMatchMetadataQuery(query, out var table));
+            Assert.Same(NpgsqlConfig.CompositeTypesResponse, table);
+        }
+
+        // ── Cross-source guard: Npgsql recognizer must not claim PowerBI queries ──────────
+
+        // A representative PowerBI metadata query (CharacterSets) uses information_schema
+        // tables — completely different from any Npgsql intent.
+        [Fact]
+        public void Npgsql_recognizer_does_not_claim_PowerBI_character_sets_query()
+        {
+            const string query =
+                "SELECT character_set_name FROM information_schema.character_sets";
+
+            Assert.False(NpgsqlQueryClassifier.TryMatchSimpleQuery(query, out _));
+            Assert.False(NpgsqlQueryClassifier.TryMatchMetadataQuery(query, out _));
+            Assert.False(NpgsqlQueryClassifier.TryMatchTypesQuery(query, out _));
+        }
+
+        // ── Multi-statement: only the exact version+current_setting pair is accepted ──────
+
+        // Two statements where the second is NOT the expected current_setting probe.
+        [Fact]
+        public void TwoStatements_not_version_and_current_setting_should_not_match()
+        {
+            // Both are version() calls — not the recognized pair.
+            Assert.False(NpgsqlQueryClassifier.TryMatchSimpleQuery(
+                "select version(); select version()", out _));
+        }
+
+        // Three statements are never recognized (Npgsql only sends 1 or 2).
+        [Fact]
+        public void ThreeStatements_should_not_match_any_intent()
+        {
+            const string query =
+                "select version(); select current_setting('max_index_keys'); select version()";
+
+            Assert.False(NpgsqlQueryClassifier.TryMatchSimpleQuery(query, out _));
+            Assert.False(NpgsqlQueryClassifier.TryMatchMetadataQuery(query, out _));
+            Assert.False(NpgsqlQueryClassifier.TryMatchTypesQuery(query, out _));
+        }
+
+        // ── MidFlat tightening: 7 columns + typelem but wrong source tables must not match ─
+
+        [Fact]
+        public void FamilyB_seven_column_with_typelem_but_no_pg_type_should_not_match()
+        {
+            // Has 7 columns including typelem but uses a non-pg_catalog table.
+            const string query =
+                "SELECT ns.nspname, a.typname, a.oid, a.typbasetype, a.typtype, a.typelem, a.ord " +
+                "FROM my_schema.my_types AS a JOIN my_schema.my_namespaces AS ns ON ns.oid = a.typnamespace";
+
+            Assert.False(NpgsqlQueryClassifier.TryMatchTypesQuery(query, out _));
         }
     }
 }

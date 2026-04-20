@@ -3,9 +3,8 @@ using System.Collections.Generic;
 using System.IO.Pipelines;
 using System.Threading;
 using System.Threading.Tasks;
+using Raven.Server.Integrations.PostgreSQL.Classification;
 using Raven.Server.Integrations.PostgreSQL.Messages;
-using Raven.Server.Integrations.PostgreSQL.Npgsql;
-using Raven.Server.Integrations.PostgreSQL.PowerBI;
 
 namespace Raven.Server.Integrations.PostgreSQL
 {
@@ -23,37 +22,17 @@ namespace Raven.Server.Integrations.PostgreSQL
             var normalizedQuery = queryText.NormalizeLineEndings();
             PgTable result = null;
 
-            if (PowerBIHardcodedAstMatcher.TryMatchPowerBIHardcodedQuery(queryText, out result))
+            // Intent-based recognition: parse the SQL once, inspect the AST for "what metadata
+            // is this asking for?", then resolve the recognized MetadataIntent to a PgTable.
+            // Covers both PowerBI and Npgsql metadata/initialization queries.
+            if (HardcodedQueryClassifier.TryClassify(queryText, out result))
             {
                 hardcodedQuery = new HardcodedQuery(queryText, parametersDataTypes, result);
                 return true;
             }
 
-            // Simple Npgsql function queries — AST-based (version(), current_setting('max_index_keys')).
-            // These are structurally trivial and safe to match via AST; tolerates whitespace variations.
-            if (NpgsqlSimpleQueryAstMatcher.TryMatch(queryText, out result))
-            {
-                hardcodedQuery = new HardcodedQuery(queryText, parametersDataTypes, result);
-                return true;
-            }
-
-            // Npgsql enum/composite metadata queries — AST-based.
-            // All version variants (4.0.0–current) differ only in comment style or ORDER BY column
-            // but return identical response schemas, so a single AST matcher covers all versions.
-            if (NpgsqlMetadataQueryAstMatcher.TryMatch(queryText, out result))
-            {
-                hardcodedQuery = new HardcodedQuery(queryText, parametersDataTypes, result);
-                return true;
-            }
-
-            // Covers all supported Npgsql versions (3.x through 5.x+).
-            // See NpgsqlTypesQueryAstMatcher for per-family details.
-            if (NpgsqlTypesQueryAstMatcher.TryMatch(queryText, out result))
-            {
-                hardcodedQuery = new HardcodedQuery(queryText, parametersDataTypes, result);
-                return true;
-            }
-
+            // Protocol-level no-op statements — handled here, not via intent recognition,
+            // because they are not SELECTs and have no AST-level "metadata" shape.
             if (normalizedQuery.StartsWith("DISCARD ALL", StringComparison.OrdinalIgnoreCase))
                 result = new PgTable();
 
@@ -62,7 +41,14 @@ namespace Raven.Server.Integrations.PostgreSQL
 
             else if (normalizedQuery.StartsWith("DEALLOCATE", StringComparison.OrdinalIgnoreCase))
             {
-                var statementName = normalizedQuery.Split("\"")[1];
+                // Expected form: DEALLOCATE "<name>"
+                // Extract the name as the substring between the first and last double-quote.
+                var firstQuote = normalizedQuery.IndexOf('"');
+                var lastQuote  = normalizedQuery.LastIndexOf('"');
+                if (firstQuote < 0 || firstQuote == lastQuote)
+                    throw new InvalidOperationException($"Unexpected DEALLOCATE syntax (expected quoted name): {normalizedQuery}");
+
+                var statementName = normalizedQuery.Substring(firstQuote + 1, lastQuote - firstQuote - 1);
                 if (session.NamedStatements.TryRemove(statementName, out var statement) == false)
                     throw new InvalidOperationException($"Failed to remove prepared statement '{statementName}'");
                 statement.Dispose(); // precaution - query context should be already disposed
