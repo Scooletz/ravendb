@@ -14,6 +14,7 @@ import moment from "moment";
 import genUtils from "common/generalUtils";
 import EtlErrorDetailsSheet from "./EtlErrorDetailsSheet";
 import {
+    AI_ONLY_TASK_TYPES,
     EtlErrorStep,
     EtlHealthStatus,
     FlatError,
@@ -135,43 +136,19 @@ export const HyperLinkDocumentCellValue = ({ getValue }: Pick<CellContext<FlatEr
     return <CellDocumentValue value={getValue()} databaseName={dbName} hasHyperlinkForIds />;
 };
 
-export const CellHyperlinkOngoingTaskValue = ({ getValue, row }: CellContext<FlatError, string>) => {
+export const CellTaskWrapper = ({ row }: CellContext<FlatError, string>) => {
     const databaseName = useAppSelector(databaseSelectors.activeDatabaseName);
+    const { etlName, transformationName, taskId, etlType } = row.original;
 
-    const getTaskLink = (value: string) => {
-        if (typeof value !== "string" || row.original.taskId == null || row.original.etlType == null) {
-            return null;
-        }
+    const taskLink =
+        etlName && taskId != null && etlType != null ? getEtlEditLink(databaseName, taskId, etlType) : null;
 
-        const { taskId, etlType } = row.original;
-        return getEtlEditLink(databaseName, taskId, etlType);
-    };
-
-    const taskLink = getTaskLink(getValue());
-
-    if (taskLink) {
-        return (
-            <div className="cell-value">
-                <a href={taskLink}>{getValue()}</a>
-            </div>
-        );
-    }
+    const isAiTask = AI_ONLY_TASK_TYPES.includes(etlType);
+    const content = isAiTask ? <>{etlName}</> : <>{etlName}/{transformationName}</>;
 
     return (
         <div className="cell-value">
-            <CellValue value={getValue()} />
-        </div>
-    );
-};
-
-export const CellScriptNameWrapper = ({ getValue }: CellContext<FlatError, string>) => {
-    if (!getValue()) {
-        return <CellValue value="-" />;
-    }
-
-    return (
-        <div className="cell-value value-string">
-            <CellValue value={getValue()} />
+            {taskLink ? <a href={taskLink}>{content}</a> : content}
         </div>
     );
 };

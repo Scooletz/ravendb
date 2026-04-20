@@ -34,11 +34,10 @@ import {
     CellErrorStepWrapper,
     CellErrorTypeWrapper,
     CellEtlTypeWrapper,
-    CellHyperlinkOngoingTaskValue,
     CellNodeValueWrapper,
-    CellScriptNameWrapper,
     CellShardValueWrapper,
     CellTaskHealthWrapper,
+    CellTaskWrapper,
     CellValueButtonWrapper,
     HyperLinkDocumentCellValue,
 } from "./TasksErrorsCells";
@@ -60,17 +59,18 @@ function useGroupByNoneTableColumns(availableWidth: number, hasProcessErrors: bo
                 size: 70,
             },
             {
-                header: "Task",
-                accessorKey: "etlName",
-                cell: CellHyperlinkOngoingTaskValue,
-                size: getSize(10),
+                header: "Task type",
+                accessorKey: "etlType",
+                cell: CellEtlTypeWrapper,
+                size: getSize(5),
+                enableSorting: false,
                 enableColumnFilter: false,
             },
             {
-                header: "Script",
-                accessorKey: "transformationName",
-                cell: CellScriptNameWrapper,
-                size: getSize(8),
+                header: "Task",
+                accessorKey: "etlName",
+                cell: CellTaskWrapper,
+                size: getSize(18),
                 enableColumnFilter: false,
             },
             {
@@ -86,16 +86,36 @@ function useGroupByNoneTableColumns(availableWidth: number, hasProcessErrors: bo
                 size: getSize(8),
             },
             {
-                header: "Document",
-                accessorKey: "DocumentId",
-                cell: HyperLinkDocumentCellValue,
-                size: getSize(8),
-            },
-            {
                 header: "Date",
                 accessorKey: "CreatedAt",
                 cell: CellDateWithRelativeTimeWrapper,
                 size: getSize(15),
+            },
+            {
+                header: "Node",
+                accessorKey: "nodeTag",
+                cell: CellNodeValueWrapper,
+                size: getSize(3),
+                enableColumnFilter: false,
+                enableSorting: false,
+            },
+            ...(db.isSharded
+                ? [
+                      {
+                          header: "Shard",
+                          accessorKey: "shard",
+                          cell: CellShardValueWrapper,
+                          size: getSize(3),
+                          enableColumnFilter: false,
+                          enableSorting: false,
+                      },
+                  ]
+                : []),
+            {
+                header: "Document",
+                accessorKey: "DocumentId",
+                cell: HyperLinkDocumentCellValue,
+                size: getSize(8),
             },
             ...(hasProcessErrors
                 ? [
@@ -108,13 +128,6 @@ function useGroupByNoneTableColumns(availableWidth: number, hasProcessErrors: bo
                   ]
                 : []),
             {
-                header: "Content",
-                accessorKey: "Error",
-                cell: CellWithCopyWrapper,
-                size: getSize((db.isSharded ? 20 : 25) - (hasProcessErrors ? 8 : 0)),
-                enableSorting: false,
-            },
-            {
                 header: "Current task health",
                 accessorKey: "healthStatus",
                 cell: CellTaskHealthWrapper,
@@ -123,35 +136,15 @@ function useGroupByNoneTableColumns(availableWidth: number, hasProcessErrors: bo
                 enableSorting: false,
             },
             {
-                header: "Task type",
-                accessorKey: "etlType",
-                cell: CellEtlTypeWrapper,
-                size: getSize(5),
-                enableSorting: false,
-                enableColumnFilter: false,
-            },
-            {
-                header: "Node",
-                accessorKey: "nodeTag",
-                cell: CellNodeValueWrapper,
-                size: getSize(3),
-                enableColumnFilter: false,
+                header: "Content",
+                accessorKey: "Error",
+                cell: CellWithCopyWrapper,
+                size: getSize((db.isSharded ? 20 : 25) - (hasProcessErrors ? 8 : 0)),
                 enableSorting: false,
             },
         ],
-        [getSize, hasProcessErrors]
+        [db.isSharded, getSize, hasProcessErrors]
     );
-
-    if (db.isSharded) {
-        columns.push({
-            header: "Shard",
-            accessorKey: "shard",
-            cell: CellShardValueWrapper,
-            size: getSize(3),
-            enableColumnFilter: false,
-            enableSorting: false,
-        });
-    }
 
     return columns;
 }
