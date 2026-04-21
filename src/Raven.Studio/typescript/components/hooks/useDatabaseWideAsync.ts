@@ -1,5 +1,5 @@
 import { useAppSelector } from "components/store";
-import { useCallback, useMemo, useReducer } from "react";
+import { useCallback, useEffect, useMemo, useReducer } from "react";
 import { locationAwareLoadableData } from "components/models/common";
 import assertUnreachable from "components/utils/assertUnreachable";
 import { produce } from "immer";
@@ -37,6 +37,10 @@ export function useDatabaseWideAsync<T>(perNodeProvider: (location: databaseLoca
         [perNodeProvider]
     );
 
+    useEffect(() => {
+        dispatch({ type: "Reset", locations });
+    }, [locations]);
+
     const { execute, loading } = useAsync(
         () => Promise.allSettled(locations.map(handleLocation)),
         [locations, handleLocation]
@@ -62,7 +66,12 @@ function initReducer<T>(locations: databaseLocationSpecifier[]): DatabaseWideRed
     };
 }
 
-type DatabaseWideReducerAction<T> = ActionLocationDataLoaded<T> | ActionLocationDataError;
+interface ActionReset {
+    type: "Reset";
+    locations: databaseLocationSpecifier[];
+}
+
+type DatabaseWideReducerAction<T> = ActionLocationDataLoaded<T> | ActionLocationDataError | ActionReset;
 
 interface ActionLocationDataLoaded<T> {
     location: databaseLocationSpecifier;
@@ -90,7 +99,8 @@ function databaseWideReducer<T>(
             return produce(state, (draft) => {
                 const itemToModify = draft.result.find((t) => isSameLocation(t.location, action.location));
                 if (!itemToModify) {
-                    throw new Error("Unable to find data for location = " + action.location.nodeTag);
+                    // Stale response from a previous database — ignore it
+                    return;
                 }
                 itemToModify.status = "success";
                 itemToModify.data = action.data as any;
@@ -100,12 +110,15 @@ function databaseWideReducer<T>(
             return produce(state, (draft) => {
                 const itemToModify = draft.result.find((t) => isSameLocation(t.location, action.location));
                 if (!itemToModify) {
-                    throw new Error("Unable to find data for location = " + action.location.nodeTag);
+                    // Stale response from a previous database — ignore it
+                    return;
                 }
                 itemToModify.status = "failure";
                 itemToModify.data = undefined;
                 itemToModify.error = action.error;
             });
+        case "Reset":
+            return initReducer(action.locations);
         default:
             assertUnreachable(type);
     }

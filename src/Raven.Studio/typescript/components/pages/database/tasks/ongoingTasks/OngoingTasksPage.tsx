@@ -110,12 +110,12 @@ export function OngoingTasksPage({ isAiOnly = false }: OngoingTasksPageProps) {
 
     const getEtlStats = useCallback(
         (location: databaseLocationSpecifier) => tasksService.getEtlStats(db.name, location),
-        []
+        [db]
     );
 
     const getEtlErrors = useCallback(
         (location: databaseLocationSpecifier) => tasksService.getEtlErrors(db.name, location),
-        []
+        [db]
     );
 
     const { result: etlStatsResult } = useDatabaseWideAsync(getEtlStats);
@@ -274,7 +274,6 @@ export function OngoingTasksPage({ isAiOnly = false }: OngoingTasksPageProps) {
     useEffect(() => {
         throttledUpdateLicenseLimitsUsage();
     }, [subscriptions.length]);
-
 
     const {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars

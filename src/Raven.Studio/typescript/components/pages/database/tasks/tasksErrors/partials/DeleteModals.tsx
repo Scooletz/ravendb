@@ -103,9 +103,7 @@ export function DeleteErrorsModal(props: DeleteErrorsModalProps) {
                 <h3>
                     <Icon icon="trash" color="danger" />
                     <span>
-                        {mode === "task"
-                            ? `Delete all errors for ${props.etlName} task?`
-                            : "Delete all errors?"}
+                        {mode === "task" ? `Delete all errors for ${props.etlName} task?` : "Delete all errors?"}
                     </span>
                 </h3>
             </Modal.Header>
@@ -113,12 +111,12 @@ export function DeleteErrorsModal(props: DeleteErrorsModalProps) {
                 {mode === "task" ? (
                     <>
                         <p>
-                            You are about to delete all <b>{props.errorsCount} errors</b> from{" "}
-                            <b>{props.etlName}</b> task.
+                            You are about to delete all <b>{props.errorsCount} errors</b> from <b>{props.etlName}</b>{" "}
+                            task.
                         </p>
                         <RichAlert variant="info" icon="info">
-                            While the current task errors will be deleted, a task in an <b>Error state</b> will not
-                            set back to the <b>Normal</b> state.
+                            While the current task errors will be deleted, a task in an <b>Error state</b> will not set
+                            back to the <b>Normal</b> state.
                         </RichAlert>
                     </>
                 ) : (
