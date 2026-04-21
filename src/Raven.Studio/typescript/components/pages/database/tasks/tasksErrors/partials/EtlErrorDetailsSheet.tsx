@@ -66,8 +66,8 @@ export default function EtlErrorDetailsSheet({
 
     const { bg, icon, label } = healthStatusToBadge(error.healthStatus);
     const stepIcon = getStepIcon(error.Step);
-    const etlTypeIcon = getEtlTypeIcon(error.etlType);
-    const etlTypeLabel = getEtlTypeLabel(error.etlType);
+    const etlTypeIcon = error.etlType ? getEtlTypeIcon(error.etlType) : null;
+    const etlTypeLabel = error.etlType ? getEtlTypeLabel(error.etlType) : null;
 
     const slideVariants = {
         enter: (d: number) => ({ x: `${d * 100}%` }),

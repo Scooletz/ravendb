@@ -159,6 +159,8 @@ interface NestedTaskPanelDetailsTableProps {
     etlName: string;
     transformationName: string;
     healthStatus: EtlHealthStatus;
+    taskId?: number;
+    etlType?: StudioEtlType;
 }
 
 function NestedTaskPanelDetailsTable({
@@ -168,6 +170,8 @@ function NestedTaskPanelDetailsTable({
     etlName,
     transformationName,
     healthStatus,
+    taskId,
+    etlType,
 }: NestedTaskPanelDetailsTableProps) {
     const columns = useTasksErrorsPanelTableColumns(width, processErrors.length > 0);
     const data = useMemo<FlatError[]>(
@@ -177,8 +181,10 @@ function NestedTaskPanelDetailsTable({
                 etlName,
                 transformationName,
                 healthStatus,
+                taskId,
+                etlType,
             })),
-        [itemErrors, processErrors, etlName, transformationName, healthStatus]
+        [itemErrors, processErrors, etlName, transformationName, healthStatus, taskId, etlType]
     );
 
     const tasksErrorsPanelTable = useReactTable({
@@ -210,6 +216,8 @@ interface NestedTaskPanelDetailsProps extends EtlTransformationWithErrors {
     width: number;
     etlName: string;
     healthStatus: EtlHealthStatus;
+    taskId?: number;
+    etlType?: StudioEtlType;
 }
 
 function NestedTaskPanelDetails({
@@ -347,6 +355,8 @@ export function TaskPanel({ etlName, transformations, etlStats, onRefresh }: Tas
                                         {...transformation}
                                         etlName={etlName}
                                         healthStatus={taskHealth}
+                                        taskId={taskId}
+                                        etlType={etlType}
                                     />
                                 ))}
                             </div>
