@@ -35,7 +35,7 @@ namespace SlowTests.Server.Documents.ETL.Raven
 
                 var afterStop = new AsyncManualResetEvent();
 
-                process.BeforeActualLoad += p =>
+                process.BeforeActualLoad += (p, _) =>
                 {
                     p.Stop("testing");
                     afterStop.Set();
@@ -101,7 +101,7 @@ namespace SlowTests.Server.Documents.ETL.Raven
 
                 var afterLoadError = new AsyncManualResetEvent();
 
-                process.BeforeActualLoad += p =>
+                process.BeforeActualLoad += (p, _) =>
                 {
                     afterLoadError.Set();
                     throw new Exception("Force the failure of the load of docs");
