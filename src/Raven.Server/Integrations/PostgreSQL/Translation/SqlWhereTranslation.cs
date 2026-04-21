@@ -6,20 +6,13 @@ using Sparrow.Extensions;
 
 namespace Raven.Server.Integrations.PostgreSQL.Translation
 {
-    /// <summary>
-    /// Shared intermediate representation for a translated SQL WHERE clause.
-    /// The IR is produced by <see cref="SqlWhereParser.TryParse"/> and consumed by
-    /// emitters in <see cref="PgSqlToRqlTranslator"/> (general SQL→RQL flow) and
-    /// <see cref="PowerBI.PowerBIOuterWhereTranslator"/> (PowerBI wrapper merging).
-    /// One parser, two small emitters – no duplicated AST navigation.
-    /// </summary>
+    // Shared WHERE IR produced by SqlWhereParser, consumed by PgSqlToRqlTranslator and PowerBIOuterWhereTranslator.
     internal abstract record ParsedWhere;
 
     internal sealed record ParsedAnd(IReadOnlyList<ParsedWhere> Children) : ParsedWhere;
     internal sealed record ParsedOr(IReadOnlyList<ParsedWhere> Children) : ParsedWhere;
     internal sealed record ParsedNot(ParsedWhere Child) : ParsedWhere;
 
-    /// <summary>Binary comparison: <c>field OP value</c>. <paramref name="Operator"/> is a canonical SQL token: =, !=, &lt;, &lt;=, &gt;, &gt;=.</summary>
     internal sealed record ParsedBinary(IReadOnlyList<string> FieldPath, string Operator, ParsedValue Value) : ParsedWhere;
     internal sealed record ParsedIn(IReadOnlyList<string> FieldPath, IReadOnlyList<ParsedValue> Values, bool Negated) : ParsedWhere;
     internal sealed record ParsedBetween(IReadOnlyList<string> FieldPath, ParsedValue Lower, ParsedValue Upper) : ParsedWhere;
@@ -27,24 +20,10 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
 
     internal enum ParsedValueKind { String, Long, Double, Bool, Null, Timestamp }
 
-    /// <summary>
-    /// Scalar value extracted from a SQL constant node. <see cref="Raw"/> carries the .NET representation
-    /// (string / long / double / bool / DateTime-formatted string for Timestamp / null).
-    /// </summary>
     internal sealed record ParsedValue(object Raw, ParsedValueKind Kind);
 
     internal static class SqlWhereParser
     {
-        /// <summary>
-        /// Parses a pgsqlparser WHERE clause <see cref="Node"/> tree into the shared IR.
-        /// <paramref name="outerAliasToStrip"/> is the SQL-level alias (if any) that should be
-        /// peeled off qualified column references. Callers add back any inner-query alias themselves.
-        /// Identifier casing follows PostgreSQL semantics: unquoted identifiers are folded to lowercase
-        /// by pgsqlparser (SQL standard); quoted identifiers preserve case via <c>Sval</c>. See
-        /// libpg_query issue #59 for upstream background.
-        /// Returns <c>false</c> if any subexpression cannot be represented in the IR – in which case
-        /// <paramref name="result"/> is <c>null</c> and callers should decline the whole translation.
-        /// </summary>
         public static bool TryParse(Node whereNode, string outerAliasToStrip, out ParsedWhere result)
         {
             result = null;
@@ -174,12 +153,6 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
             return result != null;
         }
 
-        /// <summary>
-        /// Extracts the dotted field-path segments from a <see cref="ColumnRef"/> node using
-        /// pgsqlparser's <c>Sval</c> values. If <paramref name="outerAliasToStrip"/> matches the
-        /// first segment (case-insensitive), it is peeled off.
-        /// Unquoted identifiers are lowercase (PostgreSQL standard); quoted identifiers preserve case.
-        /// </summary>
         private static bool TryExtractFieldPath(Node node, string outerAliasToStrip, out IReadOnlyList<string> path)
         {
             path = null;
@@ -237,7 +210,7 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
 
             if (c.Fval != null && string.IsNullOrEmpty(c.Fval.Fval) == false)
             {
-                // pgsqlparser serialises floats as strings. Keep the raw string; emitters decide how to parse.
+                // pgsqlparser serialises floats as strings.
                 if (double.TryParse(c.Fval.Fval, NumberStyles.Float, CultureInfo.InvariantCulture, out var d))
                     value = new ParsedValue(d, ParsedValueKind.Double);
                 else

@@ -242,7 +242,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 if (rss == null)
                     break;
 
-                if (IsPowerBiWrapperAlias(rss.Alias?.Aliasname) == false)
+                if (PgSqlAstHelpers.IsPowerBiWrapperAlias(rss.Alias?.Aliasname) == false)
                     break;
 
                 var next = rss.Subquery?.SelectStmt;
@@ -256,16 +256,6 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             }
 
             return found;
-        }
-
-        internal static bool IsPowerBiWrapperAlias(string alias)
-        {
-            if (string.IsNullOrWhiteSpace(alias))
-                return false;
-
-            return string.Equals(alias, "$Table", StringComparison.OrdinalIgnoreCase) ||
-                   string.Equals(alias, "_", StringComparison.OrdinalIgnoreCase) ||
-                   string.Equals(alias, "rows", StringComparison.OrdinalIgnoreCase);
         }
 
         private static bool TryDeparseSelect(SelectStmt selectStmt, out string sql)
@@ -451,12 +441,6 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
 
     }
 
-    /// <summary>
-    /// PowerBI-facing WHERE-clause emitter. Walks the shared <see cref="ParsedWhere"/> IR produced
-    /// by <see cref="SqlWhereParser"/> and builds a RavenDB <see cref="QueryExpression"/> tree.
-    /// The AST-navigation layer (<see cref="SqlWhereParser"/>) is shared with
-    /// <see cref="Translation.PgSqlToRqlTranslator"/>; only the emitter (this file) differs.
-    /// </summary>
     internal static class PowerBIOuterWhereTranslator
     {
         public static bool TryTranslateWhere(Node node, string outerAlias, StringSegment? innerAlias, out QueryExpression expr)
@@ -592,11 +576,6 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             return true;
         }
 
-        /// <summary>
-        /// PowerBI only emits plain <c>alias.col</c> or <c>col</c> field references in the wrapper WHERE;
-        /// anything deeper is a shape we don't recognise and should be rejected to preserve historical
-        /// behaviour. The shared parser has already stripped the matching outer alias.
-        /// </summary>
         private static bool TryBuildFieldExpression(IReadOnlyList<string> fieldPath, StringSegment? innerAlias, out FieldExpression expr)
         {
             expr = null;

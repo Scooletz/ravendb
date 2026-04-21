@@ -6,6 +6,17 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
 {
     internal static class PgSqlAstHelpers
     {
+        public static bool IsPowerBiWrapperAlias(string alias)
+        {
+            if (string.IsNullOrWhiteSpace(alias))
+                return false;
+
+            return string.Equals(alias, "$Table", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(alias, "_", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(alias, "rows", StringComparison.OrdinalIgnoreCase);
+        }
+
+
         public static bool TryParseSingleSelect(string sql, out SelectStmt selectStmt)
         {
             selectStmt = null;

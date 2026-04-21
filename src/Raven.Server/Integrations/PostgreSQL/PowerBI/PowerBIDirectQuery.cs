@@ -89,8 +89,6 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
 
             try
             {
-                // Very conservative handler for the PowerBI DirectQuery wrapper shape.
-                // On any mismatch, return false so the other PowerBI parsers can handle it.
                 var sql = queryText;
 
                 var inner = PowerBIInnerRqlExtractor.TryExtractAndResolve(sql);
@@ -146,8 +144,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
 
                 var q = inner.ResolvedQuery;
 
-                // Non-aggregate DirectQuery rewrite always emits `select { ... }` (object projection).
-                // Raven requires a from-alias for object projections, so synthesize a stable alias when missing.
+                // Object projections require a from-alias; synthesize one when missing.
                 if (q.From.Alias == null)
                     q.From.Alias = "_doc";
 
@@ -187,13 +184,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 if (selectStmt == null)
                     return false;
 
-                // "Flat grouped" shape: GROUP BY is at the outermost select level (no outer "_" wrapper).
-                // Example: PowerBI count / average queries where the aggregate and group-by live in the
-                // same SELECT, with a raw subquery ("rows") as the FROM clause.
-                //   SELECT "rows"."Company", count("rows"."Freight") as "a0"
-                //   FROM (...) "rows"
-                //   GROUP BY "Company"
-                //   LIMIT ...
+                // Flat grouped shape: GROUP BY at the outermost level, subquery as FROM (no outer "_" wrapper).
                 if (selectStmt.GroupClause is { Count: > 0 })
                 {
                     int? limitFlat = null;
@@ -207,8 +198,6 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                     int? offsetFlat = null;
                     if (selectStmt.LimitOffset != null)
                     {
-                        // Match the LIMIT path's literal-kind tolerance (Sval/Ival/Fval), not just Ival.
-                        // PowerBI sometimes emits OFFSET as a typed string-literal constant.
                         if (TryExtractOffset(selectStmt, out var o) == false)
                             return false;
                         offsetFlat = o;
@@ -219,8 +208,6 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
 
                     TryExtractAggregates(selectStmt, out var aggregatesFlat);
 
-                    // ORDER BY in flat grouped shapes is not yet supported; treat the group-by fields as
-                    // the outer projection (aggregate output aliases are captured in Aggregates).
                     wrapper = new NormalizedWrapper(
                         OuterProjectedColumns: new List<string>(groupByColsFlat),
                         GroupByColumns: groupByColsFlat,
@@ -233,8 +220,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                     return true;
                 }
 
-                // Standard wrapped shape: GROUP BY lives in an inner subquery (e.g. the three-level
-                // PowerBI sum shape with an outer "_" null-guard wrapper).
+                // Standard wrapped shape: GROUP BY in an inner subquery, outer "_" wrapper.
                 if (TryExtractProjectedColumnsFromAnyWrapperLevel(selectStmt, out var outerCols) == false)
                     return false;
 
@@ -249,7 +235,6 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 int? offset = null;
                 if (selectStmt.LimitOffset != null)
                 {
-                    // See note above: accept the same constant kinds as the LIMIT path.
                     if (TryExtractOffset(selectStmt, out var o) == false)
                         return false;
                     offset = o;
@@ -271,10 +256,6 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                         if (colRef == null)
                             return false;
 
-                        // Primary extraction: expect the strict "_"-qualified shape that PowerBI's
-                        // standard wrapper emits. If the wrapper alias is different (e.g. "rows",
-                        // "$Table", or any other benign alias), fall back to the last identifier
-                        // segment — the qualifier is irrelevant for RQL, only the field name matters.
                         if (TryExtractOuterUnderscoreQualifiedColumn(colRef, out var colName) == false)
                         {
                             colName = TryExtractLastIdentifierSegment(colRef);
@@ -357,16 +338,12 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                         var colRef = rt.Val?.ColumnRef;
                         if (colRef == null)
                         {
-                            // Tolerate PowerBI null-order CASE helper columns; reject anything else.
+                            // Tolerate null-order CASE helper columns; reject anything else.
                             if (IsHelperColumnAlias(rt.Name) && rt.Val?.CaseExpr != null)
                                 continue;
                             return false;
                         }
 
-                        // Multi-segment refs (e.g. "rows"."Company", "_"."Employee") are harmless:
-                        // the qualifier is a wrapper alias, and the last identifier is the real
-                        // projected field. Helper-named multi-segment refs (e.g. "_"."t2_0") are
-                        // still skipped so they don't leak into the projection list.
                         string colName;
                         if (colRef.Fields is { Count: > 1 })
                         {
@@ -492,11 +469,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                     return false;
                 }
 
-                // Collects every aggregate FuncCall in the grouped select's target list.
-                // Non-FuncCall targets are silently skipped (not validated against the group-by list);
-                // this matches the previous single-aggregate behavior. Callers get the group-by list
-                // separately via TryExtractGroupByColumns.
-                // Returns true when at least one well-formed aggregate was found.
+                // Collects every aggregate FuncCall in the target list; non-FuncCall targets are skipped.
                 static bool TryExtractAggregates(SelectStmt groupedSelect, out List<Aggregate> aggregates)
                 {
                     aggregates = null;
@@ -554,8 +527,6 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 if (wrapper.Aggregates is not { Count: > 0 } aggregates)
                     return false;
 
-                // All aggregates must be supported. A single unsupported aggregate fails the whole shape
-                // (we don't want to partially emit — PowerBI expects every requested output column).
                 foreach (var agg in aggregates)
                 {
                     if (string.IsNullOrWhiteSpace(agg.FunctionName) ||
@@ -570,17 +541,13 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 if (wrapper.GroupByColumns is not { Count: > 0 })
                     return false;
 
-                // Limit is required (no safe default), but OFFSET 0 is a semantic no-op and should be
-                // accepted — PowerBI sometimes emits LIMIT N OFFSET 0 in aggregate wrappers. Any other
-                // offset would skip rows and is still rejected.
-                if (wrapper.Limit == null || (wrapper.Offset != null && wrapper.Offset != 0))
+                // Non-zero OFFSET would skip rows; reject. OFFSET 0 is a no-op and is accepted.
+                if (wrapper.Offset != null && wrapper.Offset != 0)
                     return false;
 
                 if (wrapper.OuterWhereClause != null)
                 {
-                    // For multi-aggregate shapes the PowerBI wrapper's outer "is not null" guard (when
-                    // present) targets one of the aggregate outputs. Accept the WHERE if it matches any
-                    // of them — PowerBI only emits one guard column, but which one is not stable.
+                    // Accept if the outer "is not null" guard targets any one of the aggregate outputs.
                     var matchedAnyAggregateOutput = false;
                     foreach (var agg in aggregates)
                     {
@@ -600,7 +567,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                     Aggregates: aggregates,
                     OrderByCols: wrapper.OrderByColumns,
                     OrderByDescFlags: wrapper.OrderByDescFlags,
-                    Limit: wrapper.Limit.Value);
+                    Limit: wrapper.Limit ?? 1000001);
                 return true;
 
                 static bool TryIsOuterAggregateNotNullFilter(Node whereClause, string expectedName)
@@ -667,7 +634,6 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 if (wrapper.OuterProjectedColumns is not { Count: > 0 })
                     return false;
 
-                // Require GROUP BY — non-aggregate DirectQuery owns the distinct-list wrapper shape.
                 if (wrapper.GroupByColumns is not { Count: > 0 })
                     return false;
 
@@ -709,8 +675,6 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                     groupIds.Add(groupId);
                 }
 
-                // Format each aggregate's field + output alias as RQL identifiers in one pass;
-                // reject the whole shape on any formatting failure to avoid partial emission.
                 var formattedAggregates = new List<Aggregate>(capacity: aggregates.Count);
                 foreach (var agg in aggregates)
                 {

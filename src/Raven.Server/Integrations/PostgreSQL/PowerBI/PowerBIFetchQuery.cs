@@ -138,7 +138,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
 
                 var rss = fromItem.RangeSubselect;
                 alias = rss.Alias?.Aliasname;
-                if (PowerBIInnerRqlExtractor.IsPowerBiWrapperAlias(alias) == false)
+                if (PgSqlAstHelpers.IsPowerBiWrapperAlias(alias) == false)
                     return false;
 
                 nextSelect = rss.Subquery?.SelectStmt;
