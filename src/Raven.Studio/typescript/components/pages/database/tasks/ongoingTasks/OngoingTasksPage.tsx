@@ -81,6 +81,17 @@ interface OngoingTasksPageProps {
     isAiOnly?: boolean;
 }
 
+const etlAndAiTaskTypes: Raven.Client.Documents.Operations.OngoingTasks.OngoingTaskType[] = [
+    "RavenEtl",
+    "SqlEtl",
+    "OlapEtl",
+    "ElasticSearchEtl",
+    "QueueEtl",
+    "SnowflakeEtl",
+    "EmbeddingsGeneration",
+    "GenAi",
+];
+
 export function OngoingTasksPage({ isAiOnly = false }: OngoingTasksPageProps) {
     const db = useAppSelector(databaseSelectors.activeDatabase);
 
@@ -121,6 +132,7 @@ export function OngoingTasksPage({ isAiOnly = false }: OngoingTasksPageProps) {
                     location,
                     tasks,
                 });
+                return tasks;
             } catch (e) {
                 const errorAndMessage = recentError.tryExtractMessageAndException(e.responseText);
                 dispatch({
@@ -143,8 +155,16 @@ export function OngoingTasksPage({ isAiOnly = false }: OngoingTasksPageProps) {
         }
 
         const loadTasks = tasks.locations.map(fetchTasks);
-        await Promise.all(loadTasks);
-    }, [tasks, fetchTasks, db]);
+        const results = await Promise.all(loadTasks);
+
+        const hasEtlOrAi = results
+            .flatMap((r) => r?.OngoingTasks ?? [])
+            .some((t) => etlAndAiTaskTypes.includes(t.TaskType));
+
+        if (hasEtlOrAi) {
+            startTrackingEtlProgress();
+        }
+    }, [tasks, fetchTasks, db, startTrackingEtlProgress]);
 
     useInterval(reload, 10_000);
 
@@ -255,11 +275,6 @@ export function OngoingTasksPage({ isAiOnly = false }: OngoingTasksPageProps) {
         throttledUpdateLicenseLimitsUsage();
     }, [subscriptions.length]);
 
-    useEffect(() => {
-        if (etls.length > 0 || ai.length > 0) {
-            startTrackingEtlProgress();
-        }
-    }, [etls.length, ai.length]);
 
     const {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -485,7 +500,6 @@ export function OngoingTasksPage({ isAiOnly = false }: OngoingTasksPageProps) {
                                         {...sharedPanelProps}
                                         key={taskKey(x.shared)}
                                         data={x}
-                                        onToggleDetails={startTrackingEtlProgress}
                                         showItemPreview={showItemPreview}
                                         etlStats={flatEtlStats}
                                         etlErrors={flatEtlErrors}
@@ -496,7 +510,6 @@ export function OngoingTasksPage({ isAiOnly = false }: OngoingTasksPageProps) {
                                         {...sharedPanelProps}
                                         key={taskKey(x.shared)}
                                         data={x}
-                                        onToggleDetails={startTrackingEtlProgress}
                                         showItemPreview={showItemPreview}
                                         etlStats={flatEtlStats}
                                         etlErrors={flatEtlErrors}
@@ -630,7 +643,6 @@ export function OngoingTasksPage({ isAiOnly = false }: OngoingTasksPageProps) {
                                                 data={x}
                                                 etlStats={flatEtlStats}
                                                 etlErrors={flatEtlErrors}
-                                                onToggleDetails={startTrackingEtlProgress}
                                                 showItemPreview={showItemPreview}
                                             />
                                         ))}
@@ -641,7 +653,6 @@ export function OngoingTasksPage({ isAiOnly = false }: OngoingTasksPageProps) {
                                                 data={x}
                                                 etlStats={flatEtlStats}
                                                 etlErrors={flatEtlErrors}
-                                                onToggleDetails={startTrackingEtlProgress}
                                                 showItemPreview={showItemPreview}
                                             />
                                         ))}
@@ -652,7 +663,6 @@ export function OngoingTasksPage({ isAiOnly = false }: OngoingTasksPageProps) {
                                                 data={x}
                                                 etlStats={flatEtlStats}
                                                 etlErrors={flatEtlErrors}
-                                                onToggleDetails={startTrackingEtlProgress}
                                                 showItemPreview={showItemPreview}
                                             />
                                         ))}
@@ -663,7 +673,6 @@ export function OngoingTasksPage({ isAiOnly = false }: OngoingTasksPageProps) {
                                                 data={x}
                                                 etlStats={flatEtlStats}
                                                 etlErrors={flatEtlErrors}
-                                                onToggleDetails={startTrackingEtlProgress}
                                                 showItemPreview={showItemPreview}
                                             />
                                         ))}
@@ -674,7 +683,6 @@ export function OngoingTasksPage({ isAiOnly = false }: OngoingTasksPageProps) {
                                                 data={x}
                                                 etlStats={flatEtlStats}
                                                 etlErrors={flatEtlErrors}
-                                                onToggleDetails={startTrackingEtlProgress}
                                                 showItemPreview={showItemPreview}
                                             />
                                         ))}
@@ -685,7 +693,6 @@ export function OngoingTasksPage({ isAiOnly = false }: OngoingTasksPageProps) {
                                                 data={x}
                                                 etlStats={flatEtlStats}
                                                 etlErrors={flatEtlErrors}
-                                                onToggleDetails={startTrackingEtlProgress}
                                                 showItemPreview={showItemPreview}
                                             />
                                         ))}
@@ -696,7 +703,6 @@ export function OngoingTasksPage({ isAiOnly = false }: OngoingTasksPageProps) {
                                                 data={x}
                                                 etlStats={flatEtlStats}
                                                 etlErrors={flatEtlErrors}
-                                                onToggleDetails={startTrackingEtlProgress}
                                                 showItemPreview={showItemPreview}
                                             />
                                         ))}
@@ -707,7 +713,6 @@ export function OngoingTasksPage({ isAiOnly = false }: OngoingTasksPageProps) {
                                                 data={x}
                                                 etlStats={flatEtlStats}
                                                 etlErrors={flatEtlErrors}
-                                                onToggleDetails={startTrackingEtlProgress}
                                                 showItemPreview={showItemPreview}
                                             />
                                         ))}
@@ -718,7 +723,6 @@ export function OngoingTasksPage({ isAiOnly = false }: OngoingTasksPageProps) {
                                                 data={x}
                                                 etlStats={flatEtlStats}
                                                 etlErrors={flatEtlErrors}
-                                                onToggleDetails={startTrackingEtlProgress}
                                                 showItemPreview={showItemPreview}
                                             />
                                         ))}

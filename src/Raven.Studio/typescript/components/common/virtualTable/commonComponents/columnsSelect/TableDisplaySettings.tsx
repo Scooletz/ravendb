@@ -109,9 +109,9 @@ function TableDisplaySettingsSheet({
 
     const handleToggleAll = () => {
         if (selectionState === "Empty") {
-            setSelectedIds((prev) => [...prev.filter((id) => !hideableIds.includes(id)), ...hideableIds]);
+            setSelectedIds(columnMetas.map((m) => m.id));
         } else {
-            setSelectedIds((prev) => prev.filter((id) => !hideableIds.includes(id)));
+            setSelectedIds(selectedIds.filter((id) => !hideableIds.includes(id)));
         }
     };
 

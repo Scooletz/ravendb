@@ -23,6 +23,7 @@ import { GroupByTaskView } from "./partials/GroupByTaskView";
 import { GroupByNoneView } from "./partials/GroupByNoneView";
 import PopoverWithHoverWrapper from "components/common/PopoverWithHoverWrapper";
 import appUrl from "common/appUrl";
+import { ThemeColor } from "components/models/common";
 import EtlTaskStats = Raven.Server.Documents.ETL.Stats.EtlTaskStats;
 
 interface TasksErrorsPageQueryParams {
@@ -96,7 +97,7 @@ interface TasksErrorsPageBodyProps {
     onRefresh: () => void;
 }
 
-const pillGroupOrder: Array<"bg-success" | "bg-warning" | "bg-danger"> = ["bg-success", "bg-warning", "bg-danger"];
+const pillGroupOrder: Array<`bg-${ThemeColor}`> = ["bg-success", "bg-warning", "bg-danger"];
 
 function getPillGroups(etlStats: EtlTaskStats[]) {
     return pillGroupOrder

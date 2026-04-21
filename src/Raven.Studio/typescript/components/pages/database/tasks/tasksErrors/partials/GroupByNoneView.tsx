@@ -41,7 +41,7 @@ import {
     CellValueButtonWrapper,
     HyperLinkDocumentCellValue,
 } from "./TasksErrorsCells";
-import { DeleteAllErrorsModal } from "./DeleteModals";
+import { DeleteErrorsModal } from "./DeleteModals";
 import { accessManagerSelectors } from "components/common/shell/accessManagerSliceSelectors";
 import { DatabaseAccessPopover } from "components/common/DatabaseAccessPopover";
 import EtlTaskStats = Raven.Server.Documents.ETL.Stats.EtlTaskStats;
@@ -49,7 +49,7 @@ import EtlTaskStats = Raven.Server.Documents.ETL.Stats.EtlTaskStats;
 function useGroupByNoneTableColumns(availableWidth: number, hasProcessErrors: boolean) {
     const db = useAppSelector(databaseSelectors.activeDatabase);
     const bodyWidth = virtualTableUtils.getTableBodyWidth(availableWidth);
-    const getSize = virtualTableUtils.getCellSizeProvider(bodyWidth - SHOW_WIDTH_SIZE);
+    const getSize = useMemo(() => virtualTableUtils.getCellSizeProvider(bodyWidth - SHOW_WIDTH_SIZE), [bodyWidth]);
 
     const columns = useMemo<ColumnDef<FlatError>[]>(
         () => [
@@ -276,7 +276,8 @@ export function GroupByNoneView({ tasksWithErrors, etlStats, filters, onRefresh 
                 />
             </div>
             {isDeleteAllErrorsModalOpen && (
-                <DeleteAllErrorsModal
+                <DeleteErrorsModal
+                    mode="all"
                     tasksWithErrors={tasksWithErrors}
                     toggle={toggleDeleteAllErrorsModal}
                     onRefresh={onRefresh}

@@ -29,8 +29,10 @@ import PopoverWithHoverWrapper from "components/common/PopoverWithHoverWrapper";
 import { useAppSelector } from "components/store";
 import { databaseSelectors } from "components/common/shell/databaseSliceSelectors";
 import {
+    EtlHealthStatus,
     EtlTaskWithErrors,
     EtlTransformationWithErrors,
+    FlatError,
     flattenTransformationErrors,
     getEtlEditLink,
     getEtlTypeIcon,
@@ -51,7 +53,7 @@ import {
     CellValueButtonWrapper,
     HyperLinkDocumentCellValue,
 } from "./TasksErrorsCells";
-import { DeleteTaskErrorsModal } from "./DeleteModals";
+import { DeleteErrorsModal } from "./DeleteModals";
 import { accessManagerSelectors } from "components/common/shell/accessManagerSliceSelectors";
 import { DatabaseAccessPopover } from "components/common/DatabaseAccessPopover";
 import EtlTaskStats = Raven.Server.Documents.ETL.Stats.EtlTaskStats;
@@ -75,9 +77,9 @@ function EtlTypeRichPanelItem({ etlType }: EtlTypeRichPanelItemProps) {
 function useTasksErrorsPanelTableColumns(availableWidth: number, hasProcessErrors: boolean) {
     const db = useAppSelector(databaseSelectors.activeDatabase);
     const bodyWidth = virtualTableUtils.getTableBodyWidth(availableWidth);
-    const getSize = virtualTableUtils.getCellSizeProvider(bodyWidth - SHOW_WIDTH_SIZE);
+    const getSize = useMemo(() => virtualTableUtils.getCellSizeProvider(bodyWidth - SHOW_WIDTH_SIZE), [bodyWidth]);
 
-    const tasksErrorsPanelColumns: ColumnDef<any>[] = useMemo(
+    const tasksErrorsPanelColumns: ColumnDef<FlatError>[] = useMemo(
         () => [
             {
                 header: "Show",
@@ -154,11 +156,30 @@ interface NestedTaskPanelDetailsTableProps {
     width: number;
     itemErrors: EtlTransformationWithErrors["itemErrors"];
     processErrors: EtlTransformationWithErrors["processErrors"];
+    etlName: string;
+    transformationName: string;
+    healthStatus: EtlHealthStatus;
 }
 
-function NestedTaskPanelDetailsTable({ width, itemErrors, processErrors }: NestedTaskPanelDetailsTableProps) {
+function NestedTaskPanelDetailsTable({
+    width,
+    itemErrors,
+    processErrors,
+    etlName,
+    transformationName,
+    healthStatus,
+}: NestedTaskPanelDetailsTableProps) {
     const columns = useTasksErrorsPanelTableColumns(width, processErrors.length > 0);
-    const data = useMemo(() => flattenTransformationErrors(itemErrors, processErrors), [itemErrors, processErrors]);
+    const data = useMemo<FlatError[]>(
+        () =>
+            flattenTransformationErrors(itemErrors, processErrors).map((e) => ({
+                ...e,
+                etlName,
+                transformationName,
+                healthStatus,
+            })),
+        [itemErrors, processErrors, etlName, transformationName, healthStatus]
+    );
 
     const tasksErrorsPanelTable = useReactTable({
         data,
@@ -187,9 +208,17 @@ function NestedTaskPanelDetailsTable({ width, itemErrors, processErrors }: Neste
 
 interface NestedTaskPanelDetailsProps extends EtlTransformationWithErrors {
     width: number;
+    etlName: string;
+    healthStatus: EtlHealthStatus;
 }
 
-function NestedTaskPanelDetails({ width, transformationName, processErrors, itemErrors }: NestedTaskPanelDetailsProps) {
+function NestedTaskPanelDetails({
+    width,
+    transformationName,
+    processErrors,
+    itemErrors,
+    ...rest
+}: NestedTaskPanelDetailsProps) {
     const { value: isNestedDetailsVisible, toggle: toggleNestedDetailsVisible } = useBoolean(true);
 
     const totalErrors = processErrors.length + itemErrors.length;
@@ -208,7 +237,13 @@ function NestedTaskPanelDetails({ width, transformationName, processErrors, item
             </div>
             <Collapse in={isNestedDetailsVisible} unmountOnExit mountOnEnter>
                 <div className="mt-3">
-                    <NestedTaskPanelDetailsTable width={width} itemErrors={itemErrors} processErrors={processErrors} />
+                    <NestedTaskPanelDetailsTable
+                        width={width}
+                        itemErrors={itemErrors}
+                        processErrors={processErrors}
+                        transformationName={transformationName}
+                        {...rest}
+                    />
                 </div>
             </Collapse>
         </Card>
@@ -310,6 +345,8 @@ export function TaskPanel({ etlName, transformations, etlStats, onRefresh }: Tas
                                         key={transformation.transformationName}
                                         {...sizeProps}
                                         {...transformation}
+                                        etlName={etlName}
+                                        healthStatus={taskHealth}
                                     />
                                 ))}
                             </div>
@@ -318,7 +355,8 @@ export function TaskPanel({ etlName, transformations, etlStats, onRefresh }: Tas
                 />
             </RichPanel>
             {isDeleteModalOpen && (
-                <DeleteTaskErrorsModal
+                <DeleteErrorsModal
+                    mode="task"
                     etlName={etlName}
                     transformations={transformations}
                     errorsCount={errorsCount}

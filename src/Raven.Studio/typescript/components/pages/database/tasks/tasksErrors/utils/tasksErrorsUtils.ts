@@ -1,4 +1,3 @@
-import genUtils from "common/generalUtils";
 import IconName from "typings/server/icons";
 import { RavenBadgeBgVariants } from "react-bootstrap/Badge";
 import appUrl from "common/appUrl";
@@ -6,11 +5,14 @@ import assertUnreachable from "components/utils/assertUnreachable";
 import TaskUtils from "components/utils/TaskUtils";
 import EtlTaskStats = Raven.Server.Documents.ETL.Stats.EtlTaskStats;
 import EtlErrors = Raven.Server.Documents.ETL.Stats.EtlErrors;
+import { ThemeColor } from "components/models/common";
 
 export type EtlErrorStep = Raven.Server.Documents.ETL.TaskErrorStep;
 export type EtlHealthStatus = Raven.Server.Documents.ETL.EtlProcessHealthStatus;
 
 export type GroupByType = "task" | "none";
+
+export type Direction = 1 | -1;
 
 export function getEtlEditLink(databaseName: string, taskId: number, etlType: StudioEtlType): string | null {
     if (taskId == null || etlType == null) {
@@ -184,7 +186,7 @@ export function getTaskHealthStatus(etlStats: EtlTaskStats[], etlName: string): 
     return getHealthStatusFromStats(stats);
 }
 
-export function getTaskPillColor(stats: EtlTaskStats["Stats"]): "bg-warning" | "bg-danger" | "bg-success" {
+export function getTaskPillColor(stats: EtlTaskStats["Stats"]): `bg-${ThemeColor}` {
     const health = getHealthStatusFromStats(stats);
     if (health === "Failed") {
         return "bg-danger";
@@ -223,8 +225,16 @@ export function getStepIcon(step: EtlErrorStep): IconName {
             return "import";
         case "Configuration":
             return "config";
+        case "Extraction":
+            return "export";
+        case "ModelInference":
+            return "ai";
+        case "Persistence":
+            return "save";
+        case "Unknown":
+            return "help";
         default:
-            return null;
+            return assertUnreachable(step);
     }
 }
 
@@ -253,7 +263,7 @@ export function getEtlTypeIcon(value: StudioEtlType): IconName {
         case "GenAi":
             return "genai";
         default:
-            return null;
+            return assertUnreachable(value);
     }
 }
 
@@ -282,7 +292,7 @@ export function getEtlTypeLabel(etlType: StudioEtlType): string {
         case "GenAi":
             return "GenAI";
         default:
-            return etlType;
+            return assertUnreachable(etlType);
     }
 }
 
@@ -293,7 +303,7 @@ export function getPopoverMessageForErrorType(errorType: "Item" | "Process"): st
         case "Process":
             return "Error that affects the process and the whole batch of documents.";
         default:
-            genUtils.assertUnreachable(errorType);
+            return assertUnreachable(errorType);
     }
 }
 
@@ -306,7 +316,7 @@ export function getPopoverMessageForTaskHealth(status: EtlHealthStatus): string 
         case "Failed":
             return "Your task needs your attention as it's severely affected with errors.";
         default:
-            return genUtils.assertUnreachable(status);
+            return assertUnreachable(status);
     }
 }
 

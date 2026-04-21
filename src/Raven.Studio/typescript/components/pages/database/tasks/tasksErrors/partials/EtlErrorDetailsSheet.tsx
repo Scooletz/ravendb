@@ -10,6 +10,7 @@ import { databaseSelectors } from "components/common/shell/databaseSliceSelector
 import genUtils from "common/generalUtils";
 import moment from "moment";
 import {
+    Direction,
     FlatError,
     getEtlTypeIcon,
     getEtlTypeLabel,
@@ -52,13 +53,13 @@ export default function EtlErrorDetailsSheet({
     const dbName = useAppSelector(databaseSelectors.activeDatabaseName);
 
     const [currentIndex, setCurrentIndex] = useState(initialIndex);
-    const [direction, setDirection] = useState<1 | -1>(1);
+    const [direction, setDirection] = useState<Direction>(1);
     const error = allErrors.length > 0 ? allErrors[currentIndex] : initialError;
 
     const hasPrevious = currentIndex > 0;
     const hasNext = currentIndex < allErrors.length - 1;
 
-    const navigate = (dir: 1 | -1) => {
+    const navigate = (dir: Direction) => {
         setDirection(dir);
         setCurrentIndex((i) => i + dir);
     };

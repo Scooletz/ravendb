@@ -3,10 +3,11 @@ import classNames from "classnames";
 import { Icon } from "components/common/Icon";
 import Badge from "react-bootstrap/Badge";
 import { EtlTaskWithErrors, getHealthStatusFromStats, healthStatusToBadge } from "../utils/tasksErrorsUtils";
+import { ThemeColor } from "components/models/common";
 import EtlTaskStats = Raven.Server.Documents.ETL.Stats.EtlTaskStats;
 
 export interface TaskPillProps {
-    color: "bg-warning" | "bg-danger" | "bg-success";
+    color: `bg-${ThemeColor}`;
 }
 
 export function TaskPill({ color }: TaskPillProps) {

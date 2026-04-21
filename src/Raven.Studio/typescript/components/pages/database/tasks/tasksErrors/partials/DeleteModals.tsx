@@ -31,21 +31,24 @@ function useDeleteConfirmation(isRequireTypedConfirm: boolean) {
     };
 }
 
-interface DeleteTaskErrorsModalProps {
-    toggle: () => void;
-    onRefresh: () => void;
-    etlName: string;
-    transformations: EtlTransformationWithErrors[];
-    errorsCount: number;
-}
+type DeleteErrorsModalProps =
+    | {
+          mode: "task";
+          toggle: () => void;
+          onRefresh: () => void;
+          etlName: string;
+          transformations: EtlTransformationWithErrors[];
+          errorsCount: number;
+      }
+    | {
+          mode: "all";
+          toggle: () => void;
+          onRefresh: () => void;
+          tasksWithErrors: EtlTaskWithErrors[];
+      };
 
-export function DeleteTaskErrorsModal({
-    toggle,
-    onRefresh,
-    etlName,
-    transformations,
-    errorsCount,
-}: DeleteTaskErrorsModalProps) {
+export function DeleteErrorsModal(props: DeleteErrorsModalProps) {
+    const { toggle, onRefresh, mode } = props;
     const db = useAppSelector(databaseSelectors.activeDatabase);
     const { tasksService } = useServices();
 
@@ -57,8 +60,14 @@ export function DeleteTaskErrorsModal({
     const { confirmText, handleTextChange, isConfirmed } = useDeleteConfirmation(isRequireTypedConfirm);
 
     const asyncDeleteErrors = useAsyncCallback(async () => {
+        const processNames =
+            mode === "task"
+                ? props.transformations.map((t) => `${props.etlName}/${t.transformationName}`)
+                : props.tasksWithErrors.flatMap((task) =>
+                      task.transformations.map((t) => `${task.etlName}/${t.transformationName}`)
+                  );
+
         try {
-            const processNames = transformations.map((t) => `${etlName}/${t.transformationName}`);
             const locations = DatabaseUtils.getLocations(db);
             await Promise.all(
                 locations.map((location) =>
@@ -66,103 +75,6 @@ export function DeleteTaskErrorsModal({
                         name: processNames,
                         nodeTag: location.nodeTag,
                         shardNumber: location.shardNumber,
-                    })
-                )
-            );
-            messagePublisher.reportSuccess("ETL errors were deleted.");
-            footer.default.refreshStats();
-            toggle();
-            onRefresh();
-        } catch (e) {
-            console.error(e);
-        }
-    });
-
-    const toggleIsRequireTypedConfirm = async () => {
-        if (!asyncGlobalSettings.result) {
-            messagePublisher.reportError("Failed to load studio global settings");
-            return;
-        }
-
-        asyncGlobalSettings.result.isRequireTypedConfirmationToDeleteEtlErrors.setValue(!isRequireTypedConfirm);
-        await asyncGlobalSettings.execute();
-    };
-
-    return (
-        <Modal show contentClassName="modal-border bulge-danger">
-            <Modal.Header closeButton onCloseClick={toggle} className="pb-0">
-                <h3>
-                    <Icon icon="trash" color="danger" />
-                    <span>Delete all errors for {etlName} task?</span>
-                </h3>
-            </Modal.Header>
-            <Modal.Body className="pt-0">
-                <p>
-                    You are about to delete all <b>{errorsCount} errors</b> from <b>{etlName}</b> task.
-                </p>
-                <RichAlert variant="info" icon="info">
-                    While the current task errors will be deleted, a task in an <b>Error state</b> will not set back to
-                    the <b>Normal</b> state.
-                </RichAlert>
-                {isRequireTypedConfirm && (
-                    <FormGroup className="mt-3">
-                        <FormLabel className="fw-bold">Type DELETE to confirm</FormLabel>
-                        <Form.Control placeholder="DELETE" value={confirmText} onChange={handleTextChange} />
-                    </FormGroup>
-                )}
-            </Modal.Body>
-            <Modal.Footer className="hstack justify-content-between">
-                <Switch selected={isRequireTypedConfirm} toggleSelection={toggleIsRequireTypedConfirm} color="primary">
-                    Require typed confirmation
-                </Switch>
-                <div className="hstack gap-2 flex-grow-1 justify-content-end">
-                    <Button variant="link" onClick={toggle} className="link-muted">
-                        Cancel
-                    </Button>
-                    <ButtonWithSpinner
-                        isSpinning={asyncDeleteErrors.loading}
-                        variant="danger"
-                        onClick={asyncDeleteErrors.execute}
-                        className="rounded-pill"
-                        disabled={!isConfirmed || asyncDeleteErrors.loading}
-                    >
-                        Delete
-                    </ButtonWithSpinner>
-                </div>
-            </Modal.Footer>
-        </Modal>
-    );
-}
-
-interface DeleteAllErrorsModalProps {
-    toggle: () => void;
-    onRefresh: () => void;
-    tasksWithErrors: EtlTaskWithErrors[];
-}
-
-export function DeleteAllErrorsModal({ toggle, onRefresh, tasksWithErrors }: DeleteAllErrorsModalProps) {
-    const db = useAppSelector(databaseSelectors.activeDatabase);
-    const { tasksService } = useServices();
-
-    const asyncGlobalSettings = useAsync(async () => await studioSettings.default.globalSettings(), []);
-
-    const isRequireTypedConfirm =
-        asyncGlobalSettings.result?.isRequireTypedConfirmationToDeleteEtlErrors.getValue() ?? true;
-
-    const { confirmText, handleTextChange, isConfirmed } = useDeleteConfirmation(isRequireTypedConfirm);
-
-    const asyncDeleteAllErrors = useAsyncCallback(async () => {
-        const processNames = tasksWithErrors.flatMap((task) =>
-            task.transformations.map((t) => `${task.etlName}/${t.transformationName}`)
-        );
-
-        try {
-            const locations = DatabaseUtils.getLocations(db);
-            await Promise.all(
-                locations.map((location) =>
-                    tasksService.deleteEtlErrors(db.name, {
-                        name: processNames,
-                        ...location,
                     })
                 )
             );
@@ -190,19 +102,36 @@ export function DeleteAllErrorsModal({ toggle, onRefresh, tasksWithErrors }: Del
             <Modal.Header closeButton onCloseClick={toggle} className="pb-0">
                 <h3>
                     <Icon icon="trash" color="danger" />
-                    <span>Delete all errors?</span>
+                    <span>
+                        {mode === "task"
+                            ? `Delete all errors for ${props.etlName} task?`
+                            : "Delete all errors?"}
+                    </span>
                 </h3>
             </Modal.Header>
             <Modal.Body className="pt-0">
-                <p>
-                    You are about to delete errors from <b>{tasksWithErrors.length}</b>{" "}
-                    {tasksWithErrors.length === 1 ? "task" : "tasks"}.
-                </p>
+                {mode === "task" ? (
+                    <>
+                        <p>
+                            You are about to delete all <b>{props.errorsCount} errors</b> from{" "}
+                            <b>{props.etlName}</b> task.
+                        </p>
+                        <RichAlert variant="info" icon="info">
+                            While the current task errors will be deleted, a task in an <b>Error state</b> will not
+                            set back to the <b>Normal</b> state.
+                        </RichAlert>
+                    </>
+                ) : (
+                    <p>
+                        You are about to delete errors from <b>{props.tasksWithErrors.length}</b>{" "}
+                        {props.tasksWithErrors.length === 1 ? "task" : "tasks"}.
+                    </p>
+                )}
                 {isRequireTypedConfirm && (
-                    <Form.Group>
-                        <Form.Label className="fw-bold">Type DELETE to confirm</Form.Label>
+                    <FormGroup className="mt-3">
+                        <FormLabel className="fw-bold">Type DELETE to confirm</FormLabel>
                         <Form.Control placeholder="DELETE" value={confirmText} onChange={handleTextChange} />
-                    </Form.Group>
+                    </FormGroup>
                 )}
             </Modal.Body>
             <Modal.Footer className="hstack justify-content-between">
@@ -214,11 +143,11 @@ export function DeleteAllErrorsModal({ toggle, onRefresh, tasksWithErrors }: Del
                         Cancel
                     </Button>
                     <ButtonWithSpinner
-                        isSpinning={asyncDeleteAllErrors.loading}
+                        isSpinning={asyncDeleteErrors.loading}
                         variant="danger"
-                        onClick={asyncDeleteAllErrors.execute}
+                        onClick={asyncDeleteErrors.execute}
                         className="rounded-pill"
-                        disabled={!isConfirmed || asyncDeleteAllErrors.loading}
+                        disabled={!isConfirmed || asyncDeleteErrors.loading}
                     >
                         Delete
                     </ButtonWithSpinner>

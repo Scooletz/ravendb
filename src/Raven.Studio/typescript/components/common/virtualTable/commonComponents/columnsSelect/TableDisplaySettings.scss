@@ -39,12 +39,6 @@
             }
         }
 
-        .column-pin-placeholder {
-            display: inline-block;
-            width: 1.5rem;
-            flex-shrink: 0;
-        }
-
         &.column-list-item-preview {
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
             border-radius: sizes.$border-radius-sm;

@@ -1,6 +1,6 @@
 import { useAppSelector } from "components/store";
 import { virtualTableUtils } from "components/common/virtualTable/utils/virtualTableUtils";
-import { CellContext, ColumnDef } from "@tanstack/react-table";
+import { CellContext, ColumnDef, Row, Table as TanstackTable } from "@tanstack/react-table";
 import CellValue, { CellValueWrapper } from "components/common/virtualTable/cells/CellValue";
 import CellDocumentValue from "components/common/virtualTable/cells/CellDocumentValue";
 import { useAppUrls } from "hooks/useAppUrls";
@@ -9,9 +9,34 @@ import { databaseSelectors } from "components/common/shell/databaseSliceSelector
 import Button from "react-bootstrap/Button";
 import { Icon } from "components/common/Icon";
 import IndexErrorsSheet from "components/pages/database/indexes/errors/IndexErrorsSheet";
-import { useViewSheet } from "components/common/splitView/ViewSheet";
+import { OpenSheetOptions, useViewSheet } from "components/common/splitView/ViewSheet";
 import React from "react";
 import PopoverWithHoverWrapper from "components/common/PopoverWithHoverWrapper";
+
+const indexErrorsSheetConfig: Pick<OpenSheetOptions, "initialWidth" | "minWidth" | "maxWidth"> = {
+    initialWidth: "40%",
+    minWidth: "25%",
+    maxWidth: "60%",
+};
+
+function openIndexErrorsSheet(
+    open: ReturnType<typeof useViewSheet>["open"],
+    table: TanstackTable<IndexErrorPerDocument>,
+    row: Row<IndexErrorPerDocument>
+) {
+    const allRows = table.getRowModel().rows;
+    const currentIndex = allRows.findIndex((r) => r.id === row.id);
+    open({
+        component: (
+            <IndexErrorsSheet
+                errorDetails={row}
+                allRows={allRows}
+                initialIndex={currentIndex >= 0 ? currentIndex : 0}
+            />
+        ),
+        ...indexErrorsSheetConfig,
+    });
+}
 
 const defaultCellSize = 95 / 5;
 
@@ -110,28 +135,11 @@ const HyperlinkIndexCellValue = ({ getValue }: HyperlinkIndexCellValueProps) => 
 
 type CellValueButtonWrapperProps = CellContext<IndexErrorPerDocument, unknown>;
 
-const CellValueButtonWrapper = (args: CellValueButtonWrapperProps) => {
+const CellValueButtonWrapper = ({ row, table }: CellValueButtonWrapperProps) => {
     const { open } = useViewSheet();
 
-    const handleOpenSheet = () => {
-        const allRows = args.table.getRowModel().rows;
-        const currentIndex = allRows.findIndex((r) => r.id === args.row.id);
-        open({
-            component: (
-                <IndexErrorsSheet
-                    errorDetails={args.row}
-                    allRows={allRows}
-                    initialIndex={currentIndex >= 0 ? currentIndex : 0}
-                />
-            ),
-            initialWidth: "40%",
-            minWidth: "25%",
-            maxWidth: "60%",
-        });
-    };
-
     return (
-        <Button variant="link" onClick={handleOpenSheet}>
+        <Button variant="link" onClick={() => openIndexErrorsSheet(open, table, row)}>
             <Icon icon="preview" margin="m-0" />
         </Button>
     );
@@ -166,25 +174,8 @@ type IndexErrorsCellWithCopyWrapperProps = CellContext<IndexErrorPerDocument, un
 const IndexErrorsCellWithCopyWrapper = ({ getValue, row, table }: IndexErrorsCellWithCopyWrapperProps) => {
     const { open } = useViewSheet();
 
-    const handleOpenSheet = () => {
-        const allRows = table.getRowModel().rows;
-        const currentIndex = allRows.findIndex((r) => r.id === row.id);
-        open({
-            component: (
-                <IndexErrorsSheet
-                    errorDetails={row}
-                    allRows={allRows}
-                    initialIndex={currentIndex >= 0 ? currentIndex : 0}
-                />
-            ),
-            initialWidth: "40%",
-            minWidth: "25%",
-            maxWidth: "60%",
-        });
-    };
-
     const additionalButtons = (
-        <Button size="sm" onClick={handleOpenSheet} title="Show error details">
+        <Button size="sm" onClick={() => openIndexErrorsSheet(open, table, row)} title="Show error details">
             <Icon icon="preview" margin="m-0" />
         </Button>
     );
