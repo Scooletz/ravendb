@@ -1,5 +1,6 @@
 using Lextm.SharpSnmpLib;
 using Raven.Server.Documents;
+using Raven.Server.Documents.ETL;
 
 namespace Raven.Server.Monitoring.Snmp.Objects.Database;
 
@@ -16,6 +17,6 @@ public sealed class DatabaseAiTaskErrors : DatabaseScalarObjectBase<Integer32>
     
     private static long GetCount(DocumentDatabase database)
     {
-        return database.EtlErrorsStorage.ReadTotalAiTasksErrorsCount();
+        return database.TaskErrorsStorage.ReadTotalErrorsCount(TaskType.Ai);
     }
 }

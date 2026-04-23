@@ -7,7 +7,7 @@ namespace Raven.Server.Documents.ETL.Test
 {
     public abstract class TestEtlScriptResult
     {
-        public List<EtlItemError> ItemTransformationErrors { get; set; }
+        public List<TaskItemError> ItemTransformationErrors { get; set; }
 
         public List<string> DebugOutput { get; set; }
 

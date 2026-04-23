@@ -210,7 +210,7 @@ namespace SlowTests.Server.Documents.AI.GenAi.Issues
                 session.SaveChanges();
             }
 
-            IEnumerable<EtlItemErrorTableValue> errors = null;
+            IEnumerable<TaskItemErrorTableValue> errors = null;
             var value = await WaitForValueAsync(async () =>
             {
                 errors = await Etl.GetItemLoadErrorsAsync(store.Database, config);
@@ -286,7 +286,7 @@ namespace SlowTests.Server.Documents.AI.GenAi.Issues
                 session.SaveChanges();
             }
 
-            IEnumerable<EtlItemErrorTableValue> errors = null;
+            IEnumerable<TaskItemErrorTableValue> errors = null;
             var value = await WaitForValueAsync(async () =>
             {
                 errors = await Etl.GetItemLoadErrorsAsync(store.Database, config);

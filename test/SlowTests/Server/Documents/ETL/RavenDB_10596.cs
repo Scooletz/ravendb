@@ -6,6 +6,7 @@ using FastTests;
 using Raven.Server.NotificationCenter.Notifications;
 using Raven.Server.NotificationCenter.Notifications.Details;
 using Raven.Tests.Core.Utils.Entities;
+using Raven.Server.Documents.ETL;
 using Sparrow.Json.Parsing;
 using Sparrow.Server.Collections;
 using Tests.Infrastructure;
@@ -48,7 +49,7 @@ namespace SlowTests.Server.Documents.ETL
 
                     await etlDone.WaitAsync(TimeSpan.FromSeconds(5));
 
-                    var itemErrors = database.EtlErrorsStorage.ReadAllItemErrors();
+                    var itemErrors = database.TaskErrorsStorage.ReadAllItemErrors(TaskType.Etl);
 
                     Assert.Equal(i + 1, itemErrors.Count);
 

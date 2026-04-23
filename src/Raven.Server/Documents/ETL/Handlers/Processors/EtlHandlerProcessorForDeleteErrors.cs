@@ -5,27 +5,22 @@ using Raven.Server.Web.Http;
 
 namespace Raven.Server.Documents.ETL.Handlers.Processors;
 
-internal sealed class EtlHandlerProcessorForDeleteErrors : AbstractEtlHandlerProcessorForDeleteErrors<DatabaseRequestHandler, DocumentsOperationContext>
+internal sealed class EtlHandlerProcessorForDeleteErrors : AbstractTaskErrorsHandlerProcessorForDeleteErrors<DatabaseRequestHandler, DocumentsOperationContext>
 {
     public EtlHandlerProcessorForDeleteErrors(DatabaseRequestHandler requestHandler) : base(requestHandler)
     {
     }
 
+    protected override TaskType TaskType => TaskType.Etl;
+
     protected override bool SupportsCurrentNode => true;
-    
+
     protected override ValueTask HandleCurrentNodeAsync()
     {
-        var names = GetEtlProcessNames();
+        var names = GetTaskNames();
 
-        if (names.Count == 0)
-        {
-            RequestHandler.Database.EtlErrorsStorage.DeleteAllEtlErrors();
-        }
-        else
-        {
-            foreach (var name in names)
-                RequestHandler.Database.EtlErrorsStorage.DeleteErrorsOfEtl(name);
-        }
+        foreach (var name in names)
+            RequestHandler.Database.TaskErrorsStorage.DeleteErrorsOfTask(TaskType, name);
 
         return ValueTask.CompletedTask;
     }

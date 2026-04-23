@@ -107,7 +107,7 @@ namespace InterversionTests
 
                 Etl.AddEtl(store, configuration, connectionString);
 
-                IEnumerable<EtlItemErrorTableValue> errors = null;
+                IEnumerable<TaskItemErrorTableValue> errors = null;
                 Assert.True(await WaitForValueAsync(async () =>
                 {
                     errors = await Etl.GetItemLoadErrorsAsync(store.Database, configuration);

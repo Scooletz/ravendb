@@ -4,7 +4,7 @@ import appUrl from "common/appUrl";
 import assertUnreachable from "components/utils/assertUnreachable";
 import TaskUtils from "components/utils/TaskUtils";
 import EtlTaskStats = Raven.Server.Documents.ETL.Stats.EtlTaskStats;
-import EtlErrors = Raven.Server.Documents.ETL.Stats.EtlErrors;
+import EtlErrors = Raven.Server.Documents.ETL.Stats.TaskErrors;
 import { ThemeColor } from "components/models/common";
 
 export type EtlErrorStep = Raven.Server.Documents.ETL.TaskErrorStep;
@@ -97,12 +97,12 @@ export function getTasksWithErrors(processes: EtlErrorsWithLocation[]): EtlTaskW
 
     return _.chain(processes)
         .filter((p: EtlErrorsWithLocation) => _.size(p?.ProcessErrors) || _.size(p?.ItemErrors))
-        .groupBy((p: EtlErrorsWithLocation) => parseProcessName(p.ProcessName)[0])
+        .groupBy((p: EtlErrorsWithLocation) => parseProcessName(p.TaskName)[0])
         .map(
             (group: EtlErrorsWithLocation[], etlName: string): EtlTaskWithErrors => ({
                 etlName,
                 transformations: _.chain(group)
-                    .groupBy((p: EtlErrorsWithLocation) => parseProcessName(p.ProcessName)[1])
+                    .groupBy((p: EtlErrorsWithLocation) => parseProcessName(p.TaskName)[1])
                     .map(
                         (
                             transformationGroup: EtlErrorsWithLocation[],

@@ -10,7 +10,7 @@ import { SharedStubs } from "test/stubs/SharedStubs";
 import ReplicationTaskProgress = Raven.Server.Documents.Replication.Stats.ReplicationTaskProgress;
 import InternalReplicationTaskProgress = Raven.Server.Documents.Replication.Stats.InternalReplicationTaskProgress;
 import { mockJQueryError } from "test/mocks/utils";
-import EtlErrors = Raven.Server.Documents.ETL.Stats.EtlErrors;
+import EtlErrors = Raven.Server.Documents.ETL.Stats.TaskErrors;
 import EtlTaskStats = Raven.Server.Documents.ETL.Stats.EtlTaskStats;
 
 export default class MockTasksService extends AutoMockService<TasksService> {

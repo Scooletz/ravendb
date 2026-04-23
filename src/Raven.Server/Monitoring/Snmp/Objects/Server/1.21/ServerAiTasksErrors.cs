@@ -1,4 +1,5 @@
 using Lextm.SharpSnmpLib;
+using Raven.Server.Documents.ETL;
 using Raven.Server.ServerWide;
 
 namespace Raven.Server.Monitoring.Snmp.Objects.Server;
@@ -19,7 +20,7 @@ public class ServerAiTasksErrors : ScalarObjectBase<Integer32>
         
         foreach (var db in _store.DatabasesLandlord.DatabasesCache)
         {
-            result += (int)db.Value.GetAwaiter().GetResult().EtlErrorsStorage.ReadTotalAiTasksErrorsCount();
+            result += (int)db.Value.GetAwaiter().GetResult().TaskErrorsStorage.ReadTotalErrorsCount(TaskType.Ai);
         }
         
         return new Integer32(result);

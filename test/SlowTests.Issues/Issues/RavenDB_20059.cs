@@ -91,7 +91,7 @@ function deleteDocumentsOfContractsBehavior(docId) {
                 
                 var database = await GetDatabase(srcStore.Database);
                 
-                var processErrors = database.EtlErrorsStorage.ReadAllProcessErrors();
+                var processErrors = database.TaskErrorsStorage.ReadAllProcessErrors(TaskType.Etl);
                     
                 Assert.Single(processErrors);
                 Assert.Equal((int)TaskErrorStep.Configuration, processErrors.Single().Step);

@@ -293,7 +293,22 @@ function ItemWithTooltip(props: ItemWithTooltipProps) {
 
         const mostRecentError: FlatError = allErrors
             .sort((a, b) => +new Date(b.CreatedAt) - +new Date(a.CreatedAt))
-            .at(0);
+            .at(0) ?? {
+            Error: nodeInfo.details?.error,
+            nodeTag: nodeInfo.location.nodeTag,
+            shard: nodeInfo.location.shardNumber,
+            etlName: task.shared.taskName,
+            transformationName: null,
+            healthStatus: null,
+            taskId: null,
+            etlType: null,
+            errorType: "Process",
+            TaskName: null,
+            Step: null,
+            CreatedAt: null,
+            Id: null,
+            AffectedDocumentsCount: 0,
+        };
 
         open({
             component: <EtlErrorDetailsSheet error={mostRecentError} allErrors={allErrors} initialIndex={0} />,

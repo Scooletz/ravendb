@@ -492,6 +492,7 @@ namespace TypingsGenerator
             scripter.AddType(typeof(ModifyOngoingTaskResult));
             scripter.AddType(typeof(Transformation));
             scripter.AddType(typeof(SchemaType));
+            scripter.AddType(typeof(TaskErrors));
 
             // ongoing tasks - replication
             scripter.AddType(typeof(OngoingTaskReplication));
@@ -621,8 +622,7 @@ namespace TypingsGenerator
             scripter.AddType(typeof(AiAgentActionRequest));
             scripter.AddType(typeof(ConversionRequestBody));
 
-            // etl errors
-            scripter.AddType(typeof(EtlErrors));
+            // ongoing tasks - ETLs
             scripter.AddType(typeof(EtlTaskStats));
             scripter.AddType(typeof(EtlProcessTransformationStats));
 

@@ -58,8 +58,8 @@ class sqlTaskTestMode {
     debugOutput = ko.observableArray<string>([]);
     
     // all kinds of alerts:
-    transformationErrors = ko.observableArray<Raven.Server.Documents.ETL.EtlItemError>([]);
-    loadErrors = ko.observableArray<Raven.Server.Documents.ETL.EtlItemError>([]);
+    transformationErrors = ko.observableArray<Raven.Server.Documents.ETL.TaskItemError>([]);
+    loadErrors = ko.observableArray<Raven.Server.Documents.ETL.TaskItemError>([]);
     slowSqlWarnings = ko.observableArray<Raven.Server.NotificationCenter.Notifications.Details.SlowSqlStatementInfo>([]);
     
     warningsCount = ko.pureComputed(() => {

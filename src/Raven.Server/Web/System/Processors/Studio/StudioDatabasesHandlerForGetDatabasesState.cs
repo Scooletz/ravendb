@@ -11,6 +11,7 @@ using Raven.Client.Http;
 using Raven.Client.ServerWide.Operations;
 using Raven.Client.Util;
 using Raven.Server.Documents;
+using Raven.Server.Documents.ETL;
 using Raven.Server.Documents.Sharding;
 using Raven.Server.Json;
 using Raven.Server.Logging;
@@ -323,7 +324,8 @@ internal sealed class StudioDatabasesHandlerForGetDatabasesState : AbstractDatab
                 performanceHints = database.NotificationCenter.GetPerformanceHintCount();
                 indexingErrors = database.IndexStore?.GetIndexes()?.Sum(index => index.GetErrorCount()) ?? 0;
                 documentsCount = database.DocumentsStorage.GetNumberOfDocuments();
-                tasksErrors = database.EtlErrorsStorage.ReadTotalEtlErrorsCount();
+                tasksErrors = database.TaskErrorsStorage.ReadTotalErrorsCount(TaskType.Etl)
+                              + database.TaskErrorsStorage.ReadTotalErrorsCount(TaskType.Ai);
             }
             else if (databaseInfoCache.TryGet(databaseName, json =>
                      {

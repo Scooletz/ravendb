@@ -12,6 +12,7 @@ using Raven.Client.Documents.Operations.ETL.ElasticSearch;
 using Raven.Client.Documents.Smuggler;
 using Raven.Client.ServerWide.Operations;
 using Raven.Client.ServerWide.Operations.Certificates;
+using Raven.Server.Documents.ETL;
 using Raven.Server.Documents.ETL.Providers.ElasticSearch;
 using Raven.Server.Documents.ETL.Providers.ElasticSearch.Test;
 using Raven.Server.ServerWide.Context;
@@ -189,7 +190,7 @@ namespace SlowTests.Server.Documents.ETL.ElasticSearch
                 
                 var database = await GetDatabase(store.Database);
 
-                var processErrors = database.EtlErrorsStorage.ReadProcessErrorsOfEtl($"{config.Name}/{config.Transforms.Single().Name}").ToList();
+                var processErrors = database.TaskErrorsStorage.ReadProcessErrorsOfTask(TaskType.Etl, $"{config.Name}/{config.Transforms.Single().Name}").ToList();
                 
                 Assert.True(processErrors.Count > 0);
                 Assert.Contains("Raven.Server.Exceptions.ETL.ElasticSearch.ElasticSearchLoadException", processErrors.First().Error);

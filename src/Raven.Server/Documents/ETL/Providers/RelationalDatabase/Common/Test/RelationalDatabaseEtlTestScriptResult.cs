@@ -8,7 +8,7 @@ public sealed class RelationalDatabaseEtlTestScriptResult : TestEtlScriptResult
 {
     public List<TableQuerySummary> Summary { get; set; }
 
-    public List<EtlItemError> ItemLoadErrors{ get; set; }
+    public List<TaskItemError> ItemLoadErrors{ get; set; }
 
     public List<SlowSqlStatementInfo> SlowSqlWarnings { get; set; }
 }

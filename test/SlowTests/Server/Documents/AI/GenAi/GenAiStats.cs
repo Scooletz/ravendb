@@ -346,7 +346,7 @@ this.Comments[idx].IsSpam = $output.Blocked;
             session.SaveChanges();
         }
 
-        IEnumerable<EtlItemErrorTableValue> errors = null;
+        IEnumerable<TaskItemErrorTableValue> errors = null;
         var value = await WaitForValueAsync(async () =>
         {
             errors = await Etl.GetItemLoadErrorsAsync(store.Database, configuration);

@@ -64,6 +64,8 @@ namespace Raven.Server.Documents.ETL
 
         public abstract EtlType EtlType { get; }
 
+        public TaskType TaskType => TaskTypeExtensions.FromEtlType(EtlType);
+
         public virtual string EtlSubType { get; }
 
         public abstract long TaskId { get; }
@@ -856,7 +858,7 @@ namespace Raven.Server.Documents.ETL
                                             LogSuccessfulBatchInfo(stats);
                                     }
                                     
-                                    Database.EtlErrorsStorage.StoreItemErrors(Name, Statistics.ReadInMemoryItemErrors());
+                                    Database.TaskErrorsStorage.StoreItemErrors(TaskType, Name, Statistics.ReadInMemoryItemErrors());
                                 }
                             }
                             catch (OperationCanceledException)
@@ -881,7 +883,7 @@ namespace Raven.Server.Documents.ETL
                     }
 
                     Statistics.OnBatchCompletion();
-                    Statistics.BatchStopReason = Database.EtlErrorsStorage.ReadLatestProcessErrorOfEtl(Name)?.ToEtlProcessError();
+                    Statistics.BatchStopReason = Database.TaskErrorsStorage.ReadLatestProcessErrorOfTask(TaskType, Name)?.ToTaskProcessError();
 
                     if (didWork)
                     {
@@ -1144,17 +1146,17 @@ namespace Raven.Server.Documents.ETL
         {
             var now = SystemTime.UtcNow;
 
-            var etlError = new EtlProcessError()
+            var taskError = new TaskProcessError()
             {
                 CreatedAt = now,
-                EtlProcessName = Name,
+                TaskName = Name,
                 AffectedDocumentsCount = count,
                 Step = step,
                 Error = error
             };
-            
-            Database.EtlErrorsStorage.StoreProcessError(etlError);
-            
+
+            Database.TaskErrorsStorage.StoreProcessError(TaskType, taskError);
+
             Statistics.RecordProcessLoadError(count);
         }
         
@@ -1162,32 +1164,32 @@ namespace Raven.Server.Documents.ETL
         {
             var now = SystemTime.UtcNow;
 
-            var etlError = new EtlProcessError()
+            var taskError = new TaskProcessError()
             {
                 CreatedAt = now,
-                EtlProcessName = Name,
+                TaskName = Name,
                 AffectedDocumentsCount = 0,
                 Step = TaskErrorStep.Configuration,
                 Error = error
             };
-            
-            Database.EtlErrorsStorage.StoreProcessError(etlError);
+
+            Database.TaskErrorsStorage.StoreProcessError(TaskType, taskError);
         }
-        
+
         internal void RecordUnknownError(string error)
         {
             var now = SystemTime.UtcNow;
 
-            var etlError = new EtlProcessError()
+            var taskError = new TaskProcessError()
             {
                 CreatedAt = now,
-                EtlProcessName = Name,
+                TaskName = Name,
                 AffectedDocumentsCount = 0,
                 Step = TaskErrorStep.Unknown,
                 Error = error
             };
-            
-            Database.EtlErrorsStorage.StoreProcessError(etlError);
+
+            Database.TaskErrorsStorage.StoreProcessError(TaskType, taskError);
         }
 
         public static TestEtlScriptResult TestScript<TC, TCS>(

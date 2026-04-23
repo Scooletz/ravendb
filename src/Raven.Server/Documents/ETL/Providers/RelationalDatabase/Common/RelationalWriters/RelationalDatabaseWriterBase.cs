@@ -282,10 +282,10 @@ public abstract class RelationalDatabaseWriterBase<TRelationalConnectionString, 
                                         "will continue trying." + Environment.NewLine + cmd.CommandText, e);
 
                         var errorMessage = $"Delete statement:{Environment.NewLine}{cmd.CommandText}{Environment.NewLine}Error:{Environment.NewLine}{e}";
-                        Database.EtlErrorsStorage.StoreProcessError(new EtlProcessError
+                        Database.TaskErrorsStorage.StoreProcessError(TaskType.Etl, new TaskProcessError
                         {
                             CreatedAt = SystemTime.UtcNow,
-                            EtlProcessName = _etlName,
+                            TaskName = _etlName,
                             AffectedDocumentsCount = countOfDeletes,
                             Step = TaskErrorStep.Load,
                             Error = errorMessage

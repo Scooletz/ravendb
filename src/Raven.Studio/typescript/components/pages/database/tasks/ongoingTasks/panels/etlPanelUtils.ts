@@ -18,7 +18,7 @@ import {
     useTasksOperations,
 } from "../../shared/shared";
 import EtlTaskStats = Raven.Server.Documents.ETL.Stats.EtlTaskStats;
-import EtlErrors = Raven.Server.Documents.ETL.Stats.EtlErrors;
+import EtlErrors = Raven.Server.Documents.ETL.Stats.TaskErrors;
 import {
     getTaskHealthStatus,
     healthStatusToBadge,
@@ -49,8 +49,8 @@ export interface EtlPanelProgress {
 export function getTaskErrorCount(etlErrors: EtlErrors[], taskName: string): number {
     return etlErrors
         .filter((e) => {
-            const slashIndex = e.ProcessName.indexOf("/");
-            const etlName = slashIndex === -1 ? e.ProcessName : e.ProcessName.slice(0, slashIndex);
+            const slashIndex = e.TaskName.indexOf("/");
+            const etlName = slashIndex === -1 ? e.TaskName : e.TaskName.slice(0, slashIndex);
             return etlName === taskName;
         })
         .reduce((acc, e) => acc + e.ProcessErrors.length + e.ItemErrors.length, 0);

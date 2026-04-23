@@ -180,7 +180,7 @@ namespace Raven.Server.Web.System
                 {
                     foreach (var etl in documentDatabase.EtlLoader.GetEtlProcesses())
                     {
-                        var etlMetrics = provider.CollectEtlMetrics(etl, documentDatabase.EtlErrorsStorage);
+                        var etlMetrics = provider.CollectEtlMetrics(etl, documentDatabase.TaskErrorsStorage);
                         perDatabaseMetrics.Etls.Add(etlMetrics);
                     }
                 }
@@ -218,7 +218,7 @@ namespace Raven.Server.Web.System
                 {
                     foreach (var aiTask in documentDatabase.EtlLoader.GetAiProcesses())
                     {
-                        var aiTaskMetrics = provider.CollectAiTaskMetrics(aiTask, documentDatabase.EtlErrorsStorage);
+                        var aiTaskMetrics = provider.CollectAiTaskMetrics(aiTask, documentDatabase.TaskErrorsStorage);
                         perDatabaseMetrics.AiTasks.Add(aiTaskMetrics);
                     }
                 }

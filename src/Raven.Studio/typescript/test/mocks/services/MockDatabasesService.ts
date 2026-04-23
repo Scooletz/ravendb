@@ -13,7 +13,7 @@ import DataArchival = Raven.Client.Documents.Operations.DataArchival.DataArchiva
 import document from "models/database/documents/document";
 import { RevisionsPreviewResultItem } from "commands/database/documents/getRevisionsPreviewCommand";
 import EtlTaskStats = Raven.Server.Documents.ETL.Stats.EtlTaskStats;
-import EtlErrors = Raven.Server.Documents.ETL.Stats.EtlErrors;
+import EtlErrors = Raven.Server.Documents.ETL.Stats.TaskErrors;
 
 interface WithGetDatabasesStateOptions {
     loadError?: string[];

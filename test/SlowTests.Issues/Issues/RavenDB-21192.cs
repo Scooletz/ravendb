@@ -43,7 +43,7 @@ public class RavenDB_21192 : RavenTestBase
     }
 
     [RavenFact(RavenTestCategory.Etl)]
-    public void TestEtlErrorsStorage()
+    public void TestTaskErrorsStorage()
     {
         const string connectionStringName1 = "ConnectionString1";
         const string etlName1 = "ETL1";
@@ -73,74 +73,70 @@ public class RavenDB_21192 : RavenTestBase
 
             var now = DateTime.Now;
 
-            var error1 = new EtlProcessError
+            var error1 = new TaskProcessError
             {
                 CreatedAt = now,
-                EtlProcessName = processName1,
+                TaskName = processName1,
                 AffectedDocumentsCount = 1,
                 Step = TaskErrorStep.Transformation,
-                Error = "Test message",
-                AdditionalInfo = "some additional info"
+                Error = "Test message"
             };
 
-            var error2 = new EtlProcessError
+            var error2 = new TaskProcessError
             {
                 CreatedAt = now.AddDays(1),
-                EtlProcessName = processName2,
+                TaskName = processName2,
                 AffectedDocumentsCount = 21,
                 Step = TaskErrorStep.Load,
                 Error = "Test message"
             };
                 
-            database.EtlErrorsStorage.StoreProcessError(error1);
-            database.EtlErrorsStorage.StoreProcessError(error2);
+            database.TaskErrorsStorage.StoreProcessError(TaskType.Etl, error1);
+            database.TaskErrorsStorage.StoreProcessError(TaskType.Etl, error2);
 
-            var errors = database.EtlErrorsStorage.ReadAllProcessErrors();
+            var errors = database.TaskErrorsStorage.ReadAllProcessErrors(TaskType.Etl);
             
             Assert.Equal(2, errors.Count);
             
             Assert.Equal(error1.CreatedAt, errors[0].CreatedAt);
-            Assert.Equal(error1.EtlProcessName, errors[0].EtlProcessName);
+            Assert.Equal(error1.TaskName, errors[0].TaskName);
             Assert.Equal(error1.AffectedDocumentsCount, errors[0].AffectedDocumentsCount);
             Assert.Equal((long)error1.Step, errors[0].Step);
             Assert.Equal(error1.Error, errors[0].Error);
-            Assert.Equal(error1.AdditionalInfo, errors[0].AdditionalInfo);
-            
+
             Assert.Equal(error2.CreatedAt, errors[1].CreatedAt);
-            Assert.Equal(error2.EtlProcessName, errors[1].EtlProcessName);
+            Assert.Equal(error2.TaskName, errors[1].TaskName);
             Assert.Equal(error2.AffectedDocumentsCount, errors[1].AffectedDocumentsCount);
             Assert.Equal((long)error2.Step, errors[1].Step);
             Assert.Equal(error2.Error, errors[1].Error);
-            Assert.Equal(error2.AdditionalInfo, errors[1].AdditionalInfo);
 
-            var itemError1 = new EtlItemError
+            var itemError1 = new TaskItemError
             {
                 DocumentId = "doc/1", 
-                EtlProcessName = processName1,
+                TaskName = processName1,
                 CreatedAt = now,
                 Step = TaskErrorStep.Load,
                 Error = "Item error"
             };
             
-            database.EtlErrorsStorage.StoreItemErrors(processName1, [itemError1]);
-            
-            var itemErrors = database.EtlErrorsStorage.ReadAllItemErrors();
+            database.TaskErrorsStorage.StoreItemErrors(TaskType.Etl, processName1, [itemError1]);
+
+            var itemErrors = database.TaskErrorsStorage.ReadAllItemErrors(TaskType.Etl);
 
             Assert.Single(itemErrors);
                 
             Assert.Equal(itemError1.CreatedAt, itemErrors[0].CreatedAt);
-            Assert.Equal(itemError1.EtlProcessName, itemErrors[0].EtlProcessName);
+            Assert.Equal(itemError1.TaskName, itemErrors[0].TaskName);
             Assert.Equal(itemError1.DocumentId, itemErrors[0].DocumentId);
             Assert.Equal((long)itemError1.Step, itemErrors[0].Step);
             Assert.Equal(itemError1.Error, itemErrors[0].Error);
-            Assert.Equal(itemError1.AdditionalInfo, itemErrors[0].AdditionalInfo);
 
-            var processErrors = database.EtlErrorsStorage.ReadProcessErrorsOfEtl(processName1);
+            var processErrors = database.TaskErrorsStorage.ReadProcessErrorsOfTask(TaskType.Etl,processName1);
                 
             Assert.Single(processErrors);
 
             Assert.Equal(error1.CreatedAt, processErrors[0].CreatedAt);
-            Assert.Equal(error1.EtlProcessName, processErrors[0].EtlProcessName);
+            Assert.Equal(error1.TaskName, processErrors[0].TaskName);
             Assert.Equal(error1.AffectedDocumentsCount, processErrors[0].AffectedDocumentsCount);
             Assert.Equal((long)error1.Step, processErrors[0].Step);
             Assert.Equal(error1.Error, processErrors[0].Error);
@@ -195,55 +191,55 @@ public class RavenDB_21192 : RavenTestBase
 
             var now = DateTime.Now;
             
-            database.EtlErrorsStorage.StoreProcessError(new EtlProcessError
+            database.TaskErrorsStorage.StoreProcessError(TaskType.Etl, new TaskProcessError
             {
                 CreatedAt = now,
-                EtlProcessName = etlProcessName,
+                TaskName = etlProcessName,
                 AffectedDocumentsCount = 1,
                 Step = TaskErrorStep.Transformation,
                 Error = "ETL transformation error"
             });
-            
-            database.EtlErrorsStorage.StoreProcessError(new EtlProcessError
+
+            database.TaskErrorsStorage.StoreProcessError(TaskType.Etl, new TaskProcessError
             {
                 CreatedAt = now.AddSeconds(1),
-                EtlProcessName = etlProcessName,
+                TaskName = etlProcessName,
                 AffectedDocumentsCount = 5,
                 Step = TaskErrorStep.Load,
                 Error = "ETL load error"
             });
-            
-            database.EtlErrorsStorage.StoreItemErrors(etlProcessName, [new EtlItemError
+
+            database.TaskErrorsStorage.StoreItemErrors(TaskType.Etl, etlProcessName, [new TaskItemError
             {
                 DocumentId = "users/1",
-                EtlProcessName = etlProcessName,
+                TaskName = etlProcessName,
                 CreatedAt = now,
                 Step = TaskErrorStep.Transformation,
                 Error = "ETL item error"
             }]);
             
-            database.EtlErrorsStorage.StoreProcessError(new EtlProcessError
+            database.TaskErrorsStorage.StoreProcessError(TaskType.Ai, new TaskProcessError
             {
                 CreatedAt = now,
-                EtlProcessName = aiProcessName,
+                TaskName = aiProcessName,
                 AffectedDocumentsCount = 3,
                 Step = TaskErrorStep.Transformation,
                 Error = "AI transformation error"
             });
-            
-            database.EtlErrorsStorage.StoreItemErrors(aiProcessName, [
-                new EtlItemError
+
+            database.TaskErrorsStorage.StoreItemErrors(TaskType.Ai, aiProcessName, [
+                new TaskItemError
                 {
                     DocumentId = "users/2",
-                    EtlProcessName = aiProcessName,
+                    TaskName = aiProcessName,
                     CreatedAt = now,
                     Step = TaskErrorStep.Transformation,
                     Error = "AI item error 1"
                 },
-                new EtlItemError
+                new TaskItemError
                 {
                     DocumentId = "users/3",
-                    EtlProcessName = aiProcessName,
+                    TaskName = aiProcessName,
                     CreatedAt = now.AddSeconds(1),
                     Step = TaskErrorStep.Transformation,
                     Error = "AI item error 2"
@@ -463,19 +459,19 @@ public class RavenDB_21192 : RavenTestBase
                 Assert.NotNull(res);
                 
                 res.TryGet(nameof(EtlHandlerProcessorForGetErrors.Response.Results), out BlittableJsonReaderArray results);
-                var resultsObjectList = JsonConvert.DeserializeObject<List<EtlErrors>>(results.ToString());
+                var resultsObjectList = JsonConvert.DeserializeObject<List<TaskErrors>>(results.ToString());
 
-                var firstTaskErrors = resultsObjectList.Single(x => x.ProcessName == EtlProcess.GetProcessName(etlName1, transformationName1));
+                var firstTaskErrors = resultsObjectList.Single(x => x.TaskName == EtlProcess.GetProcessName(etlName1, transformationName1));
                 
                 Assert.Empty(firstTaskErrors.ProcessErrors);
                 Assert.Equal(5, firstTaskErrors.ItemErrors.Length);
                 
-                var secondTaskErrors = resultsObjectList.Single(x => x.ProcessName == EtlProcess.GetProcessName(etlName2, transformationName2));
+                var secondTaskErrors = resultsObjectList.Single(x => x.TaskName == EtlProcess.GetProcessName(etlName2, transformationName2));
                 
                 Assert.Contains(secondTaskErrors.ProcessErrors, x => x.AffectedDocumentsCount == 5);
                 Assert.Empty(secondTaskErrors.ItemErrors);
                 
-                var thirdTaskErrors = resultsObjectList.Single(x => x.ProcessName == EtlProcess.GetProcessName(etlName2, transformationName3));
+                var thirdTaskErrors = resultsObjectList.Single(x => x.TaskName == EtlProcess.GetProcessName(etlName2, transformationName3));
                 
                 Assert.Contains(thirdTaskErrors.ProcessErrors, x => x.AffectedDocumentsCount == 5);
                 Assert.Empty(thirdTaskErrors.ItemErrors);
@@ -553,19 +549,19 @@ public class RavenDB_21192 : RavenTestBase
                 Assert.NotNull(res);
                 
                 res.TryGet(nameof(EtlHandlerProcessorForGetErrors.Response.Results), out BlittableJsonReaderArray results);
-                var resultsObjectList = JsonConvert.DeserializeObject<List<EtlErrors>>(results.ToString());
+                var resultsObjectList = JsonConvert.DeserializeObject<List<TaskErrors>>(results.ToString());
 
-                var firstTaskErrors = resultsObjectList.Single(x => x.ProcessName == EtlProcess.GetProcessName(etlName1, transformationName1));
+                var firstTaskErrors = resultsObjectList.Single(x => x.TaskName == EtlProcess.GetProcessName(etlName1, transformationName1));
                 
                 Assert.Empty(firstTaskErrors.ProcessErrors);
                 Assert.Equal(5, firstTaskErrors.ItemErrors.Length);
                 
-                var secondTaskErrors = resultsObjectList.Single(x => x.ProcessName == EtlProcess.GetProcessName(etlName2, transformationName2));
+                var secondTaskErrors = resultsObjectList.Single(x => x.TaskName == EtlProcess.GetProcessName(etlName2, transformationName2));
                 
                 Assert.Contains(secondTaskErrors.ProcessErrors, x => x.AffectedDocumentsCount == 5);
                 Assert.Empty(secondTaskErrors.ItemErrors);
                 
-                var thirdTaskErrors = resultsObjectList.Single(x => x.ProcessName == EtlProcess.GetProcessName(etlName2, transformationName3));
+                var thirdTaskErrors = resultsObjectList.Single(x => x.TaskName == EtlProcess.GetProcessName(etlName2, transformationName3));
                 
                 Assert.Contains(thirdTaskErrors.ProcessErrors, x => x.AffectedDocumentsCount == 5);
                 Assert.Empty(thirdTaskErrors.ItemErrors);
@@ -614,10 +610,10 @@ public class RavenDB_21192 : RavenTestBase
                 Assert.NotNull(res);
                 
                 res.TryGet(nameof(EtlHandlerProcessorForGetErrors.Response.Results), out BlittableJsonReaderArray results);
-                var resultsObjectList = JsonConvert.DeserializeObject<List<EtlErrors>>(results.ToString());
+                var resultsObjectList = JsonConvert.DeserializeObject<List<TaskErrors>>(results.ToString());
                 
                 Assert.Single(resultsObjectList);
-                Assert.Equal(EtlProcess.GetProcessName(etlName1, transformationName1), resultsObjectList.Single().ProcessName);
+                Assert.Equal(EtlProcess.GetProcessName(etlName1, transformationName1), resultsObjectList.Single().TaskName);
                 Assert.Empty(resultsObjectList.Single().ProcessErrors);
                 Assert.Empty(resultsObjectList.Single().ItemErrors);
             }
@@ -914,7 +910,7 @@ public class RavenDB_21192 : RavenTestBase
             
             var database = GetDatabase(src.Database).GetAwaiter().GetResult();
             
-            Assert.Equal(20, WaitForValue(() => database.EtlErrorsStorage.ReadAllItemErrors().Count, 20, interval: 500));
+            Assert.Equal(20, WaitForValue(() => database.TaskErrorsStorage.ReadAllItemErrors(TaskType.Etl).Count, 20, interval: 500));
             
             var updatedConfig = new RavenEtlConfiguration
             {
@@ -938,9 +934,9 @@ public class RavenDB_21192 : RavenTestBase
             
             await WaitForEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1), stats => stats.TransformationErrors == 10);
             
-            Assert.Equal(10, WaitForValue(() => database.EtlErrorsStorage.ReadAllItemErrors().Count, 10, interval: 500));
+            Assert.Equal(10, WaitForValue(() => database.TaskErrorsStorage.ReadAllItemErrors(TaskType.Etl).Count, 10, interval: 500));
 
-            var itemErrors = database.EtlErrorsStorage.ReadAllItemErrors();
+            var itemErrors = database.TaskErrorsStorage.ReadAllItemErrors(TaskType.Etl);
 
             foreach (var itemError in itemErrors)
             {
@@ -987,14 +983,14 @@ public class RavenDB_21192 : RavenTestBase
             
             var database = GetDatabase(src.Database).GetAwaiter().GetResult();
             
-            Assert.Equal(20, WaitForValue(() => database.EtlErrorsStorage.ReadAllItemErrors().Count, 20, interval: 500));
+            Assert.Equal(20, WaitForValue(() => database.TaskErrorsStorage.ReadAllItemErrors(TaskType.Etl).Count, 20, interval: 500));
             
             var deleteOp = new DeleteOngoingTaskOperation(taskId1, OngoingTaskType.RavenEtl);
             src.Maintenance.Send(deleteOp);
             
-            Assert.Equal(10, WaitForValue(() => database.EtlErrorsStorage.ReadAllItemErrors().Count, 10, interval: 500));
+            Assert.Equal(10, WaitForValue(() => database.TaskErrorsStorage.ReadAllItemErrors(TaskType.Etl).Count, 10, interval: 500));
 
-            var itemErrors = database.EtlErrorsStorage.ReadAllItemErrors();
+            var itemErrors = database.TaskErrorsStorage.ReadAllItemErrors(TaskType.Etl);
 
             foreach (var itemError in itemErrors)
             {
@@ -1050,10 +1046,10 @@ public class RavenDB_21192 : RavenTestBase
             
             var database = GetDatabase(src.Database).Result;
             
-            var itemErrors = database.EtlErrorsStorage.ReadAllItemErrors();
+            var itemErrors = database.TaskErrorsStorage.ReadAllItemErrors(TaskType.Etl);
 
-            var firstTransformationErrors = itemErrors.Where(x => x.EtlProcessName == EtlProcess.GetProcessName(etlName1, transformationName1));
-            var secondTransformationErrors = itemErrors.Where(x => x.EtlProcessName == EtlProcess.GetProcessName(etlName1, transformationName2));
+            var firstTransformationErrors = itemErrors.Where(x => x.TaskName == EtlProcess.GetProcessName(etlName1, transformationName1));
+            var secondTransformationErrors = itemErrors.Where(x => x.TaskName == EtlProcess.GetProcessName(etlName1, transformationName2));
 
             Assert.Equal(500, firstTransformationErrors.Count());
             Assert.Equal(50, secondTransformationErrors.Count());
@@ -1102,7 +1098,7 @@ public class RavenDB_21192 : RavenTestBase
                 var result = (RavenEtlTestScriptResult)testResult;
                 Assert.Single(result.ItemTransformationErrors);
                 
-                var itemErrors = database.EtlErrorsStorage.ReadAllItemErrors();
+                var itemErrors = database.TaskErrorsStorage.ReadAllItemErrors(TaskType.Etl);
                 Assert.Empty(itemErrors);
             }
         }
@@ -1828,14 +1824,14 @@ public class RavenDB_21192_Multinode : ClusterTestBase
             return process?.Statistics.LoadSuccesses >= 3;
         }, true, timeout: 30_000));
 
-        Assert.True(WaitForValue(() => mentorDatabase.EtlErrorsStorage.ReadItemErrorsOfEtl($"{etlName}/{transformationName}").Count == 5, true, timeout: 30_000));
-        var mentorItemErrors = mentorDatabase.EtlErrorsStorage.ReadItemErrorsOfEtl($"{etlName}/{transformationName}");
+        Assert.True(WaitForValue(() => mentorDatabase.TaskErrorsStorage.ReadItemErrorsOfTask(TaskType.Etl,$"{etlName}/{transformationName}").Count == 5, true, timeout: 30_000));
+        var mentorItemErrors = mentorDatabase.TaskErrorsStorage.ReadItemErrorsOfTask(TaskType.Etl,$"{etlName}/{transformationName}");
         Assert.Equal(5, mentorItemErrors.Count);
         
         for (int i = 1; i < clusterSize; i++)
         {
             var otherDatabase = await GetDatabase(nodes[i], srcDatabaseName);
-            var otherItemErrors = otherDatabase.EtlErrorsStorage.ReadItemErrorsOfEtl($"{etlName}/{transformationName}");
+            var otherItemErrors = otherDatabase.TaskErrorsStorage.ReadItemErrorsOfTask(TaskType.Etl,$"{etlName}/{transformationName}");
             Assert.Empty(otherItemErrors);
         }
         
@@ -1865,19 +1861,19 @@ public class RavenDB_21192_Multinode : ClusterTestBase
             return process?.Statistics.TransformationErrors >= 7;
         }, true, timeout: 30_000));
 
-        Assert.True(WaitForValue(() => newMentorDatabase.EtlErrorsStorage.ReadItemErrorsOfEtl($"{etlName}/{transformationName}").Count == 7, true, timeout: 30_000));
-        var newMentorItemErrors = newMentorDatabase.EtlErrorsStorage.ReadItemErrorsOfEtl($"{etlName}/{transformationName}");
+        Assert.True(WaitForValue(() => newMentorDatabase.TaskErrorsStorage.ReadItemErrorsOfTask(TaskType.Etl,$"{etlName}/{transformationName}").Count == 7, true, timeout: 30_000));
+        var newMentorItemErrors = newMentorDatabase.TaskErrorsStorage.ReadItemErrorsOfTask(TaskType.Etl,$"{etlName}/{transformationName}");
         Assert.Equal(7, newMentorItemErrors.Count);
 
-        mentorItemErrors = mentorDatabase.EtlErrorsStorage.ReadItemErrorsOfEtl($"{etlName}/{transformationName}");
+        mentorItemErrors = mentorDatabase.TaskErrorsStorage.ReadItemErrorsOfTask(TaskType.Etl,$"{etlName}/{transformationName}");
         Assert.Equal(5, mentorItemErrors.Count);
         
-        newMentorDatabase.EtlErrorsStorage.DeleteErrorsOfEtl($"{etlName}/{transformationName}");
+        newMentorDatabase.TaskErrorsStorage.DeleteErrorsOfTask($"{etlName}/{transformationName}");
         
-        newMentorItemErrors = newMentorDatabase.EtlErrorsStorage.ReadItemErrorsOfEtl($"{etlName}/{transformationName}");
+        newMentorItemErrors = newMentorDatabase.TaskErrorsStorage.ReadItemErrorsOfTask(TaskType.Etl,$"{etlName}/{transformationName}");
         Assert.Empty(newMentorItemErrors);
         
-        mentorItemErrors = mentorDatabase.EtlErrorsStorage.ReadItemErrorsOfEtl($"{etlName}/{transformationName}");
+        mentorItemErrors = mentorDatabase.TaskErrorsStorage.ReadItemErrorsOfTask(TaskType.Etl,$"{etlName}/{transformationName}");
         Assert.Equal(5, mentorItemErrors.Count);
     }
     
@@ -1963,14 +1959,14 @@ public class RavenDB_21192_Multinode : ClusterTestBase
             return process?.Statistics.TransformationErrors >= 5;
         }, true, timeout: 30_000));
 
-        Assert.True(WaitForValue(() => mentorDatabase.EtlErrorsStorage.ReadItemErrorsOfEtl(processName).Count == 5, true, timeout: 30_000));
-        var mentorItemErrors = mentorDatabase.EtlErrorsStorage.ReadItemErrorsOfEtl(processName);
+        Assert.True(WaitForValue(() => mentorDatabase.TaskErrorsStorage.ReadItemErrorsOfTask(TaskType.Etl,processName).Count == 5, true, timeout: 30_000));
+        var mentorItemErrors = mentorDatabase.TaskErrorsStorage.ReadItemErrorsOfTask(TaskType.Etl,processName);
         Assert.Equal(5, mentorItemErrors.Count);
 
         for (int i = 1; i < clusterSize; i++)
         {
             var otherDatabase = await GetDatabase(nodes[i], databaseName);
-            var otherItemErrors = otherDatabase.EtlErrorsStorage.ReadItemErrorsOfEtl(processName);
+            var otherItemErrors = otherDatabase.TaskErrorsStorage.ReadItemErrorsOfTask(TaskType.Etl,processName);
             Assert.Empty(otherItemErrors);
         }
 
@@ -2000,19 +1996,19 @@ public class RavenDB_21192_Multinode : ClusterTestBase
             return process?.Statistics.TransformationErrors >= 7;
         }, true, timeout: 30_000));
 
-        Assert.True(WaitForValue(() => newMentorDatabase.EtlErrorsStorage.ReadItemErrorsOfEtl(processName).Count == 7, true, timeout: 30_000));
-        var newMentorItemErrors = newMentorDatabase.EtlErrorsStorage.ReadItemErrorsOfEtl(processName);
+        Assert.True(WaitForValue(() => newMentorDatabase.TaskErrorsStorage.ReadItemErrorsOfTask(TaskType.Etl,processName).Count == 7, true, timeout: 30_000));
+        var newMentorItemErrors = newMentorDatabase.TaskErrorsStorage.ReadItemErrorsOfTask(TaskType.Etl,processName);
         Assert.Equal(7, newMentorItemErrors.Count);
 
-        mentorItemErrors = mentorDatabase.EtlErrorsStorage.ReadItemErrorsOfEtl(processName);
+        mentorItemErrors = mentorDatabase.TaskErrorsStorage.ReadItemErrorsOfTask(TaskType.Etl,processName);
         Assert.Equal(5, mentorItemErrors.Count);
 
-        newMentorDatabase.EtlErrorsStorage.DeleteErrorsOfEtl(processName);
+        newMentorDatabase.TaskErrorsStorage.DeleteErrorsOfTask(processName);
 
-        newMentorItemErrors = newMentorDatabase.EtlErrorsStorage.ReadItemErrorsOfEtl(processName);
+        newMentorItemErrors = newMentorDatabase.TaskErrorsStorage.ReadItemErrorsOfTask(TaskType.Etl,processName);
         Assert.Empty(newMentorItemErrors);
 
-        mentorItemErrors = mentorDatabase.EtlErrorsStorage.ReadItemErrorsOfEtl(processName);
+        mentorItemErrors = mentorDatabase.TaskErrorsStorage.ReadItemErrorsOfTask(TaskType.Etl,processName);
         Assert.Equal(5, mentorItemErrors.Count);
     }
 

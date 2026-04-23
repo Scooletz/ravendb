@@ -20,13 +20,13 @@ namespace Raven.Server.Documents.ETL
         private readonly OnDisposeActions _onDisposeActions;
 
         private bool _preventFromAddingAlertsToNotificationCenter;
-        private readonly List<EtlItemError> _itemErrors;
+        private readonly List<TaskItemError> _itemErrors;
 
         public EtlProcessStatistics()
         {
             // for deserialization
         }
-        
+
         public EtlProcessStatistics(string processTag, string processName, DatabaseNotificationCenter notificationCenter, EtlConfiguration etlConfiguration)
         {
             _processTag = processTag;
@@ -37,7 +37,7 @@ namespace Raven.Server.Documents.ETL
             _etlConfiguration = etlConfiguration;
             AverageErrorsRatio = new TimeAgnosticEwma();
             HealthStatus = EtlProcessHealthStatus.Healthy;
-            _itemErrors = new List<EtlItemError>();
+            _itemErrors = new List<TaskItemError>();
         }
 
         public string LastChangeVector { get; set; }
@@ -68,7 +68,7 @@ namespace Raven.Server.Documents.ETL
         private bool SetHealthStatusToFailedOnScriptParseError { get; set; }
         public DateTime? NextBatchRetryTime { get; set; }
         public DateTime? LastSuccessfulBatchTime { get; set; }
-        public EtlProcessError BatchStopReason { get; internal set; }
+        public TaskProcessError BatchStopReason { get; internal set; }
 
         public void TransformationSuccess()
         {
@@ -133,17 +133,17 @@ namespace Raven.Server.Documents.ETL
         {
             var now = SystemTime.UtcNow;
 
-            var itemError = new EtlItemError()
+            var itemError = new TaskItemError()
             {
                 CreatedAt = now,
-                EtlProcessName = _processName,
+                TaskName = _processName,
                 DocumentId = documentId,
                 Step = TaskErrorStep.Transformation,
                 Error = e.ToString()
             };
-            
+
             _itemErrors.Add(itemError);
-            
+
             TransformationErrors++;
             BatchErrors++;
         }
@@ -151,11 +151,11 @@ namespace Raven.Server.Documents.ETL
         public void RecordItemLoadError(string error, string documentId, int count = 1)
         {
             var now = SystemTime.UtcNow;
-            
-            var itemError = new EtlItemError()
+
+            var itemError = new TaskItemError()
             {
                 CreatedAt = now,
-                EtlProcessName = _processName,
+                TaskName = _processName,
                 DocumentId = documentId,
                 Step = TaskErrorStep.Load,
                 Error = error
@@ -200,7 +200,7 @@ namespace Raven.Server.Documents.ETL
             LastSlowSqlWarningsInCurrentBatch.Statements.Clear();
         }
         
-        internal List<EtlItemError> ReadInMemoryItemErrors()
+        internal List<TaskItemError> ReadInMemoryItemErrors()
         {
             return _itemErrors.ToList();
         }

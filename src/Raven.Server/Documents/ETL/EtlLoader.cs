@@ -953,7 +953,7 @@ namespace Raven.Server.Documents.ETL
 
                 foreach (var process in processGroup.Value)
                 {
-                    _database.EtlErrorsStorage.DeleteEtlErrorsTablesForProcess(process.Name);
+                    _database.TaskErrorsStorage.DeleteTaskErrorsTablesForTask(TaskTypeExtensions.FromEtlType(process.EtlType), process.Name);
                 }
             }
 

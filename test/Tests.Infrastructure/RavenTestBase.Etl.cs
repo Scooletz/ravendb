@@ -240,29 +240,29 @@ namespace FastTests
                 });
             }
 
-            public async Task<IEnumerable<EtlItemErrorTableValue>> GetItemLoadErrorsAsync<T>(string databaseName, EtlConfiguration<T> config) where T : ConnectionString
+            public async Task<IEnumerable<TaskItemErrorTableValue>> GetItemLoadErrorsAsync<T>(string databaseName, EtlConfiguration<T> config) where T : ConnectionString
             {
                 var database = await _parent.GetDatabase(databaseName);
 
-                var errors = database.EtlErrorsStorage.ReadItemErrorsOfEtl($"{config.Name}/{config.Transforms.First().Name}");
+                var errors = database.TaskErrorsStorage.ReadItemErrorsOfTask(TaskType.Etl, $"{config.Name}/{config.Transforms.First().Name}");
 
                 return errors.Where(error => error.Step == (int)TaskErrorStep.Load);
             }
 
-            public async Task<IEnumerable<EtlProcessErrorTableValue>> GetProcessLoadErrorsAsync<T>(string databaseName, EtlConfiguration<T> config) where T : ConnectionString
+            public async Task<IEnumerable<TaskProcessErrorTableValue>> GetProcessLoadErrorsAsync<T>(string databaseName, EtlConfiguration<T> config) where T : ConnectionString
             {
                 var database = await _parent.GetDatabase(databaseName);
 
-                var errors = database.EtlErrorsStorage.ReadProcessErrorsOfEtl($"{config.Name}/{config.Transforms.First().Name}");
+                var errors = database.TaskErrorsStorage.ReadProcessErrorsOfTask(TaskType.Etl, $"{config.Name}/{config.Transforms.First().Name}");
 
                 return errors.Where(error => error.Step == (int)TaskErrorStep.Load);
             }
 
-            public async Task<IEnumerable<EtlItemErrorTableValue>> GetItemTransformationErrorsAsync<T>(string databaseName, EtlConfiguration<T> config) where T : ConnectionString
+            public async Task<IEnumerable<TaskItemErrorTableValue>> GetItemTransformationErrorsAsync<T>(string databaseName, EtlConfiguration<T> config) where T : ConnectionString
             {
                 var database = await _parent.GetDatabase(databaseName);
 
-                var errors = database.EtlErrorsStorage.ReadItemErrorsOfEtl($"{config.Name}/{config.Transforms.First().Name}");
+                var errors = database.TaskErrorsStorage.ReadItemErrorsOfTask(TaskType.Etl, $"{config.Name}/{config.Transforms.First().Name}");
 
                 return errors.Where(error => error.Step == (int)TaskErrorStep.Transformation);
             }

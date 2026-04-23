@@ -107,12 +107,12 @@ export default function EtlErrorDetailsSheet({
                                     </div>
                                 </SheetDetailRow>
                             ) : (
-                                error.EtlProcessName && (
+                                error.TaskName && (
                                     <SheetDetailRow>
                                         <div className="small">Task name/Script name</div>
                                         <div className="d-flex align-items-center">
                                             {etlTypeIcon && <Icon icon={etlTypeIcon} />}
-                                            <div>{error.EtlProcessName}</div>
+                                            <div>{error.TaskName}</div>
                                         </div>
                                     </SheetDetailRow>
                                 )

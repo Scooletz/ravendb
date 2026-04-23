@@ -1,18 +1,22 @@
+using System;
 using System.Net.Http;
 using Microsoft.AspNetCore.WebUtilities;
 using Raven.Client.Documents.Conventions;
 using Raven.Client.Http;
+using Raven.Server.Documents.ETL;
 using Raven.Server.Documents.ETL.Stats;
 using Sparrow.Json;
 
 namespace Raven.Server.Documents.Commands.ETL;
 
-internal sealed class GetEtlErrorsCommand : RavenCommand<EtlErrors[]>
+internal sealed class GetTaskErrorsCommand : RavenCommand<TaskErrors[]>
 {
+    private readonly TaskType _taskType;
     private readonly string[] _names;
 
-    public GetEtlErrorsCommand(string[] names, string nodeTag)
+    public GetTaskErrorsCommand(TaskType taskType, string[] names, string nodeTag)
     {
+        _taskType = taskType;
         _names = names;
         SelectedNodeTag = nodeTag;
     }
@@ -21,7 +25,14 @@ internal sealed class GetEtlErrorsCommand : RavenCommand<EtlErrors[]>
 
     public override HttpRequestMessage CreateRequest(JsonOperationContext ctx, ServerNode node, out string url)
     {
-        url = $"{node.Url}/databases/{node.Database}/etl/errors";
+        var endpoint = _taskType switch
+        {
+            TaskType.Etl => "etl/errors",
+            TaskType.Ai => "ai-tasks/errors",
+            _ => throw new ArgumentOutOfRangeException(nameof(_taskType), _taskType, null)
+        };
+
+        url = $"{node.Url}/databases/{node.Database}/{endpoint}";
 
         if (_names is { Length: > 0 })
         {
@@ -39,12 +50,12 @@ internal sealed class GetEtlErrorsCommand : RavenCommand<EtlErrors[]>
         if (response == null)
             return;
 
-        Result = DocumentConventions.Default.Serialization.DefaultConverter.FromBlittable<EtlTaskErrorsResponse>(response).Results;
+        Result = DocumentConventions.Default.Serialization.DefaultConverter.FromBlittable<TaskErrorsResponse>(response).Results;
     }
 
     // ReSharper disable once ClassNeverInstantiated.Local
-    private sealed class EtlTaskErrorsResponse
+    private sealed class TaskErrorsResponse
     {
-        public EtlErrors[] Results { get; set; }
+        public TaskErrors[] Results { get; set; }
     }
 }

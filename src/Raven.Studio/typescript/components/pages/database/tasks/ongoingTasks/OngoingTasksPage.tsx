@@ -74,7 +74,7 @@ import { useDatabaseWideAsync } from "components/hooks/useDatabaseWideAsync";
 import EtlTaskProgress = Raven.Server.Documents.ETL.Stats.EtlTaskProgress;
 import ReplicationTaskProgress = Raven.Server.Documents.Replication.Stats.ReplicationTaskProgress;
 import InternalReplicationTaskProgress = Raven.Server.Documents.Replication.Stats.InternalReplicationTaskProgress;
-import EtlErrors = Raven.Server.Documents.ETL.Stats.EtlErrors;
+import EtlErrors = Raven.Server.Documents.ETL.Stats.TaskErrors;
 import EtlTaskStats = Raven.Server.Documents.ETL.Stats.EtlTaskStats;
 import genUtils from "common/generalUtils";
 

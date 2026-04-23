@@ -419,7 +419,7 @@ namespace Raven.Server.Web.System
             {
                 foreach (var etl in database.EtlLoader.GetEtlProcesses())
                 {
-                    var etlMetrics = provider.CollectEtlMetrics(etl, database.EtlErrorsStorage);
+                    var etlMetrics = provider.CollectEtlMetrics(etl, database.TaskErrorsStorage);
                     metrics.Add(etlMetrics);
                     cachedTags.Add(SerializeTags(new Dictionary<string, string>
                     {
@@ -453,7 +453,7 @@ namespace Raven.Server.Web.System
             {
                 foreach (var aiTask in database.EtlLoader.GetAiProcesses())
                 {
-                    var aiTaskMetrics = provider.CollectAiTaskMetrics(aiTask, database.EtlErrorsStorage);
+                    var aiTaskMetrics = provider.CollectAiTaskMetrics(aiTask, database.TaskErrorsStorage);
                     metrics.Add(aiTaskMetrics);
                     cachedTags.Add(SerializeTags(new Dictionary<string, string>
                     {
