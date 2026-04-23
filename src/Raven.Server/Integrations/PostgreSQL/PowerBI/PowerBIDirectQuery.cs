@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Text;
 using PgSqlParser;
 using Raven.Server.Documents;
@@ -21,6 +20,12 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
         protected override bool IncludeDocumentIdColumn => false;
 
         protected override bool IncludePowerBIJsonColumn => false;
+
+        // Fallback row cap applied when the outer PowerBI wrapper has no explicit LIMIT.
+        // Matches PowerBI's own "top N+1" convention: it asks for 1,000,001 rows so it can
+        // tell whether a 1,000,000-row result was actually truncated. Keep the two fallback
+        // sites in sync via this constant.
+        private const int DefaultDirectQueryLimit = 1_000_001;
 
         protected override DynamicJsonValue BeforeRow(BlittableJsonReaderObject jsonResult, short? jsonIndex)
         {
@@ -252,7 +257,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                         if (sortBy == null)
                             return false;
 
-                        var colRef = TryUnwrapToColumnRefLocal(sortBy.Node);
+                        var colRef = PgSqlAstHelpers.UnwrapThroughHarmlessNodes(sortBy.Node, static n => n.ColumnRef);
                         if (colRef == null)
                             return false;
 
@@ -278,13 +283,15 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
 
                     TryExtractAggregates(groupedSelect, out aggregates);
 
-                    // Normalize ORDER BY helper columns now that we have access to the grouped select.
+                    // Resolve ORDER BY columns through the wrapper chain back to a business
+                    // field. A null-order CASE helper is transparently unwrapped to the column
+                    // it guards; a pass-through alias is resolved to its underlying target.
                     if (orderByCols.Count > 0)
                     {
                         for (int i = 0; i < orderByCols.Count; i++)
                         {
-                            if (TryNormalizeOrderByHelperColumn(orderByCols[i], groupedSelect, out var normalized))
-                                orderByCols[i] = normalized;
+                            if (TryResolveAliasThroughWrappers(selectStmt, orderByCols[i], out var resolved))
+                                orderByCols[i] = resolved;
                         }
                     }
                 }
@@ -339,7 +346,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                         if (colRef == null)
                         {
                             // Tolerate null-order CASE helper columns; reject anything else.
-                            if (IsHelperColumnAlias(rt.Name) && rt.Val?.CaseExpr != null)
+                            if (IsPowerBIOrderHelperAlias(rt.Name) && rt.Val?.CaseExpr != null)
                                 continue;
                             return false;
                         }
@@ -347,14 +354,14 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                         string colName;
                         if (colRef.Fields is { Count: > 1 })
                         {
-                            if (IsHelperColumnAlias(rt.Name))
+                            if (IsPowerBIOrderHelperAlias(rt.Name))
                                 continue;
 
                             colName = TryExtractLastIdentifierSegment(colRef);
                             if (string.IsNullOrWhiteSpace(colName))
                                 return false;
 
-                            if (IsHelperColumnAlias(colName))
+                            if (IsPowerBIOrderHelperAlias(colName))
                                 continue;
 
                             cols.Add(colName);
@@ -365,75 +372,13 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                         if (string.IsNullOrWhiteSpace(colName))
                             return false;
 
-                        if (IsHelperColumnAlias(colName))
+                        if (IsPowerBIOrderHelperAlias(colName))
                             continue;
 
                         cols.Add(colName);
                     }
 
                     return cols.Count > 0;
-                }
-
-                static ColumnRef TryUnwrapToColumnRefLocal(Node node)
-                {
-                    while (node != null)
-                    {
-                        if (node.ColumnRef != null)
-                            return node.ColumnRef;
-
-                        if (node.TypeCast != null)
-                        {
-                            node = node.TypeCast.Arg;
-                            continue;
-                        }
-
-                        if (node.AExpr != null)
-                        {
-                            node = node.AExpr.Lexpr ?? node.AExpr.Rexpr;
-                            continue;
-                        }
-
-                        if (node.RelabelType != null)
-                        {
-                            node = node.RelabelType.Arg;
-                            continue;
-                        }
-
-                        break;
-                    }
-
-                    return null;
-                }
-
-                static FuncCall TryUnwrapToFuncCallLocal(Node node)
-                {
-                    while (node != null)
-                    {
-                        if (node.FuncCall != null)
-                            return node.FuncCall;
-
-                        if (node.TypeCast != null)
-                        {
-                            node = node.TypeCast.Arg;
-                            continue;
-                        }
-
-                        if (node.AExpr != null)
-                        {
-                            node = node.AExpr.Lexpr ?? node.AExpr.Rexpr;
-                            continue;
-                        }
-
-                        if (node.RelabelType != null)
-                        {
-                            node = node.RelabelType.Arg;
-                            continue;
-                        }
-
-                        break;
-                    }
-
-                    return null;
                 }
 
                 static bool TryFindInnerGroupedSelect(SelectStmt outerSelectStmt, out SelectStmt groupedSelect)
@@ -484,7 +429,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                         if (rt?.Val == null)
                             continue;
 
-                        var func = TryUnwrapToFuncCallLocal(rt.Val);
+                        var func = PgSqlAstHelpers.UnwrapThroughHarmlessNodes(rt.Val, static n => n.FuncCall);
                         if (func == null)
                             continue;
 
@@ -498,7 +443,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                         if (func.Args is not { Count: 1 } args)
                             continue;
 
-                        var arg = TryUnwrapToColumnRefLocal(args[0]);
+                        var arg = PgSqlAstHelpers.UnwrapThroughHarmlessNodes(args[0], static n => n.ColumnRef);
                         if (arg?.Fields is not { Count: > 0 } fields)
                             continue;
 
@@ -567,7 +512,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                     Aggregates: aggregates,
                     OrderByCols: wrapper.OrderByColumns,
                     OrderByDescFlags: wrapper.OrderByDescFlags,
-                    Limit: wrapper.Limit ?? 1000001);
+                    Limit: wrapper.Limit ?? DefaultDirectQueryLimit);
                 return true;
 
                 static bool TryIsOuterAggregateNotNullFilter(Node whereClause, string expectedName)
@@ -637,7 +582,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 if (wrapper.GroupByColumns is not { Count: > 0 })
                     return false;
 
-                var limit = wrapper.Limit ?? 1000001;
+                var limit = wrapper.Limit ?? DefaultDirectQueryLimit;
                 shape = new DirectQueryShape(wrapper.OuterProjectedColumns, limit);
                 return true;
             }
@@ -919,7 +864,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                     if (colRef == null)
                     {
                         // Tolerate PowerBI null-order CASE helper columns; reject anything else.
-                        if (IsHelperColumnAlias(resTarget.Name) && resTarget.Val?.CaseExpr != null)
+                        if (IsPowerBIOrderHelperAlias(resTarget.Name) && resTarget.Val?.CaseExpr != null)
                             continue;
                         return false;
                     }
@@ -928,12 +873,12 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                     {
                         // Qualified ref that doesn't follow the "_"."X" pattern:
                         // skip if it has a helper alias.
-                        if (IsHelperColumnAlias(resTarget.Name))
+                        if (IsPowerBIOrderHelperAlias(resTarget.Name))
                             continue;
                         return false;
                     }
 
-                    if (IsHelperColumnAlias(colName))
+                    if (IsPowerBIOrderHelperAlias(colName))
                         continue;
 
                     cols.Add(colName);
@@ -942,12 +887,19 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 return cols.Count > 0;
             }
 
-            static bool IsHelperColumnAlias(string name)
+            // Recognises the two bespoke alias names PowerBI emits purely to drive its own
+            // null-order/ordering scaffolding, with no business-field meaning:
+            //   - "t<N>_0"  → null-order CASE helper (e.g. "t2_0", "t3_0"); the guarded column
+            //                 is resolved structurally via TryExtractNullOrderHelperGuardedColumn.
+            //   - "o<N>"    → order-alias passthrough (e.g. "o2", "o3").
+            // We drop targets carrying these aliases from the outer projection set so they do
+            // not appear as business columns in the emitted RQL.
+            static bool IsPowerBIOrderHelperAlias(string name)
             {
                 if (string.IsNullOrWhiteSpace(name))
                     return false;
 
-                // t<N>_0 pattern — null-order CASE helper (e.g. "t2_0", "t3_0")
+                // t<N>_0
                 if (name.Length >= 4 && (name[0] == 't' || name[0] == 'T'))
                 {
                     var u = name.IndexOf('_');
@@ -957,7 +909,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                         return true;
                 }
 
-                // o<N> pattern — order alias passthrough (e.g. "o2", "o3")
+                // o<N>
                 if (name.Length >= 2 && (name[0] == 'o' || name[0] == 'O') &&
                     int.TryParse(name.AsSpan(1), out _))
                     return true;
@@ -979,7 +931,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                     // underlying ColumnRef. PowerBI sometimes emits explicit type coercions in
                     // GROUP BY, e.g. "GROUP BY ""Employee""::text". The cast is irrelevant for
                     // RQL grouping (Raven groups by field reference, not by typed expression).
-                    var colRef = UnwrapToColumnRef(node);
+                    var colRef = PgSqlAstHelpers.UnwrapThroughHarmlessNodes(node, static n => n.ColumnRef);
                     if (colRef == null)
                         return false;
 
@@ -991,260 +943,127 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 }
 
                 return true;
-
-                static ColumnRef UnwrapToColumnRef(Node n)
-                {
-                    while (n != null)
-                    {
-                        if (n.ColumnRef != null)
-                            return n.ColumnRef;
-                        if (n.TypeCast != null)
-                        {
-                            n = n.TypeCast.Arg;
-                            continue;
-                        }
-                        if (n.RelabelType != null)
-                        {
-                            n = n.RelabelType.Arg;
-                            continue;
-                        }
-                        break;
-                    }
-                    return null;
-                }
             }
 
-            static bool TryNormalizeOrderByHelperColumn(string colName, SelectStmt groupBySelect, out string normalized)
+            // Structurally resolve an outer alias (e.g. an ORDER BY column reference) down through
+            // the wrapper chain to the underlying business-field name.
+            //
+            // At each level we look for a target whose alias matches the current name, then follow
+            // its Val:
+            //   - ColumnRef          → continue with the ColumnRef's last identifier segment.
+            //   - Null-order CASE    → continue with the column guarded by the IS [NOT] NULL test;
+            //                          this is how PowerBI's t<N>_0 helpers are transparently
+            //                          unwrapped without relying on name conventions.
+            //   - anything else      → stop (we cannot express it in RQL).
+            //
+            // Returns the final resolved name, or the last name seen if we run out of wrapper levels.
+            static bool TryResolveAliasThroughWrappers(SelectStmt outer, string aliasName, out string resolved)
             {
-                normalized = null;
+                resolved = aliasName;
 
-                if (string.IsNullOrWhiteSpace(colName))
+                if (outer == null || string.IsNullOrWhiteSpace(aliasName))
                     return false;
 
-                // PowerBI null-order helper pattern:
-                //  - t[even]_0 = CASE WHEN oN IS NOT NULL THEN oN ELSE <sentinel timestamp> END
-                //  - t[odd]_0  = CASE WHEN oN IS NULL THEN 0 ELSE 1 END
-                // In RQL we can't preserve this pattern exactly without full CASE support.
-                // For now, we conservatively collapse t* order-bys back to ordering by the original column (oN),
-                // which keeps the query in DirectQuery and returns correct projected columns.
-                if (colName.Length < 3 || (colName[0] != 't' && colName[0] != 'T'))
+                var current = outer;
+                var currentName = aliasName;
+
+                while (current != null)
+                {
+                    var target = FindTargetByAlias(current, currentName);
+                    if (target == null)
+                    {
+                        // Not produced here; descend blindly: outer ORDER BY can reference a
+                        // column exposed by the wrapper alias without an explicit ResTarget.Name.
+                        current = SingleWrapperChild(current);
+                        continue;
+                    }
+
+                    var val = target.Val;
+                    if (val?.ColumnRef != null)
+                    {
+                        var next = TryExtractLastIdentifierSegment(val.ColumnRef);
+                        if (string.IsNullOrWhiteSpace(next))
+                            return false;
+                        currentName = next;
+                        resolved = next;
+                        current = SingleWrapperChild(current);
+                        continue;
+                    }
+
+                    if (val?.CaseExpr != null && TryExtractNullOrderHelperGuardedColumn(val.CaseExpr, out var guarded))
+                    {
+                        currentName = guarded;
+                        resolved = guarded;
+                        current = SingleWrapperChild(current);
+                        continue;
+                    }
+
                     return false;
-
-                // Expect: t<idx>_0 (we only accept the PowerBI suffix "_0" here)
-                int underscore = colName.IndexOf('_');
-                if (underscore < 2)
-                    return false;
-
-                if (colName.AsSpan(underscore).Equals("_0", StringComparison.OrdinalIgnoreCase) == false)
-                    return false;
-
-                var idxSpan = colName.AsSpan(1, underscore - 1);
-                if (int.TryParse(idxSpan, out var helperIdx) == false)
-                    return false;
-
-                if (TryMapHelperIndexToInnerOrderAlias(groupBySelect, helperIdx, out var orderAlias) == false)
-                    return false;
-
-                // Prefer resolving the wrapper alias (e.g. `o2`) back to the underlying business field (e.g. `RequireAt`).
-                // This keeps `orderByCols` comparable to `cols`/`groupByCols` and avoids leaking wrapper-only aliases.
-                if (TryResolveWrapperAliasToBusinessField(groupBySelect, orderAlias, out normalized))
-                    return true;
-
-                normalized = orderAlias;
+                }
 
                 return true;
-            }
 
-            static bool TryResolveWrapperAliasToBusinessField(SelectStmt groupBySelect, string orderAlias, out string businessField)
-            {
-                businessField = null;
-
-                if (groupBySelect == null || string.IsNullOrWhiteSpace(orderAlias))
-                    return false;
-
-                var current = groupBySelect;
-                while (current != null)
+                static ResTarget FindTargetByAlias(SelectStmt s, string name)
                 {
-                    // We are looking for a projection like:
-                    //   <expr> as "o2"
-                    // where <expr> ultimately references a business column name.
-                    var targets = current.TargetList;
-                    if (targets != null)
-                    {
-                        foreach (var t in targets)
-                        {
-                            var rt = t?.ResTarget;
-                            if (rt == null)
-                                continue;
+                    if (s?.TargetList == null)
+                        return null;
 
-                            if (string.Equals(rt.Name, orderAlias, StringComparison.OrdinalIgnoreCase) == false)
-                                continue;
-
-                            // Common case in BI wrappers: `"RequireAt" as "o2"`.
-                            var colRef = rt.Val?.ColumnRef;
-                            if (colRef != null)
-                            {
-                                var colName = TryExtractLastIdentifierSegment(colRef);
-                                if (string.IsNullOrWhiteSpace(colName) == false &&
-                                    colName.StartsWith("o", StringComparison.OrdinalIgnoreCase) == false &&
-                                    string.Equals(colName, "t2_0", StringComparison.OrdinalIgnoreCase) == false)
-                                {
-                                    businessField = colName;
-                                    return true;
-                                }
-                            }
-
-                            // Another common case: `"_"."o2" as "o2"` (pass-through); keep walking.
-                            break;
-                        }
-                    }
-
-                    if (current.FromClause is not { Count: 1 } from)
-                        break;
-
-                    current = from[0]?.RangeSubselect?.Subquery?.SelectStmt;
-                }
-
-                return false;
-            }
-
-            static bool TryMapHelperIndexToInnerOrderAlias(SelectStmt groupBySelect, int helperIdx, out string normalized)
-            {
-                normalized = null;
-
-                if (groupBySelect == null)
-                    return false;
-
-                if (helperIdx < 0)
-                    return false;
-
-                // PowerBI null-order helper columns come in pairs: t<even>_0 and t<odd>_0.
-                // Both refer to the same underlying `oN` alias. For odd indices, also try the previous even `o<idx-1>`.
-                var directAlias = "o" + helperIdx;
-                var pairedAlias = (helperIdx & 1) == 1
-                    ? "o" + (helperIdx - 1)
-                    : null;
-                var desiredHelperPair = (helperIdx / 2) * 2;
-
-                var current = groupBySelect;
-                while (current != null)
-                {
-                    if (TryHasAliasInTargetList(current, directAlias))
-                    {
-                        normalized = directAlias;
-                        return true;
-                    }
-
-                    if (pairedAlias != null && TryHasAliasInTargetList(current, pairedAlias))
-                    {
-                        normalized = pairedAlias;
-                        return true;
-                    }
-
-                    if (TryFindOrderAliasInTargetList(current, helperIdx, desiredHelperPair, out normalized))
-                        return true;
-
-                    if (current.FromClause is not { Count: 1 } from)
-                        break;
-
-                    current = from[0]?.RangeSubselect?.Subquery?.SelectStmt;
-                }
-
-                return false;
-
-                static bool TryHasAliasInTargetList(SelectStmt s, string alias)
-                {
-                    if (string.IsNullOrWhiteSpace(alias))
-                        return false;
-
-                    var targets = s?.TargetList;
-                    if (targets == null || targets.Count == 0)
-                        return false;
-
-                    foreach (var t in targets)
-                    {
-                        var rt = t?.ResTarget;
-                        var name = rt?.Name;
-                        if (string.Equals(name, alias, StringComparison.OrdinalIgnoreCase))
-                            return true;
-                    }
-
-                    return false;
-                }
-
-                static bool TryFindOrderAliasInTargetList(SelectStmt s, int helperIdx, int desiredHelperPair, out string alias)
-                {
-                    alias = null;
-
-                    var targets = s?.TargetList;
-                    if (targets == null || targets.Count == 0)
-                        return false;
-
-                    foreach (var t in targets)
+                    foreach (var t in s.TargetList)
                     {
                         var rt = t?.ResTarget;
                         if (rt == null)
                             continue;
 
-                        var name = rt.Name;
-                        if (string.IsNullOrWhiteSpace(name) == false && name.Length > 1 && (name[0] == 'o' || name[0] == 'O'))
-                        {
-                            if (int.TryParse(name.AsSpan(1), out var orderIdx) == false)
-                                continue;
+                        var rtName = rt.Name;
+                        if (string.IsNullOrWhiteSpace(rtName))
+                            rtName = rt.Val?.ColumnRef is { Fields.Count: > 0 } cr ? cr.Fields[^1]?.String?.Sval : null;
 
-                            // Preferred fallback: if there is an `o<idx>` whose numeric suffix matches the helper index, map to it.
-                            // This handles sparse numbering like `o2` with `t2_0/t3_0`.
-                            if (orderIdx == helperIdx)
-                            {
-                                alias = "o" + orderIdx;
-                                return true;
-                            }
-
-                            // Legacy fallback: old behavior for dense `o0/o1/...` wrappers.
-                            if (desiredHelperPair == orderIdx * 2)
-                            {
-                                alias = "o" + orderIdx;
-                                return true;
-                            }
-                        }
+                        if (string.Equals(rtName, name, StringComparison.OrdinalIgnoreCase))
+                            return rt;
                     }
 
-                    return false;
+                    return null;
                 }
+
+                static SelectStmt SingleWrapperChild(SelectStmt s) =>
+                    s?.FromClause is { Count: 1 } from
+                        ? from[0]?.RangeSubselect?.Subquery?.SelectStmt
+                        : null;
+            }
+
+            // PowerBI null-order helper CASE shapes:
+            //   (A) case when X is not null then X else <timestamp-literal> end
+            //   (B) case when X is [not] null then 0 else 1 end
+            // Both are identified by a single WHEN branch whose condition is a NullTest.
+            // Returns the guarded column's last identifier segment for shape (A); shape (B) has no
+            // useful business-field mapping, so we drop it by returning false.
+            static bool TryExtractNullOrderHelperGuardedColumn(CaseExpr caseExpr, out string columnName)
+            {
+                columnName = null;
+
+                if (caseExpr?.Args is not { Count: 1 } args)
+                    return false;
+
+                var when = args[0]?.CaseWhen;
+                if (when?.Expr?.NullTest?.Arg?.ColumnRef is not { } guardCol)
+                    return false;
+
+                // Shape (A): THEN is the same ColumnRef; skip shape (B) which returns 0/1.
+                if (when.Result?.ColumnRef == null)
+                    return false;
+
+                columnName = TryExtractLastIdentifierSegment(guardCol);
+                return string.IsNullOrWhiteSpace(columnName) == false;
             }
 
             static bool TryExtractLimit(SelectStmt selectStmt, out int limit)
             {
-                return TryReadAConstNonNegativeInt(selectStmt?.LimitCount, out limit);
+                return PgSqlAstHelpers.TryReadNonNegativeIntConst(selectStmt?.LimitCount, out limit);
             }
 
             static bool TryExtractOffset(SelectStmt selectStmt, out int offset)
             {
-                return TryReadAConstNonNegativeInt(selectStmt?.LimitOffset, out offset);
-            }
-
-            // Tolerates all three constant kinds pgsqlparser emits: Ival, Sval, Fval.
-            static bool TryReadAConstNonNegativeInt(Node node, out int value)
-            {
-                value = 0;
-
-                var c = node?.AConst;
-                if (c == null)
-                    return false;
-
-                if (c.Ival != null)
-                {
-                    value = (int)c.Ival.Ival;
-                    return value >= 0;
-                }
-
-                if (c.Sval != null && int.TryParse(c.Sval.Sval, NumberStyles.Integer, CultureInfo.InvariantCulture, out value))
-                    return value >= 0;
-
-                if (c.Fval != null && int.TryParse(c.Fval.Fval, NumberStyles.Integer, CultureInfo.InvariantCulture, out value))
-                    return value >= 0;
-
-                return false;
+                return PgSqlAstHelpers.TryReadNonNegativeIntConst(selectStmt?.LimitOffset, out offset);
             }
 
             static bool IsValidRqlSelect(string rql)
@@ -1300,13 +1119,6 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 if (projectionCols == null || projectionCols.Count == 0)
                     return null;
 
-                Dictionary<string, string> projectionExprs = null;
-                if (q.SelectFunctionBody.FunctionText != null)
-                {
-                    // Use the already-parsed select function body when available to preserve expressions like `name(e)`.
-                    projectionExprs = TryExtractProjectionExpressions(q.SelectFunctionBody.FunctionText.AsSpan());
-                }
-
                 var core = q.ShallowCopy();
                 core.IsDistinct = false;
                 core.Filter = null;
@@ -1333,18 +1145,12 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
 
                     if (string.Equals(colName, "json()", StringComparison.OrdinalIgnoreCase))
                     {
-                        if (q.From.Alias == null)
-                            return null;
-
                         selectParts.Add($"\"json()\": {q.From.Alias}");
                         continue;
                     }
 
                     if (string.Equals(colName, "id()", StringComparison.OrdinalIgnoreCase))
                     {
-                        if (q.From.Alias == null)
-                            return null;
-
                         selectParts.Add($"\"id()\": id({q.From.Alias})");
                         continue;
                     }
@@ -1356,8 +1162,6 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                     var expr = BuildFieldExpression(colName, q.From.Alias?.Value);
                     if (expr == null)
                         return null;
-                    if (projectionExprs != null && projectionExprs.TryGetValue(colName, out var extracted) && string.IsNullOrWhiteSpace(extracted) == false)
-                        expr = extracted;
 
                     selectParts.Add($"{selectField}: {expr}");
                 }
@@ -1382,266 +1186,11 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
 
             static string BuildFieldExpression(string fieldName, string fromAlias)
             {
-                if (string.IsNullOrWhiteSpace(fieldName))
-                    return null;
-
                 var id = FormatRqlIdentifier(fieldName);
                 if (id == null)
                     return null;
 
-                if (string.IsNullOrWhiteSpace(fromAlias))
-                    return id;
-
-                // If it doesn't need escaping, it must be a plain identifier, safe to dot-qualify.
-                if (string.Equals(id, fieldName, StringComparison.Ordinal))
-                    return fromAlias + "." + id;
-
-                // Escaped identifier: use a bracket access on the alias.
-                return fromAlias + id;
-            }
-
-            static Dictionary<string, string> TryExtractProjectionExpressions(ReadOnlySpan<char> selectClause)
-            {
-                // Attempt to extract `<field>: <expr>` pairs from `select { ... }` (or just `{ ... }`) in the original inner RQL.
-                // On any mismatch, return null and the caller will fall back to using the column identifier as the expression.
-
-                var idxOpen = -1;
-
-                var idxSelect = selectClause.IndexOf("select", StringComparison.OrdinalIgnoreCase);
-                if (idxSelect != -1)
-                {
-                    var idxBrace = selectClause.Slice(idxSelect).IndexOf('{');
-                    if (idxBrace != -1)
-                        idxOpen = idxSelect + idxBrace;
-                }
-
-                if (idxOpen == -1)
-                {
-                    var idxReturn = selectClause.IndexOf("return", StringComparison.OrdinalIgnoreCase);
-                    if (idxReturn != -1)
-                    {
-                        var idxBrace = selectClause.Slice(idxReturn).IndexOf('{');
-                        if (idxBrace != -1)
-                            idxOpen = idxReturn + idxBrace;
-                    }
-                }
-
-                if (idxOpen == -1)
-                    idxOpen = selectClause.IndexOf('{');
-                if (idxOpen == -1)
-                    return null;
-
-                var idxClose = FindMatchingBrace(selectClause, idxOpen);
-                if (idxClose == -1)
-                    return null;
-
-                var body = selectClause.Slice(idxOpen + 1, idxClose - idxOpen - 1);
-                int pos = 0;
-
-                var dict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-
-                while (pos < body.Length)
-                {
-                    SkipWs(body, ref pos);
-                    if (pos >= body.Length)
-                        break;
-
-                    if (body[pos] == ',')
-                    {
-                        pos++;
-                        continue;
-                    }
-
-                    if (TryReadFieldName(body, ref pos, out var fieldName) == false)
-                        return null;
-
-                    if (string.IsNullOrWhiteSpace(fieldName))
-                        return null;
-
-                    SkipWs(body, ref pos);
-                    if (pos >= body.Length || body[pos] != ':')
-                        return null;
-
-                    pos++; // ':'
-                    SkipWs(body, ref pos);
-
-                    var exprStart = pos;
-                    if (TryScanExpression(body, ref pos, out var exprEnd) == false)
-                        return null;
-
-                    var expr = body.Slice(exprStart, exprEnd - exprStart).ToString().Trim();
-                    if (string.IsNullOrWhiteSpace(expr))
-                        return null;
-
-                    dict[fieldName] = expr;
-
-                    SkipWs(body, ref pos);
-                    if (pos < body.Length && body[pos] == ',')
-                        pos++;
-                }
-
-                return dict.Count == 0 ? null : dict;
-
-                static int FindMatchingBrace(ReadOnlySpan<char> s, int openIndex)
-                {
-                    int depth = 0;
-                    bool inString = false;
-                    char stringQuote = '\0';
-
-                    for (int i = openIndex; i < s.Length; i++)
-                    {
-                        var ch = s[i];
-
-                        if (inString)
-                        {
-                            if (ch == '\\')
-                            {
-                                i++;
-                                continue;
-                            }
-
-                            if (ch == stringQuote)
-                                inString = false;
-
-                            continue;
-                        }
-
-                        if (ch == '\'' || ch == '"')
-                        {
-                            inString = true;
-                            stringQuote = ch;
-                            continue;
-                        }
-
-                        if (ch == '{')
-                        {
-                            depth++;
-                            continue;
-                        }
-
-                        if (ch == '}')
-                        {
-                            depth--;
-                            if (depth == 0)
-                                return i;
-                        }
-                    }
-
-                    return -1;
-                }
-
-                static void SkipWs(ReadOnlySpan<char> s, ref int i)
-                {
-                    while (i < s.Length && char.IsWhiteSpace(s[i]))
-                        i++;
-                }
-
-                static bool TryReadFieldName(ReadOnlySpan<char> s, ref int i, out string field)
-                {
-                    field = null;
-                    if (i >= s.Length)
-                        return false;
-
-                    if (s[i] == '"' || s[i] == '\'')
-                    {
-                        var quote = s[i++];
-                        int start = i;
-                        while (i < s.Length)
-                        {
-                            var ch = s[i];
-                            if (ch == '\\')
-                            {
-                                i += 2;
-                                continue;
-                            }
-
-                            if (ch == quote)
-                            {
-                                field = s.Slice(start, i - start).ToString();
-                                i++;
-                                return true;
-                            }
-
-                            i++;
-                        }
-
-                        return false;
-                    }
-
-                    int nameStart = i;
-                    while (i < s.Length)
-                    {
-                        var ch = s[i];
-                        if (char.IsWhiteSpace(ch) || ch == ':' || ch == ',')
-                            break;
-                        i++;
-                    }
-
-                    if (i == nameStart)
-                        return false;
-
-                    field = s.Slice(nameStart, i - nameStart).ToString();
-                    return true;
-                }
-
-                static bool TryScanExpression(ReadOnlySpan<char> s, ref int i, out int exprEnd)
-                {
-                    exprEnd = i;
-
-                    int depth = 0;
-                    bool inString = false;
-                    char stringQuote = '\0';
-
-                    for (; i < s.Length; i++)
-                    {
-                        var ch = s[i];
-
-                        if (inString)
-                        {
-                            if (ch == '\\')
-                            {
-                                i++;
-                                continue;
-                            }
-
-                            if (ch == stringQuote)
-                                inString = false;
-
-                            continue;
-                        }
-
-                        if (ch == '\'' || ch == '"')
-                        {
-                            inString = true;
-                            stringQuote = ch;
-                            continue;
-                        }
-
-                        if (ch is '(' or '[' or '{')
-                        {
-                            depth++;
-                            continue;
-                        }
-
-                        if (ch is ')' or ']' or '}')
-                        {
-                            if (depth > 0)
-                            {
-                                depth--;
-                                continue;
-                            }
-                        }
-
-                        if (depth == 0 && ch == ',')
-                        {
-                            exprEnd = i;
-                            return true;
-                        }
-                    }
-
-                    exprEnd = s.Length;
-                    return true;
-                }
+                return string.IsNullOrWhiteSpace(fromAlias) ? id : fromAlias + "." + id;
             }
 
             static bool IsSupportedGroupedAggregateFunction(string name) =>
@@ -1652,17 +1201,25 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             static bool IsCountFunction(string name) =>
                 string.Equals(name, "count", StringComparison.OrdinalIgnoreCase);
 
+            // Accepts only plain ASCII identifiers (letter/underscore followed by alnum/underscore).
+            // Anything requiring quoting is rejected so the caller drops the DirectQuery shape
+            // rather than emitting bracket-path expressions we would rather avoid.
             static string FormatRqlIdentifier(string identifier)
             {
                 if (string.IsNullOrWhiteSpace(identifier))
                     return null;
 
-                var s = identifier;
-                bool plain = char.IsAsciiLetter(s[0]) || s[0] == '_';
-                for (int i = 1; i < s.Length && plain; i++)
-                    plain = char.IsAsciiLetterOrDigit(s[i]) || s[i] == '_';
+                if (char.IsAsciiLetter(identifier[0]) == false && identifier[0] != '_')
+                    return null;
 
-                return plain ? s : $"[\"{s.Replace("\"", "\\\"", StringComparison.Ordinal)}\"]";
+                for (int i = 1; i < identifier.Length; i++)
+                {
+                    var c = identifier[i];
+                    if (char.IsAsciiLetterOrDigit(c) == false && c != '_')
+                        return null;
+                }
+
+                return identifier;
             }
 
             static string FormatRqlObjectFieldIdentifier(string identifier)

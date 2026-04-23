@@ -409,14 +409,6 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
 
         private static bool TryConsumeQuotedAlias(string s, int i)
         {
-            return TryReadQuotedAlias(s, i, out _, out _);
-        }
-
-        private static bool TryReadQuotedAlias(string s, int i, out string alias, out int nextIndex)
-        {
-            alias = null;
-            nextIndex = 0;
-
             var idx = SkipWhitespaceForward(s, i);
             if ((uint)idx >= (uint)s.Length || s[idx] != '"')
                 return false;
@@ -425,12 +417,14 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             if (endQuote == -1)
                 return false;
 
-            alias = s.Substring(idx + 1, endQuote - idx - 1);
-            if (string.IsNullOrWhiteSpace(alias))
-                return false;
+            // Reject empty/whitespace aliases like `""` or `"  "`.
+            for (int j = idx + 1; j < endQuote; j++)
+            {
+                if (char.IsWhiteSpace(s[j]) == false)
+                    return true;
+            }
 
-            nextIndex = endQuote + 1;
-            return true;
+            return false;
         }
 
         private static bool IsIdentChar(char ch) =>

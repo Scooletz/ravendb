@@ -5,14 +5,12 @@ using PgSqlParser;
 namespace Raven.Server.Integrations.PostgreSQL.Classification
 {
     /// <summary>
-    /// Shared AST feature extractors used by <see cref="PowerBIQueryClassifier"/> and
-    /// <see cref="NpgsqlQueryClassifier"/>. Each extractor answers a single semantic
-    /// question about a parsed <see cref="SelectStmt"/>: "what relations does this touch?",
-    /// "what names does it project?", "is this a single-function-call SELECT?", etc.
-    ///
-    /// Classifiers compose these features; they never walk the AST directly.
+    /// Shape predicates over a parsed PostgreSQL <see cref="SelectStmt"/>. Each method
+    /// answers one structural question — "does it touch this table?", "what does it
+    /// project?", "is it a single-function-call select?" — and is the sole AST-walking
+    /// primitive the classifiers compose on top of.
     /// </summary>
-    internal static class AstFeatures
+    internal static class SelectStmtShape
     {
         /// <summary>
         /// Parses <paramref name="queryText"/> and returns the single top-level SELECT when the

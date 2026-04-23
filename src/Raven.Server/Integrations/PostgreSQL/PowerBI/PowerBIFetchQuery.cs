@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using PgSqlParser;
 using Raven.Server.Integrations.PostgreSQL.Translation;
 using Raven.Server.Documents;
@@ -52,7 +51,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 int? limit = null;
                 if (selectStmt.LimitCount != null)
                 {
-                    if (TryExtractNonNegativeIntConst(selectStmt.LimitCount, out var l))
+                    if (PgSqlAstHelpers.TryReadNonNegativeIntConst(selectStmt.LimitCount, out var l))
                         limit = l;
                 }
 
@@ -206,30 +205,6 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             return true;
         }
 
-        // Tolerates all three constant kinds pgsqlparser emits: Sval, Ival, Fval.
-        private static bool TryExtractNonNegativeIntConst(Node node, out int value)
-        {
-            value = 0;
-
-            var c = node?.AConst;
-            if (c == null)
-                return false;
-
-            if (c.Ival != null)
-            {
-                value = (int)c.Ival.Ival;
-                return value >= 0;
-            }
-
-            if (c.Sval != null && int.TryParse(c.Sval.Sval, NumberStyles.Integer, CultureInfo.InvariantCulture, out value))
-                return value >= 0;
-
-            if (c.Fval != null && int.TryParse(c.Fval.Fval, NumberStyles.Integer, CultureInfo.InvariantCulture, out value))
-                return value >= 0;
-
-            return false;
-        }
-
         private static bool TryParseSimpleTableFetchViaAst(string queryText, int[] parametersDataTypes, DocumentDatabase documentDatabase, out PgQuery pgQuery)
         {
             pgQuery = null;
@@ -237,7 +212,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             if (string.IsNullOrWhiteSpace(queryText))
                 return false;
 
-            if (IsSimplePublicRangeVarSelect(queryText, out _) == false)
+            if (IsSimplePublicRangeVarSelect(queryText) == false)
                 return false;
 
             if (PgSqlToRqlTranslator.TryParse(queryText, parametersDataTypes, out var rql) == false)
@@ -247,10 +222,8 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             return true;
         }
 
-        private static bool IsSimplePublicRangeVarSelect(string sql, out string aliasName)
+        private static bool IsSimplePublicRangeVarSelect(string sql)
         {
-            aliasName = null;
-
             var parseResult = Parser.Parse(sql);
             if (parseResult.IsSuccess == false || parseResult.Value == null)
                 return false;
@@ -276,7 +249,6 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             if (string.IsNullOrWhiteSpace(rangeVar.Relname))
                 return false;
 
-            aliasName = rangeVar.Alias?.Aliasname;
             return true;
         }
 

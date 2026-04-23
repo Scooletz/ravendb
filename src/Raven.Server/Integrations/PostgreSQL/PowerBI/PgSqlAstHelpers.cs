@@ -1,11 +1,71 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using PgSqlParser;
 
 namespace Raven.Server.Integrations.PostgreSQL.PowerBI
 {
     internal static class PgSqlAstHelpers
     {
+        // Walks past harmless wrapping nodes (TypeCast, RelabelType, and either side of an AExpr)
+        // and returns the first underlying payload of type T (ColumnRef, FuncCall, …) reachable
+        // through that chain. Returns null if nothing of the requested type is found.
+        public static T UnwrapThroughHarmlessNodes<T>(Node node, Func<Node, T> picker) where T : class
+        {
+            while (node != null)
+            {
+                var picked = picker(node);
+                if (picked != null)
+                    return picked;
+
+                if (node.TypeCast != null)
+                {
+                    node = node.TypeCast.Arg;
+                    continue;
+                }
+
+                if (node.RelabelType != null)
+                {
+                    node = node.RelabelType.Arg;
+                    continue;
+                }
+
+                if (node.AExpr != null)
+                {
+                    node = node.AExpr.Lexpr ?? node.AExpr.Rexpr;
+                    continue;
+                }
+
+                break;
+            }
+
+            return null;
+        }
+
+        // Tolerates all three constant kinds pgsqlparser emits: Ival, Sval, Fval.
+        public static bool TryReadNonNegativeIntConst(Node node, out int value)
+        {
+            value = 0;
+
+            var c = node?.AConst;
+            if (c == null)
+                return false;
+
+            if (c.Ival != null)
+            {
+                value = (int)c.Ival.Ival;
+                return value >= 0;
+            }
+
+            if (c.Sval != null && int.TryParse(c.Sval.Sval, NumberStyles.Integer, CultureInfo.InvariantCulture, out value))
+                return value >= 0;
+
+            if (c.Fval != null && int.TryParse(c.Fval.Fval, NumberStyles.Integer, CultureInfo.InvariantCulture, out value))
+                return value >= 0;
+
+            return false;
+        }
+
         public static bool IsPowerBiWrapperAlias(string alias)
         {
             if (string.IsNullOrWhiteSpace(alias))

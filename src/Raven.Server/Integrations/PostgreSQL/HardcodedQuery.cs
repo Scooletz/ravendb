@@ -22,9 +22,9 @@ namespace Raven.Server.Integrations.PostgreSQL
             var normalizedQuery = queryText.NormalizeLineEndings();
             PgTable result = null;
 
-            // Intent-based recognition: parse the SQL once, inspect the AST for "what metadata
-            // is this asking for?", then resolve the recognized MetadataIntent to a PgTable.
-            // Covers both PowerBI and Npgsql metadata/initialization queries.
+            // AST-based recognition: parse once, ask each classifier "do you recognize this
+            // shape?", and use the canonical PgTable response it returns. Covers both PowerBI
+            // and Npgsql metadata/initialization queries.
             if (HardcodedQueryClassifier.TryClassify(queryText, out result))
             {
                 hardcodedQuery = new HardcodedQuery(queryText, parametersDataTypes, result);

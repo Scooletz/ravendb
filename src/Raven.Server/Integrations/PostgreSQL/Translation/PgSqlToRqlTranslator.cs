@@ -62,10 +62,13 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
                 rql = TranslateSelectStatement(stmt.Stmt.SelectStmt);
                 return LogSuccess(sql, rql);
             }
-            catch (NotSupportedException)
+            catch (NotSupportedException ex)
             {
                 rql = null;
-                return LogFailure("unsupported query shape");
+                var reason = string.IsNullOrWhiteSpace(ex.Message)
+                    ? "unsupported query shape"
+                    : $"unsupported query shape: {ex.Message}";
+                return LogFailure(reason);
             }
         }
 
