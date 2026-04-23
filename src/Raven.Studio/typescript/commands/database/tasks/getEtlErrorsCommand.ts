@@ -25,4 +25,4 @@ class getEtlErrorsCommand extends commandBase {
     }
 }
 
-export = getEtlErrorsCommand;
+export default getEtlErrorsCommand

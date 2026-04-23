@@ -6,6 +6,7 @@ import { produce } from "immer";
 import { useAsync } from "react-async-hook";
 import DatabaseUtils from "components/utils/DatabaseUtils";
 import { databaseSelectors } from "components/common/shell/databaseSliceSelectors";
+import { databaseLocationComparator } from "components/utils/common";
 
 interface DatabaseWideReducerState<T> {
     result: locationAwareLoadableData<T>[];
@@ -85,10 +86,6 @@ interface ActionLocationDataError {
     error: any;
 }
 
-function isSameLocation(a: databaseLocationSpecifier, b: databaseLocationSpecifier) {
-    return a.nodeTag === b.nodeTag && a.shardNumber === b.shardNumber;
-}
-
 function databaseWideReducer<T>(
     state: DatabaseWideReducerState<T>,
     action: DatabaseWideReducerAction<T>
@@ -97,7 +94,7 @@ function databaseWideReducer<T>(
     switch (type) {
         case "LocationDataLoaded":
             return produce(state, (draft) => {
-                const itemToModify = draft.result.find((t) => isSameLocation(t.location, action.location));
+                const itemToModify = draft.result.find((t) => databaseLocationComparator(t.location, action.location));
                 if (!itemToModify) {
                     // Stale response from a previous database — ignore it
                     return;
@@ -108,7 +105,7 @@ function databaseWideReducer<T>(
             });
         case "LocationDataError":
             return produce(state, (draft) => {
-                const itemToModify = draft.result.find((t) => isSameLocation(t.location, action.location));
+                const itemToModify = draft.result.find((t) => databaseLocationComparator(t.location, action.location));
                 if (!itemToModify) {
                     // Stale response from a previous database — ignore it
                     return;
