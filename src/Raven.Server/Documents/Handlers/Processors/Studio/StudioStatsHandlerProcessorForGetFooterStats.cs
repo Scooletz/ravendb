@@ -3,7 +3,9 @@ using System.Threading.Tasks;
 using JetBrains.Annotations;
 using Raven.Server.Documents.Indexes;
 using Raven.Server.Documents.Studio;
+using Raven.Server.ServerWide;
 using Raven.Server.ServerWide.Context;
+using Raven.Server.Web.Http;
 
 namespace Raven.Server.Documents.Handlers.Processors.Studio
 {
@@ -12,6 +14,8 @@ namespace Raven.Server.Documents.Handlers.Processors.Studio
         public StudioStatsHandlerProcessorForGetFooterStats([NotNull] DatabaseRequestHandler requestHandler) : base(requestHandler)
         {
         }
+
+        protected override Task HandleRemoteNodeAsync(ProxyCommand<FooterStatistics> command, OperationCancelToken token) => RequestHandler.ExecuteRemoteAsync(command, token.Token);
 
         protected override ValueTask<FooterStatistics> GetFooterStatisticsAsync()
         {

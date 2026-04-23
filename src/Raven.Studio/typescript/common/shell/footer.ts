@@ -75,7 +75,7 @@ class footer {
         this.spinners.loading(true);
 
         this.fetchStats()
-            .done((stats) => {
+            .then((stats) => {
                 const newStats = new footerStats();
                 newStats.countOfDocuments(stats.CountOfDocuments);
                 newStats.countOfIndexes(stats.CountOfIndexes);
@@ -85,7 +85,7 @@ class footer {
                 newStats.countOfAiTasksErrors(stats.CountOfAiTasksErrors);
                 this.stats(newStats);
             })
-            .always(() => this.spinners.loading(false));
+            .finally(() => this.spinners.loading(false));
     }
     
     logout() {
@@ -103,7 +103,7 @@ class footer {
 
     refreshStats() {
         this.fetchStats()
-            .done((stats) => {
+            .then((stats) => {
                 const currentStats = this.stats();
                 if (!currentStats) {
                     return;
@@ -117,10 +117,36 @@ class footer {
             });
     }
 
-    private fetchStats(): JQueryPromise<Raven.Server.Documents.Studio.FooterStatistics> {
+    private async fetchStats(): Promise<Raven.Server.Documents.Studio.FooterStatistics> {
         const db = this.db();
-        return new getDatabaseFooterStatsCommand(db)
-            .execute();
+        const locations = db.getLocations();
+
+        const results = await Promise.all(
+            locations.map((loc) => new getDatabaseFooterStatsCommand(db, loc.nodeTag).execute())
+        );
+
+        const staleIndexes = [...new Set(results.flatMap((s) => s.StaleIndexes ?? []))];
+
+        return results.reduce(
+            (acc, stats) => ({
+                CountOfDocuments: acc.CountOfDocuments + stats.CountOfDocuments,
+                CountOfIndexes: stats.CountOfIndexes,
+                CountOfIndexingErrors: acc.CountOfIndexingErrors + stats.CountOfIndexingErrors,
+                CountOfEtlTasksErrors: acc.CountOfEtlTasksErrors + stats.CountOfEtlTasksErrors,
+                CountOfAiTasksErrors: acc.CountOfAiTasksErrors + stats.CountOfAiTasksErrors,
+                StaleIndexes: staleIndexes,
+                CountOfStaleIndexes: staleIndexes.length,
+            }),
+            {
+                CountOfDocuments: 0,
+                CountOfIndexes: 0,
+                CountOfIndexingErrors: 0,
+                CountOfEtlTasksErrors: 0,
+                CountOfAiTasksErrors: 0,
+                StaleIndexes: [],
+                CountOfStaleIndexes: 0,
+            }
+        );
     }
 
     private onDatabaseStats(event: Raven.Server.NotificationCenter.Notifications.DatabaseStatsChanged) {
