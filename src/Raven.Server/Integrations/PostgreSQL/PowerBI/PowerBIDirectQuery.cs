@@ -7,6 +7,7 @@ using Raven.Server.Documents.Queries;
 using Raven.Server.Documents.Queries.AST;
 using Sparrow.Json;
 using Sparrow.Json.Parsing;
+using JsAst = Acornima.Ast;
 
 namespace Raven.Server.Integrations.PostgreSQL.PowerBI
 {
@@ -1119,15 +1120,27 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 if (projectionCols == null || projectionCols.Count == 0)
                     return null;
 
+                // If the inner RQL already produces an object projection (e.g. `select { Name: name(e), Title: e.Title }`)
+                // whose top-level keys exactly match the outer wrapper's projected columns, preserve that projection
+                // verbatim. Rebuilding it as `{ col: alias.col }` would drop computed expressions — including any
+                // declare-function calls — and silently return empty strings for the synthesized fields.
+                var preserveInnerProjection =
+                    TryGetSelectFunctionBodyObjectKeys(q.SelectFunctionBody.FunctionText, out var innerKeys) &&
+                    ProjectionKeysEqual(projectionCols, innerKeys);
+
                 var core = q.ShallowCopy();
                 core.IsDistinct = false;
                 core.Filter = null;
                 core.FilterLimit = null;
                 core.OrderBy = null;
-                core.Select = null;
-                core.SelectFunctionBody = default;
                 core.Limit = null;
                 core.Offset = null;
+
+                if (preserveInnerProjection == false)
+                {
+                    core.Select = null;
+                    core.SelectFunctionBody = default;
+                }
 
                 var prefix = core.ToString();
                 if (string.IsNullOrWhiteSpace(prefix))
@@ -1136,43 +1149,47 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 prefix = prefix.TrimEnd();
                 prefix = prefix.Replace("\r\n", "\n", StringComparison.Ordinal);
 
-                var selectParts = new List<string>(capacity: projectionCols.Count);
-                for (int i = 0; i < projectionCols.Count; i++)
-                {
-                    var colName = projectionCols[i];
-                    if (string.IsNullOrWhiteSpace(colName))
-                        return null;
-
-                    if (string.Equals(colName, "json()", StringComparison.OrdinalIgnoreCase))
-                    {
-                        selectParts.Add($"\"json()\": {q.From.Alias}");
-                        continue;
-                    }
-
-                    if (string.Equals(colName, "id()", StringComparison.OrdinalIgnoreCase))
-                    {
-                        selectParts.Add($"\"id()\": id({q.From.Alias})");
-                        continue;
-                    }
-
-                    var selectField = FormatRqlObjectFieldIdentifier(colName);
-                    if (selectField == null)
-                        return null;
-
-                    var expr = BuildFieldExpression(colName, q.From.Alias?.Value);
-                    if (expr == null)
-                        return null;
-
-                    selectParts.Add($"{selectField}: {expr}");
-                }
-
                 const string nl = "\n";
                 var sb = new StringBuilder();
                 sb.Append(prefix);
-                sb.Append(nl);
-                sb.Append("select { ");
-                sb.Append(string.Join(", ", selectParts));
-                sb.Append(" }");
+
+                if (preserveInnerProjection == false)
+                {
+                    var selectParts = new List<string>(capacity: projectionCols.Count);
+                    for (int i = 0; i < projectionCols.Count; i++)
+                    {
+                        var colName = projectionCols[i];
+                        if (string.IsNullOrWhiteSpace(colName))
+                            return null;
+
+                        if (string.Equals(colName, "json()", StringComparison.OrdinalIgnoreCase))
+                        {
+                            selectParts.Add($"\"json()\": {q.From.Alias}");
+                            continue;
+                        }
+
+                        if (string.Equals(colName, "id()", StringComparison.OrdinalIgnoreCase))
+                        {
+                            selectParts.Add($"\"id()\": id({q.From.Alias})");
+                            continue;
+                        }
+
+                        var selectField = FormatRqlObjectFieldIdentifier(colName);
+                        if (selectField == null)
+                            return null;
+
+                        var expr = BuildFieldExpression(colName, q.From.Alias?.Value);
+                        if (expr == null)
+                            return null;
+
+                        selectParts.Add($"{selectField}: {expr}");
+                    }
+
+                    sb.Append(nl);
+                    sb.Append("select { ");
+                    sb.Append(string.Join(", ", selectParts));
+                    sb.Append(" }");
+                }
 
                 if (limit >= 0)
                 {
@@ -1182,6 +1199,90 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 }
 
                 return sb.ToString();
+            }
+
+            // Returns true when the outer projection and the inner object-projection body expose the same
+            // set of top-level keys (case-insensitive, ignoring order). This is the only case in which it
+            // is safe to hand the inner projection through unchanged — any mismatch means the outer shape
+            // exposes columns the inner query does not produce (or vice versa).
+            static bool ProjectionKeysEqual(IReadOnlyList<string> projectionCols, IReadOnlyCollection<string> innerKeys)
+            {
+                if (projectionCols == null || innerKeys == null)
+                    return false;
+
+                if (projectionCols.Count != innerKeys.Count)
+                    return false;
+
+                var innerSet = new HashSet<string>(innerKeys, StringComparer.OrdinalIgnoreCase);
+                if (innerSet.Count != innerKeys.Count)
+                    return false;
+
+                foreach (var c in projectionCols)
+                {
+                    if (string.IsNullOrWhiteSpace(c))
+                        return false;
+                    if (innerSet.Contains(c) == false)
+                        return false;
+                }
+
+                return true;
+            }
+
+            // Reads the top-level keys of an RQL object-projection body via Acornima, the same JS
+            // parser Raven uses for projection validation (see QueryMetadata.ValidateScript). The body
+            // `{ k1: v1, k2: v2, ... }` is parsed as `return { ... };`, so we expect a single
+            // ReturnStatement whose argument is an ObjectExpression. Anything else — spreads, computed
+            // keys, non-string-literal keys, parse failures — is rejected so the caller falls back to
+            // the safe rewrite path. QueryMetadata.ParseQuery only captures FunctionText; Program is
+            // populated later during full metadata construction, which is why we parse here directly.
+            static bool TryGetSelectFunctionBodyObjectKeys(string functionText, out List<string> keys)
+            {
+                keys = null;
+
+                if (string.IsNullOrWhiteSpace(functionText))
+                    return false;
+
+                JsAst.Script script;
+                try
+                {
+                    var parser = new Acornima.Parser(new Acornima.ParserOptions { AllowReturnOutsideFunction = true, Tolerant = true });
+                    script = parser.ParseScript("return " + functionText);
+                }
+                catch
+                {
+                    return false;
+                }
+
+                if (script?.Body is not { Count: 1 } body)
+                    return false;
+
+                if (body[0] is not JsAst.ReturnStatement ret || ret.Argument is not JsAst.ObjectExpression obj)
+                    return false;
+
+                var result = new List<string>(capacity: obj.Properties.Count);
+                foreach (var node in obj.Properties)
+                {
+                    if (node is not JsAst.Property { Computed: false } prop)
+                        return false;
+
+                    string name = prop.Key switch
+                    {
+                        JsAst.Identifier id => id.Name,
+                        JsAst.StringLiteral sl => sl.Value,
+                        _ => null
+                    };
+
+                    if (string.IsNullOrEmpty(name))
+                        return false;
+
+                    result.Add(name);
+                }
+
+                if (result.Count == 0)
+                    return false;
+
+                keys = result;
+                return true;
             }
 
             static string BuildFieldExpression(string fieldName, string fromAlias)
