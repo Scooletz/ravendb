@@ -28,9 +28,9 @@ public unsafe class TaskErrorsStorage
         _txMerger = txMerger;
     }
 
-    private Table EnsureProcessErrorsTableCreated(Transaction tx, TaskType taskType, string taskName)
+    private Table EnsureProcessErrorsTableCreated(Transaction tx, TaskErrorSource taskErrorSource, string taskName)
     {
-        var tableName = GetProcessErrorsTableName(taskType, taskName);
+        var tableName = GetProcessErrorsTableName(taskErrorSource, taskName);
 
         if (tx.IsWriteTransaction && _tablesCreated.Contains(tableName) == false)
         {
@@ -47,9 +47,9 @@ public unsafe class TaskErrorsStorage
         return tx.OpenTable(Schemas.TaskProcessErrors.Current, tableName);
     }
 
-    private Table EnsureItemErrorsTableCreated(Transaction tx, TaskType taskType, string taskName)
+    private Table EnsureItemErrorsTableCreated(Transaction tx, TaskErrorSource taskErrorSource, string taskName)
     {
-        var tableName = GetItemErrorsTableName(taskType, taskName);
+        var tableName = GetItemErrorsTableName(taskErrorSource, taskName);
 
         if (tx.IsWriteTransaction && _tablesCreated.Contains(tableName) == false)
         {
@@ -66,16 +66,16 @@ public unsafe class TaskErrorsStorage
         return tx.OpenTable(Schemas.TaskItemErrors.Current, tableName);
     }
 
-    internal void DeleteTaskErrorsTablesForTask(TaskType taskType, string taskName)
+    internal void DeleteTaskErrorsTablesForTask(TaskErrorSource taskErrorSource, string taskName)
     {
-        _txMerger.EnqueueSync(new DeleteTaskErrorsTablesForTaskCommand(taskType, taskName));
+        _txMerger.EnqueueSync(new DeleteTaskErrorsTablesForTaskCommand(taskErrorSource, taskName));
     }
 
-    internal void DeleteTaskErrorsTablesForTask<T>(TransactionOperationContext<T> context, TaskType taskType, string taskName)
+    internal void DeleteTaskErrorsTablesForTask<T>(TransactionOperationContext<T> context, TaskErrorSource taskErrorSource, string taskName)
         where T : RavenTransaction
     {
-        var processErrorsTableName = GetProcessErrorsTableName(taskType, taskName);
-        var itemErrorsTableName = GetItemErrorsTableName(taskType, taskName);
+        var processErrorsTableName = GetProcessErrorsTableName(taskErrorSource, taskName);
+        var itemErrorsTableName = GetItemErrorsTableName(taskErrorSource, taskName);
 
         var tx = context.Transaction.InnerTransaction;
 
@@ -92,15 +92,15 @@ public unsafe class TaskErrorsStorage
         };
     }
 
-    internal void StoreProcessError(TaskType taskType, TaskProcessError processError)
+    internal void StoreProcessError(TaskErrorSource taskErrorSource, TaskProcessError processError)
     {
-        _txMerger.EnqueueSync(new StoreTaskProcessErrorCommand(taskType, processError));
+        _txMerger.EnqueueSync(new StoreTaskProcessErrorCommand(taskErrorSource, processError));
     }
 
-    internal void StoreProcessError<T>(TransactionOperationContext<T> context, TaskType taskType, TaskProcessError processError)
+    internal void StoreProcessError<T>(TransactionOperationContext<T> context, TaskErrorSource taskErrorSource, TaskProcessError processError)
         where T : RavenTransaction
     {
-        var table = EnsureProcessErrorsTableCreated(context.Transaction.InnerTransaction, taskType, processError.TaskName);
+        var table = EnsureProcessErrorsTableCreated(context.Transaction.InnerTransaction, taskErrorSource, processError.TaskName);
 
         var createdAtTicks = Bits.SwapBytes(processError.CreatedAt.Ticks);
         var affectedDocumentsCountSwapped = Bits.SwapBytes(processError.AffectedDocumentsCount);
@@ -131,15 +131,15 @@ public unsafe class TaskErrorsStorage
         }
     }
 
-    internal void StoreItemErrors(TaskType taskType, string taskName, List<TaskItemError> itemErrors)
+    internal void StoreItemErrors(TaskErrorSource taskErrorSource, string taskName, List<TaskItemError> itemErrors)
     {
-        _txMerger.EnqueueSync(new StoreTaskItemErrorsCommand(taskType, taskName, itemErrors));
+        _txMerger.EnqueueSync(new StoreTaskItemErrorsCommand(taskErrorSource, taskName, itemErrors));
     }
 
-    internal void StoreItemErrors<T>(TransactionOperationContext<T> context, TaskType taskType, string taskName, List<TaskItemError> itemErrors)
+    internal void StoreItemErrors<T>(TransactionOperationContext<T> context, TaskErrorSource taskErrorSource, string taskName, List<TaskItemError> itemErrors)
         where T : RavenTransaction
     {
-        var table = EnsureItemErrorsTableCreated(context.Transaction.InnerTransaction, taskType, taskName);
+        var table = EnsureItemErrorsTableCreated(context.Transaction.InnerTransaction, taskErrorSource, taskName);
 
         foreach (var itemError in itemErrors)
         {
@@ -208,16 +208,16 @@ public unsafe class TaskErrorsStorage
         };
     }
 
-    public List<TaskProcessErrorTableValue> ReadAllProcessErrors(TaskType taskType)
+    public List<TaskProcessErrorTableValue> ReadAllProcessErrors(TaskErrorSource taskErrorSource)
     {
         var errors = new List<TaskProcessErrorTableValue>();
 
         using (_contextPool.AllocateOperationContext(out DocumentsOperationContext context))
         using (context.OpenReadTransaction())
         {
-            foreach (var taskName in EnumerateStoredTaskNames(taskType, context.Transaction.InnerTransaction, Schemas.TaskProcessErrors.TaskProcessErrorsTree))
+            foreach (var taskName in EnumerateStoredTaskNames(taskErrorSource, context.Transaction.InnerTransaction, Schemas.TaskProcessErrors.TaskProcessErrorsTree))
             {
-                var processErrors = ReadProcessErrorsOfTask(taskType, taskName, context);
+                var processErrors = ReadProcessErrorsOfTask(context, taskName, taskErrorSource);
                 errors.AddRange(processErrors);
             }
         }
@@ -225,16 +225,50 @@ public unsafe class TaskErrorsStorage
         return errors;
     }
 
-    public List<TaskItemErrorTableValue> ReadAllItemErrors(TaskType taskType)
+    public List<(string TaskName, List<TaskProcessErrorTableValue> ProcessErrors, List<TaskItemErrorTableValue> ItemErrors)> ReadAllErrorsGroupedByTask(TaskErrorSource taskErrorSource)
+    {
+        using (_contextPool.AllocateOperationContext(out DocumentsOperationContext context))
+        using (context.OpenReadTransaction())
+        {
+            var tx = context.Transaction.InnerTransaction;
+            var taskNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var name in EnumerateStoredTaskNames(taskErrorSource, tx, Schemas.TaskProcessErrors.TaskProcessErrorsTree))
+                taskNames.Add(name);
+            foreach (var name in EnumerateStoredTaskNames(taskErrorSource, tx, Schemas.TaskItemErrors.TaskItemErrorsTree))
+                taskNames.Add(name);
+
+            var result = new List<(string, List<TaskProcessErrorTableValue>, List<TaskItemErrorTableValue>)>(taskNames.Count);
+
+            foreach (var taskName in taskNames)
+            {
+                var processErrors = ReadProcessErrorsOfTask(context, taskName, taskErrorSource).ToList();
+                var itemErrors = ReadItemErrorsOfTask(context, taskName, taskErrorSource).ToList();
+
+                // Table names are lowercased (see GetProcessErrorsTableName), but the TaskName field
+                // stored in each row preserves the original case from when the error was written.
+                // Use the row value so the Studio can do a case-sensitive match against EtlTaskStats.TaskName.
+                var originalCaseName = processErrors.FirstOrDefault()?.TaskName
+                    ?? itemErrors.FirstOrDefault()?.TaskName
+                    ?? taskName;
+
+                result.Add((originalCaseName, processErrors, itemErrors));
+            }
+
+            return result;
+        }
+    }
+
+    public List<TaskItemErrorTableValue> ReadAllItemErrors(TaskErrorSource taskErrorSource)
     {
         var errors = new List<TaskItemErrorTableValue>();
 
         using (_contextPool.AllocateOperationContext(out DocumentsOperationContext context))
         using (context.OpenReadTransaction())
         {
-            foreach (var taskName in EnumerateStoredTaskNames(taskType, context.Transaction.InnerTransaction, Schemas.TaskItemErrors.TaskItemErrorsTree))
+            foreach (var taskName in EnumerateStoredTaskNames(taskErrorSource, context.Transaction.InnerTransaction, Schemas.TaskItemErrors.TaskItemErrorsTree))
             {
-                var itemErrors = ReadItemErrorsOfTask(taskType, taskName, context);
+                var itemErrors = ReadItemErrorsOfTask(context, taskName, taskErrorSource);
                 errors.AddRange(itemErrors);
             }
         }
@@ -242,7 +276,7 @@ public unsafe class TaskErrorsStorage
         return errors;
     }
 
-    public long ReadTotalErrorsCount(TaskType taskType)
+    public long ReadTotalErrorsCount(TaskErrorSource taskErrorSource)
     {
         var errorsCount = 0L;
 
@@ -252,74 +286,74 @@ public unsafe class TaskErrorsStorage
             var tx = context.Transaction.InnerTransaction;
             var taskNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-            foreach (var name in EnumerateStoredTaskNames(taskType, tx, Schemas.TaskProcessErrors.TaskProcessErrorsTree))
+            foreach (var name in EnumerateStoredTaskNames(taskErrorSource, tx, Schemas.TaskProcessErrors.TaskProcessErrorsTree))
                 taskNames.Add(name);
-            foreach (var name in EnumerateStoredTaskNames(taskType, tx, Schemas.TaskItemErrors.TaskItemErrorsTree))
+            foreach (var name in EnumerateStoredTaskNames(taskErrorSource, tx, Schemas.TaskItemErrors.TaskItemErrorsTree))
                 taskNames.Add(name);
 
             foreach (var taskName in taskNames)
-                errorsCount += ReadErrorsCountOfTask(taskType, taskName, context);
+                errorsCount += ReadErrorsCountOfTask(context, taskName, taskErrorSource);
         }
 
         return errorsCount;
     }
 
-    public long ReadErrorsCountOfTask(TaskType taskType, string taskName)
+    public long ReadErrorsCountOfTask(TaskErrorSource taskErrorSource, string taskName)
     {
         using (_contextPool.AllocateOperationContext(out DocumentsOperationContext context))
         using (context.OpenReadTransaction())
         {
-            return ReadErrorsCountOfTask(taskType, taskName, context);
+            return ReadErrorsCountOfTask(context, taskName, taskErrorSource);
         }
     }
 
-    private long ReadErrorsCountOfTask(TaskType taskType, string taskName, DocumentsOperationContext context)
+    private long ReadErrorsCountOfTask(DocumentsOperationContext context, string taskName, TaskErrorSource taskErrorSource)
     {
-        var processErrorsCount = ReadProcessErrorsCountOfTask(taskType, taskName, context);
-        var itemErrorsCount = ReadItemErrorsCountOfTask(taskType, taskName, context);
+        var processErrorsCount = ReadProcessErrorsCountOfTask(context, taskName, taskErrorSource);
+        var itemErrorsCount = ReadItemErrorsCountOfTask(context, taskName, taskErrorSource);
 
         return processErrorsCount + itemErrorsCount;
     }
 
-    private long ReadProcessErrorsCountOfTask(TaskType taskType, string taskName, DocumentsOperationContext context)
+    private long ReadProcessErrorsCountOfTask(DocumentsOperationContext context, string taskName, TaskErrorSource taskErrorSource)
     {
-        var table = EnsureProcessErrorsTableCreated(context.Transaction.InnerTransaction, taskType, taskName);
+        var table = EnsureProcessErrorsTableCreated(context.Transaction.InnerTransaction, taskErrorSource, taskName);
         if (table == null)
             return 0;
 
         return table.NumberOfEntries;
     }
 
-    private long ReadItemErrorsCountOfTask(TaskType taskType, string taskName, DocumentsOperationContext context)
+    private long ReadItemErrorsCountOfTask(DocumentsOperationContext context, string taskName, TaskErrorSource taskErrorSource)
     {
-        var table = EnsureItemErrorsTableCreated(context.Transaction.InnerTransaction, taskType, taskName);
+        var table = EnsureItemErrorsTableCreated(context.Transaction.InnerTransaction, taskErrorSource, taskName);
         if (table == null)
             return 0;
 
         return table.NumberOfEntries;
     }
 
-    public List<TaskProcessErrorTableValue> ReadProcessErrorsOfTask(TaskType taskType, string taskName)
+    public List<TaskProcessErrorTableValue> ReadProcessErrorsOfTask(TaskErrorSource taskErrorSource, string taskName)
     {
         using (_contextPool.AllocateOperationContext(out DocumentsOperationContext context))
         using (context.OpenReadTransaction())
         {
-            return ReadProcessErrorsOfTask(taskType, taskName, context).ToList();
+            return ReadProcessErrorsOfTask(context, taskName, taskErrorSource).ToList();
         }
     }
 
-    public List<TaskItemErrorTableValue> ReadItemErrorsOfTask(TaskType taskType, string taskName)
+    public List<TaskItemErrorTableValue> ReadItemErrorsOfTask(TaskErrorSource taskErrorSource, string taskName)
     {
         using (_contextPool.AllocateOperationContext(out DocumentsOperationContext context))
         using (context.OpenReadTransaction())
         {
-            return ReadItemErrorsOfTask(taskType, taskName, context).ToList();
+            return ReadItemErrorsOfTask(context, taskName, taskErrorSource).ToList();
         }
     }
 
-    private IEnumerable<TaskProcessErrorTableValue> ReadProcessErrorsOfTask(TaskType taskType, string taskName, DocumentsOperationContext context)
+    private IEnumerable<TaskProcessErrorTableValue> ReadProcessErrorsOfTask(DocumentsOperationContext context, string taskName, TaskErrorSource taskErrorSource)
     {
-        var table = EnsureProcessErrorsTableCreated(context.Transaction.InnerTransaction, taskType, taskName);
+        var table = EnsureProcessErrorsTableCreated(context.Transaction.InnerTransaction, taskErrorSource, taskName);
         if (table == null)
             yield break;
 
@@ -331,9 +365,9 @@ public unsafe class TaskErrorsStorage
         }
     }
 
-    private IEnumerable<TaskItemErrorTableValue> ReadItemErrorsOfTask(TaskType taskType, string taskName, DocumentsOperationContext context)
+    private IEnumerable<TaskItemErrorTableValue> ReadItemErrorsOfTask(DocumentsOperationContext context, string taskName, TaskErrorSource taskErrorSource)
     {
-        var table = EnsureItemErrorsTableCreated(context.Transaction.InnerTransaction, taskType, taskName);
+        var table = EnsureItemErrorsTableCreated(context.Transaction.InnerTransaction, taskErrorSource, taskName);
         if (table == null)
             yield break;
 
@@ -345,12 +379,12 @@ public unsafe class TaskErrorsStorage
         }
     }
 
-    internal TaskProcessErrorTableValue ReadLatestProcessErrorOfTask(TaskType taskType, string taskName)
+    internal TaskProcessErrorTableValue ReadLatestProcessErrorOfTask(TaskErrorSource taskErrorSource, string taskName)
     {
         using (_contextPool.AllocateOperationContext(out DocumentsOperationContext context))
         using (context.OpenReadTransaction())
         {
-            var table = EnsureProcessErrorsTableCreated(context.Transaction.InnerTransaction, taskType, taskName);
+            var table = EnsureProcessErrorsTableCreated(context.Transaction.InnerTransaction, taskErrorSource, taskName);
 
             if (table == null)
                 return null;
@@ -368,14 +402,14 @@ public unsafe class TaskErrorsStorage
     {
         using (_contextPool.AllocateOperationContext(out DocumentsOperationContext context))
         {
-            List<(TaskType TaskType, string TaskName)> toDelete;
+            List<(TaskErrorSource TaskType, string TaskName)> toDelete;
 
             using (context.OpenReadTransaction())
             {
                 var tx = context.Transaction.InnerTransaction;
-                var seen = new HashSet<(TaskType, string)>();
+                var seen = new HashSet<(TaskErrorSource, string)>();
 
-                foreach (TaskType taskType in Enum.GetValues(typeof(TaskType)))
+                foreach (TaskErrorSource taskType in Enum.GetValues(typeof(TaskErrorSource)))
                 {
                     foreach (var name in EnumerateStoredTaskNames(taskType, tx, Schemas.TaskProcessErrors.TaskProcessErrorsTree))
                         seen.Add((taskType, name));
@@ -393,20 +427,20 @@ public unsafe class TaskErrorsStorage
 
     public void DeleteErrorsOfTask(string taskName)
     {
-        foreach (TaskType taskType in Enum.GetValues(typeof(TaskType)))
+        foreach (TaskErrorSource taskType in Enum.GetValues(typeof(TaskErrorSource)))
         {
             DeleteErrorsOfTask(taskType, taskName);
         }
     }
 
-    public void DeleteErrorsOfTask(TaskType taskType, string taskName)
+    public void DeleteErrorsOfTask(TaskErrorSource taskErrorSource, string taskName)
     {
-        DeleteTaskErrorsTablesForTask(taskType, taskName);
+        DeleteTaskErrorsTablesForTask(taskErrorSource, taskName);
     }
 
-    private static IEnumerable<string> EnumerateStoredTaskNames(TaskType taskType, Transaction tx, string tree)
+    private static IEnumerable<string> EnumerateStoredTaskNames(TaskErrorSource taskErrorSource, Transaction tx, string tree)
     {
-        var prefix = $"{taskType}.{tree}.";
+        var prefix = $"{taskErrorSource}.{tree}.";
 
         using (Slice.From(tx.Allocator, prefix, out Slice prefixSlice))
         using (var it = tx.LowLevelTransaction.RootObjects.Iterate(prefetch: false))
@@ -458,13 +492,13 @@ public unsafe class TaskErrorsStorage
         table.DeleteForwardFrom(Schemas.TaskItemErrors.Current.Indexes[Schemas.TaskItemErrors.ByCreatedAt], Slices.BeforeAllKeys, false, numberOfEntriesToDelete);
     }
 
-    private static string GetProcessErrorsTableName(TaskType taskType, string taskName)
+    private static string GetProcessErrorsTableName(TaskErrorSource taskErrorSource, string taskName)
     {
-        return $"{taskType}.{Schemas.TaskProcessErrors.TaskProcessErrorsTree}.{taskName.ToLowerInvariant()}";
+        return $"{taskErrorSource}.{Schemas.TaskProcessErrors.TaskProcessErrorsTree}.{taskName.ToLowerInvariant()}";
     }
 
-    private static string GetItemErrorsTableName(TaskType taskType, string taskName)
+    private static string GetItemErrorsTableName(TaskErrorSource taskErrorSource, string taskName)
     {
-        return $"{taskType}.{Schemas.TaskItemErrors.TaskItemErrorsTree}.{taskName.ToLowerInvariant()}";
+        return $"{taskErrorSource}.{Schemas.TaskItemErrors.TaskItemErrorsTree}.{taskName.ToLowerInvariant()}";
     }
 }

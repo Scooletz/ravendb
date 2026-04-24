@@ -1247,6 +1247,7 @@ namespace Orders
     static etlErrors(): EtlErrors[] {
         const etlError: EtlErrors = {
             TaskName: "ETL1/Transformation1",
+            EtlSubType: null,
             ProcessErrors: [],
             ItemErrors: [
                 {

@@ -12,13 +12,11 @@ using Sparrow.Json;
 
 namespace Raven.Server.Documents.ETL.Handlers.Processors;
 
-internal sealed class EtlHandlerProcessorForGetErrors : AbstractTaskErrorsHandlerProcessorForGetErrors<DatabaseRequestHandler, DocumentsOperationContext>
+internal sealed class TaskErrorsHandlerProcessorForGetAllErrors : AbstractTaskErrorsHandlerProcessorForGetAllErrors<DatabaseRequestHandler, DocumentsOperationContext>
 {
-    public EtlHandlerProcessorForGetErrors([NotNull] DatabaseRequestHandler requestHandler) : base(requestHandler)
+    public TaskErrorsHandlerProcessorForGetAllErrors([NotNull] DatabaseRequestHandler requestHandler) : base(requestHandler)
     {
     }
-
-    protected override TaskErrorSource TaskErrorSource => TaskErrorSource.Etl;
 
     protected override bool SupportsCurrentNode => true;
 
@@ -33,33 +31,14 @@ internal sealed class EtlHandlerProcessorForGetErrors : AbstractTaskErrorsHandle
             response.ShardNumber = shardedDatabase.ShardNumber;
 
         var storage = RequestHandler.Database.TaskErrorsStorage;
-        var taskNames = GetNames();
         var processesByName = RequestHandler.Database.EtlLoader.Processes
             .ToDictionary(p => p.Name, p => p, StringComparer.OrdinalIgnoreCase);
 
-        if (taskNames.Count == 0)
+        foreach (TaskErrorSource taskType in Enum.GetValues(typeof(TaskErrorSource)))
         {
-            foreach (var (taskName, processErrors, itemErrors) in storage.ReadAllErrorsGroupedByTask(TaskErrorSource))
+            foreach (var (taskName, processErrors, itemErrors) in storage.ReadAllErrorsGroupedByTask(taskType))
             {
                 processesByName.TryGetValue(taskName, out var process);
-
-                response.Results.Add(new TaskErrors
-                {
-                    TaskName = taskName,
-                    EtlType = process?.EtlType,
-                    EtlSubType = process?.EtlSubType,
-                    ProcessErrors = processErrors.Select(x => x.ToTaskProcessError()).ToArray(),
-                    ItemErrors = itemErrors.Select(x => x.ToTaskItemError()).ToArray()
-                });
-            }
-        }
-        else
-        {
-            foreach (var taskName in taskNames)
-            {
-                processesByName.TryGetValue(taskName, out var process);
-                var processErrors = storage.ReadProcessErrorsOfTask(TaskErrorSource, taskName);
-                var itemErrors = storage.ReadItemErrorsOfTask(TaskErrorSource, taskName);
 
                 response.Results.Add(new TaskErrors
                 {
@@ -89,7 +68,7 @@ internal sealed class EtlHandlerProcessorForGetErrors : AbstractTaskErrorsHandle
                     writer.WriteNull();
                 writer.WriteComma();
 
-                writer.WriteArray(context, nameof(Response.Results), response.Results, (w, c, errors) => w.WriteObject(c.ReadObject(errors.ToJson(), "etl/errors")));
+                writer.WriteArray(context, nameof(Response.Results), response.Results, (w, c, errors) => w.WriteObject(c.ReadObject(errors.ToJson(), "task-errors")));
                 writer.WriteEndObject();
             }
         }

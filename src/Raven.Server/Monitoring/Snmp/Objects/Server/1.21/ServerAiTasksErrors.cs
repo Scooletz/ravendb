@@ -20,7 +20,7 @@ public class ServerAiTasksErrors : ScalarObjectBase<Integer32>
         
         foreach (var db in _store.DatabasesLandlord.DatabasesCache)
         {
-            result += (int)db.Value.GetAwaiter().GetResult().TaskErrorsStorage.ReadTotalErrorsCount(TaskType.Ai);
+            result += (int)db.Value.GetAwaiter().GetResult().TaskErrorsStorage.ReadTotalErrorsCount(TaskErrorSource.Ai);
         }
         
         return new Integer32(result);

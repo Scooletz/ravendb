@@ -17,11 +17,13 @@ class getEtlErrorsCommand extends commandBase {
 
         if (this.taskNames.length > 0) {
             args.name = this.taskNames;
+            const url = endpoints.databases.etl.etlErrors + this.urlEncodeArgs(args);
+            return this.query<EtlErrors[]>(url, null, this.db, (res) => res.Results);
         }
-        
-        const url = endpoints.databases.etl.etlErrors + this.urlEncodeArgs(args);
 
-        return this.query<EtlErrors[]>(url, null, this.db, (res) => res.Results)
+        // No names specified — fetch all task errors (ETL + AI) from the unified endpoint
+        const url = endpoints.databases.taskErrors.taskErrors + this.urlEncodeArgs(args);
+        return this.query<EtlErrors[]>(url, null, this.db, (res) => res.Results);
     }
 }
 

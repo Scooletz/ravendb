@@ -7,20 +7,20 @@ namespace Raven.Server.Documents.TransactionMerger.Commands;
 
 public class StoreTaskItemErrorsCommand : MergedTransactionCommand<DocumentsOperationContext, DocumentsTransaction>
 {
-    private readonly TaskType _taskType;
+    private readonly TaskErrorSource _taskErrorSource;
     private readonly string _taskName;
     private readonly List<TaskItemError> _itemErrors;
 
-    public StoreTaskItemErrorsCommand(TaskType taskType, string taskName, List<TaskItemError> itemErrors)
+    public StoreTaskItemErrorsCommand(TaskErrorSource taskErrorSource, string taskName, List<TaskItemError> itemErrors)
     {
-        _taskType = taskType;
+        _taskErrorSource = taskErrorSource;
         _taskName = taskName;
         _itemErrors = itemErrors;
     }
 
     protected override long ExecuteCmd(DocumentsOperationContext context)
     {
-        context.DocumentDatabase.TaskErrorsStorage.StoreItemErrors(context, _taskType, _taskName, _itemErrors);
+        context.DocumentDatabase.TaskErrorsStorage.StoreItemErrors(context, _taskErrorSource, _taskName, _itemErrors);
         return 1;
     }
 

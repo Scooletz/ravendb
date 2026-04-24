@@ -49,7 +49,7 @@ namespace SlowTests.Server.Documents.ETL
 
                     await etlDone.WaitAsync(TimeSpan.FromSeconds(5));
 
-                    var itemErrors = database.TaskErrorsStorage.ReadAllItemErrors(TaskType.Etl);
+                    var itemErrors = database.TaskErrorsStorage.ReadAllItemErrors(TaskErrorSource.Etl);
 
                     Assert.Equal(i + 1, itemErrors.Count);
 

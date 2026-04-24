@@ -16,13 +16,13 @@ internal abstract class AbstractTaskErrorsHandlerProcessorForGetErrors<TRequestH
     {
     }
 
-    protected abstract TaskType TaskType { get; }
+    protected abstract TaskErrorSource TaskErrorSource { get; }
 
     protected override RavenCommand<TaskErrors[]> CreateCommandForNode(string nodeTag)
     {
         var names = GetNames();
 
-        return new GetTaskErrorsCommand(TaskType, names, nodeTag);
+        return new GetTaskErrorsCommand(TaskErrorSource, names, nodeTag);
     }
 
     protected StringValues GetNames() => RequestHandler.GetStringValuesQueryString("name", required: false);

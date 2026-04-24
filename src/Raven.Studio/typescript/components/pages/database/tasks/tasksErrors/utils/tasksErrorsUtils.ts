@@ -57,6 +57,7 @@ export interface EtlTransformationWithErrors {
 
 export interface EtlTaskWithErrors {
     etlName: string;
+    etlType?: StudioEtlType;
     transformations: EtlTransformationWithErrors[];
 }
 
@@ -101,6 +102,7 @@ export function getTasksWithErrors(processes: EtlErrorsWithLocation[]): EtlTaskW
         .map(
             (group: EtlErrorsWithLocation[], etlName: string): EtlTaskWithErrors => ({
                 etlName,
+                etlType: TaskUtils.etlTypeToStudioType(group[0]?.EtlType, group[0]?.EtlSubType) || undefined,
                 transformations: _.chain(group)
                     .groupBy((p: EtlErrorsWithLocation) => parseProcessName(p.TaskName)[1])
                     .map(
@@ -137,7 +139,8 @@ export function flattenAllTasksErrors(tasksWithErrors: EtlTaskWithErrors[], etlS
     return tasksWithErrors.flatMap((task) => {
         const taskStats = etlStats.find((s) => s.TaskName === task.etlName);
         const taskId = taskStats?.TaskId;
-        const etlType = TaskUtils.etlTypeToStudioType(taskStats?.EtlType, taskStats?.EtlSubType);
+        const etlType =
+            TaskUtils.etlTypeToStudioType(taskStats?.EtlType, taskStats?.EtlSubType) ?? task.etlType;
 
         return task.transformations.flatMap((transformation) => {
             const healthStatus =

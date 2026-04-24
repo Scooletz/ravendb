@@ -263,7 +263,7 @@ interface TaskPanelProps extends EtlTaskWithErrors {
     onRefresh: () => void;
 }
 
-export function TaskPanel({ etlName, transformations, etlStats, onRefresh }: TaskPanelProps) {
+export function TaskPanel({ etlName, etlType: etlTypeFromErrors, transformations, etlStats, onRefresh }: TaskPanelProps) {
     const hasDatabaseWriteAccess = useAppSelector(accessManagerSelectors.getHasDatabaseWriteAccess)();
     const databaseName = useAppSelector(databaseSelectors.activeDatabaseName);
     const db = useAppSelector(databaseSelectors.activeDatabase);
@@ -279,7 +279,8 @@ export function TaskPanel({ etlName, transformations, etlStats, onRefresh }: Tas
     const { bg, icon, label } = healthStatusToBadge(taskHealth);
     const taskStats = etlStats.find((s) => s.TaskName === etlName);
     const taskId = taskStats?.TaskId;
-    const etlType = TaskUtils.etlTypeToStudioType(taskStats?.EtlType, taskStats?.EtlSubType);
+    const etlType =
+        TaskUtils.etlTypeToStudioType(taskStats?.EtlType, taskStats?.EtlSubType) ?? etlTypeFromErrors;
 
     const taskLink = getEtlEditLink(databaseName, taskId, etlType);
 
@@ -312,7 +313,7 @@ export function TaskPanel({ etlName, transformations, etlStats, onRefresh }: Tas
                             <Icon icon={isDetailsVisible ? "fold" : "unfold"} margin="m-0" />
                         </Button>
                     </RichPanelDetailItem>
-                    <EtlTypeRichPanelItem etlType={etlType} />
+                    {etlType && <EtlTypeRichPanelItem etlType={etlType} />}
                     <RichPanelDetailItem contentClassName="d-flex gap-1 align-items-center">
                         <Icon icon="warning" color="danger" margin="m-0" />
                         <span>Errors</span> <b>{errorsCount}</b>

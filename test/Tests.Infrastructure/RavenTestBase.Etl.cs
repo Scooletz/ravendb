@@ -244,7 +244,7 @@ namespace FastTests
             {
                 var database = await _parent.GetDatabase(databaseName);
 
-                var errors = database.TaskErrorsStorage.ReadItemErrorsOfTask(TaskType.Etl, $"{config.Name}/{config.Transforms.First().Name}");
+                var errors = database.TaskErrorsStorage.ReadItemErrorsOfTask(TaskErrorSource.Etl, $"{config.Name}/{config.Transforms.First().Name}");
 
                 return errors.Where(error => error.Step == (int)TaskErrorStep.Load);
             }
@@ -253,7 +253,7 @@ namespace FastTests
             {
                 var database = await _parent.GetDatabase(databaseName);
 
-                var errors = database.TaskErrorsStorage.ReadProcessErrorsOfTask(TaskType.Etl, $"{config.Name}/{config.Transforms.First().Name}");
+                var errors = database.TaskErrorsStorage.ReadProcessErrorsOfTask(TaskErrorSource.Etl, $"{config.Name}/{config.Transforms.First().Name}");
 
                 return errors.Where(error => error.Step == (int)TaskErrorStep.Load);
             }
@@ -262,7 +262,7 @@ namespace FastTests
             {
                 var database = await _parent.GetDatabase(databaseName);
 
-                var errors = database.TaskErrorsStorage.ReadItemErrorsOfTask(TaskType.Etl, $"{config.Name}/{config.Transforms.First().Name}");
+                var errors = database.TaskErrorsStorage.ReadItemErrorsOfTask(TaskErrorSource.Etl, $"{config.Name}/{config.Transforms.First().Name}");
 
                 return errors.Where(error => error.Step == (int)TaskErrorStep.Transformation);
             }

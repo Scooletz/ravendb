@@ -946,13 +946,18 @@ namespace Raven.Server.Documents.ETL
             if (toRemove.Count == 0)
                 return;
 
+            // Delete error tables only for processes that are truly gone (task deleted or moved).
+            // When a config changes (e.g. a transformation is removed), the still-valid processes
+            // are restarted under the same Name — skip those so their existing errors are preserved.
+            var restartedProcessNames = new HashSet<string>(_processes.Select(p => p.Name), StringComparer.OrdinalIgnoreCase);
+
             foreach (var processGroup in toRemove)
             {
-                if (responsibleNodes.ContainsKey(processGroup.Key))
-                    continue;
-
                 foreach (var process in processGroup.Value)
                 {
+                    if (restartedProcessNames.Contains(process.Name))
+                        continue;
+
                     _database.TaskErrorsStorage.DeleteTaskErrorsTablesForTask(TaskTypeExtensions.FromEtlType(process.EtlType), process.Name);
                 }
             }

@@ -6,18 +6,18 @@ namespace Raven.Server.Documents.TransactionMerger.Commands;
 
 public sealed class StoreTaskProcessErrorCommand : MergedTransactionCommand<DocumentsOperationContext, DocumentsTransaction>
 {
-    private readonly TaskType _taskType;
+    private readonly TaskErrorSource _taskErrorSource;
     private readonly TaskProcessError _processError;
 
-    public StoreTaskProcessErrorCommand(TaskType taskType, TaskProcessError processError)
+    public StoreTaskProcessErrorCommand(TaskErrorSource taskErrorSource, TaskProcessError processError)
     {
-        _taskType = taskType;
+        _taskErrorSource = taskErrorSource;
         _processError = processError;
     }
 
     protected override long ExecuteCmd(DocumentsOperationContext context)
     {
-        context.DocumentDatabase.TaskErrorsStorage.StoreProcessError(context, _taskType, _processError);
+        context.DocumentDatabase.TaskErrorsStorage.StoreProcessError(context, _taskErrorSource, _processError);
         return 1;
     }
 

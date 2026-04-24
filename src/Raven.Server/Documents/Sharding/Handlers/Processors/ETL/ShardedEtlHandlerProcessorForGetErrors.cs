@@ -16,7 +16,7 @@ internal sealed class ShardedEtlHandlerProcessorForGetErrors : AbstractTaskError
     {
     }
 
-    protected override TaskType TaskType => TaskType.Etl;
+    protected override TaskErrorSource TaskErrorSource => TaskErrorSource.Etl;
 
     protected override bool SupportsCurrentNode => false;
 

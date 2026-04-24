@@ -2,7 +2,7 @@ using Raven.Client.Documents.Operations.ETL;
 
 namespace Raven.Server.Documents.ETL;
 
-public enum TaskType
+public enum TaskErrorSource
 {
     Etl,
     Ai
@@ -10,10 +10,10 @@ public enum TaskType
 
 public static class TaskTypeExtensions
 {
-    public static TaskType FromEtlType(EtlType etlType)
+    public static TaskErrorSource FromEtlType(EtlType etlType)
     {
         return etlType is EtlType.EmbeddingsGeneration or EtlType.GenAi
-            ? TaskType.Ai
-            : TaskType.Etl;
+            ? TaskErrorSource.Ai
+            : TaskErrorSource.Etl;
     }
 }

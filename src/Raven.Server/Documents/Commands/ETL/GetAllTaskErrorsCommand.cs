@@ -1,23 +1,15 @@
-using System;
 using System.Net.Http;
-using Microsoft.AspNetCore.WebUtilities;
 using Raven.Client.Documents.Conventions;
 using Raven.Client.Http;
-using Raven.Server.Documents.ETL;
 using Raven.Server.Documents.ETL.Stats;
 using Sparrow.Json;
 
 namespace Raven.Server.Documents.Commands.ETL;
 
-internal sealed class GetTaskErrorsCommand : RavenCommand<TaskErrors[]>
+internal sealed class GetAllTaskErrorsCommand : RavenCommand<TaskErrors[]>
 {
-    private readonly TaskErrorSource _taskErrorSource;
-    private readonly string[] _names;
-
-    public GetTaskErrorsCommand(TaskErrorSource taskErrorSource, string[] names, string nodeTag)
+    public GetAllTaskErrorsCommand(string nodeTag)
     {
-        _taskErrorSource = taskErrorSource;
-        _names = names;
         SelectedNodeTag = nodeTag;
     }
 
@@ -25,22 +17,7 @@ internal sealed class GetTaskErrorsCommand : RavenCommand<TaskErrors[]>
 
     public override HttpRequestMessage CreateRequest(JsonOperationContext ctx, ServerNode node, out string url)
     {
-        var endpoint = _taskErrorSource switch
-        {
-            TaskErrorSource.Etl => "etl/errors",
-            TaskErrorSource.Ai => "ai/errors",
-            _ => throw new ArgumentOutOfRangeException(nameof(_taskErrorSource), _taskErrorSource, null)
-        };
-
-        url = $"{node.Url}/databases/{node.Database}/{endpoint}";
-
-        if (_names is { Length: > 0 })
-        {
-            foreach (var name in _names)
-            {
-                url = QueryHelpers.AddQueryString(url, "name", name);
-            }
-        }
+        url = $"{node.Url}/databases/{node.Database}/task-errors";
 
         return new HttpRequestMessage { Method = HttpMethod.Get };
     }

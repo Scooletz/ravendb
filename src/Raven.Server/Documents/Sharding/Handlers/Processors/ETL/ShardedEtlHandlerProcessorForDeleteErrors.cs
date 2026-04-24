@@ -15,7 +15,7 @@ internal sealed class ShardedEtlHandlerProcessorForDeleteErrors : AbstractTaskEr
     {
     }
 
-    protected override TaskType TaskType => TaskType.Etl;
+    protected override TaskErrorSource TaskErrorSource => TaskErrorSource.Etl;
 
     protected override bool SupportsCurrentNode => false;
 

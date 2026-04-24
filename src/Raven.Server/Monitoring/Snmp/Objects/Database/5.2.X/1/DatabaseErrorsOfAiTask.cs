@@ -13,8 +13,8 @@ public sealed class DatabaseErrorsOfAiTask : DatabaseEtlScalarObjectBase<Integer
 
     protected override Integer32 GetData(DocumentDatabase database)
     {
-        var processErrors = database.TaskErrorsStorage.ReadProcessErrorsOfTask(TaskType.Ai, EtlName);
-        var itemErrors = database.TaskErrorsStorage.ReadItemErrorsOfTask(TaskType.Ai, EtlName);
+        var processErrors = database.TaskErrorsStorage.ReadProcessErrorsOfTask(TaskErrorSource.Ai, EtlName);
+        var itemErrors = database.TaskErrorsStorage.ReadItemErrorsOfTask(TaskErrorSource.Ai, EtlName);
 
         return new Integer32(processErrors.Count + itemErrors.Count);
     }

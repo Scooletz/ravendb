@@ -10,23 +10,23 @@ namespace Raven.Server.Documents.Commands.ETL;
 
 internal sealed class DeleteTaskErrorsCommand : RavenCommand
 {
-    private readonly TaskType _taskType;
+    private readonly TaskErrorSource _taskErrorSource;
     private readonly StringValues _names;
 
-    public DeleteTaskErrorsCommand(TaskType taskType, string nodeTag, StringValues names)
+    public DeleteTaskErrorsCommand(StringValues names, TaskErrorSource taskErrorSource, string nodeTag)
     {
-        _taskType = taskType;
+        _taskErrorSource = taskErrorSource;
         _names = names;
         SelectedNodeTag = nodeTag;
     }
 
     public override HttpRequestMessage CreateRequest(JsonOperationContext ctx, ServerNode node, out string url)
     {
-        var path = _taskType switch
+        var path = _taskErrorSource switch
         {
-            TaskType.Etl => "etl/errors",
-            TaskType.Ai => "ai-tasks/errors",
-            _ => throw new ArgumentOutOfRangeException(nameof(_taskType), _taskType, "Unknown task type")
+            TaskErrorSource.Etl => "etl/errors",
+            TaskErrorSource.Ai => "ai/errors",
+            _ => throw new ArgumentOutOfRangeException(nameof(_taskErrorSource), _taskErrorSource, "Unknown task type")
         };
 
         url = $"{node.Url}/databases/{node.Database}/{path}";

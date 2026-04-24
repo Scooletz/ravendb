@@ -6,14 +6,14 @@ namespace Raven.Server.Documents.Sharding.Handlers;
 
 public sealed class ShardedAiTasksHandler : ShardedDatabaseRequestHandler
 {
-    [RavenShardedAction("/databases/*/ai-tasks/errors", "GET")]
+    [RavenShardedAction("/databases/*/ai/errors", "GET")]
     public async Task GetErrors()
     {
         using (var processor = new ShardedAiTasksHandlerProcessorForGetErrors(this))
             await processor.ExecuteAsync();
     }
 
-    [RavenShardedAction("/databases/*/ai-tasks/errors", "DELETE")]
+    [RavenShardedAction("/databases/*/ai/errors", "DELETE")]
     public async Task DeleteErrors()
     {
         using (var processor = new ShardedAiTasksHandlerProcessorForDeleteErrors(this))

@@ -20,7 +20,7 @@ public class ServerEtlErrors : ScalarObjectBase<Integer32>
         
         foreach (var db in _store.DatabasesLandlord.DatabasesCache)
         {
-            result += (int)db.Value.GetAwaiter().GetResult().TaskErrorsStorage.ReadTotalErrorsCount(TaskType.Etl);
+            result += (int)db.Value.GetAwaiter().GetResult().TaskErrorsStorage.ReadTotalErrorsCount(TaskErrorSource.Etl);
         }
         
         return new Integer32(result);

@@ -16,7 +16,7 @@ internal sealed class ShardedAiTasksHandlerProcessorForGetErrors : AbstractTaskE
     {
     }
 
-    protected override TaskType TaskType => TaskType.Ai;
+    protected override TaskErrorSource TaskErrorSource => TaskErrorSource.Ai;
 
     protected override bool SupportsCurrentNode => false;
 

@@ -64,7 +64,7 @@ namespace Raven.Server.Documents.ETL
 
         public abstract EtlType EtlType { get; }
 
-        public TaskType TaskType => TaskTypeExtensions.FromEtlType(EtlType);
+        public TaskErrorSource TaskErrorSource => TaskTypeExtensions.FromEtlType(EtlType);
 
         public virtual string EtlSubType { get; }
 
@@ -858,7 +858,7 @@ namespace Raven.Server.Documents.ETL
                                             LogSuccessfulBatchInfo(stats);
                                     }
                                     
-                                    Database.TaskErrorsStorage.StoreItemErrors(TaskType, Name, Statistics.ReadInMemoryItemErrors());
+                                    Database.TaskErrorsStorage.StoreItemErrors(TaskErrorSource, Name, Statistics.ReadInMemoryItemErrors());
                                 }
                             }
                             catch (OperationCanceledException)
@@ -883,7 +883,7 @@ namespace Raven.Server.Documents.ETL
                     }
 
                     Statistics.OnBatchCompletion();
-                    Statistics.BatchStopReason = Database.TaskErrorsStorage.ReadLatestProcessErrorOfTask(TaskType, Name)?.ToTaskProcessError();
+                    Statistics.BatchStopReason = Database.TaskErrorsStorage.ReadLatestProcessErrorOfTask(TaskErrorSource, Name)?.ToTaskProcessError();
 
                     if (didWork)
                     {
@@ -1155,7 +1155,7 @@ namespace Raven.Server.Documents.ETL
                 Error = error
             };
 
-            Database.TaskErrorsStorage.StoreProcessError(TaskType, taskError);
+            Database.TaskErrorsStorage.StoreProcessError(TaskErrorSource, taskError);
 
             Statistics.RecordProcessLoadError(count);
         }
@@ -1173,7 +1173,7 @@ namespace Raven.Server.Documents.ETL
                 Error = error
             };
 
-            Database.TaskErrorsStorage.StoreProcessError(TaskType, taskError);
+            Database.TaskErrorsStorage.StoreProcessError(TaskErrorSource, taskError);
         }
 
         internal void RecordUnknownError(string error)
@@ -1189,7 +1189,7 @@ namespace Raven.Server.Documents.ETL
                 Error = error
             };
 
-            Database.TaskErrorsStorage.StoreProcessError(TaskType, taskError);
+            Database.TaskErrorsStorage.StoreProcessError(TaskErrorSource, taskError);
         }
 
         public static TestEtlScriptResult TestScript<TC, TCS>(

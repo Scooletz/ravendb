@@ -19,7 +19,8 @@ export function GroupByTaskView({ tasksWithErrors, etlStats, filters, onRefresh 
         return tasksWithErrors
             .filter((task) => {
                 const taskStats = etlStats.find((s) => s.TaskName === task.etlName);
-                const taskEtlType = TaskUtils.etlTypeToStudioType(taskStats?.EtlType, taskStats?.EtlSubType);
+                const taskEtlType =
+                    TaskUtils.etlTypeToStudioType(taskStats?.EtlType, taskStats?.EtlSubType) ?? task.etlType;
                 const matchesTaskType = !taskTypes.length || (taskEtlType != null && taskTypes.includes(taskEtlType));
 
                 const taskHealth = getTaskHealthStatus(etlStats, task.etlName);

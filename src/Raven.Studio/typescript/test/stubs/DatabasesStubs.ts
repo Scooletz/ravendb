@@ -1284,6 +1284,7 @@ return docs[0];`,
         return [
             {
                 ProcessErrors: [],
+                EtlSubType: null,
                 ItemErrors: [
                     {
                         Id: "ETL1/Transformation1/users/1000-A",

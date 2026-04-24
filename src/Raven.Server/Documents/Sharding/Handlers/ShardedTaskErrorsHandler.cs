@@ -6,6 +6,13 @@ namespace Raven.Server.Documents.Sharding.Handlers;
 
 public sealed class ShardedTaskErrorsHandler : ShardedDatabaseRequestHandler
 {
+    [RavenShardedAction("/databases/*/task-errors", "GET")]
+    public async Task GetAllErrors()
+    {
+        using (var processor = new ShardedTaskErrorsHandlerProcessorForGetAllErrors(this))
+            await processor.ExecuteAsync();
+    }
+
     [RavenShardedAction("/databases/*/task-errors", "DELETE")]
     public async Task DeleteAllErrors()
     {
