@@ -346,7 +346,7 @@ public class RavenDB_21192 : RavenTestBase
 
             using (var commands = src.Commands())
             {
-                var deleteErrorsCommand = new DeleteEtlTaskErrorsCommand(processName);
+                var deleteErrorsCommand = new DeleteEtlTaskErrorsCommand([processName]);
                 await commands.ExecuteAsync(deleteErrorsCommand);
             }
 
@@ -473,13 +473,47 @@ public class RavenDB_21192 : RavenTestBase
                 Assert.Empty(secondTaskErrors.ItemErrors);
                 
                 var thirdTaskErrors = resultsObjectList.Single(x => x.TaskName == EtlProcess.GetProcessName(etlName2, transformationName3));
-                
+
                 Assert.Contains(thirdTaskErrors.ProcessErrors, x => x.AffectedDocumentsCount == 5);
                 Assert.Empty(thirdTaskErrors.ItemErrors);
+                
+                var cmdSingleTask = new GetEtlTaskErrorsCommand([EtlProcess.GetProcessName(etlName1, transformationName1)]);
+                await commands.ExecuteAsync(cmdSingleTask);
+
+                var resSingle = cmdSingleTask.Result as BlittableJsonReaderObject;
+                resSingle.TryGet(nameof(EtlHandlerProcessorForGetErrors.Response.Results), out BlittableJsonReaderArray resultsSingle);
+                var resultsSingleList = JsonConvert.DeserializeObject<List<TaskErrors>>(resultsSingle.ToString());
+
+                Assert.Single(resultsSingleList);
+                Assert.Equal(EtlProcess.GetProcessName(etlName1, transformationName1), resultsSingleList.Single().TaskName);
+                Assert.Equal(5, resultsSingleList.Single().ItemErrors.Length);
+                Assert.Empty(resultsSingleList.Single().ProcessErrors);
+                
+                var cmdTwoTasks = new GetEtlTaskErrorsCommand(
+                [
+                    EtlProcess.GetProcessName(etlName2, transformationName2),
+                    EtlProcess.GetProcessName(etlName2, transformationName3)
+                ]);
+                await commands.ExecuteAsync(cmdTwoTasks);
+
+                var resTwo = cmdTwoTasks.Result as BlittableJsonReaderObject;
+                resTwo.TryGet(nameof(EtlHandlerProcessorForGetErrors.Response.Results), out BlittableJsonReaderArray resultsTwo);
+                var resultsTwoList = JsonConvert.DeserializeObject<List<TaskErrors>>(resultsTwo.ToString());
+
+                Assert.Equal(2, resultsTwoList.Count);
+                Assert.DoesNotContain(resultsTwoList, x => x.TaskName == EtlProcess.GetProcessName(etlName1, transformationName1));
+
+                var secondTaskFiltered = resultsTwoList.Single(x => x.TaskName == EtlProcess.GetProcessName(etlName2, transformationName2));
+                Assert.Contains(secondTaskFiltered.ProcessErrors, x => x.AffectedDocumentsCount == 5);
+                Assert.Empty(secondTaskFiltered.ItemErrors);
+
+                var thirdTaskFiltered = resultsTwoList.Single(x => x.TaskName == EtlProcess.GetProcessName(etlName2, transformationName3));
+                Assert.Contains(thirdTaskFiltered.ProcessErrors, x => x.AffectedDocumentsCount == 5);
+                Assert.Empty(thirdTaskFiltered.ItemErrors);
             }
         }
     }
-    
+
     [RavenTheory(RavenTestCategory.Etl)]
     [RavenData(DatabaseMode = RavenDatabaseMode.Sharded)]
     public async Task TestGetEtlErrorsEndpointForShardedDatabase(Options options)
@@ -585,38 +619,79 @@ public class RavenDB_21192 : RavenTestBase
                                    loadToUsers(this);
                                    """;
             var collections1 = new List<string>() { "Users" };
-            
-                
+
+            const string connectionStringName2 = "ConnectionString2";
+            const string etlName2 = "ETL2";
+            const string transformationName2 = "Transformation2";
+            const string script2 = """
+                                   this.Name = 'Some Company';
+                                   throw new Error("dummy error");
+                                   loadToCompanies(this);
+                                   """;
+            var collections2 = new List<string>() { "Companies" };
+
             AddEtlTask(src, dest, etlName1, connectionStringName1, [transformationName1], [script1], collections1);
+            AddEtlTask(src, dest, etlName2, connectionStringName2, [transformationName2], [script2], collections2);
 
             using (var session = src.OpenAsyncSession())
             {
                 for (int i = 0; i < 5; i++)
                     await session.StoreAsync(new User { Name = "Joe Doe" });
+                for (int i = 0; i < 5; i++)
+                    await session.StoreAsync(new Company { Name = "Some Company" });
                 await session.SaveChangesAsync();
             }
 
             await WaitForEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1), stats => stats.TransformationErrors == 5);
+            await WaitForEtlStatsAsync(src, EtlProcess.GetProcessName(etlName2, transformationName2), stats => stats.TransformationErrors == 5);
 
             using (var commands = src.Commands())
             {
-                var deleteErrorsCommand = new DeleteEtlTaskErrorsCommand(EtlProcess.GetProcessName(etlName1, transformationName1));
-                await commands.ExecuteAsync(deleteErrorsCommand);
+                await commands.ExecuteAsync(new DeleteEtlTaskErrorsCommand([EtlProcess.GetProcessName(etlName1, transformationName1)]));
 
-                var getErrorsCommand = new GetEtlTaskErrorsCommand([EtlProcess.GetProcessName(etlName1, transformationName1)]);
-                await commands.ExecuteAsync(getErrorsCommand);
-                
-                var res = getErrorsCommand.Result as BlittableJsonReaderObject;
+                var getAfterFirstDelete = new GetEtlTaskErrorsCommand(
+                [
+                    EtlProcess.GetProcessName(etlName1, transformationName1),
+                    EtlProcess.GetProcessName(etlName2, transformationName2)
+                ]);
+                await commands.ExecuteAsync(getAfterFirstDelete);
 
-                Assert.NotNull(res);
+                var res1 = getAfterFirstDelete.Result as BlittableJsonReaderObject;
+                Assert.NotNull(res1);
+                res1.TryGet(nameof(EtlHandlerProcessorForGetErrors.Response.Results), out BlittableJsonReaderArray results1);
+                var list1 = JsonConvert.DeserializeObject<List<TaskErrors>>(results1.ToString());
+
+                var etl1AfterDelete = list1.Single(x => x.TaskName == EtlProcess.GetProcessName(etlName1, transformationName1));
+                Assert.Empty(etl1AfterDelete.ProcessErrors);
+                Assert.Empty(etl1AfterDelete.ItemErrors);
+
+                var etl2Untouched = list1.Single(x => x.TaskName == EtlProcess.GetProcessName(etlName2, transformationName2));
+                Assert.Equal(5, etl2Untouched.ItemErrors.Length);
                 
-                res.TryGet(nameof(EtlHandlerProcessorForGetErrors.Response.Results), out BlittableJsonReaderArray results);
-                var resultsObjectList = JsonConvert.DeserializeObject<List<TaskErrors>>(results.ToString());
-                
-                Assert.Single(resultsObjectList);
-                Assert.Equal(EtlProcess.GetProcessName(etlName1, transformationName1), resultsObjectList.Single().TaskName);
-                Assert.Empty(resultsObjectList.Single().ProcessErrors);
-                Assert.Empty(resultsObjectList.Single().ItemErrors);
+                await commands.ExecuteAsync(new DeleteEtlTaskErrorsCommand(
+                [
+                    EtlProcess.GetProcessName(etlName1, transformationName1),
+                    EtlProcess.GetProcessName(etlName2, transformationName2)
+                ]));
+
+                var getAfterSecondDelete = new GetEtlTaskErrorsCommand(
+                [
+                    EtlProcess.GetProcessName(etlName1, transformationName1),
+                    EtlProcess.GetProcessName(etlName2, transformationName2)
+                ]);
+                await commands.ExecuteAsync(getAfterSecondDelete);
+
+                var res2 = getAfterSecondDelete.Result as BlittableJsonReaderObject;
+                Assert.NotNull(res2);
+                res2.TryGet(nameof(EtlHandlerProcessorForGetErrors.Response.Results), out BlittableJsonReaderArray results2);
+                var list2 = JsonConvert.DeserializeObject<List<TaskErrors>>(results2.ToString());
+
+                Assert.Equal(2, list2.Count);
+                Assert.All(list2, t =>
+                {
+                    Assert.Empty(t.ProcessErrors);
+                    Assert.Empty(t.ItemErrors);
+                });
             }
         }
     }
@@ -1627,13 +1702,13 @@ public class RavenDB_21192 : RavenTestBase
     
     private class DeleteEtlTaskErrorsCommand : RavenCommand<object>
     {
-        private readonly string _taskName;
+        private readonly List<string> _taskNames;
         private readonly bool _isSharded;
         private readonly int _shardNumber;
-        
-        public DeleteEtlTaskErrorsCommand(string taskName, bool isSharded = false, int shardNumber = 0)
+
+        public DeleteEtlTaskErrorsCommand(List<string> taskNames, bool isSharded = false, int shardNumber = 0)
         {
-            _taskName = taskName;
+            _taskNames = taskNames;
             _isSharded = isSharded;
             _shardNumber = shardNumber;
         }
@@ -1641,20 +1716,20 @@ public class RavenDB_21192 : RavenTestBase
         public override HttpRequestMessage CreateRequest(JsonOperationContext ctx, ServerNode node, out string url)
         {
             var baseUrl = $"{node.Url}/databases/{node.Database}/etl/errors";
-            
-            var queryParams = new Dictionary<string, string>
+
+            var queryParams = new List<KeyValuePair<string, StringValues>>
             {
-                { "name", _taskName }
+                new("name", new StringValues(_taskNames.ToArray()))
             };
 
             if (_isSharded)
             {
-                queryParams.Add("nodeTag", node.ClusterTag);
-                queryParams.Add("shardNumber", _shardNumber.ToString());
+                queryParams.Add(new KeyValuePair<string, StringValues>("nodeTag", node.ClusterTag));
+                queryParams.Add(new KeyValuePair<string, StringValues>("shardNumber", _shardNumber.ToString()));
             }
-            
+
             url = QueryHelpers.AddQueryString(baseUrl, queryParams);
-            
+
             return new HttpRequestMessage
             {
                 Method = HttpMethod.Delete

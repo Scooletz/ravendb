@@ -286,7 +286,7 @@ function ItemWithTooltip(props: ItemWithTooltipProps) {
             etlErrorsList.map((e) => ({
                 ...e,
                 nodeTag: nodeInfo.location.nodeTag,
-                shard: nodeInfo.location.shardNumber,
+                shardNumber: nodeInfo.location.shardNumber,
             }))
         );
         const allErrors = flattenAllTasksErrors(tasksWithErrors, etlStats ?? []);
