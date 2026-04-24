@@ -293,7 +293,7 @@ function ItemWithTooltip(props: ItemWithTooltipProps) {
 
         const mostRecentError: FlatError = allErrors
             .sort((a, b) => +new Date(b.CreatedAt) - +new Date(a.CreatedAt))
-            .at(0)
+            .at(0);
 
         open({
             component: <EtlErrorDetailsSheet error={mostRecentError} allErrors={allErrors} initialIndex={0} />,

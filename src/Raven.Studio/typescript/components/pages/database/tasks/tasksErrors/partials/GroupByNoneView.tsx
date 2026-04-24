@@ -103,7 +103,7 @@ function useGroupByNoneTableColumns(availableWidth: number, hasProcessErrors: bo
                 ? [
                       {
                           header: "Shard",
-                          accessorKey: "shard",
+                          accessorKey: "shardNumber",
                           cell: CellShardValueWrapper,
                           size: getSize(3),
                           enableColumnFilter: false,
@@ -182,7 +182,7 @@ function GroupByNoneTable({
                 error.etlName.toLowerCase().includes(searchText.toLowerCase()) ||
                 error.transformationName?.toLowerCase().includes(searchText.toLowerCase());
             const matchesNode = !nodeTags.length || nodeTags.includes(error.nodeTag);
-            const matchesShard = !shardNumbers.length || shardNumbers.includes(String(error.shard));
+            const matchesShard = !shardNumbers.length || shardNumbers.includes(String(error.shardNumber));
             const matchesHealth =
                 !healthStatuses.length || healthStatuses.includes(error.healthStatus as EtlHealthStatus);
             const matchesTaskType = !taskTypes.length || taskTypes.includes(error.etlType);

@@ -121,10 +121,10 @@ class footer {
 
     private async fetchStats(): Promise<Raven.Server.Documents.Studio.FooterStatistics> {
         const db = this.db();
-        const locations = db.getLocations();
+        const uniqueNodeTags = [...new Set(db.getLocations().map((location) => location.nodeTag))];
 
         const results = await Promise.all(
-            locations.map((loc) => new getDatabaseFooterStatsCommand(db, loc.nodeTag).execute())
+            uniqueNodeTags.map((nodeTag) => new getDatabaseFooterStatsCommand(db, nodeTag).execute())
         );
 
         const staleIndexes = [...new Set(results.flatMap((s) => s.StaleIndexes ?? []))];

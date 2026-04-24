@@ -143,7 +143,7 @@ function useTasksErrorsPanelTableColumns(availableWidth: number, hasProcessError
         tasksErrorsPanelColumns.push({
             header: "Shard",
             cell: CellShardValueWrapper,
-            accessorKey: "shard",
+            accessorKey: "shardNumber",
             size: getSize(3),
             enableSorting: false,
         });

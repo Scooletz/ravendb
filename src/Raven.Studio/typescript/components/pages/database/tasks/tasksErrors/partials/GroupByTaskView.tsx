@@ -38,7 +38,7 @@ export function GroupByTaskView({ tasksWithErrors, etlStats, filters, onRefresh 
                         t.transformationName.toLowerCase().includes(searchText.toLowerCase());
                     const matchesNode = !nodeTags.length || allErrors.some((e) => nodeTags.includes(e.nodeTag));
                     const matchesShard =
-                        !shardNumbers.length || allErrors.some((e) => shardNumbers.includes(String(e.shard)));
+                        !shardNumbers.length || allErrors.some((e) => shardNumbers.includes(String(e.shardNumber)));
 
                     return matchesSearch && matchesNode && matchesShard;
                 }),

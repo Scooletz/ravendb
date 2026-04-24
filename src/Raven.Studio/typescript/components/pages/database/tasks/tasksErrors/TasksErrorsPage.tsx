@@ -246,7 +246,7 @@ function useTasksErrorsData() {
                   (x.data ?? []).map((error) => ({
                       ...error,
                       nodeTag: x.location.nodeTag,
-                      shard: x.location.shardNumber,
+                      shardNumber: x.location.shardNumber,
                   }))
               )
           );

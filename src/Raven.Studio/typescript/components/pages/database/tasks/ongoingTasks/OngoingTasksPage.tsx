@@ -84,7 +84,14 @@ interface OngoingTasksPageProps {
 
 type EtlOrAiOngoingTaskType = Extract<
     Raven.Client.Documents.Operations.OngoingTasks.OngoingTaskType,
-    "RavenEtl" | "SqlEtl" | "OlapEtl" | "ElasticSearchEtl" | "QueueEtl" | "SnowflakeEtl" | "EmbeddingsGeneration" | "GenAi"
+    | "RavenEtl"
+    | "SqlEtl"
+    | "OlapEtl"
+    | "ElasticSearchEtl"
+    | "QueueEtl"
+    | "SnowflakeEtl"
+    | "EmbeddingsGeneration"
+    | "GenAi"
 >;
 
 const etlAndAiTaskTypes = genUtils.exhaustiveStringTuple<EtlOrAiOngoingTaskType>()(
@@ -95,7 +102,7 @@ const etlAndAiTaskTypes = genUtils.exhaustiveStringTuple<EtlOrAiOngoingTaskType>
     "QueueEtl",
     "SnowflakeEtl",
     "EmbeddingsGeneration",
-    "GenAi",
+    "GenAi"
 );
 
 export function OngoingTasksPage({ isAiOnly = false }: OngoingTasksPageProps) {

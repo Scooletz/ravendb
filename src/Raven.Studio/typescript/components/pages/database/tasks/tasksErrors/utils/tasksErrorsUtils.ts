@@ -47,12 +47,12 @@ export function getEtlEditLink(databaseName: string, taskId: number, etlType: St
     }
 }
 
-export type EtlErrorsWithLocation = EtlErrors & { nodeTag: string; shard?: number };
+export type EtlErrorsWithLocation = EtlErrors & databaseLocationSpecifier;
 
 export interface EtlTransformationWithErrors {
     transformationName: string;
-    processErrors: (EtlErrors["ProcessErrors"][number] & { nodeTag: string; shard?: number })[];
-    itemErrors: (EtlErrors["ItemErrors"][number] & { nodeTag: string; shard?: number })[];
+    processErrors: (EtlErrors["ProcessErrors"][number] & databaseLocationSpecifier)[];
+    itemErrors: (EtlErrors["ItemErrors"][number] & databaseLocationSpecifier)[];
 }
 
 export interface EtlTaskWithErrors {
@@ -110,10 +110,10 @@ export function getTasksWithErrors(processes: EtlErrorsWithLocation[]): EtlTaskW
                         ): EtlTransformationWithErrors => ({
                             transformationName,
                             processErrors: transformationGroup.flatMap((p) =>
-                                p.ProcessErrors.map((e) => ({ ...e, nodeTag: p.nodeTag, shard: p.shard }))
+                                p.ProcessErrors.map((e) => ({ ...e, nodeTag: p.nodeTag, shardNumber: p.shardNumber }))
                             ),
                             itemErrors: transformationGroup.flatMap((p) =>
-                                p.ItemErrors.map((e) => ({ ...e, nodeTag: p.nodeTag, shard: p.shard }))
+                                p.ItemErrors.map((e) => ({ ...e, nodeTag: p.nodeTag, shardNumber: p.shardNumber }))
                             ),
                         })
                     )

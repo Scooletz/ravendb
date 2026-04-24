@@ -196,9 +196,9 @@ export default function EtlErrorDetailsSheet({
                                         <Icon icon="node" color="node" />
                                         {error.nodeTag}
                                     </div>
-                                    {error.shard != null && (
+                                    {error.shardNumber != null && (
                                         <div className="d-flex align-items-center justify-content-center">
-                                            <Icon icon="shard" color="shard" />#{error.shard}
+                                            <Icon icon="shard" color="shard" />#{error.shardNumber}
                                         </div>
                                     )}
                                 </div>
