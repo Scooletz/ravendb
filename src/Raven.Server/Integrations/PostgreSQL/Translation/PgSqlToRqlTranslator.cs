@@ -28,7 +28,6 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
 
         public static bool TryParse(string sql, int[] parameterTypes, out string rql)
         {
-            // TODO RavenDB-26030: parameterTypes are currently unused by the translator.
             rql = null;
 
             if (Logger.IsDebugEnabled)
@@ -801,21 +800,12 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
             }
         }
 
-        // Tolerates all three AConst kinds (Ival/Sval/Fval) that pgsqlparser emits for LIMIT/OFFSET.
-        // Parameter placeholders ($1) still return null — the parameter binding machinery doesn't
-        // thread through here — but plain integer literals round-trip regardless of kind.
         private static int? TranslateLimit(Node limitNode)
         {
             return PgSqlAstHelpers.TryReadNonNegativeIntConst(limitNode, out var value) ? value : null;
         }
 
-        /// <summary>
-        /// Extracts a dotted field-path name from a <see cref="ColumnRef"/> node by joining the
-        /// <c>Sval</c> values of each segment. Identifier casing follows PostgreSQL semantics:
-        /// unquoted identifiers are folded to lowercase (SQL standard, libpg_query issue #59);
-        /// quoted identifiers preserve case via <c>Sval</c>. Users who need exact casing for
-        /// RavenDB field lookups must quote the identifier in the source SQL.
-        /// </summary>
+        // Unquoted identifiers fold to lowercase (libpg_query); quote in SQL to preserve case.
         private static string ExtractFieldName(Node node, string fromAlias = null)
         {
             if (node?.ColumnRef != null && node.ColumnRef.Fields != null)

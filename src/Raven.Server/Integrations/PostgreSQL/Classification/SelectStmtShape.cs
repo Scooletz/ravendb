@@ -4,16 +4,8 @@ using PgSqlParser;
 
 namespace Raven.Server.Integrations.PostgreSQL.Classification
 {
-    /// <summary>
-    /// Structural predicates over a parsed <see cref="SelectStmt"/>. Classifiers compose these
-    /// to answer "does this query touch table X?", "what does it project?", etc.
-    /// </summary>
     internal static class SelectStmtShape
     {
-        /// <summary>
-        /// Parses <paramref name="queryText"/> and returns the single top-level SELECT when the
-        /// input is a valid single-statement SELECT. Used as the first step in most classifiers.
-        /// </summary>
         public static bool TryParseSingleSelect(string queryText, out SelectStmt selectStmt)
         {
             selectStmt = null;
@@ -29,11 +21,6 @@ namespace Raven.Server.Integrations.PostgreSQL.Classification
             return selectStmt != null;
         }
 
-        /// <summary>
-        /// Parses <paramref name="queryText"/> and returns the top-level SELECT statements
-        /// when the input is a multi-statement SELECT batch (1 or more). Returns false on
-        /// parse failure, or when any statement is not a SELECT.
-        /// </summary>
         public static bool TryParseSelectStatements(string queryText, out IReadOnlyList<SelectStmt> selects)
         {
             selects = null;
@@ -62,18 +49,9 @@ namespace Raven.Server.Integrations.PostgreSQL.Classification
             return true;
         }
 
-        /// <summary>
-        /// Returns true if the SELECT's FROM clause is absent or empty — i.e. the target list
-        /// is a pure expression like <c>SELECT version()</c>.
-        /// </summary>
         public static bool HasNoFromClause(SelectStmt s)
             => s?.FromClause is not { Count: > 0 };
 
-        /// <summary>
-        /// Returns true if the SELECT projects exactly one target that is an unqualified
-        /// function call with the given name and argument count. Matches <c>SELECT version()</c>,
-        /// <c>SELECT current_setting('max_index_keys')</c>, etc.
-        /// </summary>
         public static bool IsSingleUnqualifiedFunctionCall(SelectStmt s, string expectedName, int expectedArgCount, out FuncCall funcCall)
         {
             funcCall = null;
@@ -95,11 +73,6 @@ namespace Raven.Server.Integrations.PostgreSQL.Classification
             return (funcCall.Args?.Count ?? 0) == expectedArgCount;
         }
 
-        /// <summary>
-        /// Walks the FROM clause (including JOIN arms) and returns true if any RangeVar
-        /// matches <paramref name="tableName"/> (case-insensitive, schema ignored).
-        /// Does not descend into subqueries — see <see cref="SubqueryReferencesTable"/>.
-        /// </summary>
         public static bool ReferencesTable(SelectStmt s, string tableName)
         {
             if (s?.FromClause == null)
@@ -114,10 +87,6 @@ namespace Raven.Server.Integrations.PostgreSQL.Classification
             return false;
         }
 
-        /// <summary>
-        /// Walks the FROM clause (including JOIN arms) and returns true if any RangeVar
-        /// matches the given schema+table (both case-insensitive).
-        /// </summary>
         public static bool ReferencesTable(SelectStmt s, string schema, string tableName)
         {
             if (s?.FromClause == null)
@@ -132,10 +101,6 @@ namespace Raven.Server.Integrations.PostgreSQL.Classification
             return false;
         }
 
-        /// <summary>
-        /// Returns true if any RangeSubselect beneath the FROM clause (including JOIN arms)
-        /// has an inner SELECT that references <paramref name="schema"/>.<paramref name="tableName"/>.
-        /// </summary>
         public static bool SubqueryReferencesTable(SelectStmt s, string schema, string tableName)
         {
             if (s?.FromClause == null)
@@ -150,10 +115,6 @@ namespace Raven.Server.Integrations.PostgreSQL.Classification
             return false;
         }
 
-        /// <summary>
-        /// Returns true if any FROM-clause node is a RangeSubselect (direct or under JOIN arms).
-        /// Used to distinguish "has a nested SELECT as a FROM source" queries (Npgsql modern nested).
-        /// </summary>
         public static bool ContainsSubselectInFrom(SelectStmt s)
         {
             if (s?.FromClause == null)
@@ -168,10 +129,6 @@ namespace Raven.Server.Integrations.PostgreSQL.Classification
             return false;
         }
 
-        /// <summary>
-        /// Returns true if any target projects a <c>*</c> (star) — including qualified wildcards
-        /// like <c>typ.*</c>. Used by the modern-nested type-catalog classifier.
-        /// </summary>
         public static bool HasWildcardTarget(SelectStmt s)
         {
             if (s?.TargetList == null)
@@ -193,11 +150,6 @@ namespace Raven.Server.Integrations.PostgreSQL.Classification
             return false;
         }
 
-        /// <summary>
-        /// Returns the set of names projected by the SELECT. Uses the explicit alias if present,
-        /// otherwise the last segment of a qualified ColumnRef (<c>tbl.col</c> → <c>col</c>).
-        /// Unaliased complex expressions contribute nothing.
-        /// </summary>
         public static HashSet<string> CollectProjectedNames(SelectStmt s)
         {
             var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -228,10 +180,6 @@ namespace Raven.Server.Integrations.PostgreSQL.Classification
             return names;
         }
 
-        /// <summary>
-        /// Returns true iff every name in <paramref name="required"/> is present in the SELECT's
-        /// projected-name set (<see cref="CollectProjectedNames"/>). Order does not matter.
-        /// </summary>
         public static bool ProjectedNamesContainAll(SelectStmt s, params string[] required)
         {
             var names = CollectProjectedNames(s);
@@ -243,11 +191,6 @@ namespace Raven.Server.Integrations.PostgreSQL.Classification
             return true;
         }
 
-        /// <summary>
-        /// Returns true iff the SELECT's projected-name set is exactly <paramref name="expected"/>
-        /// (same size, all members present). Intended for intents where extra projected columns
-        /// would signal a different semantic meaning.
-        /// </summary>
         public static bool ProjectedNamesEqual(SelectStmt s, params string[] expected)
         {
             var names = CollectProjectedNames(s);
@@ -263,24 +206,13 @@ namespace Raven.Server.Integrations.PostgreSQL.Classification
             return true;
         }
 
-        /// <summary>
-        /// Returns true if any target in the SELECT projects <paramref name="expectedName"/>
-        /// (via explicit alias or last-segment column reference).
-        /// </summary>
         public static bool ProjectsName(SelectStmt s, string expectedName)
         {
             var names = CollectProjectedNames(s);
             return names.Contains(expectedName);
         }
 
-        // ── Structural helpers for the type-catalog C/D discriminator ─────────────────────
-
-        /// <summary>
-        /// Attempts to locate the inner OR node inside the
-        /// <c>(proname='array_recv' AND &lt;inner-OR&gt;)</c> AND-branch of the top-level WHERE OR.
-        /// Shared between TypeCatalog-OldFlat-WithPseudoArrays (asserts <c>'p'</c> present inside)
-        /// and TypeCatalog-OldFlat-WithoutPseudoArrays (asserts <c>'p'</c> absent inside).
-        /// </summary>
+        // Locates the inner OR inside (proname='array_recv' AND <inner-OR>) within the top-level WHERE OR.
         public static bool TryGetArrayRecvInnerOrBlock(SelectStmt s, out Node innerOrNode)
         {
             innerOrNode = null;
@@ -315,11 +247,7 @@ namespace Raven.Server.Integrations.PostgreSQL.Classification
             return false;
         }
 
-        /// <summary>
-        /// Recursive scan for any A_Expr whose direct RHS is a string constant equal to
-        /// <paramref name="value"/>. Descends into BoolExpr args and AExpr Lexpr/Rexpr only —
-        /// does not walk INTO list literals, so IN-list values are not inadvertently inspected.
-        /// </summary>
+        // Descends into BoolExpr args and AExpr Lexpr/Rexpr only — IN-list values are not inspected.
         public static bool SubtreeContainsAExprRhsStringConstant(Node node, string value)
         {
             if (node == null)
@@ -349,8 +277,6 @@ namespace Raven.Server.Integrations.PostgreSQL.Classification
 
             return false;
         }
-
-        // ── Private helpers ───────────────────────────────────────────────────────────────
 
         private static bool NodeReferencesTable(Node node, string schema, string tableName)
         {

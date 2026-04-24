@@ -7,8 +7,7 @@ namespace Raven.Server.Integrations.PostgreSQL
 {
     internal static class PgSqlAstHelpers
     {
-        // Walks past TypeCast / RelabelType / AExpr wrappers and returns the first payload
-        // of type T reachable through the chain, or null.
+        // Walks past TypeCast / RelabelType / AExpr wrappers to find a T payload.
         public static T UnwrapThroughHarmlessNodes<T>(Node node, Func<Node, T> picker) where T : class
         {
             while (node != null)
@@ -41,7 +40,7 @@ namespace Raven.Server.Integrations.PostgreSQL
             return null;
         }
 
-        // Tolerates all three constant kinds pgsqlparser emits: Ival, Sval, Fval.
+        // Tolerates all three AConst kinds: Ival, Sval, Fval.
         public static bool TryReadNonNegativeIntConst(Node node, out int value)
         {
             value = 0;
@@ -109,8 +108,6 @@ namespace Raven.Server.Integrations.PostgreSQL
             return fields[0].String?.Sval?.Equals(expectedColumn, StringComparison.OrdinalIgnoreCase) == true;
         }
 
-        // Every target must map to a column in <paramref name="produceable"/>. Column refs are matched
-        // on the last field; complex expressions (CASE, function call, cast, …) must carry an explicit alias.
         public static bool ProjectionSubsetOf(IList<Node> targetList, HashSet<string> produceable)
         {
             if (targetList == null || targetList.Count == 0)
