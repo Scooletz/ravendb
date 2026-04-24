@@ -76,12 +76,18 @@ import ReplicationTaskProgress = Raven.Server.Documents.Replication.Stats.Replic
 import InternalReplicationTaskProgress = Raven.Server.Documents.Replication.Stats.InternalReplicationTaskProgress;
 import EtlErrors = Raven.Server.Documents.ETL.Stats.EtlErrors;
 import EtlTaskStats = Raven.Server.Documents.ETL.Stats.EtlTaskStats;
+import genUtils from "common/generalUtils";
 
 interface OngoingTasksPageProps {
     isAiOnly?: boolean;
 }
 
-const etlAndAiTaskTypes: Raven.Client.Documents.Operations.OngoingTasks.OngoingTaskType[] = [
+type EtlOrAiOngoingTaskType = Extract<
+    Raven.Client.Documents.Operations.OngoingTasks.OngoingTaskType,
+    "RavenEtl" | "SqlEtl" | "OlapEtl" | "ElasticSearchEtl" | "QueueEtl" | "SnowflakeEtl" | "EmbeddingsGeneration" | "GenAi"
+>;
+
+const etlAndAiTaskTypes = genUtils.exhaustiveStringTuple<EtlOrAiOngoingTaskType>()(
     "RavenEtl",
     "SqlEtl",
     "OlapEtl",
@@ -90,7 +96,7 @@ const etlAndAiTaskTypes: Raven.Client.Documents.Operations.OngoingTasks.OngoingT
     "SnowflakeEtl",
     "EmbeddingsGeneration",
     "GenAi",
-];
+);
 
 export function OngoingTasksPage({ isAiOnly = false }: OngoingTasksPageProps) {
     const db = useAppSelector(databaseSelectors.activeDatabase);
@@ -159,7 +165,7 @@ export function OngoingTasksPage({ isAiOnly = false }: OngoingTasksPageProps) {
 
         const hasEtlOrAi = results
             .flatMap((r) => r?.OngoingTasks ?? [])
-            .some((t) => etlAndAiTaskTypes.includes(t.TaskType));
+            .some((t) => etlAndAiTaskTypes.includes(t.TaskType as EtlOrAiOngoingTaskType));
 
         if (hasEtlOrAi) {
             startTrackingEtlProgress();

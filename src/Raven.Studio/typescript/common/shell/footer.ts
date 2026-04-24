@@ -104,8 +104,10 @@ class footer {
     refreshStats() {
         this.fetchStats()
             .then((stats) => {
-                const currentStats = this.stats();
+                let currentStats = this.stats();
                 if (!currentStats) {
+                    currentStats = new footerStats();
+                    this.stats(currentStats);
                     return;
                 }
                 currentStats.countOfDocuments(stats.CountOfDocuments);
