@@ -296,7 +296,7 @@ function ItemWithTooltip(props: ItemWithTooltipProps) {
             .at(0) ?? {
             Error: nodeInfo.details?.error,
             nodeTag: nodeInfo.location.nodeTag,
-            shard: nodeInfo.location.shardNumber,
+            shardNumber: nodeInfo.location.shardNumber,
             etlName: task.shared.taskName,
             transformationName: null,
             healthStatus: null,
