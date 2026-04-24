@@ -14,7 +14,11 @@ import { useAsync, useAsyncCallback } from "react-async-hook";
 import studioSettings from "common/settings/studioSettings";
 import messagePublisher from "common/messagePublisher";
 import DatabaseUtils from "components/utils/DatabaseUtils";
-import { EtlTaskWithErrors, EtlTransformationWithErrors } from "../utils/tasksErrorsUtils";
+import {
+    AI_ONLY_TASK_TYPES,
+    EtlTaskWithErrors,
+    EtlTransformationWithErrors,
+} from "../utils/tasksErrorsUtils";
 import footer from "common/shell/footer";
 
 function useDeleteConfirmation(isRequireTypedConfirm: boolean) {
@@ -37,6 +41,7 @@ type DeleteErrorsModalProps =
           toggle: () => void;
           onRefresh: () => void;
           etlName: string;
+          etlType?: StudioEtlType;
           transformations: EtlTransformationWithErrors[];
           errorsCount: number;
       }
@@ -60,23 +65,49 @@ export function DeleteErrorsModal(props: DeleteErrorsModalProps) {
     const { confirmText, handleTextChange, isConfirmed } = useDeleteConfirmation(isRequireTypedConfirm);
 
     const asyncDeleteErrors = useAsyncCallback(async () => {
-        const processNames =
-            mode === "task"
-                ? props.transformations.map((t) => `${props.etlName}/${t.transformationName}`)
-                : props.tasksWithErrors.flatMap((task) =>
-                      task.transformations.map((t) => `${task.etlName}/${t.transformationName}`)
-                  );
+        const getProcessNames = (task: EtlTaskWithErrors) =>
+            task.transformations.map((t) => `${task.etlName}/${t.transformationName}`);
+
+        let etlProcessNames: string[];
+        let aiProcessNames: string[];
+
+        if (mode === "task") {
+            const isAiTask = AI_ONLY_TASK_TYPES.includes(props.etlType);
+            const names = props.transformations.map((t) => `${props.etlName}/${t.transformationName}`);
+            etlProcessNames = isAiTask ? [] : names;
+            aiProcessNames = isAiTask ? names : [];
+        } else {
+            etlProcessNames = props.tasksWithErrors
+                .filter((task) => !AI_ONLY_TASK_TYPES.includes(task.etlType))
+                .flatMap(getProcessNames);
+            aiProcessNames = props.tasksWithErrors
+                .filter((task) => AI_ONLY_TASK_TYPES.includes(task.etlType))
+                .flatMap(getProcessNames);
+        }
 
         try {
             const locations = DatabaseUtils.getLocations(db);
             await Promise.all(
-                locations.map((location) =>
-                    tasksService.deleteEtlErrors(db.name, {
-                        name: processNames,
-                        nodeTag: location.nodeTag,
-                        shardNumber: location.shardNumber,
-                    })
-                )
+                locations.flatMap((location) => [
+                    etlProcessNames.length > 0
+                        ? tasksService.deleteEtlErrors(db.name, {
+                              name: etlProcessNames,
+                              nodeTag: location.nodeTag,
+                              shardNumber: location.shardNumber,
+                          })
+                        : null,
+                    aiProcessNames.length > 0
+                        ? tasksService.deleteEtlErrors(
+                              db.name,
+                              {
+                                  name: aiProcessNames,
+                                  nodeTag: location.nodeTag,
+                                  shardNumber: location.shardNumber,
+                              },
+                              true
+                          )
+                        : null,
+                ]).filter(Boolean)
             );
             messagePublisher.reportSuccess("ETL errors were deleted.");
             footer.default.refreshStats();

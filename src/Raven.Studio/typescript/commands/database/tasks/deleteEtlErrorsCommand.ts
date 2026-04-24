@@ -8,13 +8,20 @@ interface deleteEtlErrorsDto {
     nodeTag?: string
 }
 class deleteEtlErrorsCommand extends commandBase {
-    constructor(private db: database | string, private deleteEtlDto?: deleteEtlErrorsDto) {
+    constructor(
+        private db: database | string,
+        private deleteEtlDto?: deleteEtlErrorsDto,
+        private isAiTask: boolean = false
+    ) {
         super();
     }
 
     execute(): JQueryPromise<void> {
-        const url = endpoints.databases.etl.etlErrors + this.urlEncodeArgs(this.deleteEtlDto);
-        
+        const endpoint = this.isAiTask
+            ? endpoints.databases.aiTasks.aiErrors
+            : endpoints.databases.etl.etlErrors;
+        const url = endpoint + this.urlEncodeArgs(this.deleteEtlDto);
+
         return this.del<void>(url, null, this.db, { dataType: "text" });
     }
 }
