@@ -115,12 +115,12 @@ export function OngoingTasksPage({ isAiOnly = false }: OngoingTasksPageProps) {
     });
 
     const getEtlStats = useCallback(
-        (location: databaseLocationSpecifier) => tasksService.getEtlStats(db.name, location),
+        (location: databaseLocationSpecifier) => tasksService.getEtlStats(db?.name, location),
         [db]
     );
 
     const getEtlErrors = useCallback(
-        (location: databaseLocationSpecifier) => tasksService.getEtlErrors(db.name, location),
+        (location: databaseLocationSpecifier) => tasksService.getEtlErrors(db?.name, location),
         [db]
     );
 
@@ -132,7 +132,7 @@ export function OngoingTasksPage({ isAiOnly = false }: OngoingTasksPageProps) {
     const fetchTasks = useCallback(
         async (location: databaseLocationSpecifier) => {
             try {
-                const tasks = await tasksService.getOngoingTasks(db.name, location);
+                const tasks = await tasksService.getOngoingTasks(db?.name, location);
                 dispatch({
                     type: "TasksLoaded",
                     location,
@@ -155,7 +155,7 @@ export function OngoingTasksPage({ isAiOnly = false }: OngoingTasksPageProps) {
         // if database is sharded we need to load from both orchestrator and target node point of view
         // in case of non-sharded - we have single level: node
 
-        if (db.isSharded) {
+        if (db?.isSharded) {
             const orchestratorTasks = db.nodes.map((node) => fetchTasks({ nodeTag: node.tag }));
             await Promise.all(orchestratorTasks);
         }
@@ -312,9 +312,9 @@ export function OngoingTasksPage({ isAiOnly = false }: OngoingTasksPageProps) {
         (DatabaseUtils.hasInternalReplication(db) ? 1 : 0);
 
     const refreshSubscriptionInfo = async (taskId: number, taskName: string) => {
-        const loadTasks = db.nodes.map(async (nodeInfo) => {
+        const loadTasks = (db?.nodes ?? []).map(async (nodeInfo) => {
             const nodeTag = nodeInfo.tag;
-            const task = await tasksService.getSubscriptionTaskInfo(db.name, taskId, taskName, nodeTag);
+            const task = await tasksService.getSubscriptionTaskInfo(db?.name, taskId, taskName, nodeTag);
 
             dispatch({
                 type: "SubscriptionInfoLoaded",
@@ -346,7 +346,7 @@ export function OngoingTasksPage({ isAiOnly = false }: OngoingTasksPageProps) {
             // ask only responsible node for connection details
             // if case of sharded database it points to responsible orchestrator
             const details = await tasksService.getSubscriptionConnectionDetails(
-                db.name,
+                db?.name,
                 taskId,
                 taskName,
                 targetNode.ResponsibleNode.NodeTag
@@ -367,7 +367,7 @@ export function OngoingTasksPage({ isAiOnly = false }: OngoingTasksPageProps) {
     };
 
     const dropSubscription = async (taskId: number, taskName: string, nodeTag: string, workerId: string) => {
-        await tasksService.dropSubscription(db.name, taskId, taskName, nodeTag, workerId);
+        await tasksService.dropSubscription(db?.name, taskId, taskName, nodeTag, workerId);
     };
 
     const { onTaskOperation, operationConfirm, cancelOperationConfirm, isTogglingState, isDeleting } =
