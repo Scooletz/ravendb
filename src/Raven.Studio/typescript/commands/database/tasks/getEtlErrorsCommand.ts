@@ -20,9 +20,8 @@ class getEtlErrorsCommand extends commandBase {
             const url = endpoints.databases.etl.etlErrors + this.urlEncodeArgs(args);
             return this.query<EtlErrors[]>(url, null, this.db, (res) => res.Results);
         }
-
-        // No names specified — fetch all task errors (ETL + AI) from the unified endpoint
-        const url = endpoints.databases.taskErrors.taskErrors + this.urlEncodeArgs(args);
+        
+        const url = endpoints.databases.taskErrors.tasksErrors + this.urlEncodeArgs(args);
         return this.query<EtlErrors[]>(url, null, this.db, (res) => res.Results);
     }
 }

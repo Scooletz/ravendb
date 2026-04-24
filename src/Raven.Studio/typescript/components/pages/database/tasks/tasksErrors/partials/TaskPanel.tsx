@@ -369,7 +369,6 @@ export function TaskPanel({ etlName, etlType: etlTypeFromErrors, transformations
                 <DeleteErrorsModal
                     mode="task"
                     etlName={etlName}
-                    etlType={etlType}
                     transformations={transformations}
                     errorsCount={errorsCount}
                     toggle={toggleDeleteModal}

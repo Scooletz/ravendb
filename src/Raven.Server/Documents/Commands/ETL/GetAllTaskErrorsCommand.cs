@@ -17,7 +17,7 @@ internal sealed class GetAllTaskErrorsCommand : RavenCommand<TaskErrors[]>
 
     public override HttpRequestMessage CreateRequest(JsonOperationContext ctx, ServerNode node, out string url)
     {
-        url = $"{node.Url}/databases/{node.Database}/task-errors";
+        url = $"{node.Url}/databases/{node.Database}/tasks/errors";
 
         return new HttpRequestMessage { Method = HttpMethod.Get };
     }
