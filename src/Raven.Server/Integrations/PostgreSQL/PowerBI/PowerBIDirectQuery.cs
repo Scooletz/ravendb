@@ -18,7 +18,6 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
     {
         private static readonly RavenLogger Logger = RavenLogManager.Instance.GetLoggerForServer<PowerBIDirectQuery>();
 
-
         public PowerBIDirectQuery(string queryString, int[] parametersDataTypes, DocumentDatabase documentDatabase, Dictionary<string, ReplaceColumnValue> replaces = null, int? limit = null)
             : base(queryString, parametersDataTypes, documentDatabase, replaces, limit)
         {
@@ -28,10 +27,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
 
         protected override bool IncludePowerBIJsonColumn => false;
 
-        // Fallback row cap applied when the outer PowerBI wrapper has no explicit LIMIT.
-        // Matches PowerBI's own "top N+1" convention: it asks for 1,000,001 rows so it can
-        // tell whether a 1,000,000-row result was actually truncated. Keep the two fallback
-        // sites in sync via this constant.
+        // Default cap when the wrapper has no LIMIT — matches PowerBI's "top 1,000,000 + 1" convention.
         private const int DefaultDirectQueryLimit = 1_000_001;
 
         protected override DynamicJsonValue BeforeRow(BlittableJsonReaderObject jsonResult, short? jsonIndex)
@@ -47,9 +43,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             List<string> ProjectionCols,
             int Limit);
 
-        // Single aggregate extracted from the PowerBI wrapper (e.g. sum("Freight") as "a0").
-        // A grouped DirectQuery shape holds a list of these; the canonical SUM-only and COUNT-only
-        // shapes produce a list of length 1, while the AVG-style SUM+COUNT shape produces two.
+        // Single aggregate extracted from the wrapper, e.g. sum("Freight") as "a0".
         private sealed record Aggregate(
             string FunctionName,
             string FieldName,
@@ -107,8 +101,6 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 if (inner == null)
                     return false;
 
-                // inner.SanitizedSelectStmt is the wrapper AST with the innermost subquery replaced
-                // by `select 1`, produced once by the extractor — no re-parse needed here.
                 var selectStmt = inner.SanitizedSelectStmt;
                 if (selectStmt == null)
                     return false;
@@ -150,7 +142,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
 
                 var q = inner.ResolvedQuery;
 
-                // Object projections require a from-alias; synthesize one when missing.
+                // Object projections require a from-alias.
                 if (q.From.Alias == null)
                     q.From.Alias = "_doc";
 
@@ -217,9 +209,6 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
 
                 TryExtractAggregates(selectStmt, out var aggregatesFlat);
 
-                // Flat shape has no outer "_" wrapper, so TryExtractSortClauseToOrderBy's
-                // underscore-qualified branch naturally falls through to the last-identifier-segment
-                // fallback — the same helper serves both shapes.
                 if (TryExtractSortClauseToOrderBy(selectStmt, out var orderByColsFlat, out var orderByDescFlagsFlat) == false)
                     return false;
 
@@ -258,7 +247,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             if (TryExtractSortClauseToOrderBy(selectStmt, out var orderByCols, out var orderByDescFlags) == false)
                 return false;
 
-            // Best-effort: if the wrapper contains an inner GROUP BY, capture it. Otherwise leave null.
+            // Capture the inner GROUP BY if present; otherwise leave null.
             List<string> groupByCols = null;
             List<Aggregate> aggregates = null;
             if (TryFindInnerGroupedSelect(selectStmt, out var groupedSelect))
@@ -268,9 +257,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
 
                 TryExtractAggregates(groupedSelect, out aggregates);
 
-                // Resolve ORDER BY columns through the wrapper chain back to a business
-                // field. A null-order CASE helper is transparently unwrapped to the column
-                // it guards; a pass-through alias is resolved to its underlying target.
+                // Resolve outer ORDER BY names down through the wrapper chain to the underlying field.
                 if (orderByCols.Count > 0)
                 {
                     for (int i = 0; i < orderByCols.Count; i++)
@@ -331,7 +318,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 var colRef = rt.Val?.ColumnRef;
                 if (colRef == null)
                 {
-                    // Tolerate null-order CASE helper columns; reject anything else.
+                    // Accept PowerBI null-order CASE helpers; reject everything else.
                     if (IsPowerBIOrderHelperAlias(rt.Name) && rt.Val?.CaseExpr != null)
                         continue;
                     return false;
@@ -400,7 +387,6 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             return false;
         }
 
-        // Collects every aggregate FuncCall in the target list; non-FuncCall targets are skipped.
         private static bool TryExtractAggregates(SelectStmt groupedSelect, out List<Aggregate> aggregates)
         {
             aggregates = null;
@@ -471,7 +457,6 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             if (wrapper.GroupByColumns is not { Count: > 0 })
                 return false;
 
-            // Non-zero OFFSET would skip rows; reject. OFFSET 0 is a no-op and is accepted.
             if (wrapper.Offset != null && wrapper.Offset != 0)
                 return false;
 
@@ -650,8 +635,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 var c = shape.OrderByCols[i];
                 var desc = shape.OrderByDescFlags[i];
 
-                // Match against any aggregate's output alias (multi-aggregate shapes may expose
-                // several sortable columns, e.g. "a0" = sum, "a1" = count).
+                // Match against any aggregate output alias (e.g. "a0" = sum, "a1" = count).
                 var matchedAggregate = false;
                 if (shape.Aggregates != null)
                 {
@@ -697,14 +681,6 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
 
             if (parts.Aggregates is not { Count: > 0 })
                 return null;
-
-            // Build Raven grouped query explicitly (grammar differs from regular select projection).
-            // from <collection>
-            // group by <field>
-            // where <predicate>
-            // order by <aggregate alias> as double [desc], <group field> [desc]
-            // select key() as <field>, sum(<field>) as <sumOut>, count() as <countOut>
-            // limit 0, <limit>
 
             const string nl = "\n";
             var sb = new StringBuilder();
@@ -772,7 +748,6 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 sb.Append(", ");
                 if (IsCountFunction(agg.FunctionName))
                 {
-
                     sb.Append("count() as ");
                     sb.Append(agg.OutputColumn);
                 }
@@ -842,7 +817,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 var colRef = resTarget.Val?.ColumnRef;
                 if (colRef == null)
                 {
-                    // Tolerate PowerBI null-order CASE helper columns; reject anything else.
+                    // Accept PowerBI null-order CASE helpers; reject everything else.
                     if (IsPowerBIOrderHelperAlias(resTarget.Name) && resTarget.Val?.CaseExpr != null)
                         continue;
                     return false;
@@ -850,8 +825,6 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
 
                 if (TryExtractOuterUnderscoreQualifiedColumn(colRef, out var colName) == false)
                 {
-                    // Qualified ref that doesn't follow the "_"."X" pattern:
-                    // skip if it has a helper alias.
                     if (IsPowerBIOrderHelperAlias(resTarget.Name))
                         continue;
                     return false;
@@ -866,13 +839,8 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             return cols.Count > 0;
         }
 
-        // Recognises the two bespoke alias names PowerBI emits purely to drive its own
-        // null-order/ordering scaffolding, with no business-field meaning:
-        //   - "t<N>_0"  → null-order CASE helper (e.g. "t2_0", "t3_0"); the guarded column
-        //                 is resolved structurally via TryExtractNullOrderHelperGuardedColumn.
-        //   - "o<N>"    → order-alias passthrough (e.g. "o2", "o3").
-        // We drop targets carrying these aliases from the outer projection set so they do
-        // not appear as business columns in the emitted RQL.
+        // PowerBI order-helper alias names — "t<N>_0" (null-order CASE helpers) and "o<N>"
+        // (order passthroughs). Targets carrying these aliases are dropped from the business projection.
         private static bool IsPowerBIOrderHelperAlias(string name)
         {
             if (string.IsNullOrWhiteSpace(name))
@@ -906,10 +874,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             cols = new List<string>(capacity: selectStmt.GroupClause.Count);
             foreach (var node in selectStmt.GroupClause)
             {
-                // Walk through harmless wrapping nodes (TypeCast, RelabelType) to reach the
-                // underlying ColumnRef. PowerBI sometimes emits explicit type coercions in
-                // GROUP BY, e.g. "GROUP BY ""Employee""::text". The cast is irrelevant for
-                // RQL grouping (Raven groups by field reference, not by typed expression).
+                // Unwrap ::text / RelabelType casts PowerBI sometimes adds; Raven groups by field reference.
                 var colRef = PgSqlAstHelpers.UnwrapThroughHarmlessNodes(node, static n => n.ColumnRef);
                 if (colRef == null)
                     return false;
@@ -924,18 +889,8 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             return true;
         }
 
-        // Structurally resolve an outer alias (e.g. an ORDER BY column reference) down through
-        // the wrapper chain to the underlying business-field name.
-        //
-        // At each level we look for a target whose alias matches the current name, then follow
-        // its Val:
-        //   - ColumnRef          → continue with the ColumnRef's last identifier segment.
-        //   - Null-order CASE    → continue with the column guarded by the IS [NOT] NULL test;
-        //                          this is how PowerBI's t<N>_0 helpers are transparently
-        //                          unwrapped without relying on name conventions.
-        //   - anything else      → stop (we cannot express it in RQL).
-        //
-        // Returns the final resolved name, or the last name seen if we run out of wrapper levels.
+        // Resolves an outer alias down through the wrapper chain to the underlying field name,
+        // following ColumnRef targets and transparently unwrapping null-order CASE helpers.
         private static bool TryResolveAliasThroughWrappers(SelectStmt outer, string aliasName, out string resolved)
         {
             resolved = aliasName;
@@ -951,8 +906,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 var target = FindTargetByAlias(current, currentName);
                 if (target == null)
                 {
-                    // Not produced here; descend blindly: outer ORDER BY can reference a
-                    // column exposed by the wrapper alias without an explicit ResTarget.Name.
+                    // Outer ORDER BY can reference a column exposed without an explicit ResTarget.Name — descend.
                     current = SingleWrapperChild(current);
                     continue;
                 }
@@ -1010,12 +964,9 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 ? from[0]?.RangeSubselect?.Subquery?.SelectStmt
                 : null;
 
-        // PowerBI null-order helper CASE shapes:
-        //   (A) case when X is not null then X else <timestamp-literal> end
-        //   (B) case when X is [not] null then 0 else 1 end
-        // Both are identified by a single WHEN branch whose condition is a NullTest.
-        // Returns the guarded column's last identifier segment for shape (A); shape (B) has no
-        // useful business-field mapping, so we drop it by returning false.
+        // Matches the PowerBI shape `case when X is [not] null then X else <literal> end` and
+        // returns X's last identifier segment. The sibling 0/1 shape has no business-field
+        // mapping and is rejected (its THEN is not a ColumnRef).
         private static bool TryExtractNullOrderHelperGuardedColumn(CaseExpr caseExpr, out string columnName)
         {
             columnName = null;
@@ -1027,7 +978,6 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             if (when?.Expr?.NullTest?.Arg?.ColumnRef is not { } guardCol)
                 return false;
 
-            // Shape (A): THEN is the same ColumnRef; skip shape (B) which returns 0/1.
             if (when.Result?.ColumnRef == null)
                 return false;
 
@@ -1087,11 +1037,9 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             return string.IsNullOrWhiteSpace(colName) == false;
         }
 
-        // Resolves each SortClause entry to a (column, desc) pair. Accepts either an
-        // outer "_"-qualified reference (wrapped shape) or an unqualified identifier
-        // (flat shape) via the last-segment fallback. Returns an empty list when the
-        // SELECT has no ORDER BY; returns false only when the clause is present but
-        // references something we cannot resolve to a plain column.
+        // Resolves each SortClause entry to a (column, desc) pair. Accepts the outer "_"-qualified
+        // reference used by the wrapped shape, or an unqualified identifier for the flat shape.
+        // Missing ORDER BY returns an empty list + true; an unresolvable entry returns false.
         private static bool TryExtractSortClauseToOrderBy(SelectStmt selectStmt, out List<string> cols, out List<bool> descFlags)
         {
             cols = new List<string>();
@@ -1127,15 +1075,6 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             return true;
         }
 
-        // How to emit the outer SELECT when rewriting the DirectQuery wrapper:
-        //   Rebuild           – no inner object projection (or no useful match); build
-        //                       `{ col: alias.col }` for each projected column.
-        //   PreserveExact     – inner body's top-level keys exactly match the outer
-        //                       projection; hand the inner body through verbatim.
-        //   PreserveWithExtras– inner body covers the business-field subset and the
-        //                       outer adds only pseudo-columns (id() / json()); splice
-        //                       those extras into the inner body to preserve computed
-        //                       expressions (declare-function calls, string concats).
         private enum InnerProjectionMode
         {
             Rebuild,
@@ -1154,11 +1093,8 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             if (projectionCols == null || projectionCols.Count == 0)
                 return null;
 
-            // If the inner RQL already produces an object projection (e.g. `select { Name: name(e), Title: e.Title }`)
-            // whose top-level keys match the outer wrapper's projected columns — optionally extended with the
-            // pseudo-columns id() and/or json() — preserve that projection. Rebuilding it as `{ col: alias.col }`
-            // would drop computed expressions (including declare-function calls) and silently return empty strings
-            // for synthesized fields.
+            // Preserve the inner object projection when its keys match the outer columns — rebuilding would
+            // drop computed expressions (declare-function calls, concats) and return empty strings for them.
             var mode = InnerProjectionMode.Rebuild;
             List<string> extras = null;
             if (TryGetSelectFunctionBodyObjectKeys(q.SelectFunctionBody.FunctionText, out var innerKeys))
@@ -1183,11 +1119,9 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 if (TryExtendInnerProjectionBody(q.SelectFunctionBody.FunctionText, extras, aliasText, out var newBody) == false)
                     return null;
 
-                // SelectFunctionBody is a tuple; only FunctionText is consumed by StringQueryVisitor
-                // when rendering back to RQL, so Program/ReferencedParameters can be left null.
+                // Only FunctionText is consumed when rendering back to RQL.
                 core.SelectFunctionBody = (newBody, null, null);
             }
-            // else PreserveExact: leave SelectFunctionBody untouched.
 
             var prefix = core.ToString();
             if (string.IsNullOrWhiteSpace(prefix))
@@ -1248,10 +1182,9 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             return sb.ToString();
         }
 
-        // Decides how the outer SELECT should be emitted relative to the inner object
-        // projection. Returns PreserveExact when the outer projection equals innerKeys,
-        // PreserveWithExtras when the outer adds only id()/json() on top of innerKeys
-        // (duplicates are not allowed in either set), and Rebuild otherwise.
+        // PreserveExact: outer projection equals innerKeys.
+        // PreserveWithExtras: outer adds only id()/json() on top of innerKeys.
+        // Rebuild: anything else.
         private static InnerProjectionMode ClassifyInnerProjection(
             IReadOnlyList<string> projectionCols,
             IReadOnlyCollection<string> innerKeys,
@@ -1295,9 +1228,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                     return InnerProjectionMode.Rebuild;
             }
 
-            // Every inner key must also be covered by a business column; otherwise the outer
-            // wrapper projects fewer business fields than the inner body exposes and we cannot
-            // reduce without rebuilding.
+            // Outer must cover every inner key; otherwise we'd drop fields on the way out.
             if (seenBusiness.Count != innerKeys.Count)
                 return InnerProjectionMode.Rebuild;
 
@@ -1308,13 +1239,8 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             return InnerProjectionMode.PreserveWithExtras;
         }
 
-        // Splices pseudo-column entries (`"id()": id(alias)` / `"json()": alias`) into the
-        // inner object-projection body. We operate on raw source text rather than Acornima
-        // offsets because Acornima's API surface for node ranges varies between releases;
-        // the body has already been validated as a single ObjectExpression by the caller, so
-        // the outermost `}` is the ObjectExpression's closing brace. As a final safety net we
-        // re-parse the extended body to make sure it is still a valid object expression with
-        // the expected keys.
+        // Splices `"id()": id(alias)` / `"json()": alias` into the inner object-projection body.
+        // The body is validated as a single ObjectExpression by the caller, so the last `}` is the one to replace.
         private static bool TryExtendInnerProjectionBody(string functionText, List<string> extras, string aliasText, out string newBody)
         {
             newBody = null;
@@ -1328,16 +1254,11 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             if (string.IsNullOrWhiteSpace(aliasText))
                 return false;
 
-            // Locate the closing `}` of the top-level object expression. Because the body was
-            // already validated as a single ObjectExpression, the LAST `}` is that closing brace
-            // — any earlier `}` inside a string literal or a nested object expression cannot
-            // appear after the real close.
             int close = functionText.LastIndexOf('}');
             if (close < 0)
                 return false;
 
-            // Trim trailing whitespace and tolerate a single dangling comma; we produce our own
-            // separators for the appended extras.
+            // Trim trailing whitespace + tolerate a dangling comma; we emit our own separators.
             int truncate = close;
             while (truncate > 0 && char.IsWhiteSpace(functionText[truncate - 1]))
                 truncate--;
@@ -1370,10 +1291,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             sb.Append(" }");
             var candidate = sb.ToString();
 
-            // Belt-and-braces: confirm the extended body still parses as a simple object
-            // expression. If a comment or odd character in the original body threw off the
-            // LastIndexOf heuristic, this check catches it and the caller falls back to the
-            // rebuild path.
+            // Re-parse to catch cases where the LastIndexOf heuristic was thrown off by a comment or literal.
             if (TryGetSelectFunctionBodyObjectKeys(candidate, out _) == false)
                 return false;
 
@@ -1381,10 +1299,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             return true;
         }
 
-        // Returns true when the outer projection and the inner object-projection body expose the same
-        // set of top-level keys (case-insensitive, ignoring order). This is the only case in which it
-        // is safe to hand the inner projection through unchanged — any mismatch means the outer shape
-        // exposes columns the inner query does not produce (or vice versa).
+        // True when both sides expose the same top-level keys (case-insensitive, order-independent).
         private static bool ProjectionKeysEqual(IReadOnlyList<string> projectionCols, IReadOnlyCollection<string> innerKeys)
         {
             if (projectionCols == null || innerKeys == null)
@@ -1408,13 +1323,8 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             return true;
         }
 
-        // Reads the top-level keys of an RQL object-projection body via Acornima, the same JS
-        // parser Raven uses for projection validation (see QueryMetadata.ValidateScript). The body
-        // `{ k1: v1, k2: v2, ... }` is parsed as `return { ... };`, so we expect a single
-        // ReturnStatement whose argument is an ObjectExpression. Anything else — spreads, computed
-        // keys, non-string-literal keys, parse failures — is rejected so the caller falls back to
-        // the safe rewrite path. QueryMetadata.ParseQuery only captures FunctionText; Program is
-        // populated later during full metadata construction, which is why we parse here directly.
+        // Parses an RQL object-projection body via Acornima (same parser Raven uses) and returns its
+        // top-level keys. Spreads, computed keys, and non-literal keys are rejected.
         private static bool TryGetSelectFunctionBodyObjectKeys(string functionText, out List<string> keys)
         {
             keys = null;
@@ -1425,9 +1335,6 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             JsAst.Script script;
             try
             {
-                // Tolerant = false: the projection body already round-trips through Raven's JS
-                // parser upstream, so a syntax error here means the shape really is malformed
-                // and we should fall back to the rewrite path rather than silently accept it.
                 var parser = new Acornima.Parser(new Acornima.ParserOptions { AllowReturnOutsideFunction = true, Tolerant = false });
                 script = parser.ParseScript("return " + functionText);
             }
@@ -1485,9 +1392,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
         private static bool IsCountFunction(string name) =>
             string.Equals(name, "count", StringComparison.OrdinalIgnoreCase);
 
-        // Accepts only plain ASCII identifiers (letter/underscore followed by alnum/underscore).
-        // Anything requiring quoting is rejected so the caller drops the DirectQuery shape
-        // rather than emitting bracket-path expressions we would rather avoid.
+        // Plain ASCII identifiers only; anything requiring quoting returns null so the caller drops the shape.
         private static string FormatRqlIdentifier(string identifier)
         {
             if (string.IsNullOrWhiteSpace(identifier))

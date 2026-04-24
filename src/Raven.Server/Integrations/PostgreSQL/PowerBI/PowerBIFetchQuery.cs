@@ -39,8 +39,6 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 if (inner == null)
                     return false;
 
-                // inner.SanitizedSelectStmt is the wrapper AST with the innermost subquery replaced
-                // by `select 1`, produced once by the extractor — no re-parse needed here.
                 var selectStmt = inner.SanitizedSelectStmt;
                 if (selectStmt == null)
                     return false;

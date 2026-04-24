@@ -7,9 +7,8 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
 {
     internal static class PgSqlAstHelpers
     {
-        // Walks past harmless wrapping nodes (TypeCast, RelabelType, and either side of an AExpr)
-        // and returns the first underlying payload of type T (ColumnRef, FuncCall, …) reachable
-        // through that chain. Returns null if nothing of the requested type is found.
+        // Walks past TypeCast / RelabelType / AExpr wrappers and returns the first payload
+        // of type T reachable through the chain, or null.
         public static T UnwrapThroughHarmlessNodes<T>(Node node, Func<Node, T> picker) where T : class
         {
             while (node != null)
@@ -76,7 +75,6 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                    string.Equals(alias, "rows", StringComparison.OrdinalIgnoreCase);
         }
 
-
         public static bool TryGetSingleRangeVarFromClause(SelectStmt selectStmt, out RangeVar rangeVar)
         {
             rangeVar = null;
@@ -111,18 +109,8 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             return fields[0].String?.Sval?.Equals(expectedColumn, StringComparison.OrdinalIgnoreCase) == true;
         }
 
-        /// <summary>
-        /// Returns true iff every projected target in <paramref name="targetList"/> refers to a column
-        /// that is a member of <paramref name="produceable"/>.
-        ///
-        /// Rules per target:
-        /// - Simple column reference (with or without alias): check the underlying column name.
-        /// - Complex expression (CASE, function, …) with an explicit alias: check the alias.
-        /// - Complex expression without an alias, or empty target list: reject.
-        ///
-        /// This lets handlers accept reordered / aliased projections while refusing any column
-        /// the handler cannot actually produce.
-        /// </summary>
+        // Every target must map to a column in <paramref name="produceable"/>. Column refs are matched
+        // on the last field; complex expressions (CASE, function call, cast, …) must carry an explicit alias.
         public static bool ProjectionSubsetOf(IList<Node> targetList, HashSet<string> produceable)
         {
             if (targetList == null || targetList.Count == 0)
@@ -137,15 +125,12 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 var colRef = rt.Val?.ColumnRef;
                 if (colRef != null)
                 {
-                    // Column reference (possibly qualified: tbl.col). Use the last field as the name.
                     var name = colRef.Fields?[^1]?.String?.Sval;
                     if (string.IsNullOrWhiteSpace(name) || produceable.Contains(name) == false)
                         return false;
                 }
                 else
                 {
-                    // Complex expression (CASE, function call, cast, …): require an explicit alias
-                    // whose name is in the produceable set so we know what column this maps to.
                     if (string.IsNullOrWhiteSpace(rt.Name) || produceable.Contains(rt.Name) == false)
                         return false;
                 }

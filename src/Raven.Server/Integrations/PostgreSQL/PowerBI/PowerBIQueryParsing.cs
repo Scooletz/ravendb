@@ -16,14 +16,8 @@ using Sparrow.Server.Logging;
 
 namespace Raven.Server.Integrations.PostgreSQL.PowerBI
 {
-    /// <summary>
-    /// Result of <see cref="PowerBIInnerRqlExtractor.TryExtractAndResolve"/>.
-    /// <see cref="InnerText"/> is the extracted innermost query text (RQL or SQL).
-    /// <see cref="SanitizedSql"/> is the outer wrapper SQL with the innermost query replaced by
-    /// a trivial <c>select 1</c> subquery so pgsqlparser can safely parse the wrapper structure.
-    /// <see cref="SanitizedSelectStmt"/> is that sanitized SQL already parsed into a SelectStmt,
-    /// threaded through so consumers (DirectQuery / FetchQuery) don't re-parse it a second time.
-    /// </summary>
+    // SanitizedSql / SanitizedSelectStmt is the wrapper with the innermost query swapped for
+    // `select 1` so pgsqlparser can parse the outer structure without tripping over embedded RQL.
     internal sealed record InnerTextResult(
         string InnerText,
         string SanitizedSql,
@@ -34,10 +28,8 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
     {
         private static readonly RavenLogger Logger = RavenLogManager.Instance.GetLoggerForServer(typeof(PowerBIInnerRqlExtractor));
 
-        /// <summary>
-        /// Extracts the inner textbox span from a PowerBI-wrapped SQL query and resolves it to a
-        /// <see cref="RavenQuery"/> in one step. Returns <c>null</c> when extraction or resolution fails.
-        /// </summary>
+        // Extracts the inner textbox span from a PowerBI-wrapped SQL query and resolves it to a
+        // RavenQuery. Returns null when extraction or resolution fails.
         public static InnerTextResult TryExtractAndResolve(string sql)
         {
             if (TryExtractInnerText(sql, out var innerText, out var sanitizedSql, out var sanitizedSelectStmt, out var fromTwoParsersPath) == false)
@@ -62,8 +54,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 fromTwoParsersPath = true;
                 sanitizedSql = sql[..innerStart] + "select 1" + sql[innerEnd..];
 
-                // Parse the sanitized SQL once here so consumers can reuse the SelectStmt
-                // rather than each running Parser.Parse(sanitizedSql) a second time.
+                // Parse once and thread through so consumers reuse the SelectStmt.
                 var sanitizedParse = Parser.Parse(sanitizedSql);
                 if (sanitizedParse.IsSuccess == false || sanitizedParse.Value?.Stmts is not { Count: 1 })
                     return false;
@@ -81,7 +72,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
 
             if (fromTwoParsersPath)
             {
-                // Preferred two-parsers path confirmed embedded RQL – parse as RQL only.
+                // Two-parsers path already confirmed embedded RQL — parse directly.
                 try
                 {
                     return QueryMetadata.ParseQuery(innerText, QueryType.Select);
@@ -94,25 +85,17 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 }
             }
 
-            // Preferred path did not succeed; treat the extracted text as ambiguous.
-
-            // 1. Try RQL first (preserves correct behaviour when the inner content is RQL
-            //    despite the two-parsers path not firing).
+            // AST fallback: the inner text is ambiguous. Try RQL first, then SQL→RQL translation.
             try
             {
                 return QueryMetadata.ParseQuery(innerText, QueryType.Select);
             }
             catch (Exception e)
             {
-                // Not RQL – fall through to SQL translation.
                 if (Logger.IsDebugEnabled)
                     Logger.Debug($"{nameof(PowerBIInnerRqlExtractor)}: inner text is not RQL, will attempt SQL→RQL translation. Reason: {e.Message}");
             }
 
-            // 2. Try SQL→RQL translation (SQL-statement textbox support).
-            // PgSqlToRqlTranslator handles the SELECT…FROM…WHERE shape that the user types in the
-            // textbox. The global-fallback translator in PgQuery.CreateInstance is intentionally
-            // not reused here to avoid false positives.
             if (PgSqlToRqlTranslator.TryParse(innerText, parameterTypes: Array.Empty<int>(), out var translatedRql) == false)
                 return null;
 
@@ -182,7 +165,6 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
 
             int i = cursorStart - 1;
 
-            // Allow whitespace between the function name and the 'function' keyword.
             while (i >= 0 && char.IsWhiteSpace(sql[i]))
                 i--;
 
@@ -198,7 +180,6 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
 
             i = functionStart - 1;
 
-            // Allow whitespace between 'declare' and 'function'.
             while (i >= 0 && char.IsWhiteSpace(sql[i]))
                 i--;
 
@@ -244,9 +225,6 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             if (TryDeparseParseResult(parseResult.Value, out sanitizedSql) == false)
                 return false;
 
-            // rootSelect is the wrapper AST with the deepest subquery mutated to `select 1` —
-            // structurally identical to what re-parsing sanitizedSql would produce. Hand it back
-            // so the caller skips the redundant second parse.
             sanitizedSelectStmt = rootSelect;
 
             return string.IsNullOrWhiteSpace(innerSql) == false &&
@@ -630,7 +608,6 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                     return new ValueExpression(Convert.ToString((long)value.Raw, CultureInfo.InvariantCulture), ValueTokenType.Long);
 
                 case ParsedValueKind.Double:
-                    // Raw is either a double (preferred) or the raw string pgsqlparser gave us.
                     if (value.Raw is double d)
                         return new ValueExpression(d.ToString("R", CultureInfo.InvariantCulture), ValueTokenType.Double);
                     return new ValueExpression(value.Raw?.ToString(), ValueTokenType.Double);
@@ -641,7 +618,6 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                         : new ValueExpression("false", ValueTokenType.False);
 
                 case ParsedValueKind.Timestamp:
-                    // Timestamp literals are emitted as Raven-formatted strings (see SqlWhereParser).
                     return new ValueExpression((string)value.Raw, ValueTokenType.String);
 
                 case ParsedValueKind.Null:

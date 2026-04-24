@@ -5,10 +5,8 @@ using PgSqlParser;
 namespace Raven.Server.Integrations.PostgreSQL.Classification
 {
     /// <summary>
-    /// Shape predicates over a parsed PostgreSQL <see cref="SelectStmt"/>. Each method
-    /// answers one structural question — "does it touch this table?", "what does it
-    /// project?", "is it a single-function-call select?" — and is the sole AST-walking
-    /// primitive the classifiers compose on top of.
+    /// Structural predicates over a parsed <see cref="SelectStmt"/>. Classifiers compose these
+    /// to answer "does this query touch table X?", "what does it project?", etc.
     /// </summary>
     internal static class SelectStmtShape
     {
@@ -196,12 +194,9 @@ namespace Raven.Server.Integrations.PostgreSQL.Classification
         }
 
         /// <summary>
-        /// Collects the set of names projected by the SELECT, using: explicit alias if present,
-        /// else the last segment of a qualified ColumnRef (<c>tbl.col</c> → <c>col</c>).
-        /// Complex expressions without an alias contribute nothing to the set.
-        ///
-        /// Callers use the resulting set for intent-level "what columns did you ask for?"
-        /// classification — reordered or aliased projections are handled uniformly.
+        /// Returns the set of names projected by the SELECT. Uses the explicit alias if present,
+        /// otherwise the last segment of a qualified ColumnRef (<c>tbl.col</c> → <c>col</c>).
+        /// Unaliased complex expressions contribute nothing.
         /// </summary>
         public static HashSet<string> CollectProjectedNames(SelectStmt s)
         {
@@ -215,14 +210,12 @@ namespace Raven.Server.Integrations.PostgreSQL.Classification
                 if (rt == null)
                     continue;
 
-                // Explicit alias takes precedence — this is what the query author named the column.
                 if (string.IsNullOrWhiteSpace(rt.Name) == false)
                 {
                     names.Add(rt.Name);
                     continue;
                 }
 
-                // No alias — use the last segment of the ColumnRef (strips table prefix).
                 var fields = rt.Val?.ColumnRef?.Fields;
                 if (fields is { Count: > 0 })
                 {
