@@ -1127,6 +1127,22 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             return true;
         }
 
+        // How to emit the outer SELECT when rewriting the DirectQuery wrapper:
+        //   Rebuild           – no inner object projection (or no useful match); build
+        //                       `{ col: alias.col }` for each projected column.
+        //   PreserveExact     – inner body's top-level keys exactly match the outer
+        //                       projection; hand the inner body through verbatim.
+        //   PreserveWithExtras– inner body covers the business-field subset and the
+        //                       outer adds only pseudo-columns (id() / json()); splice
+        //                       those extras into the inner body to preserve computed
+        //                       expressions (declare-function calls, string concats).
+        private enum InnerProjectionMode
+        {
+            Rebuild,
+            PreserveExact,
+            PreserveWithExtras
+        }
+
         private static string RewriteSimpleDirectQueryRql(Documents.Queries.AST.Query q, IReadOnlyList<string> projectionCols, int limit)
         {
             if (q == null)
@@ -1139,15 +1155,14 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 return null;
 
             // If the inner RQL already produces an object projection (e.g. `select { Name: name(e), Title: e.Title }`)
-            // whose top-level keys match the outer wrapper's projected columns, preserve that projection. Rebuilding
-            // it as `{ col: alias.col }` would drop computed expressions (including declare-function calls) and
-            // silently return empty strings for synthesized fields.
-            var preserveInner = false;
-            if (TryGetSelectFunctionBodyObjectKeys(q.SelectFunctionBody.FunctionText, out var innerKeys)
-                && ProjectionKeysEqual(projectionCols, innerKeys))
-            {
-                preserveInner = true;
-            }
+            // whose top-level keys match the outer wrapper's projected columns — optionally extended with the
+            // pseudo-columns id() and/or json() — preserve that projection. Rebuilding it as `{ col: alias.col }`
+            // would drop computed expressions (including declare-function calls) and silently return empty strings
+            // for synthesized fields.
+            var mode = InnerProjectionMode.Rebuild;
+            List<string> extras = null;
+            if (TryGetSelectFunctionBodyObjectKeys(q.SelectFunctionBody.FunctionText, out var innerKeys))
+                mode = ClassifyInnerProjection(projectionCols, innerKeys, out extras);
 
             var core = q.ShallowCopy();
             core.IsDistinct = false;
@@ -1157,11 +1172,22 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             core.Limit = null;
             core.Offset = null;
 
-            if (preserveInner == false)
+            if (mode == InnerProjectionMode.Rebuild)
             {
                 core.Select = null;
                 core.SelectFunctionBody = default;
             }
+            else if (mode == InnerProjectionMode.PreserveWithExtras)
+            {
+                var aliasText = q.From.Alias?.Value ?? "_doc";
+                if (TryExtendInnerProjectionBody(q.SelectFunctionBody.FunctionText, extras, aliasText, out var newBody) == false)
+                    return null;
+
+                // SelectFunctionBody is a tuple; only FunctionText is consumed by StringQueryVisitor
+                // when rendering back to RQL, so Program/ReferencedParameters can be left null.
+                core.SelectFunctionBody = (newBody, null, null);
+            }
+            // else PreserveExact: leave SelectFunctionBody untouched.
 
             var prefix = core.ToString();
             if (string.IsNullOrWhiteSpace(prefix))
@@ -1174,7 +1200,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             var sb = new StringBuilder();
             sb.Append(prefix);
 
-            if (preserveInner == false)
+            if (mode == InnerProjectionMode.Rebuild)
             {
                 var selectParts = new List<string>(capacity: projectionCols.Count);
                 for (int i = 0; i < projectionCols.Count; i++)
@@ -1220,6 +1246,139 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             }
 
             return sb.ToString();
+        }
+
+        // Decides how the outer SELECT should be emitted relative to the inner object
+        // projection. Returns PreserveExact when the outer projection equals innerKeys,
+        // PreserveWithExtras when the outer adds only id()/json() on top of innerKeys
+        // (duplicates are not allowed in either set), and Rebuild otherwise.
+        private static InnerProjectionMode ClassifyInnerProjection(
+            IReadOnlyList<string> projectionCols,
+            IReadOnlyCollection<string> innerKeys,
+            out List<string> extras)
+        {
+            extras = null;
+
+            if (projectionCols == null || innerKeys == null || innerKeys.Count == 0)
+                return InnerProjectionMode.Rebuild;
+
+            if (ProjectionKeysEqual(projectionCols, innerKeys))
+                return InnerProjectionMode.PreserveExact;
+
+            var innerSet = new HashSet<string>(innerKeys, StringComparer.OrdinalIgnoreCase);
+            if (innerSet.Count != innerKeys.Count)
+                return InnerProjectionMode.Rebuild;
+
+            var seenBusiness = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var seenExtras = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var extrasList = new List<string>();
+
+            foreach (var c in projectionCols)
+            {
+                if (string.IsNullOrWhiteSpace(c))
+                    return InnerProjectionMode.Rebuild;
+
+                if (string.Equals(c, "id()", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(c, "json()", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (seenExtras.Add(c) == false)
+                        return InnerProjectionMode.Rebuild;
+
+                    extrasList.Add(c);
+                    continue;
+                }
+
+                if (innerSet.Contains(c) == false)
+                    return InnerProjectionMode.Rebuild;
+
+                if (seenBusiness.Add(c) == false)
+                    return InnerProjectionMode.Rebuild;
+            }
+
+            // Every inner key must also be covered by a business column; otherwise the outer
+            // wrapper projects fewer business fields than the inner body exposes and we cannot
+            // reduce without rebuilding.
+            if (seenBusiness.Count != innerKeys.Count)
+                return InnerProjectionMode.Rebuild;
+
+            if (extrasList.Count == 0)
+                return InnerProjectionMode.PreserveExact;
+
+            extras = extrasList;
+            return InnerProjectionMode.PreserveWithExtras;
+        }
+
+        // Splices pseudo-column entries (`"id()": id(alias)` / `"json()": alias`) into the
+        // inner object-projection body. We operate on raw source text rather than Acornima
+        // offsets because Acornima's API surface for node ranges varies between releases;
+        // the body has already been validated as a single ObjectExpression by the caller, so
+        // the outermost `}` is the ObjectExpression's closing brace. As a final safety net we
+        // re-parse the extended body to make sure it is still a valid object expression with
+        // the expected keys.
+        private static bool TryExtendInnerProjectionBody(string functionText, List<string> extras, string aliasText, out string newBody)
+        {
+            newBody = null;
+
+            if (string.IsNullOrWhiteSpace(functionText))
+                return false;
+
+            if (extras is not { Count: > 0 })
+                return false;
+
+            if (string.IsNullOrWhiteSpace(aliasText))
+                return false;
+
+            // Locate the closing `}` of the top-level object expression. Because the body was
+            // already validated as a single ObjectExpression, the LAST `}` is that closing brace
+            // — any earlier `}` inside a string literal or a nested object expression cannot
+            // appear after the real close.
+            int close = functionText.LastIndexOf('}');
+            if (close < 0)
+                return false;
+
+            // Trim trailing whitespace and tolerate a single dangling comma; we produce our own
+            // separators for the appended extras.
+            int truncate = close;
+            while (truncate > 0 && char.IsWhiteSpace(functionText[truncate - 1]))
+                truncate--;
+            if (truncate > 0 && functionText[truncate - 1] == ',')
+                truncate--;
+
+            var sb = new StringBuilder();
+            sb.Append(functionText, 0, truncate);
+
+            foreach (var extra in extras)
+            {
+                sb.Append(", ");
+                if (string.Equals(extra, "id()", StringComparison.OrdinalIgnoreCase))
+                {
+                    sb.Append("\"id()\": id(");
+                    sb.Append(aliasText);
+                    sb.Append(')');
+                }
+                else if (string.Equals(extra, "json()", StringComparison.OrdinalIgnoreCase))
+                {
+                    sb.Append("\"json()\": ");
+                    sb.Append(aliasText);
+                }
+                else
+                {
+                    return false;
+                }
+            }
+
+            sb.Append(" }");
+            var candidate = sb.ToString();
+
+            // Belt-and-braces: confirm the extended body still parses as a simple object
+            // expression. If a comment or odd character in the original body threw off the
+            // LastIndexOf heuristic, this check catches it and the caller falls back to the
+            // rebuild path.
+            if (TryGetSelectFunctionBodyObjectKeys(candidate, out _) == false)
+                return false;
+
+            newBody = candidate;
+            return true;
         }
 
         // Returns true when the outer projection and the inner object-projection body expose the same
