@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using PgSqlParser;
 
-namespace Raven.Server.Integrations.PostgreSQL.PowerBI
+namespace Raven.Server.Integrations.PostgreSQL
 {
     internal static class PgSqlAstHelpers
     {

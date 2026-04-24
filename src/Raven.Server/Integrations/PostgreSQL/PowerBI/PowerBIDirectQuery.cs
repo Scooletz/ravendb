@@ -1239,14 +1239,12 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             return InnerProjectionMode.PreserveWithExtras;
         }
 
-        // Splices `"id()": id(alias)` / `"json()": alias` into the inner object-projection body.
-        // The body is validated as a single ObjectExpression by the caller, so the last `}` is the one to replace.
+        // Appends id()/json() properties to the inner object-projection body. Uses Acornima's
+        // parsed AST to find the exact insertion point (end of the last property) so we never
+        // scan or mutate raw text outside the boundaries the parser already established.
         private static bool TryExtendInnerProjectionBody(string functionText, List<string> extras, string aliasText, out string newBody)
         {
             newBody = null;
-
-            if (string.IsNullOrWhiteSpace(functionText))
-                return false;
 
             if (extras is not { Count: > 0 })
                 return false;
@@ -1254,33 +1252,29 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             if (string.IsNullOrWhiteSpace(aliasText))
                 return false;
 
-            int close = functionText.LastIndexOf('}');
-            if (close < 0)
+            if (TryParseProjectionObjectBody(functionText, out var obj) == false)
                 return false;
 
-            // Trim trailing whitespace + tolerate a dangling comma; we emit our own separators.
-            int truncate = close;
-            while (truncate > 0 && char.IsWhiteSpace(functionText[truncate - 1]))
-                truncate--;
-            if (truncate > 0 && functionText[truncate - 1] == ',')
-                truncate--;
+            if (obj.Properties.Count == 0)
+                return false;
 
-            var sb = new StringBuilder();
-            sb.Append(functionText, 0, truncate);
+            int insertAt = obj.Properties[^1].Range.End - ReturnPrefix.Length;
+            if ((uint)insertAt > (uint)functionText.Length)
+                return false;
+
+            var sb = new StringBuilder(functionText.Length + extras.Count * 32);
+            sb.Append(functionText, 0, insertAt);
 
             foreach (var extra in extras)
             {
                 sb.Append(", ");
                 if (string.Equals(extra, "id()", StringComparison.OrdinalIgnoreCase))
                 {
-                    sb.Append("\"id()\": id(");
-                    sb.Append(aliasText);
-                    sb.Append(')');
+                    sb.Append("\"id()\": id(").Append(aliasText).Append(')');
                 }
                 else if (string.Equals(extra, "json()", StringComparison.OrdinalIgnoreCase))
                 {
-                    sb.Append("\"json()\": ");
-                    sb.Append(aliasText);
+                    sb.Append("\"json()\": ").Append(aliasText);
                 }
                 else
                 {
@@ -1288,14 +1282,9 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 }
             }
 
-            sb.Append(" }");
-            var candidate = sb.ToString();
+            sb.Append(functionText, insertAt, functionText.Length - insertAt);
 
-            // Re-parse to catch cases where the LastIndexOf heuristic was thrown off by a comment or literal.
-            if (TryGetSelectFunctionBodyObjectKeys(candidate, out _) == false)
-                return false;
-
-            newBody = candidate;
+            newBody = sb.ToString();
             return true;
         }
 
@@ -1323,11 +1312,15 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             return true;
         }
 
-        // Parses an RQL object-projection body via Acornima (same parser Raven uses) and returns its
-        // top-level keys. Spreads, computed keys, and non-literal keys are rejected.
-        private static bool TryGetSelectFunctionBodyObjectKeys(string functionText, out List<string> keys)
+        // Prefix used to coerce an object-projection body into a valid JS script for Acornima.
+        // Range offsets on the parsed AST are shifted by this length.
+        private const string ReturnPrefix = "return ";
+
+        // Parses an RQL object-projection body via Acornima (same parser Raven uses) and returns
+        // the top-level ObjectExpression, or false on anything exotic (spreads, computed keys, …).
+        private static bool TryParseProjectionObjectBody(string functionText, out JsAst.ObjectExpression obj)
         {
-            keys = null;
+            obj = null;
 
             if (string.IsNullOrWhiteSpace(functionText))
                 return false;
@@ -1336,7 +1329,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             try
             {
                 var parser = new Acornima.Parser(new Acornima.ParserOptions { AllowReturnOutsideFunction = true, Tolerant = false });
-                script = parser.ParseScript("return " + functionText);
+                script = parser.ParseScript(ReturnPrefix + functionText);
             }
             catch
             {
@@ -1346,14 +1339,30 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             if (script?.Body is not { Count: 1 } body)
                 return false;
 
-            if (body[0] is not JsAst.ReturnStatement ret || ret.Argument is not JsAst.ObjectExpression obj)
+            if (body[0] is not JsAst.ReturnStatement ret || ret.Argument is not JsAst.ObjectExpression o)
+                return false;
+
+            foreach (var node in o.Properties)
+            {
+                if (node is not JsAst.Property { Computed: false })
+                    return false;
+            }
+
+            obj = o;
+            return true;
+        }
+
+        private static bool TryGetSelectFunctionBodyObjectKeys(string functionText, out List<string> keys)
+        {
+            keys = null;
+
+            if (TryParseProjectionObjectBody(functionText, out var obj) == false)
                 return false;
 
             var result = new List<string>(capacity: obj.Properties.Count);
             foreach (var node in obj.Properties)
             {
-                if (node is not JsAst.Property { Computed: false } prop)
-                    return false;
+                var prop = (JsAst.Property)node;
 
                 string name = prop.Key switch
                 {

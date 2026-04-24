@@ -8,7 +8,6 @@ using Newtonsoft.Json.Linq;
 using PgSqlParser;
 using Raven.Client;
 using Raven.Client.Documents.Session;
-using Raven.Server.Integrations.PostgreSQL.PowerBI;
 using Raven.Server.Logging;
 using Sparrow.Logging;
 using Sparrow.Server.Logging;
