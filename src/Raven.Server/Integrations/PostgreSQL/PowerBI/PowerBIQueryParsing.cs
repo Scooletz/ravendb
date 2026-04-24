@@ -8,8 +8,11 @@ using Raven.Server.Documents.Queries.AST;
 using Raven.Server.Documents.Queries.Parser;
 using RavenQuery = Raven.Server.Documents.Queries.AST.Query;
 using Raven.Server.Integrations.PostgreSQL.Translation;
+using Raven.Server.Logging;
 using Sparrow;
 using Sparrow.Extensions;
+using Sparrow.Logging;
+using Sparrow.Server.Logging;
 
 namespace Raven.Server.Integrations.PostgreSQL.PowerBI
 {
@@ -18,44 +21,57 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
     /// <see cref="InnerText"/> is the extracted innermost query text (RQL or SQL).
     /// <see cref="SanitizedSql"/> is the outer wrapper SQL with the innermost query replaced by
     /// a trivial <c>select 1</c> subquery so pgsqlparser can safely parse the wrapper structure.
+    /// <see cref="SanitizedSelectStmt"/> is that sanitized SQL already parsed into a SelectStmt,
+    /// threaded through so consumers (DirectQuery / FetchQuery) don't re-parse it a second time.
     /// </summary>
     internal sealed record InnerTextResult(
         string InnerText,
         string SanitizedSql,
+        SelectStmt SanitizedSelectStmt,
         RavenQuery ResolvedQuery);
 
     internal static class PowerBIInnerRqlExtractor
     {
+        private static readonly RavenLogger Logger = RavenLogManager.Instance.GetLoggerForServer(typeof(PowerBIInnerRqlExtractor));
+
         /// <summary>
         /// Extracts the inner textbox span from a PowerBI-wrapped SQL query and resolves it to a
         /// <see cref="RavenQuery"/> in one step. Returns <c>null</c> when extraction or resolution fails.
         /// </summary>
         public static InnerTextResult TryExtractAndResolve(string sql)
         {
-            if (TryExtractInnerText(sql, out var innerText, out var sanitizedSql, out var fromTwoParsersPath) == false)
+            if (TryExtractInnerText(sql, out var innerText, out var sanitizedSql, out var sanitizedSelectStmt, out var fromTwoParsersPath) == false)
                 return null;
 
             var resolved = TryResolveInnerTextToQuery(innerText, fromTwoParsersPath);
             if (resolved == null)
                 return null;
 
-            return new InnerTextResult(innerText, sanitizedSql, resolved);
+            return new InnerTextResult(innerText, sanitizedSql, sanitizedSelectStmt, resolved);
         }
 
-        private static bool TryExtractInnerText(string sql, out string innerText, out string sanitizedSql, out bool fromTwoParsersPath)
+        private static bool TryExtractInnerText(string sql, out string innerText, out string sanitizedSql, out SelectStmt sanitizedSelectStmt, out bool fromTwoParsersPath)
         {
             innerText = null;
             sanitizedSql = null;
+            sanitizedSelectStmt = null;
             fromTwoParsersPath = false;
 
             if (TryExtractInnerRqlSpanViaTwoParsers(sql, out var innerStart, out var innerEnd, out innerText))
             {
                 fromTwoParsersPath = true;
                 sanitizedSql = sql[..innerStart] + "select 1" + sql[innerEnd..];
-                return true;
+
+                // Parse the sanitized SQL once here so consumers can reuse the SelectStmt
+                // rather than each running Parser.Parse(sanitizedSql) a second time.
+                var sanitizedParse = Parser.Parse(sanitizedSql);
+                if (sanitizedParse.IsSuccess == false || sanitizedParse.Value?.Stmts is not { Count: 1 })
+                    return false;
+                sanitizedSelectStmt = sanitizedParse.Value.Stmts[0]?.Stmt?.SelectStmt;
+                return sanitizedSelectStmt != null;
             }
 
-            return TryExtractInnerSqlViaAst(sql, out innerText, out sanitizedSql);
+            return TryExtractInnerSqlViaAst(sql, out innerText, out sanitizedSql, out sanitizedSelectStmt);
         }
 
         private static RavenQuery TryResolveInnerTextToQuery(string innerText, bool fromTwoParsersPath)
@@ -70,8 +86,10 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 {
                     return QueryMetadata.ParseQuery(innerText, QueryType.Select);
                 }
-                catch
+                catch (Exception e)
                 {
+                    if (Logger.IsDebugEnabled)
+                        Logger.Debug($"{nameof(PowerBIInnerRqlExtractor)}: two-parsers path produced non-RQL inner text. Reason: {e.Message}");
                     return null;
                 }
             }
@@ -84,9 +102,11 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             {
                 return QueryMetadata.ParseQuery(innerText, QueryType.Select);
             }
-            catch
+            catch (Exception e)
             {
                 // Not RQL – fall through to SQL translation.
+                if (Logger.IsDebugEnabled)
+                    Logger.Debug($"{nameof(PowerBIInnerRqlExtractor)}: inner text is not RQL, will attempt SQL→RQL translation. Reason: {e.Message}");
             }
 
             // 2. Try SQL→RQL translation (SQL-statement textbox support).
@@ -100,8 +120,10 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             {
                 return QueryMetadata.ParseQuery(translatedRql, QueryType.Select);
             }
-            catch
+            catch (Exception e)
             {
+                if (Logger.IsDebugEnabled)
+                    Logger.Debug($"{nameof(PowerBIInnerRqlExtractor)}: SQL→RQL-translated query failed to re-parse as RQL. Reason: {e.Message}");
                 return null;
             }
         }
@@ -194,10 +216,11 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             return true;
         }
 
-        private static bool TryExtractInnerSqlViaAst(string sql, out string innerSql, out string sanitizedSql)
+        private static bool TryExtractInnerSqlViaAst(string sql, out string innerSql, out string sanitizedSql, out SelectStmt sanitizedSelectStmt)
         {
             innerSql = null;
             sanitizedSql = null;
+            sanitizedSelectStmt = null;
 
             if (string.IsNullOrWhiteSpace(sql))
                 return false;
@@ -220,6 +243,11 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
 
             if (TryDeparseParseResult(parseResult.Value, out sanitizedSql) == false)
                 return false;
+
+            // rootSelect is the wrapper AST with the deepest subquery mutated to `select 1` —
+            // structurally identical to what re-parsing sanitizedSql would produce. Hand it back
+            // so the caller skips the redundant second parse.
+            sanitizedSelectStmt = rootSelect;
 
             return string.IsNullOrWhiteSpace(innerSql) == false &&
                    string.IsNullOrWhiteSpace(sanitizedSql) == false;

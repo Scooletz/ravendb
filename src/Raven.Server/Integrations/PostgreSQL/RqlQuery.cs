@@ -7,10 +7,12 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Raven.Client;
+using Raven.Client.Exceptions;
 using Raven.Server.Documents;
 using Raven.Server.Documents.Indexes;
 using Raven.Server.Documents.Queries;
 using Raven.Server.Documents.Queries.AST;
+using Raven.Server.Documents.Queries.Parser;
 using Raven.Server.Integrations.PostgreSQL.Messages;
 using Raven.Server.Integrations.PostgreSQL.Types;
 using Raven.Server.Logging;
@@ -222,10 +224,14 @@ namespace Raven.Server.Integrations.PostgreSQL
             {
                 QueryMetadata.ParseQuery(queryText, QueryType.Select);
             }
-            catch
+            catch (Exception e) when (e is InvalidQueryException or QueryParser.ParseException)
             {
+                // Input is not valid RQL — leave it for the next dispatch arm (PowerBI / hardcoded /
+                // SQL→RQL translator). Any other exception type (OOM, stack overflow, …) is a real
+                // failure and must propagate rather than be silently reclassified as "not RQL".
+                if (Logger.IsDebugEnabled)
+                    Logger.Debug($"{nameof(RqlQuery)}.{nameof(TryParse)} rejected query as non-RQL: {e.Message}");
                 rqlQuery = null;
-
                 return false;
             }
 

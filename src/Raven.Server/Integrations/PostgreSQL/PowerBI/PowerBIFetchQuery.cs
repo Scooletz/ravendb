@@ -4,11 +4,16 @@ using PgSqlParser;
 using Raven.Server.Integrations.PostgreSQL.Translation;
 using Raven.Server.Documents;
 using Raven.Server.Documents.Queries.AST;
+using Raven.Server.Logging;
+using Sparrow.Logging;
+using Sparrow.Server.Logging;
 
 namespace Raven.Server.Integrations.PostgreSQL.PowerBI
 {
     public static class PowerBIFetchQuery
     {
+        private static readonly RavenLogger Logger = RavenLogManager.Instance.GetLoggerForServer(typeof(PowerBIFetchQuery));
+
         public static bool TryParse(string queryText, int[] parametersDataTypes, DocumentDatabase documentDatabase, out PgQuery pgQuery)
         {
             if (TryParseSimpleTableFetchViaAst(queryText, parametersDataTypes, documentDatabase, out pgQuery))
@@ -34,17 +39,9 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 if (inner == null)
                     return false;
 
-                var sanitizedSql = inner.SanitizedSql;
-
-                var parseResult = Parser.Parse(sanitizedSql);
-                if (parseResult.IsSuccess == false || parseResult.Value == null)
-                    return false;
-
-                if (parseResult.Value.Stmts == null || parseResult.Value.Stmts.Count != 1)
-                    return false;
-
-                var stmt = parseResult.Value.Stmts[0];
-                var selectStmt = stmt?.Stmt?.SelectStmt;
+                // inner.SanitizedSelectStmt is the wrapper AST with the innermost subquery replaced
+                // by `select 1`, produced once by the extractor — no re-parse needed here.
+                var selectStmt = inner.SanitizedSelectStmt;
                 if (selectStmt == null)
                     return false;
 
@@ -114,8 +111,10 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 pgQuery = new PowerBIRqlQuery(newRql, parametersDataTypes, documentDatabase, allReplaces, limit: limit);
                 return true;
             }
-            catch
+            catch (Exception e)
             {
+                if (Logger.IsDebugEnabled)
+                    Logger.Debug($"{nameof(PowerBIFetchQuery)}.{nameof(TryParseWrappedRqlFetchViaAst)} rejected query: {e.Message}");
                 pgQuery = null;
                 return false;
             }

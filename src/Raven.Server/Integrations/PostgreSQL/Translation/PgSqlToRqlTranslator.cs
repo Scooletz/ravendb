@@ -8,6 +8,7 @@ using Newtonsoft.Json.Linq;
 using PgSqlParser;
 using Raven.Client;
 using Raven.Client.Documents.Session;
+using Raven.Server.Integrations.PostgreSQL.PowerBI;
 using Raven.Server.Logging;
 using Sparrow.Logging;
 using Sparrow.Server.Logging;
@@ -116,20 +117,24 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
                     TranslateOrderBy(q, selectStmt.SortClause, fromAlias);
             }
 
-            // Build OFFSET clause
+            // Build OFFSET clause. Fail the whole translation rather than silently
+            // dropping an OFFSET we can't represent (parameter placeholders, non-integer
+            // constants, …) — silently ignoring the bound would return extra rows.
             if (selectStmt.LimitOffset != null)
             {
                 var offset = TranslateLimit(selectStmt.LimitOffset);
-                if (offset != null)
-                    q.Skip(offset.Value);
+                if (offset == null)
+                    throw new NotSupportedException("Unsupported OFFSET expression (only integer literals are supported)");
+                q.Skip(offset.Value);
             }
 
-            // Build LIMIT clause
+            // Build LIMIT clause. Same fail-hard policy as OFFSET.
             if (selectStmt.LimitCount != null)
             {
                 var limit = TranslateLimit(selectStmt.LimitCount);
-                if (limit != null)
-                    q.Take(limit.Value);
+                if (limit == null)
+                    throw new NotSupportedException("Unsupported LIMIT expression (only integer literals are supported)");
+                q.Take(limit.Value);
             }
 
             // Prefer the official query text emitted by IndexQuery when possible.
@@ -797,12 +802,12 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
             }
         }
 
+        // Tolerates all three AConst kinds (Ival/Sval/Fval) that pgsqlparser emits for LIMIT/OFFSET.
+        // Parameter placeholders ($1) still return null — the parameter binding machinery doesn't
+        // thread through here — but plain integer literals round-trip regardless of kind.
         private static int? TranslateLimit(Node limitNode)
         {
-            if (limitNode.AConst?.Ival != null)
-                return (int)limitNode.AConst.Ival.Ival;
-
-            return null;
+            return PgSqlAstHelpers.TryReadNonNegativeIntConst(limitNode, out var value) ? value : null;
         }
 
         /// <summary>

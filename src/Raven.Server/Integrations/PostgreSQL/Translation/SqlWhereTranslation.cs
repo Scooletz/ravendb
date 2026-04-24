@@ -7,6 +7,15 @@ using Sparrow.Extensions;
 namespace Raven.Server.Integrations.PostgreSQL.Translation
 {
     // Shared WHERE IR produced by SqlWhereParser, consumed by PgSqlToRqlTranslator and PowerBIOuterWhereTranslator.
+    //
+    // Emitter asymmetry (tracked as a deliberate wart, not a bug):
+    //   - <see cref="PowerBIOuterWhereTranslator"/> handles <see cref="ParsedNot"/> and
+    //     <c>ParsedIn { Negated = true }</c> because the wrappers PowerBI emits sometimes
+    //     carry NOT / NOT IN around collection membership checks.
+    //   - <see cref="PgSqlToRqlTranslator"/> currently rejects both as NotSupportedException
+    //     (falling the whole statement out of the SQL→RQL path). Lifting them into the general
+    //     emitter is tracked as a follow-up; until then, a WHERE clause containing NOT or
+    //     NOT IN only translates successfully when reached through a PowerBI wrapper.
     internal abstract record ParsedWhere;
 
     internal sealed record ParsedAnd(IReadOnlyList<ParsedWhere> Children) : ParsedWhere;

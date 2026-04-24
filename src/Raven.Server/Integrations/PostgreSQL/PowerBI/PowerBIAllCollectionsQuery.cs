@@ -6,14 +6,20 @@ using System.Threading;
 using System.Threading.Tasks;
 using PgSqlParser;
 using Raven.Server.Documents;
+using Raven.Server.Integrations.PostgreSQL.Classification;
 using Raven.Server.Integrations.PostgreSQL.Messages;
 using Raven.Server.Integrations.PostgreSQL.Types;
+using Raven.Server.Logging;
 using Raven.Server.ServerWide.Context;
+using Sparrow.Logging;
+using Sparrow.Server.Logging;
 
 namespace Raven.Server.Integrations.PostgreSQL.PowerBI
 {
     public sealed class PowerBIAllCollectionsQuery : PowerBIRqlQuery
     {
+        private static readonly RavenLogger Logger = RavenLogManager.Instance.GetLoggerForServer<PowerBIAllCollectionsQuery>();
+
         private const string InformationSchema = "information_schema";
         private const string Tables = "tables";
         private const string PublicSchema = "public";
@@ -41,7 +47,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
 
             try
             {
-                if (PgSqlAstHelpers.TryParseSingleSelect(queryText, out var selectStmt) == false)
+                if (SelectStmtShape.TryParseSingleSelect(queryText, out var selectStmt) == false)
                     return false;
 
                 if (IsPowerBiAllCollectionsShape(selectStmt) == false)
@@ -50,8 +56,10 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 pgQuery = new PowerBIAllCollectionsQuery(queryText, parametersDataTypes, documentDatabase);
                 return true;
             }
-            catch
+            catch (Exception e)
             {
+                if (Logger.IsDebugEnabled)
+                    Logger.Debug($"{nameof(PowerBIAllCollectionsQuery)}.{nameof(TryParse)} rejected query: {e.Message}");
                 pgQuery = null;
                 return false;
             }

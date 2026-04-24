@@ -77,24 +77,6 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
         }
 
 
-        public static bool TryParseSingleSelect(string sql, out SelectStmt selectStmt)
-        {
-            selectStmt = null;
-
-            if (string.IsNullOrWhiteSpace(sql))
-                return false;
-
-            var parseResult = Parser.Parse(sql);
-            if (parseResult.IsSuccess == false || parseResult.Value?.Stmts == null)
-                return false;
-
-            if (parseResult.Value.Stmts.Count != 1)
-                return false;
-
-            selectStmt = parseResult.Value.Stmts[0]?.Stmt?.SelectStmt;
-            return selectStmt != null;
-        }
-
         public static bool TryGetSingleRangeVarFromClause(SelectStmt selectStmt, out RangeVar rangeVar)
         {
             rangeVar = null;
