@@ -36,7 +36,7 @@ internal sealed class AiTasksHandlerProcessorForGetErrors : AbstractTaskErrorsHa
         var storage = RequestHandler.Database.TaskErrorsStorage;
         var taskNames = GetNames();
         var processesByName = RequestHandler.Database.EtlLoader.Processes
-            .ToDictionary(p => p.Name, p => p, StringComparer.OrdinalIgnoreCase);
+            .ToDictionary(p => p.Name, p => p, StringComparer.Ordinal);
 
         if (taskNames.Count == 0)
         {

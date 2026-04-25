@@ -20,7 +20,7 @@ public unsafe class TaskErrorsStorage
     private const int TableSizeInPages = 16;
     private DocumentsContextPool _contextPool;
     private DocumentsTransactionOperationsMerger _txMerger;
-    private HashSet<string> _tablesCreated = new(StringComparer.OrdinalIgnoreCase);
+    private HashSet<string> _tablesCreated = new(StringComparer.Ordinal);
 
     public void Initialize(DocumentsContextPool contextPool, DocumentsTransactionOperationsMerger txMerger)
     {
@@ -40,7 +40,7 @@ public unsafe class TaskErrorsStorage
                 if (tx.LowLevelTransaction.Committed == false)
                     return;
 
-                _tablesCreated = new HashSet<string>(_tablesCreated, StringComparer.OrdinalIgnoreCase) { tableName };
+                _tablesCreated = new HashSet<string>(_tablesCreated, StringComparer.Ordinal) { tableName };
             };
         }
 
@@ -59,7 +59,7 @@ public unsafe class TaskErrorsStorage
                 if (tx.LowLevelTransaction.Committed == false)
                     return;
 
-                _tablesCreated = new HashSet<string>(_tablesCreated, StringComparer.OrdinalIgnoreCase) { tableName };
+                _tablesCreated = new HashSet<string>(_tablesCreated, StringComparer.Ordinal) { tableName };
             };
         }
 
@@ -231,7 +231,7 @@ public unsafe class TaskErrorsStorage
         using (context.OpenReadTransaction())
         {
             var tx = context.Transaction.InnerTransaction;
-            var taskNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var taskNames = new HashSet<string>(StringComparer.Ordinal);
 
             foreach (var name in EnumerateStoredTaskNames(taskErrorSource, tx, Schemas.TaskProcessErrors.TaskProcessErrorsTree))
                 taskNames.Add(name);
@@ -245,14 +245,7 @@ public unsafe class TaskErrorsStorage
                 var processErrors = ReadProcessErrorsOfTask(context, taskName, taskErrorSource).ToList();
                 var itemErrors = ReadItemErrorsOfTask(context, taskName, taskErrorSource).ToList();
 
-                // Table names are lowercased (see GetProcessErrorsTableName), but the TaskName field
-                // stored in each row preserves the original case from when the error was written.
-                // Use the row value so the Studio can do a case-sensitive match against EtlTaskStats.TaskName.
-                var originalCaseName = processErrors.FirstOrDefault()?.TaskName
-                    ?? itemErrors.FirstOrDefault()?.TaskName
-                    ?? taskName;
-
-                result.Add((originalCaseName, processErrors, itemErrors));
+                result.Add((taskName, processErrors, itemErrors));
             }
 
             return result;
@@ -284,7 +277,7 @@ public unsafe class TaskErrorsStorage
         using (context.OpenReadTransaction())
         {
             var tx = context.Transaction.InnerTransaction;
-            var taskNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var taskNames = new HashSet<string>(StringComparer.Ordinal);
 
             foreach (var name in EnumerateStoredTaskNames(taskErrorSource, tx, Schemas.TaskProcessErrors.TaskProcessErrorsTree))
                 taskNames.Add(name);
@@ -494,11 +487,11 @@ public unsafe class TaskErrorsStorage
 
     private static string GetProcessErrorsTableName(TaskErrorSource taskErrorSource, string taskName)
     {
-        return $"{taskErrorSource}.{Schemas.TaskProcessErrors.TaskProcessErrorsTree}.{taskName.ToLowerInvariant()}";
+        return $"{taskErrorSource}.{Schemas.TaskProcessErrors.TaskProcessErrorsTree}.{taskName}";
     }
 
     private static string GetItemErrorsTableName(TaskErrorSource taskErrorSource, string taskName)
     {
-        return $"{taskErrorSource}.{Schemas.TaskItemErrors.TaskItemErrorsTree}.{taskName.ToLowerInvariant()}";
+        return $"{taskErrorSource}.{Schemas.TaskItemErrors.TaskItemErrorsTree}.{taskName}";
     }
 }

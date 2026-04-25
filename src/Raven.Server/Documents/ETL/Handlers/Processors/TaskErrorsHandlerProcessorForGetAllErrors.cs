@@ -32,7 +32,7 @@ internal sealed class TaskErrorsHandlerProcessorForGetAllErrors : AbstractTaskEr
 
         var storage = RequestHandler.Database.TaskErrorsStorage;
         var processesByName = RequestHandler.Database.EtlLoader.Processes
-            .ToDictionary(p => p.Name, p => p, StringComparer.OrdinalIgnoreCase);
+            .ToDictionary(p => p.Name, p => p, StringComparer.Ordinal);
 
         foreach (TaskErrorSource taskType in Enum.GetValues(typeof(TaskErrorSource)))
         {
