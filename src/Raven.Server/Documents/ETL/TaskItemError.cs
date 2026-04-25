@@ -6,11 +6,6 @@ public class TaskItemError : TaskErrorBase
 {
     public string DocumentId { get; set; }
 
-    protected override string GetId()
-    {
-        return $"{TaskName}/{DocumentId}";
-    }
-
     public override DynamicJsonValue ToJson()
     {
         var json = base.ToJson();

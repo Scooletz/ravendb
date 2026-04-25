@@ -1016,7 +1016,7 @@ public class RavenDB_21192 : RavenTestBase
 
             foreach (var itemError in itemErrors)
             {
-                Assert.StartsWith(EtlProcess.GetProcessName(etlName1, transformationName1), itemError.Id);
+                Assert.Equal(EtlProcess.GetProcessName(etlName1, transformationName1), itemError.TaskName);
             }
         }
     }
@@ -1070,7 +1070,7 @@ public class RavenDB_21192 : RavenTestBase
 
             foreach (var itemError in itemErrors)
             {
-                Assert.StartsWith(EtlProcess.GetProcessName(etlName2, transformationName2), itemError.Id);
+                Assert.Equal(EtlProcess.GetProcessName(etlName2, transformationName2), itemError.TaskName);
             }
         }
     }

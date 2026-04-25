@@ -8,7 +8,6 @@ public class TaskProcessErrorTableValue : TaskErrorTableValueBase
     {
         return new TaskProcessError
         {
-            Id = Id,
             CreatedAt = CreatedAt,
             TaskName = TaskName,
             AffectedDocumentsCount = AffectedDocumentsCount,

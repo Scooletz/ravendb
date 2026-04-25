@@ -1,4 +1,3 @@
-using System;
 using Sparrow.Json.Parsing;
 
 namespace Raven.Server.Documents.ETL;
@@ -6,11 +5,6 @@ namespace Raven.Server.Documents.ETL;
 public class TaskProcessError : TaskErrorBase
 {
     public long AffectedDocumentsCount { get; set; }
-
-    protected override string GetId()
-    {
-        return $"{TaskName}/{Guid.NewGuid():N}";
-    }
 
     public override DynamicJsonValue ToJson()
     {
