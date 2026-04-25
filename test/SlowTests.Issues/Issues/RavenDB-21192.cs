@@ -1076,6 +1076,57 @@ public class RavenDB_21192 : RavenTestBase
     }
 
     [RavenFact(RavenTestCategory.Etl)]
+    public async Task TaskErrorsArePreservedOnEtlReset()
+    {
+        using (var src = GetDocumentStore())
+        using (var dest = GetDocumentStore())
+        {
+            const string connectionStringName = "ConnectionString1";
+            const string etlName = "ETL1";
+            const string transformationName = "Transformation1";
+            const string script = "loadToUsers(this);";
+            var collections = new List<string> { "Users" };
+            var processName = EtlProcess.GetProcessName(etlName, transformationName);
+            const int errorsCount = 5;
+
+            AddEtlTask(src, dest, etlName, connectionStringName, [transformationName], [script], collections);
+
+            using (var session = src.OpenAsyncSession())
+            {
+                for (int i = 0; i < errorsCount; i++)
+                    await session.StoreAsync(new User { Name = "Joe Doe" });
+                await session.SaveChangesAsync();
+            }
+
+            await WaitForEtlStatsAsync(src, processName, stats => stats.LoadSuccesses == errorsCount);
+
+            var database = await GetDatabase(src.Database);
+
+            for (int i = 0; i < errorsCount; i++)
+            {
+                database.TaskErrorsStorage.StoreProcessError(TaskErrorSource.Etl, new TaskProcessError
+                {
+                    CreatedAt = DateTime.UtcNow,
+                    TaskName = processName,
+                    AffectedDocumentsCount = 1,
+                    Step = TaskErrorStep.Load,
+                    Error = $"injected error {i}"
+                });
+            }
+
+            Assert.Equal(errorsCount, database.TaskErrorsStorage.ReadAllProcessErrors(TaskErrorSource.Etl).Count);
+            
+            var resetDone = Etl.WaitForEtlToComplete(src, (_, _) => true);
+
+            await src.Maintenance.SendAsync(new ResetEtlOperation(etlName, transformationName));
+
+            Assert.True(await resetDone.WaitAsync(TimeSpan.FromSeconds(30)));
+            
+            Assert.Equal(errorsCount, database.TaskErrorsStorage.ReadAllProcessErrors(TaskErrorSource.Etl).Count);
+        }
+    }
+
+    [RavenFact(RavenTestCategory.Etl)]
     public async Task ErrorsLimitInStorageShouldBeRespected()
     {
         using (var src = GetDocumentStore())
