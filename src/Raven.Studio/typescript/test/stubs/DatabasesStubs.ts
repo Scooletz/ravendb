@@ -1287,7 +1287,6 @@ return docs[0];`,
                 EtlSubType: null,
                 ItemErrors: [
                     {
-                        Id: "ETL1/Transformation1/users/1000-A",
                         TaskName: "ETL1/Transformation1",
                         CreatedAt: "2026-03-09T09:52:12.6923003",
                         Step: "Transformation",

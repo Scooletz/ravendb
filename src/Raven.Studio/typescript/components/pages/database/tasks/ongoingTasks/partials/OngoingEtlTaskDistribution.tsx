@@ -306,7 +306,6 @@ function ItemWithTooltip(props: ItemWithTooltipProps) {
             TaskName: null,
             Step: null,
             CreatedAt: null,
-            Id: null,
             AffectedDocumentsCount: 0,
         };
 

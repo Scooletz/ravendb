@@ -1251,7 +1251,6 @@ namespace Orders
             ProcessErrors: [],
             ItemErrors: [
                 {
-                    Id: "ETL1/Transformation1/users/1-A",
                     TaskName: "ETL1/Transformation1",
                     CreatedAt: "2026-03-17T11:02:19.3494157",
                     Step: "Transformation",
@@ -1259,7 +1258,6 @@ namespace Orders
                     DocumentId: "users/1-A",
                 },
                 {
-                    Id: "ETL1/Transformation1/users/2-A",
                     TaskName: "ETL1/Transformation1",
                     CreatedAt: "2026-03-17T11:02:19.4560975",
                     Step: "Transformation",
@@ -1267,7 +1265,6 @@ namespace Orders
                     DocumentId: "users/2-A",
                 },
                 {
-                    Id: "ETL1/Transformation1/users/3-A",
                     TaskName: "ETL1/Transformation1",
                     CreatedAt: "2026-03-17T11:02:19.5041135",
                     Step: "Transformation",
@@ -1275,7 +1272,6 @@ namespace Orders
                     DocumentId: "users/3-A",
                 },
                 {
-                    Id: "ETL1/Transformation1/users/4-A",
                     TaskName: "ETL1/Transformation1",
                     CreatedAt: "2026-03-17T11:02:19.5496271",
                     Step: "Transformation",
@@ -1283,7 +1279,6 @@ namespace Orders
                     DocumentId: "users/4-A",
                 },
                 {
-                    Id: "ETL1/Transformation1/users/5-A",
                     TaskName: "ETL1/Transformation1",
                     CreatedAt: "2026-03-17T11:02:19.5935062",
                     Step: "Transformation",
