@@ -55,7 +55,7 @@ export const Default: StoryObj<KafkaProps> = {
 
         tasksService.withEtlErrors([]);
         tasksService.withEtlStats([]);
-        
+
         if (args.multipleScripts) {
             tasksService.withGetEtlProgress((dto) => {
                 const kafkaTask = dto.Results.find((x) => x.TaskName === TasksStubs.getKafkaEtl().TaskName);

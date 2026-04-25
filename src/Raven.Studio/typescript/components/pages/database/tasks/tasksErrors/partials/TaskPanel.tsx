@@ -263,7 +263,13 @@ interface TaskPanelProps extends EtlTaskWithErrors {
     onRefresh: () => void;
 }
 
-export function TaskPanel({ etlName, etlType: etlTypeFromErrors, transformations, etlStats, onRefresh }: TaskPanelProps) {
+export function TaskPanel({
+    etlName,
+    etlType: etlTypeFromErrors,
+    transformations,
+    etlStats,
+    onRefresh,
+}: TaskPanelProps) {
     const hasDatabaseWriteAccess = useAppSelector(accessManagerSelectors.getHasDatabaseWriteAccess)();
     const databaseName = useAppSelector(databaseSelectors.activeDatabaseName);
     const db = useAppSelector(databaseSelectors.activeDatabase);
@@ -279,8 +285,7 @@ export function TaskPanel({ etlName, etlType: etlTypeFromErrors, transformations
     const { bg, icon, label } = healthStatusToBadge(taskHealth);
     const taskStats = etlStats.find((s) => s.TaskName === etlName);
     const taskId = taskStats?.TaskId;
-    const etlType =
-        TaskUtils.etlTypeToStudioType(taskStats?.EtlType, taskStats?.EtlSubType) ?? etlTypeFromErrors;
+    const etlType = TaskUtils.etlTypeToStudioType(taskStats?.EtlType, taskStats?.EtlSubType) ?? etlTypeFromErrors;
 
     const taskLink = getEtlEditLink(databaseName, taskId, etlType);
 

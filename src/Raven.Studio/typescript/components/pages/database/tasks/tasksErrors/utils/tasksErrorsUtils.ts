@@ -139,8 +139,7 @@ export function flattenAllTasksErrors(tasksWithErrors: EtlTaskWithErrors[], etlS
     return tasksWithErrors.flatMap((task) => {
         const taskStats = etlStats.find((s) => s.TaskName === task.etlName);
         const taskId = taskStats?.TaskId;
-        const etlType =
-            TaskUtils.etlTypeToStudioType(taskStats?.EtlType, taskStats?.EtlSubType) ?? task.etlType;
+        const etlType = TaskUtils.etlTypeToStudioType(taskStats?.EtlType, taskStats?.EtlSubType) ?? task.etlType;
 
         return task.transformations.flatMap((transformation) => {
             const healthStatus =
