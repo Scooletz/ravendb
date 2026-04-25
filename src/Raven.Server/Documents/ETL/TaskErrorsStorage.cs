@@ -113,7 +113,7 @@ public unsafe class TaskErrorsStorage
         {
             if (table.GetCountOfMatchesFor(Schemas.TaskProcessErrors.Current.Indexes[Schemas.TaskProcessErrors.ByTaskName], taskNameSlice) >= ErrorsLimitPerTaskErrorType)
             {
-                DeleteOldestProcessErrorOfTask(table, context, processError.TaskName);
+                DeleteOldestProcessErrorOfTask(table);
             }
         }
 
@@ -450,25 +450,12 @@ public unsafe class TaskErrorsStorage
         }
     }
 
-    private static void DeleteOldestProcessErrorOfTask<T>(Table table, TransactionOperationContext<T> context, string taskName)
-        where T : RavenTransaction
+    private static void DeleteOldestProcessErrorOfTask(Table table)
     {
         if (table == null)
             return;
 
-        using (Slice.From(context.Transaction.InnerTransaction.Allocator, taskName, out Slice taskNameSlice))
-        {
-            foreach (var tvr in table.SeekForwardFrom(Schemas.TaskProcessErrors.Current.Indexes[Schemas.TaskProcessErrors.ByTaskName], taskNameSlice, 0))
-            {
-                var error = ReadProcessError(ref tvr.Result.Reader);
-
-                if (error.TaskName != taskName)
-                    break;
-
-                table.Delete(tvr.Result.Reader.Id);
-                return;
-            }
-        }
+        table.DeleteForwardFrom(Schemas.TaskProcessErrors.Current.Indexes[Schemas.TaskProcessErrors.ByCreatedAt], Slices.BeforeAllKeys, false, 1);
     }
 
     private static void DeleteOldestItemErrorsOfTask(Table table)
