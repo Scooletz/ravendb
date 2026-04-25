@@ -4,15 +4,11 @@ public class TaskProcessErrorTableValue : TaskErrorTableValueBase
 {
     public long AffectedDocumentsCount;
 
-    protected override string GetId()
-    {
-        return $"{TaskName}/{CreatedAt.Ticks}";
-    }
-
     public TaskProcessError ToTaskProcessError()
     {
         return new TaskProcessError
         {
+            Id = Id,
             CreatedAt = CreatedAt,
             TaskName = TaskName,
             AffectedDocumentsCount = AffectedDocumentsCount,

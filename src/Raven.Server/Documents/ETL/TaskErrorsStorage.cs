@@ -174,6 +174,7 @@ public unsafe class TaskErrorsStorage
 
     private static TaskProcessErrorTableValue ReadProcessError(ref TableValueReader reader)
     {
+        var id = reader.ReadString(Schemas.TaskProcessErrors.TaskProcessErrorsTable.IdIndex);
         var createdAt = new DateTime(Bits.SwapBytes(*(long*)reader.Read(Schemas.TaskProcessErrors.TaskProcessErrorsTable.CreatedAtIndex, out _)));
         var taskName = reader.ReadString(Schemas.TaskProcessErrors.TaskProcessErrorsTable.TaskNameIndex);
         var affectedDocumentsCount = Bits.SwapBytes(*(long*)reader.Read(Schemas.TaskProcessErrors.TaskProcessErrorsTable.AffectedDocumentsCountIndex, out _));
@@ -182,6 +183,7 @@ public unsafe class TaskErrorsStorage
 
         return new TaskProcessErrorTableValue
         {
+            Id = id,
             CreatedAt = createdAt,
             TaskName = taskName,
             AffectedDocumentsCount = affectedDocumentsCount,
@@ -192,6 +194,7 @@ public unsafe class TaskErrorsStorage
 
     private static TaskItemErrorTableValue ReadItemError(ref TableValueReader reader)
     {
+        var id = reader.ReadString(Schemas.TaskItemErrors.TaskItemErrorsTable.IdIndex);
         var createdAt = new DateTime(Bits.SwapBytes(*(long*)reader.Read(Schemas.TaskItemErrors.TaskItemErrorsTable.CreatedAtIndex, out _)));
         var taskName = reader.ReadString(Schemas.TaskItemErrors.TaskItemErrorsTable.TaskNameIndex);
         var documentId = reader.ReadString(Schemas.TaskItemErrors.TaskItemErrorsTable.DocumentIdIndex);
@@ -200,6 +203,7 @@ public unsafe class TaskErrorsStorage
 
         return new TaskItemErrorTableValue
         {
+            Id = id,
             CreatedAt = createdAt,
             TaskName = taskName,
             DocumentId = documentId,

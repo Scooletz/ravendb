@@ -13,6 +13,7 @@ public class TaskItemErrorTableValue : TaskErrorTableValueBase
     {
         return new TaskItemError
         {
+            Id = Id,
             CreatedAt = CreatedAt,
             TaskName = TaskName,
             DocumentId = DocumentId,

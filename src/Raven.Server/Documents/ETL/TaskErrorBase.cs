@@ -5,7 +5,12 @@ namespace Raven.Server.Documents.ETL;
 
 public abstract class TaskErrorBase
 {
-    public string Id => GetId();
+    public string Id
+    {
+        get => field ??= GetId();
+        set;
+    }
+
     public string TaskName { get; set; }
     public DateTime CreatedAt { get; set; }
     public TaskErrorStep Step { get; set; }

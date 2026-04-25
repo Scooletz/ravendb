@@ -1,3 +1,4 @@
+using System;
 using Sparrow.Json.Parsing;
 
 namespace Raven.Server.Documents.ETL;
@@ -8,7 +9,7 @@ public class TaskProcessError : TaskErrorBase
 
     protected override string GetId()
     {
-        return $"{TaskName}/{CreatedAt.Ticks}";
+        return $"{TaskName}/{Guid.NewGuid():N}";
     }
 
     public override DynamicJsonValue ToJson()
