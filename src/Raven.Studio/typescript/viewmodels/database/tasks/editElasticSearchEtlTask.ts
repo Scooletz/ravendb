@@ -151,7 +151,7 @@ class elasticSearchTaskTestMode {
                     this.testResults(summaryFormatted);
                     
                     this.debugOutput(simulationResult.DebugOutput);
-                    this.transformationErrors(simulationResult.ItemTransformationErrors);
+                    this.transformationErrors(simulationResult.TransformationErrors);
 
                     if (this.warningsCount()) {
                         $('.test-container a[href="#warnings"]').tab('show');

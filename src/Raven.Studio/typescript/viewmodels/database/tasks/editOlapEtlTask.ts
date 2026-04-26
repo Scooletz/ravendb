@@ -208,7 +208,7 @@ class olapTaskTestMode {
                         this.testResults(testResult.ItemsByPartition.map(x => new partitionTable(x)));
                     }, 300);
                     this.debugOutput(testResult.DebugOutput);
-                    this.transformationErrors(testResult.ItemTransformationErrors);
+                    this.transformationErrors(testResult.TransformationErrors);
 
                     if (this.warningsCount()) {
                         $('.test-container a[href="#warnings"]').tab('show');

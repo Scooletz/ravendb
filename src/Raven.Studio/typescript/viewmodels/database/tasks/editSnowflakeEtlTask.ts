@@ -158,7 +158,7 @@ class snowflakeTaskTestMode {
                     this.debugOutput(testResult.DebugOutput);
                     this.loadErrors(testResult.ItemLoadErrors);
                     this.slowSqlWarnings(testResult.SlowSqlWarnings); 
-                    this.transformationErrors(testResult.ItemTransformationErrors);
+                    this.transformationErrors(testResult.TransformationErrors);
                     
                     if (this.warningsCount()) {
                         $('.test-container a[href="#warnings"]').tab('show');
