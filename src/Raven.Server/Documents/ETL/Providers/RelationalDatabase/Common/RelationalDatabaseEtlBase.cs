@@ -168,7 +168,7 @@ public abstract class RelationalDatabaseEtlBase<TRelationalEtlConfiguration, TRe
             }
             catch (Exception e)
             {
-                Database.TaskErrorsStorage.StoreProcessError(TaskErrorSource, new TaskProcessError
+                Database.TaskErrorsStorage.StoreProcessError(TaskCategory, new TaskProcessError
                 {
                     CreatedAt = SystemTime.UtcNow,
                     TaskName = Name,

@@ -7,17 +7,17 @@ namespace Raven.Server.Documents.TransactionMerger.Commands;
 public sealed class DeleteTaskErrorsTablesForTaskCommand : MergedTransactionCommand<DocumentsOperationContext, DocumentsTransaction>
 {
     private readonly string _taskName;
-    private readonly TaskErrorSource _taskErrorSource;
+    private readonly TaskCategory _taskCategory;
 
-    public DeleteTaskErrorsTablesForTaskCommand(string taskName, TaskErrorSource taskErrorSource)
+    public DeleteTaskErrorsTablesForTaskCommand(string taskName, TaskCategory taskCategory)
     {
         _taskName = taskName;
-        _taskErrorSource = taskErrorSource;
+        _taskCategory = taskCategory;
     }
 
     protected override long ExecuteCmd(DocumentsOperationContext context)
     {
-        context.DocumentDatabase.TaskErrorsStorage.DeleteTaskErrorsTablesForTask(context, _taskErrorSource, _taskName);
+        context.DocumentDatabase.TaskErrorsStorage.DeleteTaskErrorsTablesForTask(context, _taskCategory, _taskName);
         return 1;
     }
 

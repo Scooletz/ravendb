@@ -12,12 +12,12 @@ namespace Raven.Server.Documents.Commands.ETL;
 internal sealed class GetTaskErrorsCommand : RavenCommand<TaskErrors[]>
 {
     private readonly string[] _names;
-    private readonly TaskErrorSource _taskErrorSource;
+    private readonly TaskCategory _taskCategory;
 
-    public GetTaskErrorsCommand(string[] names, TaskErrorSource taskErrorSource, string nodeTag)
+    public GetTaskErrorsCommand(string[] names, TaskCategory taskCategory, string nodeTag)
     {
         _names = names;
-        _taskErrorSource = taskErrorSource;
+        _taskCategory = taskCategory;
         SelectedNodeTag = nodeTag;
     }
 
@@ -25,11 +25,11 @@ internal sealed class GetTaskErrorsCommand : RavenCommand<TaskErrors[]>
 
     public override HttpRequestMessage CreateRequest(JsonOperationContext ctx, ServerNode node, out string url)
     {
-        var endpoint = _taskErrorSource switch
+        var endpoint = _taskCategory switch
         {
-            TaskErrorSource.Etl => "etl/errors",
-            TaskErrorSource.Ai => "ai/errors",
-            _ => throw new ArgumentOutOfRangeException(nameof(_taskErrorSource), _taskErrorSource, null)
+            TaskCategory.Etl => "etl/errors",
+            TaskCategory.Ai => "ai/errors",
+            _ => throw new ArgumentOutOfRangeException(nameof(_taskCategory), _taskCategory, null)
         };
 
         url = $"{node.Url}/databases/{node.Database}/{endpoint}";

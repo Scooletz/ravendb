@@ -19,7 +19,7 @@ internal sealed class AiTasksHandlerProcessorForGetErrors : AbstractTaskErrorsHa
     {
     }
 
-    protected override TaskErrorSource TaskErrorSource => TaskErrorSource.Ai;
+    protected override TaskCategory TaskCategory => TaskCategory.Ai;
 
     protected override bool SupportsCurrentNode => true;
 
@@ -40,7 +40,7 @@ internal sealed class AiTasksHandlerProcessorForGetErrors : AbstractTaskErrorsHa
 
         if (taskNames.Count == 0)
         {
-            foreach (var (taskName, processErrors, itemErrors) in storage.ReadAllErrorsGroupedByTask(TaskErrorSource))
+            foreach (var (taskName, processErrors, itemErrors) in storage.ReadAllErrorsGroupedByTask(TaskCategory))
             {
                 processesByName.TryGetValue(taskName, out var process);
 
@@ -59,8 +59,8 @@ internal sealed class AiTasksHandlerProcessorForGetErrors : AbstractTaskErrorsHa
             foreach (var taskName in taskNames)
             {
                 processesByName.TryGetValue(taskName, out var process);
-                var processErrors = storage.ReadProcessErrorsOfTask(TaskErrorSource, taskName);
-                var itemErrors = storage.ReadItemErrorsOfTask(TaskErrorSource, taskName);
+                var processErrors = storage.ReadProcessErrorsOfTask(TaskCategory, taskName);
+                var itemErrors = storage.ReadItemErrorsOfTask(TaskCategory, taskName);
 
                 response.Results.Add(new TaskErrors
                 {

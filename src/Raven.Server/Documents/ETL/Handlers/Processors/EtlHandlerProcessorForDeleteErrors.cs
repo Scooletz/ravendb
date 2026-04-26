@@ -11,7 +11,7 @@ internal sealed class EtlHandlerProcessorForDeleteErrors : AbstractTaskErrorsHan
     {
     }
 
-    protected override TaskErrorSource TaskErrorSource => TaskErrorSource.Etl;
+    protected override TaskCategory TaskCategory => TaskCategory.Etl;
 
     protected override bool SupportsCurrentNode => true;
 
@@ -20,7 +20,7 @@ internal sealed class EtlHandlerProcessorForDeleteErrors : AbstractTaskErrorsHan
         var names = GetTaskNames();
 
         foreach (var name in names)
-            RequestHandler.Database.TaskErrorsStorage.DeleteErrorsOfTask(name, TaskErrorSource);
+            RequestHandler.Database.TaskErrorsStorage.DeleteErrorsOfTask(name, TaskCategory);
 
         return ValueTask.CompletedTask;
     }

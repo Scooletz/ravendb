@@ -18,7 +18,7 @@ internal sealed class EtlHandlerProcessorForGetErrors : AbstractTaskErrorsHandle
     {
     }
 
-    protected override TaskErrorSource TaskErrorSource => TaskErrorSource.Etl;
+    protected override TaskCategory TaskCategory => TaskCategory.Etl;
 
     protected override bool SupportsCurrentNode => true;
 
@@ -39,7 +39,7 @@ internal sealed class EtlHandlerProcessorForGetErrors : AbstractTaskErrorsHandle
 
         if (taskNames.Count == 0)
         {
-            foreach (var (taskName, processErrors, itemErrors) in storage.ReadAllErrorsGroupedByTask(TaskErrorSource))
+            foreach (var (taskName, processErrors, itemErrors) in storage.ReadAllErrorsGroupedByTask(TaskCategory))
             {
                 processesByName.TryGetValue(taskName, out var process);
 
@@ -58,8 +58,8 @@ internal sealed class EtlHandlerProcessorForGetErrors : AbstractTaskErrorsHandle
             foreach (var taskName in taskNames)
             {
                 processesByName.TryGetValue(taskName, out var process);
-                var processErrors = storage.ReadProcessErrorsOfTask(TaskErrorSource, taskName);
-                var itemErrors = storage.ReadItemErrorsOfTask(TaskErrorSource, taskName);
+                var processErrors = storage.ReadProcessErrorsOfTask(TaskCategory, taskName);
+                var itemErrors = storage.ReadItemErrorsOfTask(TaskCategory, taskName);
 
                 response.Results.Add(new TaskErrors
                 {

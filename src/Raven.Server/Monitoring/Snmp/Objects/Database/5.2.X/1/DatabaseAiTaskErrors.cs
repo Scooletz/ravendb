@@ -17,6 +17,6 @@ public sealed class DatabaseAiTaskErrors : DatabaseScalarObjectBase<Integer32>
     
     private static long GetCount(DocumentDatabase database)
     {
-        return database.TaskErrorsStorage.ReadTotalErrorsCount(TaskErrorSource.Ai);
+        return database.TaskErrorsStorage.ReadTotalErrorsCount(TaskCategory.Ai);
     }
 }

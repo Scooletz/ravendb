@@ -15,7 +15,7 @@ internal sealed class ShardedAiTasksHandlerProcessorForDeleteErrors : AbstractTa
     {
     }
 
-    protected override TaskErrorSource TaskErrorSource => TaskErrorSource.Ai;
+    protected override TaskCategory TaskCategory => TaskCategory.Ai;
 
     protected override bool SupportsCurrentNode => false;
 

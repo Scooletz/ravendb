@@ -190,7 +190,7 @@ namespace SlowTests.Server.Documents.ETL.ElasticSearch
                 
                 var database = await GetDatabase(store.Database);
 
-                var processErrors = database.TaskErrorsStorage.ReadProcessErrorsOfTask(TaskErrorSource.Etl, $"{config.Name}/{config.Transforms.Single().Name}").ToList();
+                var processErrors = database.TaskErrorsStorage.ReadProcessErrorsOfTask(TaskCategory.Etl, $"{config.Name}/{config.Transforms.Single().Name}").ToList();
                 
                 Assert.True(processErrors.Count > 0);
                 Assert.Contains("Raven.Server.Exceptions.ETL.ElasticSearch.ElasticSearchLoadException", processErrors.First().Error);

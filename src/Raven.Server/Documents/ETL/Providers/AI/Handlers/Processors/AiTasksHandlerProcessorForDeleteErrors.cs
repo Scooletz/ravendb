@@ -12,7 +12,7 @@ internal sealed class AiTasksHandlerProcessorForDeleteErrors : AbstractTaskError
     {
     }
 
-    protected override TaskErrorSource TaskErrorSource => TaskErrorSource.Ai;
+    protected override TaskCategory TaskCategory => TaskCategory.Ai;
 
     protected override bool SupportsCurrentNode => true;
 
@@ -21,7 +21,7 @@ internal sealed class AiTasksHandlerProcessorForDeleteErrors : AbstractTaskError
         var names = GetTaskNames();
 
         foreach (var name in names)
-            RequestHandler.Database.TaskErrorsStorage.DeleteErrorsOfTask(name, TaskErrorSource);
+            RequestHandler.Database.TaskErrorsStorage.DeleteErrorsOfTask(name, TaskCategory);
 
         return ValueTask.CompletedTask;
     }

@@ -512,7 +512,7 @@ public class BasicIntegrationSchemaValidationTests : ReplicationTestBase
 
             var database = await GetDatabase(source.Database);
 
-            var processErrors = database.TaskErrorsStorage.ReadAllProcessErrors(TaskErrorSource.Etl);
+            var processErrors = database.TaskErrorsStorage.ReadAllProcessErrors(TaskCategory.Etl);
             if (processErrors.Count == 0)
                 return false;
 
