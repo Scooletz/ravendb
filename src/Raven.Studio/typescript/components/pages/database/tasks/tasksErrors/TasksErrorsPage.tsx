@@ -60,7 +60,7 @@ export default function TasksErrorsPage({
                     <AboutViewHeading marginBottom={0} title="Tasks Errors" icon="tasks-errors" />
                     <TasksErrorsAboutView />
                 </div>
-                {tasksWithErrors.length > 0 && <div>Analyze and get more details on your Tasks errors. </div>}
+                {tasksWithErrors.length > 0 && <div>Analyze and get more details about your task errors.</div>}
             </div>
             <TasksErrorsPageBody
                 tasksWithErrors={tasksWithErrors}
@@ -140,8 +140,8 @@ function TasksErrorsPageBody({
     if (tasksWithErrors.length === 0) {
         return (
             <EmptySet>
-                Your Ongoing tasks processes are running smoothly. You can monitor and resolve any future data issues
-                right here.
+                Your ongoing tasks are running smoothly. You can monitor and resolve any future task errors in this
+                view.
             </EmptySet>
         );
     }

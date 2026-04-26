@@ -181,7 +181,7 @@ export default function EtlErrorDetailsSheet({
 
                             {error.healthStatus && (
                                 <SheetDetailRow>
-                                    <div className="small">Current Task Health</div>
+                                    <div className="small">Current task health</div>
                                     <Badge bg={bg} className="rounded-pill">
                                         <Icon icon={icon} />
                                         {label}

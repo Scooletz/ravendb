@@ -87,7 +87,7 @@ function useTasksErrorsPanelTableColumns(availableWidth: number, hasProcessError
                 size: 70,
             },
             {
-                header: "Error Type",
+                header: "Error type",
                 accessorKey: "errorType",
                 cell: CellErrorTypeWrapper,
                 size: getSize(10),

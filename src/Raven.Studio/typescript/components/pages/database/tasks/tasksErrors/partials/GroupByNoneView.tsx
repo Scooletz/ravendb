@@ -74,13 +74,13 @@ function useGroupByNoneTableColumns(availableWidth: number, hasProcessErrors: bo
                 enableColumnFilter: false,
             },
             {
-                header: "Error Type",
+                header: "Error type",
                 accessorKey: "errorType",
                 cell: CellErrorTypeWrapper,
                 size: getSize(8),
             },
             {
-                header: "Error Step",
+                header: "Error step",
                 accessorKey: "Step",
                 cell: CellErrorStepWrapper,
                 size: getSize(8),

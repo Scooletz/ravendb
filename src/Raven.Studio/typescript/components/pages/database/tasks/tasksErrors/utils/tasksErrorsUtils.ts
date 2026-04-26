@@ -301,9 +301,9 @@ export function getEtlTypeLabel(etlType: StudioEtlType): string {
 export function getPopoverMessageForErrorType(errorType: "Item" | "Process"): string {
     switch (errorType) {
         case "Item":
-            return "An error that applies to a single document. It has been skipped, and the task continues processing other documents.";
+            return "An error that occurred while processing a single document. The document was skipped, and the task continues processing the remaining documents.";
         case "Process":
-            return "Error that affects the process and the whole batch of documents.";
+            return "An error that occurred at the batch level, potentially affecting multiple documents in the batch.";
         default:
             return assertUnreachable(errorType);
     }
@@ -312,11 +312,11 @@ export function getPopoverMessageForErrorType(errorType: "Item" | "Process"): st
 export function getPopoverMessageForTaskHealth(status: EtlHealthStatus): string {
     switch (status) {
         case "Healthy":
-            return "Your task is in a good health state with none to minor count of errors.";
+            return "This task is in good health, with no errors or only a low error rate.";
         case "Impaired":
-            return "Your task is mildly affected with errors. It needs your attention.";
+            return "This task needs your attention because it has an increased error rate.";
         case "Failed":
-            return "Your task needs your attention as it's severely affected with errors.";
+            return "This task needs your attention because it has a high error rate.";
         default:
             return assertUnreachable(status);
     }

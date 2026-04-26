@@ -30,7 +30,7 @@ export const taskTypeOptions: SelectOption<StudioEtlType>[] = [
     { label: "RabbitMQ ETL", value: "RabbitMQ" },
     { label: "Amazon SQS ETL", value: "AmazonSqs" },
     { label: "Embeddings Generation", value: "EmbeddingsGeneration" },
-    { label: "GenAI ETL", value: "GenAi" },
+    { label: "GenAI", value: "GenAi" },
 ];
 
 export const groupByOptions: InputItem<GroupByType>[] = [

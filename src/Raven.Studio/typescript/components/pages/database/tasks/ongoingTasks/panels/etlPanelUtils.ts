@@ -29,11 +29,11 @@ export type EtlHealthStatus = Raven.Server.Documents.ETL.EtlProcessHealthStatus;
 export function getPopoverMessageForTaskHealth(status: EtlHealthStatus): string {
     switch (status) {
         case "Healthy":
-            return "Your task is in a good health state with none to minor count of errors.";
+            return "This task is in good health, with no errors or only a low error rate.";
         case "Impaired":
-            return "Your task is mildly affected with errors. It needs your attention.";
+            return "This task needs your attention because it has an increased error rate.";
         case "Failed":
-            return "Your task needs your attention as it's severely affected with errors.";
+            return "This task needs your attention because it has a high error rate.";
         default:
             return assertUnreachable(status);
     }
