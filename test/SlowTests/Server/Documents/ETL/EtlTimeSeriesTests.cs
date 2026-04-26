@@ -233,7 +233,7 @@ function loadTimeSeriesOfUsersBehavior(doc, ts)
 
                 if (shouldEtlTs)
                 {
-                    Assert.Equal(0, result.ItemTransformationErrors.Count);
+                    Assert.Equal(0, result.TransformationErrors.Count);
 
                     Assert.NotNull(timeSeriesCommand);
 

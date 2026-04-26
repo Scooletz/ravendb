@@ -92,7 +92,7 @@ loadToItems(data);"
                     }, database, database.ServerStore, context);
                 
                 var result = (RelationalDatabaseEtlTestScriptResult)testResult;
-                Assert.Equal(0, result.ItemTransformationErrors.Count);
+                Assert.Equal(0, result.TransformationErrors.Count);
                 Assert.Equal(0, result.ItemLoadErrors.Count);
                 Assert.Equal(0, result.SlowSqlWarnings.Count);
 

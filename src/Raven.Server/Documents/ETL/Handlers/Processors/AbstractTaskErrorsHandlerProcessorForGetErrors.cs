@@ -22,7 +22,7 @@ internal abstract class AbstractTaskErrorsHandlerProcessorForGetErrors<TRequestH
     {
         var names = GetNames();
 
-        return new GetTaskErrorsCommand(TaskErrorSource, names, nodeTag);
+        return new GetTaskErrorsCommand(names, TaskErrorSource, nodeTag);
     }
 
     protected StringValues GetNames() => RequestHandler.GetStringValuesQueryString("name", required: false);

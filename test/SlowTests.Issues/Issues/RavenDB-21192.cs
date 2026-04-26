@@ -1223,7 +1223,7 @@ public class RavenDB_21192 : RavenTestBase
                 }, database, database.ServerStore, context);
                 
                 var result = (RavenEtlTestScriptResult)testResult;
-                Assert.Single(result.ItemTransformationErrors);
+                Assert.Single(result.TransformationErrors);
                 
                 var itemErrors = database.TaskErrorsStorage.ReadAllItemErrors(TaskErrorSource.Etl);
                 Assert.Empty(itemErrors);

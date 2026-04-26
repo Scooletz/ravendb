@@ -305,7 +305,7 @@ public class AzureQueueStorageEtlTests : AzureQueueStorageEtlTestBase
                 {
                     var result = (QueueEtlTestScriptResult)testResult;
 
-                    Assert.Equal(0, result.ItemTransformationErrors.Count);
+                    Assert.Equal(0, result.TransformationErrors.Count);
 
                     Assert.Equal(1, result.Summary.Count);
 

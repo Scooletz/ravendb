@@ -222,7 +222,7 @@ public sealed class EmbeddingsGenerationTask : EtlProcess<EmbeddingsGenerationIt
         
         var itemErrors = Statistics.ReadInMemoryItemErrors();
 
-        result.ItemTransformationErrors = itemErrors.Where(x => x.Step == TaskErrorStep.Transformation).ToList();
+        result.TransformationErrors = itemErrors.Where(x => x.Step == TaskErrorStep.Transformation).ToList();
         return result;
     }
 }

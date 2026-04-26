@@ -20,7 +20,7 @@ internal sealed class EtlHandlerProcessorForDeleteErrors : AbstractTaskErrorsHan
         var names = GetTaskNames();
 
         foreach (var name in names)
-            RequestHandler.Database.TaskErrorsStorage.DeleteErrorsOfTask(TaskErrorSource, name);
+            RequestHandler.Database.TaskErrorsStorage.DeleteErrorsOfTask(name, TaskErrorSource);
 
         return ValueTask.CompletedTask;
     }

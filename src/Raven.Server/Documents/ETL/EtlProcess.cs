@@ -1405,7 +1405,7 @@ namespace Raven.Server.Documents.ETL
                             
                             return new RavenEtlTestScriptResult
                             {
-                                ItemTransformationErrors = etlItemErrors.Where(x => x.Step == TaskErrorStep.Transformation).ToList(),
+                                TransformationErrors = etlItemErrors.Where(x => x.Step == TaskErrorStep.Transformation).ToList(),
                                 Commands = results.ToList(),
                                 DebugOutput = debugOutput
                             };
@@ -1471,7 +1471,7 @@ namespace Raven.Server.Documents.ETL
 
                         return new OlapEtlTestScriptResult
                         {
-                            ItemTransformationErrors = etlItemErrors.Where(x => x.Step == TaskErrorStep.Transformation).ToList(),
+                            TransformationErrors = etlItemErrors.Where(x => x.Step == TaskErrorStep.Transformation).ToList(),
                             ItemsByPartition = itemsByPartition,
                             DebugOutput = debugOutput
                         };

@@ -196,7 +196,7 @@ public abstract class RelationalDatabaseEtlBase<TRelationalEtlConfiguration, TRe
 
         return new RelationalDatabaseEtlTestScriptResult
         {
-            ItemTransformationErrors = itemErrors.Where(x => x.Step == TaskErrorStep.Transformation).ToList(),
+            TransformationErrors = itemErrors.Where(x => x.Step == TaskErrorStep.Transformation).ToList(),
             ItemLoadErrors = itemErrors.Where(x => x.Step == TaskErrorStep.Load).ToList(),
             SlowSqlWarnings = Statistics.LastSlowSqlWarningsInCurrentBatch.Statements.ToList(),
             Summary = summaries

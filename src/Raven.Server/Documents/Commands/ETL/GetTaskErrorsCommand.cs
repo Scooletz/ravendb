@@ -11,13 +11,13 @@ namespace Raven.Server.Documents.Commands.ETL;
 
 internal sealed class GetTaskErrorsCommand : RavenCommand<TaskErrors[]>
 {
-    private readonly TaskErrorSource _taskErrorSource;
     private readonly string[] _names;
+    private readonly TaskErrorSource _taskErrorSource;
 
-    public GetTaskErrorsCommand(TaskErrorSource taskErrorSource, string[] names, string nodeTag)
+    public GetTaskErrorsCommand(string[] names, TaskErrorSource taskErrorSource, string nodeTag)
     {
-        _taskErrorSource = taskErrorSource;
         _names = names;
+        _taskErrorSource = taskErrorSource;
         SelectedNodeTag = nodeTag;
     }
 
