@@ -8,17 +8,8 @@ public sealed class TaskErrors : IDynamicJson
 {
     public string TaskName { get; set; }
 
-    /// <summary>
-    /// The ETL type of this task (e.g. Raven, EmbeddingsGeneration).
-    /// Populated from the process EtlType when the process is currently loaded;
-    /// null when the process configuration has been removed but errors remain in storage.
-    /// </summary>
     public EtlType? EtlType { get; set; }
 
-    /// <summary>
-    /// For Queue ETL tasks, the broker sub-type (e.g. Kafka, RabbitMq).
-    /// Null for all other task types.
-    /// </summary>
     public string EtlSubType { get; set; }
 
     public TaskProcessError[] ProcessErrors { get; set; }

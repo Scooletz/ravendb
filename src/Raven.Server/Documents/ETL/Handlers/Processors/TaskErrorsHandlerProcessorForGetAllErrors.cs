@@ -34,7 +34,7 @@ internal sealed class TaskErrorsHandlerProcessorForGetAllErrors : AbstractTaskEr
         var processesByName = RequestHandler.Database.EtlLoader.Processes
             .ToDictionary(p => p.Name, p => p, StringComparer.Ordinal);
 
-        foreach (TaskCategory taskType in Enum.GetValues(typeof(TaskCategory)))
+        foreach (TaskCategory taskType in Enum.GetValues<TaskCategory>())
         {
             foreach (var (taskName, processErrors, itemErrors) in storage.ReadAllErrorsGroupedByTask(taskType))
             {
