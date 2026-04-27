@@ -239,6 +239,8 @@ function useTasksErrorsData() {
         await refreshEtlStats();
     }, [refreshEtlErrors, refreshEtlStats]);
 
+    const flattenAllEtlStats: EtlTaskStats[] = isLoading ? [] : asyncFetchAllEtlStats.flatMap((x) => x.data);
+
     const tasksWithErrors = isLoading
         ? []
         : getTasksWithErrors(
@@ -248,10 +250,9 @@ function useTasksErrorsData() {
                       nodeTag: x.location.nodeTag,
                       shardNumber: x.location.shardNumber,
                   }))
-              )
+              ),
+              flattenAllEtlStats
           );
-
-    const flattenAllEtlStats: EtlTaskStats[] = isLoading ? [] : asyncFetchAllEtlStats.flatMap((x) => x.data);
 
     return { isLoading, hasAnyError, handleRefresh, tasksWithErrors, flattenAllEtlStats };
 }

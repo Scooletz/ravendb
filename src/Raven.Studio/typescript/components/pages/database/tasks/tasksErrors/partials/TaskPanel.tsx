@@ -42,7 +42,6 @@ import {
     healthStatusToBadge,
     SHOW_WIDTH_SIZE,
 } from "../utils/tasksErrorsUtils";
-import TaskUtils from "components/utils/TaskUtils";
 import {
     CellAffectedDocumentsWrapper,
     CellDateWithRelativeTimeWrapper,
@@ -263,13 +262,7 @@ interface TaskPanelProps extends EtlTaskWithErrors {
     onRefresh: () => void;
 }
 
-export function TaskPanel({
-    etlName,
-    etlType: etlTypeFromErrors,
-    transformations,
-    etlStats,
-    onRefresh,
-}: TaskPanelProps) {
+export function TaskPanel({ etlName, etlType, transformations, etlStats, onRefresh }: TaskPanelProps) {
     const hasDatabaseWriteAccess = useAppSelector(accessManagerSelectors.getHasDatabaseWriteAccess)();
     const databaseName = useAppSelector(databaseSelectors.activeDatabaseName);
     const db = useAppSelector(databaseSelectors.activeDatabase);
@@ -285,7 +278,6 @@ export function TaskPanel({
     const { bg, icon, label } = healthStatusToBadge(taskHealth);
     const taskStats = etlStats.find((s) => s.TaskName === etlName);
     const taskId = taskStats?.TaskId;
-    const etlType = TaskUtils.etlTypeToStudioType(taskStats?.EtlType, taskStats?.EtlSubType) ?? etlTypeFromErrors;
 
     const taskLink = getEtlEditLink(databaseName, taskId, etlType);
 

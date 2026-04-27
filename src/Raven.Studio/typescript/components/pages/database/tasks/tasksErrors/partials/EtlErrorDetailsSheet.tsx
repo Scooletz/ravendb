@@ -99,7 +99,7 @@ export default function EtlErrorDetailsSheet({
                             {error.etlName && error.transformationName ? (
                                 <SheetDetailRow>
                                     <div className="small">Task name/Script name</div>
-                                    <div className="d-flex align-items-center">
+                                    <div className="d-flex align-items-center text-right">
                                         {etlTypeIcon && <Icon icon={etlTypeIcon} />}
                                         <div>
                                             {error.etlName}/{error.transformationName}

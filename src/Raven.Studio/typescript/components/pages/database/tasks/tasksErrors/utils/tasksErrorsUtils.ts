@@ -91,7 +91,7 @@ export function parseProcessName(processName: string): [etlName: string, transfo
     return [processName.slice(0, slashIndex), processName.slice(slashIndex + 1)];
 }
 
-export function getTasksWithErrors(processes: EtlErrorsWithLocation[]): EtlTaskWithErrors[] {
+export function getTasksWithErrors(processes: EtlErrorsWithLocation[], etlStats: EtlTaskStats[]): EtlTaskWithErrors[] {
     if (!processes?.length) {
         return [];
     }
@@ -102,7 +102,7 @@ export function getTasksWithErrors(processes: EtlErrorsWithLocation[]): EtlTaskW
         .map(
             (group: EtlErrorsWithLocation[], etlName: string): EtlTaskWithErrors => ({
                 etlName,
-                etlType: TaskUtils.etlTypeToStudioType(group[0]?.EtlType, group[0]?.EtlSubType) || undefined,
+                etlType: resolveEtlType(etlStats, etlName),
                 transformations: _.chain(group)
                     .groupBy((p: EtlErrorsWithLocation) => parseProcessName(p.TaskName)[1])
                     .map(
@@ -139,7 +139,7 @@ export function flattenAllTasksErrors(tasksWithErrors: EtlTaskWithErrors[], etlS
     return tasksWithErrors.flatMap((task) => {
         const taskStats = etlStats.find((s) => s.TaskName === task.etlName);
         const taskId = taskStats?.TaskId;
-        const etlType = TaskUtils.etlTypeToStudioType(taskStats?.EtlType, taskStats?.EtlSubType) ?? task.etlType;
+        const etlType = task.etlType;
 
         return task.transformations.flatMap((transformation) => {
             const healthStatus =
@@ -325,3 +325,8 @@ export function getPopoverMessageForTaskHealth(status: EtlHealthStatus): string 
 export const SHOW_WIDTH_SIZE = 70;
 
 export const AI_ONLY_TASK_TYPES: StudioEtlType[] = ["EmbeddingsGeneration", "GenAi"];
+
+function resolveEtlType(etlStats: EtlTaskStats[], etlName: string): StudioEtlType | undefined {
+    const stats = etlStats.find((s) => s.TaskName === etlName);
+    return TaskUtils.etlTypeToStudioType(stats?.EtlType, stats?.EtlSubType) ?? undefined;
+}
