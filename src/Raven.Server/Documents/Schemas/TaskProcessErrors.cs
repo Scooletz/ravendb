@@ -17,11 +17,12 @@ public static class TaskProcessErrors
 
     public static class TaskProcessErrorsTable
     {
-        public const int TaskNameIndex = 0;
-        public const int CreatedAtIndex = 1;
-        public const int AffectedDocumentsCountIndex = 2;
-        public const int StepIndex = 3;
-        public const int ErrorIndex = 4;
+        public const int IdIndex = 0;
+        public const int TaskNameIndex = 1;
+        public const int CreatedAtIndex = 2;
+        public const int AffectedDocumentsCountIndex = 3;
+        public const int StepIndex = 4;
+        public const int ErrorIndex = 5;
     }
 
     static TaskProcessErrors()
@@ -31,6 +32,12 @@ public static class TaskProcessErrors
             Slice.From(ctx, "ByTaskName", ByteStringType.Immutable, out ByTaskName);
             Slice.From(ctx, "ByCreatedAt", ByteStringType.Immutable, out ByCreatedAt);
         }
+
+        TaskProcessErrorsSchemaBase.DefineKey(new TableSchema.IndexDef
+        {
+            StartIndex = TaskProcessErrorsTable.IdIndex,
+            Count = 1
+        });
 
         TaskProcessErrorsSchemaBase.DefineIndex(new TableSchema.IndexDef
         {

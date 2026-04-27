@@ -144,6 +144,50 @@ public class RavenDB_21192 : RavenTestBase
         }
     }
 
+    [RavenFact(RavenTestCategory.Etl)]
+    public void DeleteErrorsOfTask_ShouldRemoveProcessAndItemErrors()
+    {
+        const string etlName = "ETL1";
+        const string transformationName = "Transformation1";
+        var processName = EtlProcess.GetProcessName(etlName, transformationName);
+
+        using (var src = GetDocumentStore())
+        {
+            var database = GetDatabase(src.Database).GetAwaiter().GetResult();
+
+            var now = DateTime.Now;
+
+            database.TaskErrorsStorage.StoreProcessError(TaskCategory.Etl, new TaskProcessError
+            {
+                CreatedAt = now,
+                TaskName = processName,
+                AffectedDocumentsCount = 1,
+                Step = TaskErrorStep.Transformation,
+                Error = "process error"
+            });
+
+            database.TaskErrorsStorage.StoreItemErrors(TaskCategory.Etl, processName,
+            [
+                new TaskItemError
+                {
+                    DocumentId = "users/1",
+                    TaskName = processName,
+                    CreatedAt = now,
+                    Step = TaskErrorStep.Transformation,
+                    Error = "item error"
+                }
+            ]);
+
+            Assert.Single(database.TaskErrorsStorage.ReadProcessErrorsOfTask(TaskCategory.Etl, processName));
+            Assert.Single(database.TaskErrorsStorage.ReadItemErrorsOfTask(TaskCategory.Etl, processName));
+
+            database.TaskErrorsStorage.DeleteErrorsOfTask(processName, TaskCategory.Etl);
+
+            Assert.Empty(database.TaskErrorsStorage.ReadProcessErrorsOfTask(TaskCategory.Etl, processName));
+            Assert.Empty(database.TaskErrorsStorage.ReadItemErrorsOfTask(TaskCategory.Etl, processName));
+        }
+    }
+
     [RavenFact(RavenTestCategory.Etl | RavenTestCategory.Ai)]
     public async Task FooterStatistics_ShouldReturnSeparateCountsForEtlAndAiTasksErrors()
     {

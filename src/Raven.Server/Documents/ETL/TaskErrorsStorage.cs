@@ -106,6 +106,7 @@ public unsafe class TaskErrorsStorage
         var affectedDocumentsCountSwapped = Bits.SwapBytes(processError.AffectedDocumentsCount);
         var stepSwapped = Bits.SwapBytes((long)processError.Step);
 
+        var id = context.GetLazyString(Guid.NewGuid().ToString());
         var taskName = context.GetLazyString(processError.TaskName);
         var error = context.GetLazyString(processError.Error);
 
@@ -119,6 +120,7 @@ public unsafe class TaskErrorsStorage
 
         using (table.Allocate(out TableValueBuilder tvb))
         {
+            tvb.Add(id.Buffer, id.Size);
             tvb.Add(taskName.Buffer, taskName.Size);
             tvb.Add((byte*)&createdAtTicks, sizeof(long));
             tvb.Add((byte*)&affectedDocumentsCountSwapped, sizeof(long));
