@@ -73,7 +73,7 @@ export default function TasksErrorsAboutView() {
                     <li>
                         You can manually delete the current task errors.
                         <br />
-                        However, deleting the errors will Not reset a task in an Error state back to the Normal state.
+                        However, deleting the errors will not reset a task in an Error state back to the Normal state.
                         The task health will recover gradually as new batches complete successfully.
                     </li>
                 </ul>
