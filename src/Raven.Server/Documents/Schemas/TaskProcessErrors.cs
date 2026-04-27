@@ -11,25 +11,22 @@ public static class TaskProcessErrors
     public static TableSchema TaskProcessErrorsSchemaBase = new();
 
     public static readonly Slice ByCreatedAt;
-    public static readonly Slice ByTaskName;
 
     public const string TaskProcessErrorsTree = "ProcessErrors";
 
     public static class TaskProcessErrorsTable
     {
         public const int IdIndex = 0;
-        public const int TaskNameIndex = 1;
-        public const int CreatedAtIndex = 2;
-        public const int AffectedDocumentsCountIndex = 3;
-        public const int StepIndex = 4;
-        public const int ErrorIndex = 5;
+        public const int CreatedAtIndex = 1;
+        public const int AffectedDocumentsCountIndex = 2;
+        public const int StepIndex = 3;
+        public const int ErrorIndex = 4;
     }
 
     static TaskProcessErrors()
     {
         using (StorageEnvironment.GetStaticContext(out var ctx))
         {
-            Slice.From(ctx, "ByTaskName", ByteStringType.Immutable, out ByTaskName);
             Slice.From(ctx, "ByCreatedAt", ByteStringType.Immutable, out ByCreatedAt);
         }
 
@@ -37,12 +34,6 @@ public static class TaskProcessErrors
         {
             StartIndex = TaskProcessErrorsTable.IdIndex,
             Count = 1
-        });
-
-        TaskProcessErrorsSchemaBase.DefineIndex(new TableSchema.IndexDef
-        {
-            StartIndex = TaskProcessErrorsTable.TaskNameIndex,
-            Name = ByTaskName
         });
 
         TaskProcessErrorsSchemaBase.DefineIndex(new TableSchema.IndexDef // might be the same ticks, so duplicates are allowed - cannot use fixed size index

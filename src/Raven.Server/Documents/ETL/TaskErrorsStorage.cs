@@ -107,21 +107,16 @@ public unsafe class TaskErrorsStorage
         var stepSwapped = Bits.SwapBytes((long)processError.Step);
 
         var id = context.GetLazyString(Guid.NewGuid().ToString());
-        var taskName = context.GetLazyString(processError.TaskName);
         var error = context.GetLazyString(processError.Error);
 
-        using (Slice.From(context.Transaction.InnerTransaction.Allocator, taskName, out Slice taskNameSlice))
+        if (table.NumberOfEntries >= ErrorsLimitPerTaskErrorType)
         {
-            if (table.GetCountOfMatchesFor(Schemas.TaskProcessErrors.Current.Indexes[Schemas.TaskProcessErrors.ByTaskName], taskNameSlice) >= ErrorsLimitPerTaskErrorType)
-            {
-                DeleteOldestProcessErrorOfTask(table);
-            }
+            DeleteOldestProcessErrorOfTask(table);
         }
 
         using (table.Allocate(out TableValueBuilder tvb))
         {
             tvb.Add(id.Buffer, id.Size);
-            tvb.Add(taskName.Buffer, taskName.Size);
             tvb.Add((byte*)&createdAtTicks, sizeof(long));
             tvb.Add((byte*)&affectedDocumentsCountSwapped, sizeof(long));
             tvb.Add((byte*)&stepSwapped, sizeof(long));
@@ -168,10 +163,9 @@ public unsafe class TaskErrorsStorage
         }
     }
 
-    private static TaskProcessErrorTableValue ReadProcessError(ref TableValueReader reader)
+    private static TaskProcessErrorTableValue ReadProcessError(ref TableValueReader reader, string taskName)
     {
         var createdAt = new DateTime(Bits.SwapBytes(*(long*)reader.Read(Schemas.TaskProcessErrors.TaskProcessErrorsTable.CreatedAtIndex, out _)));
-        var taskName = reader.ReadString(Schemas.TaskProcessErrors.TaskProcessErrorsTable.TaskNameIndex);
         var affectedDocumentsCount = Bits.SwapBytes(*(long*)reader.Read(Schemas.TaskProcessErrors.TaskProcessErrorsTable.AffectedDocumentsCountIndex, out _));
         var step = Bits.SwapBytes(*(long*)reader.Read(Schemas.TaskProcessErrors.TaskProcessErrorsTable.StepIndex, out _));
         var error = reader.ReadString(Schemas.TaskProcessErrors.TaskProcessErrorsTable.ErrorIndex);
@@ -347,7 +341,7 @@ public unsafe class TaskErrorsStorage
 
         foreach (var tvh in table.SeekForwardFrom(Schemas.TaskProcessErrors.Current.Indexes[Schemas.TaskProcessErrors.ByCreatedAt], Slices.BeforeAllKeys, 0))
         {
-            var error = ReadProcessError(ref tvh.Result.Reader);
+            var error = ReadProcessError(ref tvh.Result.Reader, taskName);
 
             yield return error;
         }
@@ -382,7 +376,7 @@ public unsafe class TaskErrorsStorage
             if (tvh == null)
                 return null;
 
-            return ReadProcessError(ref tvh.Reader);
+            return ReadProcessError(ref tvh.Reader, taskName);
         }
     }
 
