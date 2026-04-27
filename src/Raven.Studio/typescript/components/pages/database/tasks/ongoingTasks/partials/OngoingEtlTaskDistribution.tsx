@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { DistributionItem, DistributionLegend, LocationDistribution } from "components/common/LocationDistribution";
 import classNames from "classnames";
 import { AnyEtlOngoingTaskInfo, OngoingEtlTaskNodeInfo, OngoingTaskInfo } from "components/models/tasks";
@@ -287,7 +287,8 @@ function ItemWithTooltip(props: ItemWithTooltipProps) {
                 ...e,
                 nodeTag: nodeInfo.location.nodeTag,
                 shardNumber: nodeInfo.location.shardNumber,
-            }))
+            })),
+            etlStats
         );
         const allErrors = flattenAllTasksErrors(tasksWithErrors, etlStats ?? []);
 
