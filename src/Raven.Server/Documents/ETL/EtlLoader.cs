@@ -946,21 +946,7 @@ namespace Raven.Server.Documents.ETL
             if (toRemove.Count == 0)
                 return;
 
-            // Delete error tables only for processes that are truly gone (task deleted or moved).
-            // When a config changes (e.g. a transformation is removed), the still-valid processes
-            // are restarted under the same Name — skip those so their existing errors are preserved.
-            var restartedProcessNames = new HashSet<string>(_processes.Select(p => p.Name), StringComparer.OrdinalIgnoreCase);
-
-            foreach (var processGroup in toRemove)
-            {
-                foreach (var process in processGroup.Value)
-                {
-                    if (restartedProcessNames.Contains(process.Name))
-                        continue;
-
-                    _database.TaskErrorsStorage.DeleteTaskErrorsTablesForTask(process.Name, TaskTypeExtensions.FromEtlType(process.EtlType));
-                }
-            }
+            DeleteErrorsForRemovedTasks(record, toRemove);
 
             ThreadPool.QueueUserWorkItem(_ =>
             {
@@ -996,6 +982,42 @@ namespace Raven.Server.Documents.ETL
                     }
                 });
             });
+        }
+        
+        private void DeleteErrorsForRemovedTasks(DatabaseRecord record, Dictionary<string, List<EtlProcess>> toRemove)
+        {
+            var existingProcessNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            AddProcessNames<RavenEtlConfiguration, RavenConnectionString>(record.RavenEtls);
+            AddProcessNames<SqlEtlConfiguration, SqlConnectionString>(record.SqlEtls);
+            AddProcessNames<OlapEtlConfiguration, OlapConnectionString>(record.OlapEtls);
+            AddProcessNames<ElasticSearchEtlConfiguration, ElasticSearchConnectionString>(record.ElasticSearchEtls);
+            AddProcessNames<QueueEtlConfiguration, QueueConnectionString>(record.QueueEtls);
+            AddProcessNames<SnowflakeEtlConfiguration, SnowflakeConnectionString>(record.SnowflakeEtls);
+            AddProcessNames<EmbeddingsGenerationConfiguration, AiConnectionString>(record.EmbeddingsGenerations);
+            AddProcessNames<GenAiConfiguration, AiConnectionString>(record.GenAis);
+
+            foreach (var processGroup in toRemove)
+            {
+                foreach (var process in processGroup.Value)
+                {
+                    if (existingProcessNames.Contains(process.Name))
+                        continue;
+
+                    _database.TaskErrorsStorage.DeleteTaskErrorsTablesForTask(process.Name, TaskTypeExtensions.FromEtlType(process.EtlType));
+                }
+            }
+
+            return;
+
+            void AddProcessNames<TConfig, TConnection>(IEnumerable<TConfig> configs)
+                where TConnection : ConnectionString
+                where TConfig : EtlConfiguration<TConnection>
+            {
+                foreach (var config in configs)
+                    foreach (var transform in config.Transforms)
+                        existingProcessNames.Add(EtlProcess.GetProcessName(config.Name, transform.Name));
+            }
         }
 
         private void LogLongRunningDisposeIfNeeded(Stopwatch sp, string processName)

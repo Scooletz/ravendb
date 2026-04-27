@@ -2130,14 +2130,14 @@ public class RavenDB_21192_Multinode : ClusterTestBase
             return process?.Statistics.TransformationErrors >= 5;
         }, true, timeout: 30_000));
 
-        Assert.True(WaitForValue(() => mentorDatabase.TaskErrorsStorage.ReadItemErrorsOfTask(TaskCategory.Etl,processName).Count == 5, true, timeout: 30_000));
-        var mentorItemErrors = mentorDatabase.TaskErrorsStorage.ReadItemErrorsOfTask(TaskCategory.Etl,processName);
+        Assert.True(WaitForValue(() => mentorDatabase.TaskErrorsStorage.ReadItemErrorsOfTask(TaskCategory.Ai,processName).Count == 5, true, timeout: 30_000));
+        var mentorItemErrors = mentorDatabase.TaskErrorsStorage.ReadItemErrorsOfTask(TaskCategory.Ai,processName);
         Assert.Equal(5, mentorItemErrors.Count);
 
         for (int i = 1; i < clusterSize; i++)
         {
             var otherDatabase = await GetDatabase(nodes[i], databaseName);
-            var otherItemErrors = otherDatabase.TaskErrorsStorage.ReadItemErrorsOfTask(TaskCategory.Etl,processName);
+            var otherItemErrors = otherDatabase.TaskErrorsStorage.ReadItemErrorsOfTask(TaskCategory.Ai,processName);
             Assert.Empty(otherItemErrors);
         }
 
@@ -2167,19 +2167,19 @@ public class RavenDB_21192_Multinode : ClusterTestBase
             return process?.Statistics.TransformationErrors >= 7;
         }, true, timeout: 30_000));
 
-        Assert.True(WaitForValue(() => newMentorDatabase.TaskErrorsStorage.ReadItemErrorsOfTask(TaskCategory.Etl,processName).Count == 7, true, timeout: 30_000));
-        var newMentorItemErrors = newMentorDatabase.TaskErrorsStorage.ReadItemErrorsOfTask(TaskCategory.Etl,processName);
+        Assert.True(WaitForValue(() => newMentorDatabase.TaskErrorsStorage.ReadItemErrorsOfTask(TaskCategory.Ai,processName).Count == 7, true, timeout: 30_000));
+        var newMentorItemErrors = newMentorDatabase.TaskErrorsStorage.ReadItemErrorsOfTask(TaskCategory.Ai,processName);
         Assert.Equal(7, newMentorItemErrors.Count);
 
-        mentorItemErrors = mentorDatabase.TaskErrorsStorage.ReadItemErrorsOfTask(TaskCategory.Etl,processName);
+        mentorItemErrors = mentorDatabase.TaskErrorsStorage.ReadItemErrorsOfTask(TaskCategory.Ai,processName);
         Assert.Equal(5, mentorItemErrors.Count);
 
         newMentorDatabase.TaskErrorsStorage.DeleteErrorsOfTask(processName);
 
-        newMentorItemErrors = newMentorDatabase.TaskErrorsStorage.ReadItemErrorsOfTask(TaskCategory.Etl,processName);
+        newMentorItemErrors = newMentorDatabase.TaskErrorsStorage.ReadItemErrorsOfTask(TaskCategory.Ai,processName);
         Assert.Empty(newMentorItemErrors);
 
-        mentorItemErrors = mentorDatabase.TaskErrorsStorage.ReadItemErrorsOfTask(TaskCategory.Etl,processName);
+        mentorItemErrors = mentorDatabase.TaskErrorsStorage.ReadItemErrorsOfTask(TaskCategory.Ai,processName);
         Assert.Equal(5, mentorItemErrors.Count);
     }
 
