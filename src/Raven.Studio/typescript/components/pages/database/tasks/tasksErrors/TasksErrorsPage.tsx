@@ -57,7 +57,7 @@ export default function TasksErrorsPage({
         <div className="content-padding tasks-errors-page">
             <div className="d-flex flex-column gap-2 flex-shrink-0">
                 <div className="d-flex justify-content-between">
-                    <AboutViewHeading marginBottom={0} title="Tasks Errors" icon="tasks-errors" />
+                    <AboutViewHeading marginBottom={0} title="Task Errors" icon="tasks-errors" />
                     <TasksErrorsAboutView />
                 </div>
                 {tasksWithErrors.length > 0 && <div>Analyze and get more details about your task errors.</div>}

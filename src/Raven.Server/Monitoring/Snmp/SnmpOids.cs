@@ -432,7 +432,7 @@ namespace Raven.Server.Monitoring.Snmp
             public const string NumberOfActiveEtls = "1.20.6";
             
             [SnmpDataType(SnmpType.Integer32)]
-            [Description("Number of AI tasks errors")]
+            [Description("Number of AI task errors")]
             public const string AiTasksErrors = "1.21.1";
 
             [SnmpDataType(SnmpType.Integer32)]
@@ -694,7 +694,7 @@ namespace Raven.Server.Monitoring.Snmp
             public const string EtlErrors = "5.2.{0}.1.17";
             
             [SnmpDataType(SnmpType.Integer32)]
-            [Description("Number of AI tasks errors")]
+            [Description("Number of AI task errors")]
             public const string AiTaskErrors = "5.2.{0}.1.18";
 
             [SnmpDataType(SnmpType.Gauge32)]

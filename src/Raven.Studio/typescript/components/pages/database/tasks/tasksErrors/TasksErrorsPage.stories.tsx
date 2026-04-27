@@ -14,7 +14,7 @@ import assertUnreachable from "components/utils/assertUnreachable";
 import { TasksStubs } from "test/stubs/TasksStubs";
 
 export default {
-    title: "Pages/Tasks/Tasks Errors",
+    title: "Pages/Tasks/Task Errors",
     decorators: [withStorybookContexts, withBootstrap5, withForceRerender],
     parameters: {
         design: {
@@ -31,7 +31,7 @@ interface TasksErrorsPageArgs {
 }
 
 export const Default: StoryObj<TasksErrorsPageArgs> = {
-    name: "Tasks Errors",
+    name: "Task Errors",
     render: ({ hasErrors, databaseType, databaseAccess }) => {
         const { databases, accessManager } = mockStore;
         const { tasksService } = mockServices;

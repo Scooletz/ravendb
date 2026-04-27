@@ -67,7 +67,7 @@ function getAiHubMenuItem(appUrls: computedAppUrls) {
             route: 'databases/ai/tasksStats',
             moduleId: require('viewmodels/database/aiHub/aiTasksStats'),
             shardingMode: "singleShard",
-            title: 'AI Tasks Stats',
+            title: 'AI Task Stats',
             nav: true,
             css: 'icon-replication-stats ai-hub',
             dynamicHash: appUrls.aiTasksStats
@@ -76,7 +76,7 @@ function getAiHubMenuItem(appUrls: computedAppUrls) {
             route: 'databases/ai/tasksErrors',
             moduleId: reactUtils.bridgeToReact(AiTasksErrors.default, "nonShardedView"),
             shardingMode: "allShards",
-            title: 'AI Tasks Errors',
+            title: 'AI Task Errors',
             nav: true,
             css: 'icon-tasks-errors ai-hub',
             requiredAccess: "DatabaseReadWrite",

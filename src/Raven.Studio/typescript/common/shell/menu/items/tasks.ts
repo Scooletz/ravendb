@@ -409,7 +409,7 @@ function getTasksMenuItem(appUrls: computedAppUrls) {
             route: 'databases/tasks/tasksErrors',
             moduleId: reactUtils.bridgeToReact(TasksErrorsPage.default, "nonShardedView"),
             shardingMode: "allShards",
-            title: 'Tasks Errors',
+            title: 'Task Errors',
             nav: true,
             css: 'icon-tasks-errors',
             dynamicHash: appUrls.tasksError,

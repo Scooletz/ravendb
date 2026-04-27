@@ -34,7 +34,7 @@ export function DatabaseDistribution(props: DatabaseDistributionProps) {
                     <Icon icon="list" /> Documents
                 </div>
                 <div>
-                    <Icon icon="ongoing-tasks" addon="close" /> Tasks Errors
+                    <Icon icon="ongoing-tasks" addon="close" /> Task Errors
                 </div>
                 <div>
                     <Icon icon="warning" /> Indexing Errors
