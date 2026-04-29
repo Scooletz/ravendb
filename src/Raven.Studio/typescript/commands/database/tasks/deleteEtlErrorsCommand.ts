@@ -2,14 +2,17 @@ import commandBase = require("commands/commandBase");
 import database = require("models/resources/database");
 import endpoints = require("endpoints");
 
+type TaskCategory = "Etl" | "Ai";
+
 interface deleteEtlErrorsDto {
-    name?: string[];
+    type: TaskCategory;
+    name: string[];
     shardNumber?: number
     nodeTag?: string
 }
 
 class deleteEtlErrorsCommand extends commandBase {
-    constructor(private db: database | string, private deleteEtlDto?: deleteEtlErrorsDto) {
+    constructor(private db: database | string, private deleteEtlDto: deleteEtlErrorsDto) {
         super();
     }
 

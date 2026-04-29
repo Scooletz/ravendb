@@ -326,6 +326,12 @@ export const SHOW_WIDTH_SIZE = 70;
 
 export const AI_ONLY_TASK_TYPES: StudioEtlType[] = ["EmbeddingsGeneration", "GenAi"];
 
+export type TaskCategory = "Etl" | "Ai";
+
+export function getTaskCategory(etlType: StudioEtlType | undefined): TaskCategory {
+    return etlType && AI_ONLY_TASK_TYPES.includes(etlType) ? "Ai" : "Etl";
+}
+
 function resolveEtlType(etlStats: EtlTaskStats[], etlName: string): StudioEtlType | undefined {
     const stats = etlStats.find((s) => s.TaskName === etlName);
     return TaskUtils.etlTypeToStudioType(stats?.EtlType, stats?.EtlSubType) ?? undefined;

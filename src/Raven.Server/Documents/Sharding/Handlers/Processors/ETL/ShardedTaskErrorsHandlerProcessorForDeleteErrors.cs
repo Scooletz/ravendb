@@ -3,6 +3,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Threading.Tasks;
 using Raven.Client.Http;
 using Raven.Server.Documents.Commands.ETL;
+using Raven.Server.Documents.ETL;
 using Raven.Server.Documents.Handlers.Processors;
 using Raven.Server.ServerWide;
 using Raven.Server.ServerWide.Context;
@@ -25,7 +26,10 @@ internal sealed class ShardedTaskErrorsHandlerProcessorForDeleteErrors : Abstrac
         var names = RequestHandler.GetStringValuesQueryString("name", required: false);
 
         if (names.Count > 0)
-            return new DeleteNamedTaskErrorsCommand(names, nodeTag);
+        {
+            var taskCategory = RequestHandler.GetEnumQueryString<TaskCategory>("type");
+            return new DeleteNamedTaskErrorsCommand(names, taskCategory, nodeTag);
+        }
 
         return new DeleteAllTaskErrorsCommand(nodeTag);
     }

@@ -2039,7 +2039,7 @@ public class RavenDB_21192_Multinode : ClusterTestBase
         mentorItemErrors = mentorDatabase.TaskErrorsStorage.ReadItemErrorsOfTask(TaskCategory.Etl,$"{etlName}/{transformationName}");
         Assert.Equal(5, mentorItemErrors.Count);
         
-        newMentorDatabase.TaskErrorsStorage.DeleteErrorsOfTask($"{etlName}/{transformationName}");
+        newMentorDatabase.TaskErrorsStorage.DeleteErrorsOfTask($"{etlName}/{transformationName}", TaskCategory.Etl);
         
         newMentorItemErrors = newMentorDatabase.TaskErrorsStorage.ReadItemErrorsOfTask(TaskCategory.Etl,$"{etlName}/{transformationName}");
         Assert.Empty(newMentorItemErrors);
@@ -2174,7 +2174,7 @@ public class RavenDB_21192_Multinode : ClusterTestBase
         mentorItemErrors = mentorDatabase.TaskErrorsStorage.ReadItemErrorsOfTask(TaskCategory.Ai,processName);
         Assert.Equal(5, mentorItemErrors.Count);
 
-        newMentorDatabase.TaskErrorsStorage.DeleteErrorsOfTask(processName);
+        newMentorDatabase.TaskErrorsStorage.DeleteErrorsOfTask(processName, TaskCategory.Ai);
 
         newMentorItemErrors = newMentorDatabase.TaskErrorsStorage.ReadItemErrorsOfTask(TaskCategory.Ai,processName);
         Assert.Empty(newMentorItemErrors);

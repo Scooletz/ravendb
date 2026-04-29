@@ -407,14 +407,6 @@ public unsafe class TaskErrorsStorage
         }
     }
 
-    public void DeleteErrorsOfTask(string taskName)
-    {
-        foreach (TaskCategory taskType in Enum.GetValues<TaskCategory>())
-        {
-            DeleteErrorsOfTask(taskName, taskType);
-        }
-    }
-
     public void DeleteErrorsOfTask(string taskName, TaskCategory taskCategory)
     {
         DeleteTaskErrorsTablesForTask(taskName, taskCategory);
