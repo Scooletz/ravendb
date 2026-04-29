@@ -66,26 +66,30 @@ export function DeleteErrorsModal(props: DeleteErrorsModalProps) {
     const { confirmText, handleTextChange, isConfirmed } = useDeleteConfirmation(isRequireTypedConfirm);
 
     const asyncDeleteErrors = useAsyncCallback(async () => {
-        const namesByCategory = new Map<TaskCategory, string[]>();
+        const requestsPerTask: { type: TaskCategory; processNames: string[] }[] = [];
 
-        const addNames = (category: TaskCategory, names: string[]) => {
-            const existing = namesByCategory.get(category) ?? [];
-            existing.push(...names);
-            namesByCategory.set(category, existing);
+        const addTask = (etlName: string, etlType: StudioEtlType | undefined, transformationNames: string[]) => {
+            if (transformationNames.length === 0) {
+                return;
+            }
+            requestsPerTask.push({
+                type: getTaskCategory(etlType),
+                processNames: transformationNames.map((name) => `${etlName}/${name}`),
+            });
         };
 
         if (mode === "task") {
-            const category = getTaskCategory(props.etlType);
-            addNames(
-                category,
-                props.transformations.map((t) => `${props.etlName}/${t.transformationName}`)
+            addTask(
+                props.etlName,
+                props.etlType,
+                props.transformations.map((t) => t.transformationName)
             );
         } else {
             for (const task of props.tasksWithErrors) {
-                const category = getTaskCategory(task.etlType);
-                addNames(
-                    category,
-                    task.transformations.map((t) => `${task.etlName}/${t.transformationName}`)
+                addTask(
+                    task.etlName,
+                    task.etlType,
+                    task.transformations.map((t) => t.transformationName)
                 );
             }
         }
@@ -94,10 +98,10 @@ export function DeleteErrorsModal(props: DeleteErrorsModalProps) {
             const locations = DatabaseUtils.getLocations(db);
             await Promise.all(
                 locations.flatMap((location) =>
-                    Array.from(namesByCategory.entries()).map(([type, names]) =>
+                    requestsPerTask.map((req) =>
                         tasksService.deleteEtlErrors(db.name, {
-                            type,
-                            name: names,
+                            type: req.type,
+                            name: req.processNames,
                             nodeTag: location.nodeTag,
                             shardNumber: location.shardNumber,
                         })

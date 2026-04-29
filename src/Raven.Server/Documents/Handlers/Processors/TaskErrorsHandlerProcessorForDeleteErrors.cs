@@ -24,6 +24,8 @@ internal sealed class TaskErrorsHandlerProcessorForDeleteErrors : AbstractHandle
 
         if (names.Count > 0)
         {
+            DeleteNamedTaskErrorsCommand.AssertAllNamesShareSamePrefix(names);
+
             var taskCategory = RequestHandler.GetEnumQueryString<TaskCategory>("type");
 
             foreach (var name in names)
