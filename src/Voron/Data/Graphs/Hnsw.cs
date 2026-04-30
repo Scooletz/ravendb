@@ -819,6 +819,14 @@ public unsafe partial class Hnsw
     {
         public bool IsCommited { get; private set; }
         private readonly Dictionary<ByteString, (ByteString Key, int NodeIndex, NativeList<long> PostingList)> _vectorHashCache = new(ByteStringContentComparer.Instance);
+
+        /// <summary>
+        /// Node ids whose persisted record was written or rewritten during this commit. The
+        /// post-commit cache update (HnswIndexCache.ApplyCommit) consumes this set to bring the
+        /// in-memory cache forward without re-running BFS from the entry point. Populated by
+        /// the persistence loop in Commit.
+        /// </summary>
+        public HashSet<long> DirtyNodeIds { get; } = new();
         private readonly Lookup<Int64LookupKey> _nodesByVectorId;
         private SearchState _searchState;
         public Random Random;
@@ -1087,6 +1095,7 @@ public unsafe partial class Hnsw
             for (int i = 0; i < nodes.Length; i++)
             {
                 PersistNode(ref nodes[i], ref byteBuffer);
+                DirtyNodeIds.Add(nodes[i].NodeId);
             }
 
             // flush the local modifications
@@ -1294,13 +1303,13 @@ public unsafe partial class Hnsw
      where TEnumerator : IEnumerator<long>
     {
         var searchState = new SearchState(llt, name, ref vector);
+        if (searchState.Options.CountOfVectors == 0)
+            return new VectorSearchRetriever(searchState, searchState.EmptySearch(), vector, minimumSimilarity);
+
         var startingPointsIndexes = new ContextBoundNativeList<int>(llt.Allocator);
         var candidates = new ContextBoundNativeList<int>(llt.Allocator);
         candidates.EnsureCapacityFor(searchState.Options.MaxLevel + 1);
 
-        if (searchState.Options.CountOfVectors == 0)
-            return new VectorSearchRetriever(searchState, searchState.EmptySearch(), vector, minimumSimilarity);
-        
         searchState.SearchFilteredNearest(ref startingPointsIndexes, nodesToProbe, numberOfCandidates, 16);
         candidates.Clear();
         var nearestEdgesSearch = searchState.NearestSearch(startingPointsIndexes, vector, 0, numberOfCandidates, candidates,
@@ -1311,12 +1320,12 @@ public unsafe partial class Hnsw
     public static VectorSearchRetriever ApproximateNearest(LowLevelTransaction llt, Slice name, int numberOfCandidates, Memory<byte> vector, float minimumSimilarity, bool hasFilterMatch = false)
     {
         var searchState = new SearchState(llt, name, ref vector);
+        if (searchState.Options.CountOfVectors == 0)
+            return new VectorSearchRetriever(searchState, searchState.EmptySearch(), vector, minimumSimilarity);
+
         var nearestNodesByLevel = new ContextBoundNativeList<int>(llt.Allocator);
         nearestNodesByLevel.EnsureCapacityFor(searchState.Options.MaxLevel + 1);
 
-        if (searchState.Options.CountOfVectors == 0)
-            return new VectorSearchRetriever(searchState, searchState.EmptySearch(), vector, minimumSimilarity);
-        
         searchState.SearchNearestAcrossLevels(vector.Span, -1, searchState.Options.MaxLevel, ref nearestNodesByLevel);
         var nearest = nearestNodesByLevel[0];
         nearestNodesByLevel.Clear();
@@ -1340,11 +1349,11 @@ public unsafe partial class Hnsw
         // and the upper-level descent latches onto the wrong starting point.
         searchState.OnQueryVector(vector);
 
-        var nearestNodesByLevel = new ContextBoundNativeList<int>(searchState.Llt.Allocator);
-        nearestNodesByLevel.EnsureCapacityFor(searchState.Options.MaxLevel + 1);
-
         if (searchState.Options.CountOfVectors == 0)
             return new VectorSearchRetriever(searchState, searchState.EmptySearch(), vector, minimumSimilarity, ownsSearchState: false, queryVectorScope);
+
+        var nearestNodesByLevel = new ContextBoundNativeList<int>(searchState.Llt.Allocator);
+        nearestNodesByLevel.EnsureCapacityFor(searchState.Options.MaxLevel + 1);
 
         searchState.SearchNearestAcrossLevels(vector.Span, -1, searchState.Options.MaxLevel, ref nearestNodesByLevel);
         var nearest = nearestNodesByLevel[0];
@@ -1376,12 +1385,12 @@ public unsafe partial class Hnsw
         TryNormalizeQueryVector(searchState.Options, searchState.Llt.Allocator, ref vector, out var queryVectorScope);
         searchState.OnQueryVector(vector);
 
+        if (searchState.Options.CountOfVectors == 0)
+            return new VectorSearchRetriever(searchState, searchState.EmptySearch(), vector, minimumSimilarity, ownsSearchState: false, queryVectorScope);
+
         var startingPointsIndexes = new ContextBoundNativeList<int>(searchState.Llt.Allocator);
         var candidates = new ContextBoundNativeList<int>(searchState.Llt.Allocator);
         candidates.EnsureCapacityFor(searchState.Options.MaxLevel + 1);
-
-        if (searchState.Options.CountOfVectors == 0)
-            return new VectorSearchRetriever(searchState, searchState.EmptySearch(), vector, minimumSimilarity, ownsSearchState: false, queryVectorScope);
 
         searchState.SearchFilteredNearest(ref startingPointsIndexes, nodesToProbe, numberOfCandidates, 16);
         candidates.Clear();
