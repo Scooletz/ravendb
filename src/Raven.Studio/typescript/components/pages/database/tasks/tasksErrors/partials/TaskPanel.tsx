@@ -38,6 +38,7 @@ import {
     getEtlTypeIcon,
     getEtlTypeLabel,
     getPopoverMessageForTaskHealth,
+    getTaskCategory,
     getTaskHealthStatus,
     healthStatusToBadge,
     SHOW_WIDTH_SIZE,
@@ -229,6 +230,21 @@ function NestedTaskPanelDetails({
     const { value: isNestedDetailsVisible, toggle: toggleNestedDetailsVisible } = useBoolean(true);
 
     const totalErrors = processErrors.length + itemErrors.length;
+    const isAiTask = getTaskCategory(rest.etlType) === "Ai";
+
+    const table = (
+        <NestedTaskPanelDetailsTable
+            width={width}
+            itemErrors={itemErrors}
+            processErrors={processErrors}
+            transformationName={transformationName}
+            {...rest}
+        />
+    );
+
+    if (isAiTask) {
+        return <Card className="bg-black p-3">{table}</Card>;
+    }
 
     return (
         <Card className="bg-black p-3">
@@ -243,15 +259,7 @@ function NestedTaskPanelDetails({
                 </Button>
             </div>
             <Collapse in={isNestedDetailsVisible} unmountOnExit mountOnEnter>
-                <div className="mt-3">
-                    <NestedTaskPanelDetailsTable
-                        width={width}
-                        itemErrors={itemErrors}
-                        processErrors={processErrors}
-                        transformationName={transformationName}
-                        {...rest}
-                    />
-                </div>
+                <div className="mt-3">{table}</div>
             </Collapse>
         </Card>
     );
