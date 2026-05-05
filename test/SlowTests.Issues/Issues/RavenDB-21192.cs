@@ -968,30 +968,45 @@ public class RavenDB_21192 : RavenTestBase
 
             await AssertHealthStatusNotificationAsync(src, processTag, EtlProcess.GetProcessName(etlName1, transformationName1), EtlProcessHealthStatus.Impaired);
 
-            using (var session = src.OpenAsyncSession())
+            const int healthyBatches = 10;
+            const int healthyBatchSize = 200;
+
+            for (int batch = 0; batch < healthyBatches; batch++)
             {
-                for (int i = 0; i < 1000; i++)
-                    await session.StoreAsync(new User { Name = "Joe Doe", Value = 1 });
-                await session.SaveChangesAsync();
+                using (var session = src.OpenAsyncSession())
+                {
+                    for (int i = 0; i < healthyBatchSize; i++)
+                        await session.StoreAsync(new User { Name = "Joe Doe", Value = 1 });
+                    await session.SaveChangesAsync();
+                }
             }
 
-            await WaitForEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1), stats => stats.LoadSuccesses == 1050);
+            const int expectedLoadSuccesses = 50 + healthyBatches * healthyBatchSize;
+            await WaitForEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1),
+                stats => stats.LoadSuccesses == expectedLoadSuccesses && stats.HealthStatus == EtlProcessHealthStatus.Healthy);
 
             etlStats = await GetEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1));
-            
-            Assert.Equal(1050, etlStats.LoadSuccesses);
+
+            Assert.Equal(expectedLoadSuccesses, etlStats.LoadSuccesses);
+            Assert.Equal(EtlProcessHealthStatus.Healthy, etlStats.HealthStatus);
+
+            await AssertHealthStatusNotificationAsync(src, processTag, EtlProcess.GetProcessName(etlName1, transformationName1), EtlProcessHealthStatus.Healthy);
         }
     }
-    
+
     private async Task AssertHealthStatusNotificationAsync(IDocumentStore store, string processTag, string processName, EtlProcessHealthStatus healthStatus)
     {
         var db = await GetDatabase(store.Database);
+
+        var expectedMessage = healthStatus == EtlProcessHealthStatus.Healthy
+            ? $"Task recovered to {nameof(EtlProcessHealthStatus.Healthy)} status."
+            : $"Task health status was changed to {healthStatus}.";
 
         await WaitForAssertionAsync(() =>
         {
             var alert = db.NotificationCenter.EtlNotifications.GetAlert<EtlTaskHealthChangeDetails>(processTag, processName, AlertReason.Etl_HealthStatusChange);
             Assert.NotNull(alert);
-            Assert.Equal($"ETL task health status was changed to {healthStatus}.", alert.Message);
+            Assert.Equal(expectedMessage, alert.Message);
             return Task.CompletedTask;
         });
     }

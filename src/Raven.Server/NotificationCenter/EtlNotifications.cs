@@ -48,7 +48,7 @@ namespace Raven.Server.NotificationCenter
 
             var key = $"{processTag}/{processName}";
 
-            var message = status == EtlProcessHealthStatus.Healthy ? $"ETL task recovered to {nameof(EtlProcessHealthStatus.Healthy)} status." : $"ETL task health status was changed to {status}.";
+            var message = status == EtlProcessHealthStatus.Healthy ? $"Task recovered to {nameof(EtlProcessHealthStatus.Healthy)} status." : $"Task health status was changed to {status}.";
 
             var alert = AlertRaised.Create(
                 _notificationCenter.Database,
@@ -61,6 +61,7 @@ namespace Raven.Server.NotificationCenter
 
             _notificationCenter.Add(alert);
         }
+        
         public AlertRaised AddWarning(string processTag, string processName, string message, string documentId, string timeSeriesName)
         {
             var alert = GetOrCreateAlert<EtlWarningDetails>(
