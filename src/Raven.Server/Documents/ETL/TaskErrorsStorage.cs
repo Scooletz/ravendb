@@ -32,7 +32,7 @@ public unsafe class TaskErrorsStorage
     {
         var tableName = GetProcessErrorsTableName(taskCategory, taskName);
 
-        if (tx.IsWriteTransaction && _tablesCreated.Contains(tableName) == false)
+        if (_tablesCreated.Contains(tableName) == false)
         {
             Schemas.TaskProcessErrors.Current.Create(tx, tableName, TableSizeInPages);
             tx.LowLevelTransaction.OnDispose += _ =>
@@ -47,11 +47,17 @@ public unsafe class TaskErrorsStorage
         return tx.OpenTable(Schemas.TaskProcessErrors.Current, tableName);
     }
 
+    private static Table GetProcessErrorsTable(Transaction tx, string taskName, TaskCategory taskCategory)
+    {
+        var tableName = GetProcessErrorsTableName(taskCategory, taskName);
+        return tx.OpenTable(Schemas.TaskProcessErrors.Current, tableName);
+    }
+
     private Table EnsureItemErrorsTableCreated(Transaction tx, string taskName, TaskCategory taskCategory)
     {
         var tableName = GetItemErrorsTableName(taskCategory, taskName);
 
-        if (tx.IsWriteTransaction && _tablesCreated.Contains(tableName) == false)
+        if (_tablesCreated.Contains(tableName) == false)
         {
             Schemas.TaskItemErrors.Current.Create(tx, tableName, TableSizeInPages);
             tx.LowLevelTransaction.OnDispose += _ =>
@@ -63,6 +69,12 @@ public unsafe class TaskErrorsStorage
             };
         }
 
+        return tx.OpenTable(Schemas.TaskItemErrors.Current, tableName);
+    }
+
+    private static Table GetItemErrorsTable(Transaction tx, string taskName, TaskCategory taskCategory)
+    {
+        var tableName = GetItemErrorsTableName(taskCategory, taskName);
         return tx.OpenTable(Schemas.TaskItemErrors.Current, tableName);
     }
 
@@ -299,7 +311,7 @@ public unsafe class TaskErrorsStorage
 
     private long ReadProcessErrorsCountOfTask(DocumentsOperationContext context, string taskName, TaskCategory taskCategory)
     {
-        var table = EnsureProcessErrorsTableCreated(context.Transaction.InnerTransaction, taskName, taskCategory);
+        var table = GetProcessErrorsTable(context.Transaction.InnerTransaction, taskName, taskCategory);
         if (table == null)
             return 0;
 
@@ -308,7 +320,7 @@ public unsafe class TaskErrorsStorage
 
     private long ReadItemErrorsCountOfTask(DocumentsOperationContext context, string taskName, TaskCategory taskCategory)
     {
-        var table = EnsureItemErrorsTableCreated(context.Transaction.InnerTransaction, taskName, taskCategory);
+        var table = GetItemErrorsTable(context.Transaction.InnerTransaction, taskName, taskCategory);
         if (table == null)
             return 0;
 
@@ -335,7 +347,7 @@ public unsafe class TaskErrorsStorage
 
     private IEnumerable<TaskProcessErrorTableValue> ReadProcessErrorsOfTask(DocumentsOperationContext context, string taskName, TaskCategory taskCategory)
     {
-        var table = EnsureProcessErrorsTableCreated(context.Transaction.InnerTransaction, taskName, taskCategory);
+        var table = GetProcessErrorsTable(context.Transaction.InnerTransaction, taskName, taskCategory);
         if (table == null)
             yield break;
 
@@ -349,7 +361,7 @@ public unsafe class TaskErrorsStorage
 
     private IEnumerable<TaskItemErrorTableValue> ReadItemErrorsOfTask(DocumentsOperationContext context, string taskName, TaskCategory taskCategory)
     {
-        var table = EnsureItemErrorsTableCreated(context.Transaction.InnerTransaction, taskName, taskCategory);
+        var table = GetItemErrorsTable(context.Transaction.InnerTransaction, taskName, taskCategory);
         if (table == null)
             yield break;
 
@@ -366,7 +378,7 @@ public unsafe class TaskErrorsStorage
         using (_contextPool.AllocateOperationContext(out DocumentsOperationContext context))
         using (context.OpenReadTransaction())
         {
-            var table = EnsureProcessErrorsTableCreated(context.Transaction.InnerTransaction, taskName, taskCategory);
+            var table = GetProcessErrorsTable(context.Transaction.InnerTransaction, taskName, taskCategory);
 
             if (table == null)
                 return null;
