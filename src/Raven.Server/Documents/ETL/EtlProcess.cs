@@ -786,6 +786,9 @@ namespace Raven.Server.Documents.ETL
         {
             var runStart = Database.Time.GetUtcNow();
 
+            var cancellationAndForceRetryHandles = new[] { CancellationToken.WaitHandle, ForceBatchRetryEvent.WaitHandle };
+            var cancellationForceRetryAndWaitForChangesHandles = new[] { CancellationToken.WaitHandle, ForceBatchRetryEvent.WaitHandle, _waitForChanges.WaitHandle };
+
             while (true)
             {
                 try
@@ -909,8 +912,7 @@ namespace Raven.Server.Documents.ETL
                                 RecordLoadError(e.ToString(), TaskErrorStep.Persistence, count: 0);
 
                                 const int cancellationIndex = 0;
-                                var handles = new[] { CancellationToken.WaitHandle, ForceBatchRetryEvent.WaitHandle };
-                                var signaledIndex = WaitHandle.WaitAny(handles, FallbackTime.Value);
+                                var signaledIndex = WaitHandle.WaitAny(cancellationAndForceRetryHandles, FallbackTime.Value);
                                 if (signaledIndex == cancellationIndex)
                                     return;
 
@@ -939,8 +941,7 @@ namespace Raven.Server.Documents.ETL
 
                             const int cancellationHandleIndex = 0;
                             const int forceBatchRetryHandleIndex = 1;
-                            var handles = new[] { CancellationToken.WaitHandle, ForceBatchRetryEvent.WaitHandle, _waitForChanges.WaitHandle };
-                            var signaledIndex = WaitHandle.WaitAny(handles, fallbackTime);
+                            var signaledIndex = WaitHandle.WaitAny(cancellationForceRetryAndWaitForChangesHandles, fallbackTime);
 
                             if (signaledIndex == cancellationHandleIndex)
                                 return;
@@ -962,8 +963,7 @@ namespace Raven.Server.Documents.ETL
 
                                     if (timeLeftToWait > TimeSpan.Zero)
                                     {
-                                        var remainingHandles = new[] { CancellationToken.WaitHandle, ForceBatchRetryEvent.WaitHandle };
-                                        var remainingSignaledIndex = WaitHandle.WaitAny(remainingHandles, timeLeftToWait);
+                                        var remainingSignaledIndex = WaitHandle.WaitAny(cancellationAndForceRetryHandles, timeLeftToWait);
                                         if (remainingSignaledIndex == cancellationHandleIndex)
                                             return;
 
