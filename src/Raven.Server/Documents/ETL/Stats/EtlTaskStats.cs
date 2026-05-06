@@ -25,7 +25,7 @@ namespace Raven.Server.Documents.ETL.Stats
             {
                 [nameof(TaskName)] = TaskName,
                 [nameof(TaskId)] = TaskId,
-                [nameof(EtlType)] = EtlType,
+                [nameof(EtlType)] = EtlType.ToString(),
                 [nameof(EtlSubType)] = EtlSubType,
                 [nameof(NodeTag)] = NodeTag,
                 [nameof(ShardNumber)] = ShardNumber,
