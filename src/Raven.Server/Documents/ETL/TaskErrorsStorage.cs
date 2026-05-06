@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Immutable;
 using System.Collections.Generic;
 using System.Linq;
 using Raven.Server.Documents.TransactionMerger;
@@ -20,7 +21,10 @@ public unsafe class TaskErrorsStorage
     private const int TableSizeInPages = 16;
     private DocumentsContextPool _contextPool;
     private DocumentsTransactionOperationsMerger _txMerger;
-    private HashSet<string> _tablesCreated = new(StringComparer.Ordinal);
+    private ImmutableHashSet<string> _tablesCreated = ImmutableHashSet.Create<string>(StringComparer.Ordinal);
+
+    private static readonly Func<ImmutableHashSet<string>, string, ImmutableHashSet<string>> AddTableName = static (tables, name) => tables.Add(name);
+    private static readonly Func<ImmutableHashSet<string>, string, ImmutableHashSet<string>> RemoveTableName = static (tables, name) => tables.Remove(name);
 
     public void Initialize(DocumentsContextPool contextPool, DocumentsTransactionOperationsMerger txMerger)
     {
@@ -40,7 +44,7 @@ public unsafe class TaskErrorsStorage
                 if (tx.LowLevelTransaction.Committed == false)
                     return;
 
-                _tablesCreated = new HashSet<string>(_tablesCreated, StringComparer.Ordinal) { tableName };
+                ImmutableInterlocked.Update(ref _tablesCreated, AddTableName, tableName);
             };
         }
 
@@ -65,7 +69,7 @@ public unsafe class TaskErrorsStorage
                 if (tx.LowLevelTransaction.Committed == false)
                     return;
 
-                _tablesCreated = new HashSet<string>(_tablesCreated, StringComparer.Ordinal) { tableName };
+                ImmutableInterlocked.Update(ref _tablesCreated, AddTableName, tableName);
             };
         }
 
@@ -99,8 +103,8 @@ public unsafe class TaskErrorsStorage
             if (tx.LowLevelTransaction.Committed == false)
                 return;
 
-            _tablesCreated.Remove(processErrorsTableName);
-            _tablesCreated.Remove(itemErrorsTableName);
+            ImmutableInterlocked.Update(ref _tablesCreated, RemoveTableName, processErrorsTableName);
+            ImmutableInterlocked.Update(ref _tablesCreated, RemoveTableName, itemErrorsTableName);
         };
     }
 
