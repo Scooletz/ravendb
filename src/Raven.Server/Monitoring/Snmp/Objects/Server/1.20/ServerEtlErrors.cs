@@ -17,12 +17,10 @@ public class ServerEtlErrors : ScalarObjectBase<Integer32>
     protected override Integer32 GetData()
     {
         var result = 0;
-        
-        foreach (var db in _store.DatabasesLandlord.DatabasesCache)
-        {
-            result += (int)db.Value.GetAwaiter().GetResult().TaskErrorsStorage.ReadTotalErrorsCount(TaskCategory.Etl);
-        }
-        
+
+        foreach (var database in _store.DatabasesLandlord.GetLoadedDatabases())
+            result += (int)database.TaskErrorsStorage.ReadTotalErrorsCount(TaskCategory.Etl);
+
         return new Integer32(result);
     }
 }

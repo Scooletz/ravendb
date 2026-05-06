@@ -20,9 +20,9 @@ public sealed class ServerActiveAiTasks : ScalarObjectBase<Integer32>
         var result = 0;
         var oneMinuteAgo = DateTime.UtcNow.AddMinutes(-1);
 
-        foreach (var db in _store.DatabasesLandlord.DatabasesCache)
+        foreach (var database in _store.DatabasesLandlord.GetLoadedDatabases())
         {
-            result += db.Value.GetAwaiter().GetResult().EtlLoader.GetAiProcesses()
+            result += database.EtlLoader.GetAiProcesses()
                 .Count(x => x.GetLatestPerformanceStats()?.StartTime > oneMinuteAgo);
         }
 

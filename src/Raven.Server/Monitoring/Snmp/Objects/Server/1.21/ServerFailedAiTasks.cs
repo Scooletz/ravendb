@@ -20,9 +20,9 @@ public sealed class ServerFailedAiTasks : ScalarObjectBase<Integer32>
     {
         var result = 0;
 
-        foreach (var db in _store.DatabasesLandlord.DatabasesCache)
+        foreach (var database in _store.DatabasesLandlord.GetLoadedDatabases())
         {
-            result += db.Value.GetAwaiter().GetResult().EtlLoader.GetAiProcesses()
+            result += database.EtlLoader.GetAiProcesses()
                 .Count(x => x.Statistics.HealthStatus == EtlProcessHealthStatus.Failed);
         }
 

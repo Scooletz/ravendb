@@ -17,10 +17,8 @@ public sealed class ServerTotalNumberOfEtls : ScalarObjectBase<Integer32>
     {
         var result = 0;
 
-        foreach (var db in _store.DatabasesLandlord.DatabasesCache)
-        {
-            result += db.Value.GetAwaiter().GetResult().EtlLoader.GetEtlProcesses().Length;
-        }
+        foreach (var database in _store.DatabasesLandlord.GetLoadedDatabases())
+            result += database.EtlLoader.GetEtlProcesses().Length;
 
         return new Integer32(result);
     }

@@ -18,12 +18,10 @@ public class ServerFailedEtls : ScalarObjectBase<Integer32>
     protected override Integer32 GetData()
     {
         var result = 0;
-        
-        foreach (var db in _store.DatabasesLandlord.DatabasesCache)
-        {
-            result += db.Value.GetAwaiter().GetResult().EtlLoader.GetEtlProcesses().Count(x => x.Statistics.HealthStatus == EtlProcessHealthStatus.Failed);
-        }
-        
+
+        foreach (var database in _store.DatabasesLandlord.GetLoadedDatabases())
+            result += database.EtlLoader.GetEtlProcesses().Count(x => x.Statistics.HealthStatus == EtlProcessHealthStatus.Failed);
+
         return new Integer32(result);
     }
 }

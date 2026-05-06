@@ -17,10 +17,8 @@ public sealed class ServerTotalNumberOfAiTasks : ScalarObjectBase<Integer32>
     {
         var result = 0;
 
-        foreach (var db in _store.DatabasesLandlord.DatabasesCache)
-        {
-            result += db.Value.GetAwaiter().GetResult().EtlLoader.GetAiProcesses().Length;
-        }
+        foreach (var database in _store.DatabasesLandlord.GetLoadedDatabases())
+            result += database.EtlLoader.GetAiProcesses().Length;
 
         return new Integer32(result);
     }
