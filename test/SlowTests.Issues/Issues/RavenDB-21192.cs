@@ -503,7 +503,7 @@ public class RavenDB_21192 : RavenTestBase
 
                 Assert.NotNull(res);
 
-                res.TryGet(nameof(EtlHandlerProcessorForGetErrors.Response.Results), out BlittableJsonReaderArray results);
+                res.TryGet(nameof(TaskErrorsResponse.Results), out BlittableJsonReaderArray results);
                 var resultsObjectList = JsonConvert.DeserializeObject<List<TaskErrors>>(results.ToString());
 
                 var firstTaskErrors = resultsObjectList.Single(x => x.TaskName == EtlProcess.GetProcessName(etlName1, transformationName1));
@@ -525,7 +525,7 @@ public class RavenDB_21192 : RavenTestBase
                 await commands.ExecuteAsync(cmdSingleTask);
 
                 var resSingle = cmdSingleTask.Result as BlittableJsonReaderObject;
-                resSingle.TryGet(nameof(EtlHandlerProcessorForGetErrors.Response.Results), out BlittableJsonReaderArray resultsSingle);
+                resSingle.TryGet(nameof(TaskErrorsResponse.Results), out BlittableJsonReaderArray resultsSingle);
                 var resultsSingleList = JsonConvert.DeserializeObject<List<TaskErrors>>(resultsSingle.ToString());
 
                 Assert.Single(resultsSingleList);
@@ -541,7 +541,7 @@ public class RavenDB_21192 : RavenTestBase
                 await commands.ExecuteAsync(cmdTwoTasks);
 
                 var resTwo = cmdTwoTasks.Result as BlittableJsonReaderObject;
-                resTwo.TryGet(nameof(EtlHandlerProcessorForGetErrors.Response.Results), out BlittableJsonReaderArray resultsTwo);
+                resTwo.TryGet(nameof(TaskErrorsResponse.Results), out BlittableJsonReaderArray resultsTwo);
                 var resultsTwoList = JsonConvert.DeserializeObject<List<TaskErrors>>(resultsTwo.ToString());
 
                 Assert.Equal(2, resultsTwoList.Count);
@@ -627,7 +627,7 @@ public class RavenDB_21192 : RavenTestBase
 
                 Assert.NotNull(res);
                 
-                res.TryGet(nameof(EtlHandlerProcessorForGetErrors.Response.Results), out BlittableJsonReaderArray results);
+                res.TryGet(nameof(TaskErrorsResponse.Results), out BlittableJsonReaderArray results);
                 var resultsObjectList = JsonConvert.DeserializeObject<List<TaskErrors>>(results.ToString());
 
                 var firstTaskErrors = resultsObjectList.Single(x => x.TaskName == EtlProcess.GetProcessName(etlName1, transformationName1));
@@ -702,7 +702,7 @@ public class RavenDB_21192 : RavenTestBase
 
                 var res1 = getAfterFirstDelete.Result as BlittableJsonReaderObject;
                 Assert.NotNull(res1);
-                res1.TryGet(nameof(EtlHandlerProcessorForGetErrors.Response.Results), out BlittableJsonReaderArray results1);
+                res1.TryGet(nameof(TaskErrorsResponse.Results), out BlittableJsonReaderArray results1);
                 var list1 = JsonConvert.DeserializeObject<List<TaskErrors>>(results1.ToString());
 
                 var etl1AfterDelete = list1.Single(x => x.TaskName == EtlProcess.GetProcessName(etlName1, transformationName1));
@@ -727,7 +727,7 @@ public class RavenDB_21192 : RavenTestBase
 
                 var res2 = getAfterSecondDelete.Result as BlittableJsonReaderObject;
                 Assert.NotNull(res2);
-                res2.TryGet(nameof(EtlHandlerProcessorForGetErrors.Response.Results), out BlittableJsonReaderArray results2);
+                res2.TryGet(nameof(TaskErrorsResponse.Results), out BlittableJsonReaderArray results2);
                 var list2 = JsonConvert.DeserializeObject<List<TaskErrors>>(results2.ToString());
 
                 Assert.Equal(2, list2.Count);

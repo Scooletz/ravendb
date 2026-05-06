@@ -3,12 +3,11 @@ using Microsoft.Extensions.Primitives;
 using Raven.Client.Http;
 using Raven.Server.Documents.Commands.ETL;
 using Raven.Server.Documents.ETL.Stats;
-using Raven.Server.Documents.Handlers.Processors;
 using Sparrow.Json;
 
 namespace Raven.Server.Documents.ETL.Handlers.Processors;
 
-internal abstract class AbstractTaskErrorsHandlerProcessorForGetErrors<TRequestHandler, TOperationContext> : AbstractHandlerProxyReadProcessor<TaskErrors[], TRequestHandler, TOperationContext>
+internal abstract class AbstractTaskErrorsHandlerProcessorForGetErrors<TRequestHandler, TOperationContext> : AbstractTaskErrorsHandlerProcessorBase<TRequestHandler, TOperationContext>
     where TOperationContext : JsonOperationContext
     where TRequestHandler : AbstractDatabaseRequestHandler<TOperationContext>
 {
