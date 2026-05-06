@@ -72,7 +72,7 @@ public class RavenDB_21192 : RavenTestBase
             AddEtlTask(src, dest, etlName1, connectionStringName1, [transformationName1], [script1], collections1);
             AddEtlTask(src, dest, etlName2, connectionStringName1, [transformationName2], [script1], collections1);
 
-            var now = DateTime.Now;
+            var now = DateTime.UtcNow;
 
             var error1 = new TaskProcessError
             {
@@ -155,7 +155,7 @@ public class RavenDB_21192 : RavenTestBase
         {
             var database = GetDatabase(src.Database).GetAwaiter().GetResult();
 
-            var now = DateTime.Now;
+            var now = DateTime.UtcNow;
 
             database.TaskErrorsStorage.StoreProcessError(TaskCategory.Etl, new TaskProcessError
             {
@@ -234,7 +234,7 @@ public class RavenDB_21192 : RavenTestBase
             var etlProcessName = EtlProcess.GetProcessName(etlName, etlTransformationName);
             var aiProcessName = EtlProcess.GetProcessName(aiTaskName, "embeddings-transform-script");
 
-            var now = DateTime.Now;
+            var now = DateTime.UtcNow;
             
             database.TaskErrorsStorage.StoreProcessError(TaskCategory.Etl, new TaskProcessError
             {
