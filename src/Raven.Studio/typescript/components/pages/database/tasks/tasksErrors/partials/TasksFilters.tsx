@@ -75,10 +75,13 @@ export function TasksFilters({
 }: TasksFiltersProps) {
     const db = useAppSelector(databaseSelectors.activeDatabase);
 
-    const nodeOptions = useMemo(
-        () => db.nodes.map((node) => ({ label: `Node ${node.tag}`, value: node.tag })),
-        [db.nodes]
-    );
+    const nodeOptions = useMemo(() => {
+        const tags: string[] = db.isSharded
+            ? _.uniq(DatabaseUtils.getLocations(db).map((l) => l.nodeTag)).sort()
+            : db.nodes.map((node) => node.tag);
+
+        return tags.map((tag) => ({ label: `Node ${tag}`, value: tag }));
+    }, [db]);
 
     const shardOptions = useMemo(() => {
         if (!db.isSharded) {
