@@ -144,6 +144,9 @@ public unsafe class TaskErrorsStorage
 
     internal void StoreItemErrors(TaskCategory taskCategory, string taskName, List<TaskItemError> itemErrors)
     {
+        if (itemErrors.Count == 0)
+            return;
+
         _txMerger.EnqueueSync(new StoreTaskItemErrorsCommand(taskCategory, taskName, itemErrors));
     }
 
