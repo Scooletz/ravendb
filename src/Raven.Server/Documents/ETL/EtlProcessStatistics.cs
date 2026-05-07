@@ -200,6 +200,8 @@ namespace Raven.Server.Documents.ETL
             LastSlowSqlWarningsInCurrentBatch.Statements.Clear();
         }
         
+        internal int InMemoryItemErrorsCount => _itemErrors.Count;
+
         internal List<TaskItemError> ReadInMemoryItemErrors()
         {
             return _itemErrors.ToList();

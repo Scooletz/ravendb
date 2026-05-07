@@ -33,23 +33,14 @@ internal sealed class EtlHandlerProcessorForGetErrors : AbstractTaskErrorsHandle
         var processesByName = RequestHandler.Database.EtlLoader.Processes
             .ToDictionary(p => p.Name, p => p, StringComparer.Ordinal);
 
-        if (taskNames.Count == 0)
+        var errorsByTask = taskNames.Count == 0
+            ? storage.ReadAllErrorsGroupedByTask(TaskCategory)
+            : storage.ReadErrorsForTasks(TaskCategory, taskNames);
+
+        foreach (var (taskName, processErrors, itemErrors) in errorsByTask)
         {
-            foreach (var (taskName, processErrors, itemErrors) in storage.ReadAllErrorsGroupedByTask(TaskCategory))
-            {
-                processesByName.TryGetValue(taskName, out var process);
-                response.Results.Add(BuildTaskErrors(taskName, process, processErrors, itemErrors));
-            }
-        }
-        else
-        {
-            foreach (var taskName in taskNames)
-            {
-                processesByName.TryGetValue(taskName, out var process);
-                var processErrors = storage.ReadProcessErrorsOfTask(TaskCategory, taskName);
-                var itemErrors = storage.ReadItemErrorsOfTask(TaskCategory, taskName);
-                response.Results.Add(BuildTaskErrors(taskName, process, processErrors, itemErrors));
-            }
+            processesByName.TryGetValue(taskName, out var process);
+            response.Results.Add(BuildTaskErrors(taskName, process, processErrors, itemErrors));
         }
 
         await WriteTaskErrorsResponseAsync(response, "etl/errors");

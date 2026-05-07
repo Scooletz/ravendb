@@ -861,7 +861,8 @@ namespace Raven.Server.Documents.ETL
                                             LogSuccessfulBatchInfo(stats);
                                     }
                                     
-                                    Database.TaskErrorsStorage.StoreItemErrors(TaskCategory, Name, Statistics.ReadInMemoryItemErrors());
+                                    if (Statistics.InMemoryItemErrorsCount > 0)
+                                        Database.TaskErrorsStorage.StoreItemErrors(TaskCategory, Name, Statistics.ReadInMemoryItemErrors());
                                 }
                             }
                             catch (OperationCanceledException)

@@ -260,6 +260,25 @@ public unsafe class TaskErrorsStorage
         }
     }
 
+    public List<(string TaskName, List<TaskProcessErrorTableValue> ProcessErrors, List<TaskItemErrorTableValue> ItemErrors)> ReadErrorsForTasks(TaskCategory taskCategory, IEnumerable<string> taskNames)
+    {
+        using (_contextPool.AllocateOperationContext(out DocumentsOperationContext context))
+        using (context.OpenReadTransaction())
+        {
+            var result = new List<(string, List<TaskProcessErrorTableValue>, List<TaskItemErrorTableValue>)>();
+
+            foreach (var taskName in taskNames)
+            {
+                var processErrors = ReadProcessErrorsOfTask(context, taskName, taskCategory).ToList();
+                var itemErrors = ReadItemErrorsOfTask(context, taskName, taskCategory).ToList();
+
+                result.Add((taskName, processErrors, itemErrors));
+            }
+
+            return result;
+        }
+    }
+
     public List<TaskItemErrorTableValue> ReadAllItemErrors(TaskCategory taskCategory)
     {
         var errors = new List<TaskItemErrorTableValue>();
