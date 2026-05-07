@@ -166,8 +166,8 @@ function TasksErrorsPageBody({
                                 />
                             }
                         >
-                            {group.stats.map((etl) => (
-                                <TaskPill color={group.color} key={etl.TaskName} />
+                            {group.stats.map((etl, index) => (
+                                <TaskPill color={group.color} key={etl.TaskName + index} />
                             ))}
                         </PopoverWithHoverWrapper>
                     ))}
@@ -181,7 +181,7 @@ function TasksErrorsPageBody({
                 updateFilters={updateFilters}
             />
 
-            <div className="mt-4 flex-grow-1 min-h-0">
+            <div className="mt-4 mb-2 flex-grow-1 min-h-0">
                 {selectedGroupByType === "task" && (
                     <GroupByTaskView
                         tasksWithErrors={tasksWithErrors}

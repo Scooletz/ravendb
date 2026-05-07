@@ -50,8 +50,8 @@ export function TaskPillGroupMessage({ etlTaskStatsList, tasksWithErrors }: Task
                 </Badge>
             </div>
             <div className="d-flex flex-column gap-1">
-                {rows.map((row) => (
-                    <TaskPillRow key={row.taskName} {...row} />
+                {rows.map((row, index) => (
+                    <TaskPillRow key={row.taskName + index} {...row} />
                 ))}
             </div>
         </div>

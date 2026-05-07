@@ -230,20 +230,20 @@ function NestedTaskPanelDetails({
     const { value: isNestedDetailsVisible, toggle: toggleNestedDetailsVisible } = useBoolean(true);
 
     const totalErrors = processErrors.length + itemErrors.length;
-    const isAiTask = getTaskCategory(rest.etlType) === "Ai";
-
-    const table = (
-        <NestedTaskPanelDetailsTable
-            width={width}
-            itemErrors={itemErrors}
-            processErrors={processErrors}
-            transformationName={transformationName}
-            {...rest}
-        />
-    );
+const isAiTask = getTaskCategory(rest.etlType) === "Ai";
 
     if (isAiTask) {
-        return <Card className="bg-black p-3">{table}</Card>;
+        return (
+            <Card className="bg-black p-3">
+                <NestedTaskPanelDetailsTable
+                    width={width}
+                    itemErrors={itemErrors}
+                    processErrors={processErrors}
+                    transformationName={transformationName}
+                    {...rest}
+                />
+            </Card>
+        );
     }
 
     return (
@@ -259,7 +259,15 @@ function NestedTaskPanelDetails({
                 </Button>
             </div>
             <Collapse in={isNestedDetailsVisible} unmountOnExit mountOnEnter>
-                <div className="mt-3">{table}</div>
+                <div className="mt-3">
+                    <NestedTaskPanelDetailsTable
+                        width={width}
+                        itemErrors={itemErrors}
+                        processErrors={processErrors}
+                        transformationName={transformationName}
+                        {...rest}
+                    />
+                </div>
             </Collapse>
         </Card>
     );
