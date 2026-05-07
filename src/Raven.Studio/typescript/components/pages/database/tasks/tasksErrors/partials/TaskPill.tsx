@@ -25,8 +25,14 @@ export function TaskPillGroupMessage({ etlTaskStatsList, tasksWithErrors }: Task
 
     const rows = etlTaskStatsList.map((etlTaskStats) => {
         const taskWithErrors = tasksWithErrors.find((t) => t.etlName === etlTaskStats.TaskName);
+        const matchesLocation = (e: { nodeTag: string; shardNumber?: number }) =>
+            e.nodeTag === etlTaskStats.NodeTag && e.shardNumber === etlTaskStats.ShardNumber;
         const errorCount = taskWithErrors
-            ? taskWithErrors.transformations.reduce((acc, t) => acc + t.itemErrors.length + t.processErrors.length, 0)
+            ? taskWithErrors.transformations.reduce(
+                  (acc, t) =>
+                      acc + t.itemErrors.filter(matchesLocation).length + t.processErrors.filter(matchesLocation).length,
+                  0
+              )
             : 0;
 
         return {
