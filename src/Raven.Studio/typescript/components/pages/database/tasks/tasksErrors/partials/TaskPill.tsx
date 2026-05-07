@@ -30,7 +30,9 @@ export function TaskPillGroupMessage({ etlTaskStatsList, tasksWithErrors }: Task
         const errorCount = taskWithErrors
             ? taskWithErrors.transformations.reduce(
                   (acc, t) =>
-                      acc + t.itemErrors.filter(matchesLocation).length + t.processErrors.filter(matchesLocation).length,
+                      acc +
+                      t.itemErrors.filter(matchesLocation).length +
+                      t.processErrors.filter(matchesLocation).length,
                   0
               )
             : 0;

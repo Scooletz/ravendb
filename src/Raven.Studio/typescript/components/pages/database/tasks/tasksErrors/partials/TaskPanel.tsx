@@ -230,7 +230,7 @@ function NestedTaskPanelDetails({
     const { value: isNestedDetailsVisible, toggle: toggleNestedDetailsVisible } = useBoolean(true);
 
     const totalErrors = processErrors.length + itemErrors.length;
-const isAiTask = getTaskCategory(rest.etlType) === "Ai";
+    const isAiTask = getTaskCategory(rest.etlType) === "Ai";
 
     if (isAiTask) {
         return (

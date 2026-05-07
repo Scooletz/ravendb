@@ -9,8 +9,22 @@ function makeTask(overrides: Partial<EtlTaskWithErrors> = {}): EtlTaskWithErrors
             {
                 transformationName: "Script1",
                 itemErrors: [
-                    { nodeTag: "A", shardNumber: null, DocumentId: "doc/1", Error: "err", Step: "Load", CreatedAt: "2024-01-01" } as any,
-                    { nodeTag: "B", shardNumber: null, DocumentId: "doc/2", Error: "err", Step: "Load", CreatedAt: "2024-01-01" } as any,
+                    {
+                        nodeTag: "A",
+                        shardNumber: null,
+                        DocumentId: "doc/1",
+                        Error: "err",
+                        Step: "Load",
+                        CreatedAt: "2024-01-01",
+                    } as any,
+                    {
+                        nodeTag: "B",
+                        shardNumber: null,
+                        DocumentId: "doc/2",
+                        Error: "err",
+                        Step: "Load",
+                        CreatedAt: "2024-01-01",
+                    } as any,
                 ],
                 processErrors: [],
             },
@@ -58,8 +72,20 @@ describe("filterTasksWithErrors - node filter", () => {
                         transformationName: "Script1",
                         itemErrors: [],
                         processErrors: [
-                            { nodeTag: "A", shardNumber: null, Error: "err", Step: "Load", CreatedAt: "2024-01-01" } as any,
-                            { nodeTag: "B", shardNumber: null, Error: "err", Step: "Load", CreatedAt: "2024-01-01" } as any,
+                            {
+                                nodeTag: "A",
+                                shardNumber: null,
+                                Error: "err",
+                                Step: "Load",
+                                CreatedAt: "2024-01-01",
+                            } as any,
+                            {
+                                nodeTag: "B",
+                                shardNumber: null,
+                                Error: "err",
+                                Step: "Load",
+                                CreatedAt: "2024-01-01",
+                            } as any,
                         ],
                     },
                 ],
@@ -80,8 +106,22 @@ describe("filterTasksWithErrors - shard filter", () => {
                     {
                         transformationName: "Script1",
                         itemErrors: [
-                            { nodeTag: "A", shardNumber: 0, DocumentId: "doc/1", Error: "err", Step: "Load", CreatedAt: "2024-01-01" } as any,
-                            { nodeTag: "A", shardNumber: 1, DocumentId: "doc/2", Error: "err", Step: "Load", CreatedAt: "2024-01-01" } as any,
+                            {
+                                nodeTag: "A",
+                                shardNumber: 0,
+                                DocumentId: "doc/1",
+                                Error: "err",
+                                Step: "Load",
+                                CreatedAt: "2024-01-01",
+                            } as any,
+                            {
+                                nodeTag: "A",
+                                shardNumber: 1,
+                                DocumentId: "doc/2",
+                                Error: "err",
+                                Step: "Load",
+                                CreatedAt: "2024-01-01",
+                            } as any,
                         ],
                         processErrors: [],
                     },
