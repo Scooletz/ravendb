@@ -19,6 +19,7 @@ import { useAsync, useAsyncCallback } from "react-async-hook";
 import { useViewSheet } from "components/common/splitView/ViewSheet";
 import EtlErrorDetailsSheet from "components/pages/database/tasks/tasksErrors/partials/EtlErrorDetailsSheet";
 import {
+    EtlHealthStatus,
     FlatError,
     flattenAllTasksErrors,
     getTaskHealthStatus,
@@ -356,19 +357,12 @@ function ItemWithTooltip(props: ItemWithTooltipProps) {
                     </div>
                 )}
                 <div>
-                    {hasError || errorCount > 0 ? (
-                        <strong>
-                            <a
-                                href={goToTaskErrors}
-                                className="d-flex text-decoration-none text-white align-items-center gap-1 no-decor"
-                            >
-                                <Icon icon="warning" color="danger" margin="m-0" />
-                                {errorCount > 0 && <b>{errorCount}</b>}
-                            </a>
-                        </strong>
-                    ) : (
-                        "-"
-                    )}
+                    <EtlErrorCountCell
+                        hasError={hasError}
+                        errorCount={errorCount}
+                        taskHealth={taskHealth}
+                        goToTaskErrors={goToTaskErrors}
+                    />
                 </div>
                 <div className="d-flex align-items-center">
                     <PopoverWithHoverWrapper
@@ -396,6 +390,42 @@ function ItemWithTooltip(props: ItemWithTooltipProps) {
             )}
         </div>
     );
+}
+
+interface EtlErrorCountCellProps {
+    hasError: boolean;
+    errorCount: number;
+    taskHealth: EtlHealthStatus;
+    goToTaskErrors: string;
+}
+
+function EtlErrorCountCell({ hasError, errorCount, taskHealth, goToTaskErrors }: EtlErrorCountCellProps) {
+    if (hasError || errorCount > 0) {
+        return (
+            <strong>
+                <a
+                    href={goToTaskErrors}
+                    className="d-flex text-decoration-none text-white align-items-center gap-1 no-decor"
+                >
+                    <Icon icon="warning" color="danger" margin="m-0" />
+                    {errorCount > 0 && <b>{errorCount}</b>}
+                </a>
+            </strong>
+        );
+    }
+
+    if (taskHealth === "Failed" || taskHealth === "Impaired") {
+        return (
+            <PopoverWithHoverWrapper
+                message="No errors are currently stored. The health status reflects recent error activity and will recover automatically as new batches complete successfully."
+                placement="top"
+            >
+                -
+            </PopoverWithHoverWrapper>
+        );
+    }
+
+    return "-";
 }
 
 function getTxIdLayout(task: AnyEtlOngoingTaskInfo, visibleNodes: OngoingEtlTaskNodeInfo[]): TxIdLayout | null {
