@@ -319,10 +319,8 @@ public sealed class MetricsProvider
         var impairedEtlsCount = 0;
         var failedEtlsCount = 0;
         
-        foreach (var db in _serverStore.DatabasesLandlord.DatabasesCache)
+        foreach (var dbResult in _serverStore.DatabasesLandlord.GetLoadedDatabases())
         {
-            var dbResult = db.Value.GetAwaiter().GetResult();
-
             etlsCount += dbResult.EtlLoader.Processes.Length;
             errorsCount += dbResult.TaskErrorsStorage.ReadTotalErrorsCount(TaskCategory.Etl);
             healthyEtlsCount += dbResult.EtlLoader.Processes.Count(x => x.Statistics.HealthStatus == EtlProcessHealthStatus.Healthy);
@@ -349,9 +347,8 @@ public sealed class MetricsProvider
         var impairedTasksCount = 0;
         var failedTasksCount = 0;
         
-        foreach (var db in _serverStore.DatabasesLandlord.DatabasesCache)
+        foreach (var dbResult in _serverStore.DatabasesLandlord.GetLoadedDatabases())
         {
-            var dbResult = db.Value.GetAwaiter().GetResult();
             var aiTasks = dbResult.EtlLoader.GetAiProcesses();
 
             aiTasksCount += aiTasks.Length;
