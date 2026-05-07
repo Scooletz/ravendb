@@ -339,14 +339,24 @@ export function TaskPanel({ etlName, etlType, transformations, etlStats, onRefre
                             </Badge>
                         </PopoverWithHoverWrapper>
                     </RichPanelDetailItem>
-                    <RichPanelDetailItem contentClassName="d-flex gap-1 align-items-center">
-                        <Icon icon="node" />
-                        <span>{taskStats?.NodeTag ?? "-"}</span>
+                    <RichPanelDetailItem>
+                        <PopoverWithHoverWrapper
+                            wrapperClassName="d-flex gap-1 align-items-center"
+                            message="The node this task is currently running on"
+                        >
+                            <Icon icon="node" />
+                            <span>{taskStats?.NodeTag ?? "-"}</span>
+                        </PopoverWithHoverWrapper>
                     </RichPanelDetailItem>
                     {db.isSharded && (
-                        <RichPanelDetailItem contentClassName="d-flex gap-1 align-items-center">
-                            <Icon icon="shard" color="shard" />
-                            <span>{taskStats?.ShardNumber ?? "-"}</span>
+                        <RichPanelDetailItem>
+                            <PopoverWithHoverWrapper
+                                wrapperClassName="d-flex gap-1 align-items-center"
+                                message="The shard this task is currently running on"
+                            >
+                                <Icon icon="shard" color="shard" />
+                                <span>{taskStats?.ShardNumber ?? "-"}</span>
+                            </PopoverWithHoverWrapper>
                         </RichPanelDetailItem>
                     )}
                 </RichPanelDetails>
