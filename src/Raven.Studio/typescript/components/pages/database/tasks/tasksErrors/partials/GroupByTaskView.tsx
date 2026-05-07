@@ -1,6 +1,7 @@
 import React, { useMemo } from "react";
 import { EmptySet } from "components/common/EmptySet";
-import { EtlTaskWithErrors, TasksFiltersState, getTaskHealthStatus } from "../utils/tasksErrorsUtils";
+import { EtlTaskWithErrors, TasksFiltersState } from "../utils/tasksErrorsUtils";
+import { filterTasksWithErrors } from "../utils/filterTasksErrors";
 import { TaskPanel } from "./TaskPanel";
 import EtlTaskStats = Raven.Server.Documents.ETL.Stats.EtlTaskStats;
 
@@ -12,46 +13,16 @@ interface GroupByTaskViewProps {
 }
 
 export function GroupByTaskView({ tasksWithErrors, etlStats, filters, onRefresh }: GroupByTaskViewProps) {
-    const filteredTasksWithErrors = useMemo(() => {
-        const { searchText, nodeTags, shardNumbers, healthStatuses, taskTypes } = filters;
-
-        return tasksWithErrors
-            .filter((task) => {
-                const matchesTaskType = !taskTypes.length || (task.etlType != null && taskTypes.includes(task.etlType));
-
-                const taskHealth = getTaskHealthStatus(etlStats, task.etlName);
-                const matchesHealth = !healthStatuses.length || healthStatuses.includes(taskHealth);
-
-                return matchesTaskType && matchesHealth;
-            })
-            .map((task) => ({
-                ...task,
-                transformations: task.transformations.filter((t) => {
-                    const allErrors = [...t.itemErrors, ...t.processErrors];
-
-                    const matchesSearch =
-                        !searchText ||
-                        task.etlName.toLowerCase().includes(searchText.toLowerCase()) ||
-                        t.transformationName.toLowerCase().includes(searchText.toLowerCase());
-                    const matchesNode = !nodeTags.length || allErrors.some((e) => nodeTags.includes(e.nodeTag));
-                    const matchesShard =
-                        !shardNumbers.length || allErrors.some((e) => shardNumbers.includes(String(e.shardNumber)));
-
-                    return matchesSearch && matchesNode && matchesShard;
-                }),
-            }))
-            .filter((task) => task.transformations.length > 0);
-    }, [tasksWithErrors, etlStats, filters]);
+    const filteredTasksWithErrors = useMemo(
+        () => filterTasksWithErrors(tasksWithErrors, etlStats, filters),
+        [tasksWithErrors, etlStats, filters]
+    );
 
     if (filteredTasksWithErrors.length === 0) {
         return <EmptySet>No tasks match the current filters.</EmptySet>;
     }
 
-    return (
-        <>
-            {filteredTasksWithErrors.map((task) => (
-                <TaskPanel {...task} etlStats={etlStats} onRefresh={onRefresh} key={task.etlName} />
-            ))}
-        </>
-    );
+    return filteredTasksWithErrors.map((task, index) => (
+        <TaskPanel {...task} etlStats={etlStats} onRefresh={onRefresh} key={task.etlName + index} />
+    ));
 }
