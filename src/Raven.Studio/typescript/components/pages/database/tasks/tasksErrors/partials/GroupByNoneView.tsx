@@ -218,6 +218,10 @@ function GroupByNoneTable({
         onColumnPinningChange: setColumnPinning,
     });
 
+    if (data.length === 0) {
+        return <EmptySet>No tasks match the current filters.</EmptySet>;
+    }
+
     return (
         <div className="d-flex flex-column h-100">
             <div className="d-flex justify-content-between mb-1 flex-shrink-0">
@@ -229,21 +233,17 @@ function GroupByNoneTable({
                 </DatabaseAccessPopover>
                 <TableDisplaySettings table={table} />
             </div>
-            {data.length === 0 ? (
-                <EmptySet>No tasks match the current filters.</EmptySet>
-            ) : (
-                <SizeGetter
-                    isHeighRequired
-                    className="flex-grow-1 min-h-0"
-                    render={({ height }) => (
-                        <VirtualTable
-                            table={table}
-                            heightInPx={height}
-                            rowHeightInPx={virtualTableConstants.doubleLineRowHeightInPx}
-                        />
-                    )}
-                />
-            )}
+            <SizeGetter
+                isHeighRequired
+                className="flex-grow-1 min-h-0"
+                render={({ height }) => (
+                    <VirtualTable
+                        table={table}
+                        heightInPx={height}
+                        rowHeightInPx={virtualTableConstants.doubleLineRowHeightInPx}
+                    />
+                )}
+            />
         </div>
     );
 }
