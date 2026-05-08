@@ -361,7 +361,7 @@ public class RavenDB_21192 : RavenTestBase
                 await session.SaveChangesAsync();
             }
 
-            await WaitForEtlStatsAsync(src, processName, stats => stats.TransformationErrors >= 10);
+            await WaitForEtlStatsAsync(src, processName, stats => stats.TransformationErrors >= 10 && stats.HealthStatus == EtlProcessHealthStatus.Failed);
 
             etlStats = await GetEtlStatsAsync(src, processName);
             Assert.True(etlStats.TransformationErrors >= 10);
@@ -767,7 +767,7 @@ public class RavenDB_21192 : RavenTestBase
                 await session.SaveChangesAsync();
             }
 
-            await WaitForEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1), stats => stats.TransformationErrors == 10);
+            await WaitForEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1), stats => stats.TransformationErrors == 10 && stats.HealthStatus == EtlProcessHealthStatus.Failed);
 
             var etlStats = await GetEtlStatsAsync(src, EtlProcess.GetProcessName(etlName1, transformationName1));
 
