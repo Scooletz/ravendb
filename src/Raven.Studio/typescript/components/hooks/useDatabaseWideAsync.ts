@@ -1,5 +1,5 @@
 import { useAppSelector } from "components/store";
-import { useCallback, useEffect, useMemo, useReducer } from "react";
+import { useCallback, useEffect, useReducer } from "react";
 import { locationAwareLoadableData } from "components/models/common";
 import assertUnreachable from "components/utils/assertUnreachable";
 import { produce } from "immer";
@@ -12,9 +12,15 @@ interface DatabaseWideReducerState<T> {
     result: locationAwareLoadableData<T>[];
 }
 
+function locationsEqual(a: databaseLocationSpecifier[], b: databaseLocationSpecifier[]): boolean {
+    return a.length === b.length && a.every((loc, i) => databaseLocationComparator(loc, b[i]));
+}
+
 export function useDatabaseWideAsync<T>(perNodeProvider: (location: databaseLocationSpecifier) => Promise<T>) {
-    const db = useAppSelector(databaseSelectors.activeDatabase);
-    const locations = useMemo(() => DatabaseUtils.getLocations(db), [db]);
+    const locations = useAppSelector(
+        (store) => DatabaseUtils.getLocations(databaseSelectors.activeDatabase(store)),
+        locationsEqual
+    );
 
     const [state, dispatch] = useReducer(databaseWideReducer<T>, locations, initReducer<T>);
 
@@ -22,17 +28,9 @@ export function useDatabaseWideAsync<T>(perNodeProvider: (location: databaseLoca
         async (location: databaseLocationSpecifier) => {
             try {
                 const result = await perNodeProvider(location);
-                dispatch({
-                    type: "LocationDataLoaded",
-                    location,
-                    data: result,
-                });
+                dispatch({ type: "LocationDataLoaded", location, data: result });
             } catch (error) {
-                dispatch({
-                    type: "LocationDataError",
-                    location,
-                    error,
-                });
+                dispatch({ type: "LocationDataError", location, error });
             }
         },
         [perNodeProvider]

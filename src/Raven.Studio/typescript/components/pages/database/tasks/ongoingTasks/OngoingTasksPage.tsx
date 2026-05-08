@@ -122,13 +122,13 @@ export function OngoingTasksPage({ isAiOnly = false }: OngoingTasksPageProps) {
     });
 
     const getEtlStats = useCallback(
-        (location: databaseLocationSpecifier) => tasksService.getEtlStats(db?.name, location),
-        [db]
+        (location: databaseLocationSpecifier) => tasksService.getEtlStats(db.name, location),
+        [db.name]
     );
 
     const getEtlErrors = useCallback(
-        (location: databaseLocationSpecifier) => tasksService.getEtlErrors(db?.name, location),
-        [db]
+        (location: databaseLocationSpecifier) => tasksService.getEtlErrors(db.name, location),
+        [db.name]
     );
 
     const { result: etlStatsResult } = useDatabaseWideAsync(getEtlStats);

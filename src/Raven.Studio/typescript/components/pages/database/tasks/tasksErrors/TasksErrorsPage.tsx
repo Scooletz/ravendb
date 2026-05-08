@@ -209,12 +209,12 @@ function useTasksErrorsData() {
 
     const getEtlErrors = useCallback(
         async (location: databaseLocationSpecifier) => tasksService.getEtlErrors(db.name, location),
-        [db]
+        [db.name]
     );
 
     const getEtlStats = useCallback(
         async (location: databaseLocationSpecifier) => tasksService.getEtlStats(db.name, location),
-        [db]
+        [db.name]
     );
 
     const {
