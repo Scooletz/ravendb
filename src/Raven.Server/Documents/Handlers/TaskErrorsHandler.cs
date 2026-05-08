@@ -7,7 +7,7 @@ namespace Raven.Server.Documents.Handlers;
 
 public sealed class TaskErrorsHandler : DatabaseRequestHandler
 {
-    [RavenAction("/databases/*/tasks/errors", "GET", AuthorizationStatus.ValidUser, EndpointType.Read, IsDebugInformationEndpoint = true)]
+    [RavenAction("/databases/*/tasks/errors", "GET", AuthorizationStatus.ValidUser, EndpointType.Read)]
     public async Task GetAllErrors()
     {
         using (var processor = new TaskErrorsHandlerProcessorForGetAllErrors(this))
