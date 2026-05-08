@@ -121,11 +121,16 @@ class footer {
 
     private async fetchStats(): Promise<Raven.Server.Documents.Studio.FooterStatistics> {
         const db = this.db();
-        const uniqueNodeTags = [...new Set(db.getLocations().map((location) => location.nodeTag))];
 
-        const results = await Promise.all(
-            uniqueNodeTags.map((nodeTag) => new getDatabaseFooterStatsCommand(db, nodeTag).execute())
-        );
+        let results: Raven.Server.Documents.Studio.FooterStatistics[];
+        if (db.isSharded()) {
+            results = [await new getDatabaseFooterStatsCommand(db).execute()];
+        } else {
+            const uniqueNodeTags = [...new Set(db.getLocations().map((location) => location.nodeTag))];
+            results = await Promise.all(
+                uniqueNodeTags.map((nodeTag) => new getDatabaseFooterStatsCommand(db, nodeTag).execute())
+            );
+        }
 
         const staleIndexes = [...new Set(results.flatMap((s) => s.StaleIndexes ?? []))];
 
