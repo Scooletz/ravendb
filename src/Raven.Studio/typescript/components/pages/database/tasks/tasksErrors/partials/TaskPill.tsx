@@ -66,9 +66,7 @@ export function TaskPillGroupMessage({ etlTaskStatsList, tasksWithErrors }: Task
     );
 }
 
-interface TaskPillRowProps {
-    nodeTag: string;
-    shardNumber?: number;
+interface TaskPillRowProps extends databaseLocationSpecifier {
     taskName: string;
     errorCount: number;
 }
