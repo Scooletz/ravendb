@@ -210,10 +210,10 @@ namespace SlowTests.Server.Documents.AI.GenAi.Issues
                 session.SaveChanges();
             }
 
-            IEnumerable<TaskItemErrorTableValue> errors = null;
+            IEnumerable<TaskProcessErrorTableValue> errors = null;
             var value = await WaitForValueAsync(async () =>
             {
-                errors = await Etl.GetItemLoadErrorsAsync(store.Database, config);
+                errors = await Etl.GetProcessLoadErrorsAsync(store.Database, config);
                 return errors.Any();
             }, true, timeout: 60_000);
 
@@ -286,10 +286,10 @@ namespace SlowTests.Server.Documents.AI.GenAi.Issues
                 session.SaveChanges();
             }
 
-            IEnumerable<TaskItemErrorTableValue> errors = null;
+            IEnumerable<TaskProcessErrorTableValue> errors = null;
             var value = await WaitForValueAsync(async () =>
             {
-                errors = await Etl.GetItemLoadErrorsAsync(store.Database, config);
+                errors = await Etl.GetProcessLoadErrorsAsync(store.Database, config);
                 return errors.Any();
             }, true, timeout: 60_000);
 
