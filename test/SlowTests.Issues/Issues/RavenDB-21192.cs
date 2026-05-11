@@ -2142,7 +2142,7 @@ public class RavenDB_21192_Multinode : ClusterTestBase
         Assert.True(WaitForValue(() =>
         {
             var process = mentorDatabase.EtlLoader.Processes.FirstOrDefault(x => x.Name == processName);
-            return process?.Statistics.TransformationErrors >= 5;
+            return process?.Statistics.TransformationErrors >= 5 && process?.Statistics.LoadSuccesses >= 3;
         }, true, timeout: 30_000));
 
         Assert.True(WaitForValue(() => mentorDatabase.TaskErrorsStorage.ReadItemErrorsOfTask(TaskCategory.Ai,processName).Count == 5, true, timeout: 30_000));
