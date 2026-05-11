@@ -84,7 +84,7 @@ function useTasksErrorsPanelTableColumns(availableWidth: number, hasProcessError
             {
                 header: "Show",
                 cell: CellValueButtonWrapper,
-                size: 70,
+                size: SHOW_WIDTH_SIZE,
             },
             {
                 header: "Error type",

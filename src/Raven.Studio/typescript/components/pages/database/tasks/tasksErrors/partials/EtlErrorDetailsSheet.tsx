@@ -3,7 +3,7 @@ import classNames from "classnames";
 import { Icon } from "components/common/Icon";
 import Badge from "react-bootstrap/Badge";
 import Button from "react-bootstrap/Button";
-import { useViewSheet, ViewSheet } from "components/common/splitView/ViewSheet";
+import { ViewSheet } from "components/common/splitView/ViewSheet";
 import CellDocumentValue from "components/common/virtualTable/cells/CellDocumentValue";
 import { useAppSelector } from "components/store";
 import { databaseSelectors } from "components/common/shell/databaseSliceSelectors";
@@ -49,7 +49,6 @@ export default function EtlErrorDetailsSheet({
     allErrors = [],
     initialIndex = 0,
 }: EtlErrorDetailsSheetProps) {
-    useViewSheet();
     const dbName = useAppSelector(databaseSelectors.activeDatabaseName);
 
     const [currentIndex, setCurrentIndex] = useState(initialIndex);

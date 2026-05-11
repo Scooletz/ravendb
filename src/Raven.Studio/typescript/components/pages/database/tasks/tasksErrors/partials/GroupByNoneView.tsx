@@ -1,10 +1,8 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo } from "react";
 import { Icon } from "components/common/Icon";
 import Button from "react-bootstrap/Button";
 import {
     ColumnDef,
-    ColumnFiltersState,
-    ColumnPinningState,
     getCoreRowModel,
     getFilteredRowModel,
     getSortedRowModel,
@@ -56,7 +54,7 @@ function useGroupByNoneTableColumns(availableWidth: number, hasProcessErrors: bo
             {
                 header: "Show",
                 cell: CellValueButtonWrapper,
-                size: 70,
+                size: SHOW_WIDTH_SIZE,
             },
             {
                 header: "Task type",
@@ -164,12 +162,6 @@ function GroupByNoneTable({
     width,
     filters,
 }: GroupByNoneTableProps) {
-    const [rowSelection, setRowSelection] = useState({});
-    const [columnVisibility, setColumnVisibility] = useState<Record<string, boolean>>({});
-    const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
-    const [columnOrder, setColumnOrder] = useState<string[]>([]);
-    const [columnPinning, setColumnPinning] = useState<ColumnPinningState>({});
-
     const hasDatabaseWriteAccess = useAppSelector(accessManagerSelectors.getHasDatabaseWriteAccess)();
 
     const data = useMemo<FlatError[]>(() => {
@@ -201,21 +193,9 @@ function GroupByNoneTable({
         initialState: {
             sorting: [{ id: "CreatedAt", desc: true }],
         },
-        state: {
-            rowSelection,
-            columnVisibility,
-            columnFilters,
-            columnOrder,
-            columnPinning,
-        },
-        onColumnFiltersChange: setColumnFilters,
         getCoreRowModel: getCoreRowModel(),
         getSortedRowModel: getSortedRowModel(),
         getFilteredRowModel: getFilteredRowModel(),
-        onRowSelectionChange: setRowSelection,
-        onColumnVisibilityChange: setColumnVisibility,
-        onColumnOrderChange: setColumnOrder,
-        onColumnPinningChange: setColumnPinning,
     });
 
     if (data.length === 0) {

@@ -20,7 +20,6 @@ import { useViewSheet } from "components/common/splitView/ViewSheet";
 import EtlErrorDetailsSheet from "components/pages/database/tasks/tasksErrors/partials/EtlErrorDetailsSheet";
 import {
     EtlHealthStatus,
-    FlatError,
     flattenAllTasksErrors,
     getTaskHealthStatus,
     getTasksWithErrors,
@@ -293,23 +292,13 @@ function ItemWithTooltip(props: ItemWithTooltipProps) {
         );
         const allErrors = flattenAllTasksErrors(tasksWithErrors, etlStats ?? []);
 
-        const mostRecentError: FlatError = allErrors
-            .sort((a, b) => +new Date(b.CreatedAt) - +new Date(a.CreatedAt))
-            .at(0) ?? {
-            Error: nodeInfo.details?.error,
-            nodeTag: nodeInfo.location.nodeTag,
-            shardNumber: nodeInfo.location.shardNumber,
-            etlName: task.shared.taskName,
-            transformationName: null,
-            healthStatus: null,
-            taskId: null,
-            etlType: null,
-            errorType: "Process",
-            TaskName: null,
-            Step: null,
-            CreatedAt: null,
-            AffectedDocumentsCount: 0,
-        };
+        if (allErrors.length === 0) {
+            return;
+        }
+
+        const mostRecentError = allErrors.sort(
+            (a, b) => new Date(b.CreatedAt).getTime() - new Date(a.CreatedAt).getTime()
+        )[0];
 
         open({
             component: <EtlErrorDetailsSheet error={mostRecentError} allErrors={allErrors} initialIndex={0} />,
@@ -319,8 +308,8 @@ function ItemWithTooltip(props: ItemWithTooltipProps) {
         });
     };
 
-    const locationEtlStats = (etlStats ?? []).filter(
-        (s) => s.NodeTag === nodeInfo.location.nodeTag && (s.ShardNumber ?? undefined) === nodeInfo.location.shardNumber
+    const locationEtlStats = (etlStats ?? []).filter((s) =>
+        databaseLocationComparator({ nodeTag: s.NodeTag, shardNumber: s.ShardNumber }, nodeInfo.location)
     );
     const taskHealth = getTaskHealthStatus(locationEtlStats, task.shared.taskName);
     const { bg, icon: heathIcon, label: healthLabel } = healthStatusToBadge(taskHealth);
@@ -328,12 +317,8 @@ function ItemWithTooltip(props: ItemWithTooltipProps) {
     const goToTaskErrors = appUrl.forTasksErrors(databaseName, { taskName: task.shared.taskName });
 
     const nextBatchRetryTime =
-        asyncLocalEtlStats.result
-            ?.find((s) => s.TaskName === task.shared.taskName)
-            ?.Stats?.find((s) => s.Statistics.NextBatchRetryTime != null)?.Statistics.NextBatchRetryTime ??
-        etlStats
-            ?.find((s) => s.TaskName === task.shared.taskName)
-            ?.Stats?.find((s) => s.Statistics.NextBatchRetryTime != null)?.Statistics.NextBatchRetryTime;
+        findNextBatchRetryTime(asyncLocalEtlStats.result, task.shared.taskName) ??
+        findNextBatchRetryTime(etlStats, task.shared.taskName);
 
     return (
         <div ref={setNode}>
@@ -350,7 +335,7 @@ function ItemWithTooltip(props: ItemWithTooltipProps) {
                             processNames={processNames}
                             location={nodeInfo.location}
                             toggleErrorModal={openErrorSheet}
-                            hasErrors={hasError || errorCount > 0}
+                            hasErrors={errorCount > 0}
                             nextBatchRetryTime={nextBatchRetryTime}
                             onRetrySuccess={asyncLocalEtlStats.execute}
                         />
@@ -546,3 +531,10 @@ export function OngoingEtlTaskProgress(props: OngoingEtlTaskProgressProps) {
 
 const taskNodeInfoKey = (nodeInfo: OngoingEtlTaskNodeInfo) =>
     nodeInfo.location.shardNumber + "__" + nodeInfo.location.nodeTag;
+
+function findNextBatchRetryTime(stats: EtlTaskStats[] | undefined, taskName: string): string | undefined {
+    return stats
+        ?.find((s: EtlTaskStats) => s.TaskName === taskName)
+        ?.Stats?.find((s: EtlTaskStats["Stats"][number]) => s.Statistics.NextBatchRetryTime != null)?.Statistics
+        .NextBatchRetryTime;
+}
