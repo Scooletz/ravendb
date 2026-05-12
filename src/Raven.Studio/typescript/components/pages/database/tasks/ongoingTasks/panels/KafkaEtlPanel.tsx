@@ -45,6 +45,7 @@ export function KafkaEtlPanel(props: KafkaEtlPanelProps & ICanShowTransformation
         showPreview,
         taskHealth,
         errorCount,
+        errorsByLocation,
         etlProgress,
     } = useEtlPanel(props, editUrl);
 
@@ -100,7 +101,11 @@ export function KafkaEtlPanel(props: KafkaEtlPanelProps & ICanShowTransformation
                 />
                 <RichPanelDetailItem label="Bootstrap Servers">{data.shared.url}</RichPanelDetailItem>
                 <EtlPanelHealthBadge taskHealth={taskHealth} />
-                <EtlPanelErrors errorCount={errorCount} goToTaskErrors={goToTaskErrors} />
+                <EtlPanelErrors
+                    errorCount={errorCount}
+                    errorsByLocation={errorsByLocation}
+                    goToTaskErrors={goToTaskErrors}
+                />
                 <EtlPanelProgressItem etlProgress={etlProgress} />
                 <EmptyScriptsWarning task={data} />
             </RichPanelDetails>

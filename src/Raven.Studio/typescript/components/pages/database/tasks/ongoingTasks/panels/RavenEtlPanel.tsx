@@ -46,6 +46,7 @@ export function RavenEtlPanel(props: RavenEtlPanelProps & ICanShowTransformation
         showPreview,
         taskHealth,
         errorCount,
+        errorsByLocation,
         etlProgress,
     } = useEtlPanel(props, editUrl);
 
@@ -115,7 +116,11 @@ export function RavenEtlPanel(props: RavenEtlPanelProps & ICanShowTransformation
                     </div>
                 </RichPanelDetailItem>
                 <EtlPanelHealthBadge taskHealth={taskHealth} />
-                <EtlPanelErrors errorCount={errorCount} goToTaskErrors={goToTaskErrors} />
+                <EtlPanelErrors
+                    errorCount={errorCount}
+                    errorsByLocation={errorsByLocation}
+                    goToTaskErrors={goToTaskErrors}
+                />
                 <EtlPanelProgressItem etlProgress={etlProgress} />
                 <EmptyScriptsWarning task={data} />
             </RichPanelDetails>

@@ -20,6 +20,7 @@ import {
 import EtlTaskStats = Raven.Server.Documents.ETL.Stats.EtlTaskStats;
 import EtlErrors = Raven.Server.Documents.ETL.Stats.TaskErrors;
 import {
+    EtlErrorsWithLocation,
     getTaskHealthStatus,
     healthStatusToBadge,
 } from "components/pages/database/tasks/tasksErrors/utils/tasksErrorsUtils";
@@ -47,13 +48,42 @@ export interface EtlPanelProgress {
 }
 
 export function getTaskErrorCount(etlErrors: EtlErrors[], taskName: string): number {
-    return etlErrors
-        .filter((e) => {
-            const slashIndex = e.TaskName.indexOf("/");
-            const etlName = slashIndex === -1 ? e.TaskName : e.TaskName.slice(0, slashIndex);
-            return etlName === taskName;
-        })
-        .reduce((acc, e) => acc + e.ProcessErrors.length + e.ItemErrors.length, 0);
+    return filterTaskErrors(etlErrors, taskName).reduce(
+        (acc, e) => acc + e.ProcessErrors.length + e.ItemErrors.length,
+        0
+    );
+}
+
+export interface TaskErrorsByLocation extends databaseLocationSpecifier {
+    errorCount: number;
+}
+
+export function getTaskErrorCountByLocation(
+    etlErrors: EtlErrorsWithLocation[],
+    taskName: string
+): TaskErrorsByLocation[] {
+    const counts = new Map<string, TaskErrorsByLocation>();
+
+    for (const e of filterTaskErrors(etlErrors, taskName)) {
+        const key = `${e.nodeTag}/${e.shardNumber ?? ""}`;
+        const count = e.ProcessErrors.length + e.ItemErrors.length;
+        const existing = counts.get(key);
+        if (existing) {
+            existing.errorCount += count;
+        } else {
+            counts.set(key, { nodeTag: e.nodeTag, shardNumber: e.shardNumber, errorCount: count });
+        }
+    }
+
+    return [...counts.values()];
+}
+
+function filterTaskErrors<T extends EtlErrors>(etlErrors: T[], taskName: string): T[] {
+    return etlErrors.filter((e) => {
+        const slashIndex = e.TaskName.indexOf("/");
+        const etlName = slashIndex === -1 ? e.TaskName : e.TaskName.slice(0, slashIndex);
+        return etlName === taskName;
+    });
 }
 
 export function computeEtlPanelProgress(
@@ -92,7 +122,7 @@ export function computeEtlPanelProgress(
 export type EtlPanelBaseProps<T extends AnyEtlOngoingTaskInfo> = BaseOngoingTaskPanelProps<T> &
     ICanShowTransformationScriptPreview & {
         etlStats?: EtlTaskStats[];
-        etlErrors?: EtlErrors[];
+        etlErrors?: EtlErrorsWithLocation[];
     };
 
 export function useEtlPanel<T extends AnyEtlOngoingTaskInfo>(props: EtlPanelBaseProps<T>, editUrl: string) {
@@ -115,6 +145,7 @@ export function useEtlPanel<T extends AnyEtlOngoingTaskInfo>(props: EtlPanelBase
     const taskHealth = getTaskHealthStatus(etlStats ?? [], data.shared.taskName);
     const healthBadge = healthStatusToBadge(taskHealth);
     const errorCount = getTaskErrorCount(etlErrors ?? [], data.shared.taskName);
+    const errorsByLocation = getTaskErrorCountByLocation(etlErrors ?? [], data.shared.taskName);
     const etlProgress = computeEtlPanelProgress(data);
 
     return {
@@ -127,6 +158,7 @@ export function useEtlPanel<T extends AnyEtlOngoingTaskInfo>(props: EtlPanelBase
         taskHealth,
         healthBadge,
         errorCount,
+        errorsByLocation,
         etlProgress,
     };
 }

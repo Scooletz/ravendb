@@ -45,6 +45,7 @@ export function AmazonSqsEtlPanel(props: AmazonSqsEtlPanelProps & ICanShowTransf
         showPreview,
         taskHealth,
         errorCount,
+        errorsByLocation,
         etlProgress,
     } = useEtlPanel(props, editUrl);
 
@@ -103,7 +104,11 @@ export function AmazonSqsEtlPanel(props: AmazonSqsEtlPanelProps & ICanShowTransf
                     connectionStringsUrl={connectionStringsUrl}
                 />
                 <EtlPanelHealthBadge taskHealth={taskHealth} />
-                <EtlPanelErrors errorCount={errorCount} goToTaskErrors={goToTaskErrors} />
+                <EtlPanelErrors
+                    errorCount={errorCount}
+                    errorsByLocation={errorsByLocation}
+                    goToTaskErrors={goToTaskErrors}
+                />
                 <EtlPanelProgressItem etlProgress={etlProgress} />
                 <EmptyScriptsWarning task={data} />
             </RichPanelDetails>

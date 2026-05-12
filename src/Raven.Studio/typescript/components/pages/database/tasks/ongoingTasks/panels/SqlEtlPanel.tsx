@@ -45,6 +45,7 @@ export function SqlEtlPanel(props: SqlEtlPanelProps & ICanShowTransformationScri
         showPreview,
         taskHealth,
         errorCount,
+        errorsByLocation,
         etlProgress,
     } = useEtlPanel(props, editUrl);
 
@@ -105,7 +106,11 @@ export function SqlEtlPanel(props: SqlEtlPanelProps & ICanShowTransformationScri
                     </RichPanelDetailItem>
                 )}
                 <EtlPanelHealthBadge taskHealth={taskHealth} />
-                <EtlPanelErrors errorCount={errorCount} goToTaskErrors={goToTaskErrors} />
+                <EtlPanelErrors
+                    errorCount={errorCount}
+                    errorsByLocation={errorsByLocation}
+                    goToTaskErrors={goToTaskErrors}
+                />
                 <EtlPanelProgressItem etlProgress={etlProgress} />
                 <EmptyScriptsWarning task={data} />
             </RichPanelDetails>

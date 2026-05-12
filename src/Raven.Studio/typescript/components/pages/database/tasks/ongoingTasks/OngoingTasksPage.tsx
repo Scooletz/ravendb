@@ -74,9 +74,9 @@ import { useDatabaseWideAsync } from "components/hooks/useDatabaseWideAsync";
 import EtlTaskProgress = Raven.Server.Documents.ETL.Stats.EtlTaskProgress;
 import ReplicationTaskProgress = Raven.Server.Documents.Replication.Stats.ReplicationTaskProgress;
 import InternalReplicationTaskProgress = Raven.Server.Documents.Replication.Stats.InternalReplicationTaskProgress;
-import EtlErrors = Raven.Server.Documents.ETL.Stats.TaskErrors;
 import EtlTaskStats = Raven.Server.Documents.ETL.Stats.EtlTaskStats;
 import genUtils from "common/generalUtils";
+import { EtlErrorsWithLocation } from "components/pages/database/tasks/tasksErrors/utils/tasksErrorsUtils";
 
 interface OngoingTasksPageProps {
     isAiOnly?: boolean;
@@ -280,7 +280,13 @@ export function OngoingTasksPage({ isAiOnly = false }: OngoingTasksPageProps) {
     ];
 
     const flatEtlStats: EtlTaskStats[] = etlStatsResult.flatMap((x) => x.data ?? []);
-    const flatEtlErrors: EtlErrors[] = etlErrorsResult.flatMap((x) => x.data ?? []);
+    const flatEtlErrors: EtlErrorsWithLocation[] = etlErrorsResult.flatMap((x) =>
+        (x.data ?? []).map((e) => ({
+            ...e,
+            nodeTag: x.location.nodeTag,
+            shardNumber: x.location.shardNumber,
+        }))
+    );
 
     const sinks = [...kafkaSinks, ...rabbitMqSinks];
 

@@ -46,6 +46,7 @@ export function EmbeddingsGenerationPanel(props: EmbeddingsGenerationPanelProps 
         showPreview,
         taskHealth,
         errorCount,
+        errorsByLocation,
         etlProgress,
     } = useEtlPanel(props, editUrl);
 
@@ -114,7 +115,11 @@ export function EmbeddingsGenerationPanel(props: EmbeddingsGenerationPanelProps 
                     connectionStringsUrl={connectionStringsUrl}
                 />
                 <EtlPanelHealthBadge taskHealth={taskHealth} />
-                <EtlPanelErrors errorCount={errorCount} goToTaskErrors={goToTaskErrors} />
+                <EtlPanelErrors
+                    errorCount={errorCount}
+                    errorsByLocation={errorsByLocation}
+                    goToTaskErrors={goToTaskErrors}
+                />
                 <EtlPanelProgressItem etlProgress={etlProgress} />
             </RichPanelDetails>
             <Collapse in={detailsVisible}>
