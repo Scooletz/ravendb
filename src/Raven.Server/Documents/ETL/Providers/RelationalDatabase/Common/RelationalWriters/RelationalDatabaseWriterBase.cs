@@ -37,16 +37,18 @@ public abstract class RelationalDatabaseWriterBase<TRelationalConnectionString, 
     private readonly RelationalDatabaseEtlMetricsCountersManager _sqlMetrics;
     private readonly EtlProcessStatistics _statistics;
     private readonly string _etlName;
+    private readonly string _taskName;
     protected readonly EtlConfiguration<TRelationalConnectionString> Configuration;
     private readonly List<Func<DbParameter, string, bool>> _stringParserList;
     private const int LongStatementWarnThresholdInMs = 3000;
 
-    protected RelationalDatabaseWriterBase(DocumentDatabase database, EtlConfiguration<TRelationalConnectionString> configuration,
+    protected RelationalDatabaseWriterBase(DocumentDatabase database, EtlConfiguration<TRelationalConnectionString> configuration, string taskName,
         RelationalDatabaseEtlMetricsCountersManager sqlMetrics, EtlProcessStatistics statistics, bool shouldConnectToTarget = true)
     {
         _sqlMetrics = sqlMetrics;
         _statistics = statistics;
         _etlName = configuration.Name;
+        _taskName = taskName;
 
         Database = database;
         ProviderFactory = GetDbProviderFactory(configuration);
@@ -285,7 +287,7 @@ public abstract class RelationalDatabaseWriterBase<TRelationalConnectionString, 
                         Database.TaskErrorsStorage.StoreProcessError(TaskCategory.Etl, new TaskProcessError
                         {
                             CreatedAt = SystemTime.UtcNow,
-                            TaskName = _etlName,
+                            TaskName = _taskName,
                             AffectedDocumentsCount = countOfDeletes,
                             Step = TaskErrorStep.Load,
                             Error = errorMessage
