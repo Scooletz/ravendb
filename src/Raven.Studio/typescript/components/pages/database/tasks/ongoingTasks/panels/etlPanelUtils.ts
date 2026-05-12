@@ -70,6 +70,10 @@ export function getTaskErrorCountByLocation(
 
     for (const e of filterTaskErrors(etlErrors, taskName)) {
         const count = e.ProcessErrors.length + e.ItemErrors.length;
+        if (count === 0) {
+            continue;
+        }
+
         const existing = counts.get(locationKey(e));
         if (existing) {
             existing.errorCount += count;
