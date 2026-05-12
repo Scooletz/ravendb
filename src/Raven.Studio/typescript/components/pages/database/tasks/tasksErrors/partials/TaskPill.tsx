@@ -24,26 +24,28 @@ export function TaskPillGroupMessage({ etlTaskStatsList, tasksWithErrors }: Task
     const overallHealth = getHealthStatusFromStats(etlTaskStatsList[0].Stats);
     const { bg, icon, label } = healthStatusToBadge(overallHealth);
 
-    const rows = etlTaskStatsList.map((etlTaskStats) => {
-        const taskWithErrors = tasksWithErrors.find((t) => t.etlName === etlTaskStats.TaskName);
-        const matchesLocation = (e: { nodeTag: string; shardNumber?: number }) =>
-            databaseLocationComparator(e, { nodeTag: etlTaskStats.NodeTag, shardNumber: etlTaskStats.ShardNumber });
-        const errorCount = taskWithErrors
-            ? taskWithErrors.transformations.reduce(
-                  (acc, t) =>
-                      acc +
-                      t.itemErrors.filter(matchesLocation).length +
-                      t.processErrors.filter(matchesLocation).length,
-                  0
-              )
-            : 0;
+    const taskNames: string[] = _.uniq(etlTaskStatsList.map((s) => s.TaskName));
 
-        return {
-            taskName: etlTaskStats.TaskName,
-            errorCount,
-            nodeTag: etlTaskStats.NodeTag,
-            shardNumber: etlTaskStats.ShardNumber,
-        };
+    const rows = taskNames.flatMap((taskName: string): TaskPillRowProps[] => {
+        const taskWithErrors = tasksWithErrors.find((t) => t.etlName === taskName);
+        const allErrors = taskWithErrors?.transformations.flatMap((t) => [...t.itemErrors, ...t.processErrors]) ?? [];
+
+        const currentLocations: databaseLocationSpecifier[] = etlTaskStatsList
+            .filter((s) => s.TaskName === taskName)
+            .map((s) => ({ nodeTag: s.NodeTag, shardNumber: s.ShardNumber }));
+
+        const allLocations: databaseLocationSpecifier[] = [
+            ...currentLocations,
+            ...allErrors.map((e) => ({ nodeTag: e.nodeTag, shardNumber: e.shardNumber })),
+        ];
+        const locations = _.uniqWith(allLocations, databaseLocationComparator);
+
+        return locations.map((loc: databaseLocationSpecifier) => ({
+            taskName,
+            nodeTag: loc.nodeTag,
+            shardNumber: loc.shardNumber,
+            errorCount: allErrors.filter((e) => databaseLocationComparator(e, loc)).length,
+        }));
     });
 
     return (
