@@ -4,6 +4,7 @@ import { Icon } from "components/common/Icon";
 import Badge from "react-bootstrap/Badge";
 import { EtlTaskWithErrors, getHealthStatusFromStats, healthStatusToBadge } from "../utils/tasksErrorsUtils";
 import { ThemeColor } from "components/models/common";
+import { databaseLocationComparator } from "components/utils/common";
 import EtlTaskStats = Raven.Server.Documents.ETL.Stats.EtlTaskStats;
 
 export interface TaskPillProps {
@@ -26,7 +27,7 @@ export function TaskPillGroupMessage({ etlTaskStatsList, tasksWithErrors }: Task
     const rows = etlTaskStatsList.map((etlTaskStats) => {
         const taskWithErrors = tasksWithErrors.find((t) => t.etlName === etlTaskStats.TaskName);
         const matchesLocation = (e: { nodeTag: string; shardNumber?: number }) =>
-            e.nodeTag === etlTaskStats.NodeTag && e.shardNumber === etlTaskStats.ShardNumber;
+            databaseLocationComparator(e, { nodeTag: etlTaskStats.NodeTag, shardNumber: etlTaskStats.ShardNumber });
         const errorCount = taskWithErrors
             ? taskWithErrors.transformations.reduce(
                   (acc, t) =>
