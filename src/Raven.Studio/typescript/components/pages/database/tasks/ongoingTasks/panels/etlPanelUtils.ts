@@ -60,18 +60,21 @@ export interface TaskErrorsByLocation extends databaseLocationSpecifier {
 
 export function getTaskErrorCountByLocation(
     etlErrors: EtlErrorsWithLocation[],
-    taskName: string
+    taskName: string,
+    locations: databaseLocationSpecifier[]
 ): TaskErrorsByLocation[] {
-    const counts = new Map<string, TaskErrorsByLocation>();
+    const locationKey = (l: databaseLocationSpecifier) => `${l.nodeTag}/${l.shardNumber ?? ""}`;
+    const counts = new Map<string, TaskErrorsByLocation>(
+        locations.map((l) => [locationKey(l), { nodeTag: l.nodeTag, shardNumber: l.shardNumber, errorCount: 0 }])
+    );
 
     for (const e of filterTaskErrors(etlErrors, taskName)) {
-        const key = `${e.nodeTag}/${e.shardNumber ?? ""}`;
         const count = e.ProcessErrors.length + e.ItemErrors.length;
-        const existing = counts.get(key);
+        const existing = counts.get(locationKey(e));
         if (existing) {
             existing.errorCount += count;
         } else {
-            counts.set(key, { nodeTag: e.nodeTag, shardNumber: e.shardNumber, errorCount: count });
+            counts.set(locationKey(e), { nodeTag: e.nodeTag, shardNumber: e.shardNumber, errorCount: count });
         }
     }
 
@@ -145,7 +148,11 @@ export function useEtlPanel<T extends AnyEtlOngoingTaskInfo>(props: EtlPanelBase
     const taskHealth = getTaskHealthStatus(etlStats ?? [], data.shared.taskName);
     const healthBadge = healthStatusToBadge(taskHealth);
     const errorCount = getTaskErrorCount(etlErrors ?? [], data.shared.taskName);
-    const errorsByLocation = getTaskErrorCountByLocation(etlErrors ?? [], data.shared.taskName);
+    const errorsByLocation = getTaskErrorCountByLocation(
+        etlErrors ?? [],
+        data.shared.taskName,
+        data.responsibleLocations
+    );
     const etlProgress = computeEtlPanelProgress(data);
 
     return {
