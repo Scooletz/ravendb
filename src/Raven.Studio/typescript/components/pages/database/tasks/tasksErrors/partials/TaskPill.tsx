@@ -17,10 +17,15 @@ export function TaskPill({ color }: TaskPillProps) {
 
 interface TaskPillGroupMessageProps {
     etlTaskStatsList: EtlTaskStats[];
+    allEtlTaskStats: EtlTaskStats[];
     tasksWithErrors: EtlTaskWithErrors[];
 }
 
-export function TaskPillGroupMessage({ etlTaskStatsList, tasksWithErrors }: TaskPillGroupMessageProps) {
+export function TaskPillGroupMessage({
+    etlTaskStatsList,
+    allEtlTaskStats,
+    tasksWithErrors,
+}: TaskPillGroupMessageProps) {
     const overallHealth = getHealthStatusFromStats(etlTaskStatsList[0].Stats);
     const { bg, icon, label } = healthStatusToBadge(overallHealth);
 
@@ -30,15 +35,19 @@ export function TaskPillGroupMessage({ etlTaskStatsList, tasksWithErrors }: Task
         const taskWithErrors = tasksWithErrors.find((t) => t.etlName === taskName);
         const allErrors = taskWithErrors?.transformations.flatMap((t) => [...t.itemErrors, ...t.processErrors]) ?? [];
 
-        const currentLocations: databaseLocationSpecifier[] = etlTaskStatsList
+        const ownLocations: databaseLocationSpecifier[] = etlTaskStatsList
             .filter((s) => s.TaskName === taskName)
             .map((s) => ({ nodeTag: s.NodeTag, shardNumber: s.ShardNumber }));
 
-        const allLocations: databaseLocationSpecifier[] = [
-            ...currentLocations,
-            ...allErrors.map((e) => ({ nodeTag: e.nodeTag, shardNumber: e.shardNumber })),
-        ];
-        const locations = _.uniqWith(allLocations, databaseLocationComparator);
+        const taskCurrentLocations: databaseLocationSpecifier[] = allEtlTaskStats
+            .filter((s) => s.TaskName === taskName)
+            .map((s) => ({ nodeTag: s.NodeTag, shardNumber: s.ShardNumber }));
+
+        const orphanLocations = allErrors
+            .map((e): databaseLocationSpecifier => ({ nodeTag: e.nodeTag, shardNumber: e.shardNumber }))
+            .filter((loc) => !taskCurrentLocations.some((current) => databaseLocationComparator(current, loc)));
+
+        const locations = _.uniqWith([...ownLocations, ...orphanLocations], databaseLocationComparator);
 
         return locations.map((loc: databaseLocationSpecifier) => ({
             taskName,

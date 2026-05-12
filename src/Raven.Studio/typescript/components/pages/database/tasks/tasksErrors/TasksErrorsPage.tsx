@@ -162,6 +162,7 @@ function TasksErrorsPageBody({
                             message={
                                 <TaskPillGroupMessage
                                     etlTaskStatsList={group.stats}
+                                    allEtlTaskStats={flattenAllEtlStats}
                                     tasksWithErrors={tasksWithErrors}
                                 />
                             }
