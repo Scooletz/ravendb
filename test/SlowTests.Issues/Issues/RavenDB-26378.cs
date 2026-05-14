@@ -119,12 +119,15 @@ CREATE TABLE ""Users""
             var etlProcess = database.EtlLoader.Processes.Single();
             var processName = etlProcess.Name;
 
-            var errors = database.TaskErrorsStorage
-                .ReadItemErrorsOfTask(TaskCategory.Etl, processName)
-                .Where(e => e.Step == (long)TaskErrorStep.Load)
-                .ToList();
-
-            Assert.NotEmpty(errors);
+            List<TaskProcessErrorTableValue> errors = null;
+            Assert.True(WaitForValue(() =>
+            {
+                errors = database.TaskErrorsStorage
+                    .ReadProcessErrorsOfTask(TaskCategory.Etl, processName)
+                    .Where(e => e.Step == (long)TaskErrorStep.Load)
+                    .ToList();
+                return errors.Count > 0;
+            }, true, timeout: 30_000, interval: 500), "Expected at least one load error to be recorded in TaskErrorsStorage");
 
             // Anti-regression: the writer must not march on through a dead transaction. The strings
             // below only show up when CreateCommand or ExecuteNonQuery is called on a connection/transaction
