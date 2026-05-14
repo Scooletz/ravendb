@@ -333,7 +333,7 @@ namespace RachisTests.DatabaseCluster
                 // start server which originally was handling ETL task
                 GetNewServer(new ServerCreationOptions
                 {
-                    CustomSettings = new Dictionary<string, string>
+                    CustomSettings = new Dictionary<string, string>(DefaultClusterSettings)
                         {
                             {RavenConfiguration.GetKey(x => x.Core.ServerUrls), originalResult.Url}
                         },
