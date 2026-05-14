@@ -13,6 +13,8 @@ namespace Raven.Server.ServerWide.Maintenance
         private readonly BlockingCollection<ClusterObserverLogEntry> _decisionsLog;
         private readonly Dictionary<string, long> _lastLogs;
 
+        public readonly Logger Logger;
+
         public BlockingCollection<ClusterObserverLogEntry> DecisionsLog => _decisionsLog;
 
         public ObserverLogger(string nodeTag)

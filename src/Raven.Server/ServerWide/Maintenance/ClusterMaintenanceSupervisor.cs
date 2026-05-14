@@ -111,6 +111,8 @@ namespace Raven.Server.ServerWide.Maintenance
             _server = server;
             _contextPool = new JsonContextPool(server.Configuration.Memory.MaxContextSizeToKeep, Logger);
             Config = server.Configuration.Cluster;
+
+            _logger = LoggingSource.Instance.GetLogger<ClusterMaintenanceSupervisor>(_leaderClusterTag);
         }
 
         public void AddToCluster(string clusterTag, string url)
@@ -144,7 +146,7 @@ namespace Raven.Server.ServerWide.Maintenance
                 return;
 
             _isDisposed = true;
-            _cts.Cancel();
+            _cts.SafeCancel(_logger, nameof(ClusterMaintenanceSupervisor));
 
             Parallel.ForEach(_clusterNodes, (node) =>
             {
@@ -642,7 +644,7 @@ namespace Raven.Server.ServerWide.Maintenance
                     return;
 
                 _isDisposed = true;
-                _cts.Cancel();
+                _cts.SafeCancel(_log, $"{nameof(ClusterNode)} '{_name}'");
 
                 try
                 {
