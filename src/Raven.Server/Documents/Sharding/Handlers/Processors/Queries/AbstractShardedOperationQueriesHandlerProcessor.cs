@@ -51,7 +51,7 @@ internal abstract class AbstractShardedOperationQueriesHandlerProcessor : Abstra
 
         var op = GetOperation(query, operationId, options);
 
-        if (LoggingSource.AuditLog.IsInfoEnabled)
+        if (RavenLogManager.Instance.IsAuditEnabled)
         {
             var logAction = op.Type switch
             {
@@ -61,7 +61,7 @@ internal abstract class AbstractShardedOperationQueriesHandlerProcessor : Abstra
                 _ => op.Type.ToString().ToUpper()
             };
 
-            RequestHandler.LogAuditFor(RequestHandler.DatabaseName, logAction, $"Documents matching the query: {query}");
+            RequestHandler.LogAuditForDatabase(logAction, $"Documents matching the query: {query}");
         }
 
         var task = RequestHandler.DatabaseContext.Operations

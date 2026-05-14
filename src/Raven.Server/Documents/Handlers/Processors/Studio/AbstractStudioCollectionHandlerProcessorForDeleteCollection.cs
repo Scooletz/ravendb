@@ -28,7 +28,7 @@ namespace Raven.Server.Documents.Handlers.Processors.Studio
             var excludeIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             var returnToContextPool = ContextPool.AllocateOperationContext(out TOperationContext context);
-            
+
             var reader = await context.ReadForMemoryAsync(RequestHandler.RequestBodyStream(), "ExcludeIds");
             if (reader.TryGet("ExcludeIds", out BlittableJsonReaderArray ids))
             {
@@ -46,12 +46,12 @@ namespace Raven.Server.Documents.Handlers.Processors.Studio
                 writer.WriteOperationIdAndNodeTag(context, operationId, ServerStore.NodeTag);
             }
 
-            if (LoggingSource.AuditLog.IsInfoEnabled)
+            if (RavenLogManager.Instance.IsAuditEnabled)
             {
                 var target = excludeIds.Count == 0
                     ? $"Documents in collection '{collectionName}'"
                     : $"Documents in collection '{collectionName}' (excluding {excludeIds.Count} ids)";
-                RequestHandler.LogAuditFor(RequestHandler.DatabaseName, "DELETE", target);
+                RequestHandler.LogAuditForDatabase("DELETE", target);
             }
 
             ScheduleDeleteCollection(context, returnToContextPool, collectionName, excludeIds, operationId);

@@ -11,9 +11,9 @@ using Sparrow;
 using Sparrow.Collections;
 using Sparrow.Json;
 using Sparrow.Json.Parsing;
-using Sparrow.Logging;
 using Sparrow.LowMemory;
 using Sparrow.Server.Collections;
+using Sparrow.Server.Logging;
 using Sparrow.Threading;
 using Sparrow.Utils;
 
@@ -22,8 +22,6 @@ namespace Raven.Server.Documents.Changes;
 public abstract class AbstractChangesClientConnection<TOperationContext> : ILowMemoryHandler, IDisposable
     where TOperationContext : JsonOperationContext
 {
-    private static readonly Logger Logger = LoggingSource.Instance.GetLogger("Client", typeof(AbstractChangesClientConnection<TOperationContext>).FullName);
-
     private readonly WebSocket _webSocket;
     private readonly AsyncQueue<SendQueueItem> _sendQueue = new();
 
@@ -38,6 +36,7 @@ public abstract class AbstractChangesClientConnection<TOperationContext> : ILowM
     private DateTime _lastSendMessage;
 
     protected readonly JsonContextPoolBase<TOperationContext> ContextPool;
+    private readonly RavenLogger _logger;
     private readonly bool _throttleConnection;
 
     private readonly ConcurrentSet<long> _matchingOperations = new();
@@ -46,11 +45,12 @@ public abstract class AbstractChangesClientConnection<TOperationContext> : ILowM
 
     private bool _watchTopology;
 
-    protected AbstractChangesClientConnection(WebSocket webSocket, JsonContextPoolBase<TOperationContext> contextPool, CancellationToken databaseShutdown, bool throttleConnection, bool fromStudio)
+    protected AbstractChangesClientConnection(WebSocket webSocket, JsonContextPoolBase<TOperationContext> contextPool, RavenLogger logger, CancellationToken databaseShutdown, bool throttleConnection, bool fromStudio)
     {
         Id = ChangesClientConnectionId.GetNextId();
         IsChangesConnectionOriginatedFromStudio = fromStudio;
         ContextPool = contextPool;
+        _logger = logger;
         _throttleConnection = throttleConnection;
         _webSocket = webSocket;
         _startedAt = SystemTime.UtcNow;
@@ -328,7 +328,7 @@ public abstract class AbstractChangesClientConnection<TOperationContext> : ILowM
         if (_isDisposed.Raise() == false)
             return;
 
-        _cts.SafeCancel(Logger, "changes client connection");
+        _cts.SafeCancel(_logger, "changes client connection");
 
         _sendQueue.Enqueue(new SendQueueItem
         {

@@ -26,7 +26,7 @@ namespace Raven.Server.ServerWide.Maintenance
 {
     public sealed class ClusterMaintenanceSupervisor : IDisposable
     {
-        private readonly RavenLogger Logger = RavenLogManager.Instance.GetLoggerForCluster<ClusterMaintenanceSupervisor>();
+        private readonly RavenLogger _logger;
 
         private readonly string _leaderClusterTag;
 
@@ -109,10 +109,9 @@ namespace Raven.Server.ServerWide.Maintenance
             _leaderClusterTag = leaderClusterTag;
             _term = term;
             _server = server;
-            _contextPool = new JsonContextPool(server.Configuration.Memory.MaxContextSizeToKeep, Logger);
+            _logger = RavenLogManager.Instance.GetLoggerForCluster<ClusterMaintenanceSupervisor>(LoggingComponent.NodeTag(_leaderClusterTag));
+            _contextPool = new JsonContextPool(server.Configuration.Memory.MaxContextSizeToKeep, _logger);
             Config = server.Configuration.Cluster;
-
-            _logger = LoggingSource.Instance.GetLogger<ClusterMaintenanceSupervisor>(_leaderClusterTag);
         }
 
         public void AddToCluster(string clusterTag, string url)
