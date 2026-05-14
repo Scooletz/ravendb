@@ -449,7 +449,7 @@ public abstract class QueueSinkProcess : IDisposable, ILowMemoryHandler
             Logger.Info(msg);
         }
 
-        _cts.Cancel();
+        _cts.SafeCancel(Logger, $"{nameof(QueueSinkProcess)} '{Name}'");
 
         var longRunningWork = _longRunningWork;
         _longRunningWork = null;
