@@ -726,7 +726,7 @@ namespace Raven.Server.Documents.ETL
                 ReportStopReasonToStats(msg);
             }
 
-            _cts.Cancel();
+            _cts.SafeCancel(Logger, $"{nameof(EtlProcess)}: {Name}");
 
             var longRunningWork = _longRunningWork;
 

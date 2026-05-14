@@ -79,6 +79,7 @@ using Raven.Server.Documents.SchemaValidation;
 using Raven.Server.Documents.Handlers.AI.Agents;
 using Sparrow.Server.Logging;
 using Sparrow.Server.Utils;
+using Sparrow.Utils;
 
 namespace Raven.Server.Documents
 {
@@ -960,7 +961,7 @@ namespace Raven.Server.Documents
         {
             ForTestingPurposes?.DisposeLog?.Invoke(Name, "Starting dispose");
 
-            _databaseShutdown.Cancel();
+            _databaseShutdown.SafeCancel(_logger, $"{nameof(DocumentDatabase)}: {Name}");
 
             _serverStore.Server.ServerCertificateChanged -= OnCertificateChange;
 
