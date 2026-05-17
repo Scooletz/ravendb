@@ -623,7 +623,7 @@ public sealed partial class ClusterStateMachine
                         total += rawRecord.CountOfAnalyzers;
                         break;
                     default:
-                        throw new ArgumentOutOfRangeException(nameof(type), type, null);
+                        throw new ArgumentOutOfRangeException(nameof(resultType), resultType, null);
                 }
             }
 
@@ -1120,10 +1120,10 @@ public sealed partial class ClusterStateMachine
         if (licenseStatus.HasAiAgent)
             return;
 
-        if (databaseRecord.AiAgents.All(x => x.Disabled))
+        if (databaseRecord.AiAgents.Count == 0)
             return;
 
-        if (databaseRecord.AiAgents.All(x => false))
+        if (databaseRecord.AiAgents.All(x => x.Disabled))
             return;
 
         throw new LicenseLimitException(LimitType.AiAgent, "Your license doesn't support using the AI Agent feature.");
