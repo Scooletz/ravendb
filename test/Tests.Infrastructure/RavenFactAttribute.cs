@@ -175,13 +175,13 @@ public class RavenFactAttribute : FactAttribute, ITraitAttribute, Xunit.v3.IFact
 
     private static bool ShouldSkipService(Func<bool> canConnect, string serviceName, out string skipMessage)
     {
-        if (RavenTestHelper.SkipIntegrationTests)
+        if (RavenTestHelper.EnvironmentVariables.SkipIntegrationTests)
         {
             skipMessage = RavenTestHelper.SkipIntegrationMessage;
             return true;
         }
 
-        if (RavenTestHelper.IsRunningOnCI)
+        if (RavenTestHelper.EnvironmentVariables.IsRunningOnCI)
         {
             skipMessage = null;
             return false;
@@ -216,7 +216,7 @@ public class RavenFactAttribute : FactAttribute, ITraitAttribute, Xunit.v3.IFact
             var engineEdition = (int)cmd.ExecuteScalar();
             if (engineEdition == 4)
             {
-                skipMessage = "Test requires SQL Server with CDC support (Enterprise, Developer, or Standard edition â€” Express edition does not support CDC)";
+                skipMessage = "Test requires SQL Server with CDC support (Enterprise, Developer, or Standard edition — Express edition does not support CDC)";
                 return true;
             }
 
@@ -282,15 +282,13 @@ public class RavenFactAttribute : FactAttribute, ITraitAttribute, Xunit.v3.IFact
 
     internal static bool ShouldSkipLicense(out string skipMessage)
     {
-        string[] options = ["Raven.License.Path", "Raven.License", "RAVEN_LICENSE_PATH", "RAVEN_LICENSE"];
-        var hasLicense = options.Any(envVarName => !string.IsNullOrEmpty(Environment.GetEnvironmentVariable(envVarName)));
-        if (hasLicense)
+        if (RavenTestHelper.EnvironmentVariables.HasLicense)
         {
             skipMessage = null;
             return false;
         }
 
-        skipMessage = "Requires License to be set via 'RAVEN_LICENSE' or 'RAVEN_LICENSE_PATH' environment variables.";
+        skipMessage = $"Requires License to be set via '{RavenTestHelper.EnvironmentVariables.LicenseEnvName}' environment variable.";
         return true;
     }
 }
