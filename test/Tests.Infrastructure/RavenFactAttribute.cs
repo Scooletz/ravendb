@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using Tests.Infrastructure.ConnectionString;
 using Tests.Infrastructure.XunitExtensions;
 using Xunit;
@@ -10,7 +9,7 @@ namespace Tests.Infrastructure;
 
 public class RavenFactAttribute : FactAttribute, ITraitAttribute, Xunit.v3.IFactAttribute
 {
-        string Xunit.v3.IFactAttribute.Skip => this.Skip;
+    string Xunit.v3.IFactAttribute.Skip => this.Skip;
 
     public readonly RavenTestCategory Category;
     private string _skip;
@@ -30,50 +29,50 @@ public class RavenFactAttribute : FactAttribute, ITraitAttribute, Xunit.v3.IFact
     public RavenServiceRequirement Requires { get; set; } = RavenServiceRequirement.None;
 
     // Legacy properties for backward compatibility
-    public bool MsSqlRequired 
-    { 
+    public bool MsSqlRequired
+    {
         get => Requires.HasFlag(RavenServiceRequirement.MsSql);
         set => Requires = value ? Requires | RavenServiceRequirement.MsSql : Requires & ~RavenServiceRequirement.MsSql;
     }
 
-    public bool ElasticSearchRequired 
-    { 
+    public bool ElasticSearchRequired
+    {
         get => Requires.HasFlag(RavenServiceRequirement.ElasticSearch);
         set => Requires = value ? Requires | RavenServiceRequirement.ElasticSearch : Requires & ~RavenServiceRequirement.ElasticSearch;
     }
 
-    public bool AzureQueueStorageRequired 
-    { 
+    public bool AzureQueueStorageRequired
+    {
         get => Requires.HasFlag(RavenServiceRequirement.AzureQueueStorage);
         set => Requires = value ? Requires | RavenServiceRequirement.AzureQueueStorage : Requires & ~RavenServiceRequirement.AzureQueueStorage;
     }
 
-    public bool OracleSqlRequired 
-    { 
+    public bool OracleSqlRequired
+    {
         get => Requires.HasFlag(RavenServiceRequirement.OracleSql);
         set => Requires = value ? Requires | RavenServiceRequirement.OracleSql : Requires & ~RavenServiceRequirement.OracleSql;
     }
 
-    public bool NpgSqlRequired 
-    { 
+    public bool NpgSqlRequired
+    {
         get => Requires.HasFlag(RavenServiceRequirement.NpgSql);
         set => Requires = value ? Requires | RavenServiceRequirement.NpgSql : Requires & ~RavenServiceRequirement.NpgSql;
     }
 
-    public bool MongoDBRequired 
-    { 
+    public bool MongoDBRequired
+    {
         get => Requires.HasFlag(RavenServiceRequirement.MongoDB);
         set => Requires = value ? Requires | RavenServiceRequirement.MongoDB : Requires & ~RavenServiceRequirement.MongoDB;
     }
-    
-    public bool SnowflakeRequired  
-    { 
+
+    public bool SnowflakeRequired
+    {
         get => Requires.HasFlag(RavenServiceRequirement.Snowflake);
         set => Requires = value ? Requires | RavenServiceRequirement.Snowflake : Requires & ~RavenServiceRequirement.Snowflake;
     }
-    
+
     public bool AmazonSqsRequired
-    { 
+    {
         get => Requires.HasFlag(RavenServiceRequirement.AmazonSqs);
         set => Requires = value ? Requires | RavenServiceRequirement.AmazonSqs : Requires & ~RavenServiceRequirement.AmazonSqs;
     }
@@ -131,10 +130,10 @@ public class RavenFactAttribute : FactAttribute, ITraitAttribute, Xunit.v3.IFact
 
         if (serviceRequirement.HasFlag(RavenServiceRequirement.AzureQueueStorage) && ShouldSkipAzureQueueStorage(out skip))
             return skip;
-        
+
         if (serviceRequirement.HasFlag(RavenServiceRequirement.Snowflake) && ShouldSkipSnowflake(out skip))
             return skip;
-        
+
         if (serviceRequirement.HasFlag(RavenServiceRequirement.AmazonSqs) && ShouldSkipAmazonSqs(out skip))
             return skip;
 
@@ -259,12 +258,12 @@ public class RavenFactAttribute : FactAttribute, ITraitAttribute, Xunit.v3.IFact
     {
         return AzureQueueStorageHelper.ShouldSkip(out skipMessage);
     }
-    
+
     private static bool ShouldSkipSnowflake(out string skipMessage)
     {
         return SnowflakeHelper.ShouldSkip(out skipMessage);
     }
-    
+
     private static bool ShouldSkipAmazonSqs(out string skipMessage)
     {
         return AmazonSqsHelper.ShouldSkip(out skipMessage);
