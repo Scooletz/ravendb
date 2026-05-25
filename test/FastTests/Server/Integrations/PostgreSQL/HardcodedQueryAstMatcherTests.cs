@@ -3,11 +3,12 @@ using System.Collections.Generic;
 using Raven.Server.Integrations.PostgreSQL;
 using Raven.Server.Integrations.PostgreSQL.Classification;
 using Raven.Server.Integrations.PostgreSQL.PowerBI;
+using Tests.Infrastructure;
 using Xunit;
 
 namespace FastTests.Server.Integrations.PostgreSQL
 {
-    public sealed class PowerBIQueryClassifierTests
+    public sealed class PowerBIQueryClassifierTests(ITestOutputHelper output) : NoDisposalNeeded(output)
     {
         // Canonical SQL strings sent by PowerBI Desktop — used as recognition test inputs.
         // The recognizer is structurally tolerant of equivalent rewrites (different casing,
@@ -95,7 +96,7 @@ from information_schema.key_column_usage pkcol
 join information_schema.key_column_usage fkcol on 1=1
 join information_schema.table_constraints fkcon on 1=1";
 
-        [Theory]
+        [RavenTheory(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         [MemberData(nameof(CharacterSetsQueries))]
         public void PowerBI_CharacterSetsQuery_should_match_via_ast(string sql)
         {
@@ -103,7 +104,7 @@ join information_schema.table_constraints fkcon on 1=1";
             Assert.Same(PowerBIConfig.CharacterSetsResponse, table);
         }
 
-        [Theory]
+        [RavenTheory(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         [MemberData(nameof(ConstraintsQueries))]
         public void PowerBI_ConstraintsQuery_should_match_via_ast(string sql)
         {
@@ -111,7 +112,7 @@ join information_schema.table_constraints fkcon on 1=1";
             Assert.Same(PowerBIConfig.ConstraintsResponse, table);
         }
 
-        [Theory]
+        [RavenTheory(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         [MemberData(nameof(TableSchemaQueries))]
         public void PowerBI_TableSchemaQuery_should_match_via_ast(string sql)
         {
@@ -119,7 +120,7 @@ join information_schema.table_constraints fkcon on 1=1";
             Assert.Same(PowerBIConfig.TableSchemaResponse, table);
         }
 
-        [Theory]
+        [RavenTheory(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         [MemberData(nameof(TableSchemaSecondaryQueries))]
         public void PowerBI_TableSchemaSecondaryQuery_should_match_via_ast(string sql)
         {
@@ -127,7 +128,7 @@ join information_schema.table_constraints fkcon on 1=1";
             Assert.Same(PowerBIConfig.TableSchemaSecondaryResponse, table);
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void PowerBI_TableSchemaQuery_should_not_match_when_signature_is_wrong()
         {
             const string sql = "select pkcol.column_name as pk_column_name, fkcol.table_schema as fk_table_schema from information_schema.key_column_usage fkcol join information_schema.table_constraints fkcon on 1=1";
@@ -137,7 +138,7 @@ join information_schema.table_constraints fkcon on 1=1";
 
         // ---- CharacterSets: WHERE tolerance + wrong-table rejection ----
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void PowerBI_CharacterSetsQuery_with_where_clause_should_still_match()
         {
             const string sql = "SELECT character_set_name FROM information_schema.character_sets WHERE character_set_name = 'UTF8'";
@@ -146,7 +147,7 @@ join information_schema.table_constraints fkcon on 1=1";
             Assert.Same(PowerBIConfig.CharacterSetsResponse, table);
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void PowerBI_CharacterSetsQuery_targeting_wrong_table_should_not_match()
         {
             const string sql = "SELECT character_set_name FROM information_schema.tables";
@@ -156,7 +157,7 @@ join information_schema.table_constraints fkcon on 1=1";
 
         // ---- Constraints: ORDER BY tolerance + wrong-table rejection ----
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void PowerBI_ConstraintsQuery_with_order_by_should_still_match()
         {
             // ConstraintsQuery with an ORDER BY appended — source tables and projected columns are what matter.
@@ -166,7 +167,7 @@ join information_schema.table_constraints fkcon on 1=1";
             Assert.Same(PowerBIConfig.ConstraintsResponse, table);
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void PowerBI_ConstraintsQuery_missing_required_table_should_not_match()
         {
             // Only key_column_usage present — table_constraints is missing.
@@ -177,7 +178,7 @@ join information_schema.table_constraints fkcon on 1=1";
 
         // ---- TableSchema: wrong-table rejection ----
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void PowerBI_TableSchemaQuery_targeting_wrong_tables_should_not_match()
         {
             // Uses information_schema.columns instead of the required key_column_usage + table_constraints.
@@ -188,7 +189,7 @@ join information_schema.table_constraints fkcon on 1=1";
 
         // ---- TableSchemaSecondary: wrong-table rejection ----
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void PowerBI_TableSchemaSecondaryQuery_targeting_wrong_tables_should_not_match()
         {
             const string sql = "select col.table_schema as pk_table_schema, col.table_name as pk_table_name, col.column_name as pk_column_name, col.column_name as fk_column_name, col.ordinal_position as ordinal, col.table_schema from information_schema.columns col";
@@ -198,7 +199,7 @@ join information_schema.table_constraints fkcon on 1=1";
 
         // ---- ReferentialConstraintsFk ----
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void PowerBI_ReferentialConstraintsFkQuery_query_should_match()
         {
             const string sql =
@@ -220,7 +221,7 @@ join information_schema.table_constraints fkcon on 1=1";
         }
 
         // Same shape, different collection name in WHERE/FK_NAME — must still match.
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void PowerBI_ReferentialConstraintsFkQuery_different_collection_should_match()
         {
             const string sql =
@@ -240,7 +241,7 @@ join information_schema.table_constraints fkcon on 1=1";
             Assert.Same(PowerBIConfig.TableSchemaResponse, table);
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void PowerBI_ReferentialConstraintsFkQuery_lowercase_identifiers_should_match()
         {
             const string sql =
@@ -260,7 +261,7 @@ join information_schema.table_constraints fkcon on 1=1";
         }
 
         // Negative: right structure but 5 projected columns instead of 6.
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void PowerBI_ReferentialConstraintsFkQuery_wrong_column_count_should_not_match()
         {
             // Only 5 projected columns instead of 6 — missing the fk_name expression.
@@ -277,7 +278,7 @@ join information_schema.table_constraints fkcon on 1=1";
         }
 
         // Negative: subquery targets information_schema.columns instead of referential_constraints.
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void PowerBI_ReferentialConstraintsFkQuery_wrong_subquery_source_should_not_match()
         {
             // Uses information_schema.columns (not referential_constraints) in the subquery,
@@ -296,7 +297,7 @@ join information_schema.table_constraints fkcon on 1=1";
 
         // ---- ReferentialConstraintsFk: secondary variant (PK_TABLE_SCHEMA/PK_TABLE_NAME projection) ----
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void PowerBI_ReferentialConstraintsFkQuery_secondary_variant_exact_failing_query_should_match()
         {
             const string sql =
@@ -318,7 +319,7 @@ join information_schema.table_constraints fkcon on 1=1";
         }
 
         // Regression guard: original primary variant must still match after the secondary variant was added.
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void PowerBI_ReferentialConstraintsFkQuery_primary_variant_still_matches_after_broadening()
         {
             // This is the query handled in the previous pass — re-verified here as a regression guard.
@@ -339,7 +340,7 @@ join information_schema.table_constraints fkcon on 1=1";
             Assert.Same(PowerBIConfig.TableSchemaResponse, table);
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void HardcodedQuery_ReferentialConstraintsFkVariant2_is_claimed_at_dispatch_level()
         {
             const string sql =
@@ -363,7 +364,7 @@ join information_schema.table_constraints fkcon on 1=1";
 
         // Old position-strict matcher required pk_column_name at index 0, fk_table_schema at index 1, etc.
         // The intent recognizer looks at the set of projected names, so reordering must still match.
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void PowerBI_TableSchemaQuery_reordered_projection_should_still_match()
         {
             const string sql =
@@ -383,7 +384,7 @@ join information_schema.table_constraints fkcon on 1=1";
         }
 
         // Same story for the PK-centric variant.
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void PowerBI_TableSchemaSecondaryQuery_reordered_projection_should_still_match()
         {
             const string sql =
@@ -404,7 +405,7 @@ join information_schema.table_constraints fkcon on 1=1";
 
         // The ConstraintsQuery intent tolerates extra trailing columns (intent signature =
         // required-columns-subset), so adding a harmless column must not break recognition.
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void PowerBI_ConstraintsQuery_extra_projected_column_should_still_match()
         {
             const string sql =
@@ -419,7 +420,7 @@ join information_schema.table_constraints fkcon on 1=1";
 
         // Structural guard: a query that just has the right *table* pair but no overlap with the
         // required FK-shape column set must still be rejected.
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void PowerBI_TableSchemaQuery_right_tables_but_unrelated_projection_should_not_match()
         {
             const string sql =
@@ -434,7 +435,7 @@ join information_schema.table_constraints fkcon on 1=1";
 
         // A representative Npgsql pg_catalog metadata query (EnumTypeLabels) targets pg_enum
         // and pg_type — completely different source tables from any PowerBI intent.
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void PowerBI_recognizer_does_not_claim_Npgsql_enum_type_labels_query()
         {
             const string sql =
@@ -446,7 +447,7 @@ join information_schema.table_constraints fkcon on 1=1";
         // Same source tables as FkCentric (key_column_usage + table_constraints) but the
         // projected column set is only the PK subset — arithmetic in the 6th slot must NOT
         // satisfy the FK-name anchor (guards the AExpr || narrowing).
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void PowerBI_FkCentric_arithmetic_expression_in_sixth_slot_should_not_match()
         {
             const string sql =

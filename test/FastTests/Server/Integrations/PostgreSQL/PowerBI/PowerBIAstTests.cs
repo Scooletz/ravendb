@@ -4,13 +4,14 @@ using System.Reflection;
 using Raven.Server.Integrations.PostgreSQL;
 using Raven.Server.Integrations.PostgreSQL.PowerBI;
 using Sparrow.Extensions;
+using Tests.Infrastructure;
 using Xunit;
 
 namespace FastTests.Server.Integrations.PostgreSQL.PowerBI
 {
-    public sealed class PowerBIAstTests
+    public sealed class PowerBIAstTests(ITestOutputHelper output) : NoDisposalNeeded(output)
     {
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void Simple_public_table_fetch_should_translate_via_ast_and_strip_table_alias_and_json_projection()
         {
             const string sql = @"select ""$Table"".""id()"" as ""id()"", ""$Table"".""Company"" as ""Company"", ""$Table"".""json()"" as ""json()""
@@ -30,7 +31,7 @@ from ""public"".""Orders"" ""$Table"" limit 200";
             Assert.Contains("limit 0, 200", queryString, StringComparison.OrdinalIgnoreCase);
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void TryParse_should_match_powerbi_all_collections_query_shape()
         {
             const string sql = "select TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE\n" +
@@ -42,7 +43,7 @@ from ""public"".""Orders"" ""$Table"" limit 200";
             Assert.IsType<PowerBIAllCollectionsQuery>(pgQuery);
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void TryParse_should_match_preview_columns_query_shape_and_extract_table_name()
         {
             const string sql = "select COLUMN_NAME, ORDINAL_POSITION, IS_NULLABLE, " +
@@ -56,7 +57,7 @@ from ""public"".""Orders"" ""$Table"" limit 200";
             Assert.Equal("from 'Regions'", GetQueryString(pgQuery));
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void TryParse_should_match_wrapped_rql_fetch_shape_and_apply_outer_limit()
         {
             const string sql = "select * from (from Employees) \"$Table\" limit 1000";
@@ -70,7 +71,7 @@ from ""public"".""Orders"" ""$Table"" limit 200";
 
         // --- Item B: wrapper interpretation tolerance ---
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void Fetch_rows_alias_at_wrapper_level_should_be_accepted()
         {
             // Sub-item 1 of Item B: the "rows" wrapper alias variant must be accepted by the Fetch
@@ -84,7 +85,7 @@ from ""public"".""Orders"" ""$Table"" limit 200";
             Assert.Equal(1000, GetLimit(pgQuery));
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void DirectQuery_aggregate_with_offset_zero_should_be_accepted()
         {
             // Item B relax #1: LIMIT N OFFSET 0 is a semantic no-op at the outer aggregate level.
@@ -107,7 +108,7 @@ limit 1000 offset 0";
             Assert.IsType<PowerBIDirectQuery>(pgQuery);
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void DirectQuery_group_by_with_typecast_should_be_accepted()
         {
             // Item B relax #2: GROUP BY through TypeCast/RelabelType must unwrap to the underlying
@@ -131,7 +132,7 @@ limit 1000";
             Assert.IsType<PowerBIDirectQuery>(pgQuery);
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void DirectQuery_aggregate_with_non_underscore_order_by_alias_should_be_accepted()
         {
             // Item B relax #4: ORDER BY on a non-"_" wrapper alias (e.g. "rows"."a0") must be
@@ -156,7 +157,7 @@ limit 1000";
             Assert.IsType<PowerBIDirectQuery>(pgQuery);
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void DirectQuery_desktop_null_order_helper_wrapper_should_be_handled_by_direct_query_parser_not_fetch()
         {
             const string sql = @"select ""_"".""OrderedAt"" as ""c2"", ""_"".""RequireAt"" as ""c3"" from ( select ""OrderedAt"", ""RequireAt"", ""_"".""t0_0"" as ""t0_0"", ""_"".""t1_0"" as ""t1_0"", ""_"".""t2_0"" as ""t2_0"", ""_"".""t3_0"" as ""t3_0"" from ( select ""_"".""OrderedAt"", ""_"".""RequireAt"", ""_"".""o0"", ""_"".""o1"", ""_"".""t0_0"", ""_"".""t1_0"", ""_"".""t2_0"", ""_"".""t3_0"" from ( select ""_"".""OrderedAt"" as ""OrderedAt"", ""_"".""RequireAt"" as ""RequireAt"", ""_"".""o0"" as ""o0"", ""_"".""o1"" as ""o1"", case when ""_"".""o0"" is not null then ""_"".""o0"" else timestamp '1899-12-28 00:00:00' end as ""t0_0"", case when ""_"".""o0"" is null then 0 else 1 end as ""t1_0"", case when ""_"".""o1"" is not null then ""_"".""o1"" else timestamp '1899-12-28 00:00:00' end as ""t2_0"", case when ""_"".""o1"" is null then 0 else 1 end as ""t3_0"" from ( select ""rows"".""OrderedAt"" as ""OrderedAt"", ""rows"".""RequireAt"" as ""RequireAt"", ""rows"".""o0"" as ""o0"", ""rows"".""o1"" as ""o1"" from ( select ""OrderedAt"" as ""OrderedAt"", ""RequireAt"" as ""RequireAt"", ""OrderedAt"" as ""o0"", ""RequireAt"" as ""o1"" from ( from Orders as o where o.Company = ""Companies/1-A"" OR o.Company = ""Companies/2-A"" select { OrderedAt: o.OrderedAt, RequireAt: o.RequireAt} ) ""$Table"" ) ""rows"" group by ""OrderedAt"", ""RequireAt"", ""o0"", ""o1"" ) ""_"" ) ""_"" ) ""_"" ) ""_"" order by ""_"".""t0_0"", ""_"".""t1_0"", ""_"".""t2_0"", ""_"".""t3_0"" limit 501";
@@ -168,7 +169,7 @@ limit 1000";
             Assert.IsType<PowerBIDirectQuery>(pgQuery);
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void DirectQuery_desktop_grouped_sum_two_group_fields_with_outer_where_not_null_should_be_classified_as_direct_query()
         {
             const string sql = @"select ""_"".""Employee"",
@@ -194,7 +195,7 @@ limit 1000001";
             Assert.IsType<PowerBIDirectQuery>(pgQuery);
         }
 
-        [Fact(Skip = "Scalar aggregates are intentionally unsupported (RQL requires group by for sum). Remove/enable when scalar support is implemented.")]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi, Skip = "Scalar aggregates are intentionally unsupported (RQL requires group by for sum). Remove/enable when scalar support is implemented.")]
         public void DirectQuery_aggregate_only_sum_should_be_classified_as_direct_query()
         {
             const string sql = @"select sum(""rows"".""Freight"") as ""a0""
@@ -211,7 +212,7 @@ from
             Assert.IsType<PowerBIDirectQuery>(pgQuery);
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void DirectQuery_desktop_grouped_sum_two_group_fields_with_inner_filter_on_group_field_should_be_classified_as_direct_query()
         {
             const string sql = @"select ""_"".""Employee"",
@@ -237,7 +238,7 @@ limit 1000001";
             Assert.IsType<PowerBIDirectQuery>(pgQuery);
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void DirectQuery_desktop_employee_requireAt_json_with_null_order_helper_columns_should_be_classified_as_direct_query()
         {
             const string sql = @"select ""_"".""Employee"" as ""c3"",
@@ -310,7 +311,7 @@ limit 501";
             Assert.IsType<PowerBIDirectQuery>(pgQuery);
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void DirectQuery_distinct_list_wrapper_single_column_orders_employee_should_be_classified_as_direct_query()
         {
             const string sql = @"select ""_"".""Employee""
@@ -335,7 +336,7 @@ limit 1001";
             Assert.IsType<PowerBIDirectQuery>(pgQuery);
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void DirectQuery_distinct_list_wrapper_with_inner_rql_load_should_report_actual_parser_classification()
         {
             const string sql = @"select ""_"".""Name"",
@@ -368,7 +369,7 @@ limit 501";
             Assert.IsType<PowerBIDirectQuery>(pgQuery);
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void DirectQuery_desktop_grouped_sum_wrapper_should_be_handled_by_direct_query_parser_not_fetch()
         {
             const string sql = @"select ""_"".""Company"" as ""c2"",
@@ -409,7 +410,7 @@ limit 1001";
             Assert.IsType<PowerBIDirectQuery>(pgQuery);
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void TryParse_should_match_wrapped_rql_fetch_with_outer_where_not_equal_or_is_null()
         {
             const string sql = @"select ""_"".""id()"" as ""id()"", ""_"".""FirstName"" as ""FirstName""
@@ -432,7 +433,7 @@ limit 1000";
             Assert.Equal(1000, GetLimit(pgQuery));
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void TryParse_should_translate_between_in_outer_where()
         {
             const string sql = @"select ""_"".""id()"" as ""id()"", ""_"".""OrderedAt"" as ""OrderedAt""
@@ -454,7 +455,7 @@ limit 1000";
             Assert.Equal(1000, GetLimit(pgQuery));
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void TryParse_should_merge_inner_where_with_outer_where()
         {
             const string sql = @"select ""_"".""id()"" as ""id()"", ""_"".""FirstName"" as ""FirstName""
@@ -476,7 +477,7 @@ limit 1000";
             Assert.Equal(1000, GetLimit(pgQuery));
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void TryParse_should_translate_timestamp_literal_in_outer_where()
         {
             const string sql = @"select ""_"".""id()"" as ""id()"", ""_"".""HiredAt"" as ""HiredAt""
@@ -499,7 +500,7 @@ limit 1000";
             Assert.Equal(1000, GetLimit(pgQuery));
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void TryParse_should_extract_single_replace_projection_via_ast()
         {
             const string sql = @"select ""_"".""id()"" as ""id()"", ""_"".""Title"" as ""Title"", replace(""_"".""Title"", 'Sales', 'Marketing') as ""t0_0""
@@ -525,7 +526,7 @@ limit 1000";
             Assert.Equal("Marketing", r.NewValue);
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void TryParse_should_extract_multiple_replace_projections_via_ast()
         {
             const string sql = @"select ""_"".""id()"" as ""id()"",
@@ -561,7 +562,7 @@ limit 1000";
             Assert.Equal("Annie", firstNameReplace.NewValue);
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void TryParse_should_support_multi_nested_wrapped_rql_with_multiple_wheres_and_replace()
         {
             const string sql = @"select ""_"".""id()"" as ""id()"", replace(""_"".""Title"", 'Sales', 'Marketing') as ""t0_0""
@@ -595,7 +596,7 @@ limit 1000";
             Assert.Equal("t0_0", r.DstColumnName);
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void TryParse_should_support_deep_wrapper_nesting_with_complex_outer_where_and_multiple_replace_levels_and_huge_inner_rql()
         {
             var innerRql = @"from 'Users' as u
@@ -740,7 +741,7 @@ SELECT {
             Assert.Equal("Anne", firstNameReplace.NewValue);
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void TryParse_should_support_declare_function_inner_rql_with_wrappers_outer_where_and_limit()
         {
             var innerRql = @"declare function isGood(u) { return u.Age > 18; }
@@ -813,7 +814,7 @@ SELECT {
             Assert.Equal("b", nameReplace.NewValue);
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void TryParse_should_support_projection_heavy_multi_wrapper_with_replace_at_outer_and_inner_levels_and_complex_outer_where()
         {
             var innerRql = @"from Orders as o
@@ -901,7 +902,7 @@ SELECT {
             Assert.Equal("B", companyReplace.NewValue);
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void TryParse_should_support_projection_heavy_wrapper_with_large_inner_rql_and_in_and_not_outer_where_and_limit()
         {
             var innerRql = @"from 'Users' as u
@@ -986,7 +987,7 @@ SELECT {
             Assert.Equal(limit, GetLimit(pgQuery));
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void TryParse_should_extract_nested_replace_projection_aliases_as_keys()
         {
             const string sql = @"select ""_"".""id()"" as ""id()"",
@@ -1045,7 +1046,7 @@ limit 1000";
             Assert.Equal("ddd", r04.NewValue);
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void TryParse_should_match_wrapped_rql_fetch_shape_with_outer_where_and_apply_filter_to_inner_alias()
         {
             const string sql = @"select ""_"".""id()"",
@@ -1068,7 +1069,7 @@ limit 1000";
             Assert.Equal(1000, GetLimit(pgQuery));
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void TryParse_should_match_wrapped_rql_fetch_with_outer_where_swapped_predicate_order()
         {
             const string sql = @"select ""_"".""id()"",
@@ -1091,7 +1092,7 @@ limit 1000";
             Assert.Equal(1000, GetLimit(pgQuery));
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void TryParse_should_match_wrapped_rql_fetch_with_outer_where_or_nesting()
         {
             const string sql = @"select ""_"".""id()"",
@@ -1118,7 +1119,7 @@ limit 1000";
             Assert.Equal(1000, GetLimit(pgQuery));
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void TryParse_should_match_wrapped_rql_fetch_shape_with_underscore_alias_and_limit_0()
         {
             const string sql = "select * from (from Orders) \"_\" limit 0";
@@ -1130,7 +1131,7 @@ limit 1000";
             Assert.Equal(0, GetLimit(pgQuery));
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void TryParse_should_match_projected_wrapped_rql_fetch_shape_and_apply_outer_limit()
         {
             const string sql = @"select ""$Table"".""id()"" as ""id()"",
@@ -1175,7 +1176,7 @@ limit 1000";
 
         // ---- AllCollections intent recognition ----
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void AllCollections_no_order_by_should_still_match()
         {
             const string sql = "select TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE\n" +
@@ -1185,7 +1186,7 @@ limit 1000";
             Assert.IsType<PowerBIAllCollectionsQuery>(pgQuery);
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void AllCollections_different_where_should_still_match()
         {
             const string sql = "select TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE\n" +
@@ -1196,7 +1197,7 @@ limit 1000";
             Assert.IsType<PowerBIAllCollectionsQuery>(pgQuery);
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void AllCollections_reordered_supported_columns_should_match()
         {
             const string sql = "select TABLE_TYPE, TABLE_NAME, TABLE_SCHEMA\n" +
@@ -1206,7 +1207,7 @@ limit 1000";
             Assert.IsType<PowerBIAllCollectionsQuery>(pgQuery);
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void AllCollections_aliased_supported_columns_should_match()
         {
             const string sql = "select TABLE_SCHEMA as ts, TABLE_NAME as tn, TABLE_TYPE as tt\n" +
@@ -1216,7 +1217,7 @@ limit 1000";
             Assert.IsType<PowerBIAllCollectionsQuery>(pgQuery);
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void AllCollections_extra_unsupported_columns_should_NOT_match()
         {
             const string sql = "select TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE, SELF_REFERENCING_COLUMN_NAME\n" +
@@ -1227,7 +1228,7 @@ limit 1000";
             Assert.False(PowerBIAllCollectionsQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out _));
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void AllCollections_wrong_source_table_should_not_match()
         {
             const string sql = "select TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE\n" +
@@ -1237,7 +1238,7 @@ limit 1000";
             Assert.False(PowerBIAllCollectionsQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out _));
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void AllCollections_non_information_schema_source_should_not_match()
         {
             const string sql = "select TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE from public.tables";
@@ -1247,7 +1248,7 @@ limit 1000";
 
         // ---- Preview intent recognition ----
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void Preview_no_order_by_should_still_match()
         {
             const string sql = "select COLUMN_NAME, ORDINAL_POSITION, IS_NULLABLE\n" +
@@ -1259,7 +1260,7 @@ limit 1000";
             Assert.Equal("from 'Employees'", GetQueryString(pgQuery));
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void Preview_table_name_only_in_where_no_schema_filter_should_match()
         {
             const string sql = "select COLUMN_NAME from INFORMATION_SCHEMA.columns where TABLE_NAME = 'Products'";
@@ -1269,7 +1270,7 @@ limit 1000";
             Assert.Equal("from 'Products'", GetQueryString(pgQuery));
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void Preview_table_name_first_in_and_where_should_match()
         {
             const string sql = "select COLUMN_NAME, ORDINAL_POSITION, IS_NULLABLE\n" +
@@ -1281,7 +1282,7 @@ limit 1000";
             Assert.Equal("from 'Categories'", GetQueryString(pgQuery));
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void Preview_reordered_supported_columns_should_match()
         {
             const string sql = "select IS_NULLABLE, DATA_TYPE, ORDINAL_POSITION, COLUMN_NAME\n" +
@@ -1293,7 +1294,7 @@ limit 1000";
             Assert.Equal("from 'Orders'", GetQueryString(pgQuery));
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void Preview_aliased_supported_columns_should_match()
         {
             const string sql = "select COLUMN_NAME as col, ORDINAL_POSITION as pos, IS_NULLABLE as nullable\n" +
@@ -1305,7 +1306,7 @@ limit 1000";
             Assert.Equal("from 'Employees'", GetQueryString(pgQuery));
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void Preview_extra_unsupported_columns_should_NOT_match()
         {
             const string sql = "select COLUMN_NAME, ORDINAL_POSITION, IS_NULLABLE, DATA_TYPE, CHARACTER_MAXIMUM_LENGTH\n" +
@@ -1316,7 +1317,7 @@ limit 1000";
             Assert.False(PowerBIPreviewQuery.TryParse(sql, documentDatabase: null, out _));
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void Preview_missing_table_name_in_where_should_not_match()
         {
             const string sql = "select COLUMN_NAME from INFORMATION_SCHEMA.columns where TABLE_SCHEMA = 'public'";
@@ -1324,7 +1325,7 @@ limit 1000";
             Assert.False(PowerBIPreviewQuery.TryParse(sql, documentDatabase: null, out _));
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void Preview_no_where_clause_should_not_match()
         {
             const string sql = "select COLUMN_NAME from INFORMATION_SCHEMA.columns";
@@ -1332,7 +1333,7 @@ limit 1000";
             Assert.False(PowerBIPreviewQuery.TryParse(sql, documentDatabase: null, out _));
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void Preview_wrong_source_table_should_not_match()
         {
             const string sql = "select COLUMN_NAME from INFORMATION_SCHEMA.tables where TABLE_NAME = 'Orders'";
@@ -1342,7 +1343,7 @@ limit 1000";
 
         // ---- DirectQuery: CASE helper columns at outermost SELECT level ----
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void DirectQuery_outermost_select_with_case_helper_columns_should_be_classified_as_direct_query()
         {
             // Outer SELECT contains real business columns plus CASE-based t<N>_0 helper columns.
@@ -1384,7 +1385,7 @@ limit 501";
             Assert.DoesNotContain("t3_0", queryString, StringComparison.OrdinalIgnoreCase);
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void DirectQuery_outermost_select_with_only_helper_columns_should_NOT_classify_as_direct_query()
         {
             // Every column at every wrapper level is a helper alias (t<N>_0 or o<N>).
@@ -1414,7 +1415,7 @@ limit 501";
             Assert.False(PowerBIDirectQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out _));
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void DirectQuery_outer_case_expression_with_non_helper_alias_should_NOT_classify_as_direct_query()
         {
             // The outer SELECT includes a CASE expression with a non-helper alias ("delivery_status").
@@ -1447,7 +1448,7 @@ limit 501";
             Assert.False(PowerBIDirectQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out _));
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void DirectQuery_InnerRql_4LevelWrapper_AiringNameDistinctList_Parses()
         {
             const string sql =
@@ -1492,7 +1493,7 @@ limit 501";
 
         // ── DirectQuery – grouped count ───────────────────────────────────────────────
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void DirectQuery_grouped_count_flat_shape_inner_sql_should_parse_and_emit_count_with_no_argument()
         {
             // PowerBI "Count" visual: GROUP BY at outermost level, count() aggregate, inner SQL with SELECT *.
@@ -1523,7 +1524,7 @@ limit 1000001";
             Assert.DoesNotContain("as double", queryString, StringComparison.OrdinalIgnoreCase);
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void DirectQuery_grouped_count_flat_shape_inner_rql_should_parse_and_emit_count()
         {
             // Same flat-grouped shape, but inner is plain RQL (not SQL).
@@ -1549,7 +1550,7 @@ limit 1000001";
 
         // ── DirectQuery – grouped AVG (sum + count) ───────────────────────────────────
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void DirectQuery_grouped_avg_shape_sum_plus_count_should_parse_and_emit_both_aggregates()
         {
             // PowerBI "AVG" visual: AVG is sent as SUM + COUNT so PowerBI can divide on the client.
@@ -1584,7 +1585,7 @@ limit 1000001";
             Assert.DoesNotContain("count(Freight)", queryString, StringComparison.OrdinalIgnoreCase);
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void DirectQuery_grouped_multi_aggregate_count_plus_sum_ordering_should_be_preserved()
         {
             // Swap of the AVG shape: count first, sum second. Verifies aggregate ordering follows
@@ -1614,7 +1615,7 @@ limit 1000001";
 
         // ── DirectQuery – regression ──────────────────────────────────────────────────
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void DirectQuery_inner_rql_non_aggregate_wrapper_should_still_parse_correctly()
         {
             // Regression: DirectQuery with inner RQL (non-aggregate distinct-list wrapper).

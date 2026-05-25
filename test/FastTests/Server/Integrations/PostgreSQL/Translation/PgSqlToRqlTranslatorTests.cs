@@ -1,9 +1,10 @@
 using System;
+using Tests.Infrastructure;
 using Xunit;
 
 namespace FastTests.Server.Integrations.PostgreSQL.Translation
 {
-    public sealed class PgSqlToRqlTranslatorTests
+    public sealed class PgSqlToRqlTranslatorTests(ITestOutputHelper output) : NoDisposalNeeded(output)
     {
         private static string Translate(string sql)
         {
@@ -13,7 +14,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
 
         // Easy (10)
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql)]
         public void Easy_01_SelectAllFromUsers()
         {
             var sql = "SELECT * FROM users";
@@ -22,7 +23,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
             Assert.Equal(expected, Translate(sql));
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql)]
         public void Easy_02_WhereAmountGreaterThan()
         {
             var sql = "SELECT * FROM orders WHERE amount > 10";
@@ -31,7 +32,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
             Assert.Equal(expected, Translate(sql));
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql)]
         public void Easy_03_WhereNameEqualsString()
         {
             var sql = "SELECT * FROM users WHERE name = 'ayende'";
@@ -40,7 +41,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
             Assert.Equal(expected, Translate(sql));
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql)]
         public void Easy_04_WhereActiveTrue()
         {
             var sql = "SELECT * FROM users WHERE active = true";
@@ -49,7 +50,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
             Assert.Equal(expected, Translate(sql));
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql)]
         public void Easy_05_WhereStatusNotEqualsString()
         {
             var sql = "SELECT * FROM orders WHERE status <> 'Cancelled'";
@@ -58,7 +59,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
             Assert.Equal(expected, Translate(sql));
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql)]
         public void Easy_06_WhereAnd()
         {
             var sql = "SELECT * FROM orders WHERE status = 'Pending' AND amount > 10";
@@ -67,7 +68,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
             Assert.Equal(expected, Translate(sql));
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql)]
         public void Easy_07_WhereOr()
         {
             var sql = "SELECT * FROM orders WHERE status = 'Pending' OR status = 'Shipped'";
@@ -76,7 +77,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
             Assert.Equal(expected, Translate(sql));
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql)]
         public void Easy_08_OrderByDesc()
         {
             var sql = "SELECT * FROM users ORDER BY name DESC";
@@ -85,7 +86,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
             Assert.Equal(expected, Translate(sql));
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql)]
         public void Easy_09_LimitOffset()
         {
             var sql = "SELECT * FROM users LIMIT 10 OFFSET 20";
@@ -94,7 +95,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
             Assert.Equal(expected, Translate(sql));
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql)]
         public void Easy_10_OrderByDescLimit()
         {
             // Unquoted identifiers follow PostgreSQL semantics (folded to lowercase).
@@ -107,7 +108,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
 
         // Mid (10)
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql)]
         public void Mid_11_WhereDottedPathEquals()
         {
             var sql = "SELECT * FROM orders WHERE ShipTo.City = 'London'";
@@ -116,7 +117,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
             Assert.Equal(expected, Translate(sql));
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql)]
         public void Mid_12_Between()
         {
             var sql = "SELECT * FROM orders WHERE amount BETWEEN 10 AND 20";
@@ -125,7 +126,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
             Assert.Equal(expected, Translate(sql));
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql)]
         public void Mid_13_InList()
         {
             var sql = "SELECT * FROM orders WHERE status IN ('Pending','Shipped')";
@@ -134,7 +135,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
             Assert.Equal(expected, Translate(sql));
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql)]
         public void Mid_14_InListOnDottedPath()
         {
             var sql = "SELECT * FROM orders WHERE shipTo.city IN ('London','Paris')";
@@ -143,7 +144,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
             Assert.Equal(expected, Translate(sql));
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql)]
         public void Mid_15_ParenthesesAndOr()
         {
             var sql = "SELECT * FROM orders WHERE (status = 'Pending' OR status = 'Shipped') AND amount > 10";
@@ -152,7 +153,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
             Assert.Equal(expected, Translate(sql));
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql)]
         public void Mid_16_OrderByTwoFields()
         {
             var sql = "SELECT * FROM orders ORDER BY createdAt DESC, amount ASC";
@@ -161,7 +162,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
             Assert.Equal(expected, Translate(sql));
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql)]
         public void Mid_17_OrderByLimit()
         {
             var sql = "SELECT * FROM users WHERE name <> 'oren' ORDER BY name LIMIT 20";
@@ -170,7 +171,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
             Assert.Equal(expected, Translate(sql));
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql)]
         public void Mid_18_AndWithDottedPath()
         {
             var sql = "SELECT * FROM orders WHERE status = 'Pending' AND shipTo.city = 'London'";
@@ -179,7 +180,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
             Assert.Equal(expected, Translate(sql));
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql)]
         public void Mid_19_IsNull()
         {
             var sql = "SELECT * FROM orders WHERE shippedAt IS NULL";
@@ -188,7 +189,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
             Assert.Equal(expected, Translate(sql));
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql)]
         public void Mid_20_AndWithParentheses()
         {
             var sql = "SELECT * FROM users WHERE active = true AND (name = 'ayende' OR name = 'oren')";
@@ -199,7 +200,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
 
         // Complex (10)
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql)]
         public void Complex_21_SelectColumns()
         {
             var sql = "SELECT id, name FROM users";
@@ -208,7 +209,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
             Assert.Equal(expected, Translate(sql));
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql)]
         public void Complex_22_SelectColumnsWithWhere()
         {
             var sql = "SELECT id, status, shipTo.city FROM orders WHERE amount > 10";
@@ -217,7 +218,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
             Assert.Equal(expected, Translate(sql));
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql)]
         public void Complex_23_CountStar()
         {
             var sql = "SELECT COUNT(*) FROM orders";
@@ -226,7 +227,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
             Assert.Equal(expected, Translate(sql));
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql)]
         public void Complex_24_Sum()
         {
             var sql = "SELECT COUNT(*), SUM(amount), AVG(score) FROM orders";
@@ -235,7 +236,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
             Assert.Equal(expected, Translate(sql));
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql)]
         public void Complex_25_AvgWithWhere()
         {
             var sql = "SELECT AVG(amount) FROM orders WHERE status = 'Paid'";
@@ -244,7 +245,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
             Assert.Equal(expected, Translate(sql));
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql)]
         public void Complex_26_GroupByCount()
         {
             var sql = "SELECT status, COUNT(*) FROM orders GROUP BY status";
@@ -252,7 +253,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
             Assert.Equal(expected, Translate(sql));
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql)]
         public void Complex_27_GroupByCountOrderByCountDesc()
         {
             var sql = "SELECT status, COUNT(*) FROM orders GROUP BY status ORDER BY COUNT(*) DESC";
@@ -261,7 +262,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
             Assert.Equal(expected, Translate(sql));
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql)]
         public void Complex_28_Distinct()
         {
             var sql = "SELECT DISTINCT status FROM orders";
@@ -269,7 +270,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
             Assert.Equal(expected, Translate(sql));
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql)]
         public void Complex_29_IndexQueryContains()
         {
             var sql = "SELECT * FROM indexes.\"Users/ByName\" WHERE name = 'oren'";
@@ -278,7 +279,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
             Assert.Equal(expected, Translate(sql));
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql)]
         public void Complex_30_Join()
         {
             var sql = "SELECT * FROM users u JOIN orders o ON u.id = o.user_id";
@@ -293,7 +294,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
         // preserve case via Sval. Users who need exact RavenDB field casing must quote
         // the identifier in SQL. See libpg_query issue #59 for upstream background.
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql)]
         public void IdentifierCasing_QuotedIdentifier_PreservesCase()
         {
             var sql = "SELECT \"Company\" FROM orders WHERE \"Title\" = 'Manager'";
@@ -303,7 +304,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
             Assert.Contains("Title", rql, StringComparison.Ordinal);
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql)]
         public void IdentifierCasing_UnquotedIdentifier_FoldedToLowercase()
         {
             var sql = "SELECT Company FROM orders WHERE Title = 'Manager'";

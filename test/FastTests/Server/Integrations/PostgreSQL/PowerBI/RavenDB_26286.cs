@@ -2,6 +2,7 @@ using System;
 using System.Reflection;
 using Raven.Server.Integrations.PostgreSQL;
 using Raven.Server.Integrations.PostgreSQL.PowerBI;
+using Tests.Infrastructure;
 using Xunit;
 
 namespace FastTests.Server.Integrations.PostgreSQL.PowerBI
@@ -9,14 +10,14 @@ namespace FastTests.Server.Integrations.PostgreSQL.PowerBI
     /// <summary>
     /// RavenDB-26286: SQL-statement textbox support for PowerBI Fetch/Import and DirectQuery.
     /// </summary>
-    public sealed class RavenDB_26286
+    public sealed class RavenDB_26286(ITestOutputHelper output) : NoDisposalNeeded(output)
     {
         // ── Fetch/Import – positive SQL-textbox cases ─────────────────────────────────
 
         /// <summary>
         /// PowerBI Fetch SQL-textbox: inner SQL SELECT with a string filter.
         /// </summary>
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void WrappedFetch_InnerSqlWithWhereFilter_TranslatesToRql()
         {
             const string sql =
@@ -39,7 +40,7 @@ limit 0";
             Assert.Equal(0, GetLimit(pgQuery));
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void WrappedFetch_InnerSqlStarProjection_TranslatesToRql()
         {
             const string sql =
@@ -62,7 +63,7 @@ limit 0";
         }
 
         /// <summary>AND filter.</summary>
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void WrappedFetch_InnerSqlAndFilter_TranslatesToRql()
         {
             const string sql =
@@ -84,7 +85,7 @@ limit 0";
         }
 
         /// <summary>IN list filter.</summary>
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void WrappedFetch_InnerSqlInListFilter_TranslatesToRql()
         {
             const string sql =
@@ -107,7 +108,7 @@ limit 0";
         }
 
         /// <summary>IS NULL filter.</summary>
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void WrappedFetch_InnerSqlIsNullFilter_TranslatesToRql()
         {
             const string sql =
@@ -130,7 +131,7 @@ limit 0";
 
         // ── Fetch/Import – negative cases ─────────────────────────────────────────────
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void WrappedFetch_InnerTextNeitherRqlNorSupportedSql_ReturnsFalse()
         {
             const string sql =
@@ -147,7 +148,7 @@ limit 0";
         // ── DirectQuery – SQL-textbox (simple non-aggregate) ─────────────────────────
         // 3-level wrapper: outer "_" → "rows" (with GROUP BY) → user SQL.
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void DirectQuery_InnerSql_SimpleSelectWithWhere_TranslatesToRql()
         {
             const string sql =
@@ -175,7 +176,7 @@ limit 501";
             Assert.Contains("Sales Representative", queryString, StringComparison.OrdinalIgnoreCase);
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void DirectQuery_InnerSql_SingleColumnSelect_TranslatesToRql()
         {
             // Different collection (Orders); confirms translation is not collection-specific.
@@ -204,7 +205,7 @@ limit 501";
             Assert.Contains("Companies/1-A", queryString, StringComparison.OrdinalIgnoreCase);
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void DirectQuery_InnerSql_MultiColumn_TranslatesToRql()
         {
             // Two projected columns, AND filter.
@@ -236,7 +237,7 @@ limit 501";
             Assert.Contains("Sales Representative", queryString, StringComparison.OrdinalIgnoreCase);
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void DirectQuery_InnerSql_NoWhereClause_TranslatesToRql()
         {
             // Simplest SQL-textbox shape: SELECT + FROM only, no WHERE filter.
@@ -263,7 +264,7 @@ limit 501";
             Assert.Contains("Orders", queryString, StringComparison.OrdinalIgnoreCase);
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void DirectQuery_InnerSql_OrFilter_TranslatesToRql()
         {
             const string sql =
@@ -292,7 +293,7 @@ limit 501";
             Assert.Contains("Shipped", queryString, StringComparison.OrdinalIgnoreCase);
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void DirectQuery_InnerSql_4LevelWrapper_TranslatesToRql()
         {
             // 4-level: outer "_" → "rows" (GROUP BY) → "$Table" pass-through → user SQL.
@@ -327,7 +328,7 @@ limit 501";
             Assert.Contains("Companies/1-A", queryString, StringComparison.OrdinalIgnoreCase);
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void DirectQuery_InnerSql_SubqueryInFrom_ReturnsFalse()
         {
             // Inner SQL with a subquery in FROM — translator requires a plain collection RangeVar.
@@ -347,7 +348,7 @@ limit 501";
             Assert.False(PowerBIDirectQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out _));
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void DirectQuery_InnerSql_NoFromClause_ReturnsFalse()
         {
             // Inner SQL with no FROM — translator requires a collection source.
@@ -369,7 +370,7 @@ limit 501";
 
         // ── DirectQuery – SQL-textbox grouped aggregate ───────────────────────────────
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void DirectQuery_GroupedAggregate_InnerSql_SumWithWhereAndGroupBy_TranslatesToRql()
         {
             const string sql =
@@ -400,7 +401,7 @@ limit 1000001";
             Assert.Contains("Company", queryString, StringComparison.OrdinalIgnoreCase);
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void DirectQuery_GroupedAggregate_InnerSql_MultiKeyGroupBy_TranslatesToRql()
         {
             // SUM with two group-by fields.
@@ -434,7 +435,7 @@ limit 1000001";
             Assert.Contains("Employee", queryString, StringComparison.OrdinalIgnoreCase);
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void DirectQuery_GroupedAggregate_InnerSql_NoOuterWhereOrOrderBy_TranslatesToRql()
         {
             // SUM without outer WHERE (no not-null guard) and no ORDER BY.
@@ -461,7 +462,7 @@ limit 1000001";
             Assert.Contains("sum", queryString, StringComparison.OrdinalIgnoreCase);
         }
 
-        [Fact]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void DirectQuery_GroupedAggregate_InnerSql_OrderByGroupKey_TranslatesToRql()
         {
             // ORDER BY on the group key (Company), not the aggregate output (a0).
@@ -496,7 +497,7 @@ limit 1000001";
 
         // ── Identifier case recovery – Fetch/Import ──────────────────────────────────
 
-        [Fact (Skip = "unquoted SQL field-name casing preservation is not supported. Will be handled later via parser-level fix")]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi, Skip = "unquoted SQL field-name casing preservation is not supported. Will be handled later via parser-level fix")]
         public void WrappedFetch_UnquotedFieldNames_CasePreservedInRql()
         {
             const string sql =
@@ -519,7 +520,7 @@ limit 0";
 
         // ── Identifier case recovery – DirectQuery ────────────────────────────────────
 
-        [Fact(Skip = "unquoted SQL field-name casing preservation is not supported. Will be handled later via parser-level fix")]
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi, Skip = "unquoted SQL field-name casing preservation is not supported. Will be handled later via parser-level fix")]
         public void DirectQuery_InnerSql_UnquotedFieldNames_CasePreservedInRql()
         {
             const string sql =
