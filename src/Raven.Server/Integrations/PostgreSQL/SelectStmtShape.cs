@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using PgSqlParser;
 
-namespace Raven.Server.Integrations.PostgreSQL.Classification
+namespace Raven.Server.Integrations.PostgreSQL
 {
     internal static class SelectStmtShape
     {

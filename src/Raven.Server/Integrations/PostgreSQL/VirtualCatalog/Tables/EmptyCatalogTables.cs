@@ -40,23 +40,25 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog.Tables
         };
     }
 
-    // Npgsql pg_catalog sources (queried with PgFormat.Text).
-    internal sealed class PgCatalogPgTypeTable : EmptyCatalogTable
+    internal sealed class InformationSchemaReferentialConstraintsTable : EmptyCatalogTable
     {
-        public override string SchemaName => "pg_catalog";
-        public override string TableName => "pg_type";
+        public override string SchemaName => "information_schema";
+        public override string TableName => "referential_constraints";
         public override IReadOnlyList<PgVirtualColumn> Columns { get; } = new PgVirtualColumn[]
         {
-            new("oid",          PgOid.Default,  PgFormat.Text),
-            new("typname",      PgName.Default, PgFormat.Text),
-            new("typtype",      PgChar.Default, PgFormat.Text),
-            new("typrelid",     PgOid.Default,  PgFormat.Text),
-            new("typnamespace", PgOid.Default,  PgFormat.Text),
-            new("typbasetype",  PgOid.Default,  PgFormat.Text),
-            new("typelem",      PgOid.Default,  PgFormat.Text),
+            new("constraint_catalog",        PgName.Default, PgFormat.Binary),
+            new("constraint_schema",         PgName.Default, PgFormat.Binary),
+            new("constraint_name",           PgName.Default, PgFormat.Binary),
+            new("unique_constraint_catalog", PgName.Default, PgFormat.Binary),
+            new("unique_constraint_schema",  PgName.Default, PgFormat.Binary),
+            new("unique_constraint_name",    PgName.Default, PgFormat.Binary),
+            new("match_option",              PgText.Default, PgFormat.Binary),
+            new("update_rule",               PgText.Default, PgFormat.Binary),
+            new("delete_rule",               PgText.Default, PgFormat.Binary),
         };
     }
 
+    // Empty pg_catalog sources for shapes the interpreter doesn't (yet) read from real data.
     internal sealed class PgCatalogPgEnumTable : EmptyCatalogTable
     {
         public override string SchemaName => "pg_catalog";
@@ -67,19 +69,6 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog.Tables
             new("enumtypid",      PgOid.Default,  PgFormat.Text),
             new("enumlabel",      PgName.Default, PgFormat.Text),
             new("enumsortorder",  PgFloat4.Default, PgFormat.Text),
-        };
-    }
-
-    internal sealed class PgCatalogPgClassTable : EmptyCatalogTable
-    {
-        public override string SchemaName => "pg_catalog";
-        public override string TableName => "pg_class";
-        public override IReadOnlyList<PgVirtualColumn> Columns { get; } = new PgVirtualColumn[]
-        {
-            new("oid",         PgOid.Default,  PgFormat.Text),
-            new("relname",     PgName.Default, PgFormat.Text),
-            new("relkind",     PgChar.Default, PgFormat.Text),
-            new("typrelid",    PgOid.Default,  PgFormat.Text),
         };
     }
 
@@ -95,17 +84,6 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog.Tables
             new("attrelid",     PgOid.Default,  PgFormat.Text),
             new("attnum",       PgInt2.Default, PgFormat.Text),
             new("attisdropped", PgBool.Default, PgFormat.Text),
-        };
-    }
-
-    internal sealed class PgCatalogPgNamespaceTable : EmptyCatalogTable
-    {
-        public override string SchemaName => "pg_catalog";
-        public override string TableName => "pg_namespace";
-        public override IReadOnlyList<PgVirtualColumn> Columns { get; } = new PgVirtualColumn[]
-        {
-            new("oid",     PgOid.Default,  PgFormat.Text),
-            new("nspname", PgName.Default, PgFormat.Text),
         };
     }
 }

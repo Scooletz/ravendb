@@ -45,6 +45,9 @@ namespace Raven.Server.Integrations.PostgreSQL
 
             try
             {
+                if (ProtocolCommandQuery.TryParse(queryText, parametersDataTypes, session, out var protocolCommand))
+                    return protocolCommand;
+
                 if (RqlQuery.TryParse(queryText, parametersDataTypes, documentDatabase, out var rqlQuery))
                     return rqlQuery;
 
@@ -55,9 +58,6 @@ namespace Raven.Server.Integrations.PostgreSQL
 
                     return powerBiQuery;
                 }
-
-                if (HardcodedQuery.TryParse(queryText, parametersDataTypes, session, out var hardcodedQuery))
-                    return hardcodedQuery;
 
                 if (PgVirtualInterpreter.TryExecute(queryText, new VirtualQueryContext { Database = documentDatabase }, out var virtualTable))
                     return new VirtualInterpreterQuery(queryText, parametersDataTypes, virtualTable);

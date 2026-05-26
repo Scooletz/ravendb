@@ -6,7 +6,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using PgSqlParser;
 using Raven.Server.Documents;
-using Raven.Server.Integrations.PostgreSQL.Classification;
 using Raven.Server.Integrations.PostgreSQL.Messages;
 using Raven.Server.Integrations.PostgreSQL.Types;
 using Raven.Server.Logging;

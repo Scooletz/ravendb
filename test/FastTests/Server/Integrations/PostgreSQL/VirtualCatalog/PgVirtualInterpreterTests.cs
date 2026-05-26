@@ -113,12 +113,15 @@ namespace FastTests.Server.Integrations.PostgreSQL.VirtualCatalog
         }
 
         [RavenFact(RavenTestCategory.PostgreSql)]
-        public void Join_is_rejected()
+        public void Self_join_with_trivial_on_produces_cartesian_row()
         {
-            Assert.False(PgVirtualInterpreter.TryExecute(
+            // Step B's JoinExecutor evaluates joins over non-empty sources. 1 row × 1 row = 1 row,
+            // with `*` expanding to both sides → 2 columns.
+            Assert.True(PgVirtualInterpreter.TryExecute(
                 "select * from information_schema.character_sets a join information_schema.character_sets b on 1=1",
                 EmptyCtx(), out var table));
-            Assert.Null(table);
+            Assert.Equal(2, table.Columns.Count);
+            Assert.Single(table.Data);
         }
         
         [RavenFact(RavenTestCategory.PostgreSql)]
@@ -253,6 +256,372 @@ namespace FastTests.Server.Integrations.PostgreSQL.VirtualCatalog
 
             Assert.False(PgVirtualInterpreter.TryExecute(sql, EmptyCtx(), out var table));
             Assert.Null(table);
+        }
+
+        // ── PowerBI ReferentialConstraints FK metadata (sub-FROM shape) ──────
+
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void ReferentialConstraints_FkCentric_query_returns_empty_rowset_with_6_columns()
+        {
+            const string sql =
+                "select pkcol.COLUMN_NAME as PK_COLUMN_NAME, fkcol.TABLE_SCHEMA AS FK_TABLE_SCHEMA, " +
+                "fkcol.TABLE_NAME AS FK_TABLE_NAME, fkcol.COLUMN_NAME as FK_COLUMN_NAME, " +
+                "fkcol.ORDINAL_POSITION as ORDINAL, " +
+                "fkcon.CONSTRAINT_SCHEMA || '*' || fkcol.TABLE_NAME || '_' || fkcon.CONSTRAINT_NAME as FK_NAME\n" +
+                "from\n" +
+                "(select distinct constraint_catalog, constraint_schema, unique_constraint_schema, constraint_name, unique_constraint_name " +
+                "from INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS) fkcon\n" +
+                "inner join INFORMATION_SCHEMA.KEY_COLUMN_USAGE fkcol on fkcon.CONSTRAINT_SCHEMA = fkcol.CONSTRAINT_SCHEMA and fkcon.CONSTRAINT_NAME = fkcol.CONSTRAINT_NAME\n" +
+                "inner join INFORMATION_SCHEMA.KEY_COLUMN_USAGE pkcol on fkcon.UNIQUE_CONSTRAINT_SCHEMA = pkcol.CONSTRAINT_SCHEMA and fkcon.UNIQUE_CONSTRAINT_NAME = pkcol.CONSTRAINT_NAME\n" +
+                "where pkcol.TABLE_SCHEMA = 'public' and pkcol.TABLE_NAME = 'Employees' and pkcol.ORDINAL_POSITION = fkcol.ORDINAL_POSITION\n" +
+                "order by FK_NAME, fkcol.ORDINAL_POSITION";
+
+            Assert.True(PgVirtualInterpreter.TryExecute(sql, EmptyCtx(), out var table));
+            Assert.Equal(6, table.Columns.Count);
+            Assert.Empty(table.Data);
+        }
+
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void ReferentialConstraints_PkCentric_query_returns_empty_rowset_with_6_columns()
+        {
+            const string sql =
+                "select pkcol.TABLE_SCHEMA AS PK_TABLE_SCHEMA, pkcol.TABLE_NAME AS PK_TABLE_NAME, " +
+                "pkcol.COLUMN_NAME as PK_COLUMN_NAME, fkcol.COLUMN_NAME as FK_COLUMN_NAME, " +
+                "fkcol.ORDINAL_POSITION as ORDINAL, " +
+                "fkcon.CONSTRAINT_SCHEMA || '*' || pkcol.TABLE_NAME || '_' || fkcon.CONSTRAINT_NAME as FK_NAME\n" +
+                "from\n" +
+                "(select distinct constraint_catalog, constraint_schema, unique_constraint_schema, constraint_name, unique_constraint_name " +
+                "from INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS) fkcon\n" +
+                "inner join INFORMATION_SCHEMA.KEY_COLUMN_USAGE fkcol on fkcon.CONSTRAINT_SCHEMA = fkcol.CONSTRAINT_SCHEMA and fkcon.CONSTRAINT_NAME = fkcol.CONSTRAINT_NAME\n" +
+                "inner join INFORMATION_SCHEMA.KEY_COLUMN_USAGE pkcol on fkcon.UNIQUE_CONSTRAINT_SCHEMA = pkcol.CONSTRAINT_SCHEMA and fkcon.UNIQUE_CONSTRAINT_NAME = pkcol.CONSTRAINT_NAME";
+
+            Assert.True(PgVirtualInterpreter.TryExecute(sql, EmptyCtx(), out var table));
+            Assert.Equal(6, table.Columns.Count);
+            Assert.Empty(table.Data);
+        }
+
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void Sub_from_with_non_empty_inner_source_is_materialized()
+        {
+            // Step D's recursive sub-FROM evaluation: the inner SELECT runs against the real
+            // (non-empty) information_schema.character_sets table, then the outer references its
+            // alias-prefixed column.
+            const string sql =
+                "select cs.character_set_name from (select character_set_name from information_schema.character_sets) cs";
+
+            Assert.True(PgVirtualInterpreter.TryExecute(sql, EmptyCtx(), out var table));
+            Assert.Single(table.Columns);
+            Assert.Single(table.Data);
+            Assert.Equal("UTF8", DecodeCell(table, row: 0, column: 0));
+        }
+
+        // ── pg_catalog data (Step A) backs the Npgsql type-loading queries via the interpreter ───
+
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void Select_oid_typname_from_pg_type_returns_rows()
+        {
+            Assert.True(PgVirtualInterpreter.TryExecute("select oid, typname from pg_type", EmptyCtx(), out var table));
+            Assert.Equal(2, table.Columns.Count);
+            Assert.NotEmpty(table.Data);
+            Assert.Equal("oid", table.Columns[0].Name);
+            Assert.Equal("typname", table.Columns[1].Name);
+        }
+
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void Select_with_join_pg_namespace_resolves_nspname()
+        {
+            const string sql =
+                "select ns.nspname, a.typname from pg_type as a join pg_namespace as ns on ns.oid = a.typnamespace";
+
+            Assert.True(PgVirtualInterpreter.TryExecute(sql, EmptyCtx(), out var table));
+            Assert.Equal(2, table.Columns.Count);
+            Assert.Equal("nspname", table.Columns[0].Name);
+            Assert.NotEmpty(table.Data);
+
+            // Every projected row should have a non-null nspname now that the join resolves.
+            foreach (var row in table.Data)
+            {
+                var cell = row.ColumnData.Span[0];
+                Assert.True(cell.HasValue, "nspname should be non-null after the inner JOIN");
+            }
+        }
+
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void Case_when_in_projection_classifies_arrays()
+        {
+            // The variant queries reduce array detection to a CASE WHEN over pg_proc.proname; the
+            // interpreter needs to evaluate the CASE per-row and produce 'a' for arrays.
+            const string sql =
+                "select a.oid, case when pg_proc.proname = 'array_recv' then 'a' else a.typtype end as type " +
+                "from pg_type as a join pg_proc on pg_proc.oid = a.typreceive";
+
+            Assert.True(PgVirtualInterpreter.TryExecute(sql, EmptyCtx(), out var table));
+            Assert.Equal(2, table.Columns.Count);
+
+            // At least one 'a' should appear (every array type's CASE branch is taken).
+            var sawArray = false;
+            foreach (var row in table.Data)
+            {
+                var typeCell = row.ColumnData.Span[1];
+                if (typeCell.HasValue && Encoding.UTF8.GetString(typeCell.Value.Span) == "a")
+                {
+                    sawArray = true;
+                    break;
+                }
+            }
+            Assert.True(sawArray, "expected CASE WHEN to map at least one row to 'a' (array)");
+        }
+
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void Npgsql3_legacy_types_query_runs_through_interpreter()
+        {
+            // The legacy Npgsql 3.2.x type-loader. Five-source join (pg_type + pg_namespace +
+            // pg_proc + LEFT OUTER pg_type + LEFT OUTER pg_range) with CASE WHEN projection,
+            // OR-of-AND WHERE, and ORDER BY a projected alias. Exercises every Step B capability.
+            const string sql =
+                @"SELECT ns.nspname, a.typname, a.oid, a.typrelid, a.typbasetype,
+CASE WHEN pg_proc.proname='array_recv' THEN 'a' ELSE a.typtype END AS type,
+CASE
+  WHEN pg_proc.proname='array_recv' THEN a.typelem
+  WHEN a.typtype='r' THEN rngsubtype
+  ELSE 0
+END AS elemoid,
+CASE
+  WHEN pg_proc.proname IN ('array_recv','oidvectorrecv') THEN 3
+  WHEN a.typtype='r' THEN 2
+  WHEN a.typtype='d' THEN 1
+  ELSE 0
+END AS ord
+FROM pg_type AS a
+JOIN pg_namespace AS ns ON (ns.oid = a.typnamespace)
+JOIN pg_proc ON pg_proc.oid = a.typreceive
+LEFT OUTER JOIN pg_type AS b ON (b.oid = a.typelem)
+LEFT OUTER JOIN pg_range ON (pg_range.rngtypid = a.oid)
+WHERE
+  (
+    a.typtype IN ('b', 'r', 'e', 'd') AND
+    (b.typtype IS NULL OR b.typtype IN ('b', 'r', 'e', 'd'))
+  ) OR
+  (a.typname IN ('record', 'void') AND a.typtype = 'p')
+ORDER BY ord";
+
+            Assert.True(PgVirtualInterpreter.TryExecute(sql, EmptyCtx(), out var table));
+            Assert.Equal(8, table.Columns.Count);
+            Assert.Equal("nspname", table.Columns[0].Name);
+            Assert.Equal("typname", table.Columns[1].Name);
+            Assert.Equal("oid", table.Columns[2].Name);
+            Assert.Equal("type", table.Columns[5].Name);
+            Assert.Equal("elemoid", table.Columns[6].Name);
+            Assert.Equal("ord", table.Columns[7].Name);
+            Assert.NotEmpty(table.Data);
+
+            // Spot-check: int4 (oid=23) must appear as a base type.
+            var sawInt4 = false;
+            foreach (var row in table.Data)
+            {
+                var span = row.ColumnData.Span;
+                if (span[2].HasValue && Encoding.UTF8.GetString(span[2].Value.Span) == "23" &&
+                    span[1].HasValue && Encoding.UTF8.GetString(span[1].Value.Span) == "int4" &&
+                    span[5].HasValue && Encoding.UTF8.GetString(span[5].Value.Span) == "b")
+                {
+                    sawInt4 = true;
+                    break;
+                }
+            }
+            Assert.True(sawInt4, "expected int4 (oid=23) to be present as a base type ('b')");
+
+            // ord must be non-decreasing (ORDER BY ord).
+            int prev = int.MinValue;
+            foreach (var row in table.Data)
+            {
+                var cell = row.ColumnData.Span[7];
+                Assert.True(cell.HasValue);
+                var v = int.Parse(Encoding.UTF8.GetString(cell.Value.Span));
+                Assert.True(v >= prev, $"ord must be non-decreasing: got {v} after {prev}");
+                prev = v;
+            }
+        }
+
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void Npgsql4_0_x_old_flat_types_query_runs_through_interpreter()
+        {
+            // The OldFlat shape (Npgsql 4.0.x) joins pg_class on top of V3's sources and uses an
+            // OR-of-AND WHERE with nested ORs / IN-lists / pg_proc-on-array_recv guarded blocks.
+            // Step C makes this query traverse the interpreter instead of HardcodedQuery.
+            const string sql =
+                @"/*** Load all supported types ***/
+SELECT ns.nspname, a.typname, a.oid, a.typrelid, a.typbasetype,
+CASE WHEN pg_proc.proname='array_recv' THEN 'a' ELSE a.typtype END AS type,
+CASE
+  WHEN pg_proc.proname='array_recv' THEN a.typelem
+  WHEN a.typtype='r' THEN rngsubtype
+  ELSE 0
+END AS elemoid,
+CASE
+  WHEN pg_proc.proname IN ('array_recv','oidvectorrecv') THEN 3
+  WHEN a.typtype='r' THEN 2
+  WHEN a.typtype='d' THEN 1
+  ELSE 0
+END AS ord
+FROM pg_type AS a
+JOIN pg_namespace AS ns ON (ns.oid = a.typnamespace)
+JOIN pg_proc ON pg_proc.oid = a.typreceive
+LEFT OUTER JOIN pg_class AS cls ON (cls.oid = a.typrelid)
+LEFT OUTER JOIN pg_type AS b ON (b.oid = a.typelem)
+LEFT OUTER JOIN pg_class AS elemcls ON (elemcls.oid = b.typrelid)
+LEFT OUTER JOIN pg_range ON (pg_range.rngtypid = a.oid)
+WHERE
+  a.typtype IN ('b', 'r', 'e', 'd') OR
+  (a.typtype = 'c' AND cls.relkind='c') OR
+  (pg_proc.proname='array_recv' AND (
+    b.typtype IN ('b', 'r', 'e', 'd') OR
+    (b.typtype = 'p' AND b.typname IN ('record', 'void')) OR
+    (b.typtype = 'c' AND elemcls.relkind='c')
+  )) OR
+  (a.typtype = 'p' AND a.typname IN ('record', 'void'))
+ORDER BY ord";
+
+            Assert.True(PgVirtualInterpreter.TryExecute(sql, EmptyCtx(), out var table));
+            Assert.Equal(8, table.Columns.Count);
+            Assert.NotEmpty(table.Data);
+
+            int prev = int.MinValue;
+            foreach (var row in table.Data)
+            {
+                var cell = row.ColumnData.Span[7];
+                Assert.True(cell.HasValue);
+                var v = int.Parse(Encoding.UTF8.GetString(cell.Value.Span));
+                Assert.True(v >= prev);
+                prev = v;
+            }
+        }
+
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void Npgsql4_1_2_mid_flat_types_query_runs_through_interpreter()
+        {
+            // MidFlat (Npgsql 4.1.0–4.1.2) is OldFlat + a typcategory branch in the ord CASE.
+            // Requires pg_type.typcategory to be present.
+            const string sql =
+                @"
+/*** Load all supported types ***/
+SELECT ns.nspname, a.typname, a.oid, a.typbasetype,
+CASE WHEN pg_proc.proname='array_recv' THEN 'a' ELSE a.typtype END AS typtype,
+CASE
+  WHEN pg_proc.proname='array_recv' THEN a.typelem
+  WHEN a.typtype='r' THEN rngsubtype
+  ELSE 0
+END AS typelem,
+CASE
+  WHEN a.typtype='d' AND a.typcategory='A' THEN 4
+  WHEN pg_proc.proname IN ('array_recv','oidvectorrecv') THEN 3
+  WHEN a.typtype='r' THEN 2
+  WHEN a.typtype='d' THEN 1
+  ELSE 0
+END AS ord
+FROM pg_type AS a
+JOIN pg_namespace AS ns ON (ns.oid = a.typnamespace)
+JOIN pg_proc ON pg_proc.oid = a.typreceive
+LEFT OUTER JOIN pg_class AS cls ON (cls.oid = a.typrelid)
+LEFT OUTER JOIN pg_type AS b ON (b.oid = a.typelem)
+LEFT OUTER JOIN pg_class AS elemcls ON (elemcls.oid = b.typrelid)
+LEFT OUTER JOIN pg_range ON (pg_range.rngtypid = a.oid)
+WHERE
+  a.typtype IN ('b', 'r', 'e', 'd') OR
+  (a.typtype = 'c' AND cls.relkind='c') OR
+  (pg_proc.proname='array_recv' AND (
+    b.typtype IN ('b', 'r', 'e', 'd') OR
+    (b.typtype = 'p' AND b.typname IN ('record', 'void')) OR
+    (b.typtype = 'c' AND elemcls.relkind='c')
+  )) OR
+  (a.typtype = 'p' AND a.typname IN ('record', 'void'))
+ORDER BY ord";
+
+            Assert.True(PgVirtualInterpreter.TryExecute(sql, EmptyCtx(), out var table));
+            Assert.Equal(7, table.Columns.Count);
+            Assert.Equal("typelem", table.Columns[5].Name);
+            Assert.Equal("ord", table.Columns[6].Name);
+            Assert.NotEmpty(table.Data);
+        }
+
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void Npgsql5_modern_nested_types_query_runs_through_interpreter()
+        {
+            // The full Modern Nested shape: three-level FROM, two outer LEFT JOINs at each level,
+            // qualified-wildcard `typ_and_elem_type.*` projection, an outer CASE WHEN producing ord.
+            // Exercises Step D's recursive sub-FROM execution and alias.* propagation.
+            const string sql =
+                @"SELECT ns.nspname, typ_and_elem_type.*,
+   CASE
+       WHEN typtype IN ('b', 'e', 'p') THEN 0
+       WHEN typtype = 'r' THEN 1
+       WHEN typtype = 'c' THEN 2
+       WHEN typtype = 'd' AND elemtyptype <> 'a' THEN 3
+       WHEN typtype = 'a' THEN 4
+       WHEN typtype = 'd' AND elemtyptype = 'a' THEN 5
+    END AS ord
+FROM (
+    SELECT
+        typ.oid, typ.typnamespace, typ.typname, typ.typtype, typ.typrelid, typ.typnotnull, typ.relkind,
+        elemtyp.oid AS elemtypoid, elemtyp.typname AS elemtypname, elemcls.relkind AS elemrelkind,
+        CASE WHEN elemproc.proname='array_recv' THEN 'a' ELSE elemtyp.typtype END AS elemtyptype
+    FROM (
+        SELECT typ.oid, typnamespace, typname, typrelid, typnotnull, relkind, typelem AS elemoid,
+            CASE WHEN proc.proname='array_recv' THEN 'a' ELSE typ.typtype END AS typtype,
+            CASE
+                WHEN proc.proname='array_recv' THEN typ.typelem
+                WHEN typ.typtype='r' THEN rngsubtype
+                WHEN typ.typtype='d' THEN typ.typbasetype
+            END AS elemtypoid
+        FROM pg_type AS typ
+        LEFT JOIN pg_class AS cls ON (cls.oid = typ.typrelid)
+        LEFT JOIN pg_proc AS proc ON proc.oid = typ.typreceive
+        LEFT JOIN pg_range ON (pg_range.rngtypid = typ.oid)
+    ) AS typ
+    LEFT JOIN pg_type AS elemtyp ON elemtyp.oid = elemtypoid
+    LEFT JOIN pg_class AS elemcls ON (elemcls.oid = elemtyp.typrelid)
+    LEFT JOIN pg_proc AS elemproc ON elemproc.oid = elemtyp.typreceive
+) AS typ_and_elem_type
+JOIN pg_namespace AS ns ON (ns.oid = typnamespace)
+WHERE
+    typtype IN ('b', 'r', 'e', 'd') OR
+    (typtype = 'c' AND relkind='c') OR
+    (typtype = 'p' AND typname IN ('record', 'void')) OR
+    (typtype = 'a' AND (
+        elemtyptype IN ('b', 'r', 'e', 'd') OR
+        (elemtyptype = 'p' AND elemtypname IN ('record', 'void')) OR
+        (elemtyptype = 'c' AND elemrelkind='c')
+    ))
+ORDER BY ord";
+
+            Assert.True(PgVirtualInterpreter.TryExecute(sql, EmptyCtx(), out var table));
+            // 1 (ns.nspname) + 11 (typ_and_elem_type's 11 inner columns) + 1 (ord) = 13.
+            Assert.Equal(13, table.Columns.Count);
+            Assert.Equal("nspname", table.Columns[0].Name);
+            Assert.Equal("ord", table.Columns[12].Name);
+            Assert.NotEmpty(table.Data);
+        }
+
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void Order_by_projected_alias_sorts_after_projection()
+        {
+            // ORDER BY ord references a CASE WHEN-derived column — the sort must run after the
+            // projection materializes its values, not against the original FROM source.
+            const string sql =
+                "select a.oid, case when a.typtype = 'r' then 2 else 0 end as ord " +
+                "from pg_type as a order by ord";
+
+            Assert.True(PgVirtualInterpreter.TryExecute(sql, EmptyCtx(), out var table));
+            Assert.NotEmpty(table.Data);
+
+            int prev = int.MinValue;
+            foreach (var row in table.Data)
+            {
+                var cell = row.ColumnData.Span[1];
+                Assert.True(cell.HasValue);
+                var v = int.Parse(Encoding.UTF8.GetString(cell.Value.Span));
+                Assert.True(v >= prev, "rows must be in non-decreasing ord order");
+                prev = v;
+            }
         }
 
         private static VirtualQueryContext EmptyCtx() => new();
