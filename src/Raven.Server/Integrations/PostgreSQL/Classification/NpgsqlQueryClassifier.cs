@@ -19,35 +19,6 @@ namespace Raven.Server.Integrations.PostgreSQL.Classification
             return response != null;
         }
 
-        public static bool TryMatchSimpleQuery(string queryText, out PgTable result)
-        {
-            result = null;
-            if (SelectStmtShape.TryParseSelectStatements(queryText, out var selects) == false)
-                return false;
-
-            if (selects.Count == 2)
-            {
-                result = ClassifyPair(selects);
-                return result != null;
-            }
-
-            if (selects.Count != 1)
-                return false;
-
-            result = ClassifySimpleProbe(selects[0]);
-            return result != null;
-        }
-
-        public static bool TryMatchMetadataQuery(string queryText, out PgTable result)
-        {
-            result = null;
-            if (SelectStmtShape.TryParseSingleSelect(queryText, out var s) == false)
-                return false;
-
-            result = ClassifyPgCatalogMetadata(s);
-            return result != null;
-        }
-
         public static bool TryMatchTypesQuery(string queryText, out PgTable result)
         {
             result = null;
@@ -60,48 +31,10 @@ namespace Raven.Server.Integrations.PostgreSQL.Classification
 
         private static PgTable Classify(IReadOnlyList<SelectStmt> selects)
         {
-            if (selects == null || selects.Count == 0)
+            if (selects == null || selects.Count != 1 || selects[0] == null)
                 return null;
 
-            if (selects.Count == 2)
-                return ClassifyPair(selects);
-
-            if (selects.Count != 1 || selects[0] == null)
-                return null;
-
-            var s = selects[0];
-            return ClassifySimpleProbe(s)
-                   ?? ClassifyPgCatalogMetadata(s)
-                   ?? ClassifyTypeCatalog(s);
-        }
-
-        private static PgTable ClassifyPair(IReadOnlyList<SelectStmt> selects)
-        {
-            return IsServerVersionProbe(selects[0]) && IsMaxIndexKeysProbe(selects[1])
-                ? NpgsqlConfig.VersionCurrentSettingResponse
-                : null;
-        }
-
-        private static PgTable ClassifySimpleProbe(SelectStmt s)
-        {
-            if (IsServerVersionProbe(s))
-                return NpgsqlConfig.VersionResponse;
-
-            if (IsMaxIndexKeysProbe(s))
-                return NpgsqlConfig.CurrentSettingResponse;
-
-            return null;
-        }
-
-        private static PgTable ClassifyPgCatalogMetadata(SelectStmt s)
-        {
-            if (IsEnumTypeLabelsQuery(s))
-                return NpgsqlConfig.EnumTypesResponse;
-
-            if (IsCompositeTypeFieldsQuery(s))
-                return NpgsqlConfig.CompositeTypesResponse;
-
-            return null;
+            return ClassifyTypeCatalog(selects[0]);
         }
 
         private static PgTable ClassifyTypeCatalog(SelectStmt s)
@@ -122,49 +55,6 @@ namespace Raven.Server.Integrations.PostgreSQL.Classification
                 return NpgsqlConfig.Npgsql4_0_0TypesResponse;
 
             return null;
-        }
-
-        private static bool IsServerVersionProbe(SelectStmt s)
-        {
-            if (SelectStmtShape.HasNoFromClause(s) == false)
-                return false;
-
-            return SelectStmtShape.IsSingleUnqualifiedFunctionCall(s, "version", expectedArgCount: 0, out _);
-        }
-
-        private static bool IsMaxIndexKeysProbe(SelectStmt s)
-        {
-            if (SelectStmtShape.HasNoFromClause(s) == false)
-                return false;
-
-            if (SelectStmtShape.IsSingleUnqualifiedFunctionCall(s, "current_setting", expectedArgCount: 1, out var funcCall) == false)
-                return false;
-
-            // Only the specific key Npgsql probes on startup — other current_setting(...) calls are app queries.
-            var argValue = funcCall.Args[0].AConst?.Sval?.Sval;
-            return string.Equals(argValue, "max_index_keys", StringComparison.OrdinalIgnoreCase);
-        }
-
-        private static bool IsEnumTypeLabelsQuery(SelectStmt s)
-        {
-            if (SelectStmtShape.ReferencesTable(s, "pg_enum") == false)
-                return false;
-
-            if (SelectStmtShape.ReferencesTable(s, "pg_type") == false)
-                return false;
-
-            return SelectStmtShape.ProjectedNamesEqual(s, "oid", "enumlabel");
-        }
-
-        private static bool IsCompositeTypeFieldsQuery(SelectStmt s)
-        {
-            if (SelectStmtShape.ReferencesTable(s, "pg_attribute") == false)
-                return false;
-
-            if (SelectStmtShape.ReferencesTable(s, "pg_class") == false)
-                return false;
-
-            return SelectStmtShape.ProjectedNamesEqual(s, "oid", "attname", "atttypid");
         }
 
         // Npgsql 4.1.3–5.x+: 3 targets incl. qualified wildcard + subquery in FROM.

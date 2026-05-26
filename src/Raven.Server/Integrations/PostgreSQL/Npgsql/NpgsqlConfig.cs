@@ -12,47 +12,6 @@ namespace Raven.Server.Integrations.PostgreSQL.Npgsql
     /// </summary>
     public static class NpgsqlConfig
     {
-        public static readonly PgTable VersionResponse = CsvToPg.Convert(
-            @"version_query.csv",
-            new Dictionary<string, PgColumn>
-            {
-                { "version", new PgColumn("version", 0, PgText.Default, PgFormat.Text) }
-            });
-
-        public static readonly PgTable VersionCurrentSettingResponse = CsvToPg.Convert(
-            @"current_setting_query.csv",
-            new Dictionary<string, PgColumn>
-            {
-                { "version", new PgColumn("version", 0, PgText.Default, PgFormat.Text) },
-                { "current_setting", new PgColumn("current_setting", 1, PgText.Default, PgFormat.Text) }
-            });
-
-        public static readonly PgTable CurrentSettingResponse = CsvToPg.Convert(
-            @"current_setting_query.csv",
-            new Dictionary<string, PgColumn>
-            {
-                { "current_setting", new PgColumn("current_setting", 0, PgText.Default, PgFormat.Text) }
-            });
-
-        public static readonly PgTable EnumTypesResponse = new()
-        {
-            Columns = new List<PgColumn>
-            {
-                new PgColumn("oid", 0, PgOid.Default, PgFormat.Text),
-                new PgColumn("enumlabel", 1, PgName.Default, PgFormat.Text),
-            }
-        };
-
-        public static readonly PgTable CompositeTypesResponse = new()
-        {
-            Columns = new List<PgColumn>
-            {
-                new PgColumn("oid", 0, PgOid.Default, PgFormat.Text),
-                new PgColumn("attname", 1, PgName.Default, PgFormat.Text),
-                new PgColumn("atttypid", 2, PgOid.Default, PgFormat.Text),
-            }
-        };
-
         // Npgsql 4.1.3–5.x (modern nested shape). Also serves Npgsql 4.x — the two are data-identical.
         public static readonly PgTable Npgsql5TypesResponse = CsvToPg.Convert(
             @"npgsql_types_5.csv",

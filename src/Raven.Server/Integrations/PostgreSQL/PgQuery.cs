@@ -10,6 +10,7 @@ using Raven.Server.Integrations.PostgreSQL.Messages;
 using Raven.Server.Integrations.PostgreSQL.PowerBI;
 using Raven.Server.Integrations.PostgreSQL.Translation;
 using Raven.Server.Integrations.PostgreSQL.Types;
+using Raven.Server.Integrations.PostgreSQL.VirtualCatalog;
 using Raven.Server.Logging;
 using Sparrow.Logging;
 using Sparrow.Server.Logging;
@@ -57,6 +58,9 @@ namespace Raven.Server.Integrations.PostgreSQL
 
                 if (HardcodedQuery.TryParse(queryText, parametersDataTypes, session, out var hardcodedQuery))
                     return hardcodedQuery;
+
+                if (PgVirtualInterpreter.TryExecute(queryText, new VirtualQueryContext { Database = documentDatabase }, out var virtualTable))
+                    return new VirtualInterpreterQuery(queryText, parametersDataTypes, virtualTable);
 
                 if (PgSqlToRqlTranslator.TryParse(queryText, parametersDataTypes, out var rql))
                     return new RqlQuery(rql, parametersDataTypes, documentDatabase);
