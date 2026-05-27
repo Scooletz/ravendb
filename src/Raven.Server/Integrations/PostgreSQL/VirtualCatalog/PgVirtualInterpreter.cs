@@ -189,6 +189,26 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
             if (RejectUnsupportedClauses(s))
                 return false;
 
+            // Pre-extract equality predicates from the WHERE so virtual tables (e.g.
+            // information_schema.columns) can scope their enumeration. Save/restore around the
+            // pipeline because sub-FROM resolution recurses through TryExecuteAsRows.
+            var previousPredicates = ctx.Predicates;
+            ctx.Predicates = ExtractEqualityPredicates(s.WhereClause);
+            try
+            {
+                return TryExecuteAsRowsCore(s, ctx, out columns, out rows);
+            }
+            finally
+            {
+                ctx.Predicates = previousPredicates;
+            }
+        }
+
+        private static bool TryExecuteAsRowsCore(SelectStmt s, VirtualQueryContext ctx, out List<ProjectedTarget> columns, out List<object[]> rows)
+        {
+            columns = null;
+            rows = null;
+
             var executor = new JoinExecutor(ctx, (subselect, alias) => TryResolveSubquery(subselect, alias, ctx));
             if (executor.TryExecute(s.FromClause, out var joinedRows, out var sources) == false)
                 return false;
@@ -264,6 +284,59 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
             columns = projection;
             rows = projectedRows;
             return true;
+        }
+
+        // Walks the WHERE tree and collects top-level ANDed `column = literal` equalities into a
+        // dictionary keyed by the column's last-segment name (case-insensitive). Anything under OR
+        // or NOT is ignored — those don't constrain the result set the same way and would mislead
+        // virtual tables that use this for enumeration scoping.
+        private static IReadOnlyDictionary<string, object> ExtractEqualityPredicates(Node whereClause)
+        {
+            var result = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+            if (whereClause == null)
+                return result;
+            Collect(whereClause, result);
+            return result;
+
+            static void Collect(Node node, Dictionary<string, object> acc)
+            {
+                if (node == null)
+                    return;
+
+                // AND-expression: descend into every child (still equality-conjuncted at top level).
+                if (node.BoolExpr is { Boolop: BoolExprType.AndExpr } andExpr)
+                {
+                    foreach (var arg in andExpr.Args)
+                        Collect(arg, acc);
+                    return;
+                }
+
+                // Single `column = literal` equality.
+                var aExpr = node.AExpr;
+                if (aExpr == null || aExpr.Kind != A_Expr_Kind.AexprOp)
+                    return;
+                if (aExpr.Name is not { Count: 1 } || aExpr.Name[0]?.String?.Sval != "=")
+                    return;
+
+                var fields = aExpr.Lexpr?.ColumnRef?.Fields;
+                if (fields is not { Count: > 0 })
+                    return;
+                var columnName = fields[^1]?.String?.Sval;
+                if (string.IsNullOrWhiteSpace(columnName))
+                    return;
+
+                var literal = aExpr.Rexpr?.AConst;
+                if (literal == null)
+                    return;
+
+                object value = null;
+                if (literal.Sval?.Sval != null) value = literal.Sval.Sval;
+                else if (literal.Ival != null) value = (long)literal.Ival.Ival;
+                else if (literal.Boolval != null) value = literal.Boolval.Boolval;
+
+                if (value != null)
+                    acc[columnName] = value;
+            }
         }
 
         private static (IReadOnlyList<PgVirtualColumn> Columns, IReadOnlyList<object[]> Rows)? TryResolveSubquery(

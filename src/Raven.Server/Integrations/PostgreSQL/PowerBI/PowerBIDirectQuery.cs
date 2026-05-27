@@ -1,11 +1,13 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Text;
 using PgSqlParser;
 using Raven.Server.Documents;
 using Raven.Server.Documents.Queries;
 using Raven.Server.Documents.Queries.AST;
 using Raven.Server.Logging;
+using Sparrow;
 using Sparrow.Json;
 using Sparrow.Json.Parsing;
 using Sparrow.Logging;
@@ -14,6 +16,12 @@ using JsAst = Acornima.Ast;
 
 namespace Raven.Server.Integrations.PostgreSQL.PowerBI
 {
+    // Handles PowerBI's DirectQuery mode — outer SQL wrapping inner RQL — by recognizing the
+    // wrapper shape, classifying it (grouped aggregate or simple projection), and rewriting the
+    // resolved Raven.Server.Documents.Queries.AST.Query in place. The class focuses on the
+    // PgQuery lifecycle plus the AST rewriters; recognition + shape classification live in
+    // PowerBIWrapperRecognizer / PowerBIShapeClassifier (extracted in the P-C refactor), and the
+    // RQL is rendered by the canonical StringQueryVisitor via Query.ToString() (P-D / P-E).
     public sealed class PowerBIDirectQuery : PowerBIRqlQuery
     {
         private static readonly RavenLogger Logger = RavenLogManager.Instance.GetLoggerForServer<PowerBIDirectQuery>();
@@ -27,9 +35,6 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
 
         protected override bool IncludePowerBIJsonColumn => false;
 
-        // PowerBI's "top 1,000,000 + 1" convention when the wrapper has no LIMIT.
-        private const int DefaultDirectQueryLimit = 1_000_001;
-
         protected override DynamicJsonValue BeforeRow(BlittableJsonReaderObject jsonResult, short? jsonIndex)
         {
             return null;
@@ -38,52 +43,6 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
         protected override void AfterRow(BlittableJsonReaderObject jsonResult, ReadOnlyMemory<byte>?[] row, short? jsonIndex)
         {
         }
-
-        private sealed record DirectQueryShape(
-            List<string> ProjectionCols,
-            int Limit);
-
-        private sealed record Aggregate(
-            string FunctionName,
-            string FieldName,
-            string OutputColumn);
-
-        private sealed record GroupedAggregateShape(
-            List<string> GroupByFields,
-            List<Aggregate> Aggregates,
-            List<string> OrderByCols,
-            List<bool> OrderByDescFlags,
-            int Limit);
-
-        private enum GroupedOrderByKind
-        {
-            Output,
-            GroupKey
-        }
-
-        private sealed record GroupedAggregateOrderByPart(
-            GroupedOrderByKind Kind,
-            int? GroupKeyIndex,
-            int? AggregateIndex,
-            bool Desc);
-
-        private sealed record GroupedAggregateRqlParts(
-            string FromText,
-            string WhereText,
-            List<string> GroupByFields,
-            List<Aggregate> Aggregates,
-            List<GroupedAggregateOrderByPart> OrderBy,
-            int Limit);
-
-        private sealed record NormalizedWrapper(
-            List<string> OuterProjectedColumns,
-            List<string> GroupByColumns,
-            List<string> OrderByColumns,
-            List<bool> OrderByDescFlags,
-            Node OuterWhereClause,
-            int? Limit,
-            int? Offset,
-            List<Aggregate> Aggregates);
 
         public static bool TryParse(string queryText, int[] parametersDataTypes, DocumentDatabase documentDatabase, out PgQuery pgQuery)
         {
@@ -104,10 +63,10 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 if (selectStmt == null)
                     return false;
 
-                if (TryNormalizeDirectQueryWrapper(selectStmt, out var wrapper) == false)
+                if (PowerBIWrapperRecognizer.TryNormalize(selectStmt, out var wrapper) == false)
                     return false;
 
-                if (TryBuildGroupedAggregateShape(wrapper, out var aggregateShape))
+                if (PowerBIShapeClassifier.TryBuildGroupedAggregateShape(wrapper, out var aggregateShape))
                 {
                     string rewritten;
                     try
@@ -136,7 +95,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                     wrapper.Aggregates is { Count: > 0 })
                     return false;
 
-                if (TryBuildDirectQueryShape(wrapper, out var shape) == false)
+                if (PowerBIShapeClassifier.TryBuildDirectQueryShape(wrapper, out var shape) == false)
                     return false;
 
                 var q = inner.ResolvedQuery;
@@ -177,444 +136,86 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             }
         }
 
-        private static bool TryNormalizeDirectQueryWrapper(SelectStmt selectStmt, out NormalizedWrapper wrapper)
-        {
-            wrapper = null;
-
-            if (selectStmt == null)
-                return false;
-
-            // Flat grouped shape: GROUP BY at outermost level, no outer "_" wrapper.
-            if (selectStmt.GroupClause is { Count: > 0 })
-            {
-                int? limitFlat = null;
-                if (selectStmt.LimitCount != null)
-                {
-                    if (TryExtractLimit(selectStmt, out var l) == false)
-                        return false;
-                    limitFlat = l;
-                }
-
-                int? offsetFlat = null;
-                if (selectStmt.LimitOffset != null)
-                {
-                    if (TryExtractOffset(selectStmt, out var o) == false)
-                        return false;
-                    offsetFlat = o;
-                }
-
-                if (TryExtractGroupByColumns(selectStmt, out var groupByColsFlat) == false)
-                    return false;
-
-                TryExtractAggregates(selectStmt, out var aggregatesFlat);
-
-                if (TryExtractSortClauseToOrderBy(selectStmt, out var orderByColsFlat, out var orderByDescFlagsFlat) == false)
-                    return false;
-
-                wrapper = new NormalizedWrapper(
-                    OuterProjectedColumns: new List<string>(groupByColsFlat),
-                    GroupByColumns: groupByColsFlat,
-                    OrderByColumns: orderByColsFlat,
-                    OrderByDescFlags: orderByDescFlagsFlat,
-                    OuterWhereClause: selectStmt.WhereClause,
-                    Limit: limitFlat,
-                    Offset: offsetFlat,
-                    Aggregates: aggregatesFlat);
-                return true;
-            }
-
-            if (TryExtractProjectedColumnsFromAnyWrapperLevel(selectStmt, out var outerCols) == false)
-                return false;
-
-            int? limit = null;
-            if (selectStmt.LimitCount != null)
-            {
-                if (TryExtractLimit(selectStmt, out var l) == false)
-                    return false;
-                limit = l;
-            }
-
-            int? offset = null;
-            if (selectStmt.LimitOffset != null)
-            {
-                if (TryExtractOffset(selectStmt, out var o) == false)
-                    return false;
-                offset = o;
-            }
-
-            if (TryExtractSortClauseToOrderBy(selectStmt, out var orderByCols, out var orderByDescFlags) == false)
-                return false;
-
-            List<string> groupByCols = null;
-            List<Aggregate> aggregates = null;
-            if (TryFindInnerGroupedSelect(selectStmt, out var groupedSelect))
-            {
-                if (TryExtractGroupByColumns(groupedSelect, out groupByCols) == false)
-                    return false;
-
-                TryExtractAggregates(groupedSelect, out aggregates);
-
-                if (orderByCols.Count > 0)
-                {
-                    for (int i = 0; i < orderByCols.Count; i++)
-                    {
-                        if (TryResolveAliasThroughWrappers(selectStmt, orderByCols[i], out var resolved))
-                            orderByCols[i] = resolved;
-                    }
-                }
-            }
-
-            wrapper = new NormalizedWrapper(
-                OuterProjectedColumns: outerCols,
-                GroupByColumns: groupByCols,
-                OrderByColumns: orderByCols,
-                OrderByDescFlags: orderByDescFlags,
-                OuterWhereClause: selectStmt.WhereClause,
-                Limit: limit,
-                Offset: offset,
-                Aggregates: aggregates);
-            return true;
-        }
-
-        private static bool TryExtractProjectedColumnsFromAnyWrapperLevel(SelectStmt s, out List<string> cols)
-        {
-            cols = null;
-            var current = s;
-            while (current != null)
-            {
-                if (TryExtractOuterProjectedColumns(current, out cols))
-                    return true;
-
-                if (TryExtractSimpleProjectedColumns(current, out cols))
-                    return true;
-
-                if (current.FromClause is not { Count: 1 } from)
-                    return false;
-
-                current = from[0]?.RangeSubselect?.Subquery?.SelectStmt;
-            }
-
-            return false;
-        }
-
-        private static bool TryExtractSimpleProjectedColumns(SelectStmt s, out List<string> cols)
-        {
-            cols = null;
-
-            if (s?.TargetList == null || s.TargetList.Count == 0)
-                return false;
-
-            cols = new List<string>(capacity: s.TargetList.Count);
-            foreach (var t in s.TargetList)
-            {
-                var rt = t?.ResTarget;
-                if (rt == null)
-                    return false;
-
-                var colRef = rt.Val?.ColumnRef;
-                if (colRef == null)
-                {
-                    // Accept PowerBI null-order CASE helpers; reject everything else.
-                    if (IsPowerBIOrderHelperAlias(rt.Name) && rt.Val?.CaseExpr != null)
-                        continue;
-                    return false;
-                }
-
-                string colName;
-                if (colRef.Fields is { Count: > 1 })
-                {
-                    if (IsPowerBIOrderHelperAlias(rt.Name))
-                        continue;
-
-                    colName = TryExtractLastIdentifierSegment(colRef);
-                    if (string.IsNullOrWhiteSpace(colName))
-                        return false;
-
-                    if (IsPowerBIOrderHelperAlias(colName))
-                        continue;
-
-                    cols.Add(colName);
-                    continue;
-                }
-
-                colName = TryExtractLastIdentifierSegment(colRef);
-                if (string.IsNullOrWhiteSpace(colName))
-                    return false;
-
-                if (IsPowerBIOrderHelperAlias(colName))
-                    continue;
-
-                cols.Add(colName);
-            }
-
-            return cols.Count > 0;
-        }
-
-        private static bool TryFindInnerGroupedSelect(SelectStmt outerSelectStmt, out SelectStmt groupedSelect)
-        {
-            groupedSelect = null;
-
-            if (outerSelectStmt?.FromClause is not { Count: 1 })
-                return false;
-
-            var rss = outerSelectStmt.FromClause[0]?.RangeSubselect;
-            if (rss == null)
-                return false;
-
-            var current = rss.Subquery?.SelectStmt;
-            while (current != null)
-            {
-                if (current.GroupClause is { Count: > 0 })
-                {
-                    groupedSelect = current;
-                    return true;
-                }
-
-                if (current.FromClause is not { Count: 1 } currentFrom)
-                    return false;
-
-                var next = currentFrom[0]?.RangeSubselect?.Subquery?.SelectStmt;
-                if (next == null)
-                    return false;
-
-                current = next;
-            }
-
-            return false;
-        }
-
-        private static bool TryExtractAggregates(SelectStmt groupedSelect, out List<Aggregate> aggregates)
-        {
-            aggregates = null;
-
-            if (groupedSelect?.TargetList == null || groupedSelect.TargetList.Count == 0)
-                return false;
-
-            var list = new List<Aggregate>();
-            foreach (var t in groupedSelect.TargetList)
-            {
-                var rt = t?.ResTarget;
-                if (rt?.Val == null)
-                    continue;
-
-                var func = PgSqlAstHelpers.UnwrapThroughHarmlessNodes(rt.Val, static n => n.FuncCall);
-                if (func == null)
-                    continue;
-
-                var name = func.Funcname is { Count: > 0 }
-                    ? func.Funcname[0].String?.Sval
-                    : null;
-
-                if (string.IsNullOrWhiteSpace(name))
-                    continue;
-
-                if (func.Args is not { Count: 1 } args)
-                    continue;
-
-                var arg = PgSqlAstHelpers.UnwrapThroughHarmlessNodes(args[0], static n => n.ColumnRef);
-                if (arg?.Fields is not { Count: > 0 } fields)
-                    continue;
-
-                var fieldName = fields[^1].String?.Sval;
-                var outputColumn = rt.Name;
-                if (string.IsNullOrWhiteSpace(fieldName) || string.IsNullOrWhiteSpace(outputColumn))
-                    continue;
-
-                list.Add(new Aggregate(FunctionName: name, FieldName: fieldName, OutputColumn: outputColumn));
-            }
-
-            if (list.Count == 0)
-                return false;
-
-            aggregates = list;
-            return true;
-        }
-
-        private static bool TryBuildGroupedAggregateShape(NormalizedWrapper wrapper, out GroupedAggregateShape shape)
-        {
-            shape = null;
-            if (wrapper == null)
-                return false;
-
-            if (wrapper.Aggregates is not { Count: > 0 } aggregates)
-                return false;
-
-            foreach (var agg in aggregates)
-            {
-                if (string.IsNullOrWhiteSpace(agg.FunctionName) ||
-                    string.IsNullOrWhiteSpace(agg.FieldName) ||
-                    string.IsNullOrWhiteSpace(agg.OutputColumn))
-                    return false;
-
-                if (IsSupportedGroupedAggregateFunction(agg.FunctionName) == false)
-                    return false;
-            }
-
-            if (wrapper.GroupByColumns is not { Count: > 0 })
-                return false;
-
-            if (wrapper.Offset != null && wrapper.Offset != 0)
-                return false;
-
-            if (wrapper.OuterWhereClause != null)
-            {
-                var matchedAnyAggregateOutput = false;
-                foreach (var agg in aggregates)
-                {
-                    if (TryIsOuterAggregateNotNullFilter(wrapper.OuterWhereClause, expectedName: agg.OutputColumn))
-                    {
-                        matchedAnyAggregateOutput = true;
-                        break;
-                    }
-                }
-
-                if (matchedAnyAggregateOutput == false)
-                    return false;
-            }
-
-            shape = new GroupedAggregateShape(
-                GroupByFields: wrapper.GroupByColumns,
-                Aggregates: aggregates,
-                OrderByCols: wrapper.OrderByColumns,
-                OrderByDescFlags: wrapper.OrderByDescFlags,
-                Limit: wrapper.Limit ?? DefaultDirectQueryLimit);
-            return true;
-        }
-
-        private static bool TryIsOuterAggregateNotNullFilter(Node whereClause, string expectedName)
-        {
-            if (whereClause == null || string.IsNullOrWhiteSpace(expectedName))
-                return false;
-
-            if (TryExtractNotNullTest(whereClause, out var colRef) == false)
-                return false;
-
-            if (TryExtractOuterUnderscoreQualifiedColumn(colRef, out var col) == false)
-                return false;
-
-            return string.Equals(col, expectedName, StringComparison.OrdinalIgnoreCase);
-        }
-
-        private static bool TryExtractNotNullTest(Node where, out ColumnRef colRef)
-        {
-            colRef = null;
-
-            // Direct: "_"."a0" is not null
-            if (where.NullTest != null)
-            {
-                var nt = where.NullTest;
-                if (nt.Nulltesttype == NullTestType.IsNotNull)
-                {
-                    colRef = nt.Arg?.ColumnRef;
-                    return colRef != null;
-                }
-
-                return false;
-            }
-
-            // NOT( "_"."a0" is null )
-            var be = where.BoolExpr;
-            if (be?.Boolop != BoolExprType.NotExpr || be.Args is not { Count: 1 })
-                return false;
-
-            var inner = be.Args[0];
-            var innerNt = inner?.NullTest;
-            if (innerNt == null)
-                return false;
-
-            if (innerNt.Nulltesttype != NullTestType.IsNull)
-                return false;
-
-            colRef = innerNt.Arg?.ColumnRef;
-            return colRef != null;
-        }
-
-        private static bool TryBuildDirectQueryShape(NormalizedWrapper wrapper, out DirectQueryShape shape)
-        {
-            shape = null;
-            if (wrapper == null)
-                return false;
-
-            if (wrapper.OuterProjectedColumns is not { Count: > 0 })
-                return false;
-
-            if (wrapper.GroupByColumns is not { Count: > 0 })
-                return false;
-
-            var limit = wrapper.Limit ?? DefaultDirectQueryLimit;
-            shape = new DirectQueryShape(wrapper.OuterProjectedColumns, limit);
-            return true;
-        }
-
+        // AST-based grouped-aggregate emission (Step P-D). The previous StringBuilder version
+        // hand-rolled every RQL fragment ("group by ", ", ", " as long", "limit 0, "); this one
+        // mutates the resolved Raven.Server.Documents.Queries.AST.Query in place and lets the
+        // canonical StringQueryVisitor (via Query.ToString()) produce the final RQL. Same
+        // observable behaviour — same group-key + aggregate projection, same ORDER BY semantics
+        // (Long for count, Double for sum), same Limit. When a SQL shape can't be represented in
+        // the AST we return null and surface a clear failure to the dispatch chain.
         private static string RewriteGroupedAggregateRql(Documents.Queries.AST.Query q, GroupedAggregateShape shape)
         {
-            if (TryBuildGroupedAggregateParts(q, shape, out var parts) == false)
+            if (q == null || shape == null)
+                return null;
+            if (q.From.From == null)
+                return null;
+            if (shape.Aggregates is not { Count: > 0 } aggregates)
+                return null;
+            if (shape.GroupByFields is not { Count: > 0 } groupByFields)
                 return null;
 
-            return EmitGroupedAggregateRql(parts);
-        }
-
-        private static bool TryBuildGroupedAggregateParts(Documents.Queries.AST.Query q, GroupedAggregateShape shape, out GroupedAggregateRqlParts parts)
-        {
-            parts = null;
-
-            if (q == null || shape == null)
-                return false;
-
-            if (q.From.From == null)
-                return false;
-
-            if (shape.Aggregates is not { Count: > 0 } aggregates)
-                return false;
-
-            if (shape.GroupByFields is not { Count: > 0 })
-                return false;
-
-            var groupIds = new List<string>(capacity: shape.GroupByFields.Count);
-            foreach (var f in shape.GroupByFields)
-            {
-                var groupId = FormatRqlIdentifier(f);
-                if (groupId == null)
-                    return false;
-                groupIds.Add(groupId);
-            }
-
-            var formattedAggregates = new List<Aggregate>(capacity: aggregates.Count);
+            // Validate every identifier the same way the StringBuilder emitter used to —
+            // FormatRqlIdentifier is strict (ASCII plain only). Returns null to drop the shape so
+            // a query like `count("Field With Space") as a0` falls through instead of producing
+            // RQL the downstream parser won't accept.
+            foreach (var f in groupByFields)
+                if (FormatRqlIdentifier(f) == null)
+                    return null;
             foreach (var agg in aggregates)
             {
-                if (IsSupportedGroupedAggregateFunction(agg.FunctionName) == false)
-                    return false;
-
-                var fieldId = FormatRqlIdentifier(agg.FieldName);
-                if (fieldId == null)
-                    return false;
-
-                var outId = FormatRqlIdentifier(agg.OutputColumn);
-                if (outId == null)
-                    return false;
-
-                formattedAggregates.Add(new Aggregate(FunctionName: agg.FunctionName, FieldName: fieldId, OutputColumn: outId));
+                if (FormatRqlIdentifier(agg.FieldName) == null) return null;
+                if (FormatRqlIdentifier(agg.OutputColumn) == null) return null;
             }
 
-            if (TryBuildFromText(q, out var fromText) == false)
-                return false;
+            // Mutate a shallow copy so the inner query AST passed in isn't disturbed.
+            var core = q.ShallowCopy();
+            core.IsDistinct = false;
+            core.Filter = null;
+            core.FilterLimit = null;
+            core.Load = null;
+            core.Include = null;
+            core.CachedOrderBy = null;
+            core.Offset = null;
+            core.SelectFunctionBody = default;
 
-            TryBuildWhereText(q, out var whereText);
+            // GROUP BY: one FieldExpression per key, no aliases.
+            core.GroupBy = new List<(QueryExpression Expression, StringSegment? Alias)>(groupByFields.Count);
+            foreach (var f in groupByFields)
+                core.GroupBy.Add((MakeFieldExpression(f), null));
 
-            if (TryBuildGroupedAggregateOrderBy(shape, groupIds, out var orderBy) == false)
-                return false;
+            // SELECT: group keys first, then each aggregate as `<fn>(<field>) AS <alias>` (or
+            // `count() AS <alias>` — Raven's grouped RQL is row-count, never field-count).
+            core.Select = new List<(QueryExpression Expression, StringSegment? Alias)>(groupByFields.Count + aggregates.Count);
+            foreach (var f in groupByFields)
+                core.Select.Add((MakeFieldExpression(f), null));
+            foreach (var agg in aggregates)
+            {
+                var args = IsCountFunction(agg.FunctionName)
+                    ? new List<QueryExpression>()
+                    : new List<QueryExpression> { MakeFieldExpression(agg.FieldName) };
+                core.Select.Add((new MethodExpression(agg.FunctionName, args), new StringSegment(agg.OutputColumn)));
+            }
 
-            parts = new GroupedAggregateRqlParts(
-                FromText: fromText,
-                WhereText: whereText,
-                GroupByFields: groupIds,
-                Aggregates: formattedAggregates,
-                OrderBy: orderBy,
-                Limit: shape.Limit);
-            return true;
+            // ORDER BY: resolve each entry against the group-key set or the aggregate-output set.
+            if (TryBuildOrderByAst(shape, out var orderBy) == false)
+                return null;
+            core.OrderBy = orderBy; // null when shape has no ORDER BY
+
+            // LIMIT: keep PowerBI's 1,000,001 default when the wrapper didn't supply one.
+            core.Limit = new ValueExpression(shape.Limit.ToString(CultureInfo.InvariantCulture), ValueTokenType.Long);
+
+            // q.Where is preserved as-is (already populated during inner resolution + outer
+            // WHERE merge upstream). The classifier guarantees the outer WHERE is just the
+            // `<agg-output> IS NOT NULL` post-filter, which RQL gets implicitly via GROUP BY.
+
+            var rql = core.ToString();
+            return string.IsNullOrWhiteSpace(rql) ? null : rql;
         }
 
-        private static bool TryBuildGroupedAggregateOrderBy(GroupedAggregateShape shape, List<string> groupIds, out List<GroupedAggregateOrderByPart> orderBy)
+        private static FieldExpression MakeFieldExpression(string name)
+            => new(new List<StringSegment> { new(name) });
+
+        private static bool TryBuildOrderByAst(GroupedAggregateShape shape, out List<(QueryExpression Expression, OrderByFieldType FieldType, bool Ascending)> orderBy)
         {
             orderBy = null;
 
@@ -624,365 +225,55 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             if (shape.OrderByCols.Count != shape.OrderByDescFlags.Count)
                 return false;
 
-            var parts = new List<GroupedAggregateOrderByPart>(capacity: shape.OrderByCols.Count);
+            if (shape.OrderByCols.Count == 0)
+                return true; // null OrderBy means "no ORDER BY" — visitor skips it.
+
+            var list = new List<(QueryExpression, OrderByFieldType, bool)>(capacity: shape.OrderByCols.Count);
             for (int i = 0; i < shape.OrderByCols.Count; i++)
             {
-                var c = shape.OrderByCols[i];
-                var desc = shape.OrderByDescFlags[i];
+                var col = shape.OrderByCols[i];
+                var ascending = shape.OrderByDescFlags[i] == false;
 
-                // Match against any aggregate output alias (e.g. "a0" = sum, "a1" = count).
-                var matchedAggregate = false;
-                if (shape.Aggregates != null)
+                // Aggregate-output alias? Use the alias as a field reference and tag with the
+                // numeric sort type matching the aggregate's RQL output kind (Long for count,
+                // Double for sum) — preserves the StringBuilder emitter's `as long` / `as double`.
+                int aggIndex = -1;
+                for (int a = 0; a < shape.Aggregates.Count; a++)
                 {
-                    for (int aIndex = 0; aIndex < shape.Aggregates.Count; aIndex++)
+                    if (string.Equals(col, shape.Aggregates[a].OutputColumn, StringComparison.OrdinalIgnoreCase))
                     {
-                        if (string.Equals(c, shape.Aggregates[aIndex].OutputColumn, StringComparison.OrdinalIgnoreCase))
-                        {
-                            parts.Add(new GroupedAggregateOrderByPart(Kind: GroupedOrderByKind.Output, GroupKeyIndex: null, AggregateIndex: aIndex, Desc: desc));
-                            matchedAggregate = true;
-                            break;
-                        }
+                        aggIndex = a;
+                        break;
                     }
                 }
-
-                if (matchedAggregate)
-                    continue;
-
-                if (shape.GroupByFields != null)
+                if (aggIndex >= 0)
                 {
-                    for (int gbIndex = 0; gbIndex < shape.GroupByFields.Count; gbIndex++)
+                    var agg = shape.Aggregates[aggIndex];
+                    var fieldType = IsCountFunction(agg.FunctionName) ? OrderByFieldType.Long : OrderByFieldType.Double;
+                    list.Add((MakeFieldExpression(agg.OutputColumn), fieldType, ascending));
+                    continue;
+                }
+
+                // Otherwise must be a group-key match (case-insensitive).
+                var foundGroupKey = false;
+                foreach (var gb in shape.GroupByFields)
+                {
+                    if (string.Equals(col, gb, StringComparison.OrdinalIgnoreCase))
                     {
-                        var gb = shape.GroupByFields[gbIndex];
-                        if (string.Equals(c, gb, StringComparison.OrdinalIgnoreCase))
-                        {
-                            parts.Add(new GroupedAggregateOrderByPart(Kind: GroupedOrderByKind.GroupKey, GroupKeyIndex: gbIndex, AggregateIndex: null, Desc: desc));
-                            goto next;
-                        }
+                        list.Add((MakeFieldExpression(gb), OrderByFieldType.Implicit, ascending));
+                        foundGroupKey = true;
+                        break;
                     }
                 }
-
-                return false;
-                next:;
+                if (foundGroupKey == false)
+                    return false;
             }
 
-            orderBy = parts;
+            orderBy = list;
             return true;
         }
 
-        private static string EmitGroupedAggregateRql(GroupedAggregateRqlParts parts)
-        {
-            if (parts == null)
-                return null;
-
-            if (parts.Aggregates is not { Count: > 0 })
-                return null;
-
-            const string nl = "\n";
-            var sb = new StringBuilder();
-            sb.Append(parts.FromText);
-            sb.Append(nl);
-            sb.Append("group by ");
-            sb.Append(string.Join(", ", parts.GroupByFields));
-
-            if (string.IsNullOrWhiteSpace(parts.WhereText) == false)
-            {
-                sb.Append(nl);
-                sb.Append(parts.WhereText);
-            }
-
-            if (parts.OrderBy is { Count: > 0 })
-            {
-                sb.Append(nl);
-                sb.Append("order by ");
-
-                for (int i = 0; i < parts.OrderBy.Count; i++)
-                {
-                    if (i > 0)
-                        sb.Append(", ");
-
-                    var ob = parts.OrderBy[i];
-                    switch (ob.Kind)
-                    {
-                        case GroupedOrderByKind.Output:
-                            var aIndex = ob.AggregateIndex ?? 0;
-                            if ((uint)aIndex >= (uint)parts.Aggregates.Count)
-                                return null;
-                            var targetAgg = parts.Aggregates[aIndex];
-                            sb.Append(targetAgg.OutputColumn);
-                            sb.Append(IsCountFunction(targetAgg.FunctionName) ? " as long" : " as double");
-                            break;
-                        case GroupedOrderByKind.GroupKey:
-                            if (parts.GroupByFields is not { Count: > 0 })
-                                return null;
-                            var keyIndex = ob.GroupKeyIndex ?? 0;
-                            if ((uint)keyIndex >= (uint)parts.GroupByFields.Count)
-                                return null;
-                            sb.Append(parts.GroupByFields[keyIndex]);
-                            break;
-                        default:
-                            return null;
-                    }
-
-                    if (ob.Desc)
-                        sb.Append(" desc");
-                }
-            }
-
-            sb.Append(nl);
-            sb.Append("select ");
-            for (int i = 0; i < parts.GroupByFields.Count; i++)
-            {
-                if (i > 0)
-                    sb.Append(", ");
-                sb.Append(parts.GroupByFields[i]);
-            }
-
-            foreach (var agg in parts.Aggregates)
-            {
-                sb.Append(", ");
-                if (IsCountFunction(agg.FunctionName))
-                {
-                    sb.Append("count() as ");
-                    sb.Append(agg.OutputColumn);
-                }
-                else
-                {
-                    sb.Append(agg.FunctionName);
-                    sb.Append('(');
-                    sb.Append(agg.FieldName);
-                    sb.Append(") as ");
-                    sb.Append(agg.OutputColumn);
-                }
-            }
-
-            sb.Append(nl);
-            sb.Append("limit 0, ");
-            sb.Append(parts.Limit);
-
-            return sb.ToString();
-        }
-
-        private static bool TryBuildFromText(Documents.Queries.AST.Query q, out string fromText)
-        {
-            fromText = null;
-
-            if (q?.From.From == null)
-                return false;
-
-            var sb = new StringBuilder();
-            var v = new StringQueryVisitor(sb);
-            v.VisitFromClause(q.From.From, q.From.Alias, q.From.Filter, q.From.Index);
-            fromText = sb.ToString().Trim();
-            return string.IsNullOrWhiteSpace(fromText) == false;
-        }
-
-        private static bool TryBuildWhereText(Documents.Queries.AST.Query q, out string whereText)
-        {
-            whereText = null;
-
-            if (q?.Where == null)
-                return true;
-
-            var sb = new StringBuilder();
-            var v = new StringQueryVisitor(sb);
-            v.VisitWhereClause(q.Where);
-            var rendered = sb.ToString().Trim();
-            if (string.IsNullOrWhiteSpace(rendered))
-                return false;
-
-            whereText = rendered;
-            return true;
-        }
-
-        private static bool TryExtractOuterProjectedColumns(SelectStmt selectStmt, out List<string> cols)
-        {
-            cols = null;
-
-            if (selectStmt?.TargetList == null || selectStmt.TargetList.Count == 0)
-                return false;
-
-            cols = new List<string>(capacity: selectStmt.TargetList.Count);
-            foreach (var t in selectStmt.TargetList)
-            {
-                var resTarget = t?.ResTarget;
-                if (resTarget == null)
-                    return false;
-
-                var colRef = resTarget.Val?.ColumnRef;
-                if (colRef == null)
-                {
-                    // Accept PowerBI null-order CASE helpers; reject everything else.
-                    if (IsPowerBIOrderHelperAlias(resTarget.Name) && resTarget.Val?.CaseExpr != null)
-                        continue;
-                    return false;
-                }
-
-                if (TryExtractOuterUnderscoreQualifiedColumn(colRef, out var colName) == false)
-                {
-                    if (IsPowerBIOrderHelperAlias(resTarget.Name))
-                        continue;
-                    return false;
-                }
-
-                if (IsPowerBIOrderHelperAlias(colName))
-                    continue;
-
-                cols.Add(colName);
-            }
-
-            return cols.Count > 0;
-        }
-
-        // PowerBI order-helper aliases — "t<N>_0" (null-order CASE helpers) and "o<N>" (order passthroughs).
-        private static bool IsPowerBIOrderHelperAlias(string name)
-        {
-            if (string.IsNullOrWhiteSpace(name))
-                return false;
-
-            // t<N>_0
-            if (name.Length >= 4 && (name[0] == 't' || name[0] == 'T'))
-            {
-                var u = name.IndexOf('_');
-                if (u >= 2 && u < name.Length - 1 &&
-                    name.AsSpan(u).Equals("_0", StringComparison.OrdinalIgnoreCase) &&
-                    int.TryParse(name.AsSpan(1, u - 1), out _))
-                    return true;
-            }
-
-            // o<N>
-            if (name.Length >= 2 && (name[0] == 'o' || name[0] == 'O') &&
-                int.TryParse(name.AsSpan(1), out _))
-                return true;
-
-            return false;
-        }
-
-        private static bool TryExtractGroupByColumns(SelectStmt selectStmt, out List<string> cols)
-        {
-            cols = null;
-
-            if (selectStmt?.GroupClause == null || selectStmt.GroupClause.Count == 0)
-                return false;
-
-            cols = new List<string>(capacity: selectStmt.GroupClause.Count);
-            foreach (var node in selectStmt.GroupClause)
-            {
-                // Unwrap ::text / RelabelType casts PowerBI sometimes adds.
-                var colRef = PgSqlAstHelpers.UnwrapThroughHarmlessNodes(node, static n => n.ColumnRef);
-                if (colRef == null)
-                    return false;
-
-                var colName = TryExtractLastIdentifierSegment(colRef);
-                if (string.IsNullOrWhiteSpace(colName))
-                    return false;
-
-                cols.Add(colName);
-            }
-
-            return true;
-        }
-
-        private static bool TryResolveAliasThroughWrappers(SelectStmt outer, string aliasName, out string resolved)
-        {
-            resolved = aliasName;
-
-            if (outer == null || string.IsNullOrWhiteSpace(aliasName))
-                return false;
-
-            var current = outer;
-            var currentName = aliasName;
-
-            while (current != null)
-            {
-                var target = FindTargetByAlias(current, currentName);
-                if (target == null)
-                {
-                    current = SingleWrapperChild(current);
-                    continue;
-                }
-
-                var val = target.Val;
-                if (val?.ColumnRef != null)
-                {
-                    var next = TryExtractLastIdentifierSegment(val.ColumnRef);
-                    if (string.IsNullOrWhiteSpace(next))
-                        return false;
-                    currentName = next;
-                    resolved = next;
-                    current = SingleWrapperChild(current);
-                    continue;
-                }
-
-                if (val?.CaseExpr != null && TryExtractNullOrderHelperGuardedColumn(val.CaseExpr, out var guarded))
-                {
-                    currentName = guarded;
-                    resolved = guarded;
-                    current = SingleWrapperChild(current);
-                    continue;
-                }
-
-                return false;
-            }
-
-            return true;
-        }
-
-        private static ResTarget FindTargetByAlias(SelectStmt s, string name)
-        {
-            if (s?.TargetList == null)
-                return null;
-
-            foreach (var t in s.TargetList)
-            {
-                var rt = t?.ResTarget;
-                if (rt == null)
-                    continue;
-
-                var rtName = rt.Name;
-                if (string.IsNullOrWhiteSpace(rtName))
-                    rtName = rt.Val?.ColumnRef is { Fields.Count: > 0 } cr ? cr.Fields[^1]?.String?.Sval : null;
-
-                if (string.Equals(rtName, name, StringComparison.OrdinalIgnoreCase))
-                    return rt;
-            }
-
-            return null;
-        }
-
-        private static SelectStmt SingleWrapperChild(SelectStmt s) =>
-            s?.FromClause is { Count: 1 } from
-                ? from[0]?.RangeSubselect?.Subquery?.SelectStmt
-                : null;
-
-        // Matches `case when X is [not] null then X else <literal> end` and returns X's last segment.
-        private static bool TryExtractNullOrderHelperGuardedColumn(CaseExpr caseExpr, out string columnName)
-        {
-            columnName = null;
-
-            if (caseExpr?.Args is not { Count: 1 } args)
-                return false;
-
-            var when = args[0]?.CaseWhen;
-            if (when?.Expr?.NullTest?.Arg?.ColumnRef is not { } guardCol)
-                return false;
-
-            if (when.Result?.ColumnRef == null)
-                return false;
-
-            columnName = TryExtractLastIdentifierSegment(guardCol);
-            return string.IsNullOrWhiteSpace(columnName) == false;
-        }
-
-        private static bool TryExtractLimit(SelectStmt selectStmt, out int limit)
-        {
-            return PgSqlAstHelpers.TryReadNonNegativeIntConst(selectStmt?.LimitCount, out limit);
-        }
-
-        private static bool TryExtractOffset(SelectStmt selectStmt, out int offset)
-        {
-            return PgSqlAstHelpers.TryReadNonNegativeIntConst(selectStmt?.LimitOffset, out offset);
-        }
-
+        // IsValidRqlSelect kept here — it's an emitter-side validation, not recognition.
         private static bool IsValidRqlSelect(string rql)
         {
             try
@@ -996,71 +287,6 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             }
         }
 
-        private static string TryExtractLastIdentifierSegment(ColumnRef colRef)
-        {
-            if (colRef?.Fields == null || colRef.Fields.Count == 0)
-                return null;
-
-            var last = colRef.Fields[^1];
-            var name = last?.String?.Sval;
-            if (string.Equals(name, "id", StringComparison.OrdinalIgnoreCase))
-                name = "id()";
-            return string.IsNullOrWhiteSpace(name) ? null : name;
-        }
-
-        private static bool TryExtractOuterUnderscoreQualifiedColumn(ColumnRef colRef, out string colName)
-        {
-            colName = null;
-
-            if (colRef?.Fields == null || colRef.Fields.Count < 2)
-                return false;
-
-            var first = colRef.Fields[0]?.String?.Sval;
-            if (string.Equals(first, "_", StringComparison.OrdinalIgnoreCase) == false)
-                return false;
-
-            colName = TryExtractLastIdentifierSegment(colRef);
-            if (string.Equals(colName, "id", StringComparison.OrdinalIgnoreCase))
-                colName = "id()";
-            return string.IsNullOrWhiteSpace(colName) == false;
-        }
-
-        // Accepts outer "_"-qualified (wrapped shape) or unqualified (flat shape). Empty SortClause → true.
-        private static bool TryExtractSortClauseToOrderBy(SelectStmt selectStmt, out List<string> cols, out List<bool> descFlags)
-        {
-            cols = new List<string>();
-            descFlags = new List<bool>();
-
-            if (selectStmt?.SortClause is not { Count: > 0 } sort)
-                return true;
-
-            cols = new List<string>(capacity: sort.Count);
-            descFlags = new List<bool>(capacity: sort.Count);
-
-            foreach (var sortNode in sort)
-            {
-                var sortBy = sortNode?.SortBy;
-                if (sortBy == null)
-                    return false;
-
-                var colRef = PgSqlAstHelpers.UnwrapThroughHarmlessNodes(sortBy.Node, static n => n.ColumnRef);
-                if (colRef == null)
-                    return false;
-
-                if (TryExtractOuterUnderscoreQualifiedColumn(colRef, out var colName) == false)
-                {
-                    colName = TryExtractLastIdentifierSegment(colRef);
-                    if (string.IsNullOrWhiteSpace(colName))
-                        return false;
-                }
-
-                cols.Add(colName);
-                descFlags.Add(sortBy.SortbyDir == SortByDir.SortbyDesc);
-            }
-
-            return true;
-        }
-
         private enum InnerProjectionMode
         {
             Rebuild,
@@ -1068,6 +294,13 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             PreserveWithExtras
         }
 
+        // AST-based simple direct-query emission (Step P-E). RQL's `select { … }` object
+        // projection is an opaque string in the Query AST (SelectFunctionBody), so the rebuild
+        // path still hand-builds that body text — but the surrounding clauses (Limit, etc.) are
+        // set through the AST and rendered by the canonical StringQueryVisitor. The previous
+        // version called Query.ToString() to get a prefix and then concatenated `\nselect { … }\n
+        // limit 0, N` by hand; this one threads the rebuilt body through SelectFunctionBody so the
+        // visitor emits everything in canonical order.
         private static string RewriteSimpleDirectQueryRql(Documents.Queries.AST.Query q, IReadOnlyList<string> projectionCols, int limit)
         {
             if (q == null)
@@ -1091,80 +324,75 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             core.Filter = null;
             core.FilterLimit = null;
             core.OrderBy = null;
-            core.Limit = null;
+            core.CachedOrderBy = null;
             core.Offset = null;
+            core.Select = null; // we always emit via SelectFunctionBody for object projections.
 
-            if (mode == InnerProjectionMode.Rebuild)
+            switch (mode)
             {
-                core.Select = null;
-                core.SelectFunctionBody = default;
-            }
-            else if (mode == InnerProjectionMode.PreserveWithExtras)
-            {
-                var aliasText = q.From.Alias?.Value ?? "_doc";
-                if (TryExtendInnerProjectionBody(q.SelectFunctionBody.FunctionText, extras, aliasText, out var newBody) == false)
-                    return null;
-
-                core.SelectFunctionBody = (newBody, null, null);
-            }
-
-            var prefix = core.ToString();
-            if (string.IsNullOrWhiteSpace(prefix))
-                return null;
-
-            prefix = prefix.TrimEnd();
-            prefix = prefix.Replace("\r\n", "\n", StringComparison.Ordinal);
-
-            const string nl = "\n";
-            var sb = new StringBuilder();
-            sb.Append(prefix);
-
-            if (mode == InnerProjectionMode.Rebuild)
-            {
-                var selectParts = new List<string>(capacity: projectionCols.Count);
-                for (int i = 0; i < projectionCols.Count; i++)
-                {
-                    var colName = projectionCols[i];
-                    if (string.IsNullOrWhiteSpace(colName))
+                case InnerProjectionMode.Rebuild:
+                    if (TryBuildObjectProjectionBody(projectionCols, q.From.Alias?.Value, out var newBody) == false)
                         return null;
+                    core.SelectFunctionBody = (newBody, null, null);
+                    break;
 
-                    if (string.Equals(colName, "json()", StringComparison.OrdinalIgnoreCase))
-                    {
-                        selectParts.Add($"\"json()\": {q.From.Alias}");
-                        continue;
-                    }
+                case InnerProjectionMode.PreserveExact:
+                    // Leave core.SelectFunctionBody as shallow-copied from q.
+                    break;
 
-                    if (string.Equals(colName, "id()", StringComparison.OrdinalIgnoreCase))
-                    {
-                        selectParts.Add($"\"id()\": id({q.From.Alias})");
-                        continue;
-                    }
-
-                    var selectField = FormatRqlObjectFieldIdentifier(colName);
-                    if (selectField == null)
+                case InnerProjectionMode.PreserveWithExtras:
+                    var aliasText = q.From.Alias?.Value ?? "_doc";
+                    if (TryExtendInnerProjectionBody(q.SelectFunctionBody.FunctionText, extras, aliasText, out var extendedBody) == false)
                         return null;
-
-                    var expr = BuildFieldExpression(colName, q.From.Alias?.Value);
-                    if (expr == null)
-                        return null;
-
-                    selectParts.Add($"{selectField}: {expr}");
-                }
-
-                sb.Append(nl);
-                sb.Append("select { ");
-                sb.Append(string.Join(", ", selectParts));
-                sb.Append(" }");
+                    core.SelectFunctionBody = (extendedBody, null, null);
+                    break;
             }
 
             if (limit >= 0)
+                core.Limit = new ValueExpression(limit.ToString(CultureInfo.InvariantCulture), ValueTokenType.Long);
+
+            var rql = core.ToString();
+            return string.IsNullOrWhiteSpace(rql) ? null : rql;
+        }
+
+        // Builds the body of a `select { … }` object projection. Returns false when any column
+        // resists RQL identifier formatting — caller drops the shape.
+        private static bool TryBuildObjectProjectionBody(IReadOnlyList<string> projectionCols, string fromAlias, out string body)
+        {
+            body = null;
+
+            var selectParts = new List<string>(capacity: projectionCols.Count);
+            for (int i = 0; i < projectionCols.Count; i++)
             {
-                sb.Append(nl);
-                sb.Append("limit 0, ");
-                sb.Append(limit);
+                var colName = projectionCols[i];
+                if (string.IsNullOrWhiteSpace(colName))
+                    return false;
+
+                if (string.Equals(colName, "json()", StringComparison.OrdinalIgnoreCase))
+                {
+                    selectParts.Add($"\"json()\": {fromAlias}");
+                    continue;
+                }
+
+                if (string.Equals(colName, "id()", StringComparison.OrdinalIgnoreCase))
+                {
+                    selectParts.Add($"\"id()\": id({fromAlias})");
+                    continue;
+                }
+
+                var selectField = FormatRqlObjectFieldIdentifier(colName);
+                if (selectField == null)
+                    return false;
+
+                var expr = BuildFieldExpression(colName, fromAlias);
+                if (expr == null)
+                    return false;
+
+                selectParts.Add($"{selectField}: {expr}");
             }
 
-            return sb.ToString();
+            body = "{ " + string.Join(", ", selectParts) + " }";
+            return true;
         }
 
         private static InnerProjectionMode ClassifyInnerProjection(
@@ -1367,10 +595,6 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
 
             return string.IsNullOrWhiteSpace(fromAlias) ? id : fromAlias + "." + id;
         }
-
-        private static bool IsSupportedGroupedAggregateFunction(string name) =>
-            string.Equals(name, "sum", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(name, "count", StringComparison.OrdinalIgnoreCase);
 
         // Raven grouped RQL uses count() with no argument.
         private static bool IsCountFunction(string name) =>

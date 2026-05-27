@@ -219,6 +219,62 @@ namespace FastTests.Server.Integrations.PostgreSQL.VirtualCatalog
             Assert.Empty(table.Data);
         }
 
+        // ── PowerBI information_schema.tables / .columns probes (replace retired handlers) ────
+
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void PowerBI_all_collections_probe_accepted_with_3_columns()
+        {
+            // Replaces PowerBIAllCollectionsQuery's recognizer: every variant of the all-collections
+            // probe (different WHERE filters, aliased columns, reordered columns) goes through the
+            // interpreter against InformationSchemaTablesTable. With no database the row set is
+            // empty, but the schema must still come through cleanly.
+            const string sql =
+                "select TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE\n" +
+                "from INFORMATION_SCHEMA.tables\n" +
+                "where TABLE_SCHEMA not in ('information_schema', 'pg_catalog')\n" +
+                "order by TABLE_SCHEMA, TABLE_NAME";
+
+            Assert.True(PgVirtualInterpreter.TryExecute(sql, EmptyCtx(), out var table));
+            Assert.Equal(3, table.Columns.Count);
+            // PG case-folds unquoted identifiers — TABLE_SCHEMA reaches us as table_schema.
+            Assert.Equal("table_schema", table.Columns[0].Name);
+            Assert.Empty(table.Data);
+        }
+
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void PowerBI_preview_columns_probe_accepted_with_4_columns()
+        {
+            // Replaces PowerBIPreviewQuery's recognizer: the columns probe with TABLE_NAME='X'
+            // equality. With no database the table introspection returns nothing (column schema
+            // still present).
+            const string sql =
+                "select COLUMN_NAME, ORDINAL_POSITION, IS_NULLABLE, DATA_TYPE\n" +
+                "from INFORMATION_SCHEMA.columns\n" +
+                "where TABLE_SCHEMA = 'public' and TABLE_NAME = 'Regions'\n" +
+                "order by ORDINAL_POSITION";
+
+            Assert.True(PgVirtualInterpreter.TryExecute(sql, EmptyCtx(), out var table));
+            Assert.Equal(4, table.Columns.Count);
+            Assert.Equal("column_name", table.Columns[0].Name);
+            Assert.Equal("ordinal_position", table.Columns[1].Name);
+            Assert.Equal("is_nullable", table.Columns[2].Name);
+            Assert.Equal("data_type", table.Columns[3].Name);
+            Assert.Empty(table.Data);
+        }
+
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void PowerBI_preview_columns_subset_projection_accepted()
+        {
+            // The recognizer used to require all 4 columns; the interpreter accepts subsets too,
+            // since virtual tables expose all 4 and projection picks what's asked for.
+            const string sql =
+                "select COLUMN_NAME from INFORMATION_SCHEMA.columns where TABLE_NAME = 'Products'";
+
+            Assert.True(PgVirtualInterpreter.TryExecute(sql, EmptyCtx(), out var table));
+            Assert.Single(table.Columns);
+            Assert.Equal("column_name", table.Columns[0].Name);
+        }
+
         // ── Npgsql pg_catalog metadata empty-join shapes ──────────────────────
 
         [RavenFact(RavenTestCategory.PostgreSql)]

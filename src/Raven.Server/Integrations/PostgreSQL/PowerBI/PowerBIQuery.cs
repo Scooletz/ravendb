@@ -16,16 +16,6 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 return true;
             }
 
-            if (PowerBIAllCollectionsQuery.TryParse(queryText, parametersDataTypes, documentDatabase, out pgQuery))
-            {
-                return true;
-            }
-
-            if (PowerBIPreviewQuery.TryParse(queryText, documentDatabase, out pgQuery))
-            {
-                return true;
-            }
-
             pgQuery = null;
             return false;
         }
