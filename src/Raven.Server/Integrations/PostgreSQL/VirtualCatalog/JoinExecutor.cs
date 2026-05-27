@@ -205,17 +205,27 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
                 return true;
             }
 
-            // Compound AND of equalities — used by PowerBI ReferentialConstraints (fkcon.X=fkcol.X AND fkcon.Y=fkcol.Y).
+            // Compound AND. Each arm is either:
+            //   - a column-to-column equality (PowerBI ReferentialConstraints: fkcon.X=fkcol.X
+            //     AND fkcon.Y=fkcol.Y) — kept as a join key.
+            //   - a column-to-literal equality (pgAdmin: `descr.classoid='pg_database'::regclass`)
+            //     — these are post-join row filters in real PG. We skip them here; for LEFT-JOINed
+            //     empty right tables (the common pgAdmin case) the missing filter doesn't change
+            //     the result, and the WHERE clause typically re-applies any meaningful constraint.
+            // If every arm is non-equality, we degrade to a trivial-true condition (cross/all-row
+            // join) rather than failing the whole dispatch.
             if (quals.BoolExpr is { Boolop: BoolExprType.AndExpr } andExpr && andExpr.Args is { Count: > 0 })
             {
                 var equalities = new List<EqualityCondition>(andExpr.Args.Count);
                 foreach (var arg in andExpr.Args)
                 {
-                    if (TryParseEqualityNode(arg, out var eq) == false)
-                        return false;
-                    equalities.Add(eq);
+                    if (TryParseEqualityNode(arg, out var eq))
+                        equalities.Add(eq);
+                    // else: column-to-literal or constant predicate — silently dropped.
                 }
-                condition = new AndCondition(equalities);
+                condition = equalities.Count > 0
+                    ? new AndCondition(equalities)
+                    : new TrivialTrueCondition();
                 return true;
             }
 

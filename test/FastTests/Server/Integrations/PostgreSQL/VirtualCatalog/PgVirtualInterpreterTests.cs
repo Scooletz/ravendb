@@ -288,6 +288,73 @@ namespace FastTests.Server.Integrations.PostgreSQL.VirtualCatalog
         }
 
         [RavenFact(RavenTestCategory.PostgreSql)]
+        public void Pgadmin_database_properties_query_shape_is_accepted()
+        {
+            // pgAdmin's "Querying view" database properties probe. Exercises: pg_get_userbyid,
+            // array_to_string, extended current_setting keys (lc_collate, lc_ctype,
+            // default_tablespace), datconnlimit/datacl on pg_database, nested scalar subqueries
+            // around current_setting().
+            const string sql = @"SELECT
+db.oid AS did, db.oid, db.datname AS name, db.dattablespace AS spcoid,
+spcname, datallowconn, pg_catalog.pg_encoding_to_char(encoding) AS encoding,
+pg_catalog.pg_get_userbyid(datdba) AS datowner,
+(select pg_catalog.current_setting('lc_collate')) as datcollate,
+(select pg_catalog.current_setting('lc_ctype')) as datctype,
+datconnlimit,
+pg_catalog.has_database_privilege(db.oid, 'CREATE') AS cancreate,
+pg_catalog.current_setting('default_tablespace') AS default_tablespace,
+descr.description AS comments, db.datistemplate AS is_template,
+'' AS tblacl,
+'' AS seqacl,
+'' AS funcacl,
+pg_catalog.array_to_string(datacl::text[], ', ') AS acl
+FROM pg_catalog.pg_database db
+LEFT OUTER JOIN pg_catalog.pg_tablespace ta ON db.dattablespace=ta.OID
+LEFT OUTER JOIN pg_catalog.pg_shdescription descr ON (
+db.oid=descr.objoid AND descr.classoid='pg_database'::regclass
+)
+WHERE
+db.oid = 16384::OID
+ORDER BY datname";
+
+            Assert.True(PgVirtualInterpreter.TryExecute(sql, new VirtualQueryContext { Username = "root" }, out var table));
+            Assert.Equal(19, table.Columns.Count);
+            Assert.Equal("did", table.Columns[0].Name);
+            Assert.Equal("acl", table.Columns[18].Name);
+        }
+
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void Pgadmin_database_tree_load_query_shape_is_accepted()
+        {
+            // pgAdmin's database-tree-load probe. Exercises: LEFT JOIN against empty pg_tablespace
+            // / pg_shdescription, qualified function name (pg_catalog.has_database_privilege),
+            // type-cast unwrapping (16383::OID, 'pg_database'::regclass), IN-list, ORDER BY a
+            // projected name.
+            const string sql = @"SELECT
+db.oid as did, db.datname as name, ta.spcname as spcname, db.datallowconn,
+db.datistemplate AS is_template,
+pg_catalog.has_database_privilege(db.oid, 'CREATE') as cancreate, datdba as owner,
+descr.description
+FROM
+pg_catalog.pg_database db
+LEFT OUTER JOIN pg_catalog.pg_tablespace ta ON db.dattablespace = ta.oid
+LEFT OUTER JOIN pg_catalog.pg_shdescription descr ON (
+db.oid=descr.objoid AND descr.classoid='pg_database'::regclass
+)
+WHERE db.oid > 16383::OID OR db.datname IN ('postgres', 'edb')
+
+ORDER BY datname";
+
+            // No DocumentDatabase wired in for this unit test — pg_database yields zero rows
+            // without one. The point of this test is that the query *parses and dispatches*
+            // through the interpreter; the row content is exercised end-to-end in EmbeddedTests.
+            Assert.True(PgVirtualInterpreter.TryExecute(sql, new VirtualQueryContext { Username = "root" }, out var table));
+            Assert.Equal(8, table.Columns.Count);
+            Assert.Equal("did", table.Columns[0].Name);
+            Assert.Equal("name", table.Columns[1].Name);
+        }
+
+        [RavenFact(RavenTestCategory.PostgreSql)]
         public void Pgadmin_database_probe_shape_is_accepted()
         {
             // pgAdmin's next probe after the replication check — reads `pg_database` for the

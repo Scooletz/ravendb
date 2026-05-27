@@ -55,13 +55,77 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
             if (args[0] is not string setting)
                 return false;
 
-            if (string.Equals(setting, "max_index_keys", System.StringComparison.OrdinalIgnoreCase))
+            // The settings pgAdmin probes for during connection / property inspection. Real PG
+            // would read these from postgresql.conf; we hand back static defaults that match
+            // what RavenDB's PG endpoint behaves like (UTF-8 everywhere, single namespace).
+            result = setting.ToLowerInvariant() switch
             {
-                result = "32";
+                "max_index_keys"     => "32",
+                "lc_collate"         => "C",
+                "lc_ctype"           => "C",
+                "lc_monetary"        => "C",
+                "lc_numeric"         => "C",
+                "lc_time"            => "C",
+                "server_encoding"    => "UTF8",
+                "client_encoding"    => "UTF8",
+                "default_tablespace" => "",            // empty string ⇒ pg_default
+                "search_path"        => "\"$user\", public",
+                "timezone"           => "UTC",
+                _ => null,
+            };
+            return result != null;
+        }
+    }
+
+    // Returns the role name for a given role oid. We only model one user, so return
+    // ctx.Username for any oid — pgAdmin only uses this for cosmetic owner display.
+    internal sealed class PgGetUserByIdFunction : ScalarFunction
+    {
+        public override string Name => "pg_get_userbyid";
+        public override string ResultColumnName => "pg_get_userbyid";
+        public override PgType PgType => PgName.Default;
+
+        public override bool TryEvaluate(IReadOnlyList<object> args, VirtualQueryContext ctx, out object result)
+        {
+            result = ctx?.Username ?? string.Empty;
+            return args is { Count: 1 };
+        }
+    }
+
+    // Concatenates array elements with a delimiter (PG: `array_to_string(arr, delimiter)`).
+    // Returns NULL when the array is NULL, matches PG semantics.
+    internal sealed class ArrayToStringFunction : ScalarFunction
+    {
+        public override string Name => "array_to_string";
+        public override string ResultColumnName => "array_to_string";
+        public override PgType PgType => PgText.Default;
+
+        public override bool TryEvaluate(IReadOnlyList<object> args, VirtualQueryContext ctx, out object result)
+        {
+            result = null;
+            if (args is not { Count: >= 2 and <= 3 })
+                return false;
+            if (args[0] == null)
+                return true; // NULL array → NULL result
+            var delimiter = args[1]?.ToString() ?? string.Empty;
+
+            if (args[0] is System.Collections.IEnumerable enumerable)
+            {
+                var sb = new System.Text.StringBuilder();
+                var first = true;
+                foreach (var item in enumerable)
+                {
+                    if (item == null) continue; // PG semantics: NULL elements skipped without the optional 3rd arg.
+                    if (first == false) sb.Append(delimiter);
+                    sb.Append(item);
+                    first = false;
+                }
+                result = sb.ToString();
                 return true;
             }
-
-            return false;
+            // Single scalar: just emit it.
+            result = args[0].ToString();
+            return true;
         }
     }
 

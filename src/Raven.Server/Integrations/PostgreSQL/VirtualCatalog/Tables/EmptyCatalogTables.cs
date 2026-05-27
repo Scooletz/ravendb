@@ -142,4 +142,31 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog.Tables
             new("admin_option", PgBool.Default, PgFormat.Text),
         };
     }
+
+    // RavenDB doesn't model tablespaces, but pgAdmin LEFT-JOINs pg_database against this view to
+    // get the spacename for display. Empty → spcname stays NULL, which is fine.
+    internal sealed class PgCatalogPgTablespaceTable : EmptyCatalogTable
+    {
+        public override string SchemaName => "pg_catalog";
+        public override string TableName => "pg_tablespace";
+        public override IReadOnlyList<PgVirtualColumn> Columns { get; } = new PgVirtualColumn[]
+        {
+            new("oid",     PgOid.Default,  PgFormat.Text),
+            new("spcname", PgName.Default, PgFormat.Text),
+        };
+    }
+
+    // Shared-object comments (cluster-wide objects like databases). We don't model comments;
+    // pgAdmin LEFT-JOINs to pull descriptions and accepts NULL when there's no match.
+    internal sealed class PgCatalogPgShdescriptionTable : EmptyCatalogTable
+    {
+        public override string SchemaName => "pg_catalog";
+        public override string TableName => "pg_shdescription";
+        public override IReadOnlyList<PgVirtualColumn> Columns { get; } = new PgVirtualColumn[]
+        {
+            new("objoid",      PgOid.Default,  PgFormat.Text),
+            new("classoid",    PgOid.Default,  PgFormat.Text),
+            new("description", PgText.Default, PgFormat.Text),
+        };
+    }
 }

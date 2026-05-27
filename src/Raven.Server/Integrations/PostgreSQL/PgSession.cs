@@ -123,7 +123,35 @@ namespace Raven.Server.Integrations.PostgreSQL
 
             Stream stream = _client.GetStream();
 
-            stream = await HandleInitialMessage(stream, messageBuilder);
+            // We need a writer that can deliver an ErrorResponse if the initial handshake fails. Without
+            // this wrapper, any PgFatalException thrown out of StartupMessage parsing propagates past Run()
+            // and the client sees the socket close with no diagnostic ("server closed the connection
+            // unexpectedly"). Sending the error on the raw pre-TLS stream is correct for the cases that
+            // throw here — they're all pre-TLS parsing failures.
+            try
+            {
+                stream = await HandleInitialMessage(stream, messageBuilder);
+            }
+            catch (PgFatalException e)
+            {
+                if (Logger.IsInfoEnabled)
+                    Logger.Info($"Initial handshake failed: {e.Message} (pg error code {e.ErrorCode}).", e);
+
+                try
+                {
+                    var earlyWriter = PipeWriter.Create(stream);
+                    await earlyWriter.WriteAsync(messageBuilder.ErrorResponse(
+                        PgSeverity.Fatal,
+                        e.ErrorCode,
+                        e.Message,
+                        e.ToString()), _token);
+                }
+                catch
+                {
+                    // best-effort: socket may already be unwritable
+                }
+                return;
+            }
 
             var reader = PipeReader.Create(stream);
             var writer = PipeWriter.Create(stream);
