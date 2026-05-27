@@ -39,7 +39,7 @@ namespace Raven.Server.Integrations.PostgreSQL
             _resultColumnFormatCodes = Array.Empty<short>();
         }
 
-        public static PgQuery CreateInstance(string queryText, int[] parametersDataTypes, DocumentDatabase documentDatabase, PgSession session)
+        public static PgQuery CreateInstance(string queryText, int[] parametersDataTypes, DocumentDatabase documentDatabase, PgSession session, string username = null)
         {
             queryText = queryText.Trim();
 
@@ -59,7 +59,7 @@ namespace Raven.Server.Integrations.PostgreSQL
                     return powerBiQuery;
                 }
 
-                if (PgVirtualInterpreter.TryExecute(queryText, new VirtualQueryContext { Database = documentDatabase }, out var virtualTable))
+                if (PgVirtualInterpreter.TryExecute(queryText, new VirtualQueryContext { Database = documentDatabase, Username = username }, out var virtualTable))
                     return new VirtualInterpreterQuery(queryText, parametersDataTypes, virtualTable);
 
                 if (PgSqlToRqlTranslator.TryParse(queryText, parametersDataTypes, out var rql))

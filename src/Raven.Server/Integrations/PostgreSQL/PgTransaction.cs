@@ -42,7 +42,7 @@ namespace Raven.Server.Integrations.PostgreSQL
             MessageReader = new MessageReader();
 
             _currentQuery?.Dispose();
-            _currentQuery = PgQuery.CreateInstance(cleanQueryText, parametersDataTypes, DocumentDatabase, Session);
+            _currentQuery = PgQuery.CreateInstance(cleanQueryText, parametersDataTypes, DocumentDatabase, Session, Username);
         }
 
         public void Bind(ICollection<byte[]> parameters, short[] parameterFormatCodes, short[] resultColumnFormatCodes, string statementName = null)

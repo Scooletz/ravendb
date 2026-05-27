@@ -86,4 +86,60 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog.Tables
             new("attisdropped", PgBool.Default, PgFormat.Text),
         };
     }
+
+    // RavenDB has no PG extensions; an empty table lets pgAdmin's `count(extname)` probe return 0.
+    internal sealed class PgCatalogPgExtensionTable : EmptyCatalogTable
+    {
+        public override string SchemaName => "pg_catalog";
+        public override string TableName => "pg_extension";
+        public override IReadOnlyList<PgVirtualColumn> Columns { get; } = new PgVirtualColumn[]
+        {
+            new("oid",        PgOid.Default,  PgFormat.Text),
+            new("extname",    PgName.Default, PgFormat.Text),
+            new("extversion", PgText.Default, PgFormat.Text),
+        };
+    }
+
+    // No replication on RavenDB's PG surface; pgAdmin's `count(*)` over this returns 0.
+    internal sealed class PgCatalogPgReplicationSlotsTable : EmptyCatalogTable
+    {
+        public override string SchemaName => "pg_catalog";
+        public override string TableName => "pg_replication_slots";
+        public override IReadOnlyList<PgVirtualColumn> Columns { get; } = new PgVirtualColumn[]
+        {
+            new("slot_name", PgName.Default, PgFormat.Text),
+            new("slot_type", PgText.Default, PgFormat.Text),
+            new("active",    PgBool.Default, PgFormat.Text),
+        };
+    }
+
+    // GSSAPI authentication status. We don't support GSSAPI, so the view is empty and pgAdmin's
+    // `WHERE pid = pg_backend_pid()` filter yields no rows (which pgAdmin treats as "no GSSAPI").
+    internal sealed class PgCatalogPgStatGssapiTable : EmptyCatalogTable
+    {
+        public override string SchemaName => "pg_catalog";
+        public override string TableName => "pg_stat_gssapi";
+        public override IReadOnlyList<PgVirtualColumn> Columns { get; } = new PgVirtualColumn[]
+        {
+            new("pid",                PgInt4.Default, PgFormat.Text),
+            new("gss_authenticated",  PgBool.Default, PgFormat.Text),
+            new("encrypted",          PgBool.Default, PgFormat.Text),
+        };
+    }
+
+    // RavenDB has no PG role hierarchy — every connected user is independent. pg_auth_members
+    // (which lists role-group memberships) is therefore empty; pgAdmin's recursive role-membership
+    // CTE iterates against this empty table and terminates with just the base case.
+    internal sealed class PgCatalogPgAuthMembersTable : EmptyCatalogTable
+    {
+        public override string SchemaName => "pg_catalog";
+        public override string TableName => "pg_auth_members";
+        public override IReadOnlyList<PgVirtualColumn> Columns { get; } = new PgVirtualColumn[]
+        {
+            new("roleid",       PgOid.Default,  PgFormat.Text),
+            new("member",       PgOid.Default,  PgFormat.Text),
+            new("grantor",      PgOid.Default,  PgFormat.Text),
+            new("admin_option", PgBool.Default, PgFormat.Text),
+        };
+    }
 }

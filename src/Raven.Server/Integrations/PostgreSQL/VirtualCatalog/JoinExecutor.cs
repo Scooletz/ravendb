@@ -148,9 +148,19 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
             if (node.RangeVar != null)
             {
                 var rv = node.RangeVar;
+                var alias = rv.Alias?.Aliasname ?? rv.Relname;
+
+                // Check enclosing WITH CTEs first — a `FROM cte` reference inside a WITH RECURSIVE
+                // recursive case should resolve to the in-progress CTE, not a real catalog table.
+                if (string.IsNullOrEmpty(rv.Schemaname) && _ctx?.Ctes != null
+                    && _ctx.Ctes.TryGetValue(rv.Relname, out var cte))
+                {
+                    source = new SourceState(alias, cte.Columns, cte.Rows);
+                    return true;
+                }
+
                 if (PgVirtualDatabase.TryGetTable(rv.Schemaname, rv.Relname, out var table) == false)
                     return false;
-                var alias = rv.Alias?.Aliasname ?? rv.Relname;
                 source = new SourceState(alias, table.Columns, MaterializeRows(table));
                 return true;
             }

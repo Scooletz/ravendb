@@ -14,7 +14,28 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
     // those are surfaced as ColumnRef on a join scope rather than a function call here).
     internal static class ExpressionEvaluator
     {
+        // A subquery resolver injected by the interpreter so this class doesn't need to depend on
+        // the rest of the pipeline. Returns the list of single-column row values from the inner
+        // SELECT. The outerScope argument carries the surrounding query's current row, which the
+        // inner SELECT can reference via correlated column lookups (e.g.
+        // `WHERE inner.id = outer.id` inside an ARRAY(...) subquery).
+        //
+        // The caller decides how to interpret the returned list based on the SubLinkType: scalar
+        // EXPR_SUBLINK expects 0 or 1 element; ARRAY_SUBLINK takes the full list as an array value.
+        public delegate bool ScalarSubqueryResolver(SelectStmt subquery, RowScope outerScope, out IReadOnlyList<object> values);
+
+        // A scalar-function resolver injected by the interpreter — given a function name and
+        // pre-evaluated args, returns the function's value. Used for inline calls like
+        // `current_database()`, `pg_encoding_to_char(encoding)`, etc.
+        public delegate bool ScalarFunctionResolver(string name, IReadOnlyList<object> args, out object value);
+
         public static bool TryEvaluate(Node node, RowScope scope, out object value)
+            => TryEvaluate(node, scope, subqueryResolver: null, functionResolver: null, out value);
+
+        public static bool TryEvaluate(Node node, RowScope scope, ScalarSubqueryResolver subqueryResolver, out object value)
+            => TryEvaluate(node, scope, subqueryResolver, functionResolver: null, out value);
+
+        public static bool TryEvaluate(Node node, RowScope scope, ScalarSubqueryResolver subqueryResolver, ScalarFunctionResolver functionResolver, out object value)
         {
             value = null;
             if (node == null)
@@ -27,24 +48,115 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
                 return TryEvaluateColumnRef(node.ColumnRef, scope, out value);
 
             if (node.CaseExpr != null)
-                return TryEvaluateCase(node.CaseExpr, scope, out value);
+                return TryEvaluateCase(node.CaseExpr, scope, subqueryResolver, functionResolver, out value);
 
             if (node.NullTest != null)
-                return TryEvaluateNullTest(node.NullTest, scope, out value);
+                return TryEvaluateNullTest(node.NullTest, scope, subqueryResolver, functionResolver, out value);
 
             if (node.BoolExpr != null)
-                return TryEvaluateBoolExpr(node.BoolExpr, scope, out value);
+                return TryEvaluateBoolExpr(node.BoolExpr, scope, subqueryResolver, functionResolver, out value);
 
             if (node.AExpr != null)
-                return TryEvaluateAExpr(node.AExpr, scope, out value);
+                return TryEvaluateAExpr(node.AExpr, scope, subqueryResolver, functionResolver, out value);
 
             if (node.TypeCast != null)
-                return TryEvaluate(node.TypeCast.Arg, scope, out value);
+                return TryEvaluate(node.TypeCast.Arg, scope, subqueryResolver, functionResolver, out value);
 
             if (node.RelabelType != null)
-                return TryEvaluate(node.RelabelType.Arg, scope, out value);
+                return TryEvaluate(node.RelabelType.Arg, scope, subqueryResolver, functionResolver, out value);
+
+            // SubLink: `(SELECT ...)` used as a value, or `ARRAY(SELECT ...)` building an array.
+            // The interpreter passes the resolver in; we distinguish by SubLinkType. The current
+            // scope is forwarded as the outer scope so the inner SELECT can correlate (e.g.
+            // `WHERE inner.id = outer.id`).
+            if (node.SubLink != null && subqueryResolver != null)
+                return TryEvaluateSubLink(node.SubLink, scope, subqueryResolver, out value);
+
+            // Inline scalar function call: current_database(), pg_encoding_to_char(x), etc.
+            if (node.FuncCall != null && functionResolver != null)
+                return TryEvaluateFuncCall(node.FuncCall, scope, subqueryResolver, functionResolver, out value);
+
+            // SQL keyword value functions: `current_user`, `session_user`, `current_database`,
+            // etc. when written without parens. PG parses these as a separate AST node, not as a
+            // FuncCall — route them through the same function resolver as parenthesized forms.
+            if (node.SqlvalueFunction != null && functionResolver != null)
+                return TryEvaluateSqlValueFunction(node.SqlvalueFunction, functionResolver, out value);
 
             return false;
+        }
+
+        private static bool TryEvaluateSqlValueFunction(SQLValueFunction svf, ScalarFunctionResolver functionResolver, out object value)
+        {
+            value = null;
+            var name = svf.Op switch
+            {
+                SQLValueFunctionOp.SvfopCurrentUser    => "current_user",
+                SQLValueFunctionOp.SvfopSessionUser    => "session_user",
+                SQLValueFunctionOp.SvfopUser           => "user",
+                SQLValueFunctionOp.SvfopCurrentCatalog => "current_database",  // PG synonym
+                SQLValueFunctionOp.SvfopCurrentSchema  => "current_schema",
+                SQLValueFunctionOp.SvfopCurrentRole    => "current_user",      // role == user for our purposes
+                _ => null,
+            };
+            if (name == null)
+                return false;
+            return functionResolver(name, System.Array.Empty<object>(), out value);
+        }
+
+        private static bool TryEvaluateSubLink(SubLink subLink, RowScope scope, ScalarSubqueryResolver subqueryResolver, out object value)
+        {
+            value = null;
+            var inner = subLink.Subselect?.SelectStmt;
+            if (inner == null)
+                return false;
+
+            if (subqueryResolver(inner, scope, out var values) == false)
+                return false;
+
+            // ARRAY(...) — `ARRAY(SELECT col FROM ...)` yields the full list as an array value.
+            // pgsqlparser models this as SubLinkType.ArraySublink.
+            if (subLink.SubLinkType == SubLinkType.ArraySublink)
+            {
+                value = values; // IReadOnlyList<object>
+                return true;
+            }
+
+            // Scalar (EXPR_SUBLINK): 0 → null, 1 → the value, anything else → fail (we don't
+            // model the cardinality-violation error other PG implementations throw).
+            if (values.Count == 0)
+            {
+                value = null;
+                return true;
+            }
+            if (values.Count > 1)
+                return false;
+            value = values[0];
+            return true;
+        }
+
+        private static bool TryEvaluateFuncCall(FuncCall funcCall, RowScope scope, ScalarSubqueryResolver subqueryResolver, ScalarFunctionResolver functionResolver, out object value)
+        {
+            value = null;
+
+            if (funcCall.Funcname is not { Count: > 0 } parts)
+                return false;
+            // Multi-part names like pg_catalog.pg_encoding_to_char → use the last segment.
+            var name = parts[^1]?.String?.Sval;
+            if (string.IsNullOrEmpty(name))
+                return false;
+
+            var args = new List<object>();
+            if (funcCall.Args != null)
+            {
+                foreach (var arg in funcCall.Args)
+                {
+                    if (TryEvaluate(arg, scope, subqueryResolver, functionResolver, out var argValue) == false)
+                        return false;
+                    args.Add(argValue);
+                }
+            }
+
+            return functionResolver(name, args, out value);
         }
 
         private static bool TryEvaluateConst(A_Const c, out object value)
@@ -99,7 +211,7 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
             return scope.TryLookup(path, out value);
         }
 
-        private static bool TryEvaluateCase(CaseExpr caseExpr, RowScope scope, out object value)
+        private static bool TryEvaluateCase(CaseExpr caseExpr, RowScope scope, ScalarSubqueryResolver subqueryResolver, ScalarFunctionResolver functionResolver, out object value)
         {
             value = null;
             if (caseExpr.Args is not { Count: > 0 } whens)
@@ -111,27 +223,27 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
                 if (when == null)
                     return false;
 
-                if (TryEvaluate(when.Expr, scope, out var cond) == false)
+                if (TryEvaluate(when.Expr, scope, subqueryResolver, functionResolver, out var cond) == false)
                     return false;
 
                 if (IsTruthy(cond))
                 {
-                    return TryEvaluate(when.Result, scope, out value);
+                    return TryEvaluate(when.Result, scope, subqueryResolver, functionResolver, out value);
                 }
             }
 
             if (caseExpr.Defresult != null)
-                return TryEvaluate(caseExpr.Defresult, scope, out value);
+                return TryEvaluate(caseExpr.Defresult, scope, subqueryResolver, functionResolver, out value);
 
             // No WHEN matched and no ELSE → SQL NULL.
             value = null;
             return true;
         }
 
-        private static bool TryEvaluateNullTest(NullTest nullTest, RowScope scope, out object value)
+        private static bool TryEvaluateNullTest(NullTest nullTest, RowScope scope, ScalarSubqueryResolver subqueryResolver, ScalarFunctionResolver functionResolver, out object value)
         {
             value = null;
-            if (TryEvaluate(nullTest.Arg, scope, out var inner) == false)
+            if (TryEvaluate(nullTest.Arg, scope, subqueryResolver, functionResolver, out var inner) == false)
                 return false;
 
             var isNull = inner is null;
@@ -144,7 +256,7 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
             return value != null;
         }
 
-        private static bool TryEvaluateBoolExpr(BoolExpr boolExpr, RowScope scope, out object value)
+        private static bool TryEvaluateBoolExpr(BoolExpr boolExpr, RowScope scope, ScalarSubqueryResolver subqueryResolver, ScalarFunctionResolver functionResolver, out object value)
         {
             value = null;
             if (boolExpr?.Args is not { Count: > 0 } args)
@@ -155,7 +267,7 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
                 case BoolExprType.AndExpr:
                     foreach (var arg in args)
                     {
-                        if (TryEvaluate(arg, scope, out var childAnd) == false)
+                        if (TryEvaluate(arg, scope, subqueryResolver, functionResolver, out var childAnd) == false)
                             return false;
                         if (IsTruthy(childAnd) == false)
                         {
@@ -169,7 +281,7 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
                 case BoolExprType.OrExpr:
                     foreach (var arg in args)
                     {
-                        if (TryEvaluate(arg, scope, out var childOr) == false)
+                        if (TryEvaluate(arg, scope, subqueryResolver, functionResolver, out var childOr) == false)
                             return false;
                         if (IsTruthy(childOr))
                         {
@@ -183,7 +295,7 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
                 case BoolExprType.NotExpr:
                     if (args.Count != 1)
                         return false;
-                    if (TryEvaluate(args[0], scope, out var inner) == false)
+                    if (TryEvaluate(args[0], scope, subqueryResolver, functionResolver, out var inner) == false)
                         return false;
                     value = IsTruthy(inner) == false;
                     return true;
@@ -193,12 +305,49 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
             }
         }
 
-        private static bool TryEvaluateAExpr(A_Expr aExpr, RowScope scope, out object value)
+        private static bool TryEvaluateAExpr(A_Expr aExpr, RowScope scope, ScalarSubqueryResolver subqueryResolver, ScalarFunctionResolver functionResolver, out object value)
         {
             value = null;
 
             if (aExpr.Kind == A_Expr_Kind.AexprIn)
-                return TryEvaluateInExpr(aExpr, scope, out value);
+                return TryEvaluateInExpr(aExpr, scope, subqueryResolver, functionResolver, out value);
+
+            // `x op ANY(array_expr)` — true if x op element holds for any array element. The
+            // canonical use is `x = ANY(ARRAY(...))`, and we only handle equality here (extend
+            // when other operators show up).
+            if (aExpr.Kind == A_Expr_Kind.AexprOpAny)
+            {
+                if (TryEvaluate(aExpr.Lexpr, scope, subqueryResolver, functionResolver, out var anyLhs) == false)
+                    return false;
+                if (TryEvaluate(aExpr.Rexpr, scope, subqueryResolver, functionResolver, out var anyRhs) == false)
+                    return false;
+
+                if (aExpr.Name is not { Count: 1 } || aExpr.Name[0]?.String?.Sval != "=")
+                    return false; // Only `= ANY(...)` for now.
+
+                if (anyRhs is not System.Collections.IEnumerable enumerable)
+                {
+                    // NULL on the array side is SQL NULL — propagate.
+                    if (anyRhs is null)
+                    {
+                        value = null;
+                        return true;
+                    }
+                    return false;
+                }
+                foreach (var item in enumerable)
+                {
+                    if (item == null) continue;
+                    var anyCmp = CompareValues(anyLhs, item);
+                    if (anyCmp == 0)
+                    {
+                        value = true;
+                        return true;
+                    }
+                }
+                value = false;
+                return true;
+            }
 
             if (aExpr.Name is not { Count: 1 })
                 return false;
@@ -207,9 +356,9 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
             if (string.IsNullOrEmpty(op))
                 return false;
 
-            if (TryEvaluate(aExpr.Lexpr, scope, out var lhs) == false)
+            if (TryEvaluate(aExpr.Lexpr, scope, subqueryResolver, functionResolver, out var lhs) == false)
                 return false;
-            if (TryEvaluate(aExpr.Rexpr, scope, out var rhs) == false)
+            if (TryEvaluate(aExpr.Rexpr, scope, subqueryResolver, functionResolver, out var rhs) == false)
                 return false;
 
             var cmp = CompareValues(lhs, rhs);
@@ -230,10 +379,10 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
             return value != null;
         }
 
-        private static bool TryEvaluateInExpr(A_Expr aExpr, RowScope scope, out object value)
+        private static bool TryEvaluateInExpr(A_Expr aExpr, RowScope scope, ScalarSubqueryResolver subqueryResolver, ScalarFunctionResolver functionResolver, out object value)
         {
             value = null;
-            if (TryEvaluate(aExpr.Lexpr, scope, out var lhs) == false)
+            if (TryEvaluate(aExpr.Lexpr, scope, subqueryResolver, functionResolver, out var lhs) == false)
                 return false;
 
             var items = aExpr.Rexpr?.List?.Items;
@@ -248,7 +397,7 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
 
             foreach (var item in items)
             {
-                if (TryEvaluate(item, scope, out var candidate) == false)
+                if (TryEvaluate(item, scope, subqueryResolver, functionResolver, out var candidate) == false)
                     return false;
                 var cmp = CompareValues(lhs, candidate);
                 if (cmp == 0)

@@ -219,6 +219,122 @@ namespace FastTests.Server.Integrations.PostgreSQL.VirtualCatalog
             Assert.Empty(table.Data);
         }
 
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void Current_user_no_parens_returns_username()
+        {
+            // `current_user` is a SQL keyword form (no parens). PG parses it as a SQLValueFunction
+            // node rather than a FuncCall, so the evaluator needs a dedicated branch.
+            var ctx = new VirtualQueryContext { Username = "root" };
+            Assert.True(PgVirtualInterpreter.TryExecute("SELECT current_user", ctx, out var table));
+            Assert.Single(table.Data);
+            Assert.Equal("root", DecodeCell(table, 0, 0));
+        }
+
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void Pg_roles_one_row_for_current_user()
+        {
+            var ctx = new VirtualQueryContext { Username = "root" };
+            Assert.True(PgVirtualInterpreter.TryExecute("SELECT rolname FROM pg_catalog.pg_roles", ctx, out var table));
+            Assert.Single(table.Data);
+            Assert.Equal("root", DecodeCell(table, 0, 0));
+        }
+
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void Pgadmin_role_probe_returns_row_with_no_signal_backend()
+        {
+            // pgAdmin's role-introspection probe — the most complex query we handle. Exercises:
+            // pg_roles + pg_auth_members virtual tables, current_user(), correlated subqueries
+            // (the WITH RECURSIVE body's WHERE references the outer `roles.oid`), ARRAY(subquery)
+            // constructor, x = ANY(array) operator, WITH RECURSIVE CTE evaluation (terminates on
+            // iteration 1 because pg_auth_members is empty).
+            //
+            // Expected: one row with can_signal_backend=false (the connected user has no role
+            // hierarchy and therefore isn't a member of pg_signal_backend).
+            const string sql = @"SELECT
+            roles.oid as id, roles.rolname as name,
+            roles.rolsuper as is_superuser,
+            CASE WHEN roles.rolsuper THEN true ELSE roles.rolcreaterole END as
+            can_create_role,
+            CASE WHEN roles.rolsuper THEN true
+            ELSE roles.rolcreatedb END as can_create_db,
+            CASE WHEN 'pg_signal_backend'=ANY(ARRAY(WITH RECURSIVE cte AS (
+            SELECT pg_roles.oid,pg_roles.rolname FROM pg_roles
+                WHERE pg_roles.oid = roles.oid
+            UNION ALL
+            SELECT m.roleid,pgr.rolname FROM cte cte_1
+                JOIN pg_auth_members m ON m.member = cte_1.oid
+                JOIN pg_roles pgr ON pgr.oid = m.roleid)
+            SELECT rolname  FROM cte)) THEN True
+            ELSE False END as can_signal_backend
+        FROM
+            pg_catalog.pg_roles as roles
+        WHERE
+            rolname = current_user";
+
+            var ctx = new VirtualQueryContext { Username = "root" };
+            Assert.True(PgVirtualInterpreter.TryExecute(sql, ctx, out var table));
+            Assert.Equal(6, table.Columns.Count);
+            Assert.Equal("id", table.Columns[0].Name);
+            Assert.Equal("name", table.Columns[1].Name);
+            Assert.Equal("is_superuser", table.Columns[2].Name);
+            Assert.Equal("can_create_role", table.Columns[3].Name);
+            Assert.Equal("can_create_db", table.Columns[4].Name);
+            Assert.Equal("can_signal_backend", table.Columns[5].Name);
+
+            Assert.Single(table.Data);
+            var span = table.Data[0].ColumnData.Span;
+            Assert.Equal("root", DecodeCell(table, 0, 1));
+            Assert.Equal("f", DecodeCell(table, 0, 5)); // can_signal_backend = false
+        }
+
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void Pgadmin_database_probe_shape_is_accepted()
+        {
+            // pgAdmin's next probe after the replication check — reads `pg_database` for the
+            // current DB. With no database in the test context the table yields no rows, but the
+            // dispatch path (inline FuncCall via ExpressionEvaluator, pg_database virtual table,
+            // current_database()/pg_encoding_to_char()/has_database_privilege() functions) must
+            // accept the SQL and project six columns.
+            const string sql = @"SELECT
+    db.oid as did, db.datname, db.datallowconn,
+    pg_encoding_to_char(db.encoding) AS serverencoding,
+    has_database_privilege(db.oid, 'CREATE') as cancreate,
+    datistemplate
+FROM
+    pg_catalog.pg_database db
+WHERE db.datname = current_database()";
+
+            Assert.True(PgVirtualInterpreter.TryExecute(sql, EmptyCtx(), out var table));
+            Assert.Equal(6, table.Columns.Count);
+            Assert.Equal("did", table.Columns[0].Name);
+            Assert.Equal("datname", table.Columns[1].Name);
+            Assert.Equal("serverencoding", table.Columns[3].Name);
+            Assert.Equal("cancreate", table.Columns[4].Name);
+        }
+
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void Pgadmin_replication_probe_returns_null_when_no_extensions_or_slots()
+        {
+            // pgAdmin sends this on connect to detect BDR / replication. RavenDB has neither —
+            // pg_extension and pg_replication_slots are empty virtual tables, both COUNTs are 0,
+            // and the CASE falls through to ELSE NULL. Exercises: no-FROM expression path, scalar
+            // subqueries, COUNT aggregate without GROUP BY.
+            const string sql = @"SELECT CASE
+WHEN (SELECT count(extname) FROM pg_catalog.pg_extension WHERE extname='bdr') > 0
+THEN 'pgd'
+WHEN (SELECT COUNT(*) FROM pg_replication_slots) > 0
+THEN 'log'
+ELSE NULL
+END as type";
+
+            Assert.True(PgVirtualInterpreter.TryExecute(sql, EmptyCtx(), out var table));
+            Assert.Single(table.Columns);
+            Assert.Equal("type", table.Columns[0].Name);
+            Assert.Single(table.Data);
+            var cell = table.Data[0].ColumnData.Span[0];
+            Assert.False(cell.HasValue, "no extensions or replication slots → NULL");
+        }
+
         // ── PowerBI information_schema.tables / .columns probes (replace retired handlers) ────
 
         [RavenFact(RavenTestCategory.PostgreSql)]

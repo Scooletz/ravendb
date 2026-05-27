@@ -36,16 +36,240 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
         }
 
         private static bool TryExecuteSingle(SelectStmt selectStmt, VirtualQueryContext ctx, out PgTable result)
+            => TryExecuteSingleWithOuterScope(selectStmt, ctx, outerScope: null, out result);
+
+        // outerScope is non-null only when the SELECT is a correlated subquery — its inner column
+        // lookups can then walk up to the enclosing row.
+        private static bool TryExecuteSingleWithOuterScope(SelectStmt selectStmt, VirtualQueryContext ctx, RowScope outerScope, out PgTable result)
         {
             result = null;
 
             if (RejectUnsupportedClauses(selectStmt))
                 return false;
 
-            if (SelectStmtShape.HasNoFromClause(selectStmt))
-                return TryExecuteScalarFunction(selectStmt, out result);
+            // WITH / WITH RECURSIVE: materialize each CTE into ctx.Ctes before running the body.
+            // Save/restore the existing Ctes map so nested WITH clauses don't leak across queries.
+            var previousCtes = ctx.Ctes;
+            try
+            {
+                if (selectStmt.WithClause is { Ctes.Count: > 0 })
+                {
+                    if (TryMaterializeWithClause(selectStmt.WithClause, ctx, outerScope) == false)
+                        return false;
+                }
 
-            return TryExecuteTableQuery(selectStmt, ctx, out result);
+                if (SelectStmtShape.HasNoFromClause(selectStmt))
+                {
+                    if (TryExecuteScalarFunction(selectStmt, ctx, out result))
+                        return true;
+                    // Fall through to the generic expression path: SELECT <expr> AS <alias> without
+                    // FROM, where <expr> can be a CASE, a scalar subquery, a literal, etc.
+                    return TryExecuteNoFromExpression(selectStmt, ctx, outerScope, out result);
+                }
+
+                // UNION ALL is the only set operation we handle (needed for WITH RECURSIVE's body).
+                // For a top-level UNION ALL we'd run Larg + Rarg and concatenate; we don't have a
+                // use case for that yet, so leave it unimplemented.
+                if (selectStmt.Op != SetOperation.SetopNone)
+                    return false;
+
+                return TryExecuteTableQuery(selectStmt, ctx, outerScope, out result);
+            }
+            finally
+            {
+                ctx.Ctes = previousCtes;
+            }
+        }
+
+        // Materializes each CTE in the WITH clause into ctx.Ctes. For non-recursive WITH the body
+        // is evaluated once. For WITH RECURSIVE the body is `<base> UNION ALL <recursive>`: seed
+        // with the base case, then iterate the recursive case until it produces no new rows.
+        //
+        // This isn't a textbook implementation — standard PG passes only the latest iteration's
+        // "delta" rows to the recursive case, while we just expose the full accumulated CTE. Good
+        // enough for pgAdmin's role-membership probe (recursive case joins through pg_auth_members,
+        // which is empty, so we terminate immediately). The MaxIterations guard keeps us safe if a
+        // future caller writes a recursive case that does converge through a different path.
+        private const int MaxCteIterations = 256;
+
+        private static bool TryMaterializeWithClause(WithClause withClause, VirtualQueryContext ctx, RowScope outerScope)
+        {
+            ctx.Ctes ??= new Dictionary<string, MaterializedCte>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var cteNode in withClause.Ctes)
+            {
+                var cte = cteNode?.CommonTableExpr;
+                if (cte == null)
+                    return false;
+                var name = cte.Ctename;
+                var bodyStmt = cte.Ctequery?.SelectStmt;
+                if (string.IsNullOrEmpty(name) || bodyStmt == null)
+                    return false;
+
+                if (withClause.Recursive
+                    && bodyStmt.Op == SetOperation.SetopUnion
+                    && bodyStmt.All
+                    && bodyStmt.Larg != null
+                    && bodyStmt.Rarg != null)
+                {
+                    if (TryMaterializeRecursiveCte(name, bodyStmt.Larg, bodyStmt.Rarg, ctx, outerScope) == false)
+                        return false;
+                }
+                else
+                {
+                    // Non-recursive: a plain SELECT body.
+                    if (TryExecuteSingleWithOuterScope(bodyStmt, ctx, outerScope, out var pg) == false)
+                        return false;
+                    ctx.Ctes[name] = MaterializedCteFromPgTable(name, pg);
+                }
+            }
+            return true;
+        }
+
+        private static bool TryMaterializeRecursiveCte(string name, SelectStmt baseCase, SelectStmt recursiveCase, VirtualQueryContext ctx, RowScope outerScope)
+        {
+            if (TryExecuteSingleWithOuterScope(baseCase, ctx, outerScope, out var basePg) == false)
+                return false;
+
+            var materialized = MaterializedCteFromPgTable(name, basePg);
+            ctx.Ctes[name] = materialized;
+
+            for (int i = 0; i < MaxCteIterations; i++)
+            {
+                int rowsBefore = materialized.Rows.Count;
+                if (TryExecuteSingleWithOuterScope(recursiveCase, ctx, outerScope, out var iter) == false)
+                    return false;
+                if (iter.Data.Count == 0)
+                    return true; // fixed point
+                AppendPgRowsToCte(materialized, iter);
+                if (materialized.Rows.Count == rowsBefore)
+                    return true; // no new rows added (e.g. all returned rows were duplicates of existing)
+            }
+            // Exhausted iteration cap without converging — refuse rather than loop forever.
+            return false;
+        }
+
+        private static MaterializedCte MaterializedCteFromPgTable(string name, PgTable pg)
+        {
+            var virtualColumns = new List<PgVirtualColumn>(pg.Columns.Count);
+            foreach (var c in pg.Columns)
+                virtualColumns.Add(new PgVirtualColumn(c.Name, c.PgType, c.FormatCode));
+
+            var rows = new List<object[]>(pg.Data.Count);
+            foreach (var dataRow in pg.Data)
+                rows.Add(DecodeRow(dataRow, pg.Columns));
+
+            return new MaterializedCte { Name = name, Columns = virtualColumns, Rows = rows };
+        }
+
+        private static void AppendPgRowsToCte(MaterializedCte materialized, PgTable iter)
+        {
+            foreach (var dataRow in iter.Data)
+                materialized.Rows.Add(DecodeRow(dataRow, iter.Columns));
+        }
+
+        private static object[] DecodeRow(PgDataRow dataRow, ICollection<PgColumn> columns)
+        {
+            var span = dataRow.ColumnData.Span;
+            var row = new object[columns.Count];
+            int i = 0;
+            foreach (var col in columns)
+            {
+                var cell = span[i];
+                row[i] = cell.HasValue ? col.PgType.FromBytes(cell.Value.ToArray(), PgFormat.Text) : null;
+                i++;
+            }
+            return row;
+        }
+
+        // No-FROM expression fallback: evaluates a single-target SELECT against an empty row scope.
+        // Used for pgAdmin-style probes like `SELECT CASE WHEN (SELECT ...) > 0 THEN 'x' ... END`.
+        private static bool TryExecuteNoFromExpression(SelectStmt s, VirtualQueryContext ctx, RowScope outerScope, out PgTable result)
+        {
+            result = null;
+            if (s.TargetList is not { Count: 1 } targetList)
+                return false;
+
+            var rt = targetList[0]?.ResTarget;
+            if (rt?.Val == null)
+                return false;
+
+            var scope = RowScope.Builder().Build();
+            if (outerScope != null)
+                scope = scope.WithParent(outerScope);
+            if (ExpressionEvaluator.TryEvaluate(rt.Val, scope, MakeSubqueryResolver(ctx), MakeFunctionResolver(ctx), out var value) == false)
+                return false;
+
+            var pgType = InferPgTypeFromRuntimeValue(value);
+            var outName = string.IsNullOrWhiteSpace(rt.Name) ? "?column?" : rt.Name;
+            var bytes = value == null ? (ReadOnlyMemory<byte>?)null : pgType.ToBytes(value, PgFormat.Text);
+
+            result = new PgTable
+            {
+                Columns = new List<PgColumn> { new(outName, columnIndex: 0, pgType: pgType, formatCode: PgFormat.Text) },
+                Data = new List<PgDataRow> { new(new ReadOnlyMemory<byte>?[] { bytes }) },
+            };
+            return true;
+        }
+
+        // Pgsql subquery resolver. Executes the inner SELECT and returns ALL its single-column
+        // row values; ExpressionEvaluator decides whether to treat them as a scalar (EXPR_SUBLINK)
+        // or an array (ARRAY_SUBLINK). The outerScope is forwarded so the inner SELECT can
+        // correlate (e.g. `WHERE inner.id = outer.id`).
+        private static ExpressionEvaluator.ScalarSubqueryResolver MakeSubqueryResolver(VirtualQueryContext ctx)
+        {
+            return (SelectStmt subquery, RowScope outerScope, out IReadOnlyList<object> values) =>
+            {
+                values = null;
+                if (subquery == null)
+                    return false;
+                if (TryExecuteSingleWithOuterScope(subquery, ctx, outerScope, out var sub) == false)
+                    return false;
+                if (sub.Columns.Count != 1)
+                    return false;
+
+                var list = new List<object>(sub.Data.Count);
+                foreach (var row in sub.Data)
+                {
+                    var cell = row.ColumnData.Span[0];
+                    if (cell.HasValue == false)
+                    {
+                        list.Add(null);
+                        continue;
+                    }
+                    list.Add(sub.Columns[0].PgType.FromBytes(cell.Value.ToArray(), PgFormat.Text));
+                }
+                values = list;
+                return true;
+            };
+        }
+
+        // Resolves inline scalar function calls — `current_database()`, `pg_encoding_to_char(x)`,
+        // etc. — by looking up the function in PgVirtualDatabase and threading the per-connection
+        // VirtualQueryContext through (current_database needs ctx.Database.Name).
+        private static ExpressionEvaluator.ScalarFunctionResolver MakeFunctionResolver(VirtualQueryContext ctx)
+        {
+            return (string name, IReadOnlyList<object> args, out object value) =>
+            {
+                value = null;
+                if (PgVirtualDatabase.TryGetFunction(name, out var function) == false)
+                    return false;
+                return function.TryEvaluate(args, ctx, out value);
+            };
+        }
+
+        // Loose PgType inference for the no-FROM expression path. Match the value's runtime type
+        // — good enough for the scalar values we see (bool, long, string).
+        private static PgType InferPgTypeFromRuntimeValue(object value)
+        {
+            return value switch
+            {
+                bool   => PgBool.Default,
+                long   => PgInt8.Default,
+                int    => PgInt4.Default,
+                double => PgFloat8.Default,
+                _      => PgText.Default,
+            };
         }
 
         private static PgTable MergeColumnWise(IReadOnlyList<PgTable> parts)
@@ -87,7 +311,7 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
         }
 
         // Scalar-function path: SELECT version(), SELECT current_setting('x'), etc.
-        private static bool TryExecuteScalarFunction(SelectStmt s, out PgTable result)
+        private static bool TryExecuteScalarFunction(SelectStmt s, VirtualQueryContext ctx, out PgTable result)
         {
             result = null;
 
@@ -120,7 +344,7 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
                 }
             }
 
-            if (function.TryEvaluate(args, out var output) == false)
+            if (function.TryEvaluate(args, ctx, out var output) == false)
                 return false;
 
             var outputName = string.IsNullOrWhiteSpace(resTarget.Name) == false
@@ -170,18 +394,141 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
         // FROM-bearing path: build a joined-row stream via JoinExecutor, evaluate WHERE on each row,
         // project each target through ExpressionEvaluator, optionally sort/limit, and serialize the
         // surviving rows into a PgTable.
-        private static bool TryExecuteTableQuery(SelectStmt s, VirtualQueryContext ctx, out PgTable result)
+        private static bool TryExecuteTableQuery(SelectStmt s, VirtualQueryContext ctx, RowScope outerScope, out PgTable result)
         {
             result = null;
-            if (TryExecuteAsRows(s, ctx, out var columns, out var rows) == false)
+            // Aggregate-without-GROUP-BY path: `SELECT count(...) FROM t WHERE ...` collapses the
+            // filtered input to a single result row. Used by pgAdmin's existence probes.
+            if (TryExecuteAggregateWithoutGroupBy(s, ctx, outerScope, out result))
+                return true;
+            if (TryExecuteAsRows(s, ctx, outerScope, out var columns, out var rows) == false)
                 return false;
             result = BuildPgTable(columns, rows);
+            return true;
+        }
+
+        // Detects `SELECT <aggregate>(...) [, …] FROM t [WHERE …]` with no GROUP BY and every
+        // target being an aggregate (currently only COUNT — extend when other aggregates show up).
+        // Emits a single result row containing the aggregate values.
+        private static bool TryExecuteAggregateWithoutGroupBy(SelectStmt s, VirtualQueryContext ctx, RowScope outerScope, out PgTable result)
+        {
+            result = null;
+
+            if (s.GroupClause is { Count: > 0 })
+                return false;
+            if (s.TargetList is not { Count: > 0 } targetList)
+                return false;
+
+            // Every target must be an aggregate FuncCall — mixing aggregates and bare columns
+            // without GROUP BY is a SQL error and we don't try to recover from it.
+            foreach (var t in targetList)
+            {
+                var rt = t?.ResTarget;
+                if (rt?.Val?.FuncCall == null || IsAggregateFunctionCall(rt.Val.FuncCall) == false)
+                    return false;
+            }
+
+            var executor = new JoinExecutor(ctx, (sub, alias) => TryResolveSubquery(sub, alias, ctx));
+            if (executor.TryExecute(s.FromClause, out var joinedRows, out var sources) == false)
+                return false;
+
+            var subqueryResolver = MakeSubqueryResolver(ctx);
+            var functionResolver = MakeFunctionResolver(ctx);
+
+            var filtered = new List<JoinExecutor.JoinedRow>();
+            foreach (var jr in joinedRows)
+            {
+                if (s.WhereClause == null)
+                {
+                    filtered.Add(jr);
+                    continue;
+                }
+                var scope = jr.ToScope(sources);
+                if (outerScope != null)
+                    scope = scope.WithParent(outerScope);
+                if (ExpressionEvaluator.TryEvaluate(s.WhereClause, scope, subqueryResolver, functionResolver, out var match) == false)
+                    return false;
+                if (ExpressionEvaluator.IsTruthy(match))
+                    filtered.Add(jr);
+            }
+
+            var columns = new List<PgColumn>(targetList.Count);
+            var cells = new ReadOnlyMemory<byte>?[targetList.Count];
+            for (int i = 0; i < targetList.Count; i++)
+            {
+                var rt = targetList[i].ResTarget;
+                var func = rt.Val.FuncCall;
+                var aggName = func.Funcname[0].String?.Sval;
+                if (TryComputeAggregate(aggName, func, filtered, sources, outerScope, subqueryResolver, functionResolver, out var value) == false)
+                    return false;
+
+                var outName = string.IsNullOrWhiteSpace(rt.Name) ? aggName : rt.Name;
+                columns.Add(new PgColumn(outName, columnIndex: (short)i, pgType: PgInt8.Default, formatCode: PgFormat.Text));
+                cells[i] = value == null ? null : PgInt8.Default.ToBytes(value, PgFormat.Text);
+            }
+
+            result = new PgTable
+            {
+                Columns = columns,
+                Data = new List<PgDataRow> { new(cells) },
+            };
+            return true;
+        }
+
+        private static bool IsAggregateFunctionCall(FuncCall func)
+        {
+            if (func.AggStar)
+                return true; // count(*)
+            if (func.Funcname is not { Count: 1 })
+                return false;
+            var name = func.Funcname[0].String?.Sval;
+            return string.Equals(name, "count", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(name, "sum",   StringComparison.OrdinalIgnoreCase)
+                || string.Equals(name, "min",   StringComparison.OrdinalIgnoreCase)
+                || string.Equals(name, "max",   StringComparison.OrdinalIgnoreCase)
+                || string.Equals(name, "avg",   StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static bool TryComputeAggregate(string aggName, FuncCall func, List<JoinExecutor.JoinedRow> rows,
+                                                IReadOnlyList<JoinExecutor.SourceInfo> sources,
+                                                RowScope outerScope,
+                                                ExpressionEvaluator.ScalarSubqueryResolver subqueryResolver,
+                                                ExpressionEvaluator.ScalarFunctionResolver functionResolver,
+                                                out object value)
+        {
+            value = null;
+            if (string.Equals(aggName, "count", StringComparison.OrdinalIgnoreCase) == false && func.AggStar == false)
+                return false; // Only COUNT supported in this minimal cut — extend when needed.
+
+            // count(*) — every filtered row counts.
+            if (func.AggStar || func.Args == null || func.Args.Count == 0)
+            {
+                value = (long)rows.Count;
+                return true;
+            }
+
+            // count(expr) — count rows where expr evaluates to non-null.
+            long c = 0;
+            foreach (var jr in rows)
+            {
+                var scope = jr.ToScope(sources);
+                if (outerScope != null)
+                    scope = scope.WithParent(outerScope);
+                if (ExpressionEvaluator.TryEvaluate(func.Args[0], scope, subqueryResolver, functionResolver, out var v) == false)
+                    return false;
+                if (v != null)
+                    c++;
+            }
+            value = c;
             return true;
         }
 
         // Runs the full pipeline but returns object[] rows + their schema instead of a serialized
         // PgTable. Used both by the top-level table-query path and recursively for sub-FROM bodies.
         private static bool TryExecuteAsRows(SelectStmt s, VirtualQueryContext ctx, out List<ProjectedTarget> columns, out List<object[]> rows)
+            => TryExecuteAsRows(s, ctx, outerScope: null, out columns, out rows);
+
+        private static bool TryExecuteAsRows(SelectStmt s, VirtualQueryContext ctx, RowScope outerScope, out List<ProjectedTarget> columns, out List<object[]> rows)
         {
             columns = null;
             rows = null;
@@ -196,7 +543,7 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
             ctx.Predicates = ExtractEqualityPredicates(s.WhereClause);
             try
             {
-                return TryExecuteAsRowsCore(s, ctx, out columns, out rows);
+                return TryExecuteAsRowsCore(s, ctx, outerScope, out columns, out rows);
             }
             finally
             {
@@ -204,7 +551,7 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
             }
         }
 
-        private static bool TryExecuteAsRowsCore(SelectStmt s, VirtualQueryContext ctx, out List<ProjectedTarget> columns, out List<object[]> rows)
+        private static bool TryExecuteAsRowsCore(SelectStmt s, VirtualQueryContext ctx, RowScope outerScope, out List<ProjectedTarget> columns, out List<object[]> rows)
         {
             columns = null;
             rows = null;
@@ -217,6 +564,9 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
                 return false;
 
             // Filter (WHERE).
+            var subqueryResolver = MakeSubqueryResolver(ctx);
+            var functionResolver = MakeFunctionResolver(ctx);
+
             var filtered = new List<JoinExecutor.JoinedRow>();
             foreach (var jr in joinedRows)
             {
@@ -226,7 +576,9 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
                     continue;
                 }
                 var scope = jr.ToScope(sources);
-                if (ExpressionEvaluator.TryEvaluate(s.WhereClause, scope, out var match) == false)
+                if (outerScope != null)
+                    scope = scope.WithParent(outerScope);
+                if (ExpressionEvaluator.TryEvaluate(s.WhereClause, scope, subqueryResolver, functionResolver, out var match) == false)
                     return false;
                 if (ExpressionEvaluator.IsTruthy(match))
                     filtered.Add(jr);
@@ -243,16 +595,18 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
             foreach (var jr in filtered)
             {
                 var scope = jr.ToScope(sources);
+                if (outerScope != null)
+                    scope = scope.WithParent(outerScope);
                 var cells = new object[totalCells];
                 for (int i = 0; i < projection.Count; i++)
                 {
-                    if (ExpressionEvaluator.TryEvaluate(projection[i].Expression, scope, out var value) == false)
+                    if (ExpressionEvaluator.TryEvaluate(projection[i].Expression, scope, subqueryResolver, functionResolver, out var value) == false)
                         return false;
                     cells[i] = value;
                 }
                 for (int i = 0; i < extraSortExpressions.Count; i++)
                 {
-                    if (ExpressionEvaluator.TryEvaluate(extraSortExpressions[i], scope, out var sortValue) == false)
+                    if (ExpressionEvaluator.TryEvaluate(extraSortExpressions[i], scope, subqueryResolver, functionResolver, out var sortValue) == false)
                         return false;
                     cells[projection.Count + i] = sortValue;
                 }

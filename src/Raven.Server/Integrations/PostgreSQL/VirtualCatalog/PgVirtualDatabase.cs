@@ -31,9 +31,22 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
             RegisterTable(new PgCatalogPgClassTable());
             RegisterTable(new PgCatalogPgAttributeTable());
             RegisterTable(new PgCatalogPgNamespaceTable());
+            RegisterTable(new PgCatalogPgExtensionTable());
+            RegisterTable(new PgCatalogPgReplicationSlotsTable());
+            RegisterTable(new PgCatalogPgStatGssapiTable());
+            RegisterTable(new PgCatalogPgDatabaseTable());
+            RegisterTable(new PgCatalogPgRolesTable());
+            RegisterTable(new PgCatalogPgAuthMembersTable());
 
             RegisterFunction(new VersionFunction());
             RegisterFunction(new CurrentSettingFunction());
+            RegisterFunction(new CurrentDatabaseFunction());
+            RegisterFunction(new PgEncodingToCharFunction());
+            RegisterFunction(new HasDatabasePrivilegeFunction());
+            RegisterFunction(new PgBackendPidFunction());
+            RegisterFunction(new CurrentUserFunction("current_user"));
+            RegisterFunction(new CurrentUserFunction("session_user"));
+            RegisterFunction(new CurrentUserFunction("user"));
         }
 
         public static bool TryGetTable(string schema, string table, out PgVirtualTable virtualTable)
