@@ -599,6 +599,22 @@ ORDER BY ord";
             Assert.Equal("nspname", table.Columns[0].Name);
             Assert.Equal("ord", table.Columns[12].Name);
             Assert.NotEmpty(table.Data);
+            
+            var emptyCells = new System.Collections.Generic.List<string>();
+            for (int rowIdx = 0; rowIdx < table.Data.Count; rowIdx++)
+            {
+                var span = table.Data[rowIdx].ColumnData.Span;
+                for (int col = 0; col < table.Columns.Count; col++)
+                {
+                    var cell = span[col];
+                    if (cell.HasValue == false)
+                        continue;
+                    if (cell.Value.Length == 0)
+                        emptyCells.Add($"row {rowIdx} col '{table.Columns[col].Name}' (typename row 0='{DecodeCell(table, 0, 3)}')");
+                }
+                if (emptyCells.Count >= 3) break;
+            }
+            Assert.True(emptyCells.Count == 0, "empty non-null cells: " + string.Join("; ", emptyCells));
         }
 
         [RavenFact(RavenTestCategory.PostgreSql)]

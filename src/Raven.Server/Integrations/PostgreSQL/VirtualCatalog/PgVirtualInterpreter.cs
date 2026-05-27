@@ -681,7 +681,10 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
                 for (int i = 0; i < projection.Count; i++)
                 {
                     var value = row[i];
-                    cells[i] = value == null ? null : projection[i].PgType.ToBytes(value, projection[i].FormatCode);
+                    if (value == null)
+                        cells[i] = null;
+                    else
+                        cells[i] = projection[i].PgType.ToBytes(value, projection[i].FormatCode);
                 }
                 data.Add(new PgDataRow(cells));
             }
