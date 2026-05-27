@@ -37,16 +37,20 @@ public abstract class RelationalDatabaseWriterBase<TRelationalConnectionString, 
     private readonly RelationalDatabaseEtlMetricsCountersManager _sqlMetrics;
     private readonly EtlProcessStatistics _statistics;
     private readonly string _etlName;
+    private readonly string _taskName;
     protected readonly EtlConfiguration<TRelationalConnectionString> Configuration;
     private readonly List<Func<DbParameter, string, bool>> _stringParserList;
     private const int LongStatementWarnThresholdInMs = 3000;
 
-    protected RelationalDatabaseWriterBase(DocumentDatabase database, EtlConfiguration<TRelationalConnectionString> configuration,
+    protected virtual bool ShouldAbortAndRetryTransaction(Exception e) => false;
+
+    protected RelationalDatabaseWriterBase(DocumentDatabase database, EtlConfiguration<TRelationalConnectionString> configuration, string taskName,
         RelationalDatabaseEtlMetricsCountersManager sqlMetrics, EtlProcessStatistics statistics, bool shouldConnectToTarget = true)
     {
         _sqlMetrics = sqlMetrics;
         _statistics = statistics;
         _etlName = configuration.Name;
+        _taskName = taskName;
 
         Database = database;
         ProviderFactory = GetDbProviderFactory(configuration);
@@ -150,6 +154,9 @@ public abstract class RelationalDatabaseWriterBase<TRelationalConnectionString, 
         var sp = new Stopwatch();
         foreach (var itemToReplicate in toInsert)
         {
+            if (itemToReplicate.SkipOnTxRetry)
+                continue;
+
             sp.Restart();
 
             using (var cmd = GetInsertCommand(tableName, pkName, itemToReplicate))
@@ -171,12 +178,22 @@ public abstract class RelationalDatabaseWriterBase<TRelationalConnectionString, 
                         {
                             Logger.Info(
                                 $"Failed to replicate changes to relational database for: {_etlName} " +
-                                $"(doc: {itemToReplicate.DocumentId}), will continue trying. {Environment.NewLine}{cmd.CommandText}", e);
+                                $"(doc: {itemToReplicate.DocumentId}), the document will be skipped and ETL will continue. {Environment.NewLine}{cmd.CommandText}", e);
                         }
 
-                        _statistics.RecordPartialLoadError(
-                            $"Insert statement:{Environment.NewLine}{cmd.CommandText}{Environment.NewLine}. Error:{Environment.NewLine}{e}",
-                            itemToReplicate.DocumentId);
+                        var errorMessage = $"Insert statement:{Environment.NewLine}{cmd.CommandText}{Environment.NewLine}. Error:{Environment.NewLine}{e}";
+                        _statistics.RecordItemLoadError(errorMessage, itemToReplicate.DocumentId);
+
+                        if (ShouldAbortAndRetryTransaction(e))
+                        {
+                            // an error that caused the whole transaction to be in invalid state so next inserts will also fail, and the only way to
+                            // recover from it is to retry the transaction, so we throw a special exception that will be handled by the caller
+                            // the problematic document that caused the problem will be excluded from the retried transaction to avoid hitting the same error again
+
+                            itemToReplicate.SkipOnTxRetry = true;
+
+                            throw new RetryableTransactionException(e);
+                        }
                     }
                 }
                 finally
@@ -206,6 +223,9 @@ public abstract class RelationalDatabaseWriterBase<TRelationalConnectionString, 
 
     protected DbCommand CreateCommand()
     {
+        if (_tx != null)
+            EnsureTargetConnectionAlive();
+
         var cmd = _connection.CreateCommand();
 
         try
@@ -225,6 +245,26 @@ public abstract class RelationalDatabaseWriterBase<TRelationalConnectionString, 
             cmd.Dispose();
             throw;
         }
+    }
+
+    private bool IsTargetConnectionAlive()
+    {
+        // ConnectionState is [Flags]; test against bad states rather than `== Open` to avoid
+        // false positives on transient combinations like `Open | Executing`.
+        var state = _connection.State;
+        return state != ConnectionState.Closed
+               && state != ConnectionState.Broken
+               && _tx is { Connection: not null };
+    }
+
+    private void EnsureTargetConnectionAlive()
+    {
+        if (IsTargetConnectionAlive())
+            return;
+
+        throw new InvalidOperationException(
+            $"Connection to the target relational database for SQL ETL '{_etlName}' was lost (connection state: {_connection.State}). " +
+            "Aborting current batch. It will retry after fallback.");
     }
 
     public int DeleteItems(string tableName, string pkName, bool parameterize, List<RelationalDatabaseItem> toDelete, Action<DbCommand> commandCallback,
@@ -259,9 +299,21 @@ public abstract class RelationalDatabaseWriterBase<TRelationalConnectionString, 
                             Logger.Info($"Failure to replicate deletions to relational database for: {_etlName}, " +
                                         "will continue trying." + Environment.NewLine + cmd.CommandText, e);
 
-                        _statistics.RecordPartialLoadError(
-                            $"Delete statement:{Environment.NewLine}{cmd.CommandText}{Environment.NewLine}Error:{Environment.NewLine}{e}",
-                            null);
+                        if (Configuration.TestMode == false)
+                        {
+                            var errorMessage = $"Delete statement:{Environment.NewLine}{cmd.CommandText}{Environment.NewLine}Error:{Environment.NewLine}{e}";
+
+                            Database.TaskErrorsStorage.StoreProcessError(TaskCategory.Etl, new TaskProcessError
+                            {
+                                CreatedAt = SystemTime.UtcNow,
+                                TaskName = _taskName,
+                                AffectedDocumentsCount = countOfDeletes,
+                                Step = TaskErrorStep.Load,
+                                Error = errorMessage
+                            });
+                        }
+
+                        _statistics.RecordProcessLoadError(countOfDeletes);
                     }
                 }
                 finally
