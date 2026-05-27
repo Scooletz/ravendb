@@ -657,7 +657,8 @@ namespace Raven.Server.Documents.Replication.Incoming
             {
                 if (Logger.IsInfoEnabled)
                     Logger.Info($"Disposing IncomingReplicationHandler ({FromToString})");
-                _cts.Cancel();
+
+                _cts.SafeCancel(Logger, $"{nameof(IncomingReplicationHandler)} ({FromToString})");
 
                 try
                 {
@@ -666,6 +667,7 @@ namespace Raven.Server.Documents.Replication.Incoming
                 catch (Exception)
                 {
                 }
+
                 try
                 {
                     _stream.Dispose();
@@ -673,6 +675,7 @@ namespace Raven.Server.Documents.Replication.Incoming
                 catch (Exception)
                 {
                 }
+
                 try
                 {
                     _tcpClient.Dispose();
