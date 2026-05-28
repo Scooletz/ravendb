@@ -42,6 +42,17 @@ namespace Raven.Server.Integrations.PostgreSQL
             MessageReader = new MessageReader();
 
             _currentQuery?.Dispose();
+
+            // Extended Protocol's Parse message should contain a single statement. Some clients
+            // (e.g. Npgsql-based connectors like Microsoft Fabric Copy Job) send a multi-statement
+            // batch in one Parse message anyway. We take the last statement in the batch — for
+            // Npgsql startup batches (SELECT version(); SELECT <type-discovery>) that is always the
+            // meaningful data query. The trivial probes (version, current_setting) are silently
+            // dropped; Describe/Execute then serve the real query's schema and rows.
+            var stmts = SqlStatementSplitter.Split(cleanQueryText);
+            if (stmts.Count > 1)
+                cleanQueryText = stmts[^1];
+
             _currentQuery = PgQuery.CreateInstance(cleanQueryText, parametersDataTypes, DocumentDatabase, Session, Username);
         }
 

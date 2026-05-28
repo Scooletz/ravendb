@@ -115,5 +115,104 @@ namespace FastTests.Server.Integrations.PostgreSQL
             var parts = SqlStatementSplitter.Split("SELECT 1;;; SELECT 2;");
             Assert.Equal(2, parts.Count);
         }
+
+        // ── RQL pass-through ──────────────────────────────────────────────────────────
+        //
+        // RQL queries have no statement-separator semantics (no `;` between statements on the
+        // wire) but they routinely contain `;` inside `declare function { ... }` JavaScript
+        // bodies. The splitter must recognize RQL by its leading keyword and pass the whole
+        // input through as a single statement — otherwise PowerBI / pgAdmin users hitting a
+        // `select output(x)`-style query with a JS helper get the function body shredded
+        // mid-statement and the query errors with "Unhandled query".
+
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void Rql_declare_function_with_semicolons_in_body_is_not_split()
+        {
+            const string rql = """
+                declare function output(usage) {
+                    var r = usage.ModelLog.Response.filter(y => y.ModelId == usage.Id);
+                    return { Id : usage.ModelId, Response: r[0] };
+                }
+
+                from index 'UsageByModel' as x
+                select output(x)
+                """;
+
+            var parts = SqlStatementSplitter.Split(rql);
+            Assert.Single(parts);
+            // The whole RQL — function body + query — must survive intact.
+            Assert.Contains("declare function output", parts[0]);
+            Assert.Contains("from index 'UsageByModel'", parts[0]);
+            Assert.Contains("select output(x)", parts[0]);
+        }
+
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void Rql_plain_from_query_is_passed_through_unsplit()
+        {
+            var parts = SqlStatementSplitter.Split("from Orders where Freight > 50");
+            Assert.Single(parts);
+            Assert.Equal("from Orders where Freight > 50", parts[0]);
+        }
+
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void Rql_with_trailing_semicolon_is_passed_through_unsplit()
+        {
+            // The user-supplied trailing `;` would normally trigger a split into [query, ""].
+            // With RQL pass-through, the whole text including the trailing `;` survives — the
+            // downstream RQL parser will reject the trailing `;` (that's invalid RQL) but the
+            // splitter's job is to keep the input intact, not to normalize it.
+            var parts = SqlStatementSplitter.Split("from Orders;");
+            Assert.Single(parts);
+        }
+
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void Rql_leading_whitespace_does_not_break_detection()
+        {
+            var parts = SqlStatementSplitter.Split("   \n   from Orders");
+            Assert.Single(parts);
+        }
+
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void Rql_leading_line_comment_does_not_break_detection()
+        {
+            const string rql = """
+                -- pulled from PowerBI's "Get Data" advanced editor
+                from Orders
+                """;
+
+            var parts = SqlStatementSplitter.Split(rql);
+            Assert.Single(parts);
+        }
+
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void Rql_leading_block_comment_does_not_break_detection()
+        {
+            const string rql = """
+                /* fetched from index */
+                from index 'Orders/ByFreight' where Freight > 50
+                """;
+
+            var parts = SqlStatementSplitter.Split(rql);
+            Assert.Single(parts);
+        }
+
+        // Negative pin: SQL queries beginning with SELECT must STILL go through the splitter
+        // (so multi-statement batches like pgAdmin's startup probe keep working).
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void Sql_select_with_semicolons_continues_to_split()
+        {
+            var parts = SqlStatementSplitter.Split("SELECT 1; SELECT 2; SELECT 3");
+            Assert.Equal(3, parts.Count);
+        }
+
+        // Negative pin: `fromX` (identifier starting with `from`) must NOT be treated as RQL.
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void Sql_identifier_starting_with_from_does_not_trigger_passthrough()
+        {
+            // `fromage` is a perfectly valid (if unusual) SQL identifier. The word-boundary
+            // check on the RQL detector must reject this so the SQL splitter handles it.
+            var parts = SqlStatementSplitter.Split("SELECT fromage FROM cheeses; SELECT 1");
+            Assert.Equal(2, parts.Count);
+        }
     }
 }

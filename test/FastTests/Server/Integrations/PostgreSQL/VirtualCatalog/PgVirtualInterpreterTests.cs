@@ -931,6 +931,106 @@ ORDER BY ord";
             }
         }
 
+        // ── Microsoft Fabric Copy Job / Npgsql 6+ compact type-loading query ─────────────
+        // RavenDB-26024: Fabric's Copy Job connector sends a two-statement Simple Query
+        // batch (`SELECT version(); SELECT ns.nspname, …`) whose second statement is the
+        // Npgsql 6+ compact type-discovery shape. It is a single outer SELECT with a
+        // sub-FROM inner query (one level deep, unlike Npgsql 5's two-level modern nested).
+
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void Npgsql6_compact_types_query_runs_through_interpreter()
+        {
+            // The compact Npgsql 6+ / Microsoft Fabric Copy Job type-loading query.
+            // Outer SELECT projects 6 columns; inner subquery wraps pg_type + LEFT JOINs,
+            // computes typtype/elemtypoid via CASE WHEN, and joins pg_namespace on the outside.
+            const string sql = """
+                SELECT ns.nspname, t.oid, t.typname, t.typtype, t.typnotnull, t.elemtypoid
+                FROM (
+                    SELECT
+                        t.oid, t.typnamespace, t.typname, t.typnotnull,
+                        CASE WHEN proc.proname = 'array_recv' THEN 'a' ELSE t.typtype END AS typtype,
+                        CASE
+                            WHEN proc.proname = 'array_recv' THEN t.typelem
+                            WHEN t.typtype = 'r' THEN rngsubtype
+                            WHEN t.typtype = 'd' THEN t.typbasetype
+                        END AS elemtypoid
+                    FROM pg_type AS t
+                    LEFT JOIN pg_class AS cls ON (cls.oid = t.typrelid)
+                    LEFT JOIN pg_proc AS proc ON (proc.oid = t.typreceive)
+                    LEFT JOIN pg_range ON (pg_range.rngtypid = t.oid)
+                ) AS t
+                JOIN pg_namespace AS ns ON (ns.oid = t.typnamespace)
+                WHERE
+                    t.typtype IN ('b', 'r', 'e', 'd') OR
+                    t.typtype = 'c' OR
+                    (t.typtype = 'p' AND t.typname IN ('record', 'void')) OR
+                    (t.typtype = 'a' AND t.typname NOT LIKE '\_\_%')
+                ORDER BY t.oid
+                """;
+
+            Assert.True(PgVirtualInterpreter.TryExecute(sql, EmptyCtx(), out var table));
+            Assert.Equal(6, table.Columns.Count);
+            Assert.Equal("nspname",    table.Columns[0].Name);
+            Assert.Equal("oid",        table.Columns[1].Name);
+            Assert.Equal("typname",    table.Columns[2].Name);
+            Assert.Equal("typtype",    table.Columns[3].Name);
+            Assert.Equal("typnotnull", table.Columns[4].Name);
+            Assert.Equal("elemtypoid", table.Columns[5].Name);
+            Assert.NotEmpty(table.Data);
+
+            // int4 (oid=23) must appear as a base type 'b'.
+            var sawInt4 = false;
+            foreach (var row in table.Data)
+            {
+                var span = row.ColumnData.Span;
+                if (span[1].HasValue && Encoding.UTF8.GetString(span[1].Value.Span) == "23" &&
+                    span[3].HasValue && Encoding.UTF8.GetString(span[3].Value.Span) == "b")
+                {
+                    sawInt4 = true;
+                    break;
+                }
+            }
+            Assert.True(sawInt4, "int4 (oid=23) must appear as typtype='b'");
+        }
+
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void Fabric_copy_job_full_batch_second_statement_is_type_query()
+        {
+            // The Fabric Copy Job sends the full `SELECT version(); SELECT ns.nspname …`
+            // batch in a single message. After splitting, statement 2 must succeed through
+            // the interpreter. Validates that SqlStatementSplitter correctly isolates the
+            // second statement so the interpreter can handle it.
+            const string typeSql = """
+                SELECT ns.nspname, t.oid, t.typname, t.typtype, t.typnotnull, t.elemtypoid
+                FROM (
+                    SELECT
+                        t.oid, t.typnamespace, t.typname, t.typnotnull,
+                        CASE WHEN proc.proname = 'array_recv' THEN 'a' ELSE t.typtype END AS typtype,
+                        CASE
+                            WHEN proc.proname = 'array_recv' THEN t.typelem
+                            WHEN t.typtype = 'r' THEN rngsubtype
+                            WHEN t.typtype = 'd' THEN t.typbasetype
+                        END AS elemtypoid
+                    FROM pg_type AS t
+                    LEFT JOIN pg_class AS cls ON (cls.oid = t.typrelid)
+                    LEFT JOIN pg_proc AS proc ON (proc.oid = t.typreceive)
+                    LEFT JOIN pg_range ON (pg_range.rngtypid = t.oid)
+                ) AS t
+                JOIN pg_namespace AS ns ON (ns.oid = t.typnamespace)
+                WHERE
+                    t.typtype IN ('b', 'r', 'e', 'd') OR
+                    t.typtype = 'c' OR
+                    (t.typtype = 'p' AND t.typname IN ('record', 'void')) OR
+                    (t.typtype = 'a' AND t.typname NOT LIKE '\_\_%')
+                ORDER BY t.oid
+                """;
+
+            // Statement 2 must succeed on its own — that is what `Query.cs` dispatches after splitting.
+            Assert.True(PgVirtualInterpreter.TryExecute(typeSql, EmptyCtx(), out var table));
+            Assert.Equal(6, table.Columns.Count);
+            Assert.NotEmpty(table.Data);
+        }
+
         private static VirtualQueryContext EmptyCtx() => new();
 
         private static string DecodeCell(Raven.Server.Integrations.PostgreSQL.Messages.PgTable table, int row, int column)

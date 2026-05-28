@@ -17,6 +17,20 @@ namespace Raven.Server.Integrations.PostgreSQL
             if (string.IsNullOrWhiteSpace(sql))
                 return result;
 
+            // RQL queries have no `;`-separator semantics — they're always a single statement
+            // on the wire — but they routinely contain `;` inside `declare function { ... }`
+            // JavaScript bodies. A SQL-shaped splitter would shred those into invalid pieces.
+            // Bypass the splitter entirely for inputs whose leading keyword is RQL.
+            //
+            // We do NOT strip a trailing `;` — that's invalid RQL and surfacing the parser
+            // error is the right behavior (the user should drop the `;`). The pass-through is
+            // about preserving the semantically-meaningful contents, not normalizing them.
+            if (LooksLikeRql(sql))
+            {
+                result.Add(sql.Trim());
+                return result;
+            }
+
             int start = 0;
             int i = 0;
             while (i < sql.Length)
@@ -139,6 +153,60 @@ namespace Raven.Server.Integrations.PostgreSQL
                 result.Add(last);
 
             return result;
+        }
+
+        // Skips leading whitespace and SQL comments, then checks whether the first non-trivial
+        // token is an RQL-only keyword (`declare` for a JS function declaration, `from` for the
+        // standard collection query). PG SQL never starts a statement with these — `FROM` only
+        // appears mid-SELECT — so the keyword anchor is a reliable signal that the entire input
+        // is RQL and must not be `;`-split.
+        private static bool LooksLikeRql(string sql)
+        {
+            int i = 0;
+            while (i < sql.Length)
+            {
+                var ch = sql[i];
+                if (char.IsWhiteSpace(ch))
+                {
+                    i++;
+                    continue;
+                }
+                if (ch == '-' && i + 1 < sql.Length && sql[i + 1] == '-')
+                {
+                    i += 2;
+                    while (i < sql.Length && sql[i] != '\n')
+                        i++;
+                    continue;
+                }
+                if (ch == '/' && i + 1 < sql.Length && sql[i + 1] == '*')
+                {
+                    i += 2;
+                    while (i + 1 < sql.Length && !(sql[i] == '*' && sql[i + 1] == '/'))
+                        i++;
+                    i = Math.Min(i + 2, sql.Length);
+                    continue;
+                }
+                break;
+            }
+
+            return StartsWithKeywordAtWordBoundary(sql, i, "declare")
+                || StartsWithKeywordAtWordBoundary(sql, i, "from");
+        }
+
+        private static bool StartsWithKeywordAtWordBoundary(string sql, int i, string keyword)
+        {
+            if (i + keyword.Length > sql.Length)
+                return false;
+            for (int k = 0; k < keyword.Length; k++)
+            {
+                if (char.ToLowerInvariant(sql[i + k]) != keyword[k])
+                    return false;
+            }
+            int next = i + keyword.Length;
+            if (next == sql.Length)
+                return true;
+            var nc = sql[next];
+            return char.IsLetterOrDigit(nc) == false && nc != '_';
         }
     }
 }
