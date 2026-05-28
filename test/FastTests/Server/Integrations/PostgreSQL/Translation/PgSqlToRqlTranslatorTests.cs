@@ -316,5 +316,105 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
             Assert.Contains("title", rql, StringComparison.Ordinal);
             Assert.DoesNotContain("Title", rql, StringComparison.Ordinal);
         }
+
+        // ── PowerBI incremental refresh / date-range filters ──────────────────────────
+        //
+        // PowerBI's incremental refresh translates the `RangeStart`/`RangeEnd` parameters
+        // into SQL with a parameterized date-range predicate on a chosen DateTime column.
+        // The end-to-end shape is `WHERE "col" >= $1 AND "col" < $2`, with the bounds bound
+        // at Bind time via the Extended Query Protocol.
+        //
+        // We test three forms: inline `timestamp 'YYYY-MM-DD'` literals (PG-idiomatic),
+        // `'...'::timestamp` cast literals (functionally identical, different AST node
+        // arrangement), and the parameterized form. The parameterized form is the one
+        // PowerBI actually sends — it is *not* supported today: SqlWhereParser's scalar
+        // extractor only handles AConst / TypeCast literals, not ParamRef. Documenting
+        // the gap here keeps the limitation discoverable.
+
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void DateRange_InlineTimestampLiteral_TranslatesBothBounds()
+        {
+            // `timestamp 'X'` is PG-idiomatic typed-literal syntax — emits TypeCast in the AST.
+            var sql = """SELECT * FROM orders WHERE "OrderedAt" >= timestamp '1996-08-01' AND "OrderedAt" < timestamp '1996-09-01'""";
+            var rql = Translate(sql);
+
+            Assert.Contains("from 'orders'", rql, StringComparison.Ordinal);
+            Assert.Contains("OrderedAt", rql, StringComparison.Ordinal);
+            // Both ends of the date range must reach the emitted RQL — incremental refresh
+            // depends on RavenDB's auto-index seeing both bounds (else it scans the whole
+            // collection per partition).
+            Assert.Contains("1996-08", rql, StringComparison.Ordinal);
+            Assert.Contains("1996-09", rql, StringComparison.Ordinal);
+            Assert.Contains(">=", rql, StringComparison.Ordinal);
+            Assert.Contains("<", rql, StringComparison.Ordinal);
+        }
+
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void DateRange_CastTimestampLiteral_TranslatesBothBounds()
+        {
+            // `'X'::timestamp` — same TypeCast, different ordering in source. Some tools
+            // (older PG-protocol clients) prefer this form. Should be equivalent.
+            var sql = """SELECT * FROM orders WHERE "OrderedAt" >= '1996-08-01'::timestamp AND "OrderedAt" < '1996-09-01'::timestamp""";
+            var rql = Translate(sql);
+
+            Assert.Contains("from 'orders'", rql, StringComparison.Ordinal);
+            Assert.Contains("OrderedAt", rql, StringComparison.Ordinal);
+            Assert.Contains("1996-08", rql, StringComparison.Ordinal);
+            Assert.Contains("1996-09", rql, StringComparison.Ordinal);
+        }
+
+        // PowerBI emits this exact shape for incremental-refresh windows. The query has
+        // a quoted column reference + half-open range. We assert TryParse returns true and
+        // the date column appears in the emitted RQL — both ends.
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void DateRange_QuotedColumnHalfOpenWindow_TranslatesToRangeFilter()
+        {
+            var sql = """
+                SELECT "OrderedAt", "Freight" FROM "Orders"
+                WHERE "OrderedAt" >= timestamp '2024-01-01' AND "OrderedAt" < timestamp '2024-02-01'
+                ORDER BY "OrderedAt"
+                """;
+            var rql = Translate(sql);
+
+            Assert.Contains("from 'Orders'", rql, StringComparison.Ordinal);
+            Assert.Contains("OrderedAt", rql, StringComparison.Ordinal);
+            Assert.Contains("Freight", rql, StringComparison.Ordinal);
+            Assert.Contains("2024-01", rql, StringComparison.Ordinal);
+            Assert.Contains("2024-02", rql, StringComparison.Ordinal);
+        }
+
+        // The shape PowerBI actually sends for incremental refresh. Currently NOT supported:
+        // SqlWhereParser.TryExtractScalar only handles AConst / TypeCast literals — not
+        // ParamRef. Tracked here so the translator's progress on ParamRef support has a
+        // pinned test to flip from Skip → passing once the feature lands.
+        [RavenFact(RavenTestCategory.PostgreSql, Skip = "ParamRef in WHERE values is not yet supported by the SQL→RQL translator. Tracked: SqlWhereParser.TryExtractScalar should accept ParamRef and emit RQL with an inlined or named parameter reference.")]
+        public void DateRange_ParameterizedBounds_TranslatesWithParamRefs()
+        {
+            var sql = """SELECT * FROM "Orders" WHERE "OrderedAt" >= $1 AND "OrderedAt" < $2""";
+            var rql = Translate(sql);
+
+            Assert.Contains("from 'Orders'", rql, StringComparison.Ordinal);
+            Assert.Contains("OrderedAt", rql, StringComparison.Ordinal);
+            // When implemented, RQL would carry parameter placeholders (e.g. $p0/$p1)
+            // that the Bind-time parameter values then fill in.
+            Assert.Contains("$", rql, StringComparison.Ordinal);
+        }
+
+        // Negative pin: until ParamRef support lands, TryParse must return false rather than
+        // silently dropping the predicate (which would produce a query returning the whole
+        // collection — exactly the silent-data-loss bug we want to avoid).
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void DateRange_ParameterizedBounds_CurrentlyRejectsTranslation()
+        {
+            var sql = """SELECT * FROM "Orders" WHERE "OrderedAt" >= $1 AND "OrderedAt" < $2""";
+
+            // ParamRef in WHERE value → SqlWhereParser fails → translator returns false.
+            // Caller (PgQuery.CreateInstance) then raises "Unhandled query", which the PG
+            // client surfaces as an error rather than an unfiltered result set.
+            Assert.False(
+                Raven.Server.Integrations.PostgreSQL.Translation.PgSqlToRqlTranslator
+                    .TryParse(sql, Array.Empty<int>(), out _),
+                "Parameterized WHERE bounds should be rejected until ParamRef support is added — silent fall-through would return the whole table.");
+        }
     }
 }
