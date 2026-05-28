@@ -458,6 +458,47 @@ END as type";
             Assert.Equal("column_name", table.Columns[0].Name);
         }
 
+        // PowerBI Desktop's data-loader fires this shape against every collection it's about to
+        // import — it's the gating call before any actual SELECT. Exercises CASE in the projection,
+        // LIKE pattern matching against the column's data_type, string concatenation with ||, and
+        // ORDER BY on columns not in the SELECT list (TABLE_SCHEMA/TABLE_NAME come from the
+        // underlying row schema). With no database the row scan yields nothing, but the query must
+        // still be *accepted* by the interpreter (otherwise PowerBI sees `Unhandled query`).
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void PowerBI_data_loader_columns_probe_with_case_like_and_concat_accepted()
+        {
+            const string sql =
+                "select COLUMN_NAME, ORDINAL_POSITION, IS_NULLABLE, " +
+                "case when (data_type like '%unsigned%') then DATA_TYPE || ' unsigned' else DATA_TYPE end as DATA_TYPE " +
+                "from INFORMATION_SCHEMA.columns " +
+                "where TABLE_SCHEMA = 'public' and TABLE_NAME = 'Categories' " +
+                "order by TABLE_SCHEMA, TABLE_NAME, ORDINAL_POSITION";
+
+            Assert.True(PgVirtualInterpreter.TryExecute(sql, EmptyCtx(), out var table));
+            Assert.Equal(4, table.Columns.Count);
+            Assert.Empty(table.Data);
+        }
+
+        // pgAdmin's per-result-column type-name probe: it batches up oids from a result set and
+        // asks "what's the canonical PG type name for each?" via a parameterized array. The
+        // parameter ($1) isn't bound at interpret time (we run at Parse-time in the extended
+        // protocol), so ParamRef resolves to NULL and the WHERE filters everything out. The query
+        // must still be accepted by the interpreter with the right column shape — pgAdmin's data
+        // grid then just shows raw oids instead of friendly names, but the query window stays open.
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void PgAdmin_format_type_type_introspection_probe_accepted_empty()
+        {
+            const string sql =
+                "SELECT oid, pg_catalog.format_type(oid, NULL) AS typname " +
+                "FROM pg_catalog.pg_type WHERE oid = ANY($1) ORDER BY oid";
+
+            Assert.True(PgVirtualInterpreter.TryExecute(sql, EmptyCtx(), out var table));
+            Assert.Equal(2, table.Columns.Count);
+            Assert.Equal("oid", table.Columns[0].Name);
+            Assert.Equal("typname", table.Columns[1].Name);
+            Assert.Empty(table.Data);
+        }
+
         // ── Npgsql pg_catalog metadata empty-join shapes ──────────────────────
 
         [RavenFact(RavenTestCategory.PostgreSql)]

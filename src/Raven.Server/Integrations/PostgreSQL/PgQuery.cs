@@ -43,28 +43,45 @@ namespace Raven.Server.Integrations.PostgreSQL
         {
             queryText = queryText.Trim();
 
+            // TEMP DEBUG: dump every incoming query + which handler claimed it. Remove before merging.
+            System.Console.Error.WriteLine($"[PG] >>> {queryText}");
+
             try
             {
                 if (ProtocolCommandQuery.TryParse(queryText, parametersDataTypes, session, out var protocolCommand))
+                {
+                    System.Console.Error.WriteLine($"[PG] <<< ProtocolCommandQuery");
                     return protocolCommand;
+                }
 
                 if (RqlQuery.TryParse(queryText, parametersDataTypes, documentDatabase, out var rqlQuery))
+                {
+                    System.Console.Error.WriteLine($"[PG] <<< RqlQuery");
                     return rqlQuery;
+                }
 
                 if (PowerBIQuery.TryParse(queryText, parametersDataTypes, documentDatabase, out var powerBiQuery))
                 {
                     if (documentDatabase.ServerStore.LicenseManager.CanUsePowerBi(withNotification: true, out var licenseLimitException) == false)
                         throw licenseLimitException;
-
+                    System.Console.Error.WriteLine($"[PG] <<< PowerBIQuery ({powerBiQuery.GetType().Name})");
                     return powerBiQuery;
                 }
 
                 if (PgVirtualInterpreter.TryExecute(queryText, new VirtualQueryContext { Database = documentDatabase, Username = username }, out var virtualTable))
+                {
+                    System.Console.Error.WriteLine($"[PG] <<< VirtualInterpreterQuery (cols={virtualTable?.Columns?.Count ?? 0}, rows={virtualTable?.Data?.Count ?? 0})");
                     return new VirtualInterpreterQuery(queryText, parametersDataTypes, virtualTable);
+                }
 
-                if (PgSqlToRqlTranslator.TryParse(queryText, parametersDataTypes, out var rql))
-                    return new RqlQuery(rql, parametersDataTypes, documentDatabase);
-                
+                if (PgSqlToRqlTranslator.TryParse(queryText, parametersDataTypes, documentDatabase, out var rql, out var hasExplicitProjection))
+                {
+                    System.Console.Error.WriteLine($"[PG] <<< RqlQuery (via SQL translator, explicit={hasExplicitProjection})");
+                    return hasExplicitProjection
+                        ? new PgSqlTranslatedRqlQuery(rql, parametersDataTypes, documentDatabase)
+                        : new RqlQuery(rql, parametersDataTypes, documentDatabase);
+                }
+
                 throw new PgErrorException(
                     PgErrorCodes.StatementTooComplex,
                     "Unhandled query (Are you using ; in your query? " +
@@ -73,6 +90,7 @@ namespace Raven.Server.Integrations.PostgreSQL
             }
             catch (Exception e)
             {
+                System.Console.Error.WriteLine($"[PG] !!! FAIL: {e.GetType().Name}: {e.Message}");
                 if (_log.IsInfoEnabled)
                     _log.Info($"Failed to create instance of {nameof(PgQuery)}:{Environment.NewLine}{queryText}", e);
 

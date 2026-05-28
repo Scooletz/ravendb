@@ -223,4 +223,28 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
             return args is null or { Count: 0 };
         }
     }
+
+    // format_type(oid, typmod): canonical PG type name (e.g. 23 → "integer", 25 → "text").
+    // Used in pgAdmin's `SELECT oid, format_type(oid, NULL) AS typname FROM pg_type WHERE oid =
+    // ANY($1)` probe to pretty-print result-set column types in the data grid.
+    //
+    // Why this returns null: the probe is parameterized (`$1`) and the interpreter runs at
+    // Parse-time, before Bind has populated the parameter values. With `$1` resolving to NULL,
+    // `oid = ANY($1)` evaluates to NULL → all rows filtered out → format_type is never actually
+    // invoked. We still need the function registered so projection-shape resolution succeeds at
+    // Parse-time and the query returns an empty result set with the correct column metadata.
+    // pgAdmin tolerates this gracefully: it just shows raw oids instead of formatted type names.
+    internal sealed class FormatTypeFunction : ScalarFunction
+    {
+        public override string Name => "format_type";
+        public override string ResultColumnName => "format_type";
+        public override PgType PgType => PgText.Default;
+
+        public override bool TryEvaluate(IReadOnlyList<object> args, VirtualQueryContext ctx, out object result)
+        {
+            result = null;
+            // format_type takes 1 or 2 args: (oid) or (oid, typmod). Anything else is malformed.
+            return args is { Count: >= 1 and <= 2 };
+        }
+    }
 }

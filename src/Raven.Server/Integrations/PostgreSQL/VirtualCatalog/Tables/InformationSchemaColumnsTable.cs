@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Raven.Client;
 using Raven.Server.Integrations.PostgreSQL.Messages;
 using Raven.Server.Integrations.PostgreSQL.Types;
 using Raven.Server.ServerWide.Context;
@@ -6,6 +7,26 @@ using Sparrow.Json;
 
 namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog.Tables
 {
+    // information_schema.columns: per-column metadata for every "table" the PG endpoint exposes.
+    // Used by PowerBI's data-loader and pgAdmin's schema browser to discover a collection's column
+    // shape before issuing the actual SELECT.
+    //
+    // CRITICAL: the column list we report here MUST match exactly what RqlQuery emits in its
+    // RowDescription when serving the actual data query. If they disagree (different count, order,
+    // names, or types), PowerBI's Mashup engine compares the two and raises `DataSource.Changed:
+    // The data source appears to have been modified since it was last accessed.` Specifically:
+    //
+    //   - Order: RqlQuery uses `GetPropertyNames()` which returns properties in DOCUMENT
+    //     INSERTION ORDER (sorted by byte offset). We must do the same; `GetPropertyByIndex(i)`
+    //     gives a different (property-id / alphabetical) order and breaks the contract.
+    //   - Auto-columns: RqlQuery prepends `id()` and appends `json()` for every collection query.
+    //     We have to bracket the user properties with the same pseudo-columns.
+    //   - Types: must mirror RqlQuery's BlittableJsonToken → PgType mapping exactly. Notably
+    //     objects/arrays/embedded blittable map to PgJson (PG `json` oid 114), NOT jsonb.
+    //
+    // Schema/catalog identity exposed in the rows:
+    //   table_catalog = ctx.Database.Name (each RavenDB DB hosts one PG "catalog")
+    //   table_schema  = "public"          (PG default; we don't model multiple schemas)
     internal sealed class InformationSchemaColumnsTable : PgVirtualTable
     {
         private const string TableNamePredicate = "table_name";
@@ -16,6 +37,9 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog.Tables
 
         public override IReadOnlyList<PgVirtualColumn> Columns { get; } = new PgVirtualColumn[]
         {
+            new("table_catalog",    PgName.Default,    PgFormat.Text),
+            new("table_schema",     PgName.Default,    PgFormat.Text),
+            new("table_name",       PgName.Default,    PgFormat.Text),
             new("column_name",      PgName.Default,    PgFormat.Text),
             new("ordinal_position", PgInt4.Default,    PgFormat.Binary),
             new("is_nullable",      PgVarchar.Default, PgFormat.Text),
@@ -46,14 +70,66 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog.Tables
                 if (sample == null)
                     yield break;
 
-                int ordinal = 0;
-                var propNames = sample.GetPropertyNames();
-                foreach (var name in propNames)
+                var dbName = ctx.Database.Name;
+                int ordinal = 1;
+
+                // 1) id() — RqlQuery prepends this as the document-identifier column (PgText).
+                yield return new object[]
                 {
-                    yield return new object[] { name, ordinal, Yes, string.Empty };
-                    ordinal++;
+                    dbName, "public", collection,
+                    Constants.Documents.Indexing.Fields.DocumentIdFieldName,
+                    ordinal++, Yes, "text"
+                };
+
+                // 2) User columns in INSERTION order — same order RqlQuery uses (line 131 in
+                //    RqlQuery.cs: `samples[0].Data.GetPropertyNames()`). We get the type via
+                //    GetPropertyIndex + GetPropertyByIndex because GetPropertyNames() returns
+                //    just the names without the BlittableJsonToken.
+                var prop = default(BlittableJsonReaderObject.PropertyDetails);
+                foreach (var name in sample.GetPropertyNames())
+                {
+                    if (string.IsNullOrEmpty(name))
+                        continue;
+                    // Skip RavenDB system fields (@metadata, etc.) — RqlQuery skips them too.
+                    if (name.StartsWith('@'))
+                        continue;
+
+                    var propIdx = sample.GetPropertyIndex(name);
+                    if (propIdx == -1)
+                        continue;
+                    sample.GetPropertyByIndex(propIdx, ref prop);
+
+                    var dataType = MapDataType(prop.Token);
+                    yield return new object[] { dbName, "public", collection, name, ordinal++, Yes, dataType };
                 }
+
+                // 3) json() — RqlQuery appends this as the metadata blob column (PgJson). Always
+                //    last in RowDescription, so it goes last here too.
+                yield return new object[]
+                {
+                    dbName, "public", collection,
+                    Constants.Documents.Querying.Fields.PowerBIJsonFieldName,
+                    ordinal++, Yes, "json"
+                };
             }
         }
+
+        // Mirrors RqlQuery.GenerateSchema's BlittableJsonToken → PgType decision tree so the
+        // data_type strings here match the PG types of the corresponding columns in RqlQuery's
+        // RowDescription. Drift here triggers PowerBI's DataSource.Changed error.
+        private static string MapDataType(BlittableJsonToken token)
+            => (token & BlittableJsonToken.TypesMask) switch
+            {
+                BlittableJsonToken.Integer           => "bigint",            // RqlQuery: PgInt8
+                BlittableJsonToken.LazyNumber        => "double precision",  // RqlQuery: PgFloat8
+                BlittableJsonToken.String            => "text",              // RqlQuery: PgText
+                BlittableJsonToken.CompressedString  => "text",              // RqlQuery: PgText
+                BlittableJsonToken.Boolean           => "boolean",           // RqlQuery: PgBool
+                BlittableJsonToken.StartObject       => "json",              // RqlQuery: PgJson
+                BlittableJsonToken.StartArray        => "json",              // RqlQuery: PgJson
+                BlittableJsonToken.EmbeddedBlittable => "json",              // RqlQuery: PgJson
+                BlittableJsonToken.Null              => "json",              // RqlQuery: PgJson
+                _                                    => "json",              // unknown → PgJson
+            };
     }
 }

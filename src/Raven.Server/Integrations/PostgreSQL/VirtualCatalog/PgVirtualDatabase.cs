@@ -51,6 +51,7 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
             RegisterFunction(new CurrentUserFunction("user"));
             RegisterFunction(new PgGetUserByIdFunction());
             RegisterFunction(new ArrayToStringFunction());
+            RegisterFunction(new FormatTypeFunction());
         }
 
         public static bool TryGetTable(string schema, string table, out PgVirtualTable virtualTable)

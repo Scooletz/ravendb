@@ -337,6 +337,22 @@ namespace Raven.Server.Integrations.PostgreSQL
                 case (BlittableJsonToken.LazyNumber, PgTypeOIDs.Float8):
                     return pgColumn.PgType.ToBytes((double)(LazyNumberValue)value, pgColumn.FormatCode);
 
+                // Cross-type numeric mismatches: a column's PgType is fixed at schema-inference time
+                // (first non-null sample wins), but RavenDB doesn't enforce a type across docs in the
+                // same collection. So `Freight = 89` (Integer) and `Freight = 89.5` (LazyNumber) can
+                // coexist. Without these cases, GetValueByType returns null on the mismatched token
+                // and PowerBI/pgAdmin show the cell as empty. Promote/coerce instead.
+                case (BlittableJsonToken.Integer, PgTypeOIDs.Float8):
+                    // long → double is lossless up to 2^53.
+                    return pgColumn.PgType.ToBytes((double)(long)value, pgColumn.FormatCode);
+
+                case (BlittableJsonToken.LazyNumber, PgTypeOIDs.Int8):
+                    // Decimal narrowing to long — lossy for any fractional part, but rendering the
+                    // integer part is strictly better than dropping the row entirely. The schema
+                    // inference picked Int8 because the first sample happened to be a whole number;
+                    // mixed-type collections are inherently ambiguous to PG's static-typed surface.
+                    return pgColumn.PgType.ToBytes((long)(double)(LazyNumberValue)value, pgColumn.FormatCode);
+
                 case (BlittableJsonToken.CompressedString, PgTypeOIDs.Timestamp):
                 case (BlittableJsonToken.CompressedString, PgTypeOIDs.TimestampTz):
                 case (BlittableJsonToken.CompressedString, PgTypeOIDs.Interval):

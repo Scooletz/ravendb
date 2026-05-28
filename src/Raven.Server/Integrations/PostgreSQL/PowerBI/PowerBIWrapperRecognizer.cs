@@ -51,7 +51,8 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                     OuterWhereClause: selectStmt.WhereClause,
                     Limit: limitFlat,
                     Offset: offsetFlat,
-                    Aggregates: aggregatesFlat);
+                    Aggregates: aggregatesFlat,
+                    IntermediateWheres: new List<IntermediateWhere>());
                 return true;
             }
 
@@ -96,6 +97,13 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 }
             }
 
+            // Collect any WHERE clauses that PowerBI planted inside intermediate wrapper levels —
+            // e.g. user filters placed underneath the null-ordering CASE helpers but above the
+            // distinct-grouping. The outer (top-level) WHERE is already carried via OuterWhereClause;
+            // we only collect interior WHEREs here so the caller knows to translate them with the
+            // right wrapper alias and AND-merge them into the final RQL.
+            var intermediateWheres = CollectIntermediateWheres(selectStmt);
+
             wrapper = new NormalizedWrapper(
                 OuterProjectedColumns: outerCols,
                 GroupByColumns: groupByCols,
@@ -104,8 +112,51 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 OuterWhereClause: selectStmt.WhereClause,
                 Limit: limit,
                 Offset: offset,
-                Aggregates: aggregates);
+                Aggregates: aggregates,
+                IntermediateWheres: intermediateWheres);
             return true;
+        }
+
+        // Walks every nested PowerBI-wrapper level *below* the outermost SELECT and collects any
+        // WHERE clauses found along the way, tagged with the wrapper alias that scopes the WHERE's
+        // column references. Stops descending when it hits a level whose FROM isn't a recognized
+        // PowerBI wrapper subselect (RangeVar / non-wrapper alias / multi-source FROM). The outermost
+        // SELECT is excluded — its WHERE is already on OuterWhereClause and uses the outermost
+        // wrapper alias which the caller handles separately.
+        private static List<IntermediateWhere> CollectIntermediateWheres(SelectStmt outerSelectStmt)
+        {
+            var result = new List<IntermediateWhere>();
+            if (outerSelectStmt?.FromClause is not { Count: 1 })
+                return result;
+
+            var rss = outerSelectStmt.FromClause[0]?.RangeSubselect;
+            if (rss == null)
+                return result;
+
+            var current = rss.Subquery?.SelectStmt;
+            while (current != null)
+            {
+                if (current.FromClause is not { Count: 1 } currentFrom)
+                    break;
+
+                var nextRss = currentFrom[0]?.RangeSubselect;
+                if (nextRss == null)
+                    break;
+
+                var nextAlias = nextRss.Alias?.Aliasname;
+                if (PgSqlAstHelpers.IsPowerBiWrapperAlias(nextAlias) == false)
+                    break;
+
+                // A WHERE clause at THIS level references columns via `nextAlias.<column>` —
+                // because nextAlias is the alias of THIS level's FROM-subquery (the source the
+                // WHERE filters).
+                if (current.WhereClause != null)
+                    result.Add(new IntermediateWhere(current.WhereClause, nextAlias));
+
+                current = nextRss.Subquery?.SelectStmt;
+            }
+
+            return result;
         }
 
         private static bool TryExtractProjectedColumnsFromAnyWrapperLevel(SelectStmt s, out List<string> cols)

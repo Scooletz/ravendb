@@ -52,5 +52,15 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
         Node OuterWhereClause,
         int? Limit,
         int? Offset,
-        List<Aggregate> Aggregates);
+        List<Aggregate> Aggregates,
+        // WHEREs found at intermediate wrapper levels (not the outermost SELECT). PowerBI's DirectQuery
+        // can plant user filters several wrapper levels deep — e.g. inside the level that does the
+        // distinct-grouping that precedes the null-ordering CASE helpers. Each entry carries the raw
+        // WHERE AST node plus the wrapper alias used in that level's SELECT, so the WHERE translator
+        // knows which alias the column refs are anchored to when collapsing them onto the inner RQL.
+        List<IntermediateWhere> IntermediateWheres);
+
+    internal sealed record IntermediateWhere(
+        Node WhereClause,
+        string WrapperAlias);
 }

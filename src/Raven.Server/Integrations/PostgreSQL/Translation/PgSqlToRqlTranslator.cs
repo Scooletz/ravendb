@@ -8,7 +8,10 @@ using Newtonsoft.Json.Linq;
 using PgSqlParser;
 using Raven.Client;
 using Raven.Client.Documents.Session;
+using Raven.Server.Documents;
 using Raven.Server.Logging;
+using Raven.Server.ServerWide.Context;
+using Sparrow.Json;
 using Sparrow.Logging;
 using Sparrow.Server.Logging;
 
@@ -27,8 +30,23 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
         private const string UnsupportedJoinMessage = "Unsupported JOIN shape";
 
         public static bool TryParse(string sql, int[] parameterTypes, out string rql)
+            => TryParse(sql, parameterTypes, documentDatabase: null, out rql, out _);
+
+        public static bool TryParse(string sql, int[] parameterTypes, DocumentDatabase documentDatabase, out string rql)
+            => TryParse(sql, parameterTypes, documentDatabase, out rql, out _);
+
+        // The documentDatabase overload lets the ORDER BY translator infer numeric vs string
+        // ordering by sampling the collection's first document. Without it, every ORDER BY falls
+        // back to PG's default (alphabetic), which produces "10 < 9" results for numeric fields.
+        //
+        // hasExplicitProjection tells the caller whether the SQL had a real projection (e.g.
+        // `SELECT a, b FROM t`) or a wildcard (`SELECT * FROM t`). The caller uses it to decide
+        // whether to suppress RqlQuery's auto-included id()/json() columns — if the user
+        // explicitly listed columns, they shouldn't get magic extras tacked on.
+        public static bool TryParse(string sql, int[] parameterTypes, DocumentDatabase documentDatabase, out string rql, out bool hasExplicitProjection)
         {
             rql = null;
+            hasExplicitProjection = false;
 
             if (Logger.IsDebugEnabled)
                 Logger.Debug($"{nameof(PgSqlToRqlTranslator)}.{nameof(TryParse)} invoked with SQL: {sql}");
@@ -58,7 +76,8 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
                 if (stmt?.Stmt?.SelectStmt == null)
                     throw new NotSupportedException("Only SELECT statements are supported.");
 
-                rql = TranslateSelectStatement(stmt.Stmt.SelectStmt);
+                hasExplicitProjection = HasExplicitProjection(stmt.Stmt.SelectStmt);
+                rql = TranslateSelectStatement(stmt.Stmt.SelectStmt, documentDatabase);
                 return LogSuccess(sql, rql);
             }
             catch (NotSupportedException ex)
@@ -85,7 +104,7 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
             return false;
         }
 
-        private static string TranslateSelectStatement(SelectStmt selectStmt)
+        private static string TranslateSelectStatement(SelectStmt selectStmt, DocumentDatabase documentDatabase = null)
         {
             if (selectStmt.FromClause is [{ JoinExpr: not null }])
                 return TranslateSimpleJoin(selectStmt);
@@ -110,9 +129,15 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
             {
                 ApplySelectProjection(q, selectStmt, fromAlias);
 
-                // Build ORDER BY clause
+                // Build ORDER BY clause. Type-infer sort fields from a doc sample (when the
+                // database is available) so numeric fields sort numerically instead of falling
+                // back to alphabetic. Indexes (Schemaname = "indexes") are skipped — they don't
+                // have a "first document" in the collection-sampling sense.
                 if (selectStmt.SortClause != null && selectStmt.SortClause.Count > 0)
-                    TranslateOrderBy(q, selectStmt.SortClause, fromAlias);
+                {
+                    var sortTypeMap = isIndex ? null : TryBuildSortTypeMap(documentDatabase, relname, selectStmt.SortClause, fromAlias);
+                    TranslateOrderBy(q, selectStmt.SortClause, fromAlias, sortTypeMap);
+                }
             }
 
             // Build OFFSET clause. Fail the whole translation rather than silently
@@ -517,6 +542,17 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
                 fields[0].AStar != null;
         }
 
+        // Distinguishes `SELECT a, b FROM t` (explicit, count-it) from `SELECT * FROM t` (wildcard,
+        // don't count it). The empty-list case is treated as wildcard so we don't accidentally
+        // suppress auto-include for queries the translator hasn't fully recognized yet.
+        private static bool HasExplicitProjection(SelectStmt selectStmt)
+        {
+            var targets = selectStmt?.TargetList;
+            if (targets == null || targets.Count == 0)
+                return false;
+            return IsSelectStar(targets) == false;
+        }
+
         private static bool IsAggregateTarget(Node target)
         {
             return target.ResTarget?.Val?.FuncCall != null;
@@ -780,7 +816,7 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
 
         private static string JoinPath(IReadOnlyList<string> fieldPath) => string.Join('.', fieldPath);
 
-        private static void TranslateOrderBy(AsyncDocumentQuery<JObject> q, Google.Protobuf.Collections.RepeatedField<Node> sortClause, string fromAlias)
+        private static void TranslateOrderBy(AsyncDocumentQuery<JObject> q, Google.Protobuf.Collections.RepeatedField<Node> sortClause, string fromAlias, IReadOnlyDictionary<string, OrderingType> sortTypeMap = null)
         {
             foreach (var sortNode in sortClause)
             {
@@ -793,12 +829,96 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
                 if (string.IsNullOrEmpty(fieldName))
                     continue;
 
+                // Pick the right ordering: type-inferred from the sampled doc when we have it,
+                // otherwise PG-style default (String / alphabetic).
+                var ordering = OrderingType.String;
+                if (sortTypeMap != null && sortTypeMap.TryGetValue(fieldName, out var inferred))
+                    ordering = inferred;
+
                 if (sortBy.SortbyDir == SortByDir.SortbyDesc)
-                    q.OrderByDescending(fieldName);
+                    q.OrderByDescending(fieldName, ordering);
                 else
-                    q.OrderBy(fieldName);
+                    q.OrderBy(fieldName, ordering);
             }
         }
+
+        // Samples the first document of the collection to learn the blittable token type of each
+        // ORDER BY field, mapped to RQL OrderingType. Returns null if the database isn't available
+        // or the collection is empty — callers fall back to OrderingType.String in that case.
+        //
+        // Field lookups are case-sensitive against the document's stored property names. This
+        // means an unquoted `ORDER BY Freight` (case-folded to `freight` by libpg_query) won't
+        // find `Freight` and will fall back to String ordering — the same surface area issue users
+        // hit with unquoted WHERE clauses. Quoting (`ORDER BY "Freight"`) preserves case and the
+        // type inference kicks in.
+        private static Dictionary<string, OrderingType> TryBuildSortTypeMap(
+            DocumentDatabase documentDatabase,
+            string collection,
+            Google.Protobuf.Collections.RepeatedField<Node> sortClause,
+            string fromAlias)
+        {
+            if (documentDatabase == null || string.IsNullOrWhiteSpace(collection))
+                return null;
+
+            // Collect candidate field names from the SortClause so we only do property lookups
+            // for what we need.
+            var fieldNames = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var sortNode in sortClause)
+            {
+                if (sortNode.SortBy?.Node == null)
+                    continue;
+                var name = ExtractFieldName(sortNode.SortBy.Node, fromAlias);
+                if (string.IsNullOrEmpty(name))
+                    continue;
+                fieldNames.Add(name);
+            }
+
+            if (fieldNames.Count == 0)
+                return null;
+
+            BlittableJsonReaderObject sample = null;
+            try
+            {
+                using (documentDatabase.DocumentsStorage.ContextPool.AllocateOperationContext(out DocumentsOperationContext context))
+                using (context.OpenReadTransaction())
+                {
+                    foreach (var doc in documentDatabase.DocumentsStorage.GetDocumentsFrom(context, collection, etag: 0, start: 0, take: 1))
+                    {
+                        sample = doc.Data;
+                        break;
+                    }
+
+                    if (sample == null)
+                        return null;
+
+                    var result = new Dictionary<string, OrderingType>(StringComparer.Ordinal);
+                    var prop = default(BlittableJsonReaderObject.PropertyDetails);
+                    foreach (var name in fieldNames)
+                    {
+                        var propIdx = sample.GetPropertyIndex(name);
+                        if (propIdx == -1)
+                            continue;
+                        sample.GetPropertyByIndex(propIdx, ref prop);
+                        result[name] = MapTokenToOrderingType(prop.Token);
+                    }
+                    return result;
+                }
+            }
+            catch
+            {
+                // Best-effort. Any failure (storage error, collection vanished, etc.) just falls
+                // back to default String ordering — never block translation on the type probe.
+                return null;
+            }
+        }
+
+        private static OrderingType MapTokenToOrderingType(BlittableJsonToken token)
+            => (token & BlittableJsonReaderBase.TypesMask) switch
+            {
+                BlittableJsonToken.Integer    => OrderingType.Long,
+                BlittableJsonToken.LazyNumber => OrderingType.Double,
+                _                              => OrderingType.String,
+            };
 
         private static int? TranslateLimit(Node limitNode)
         {

@@ -1130,6 +1130,78 @@ limit 1000";
             Assert.Equal(1000, GetLimit(pgQuery));
         }
 
+        // PowerBI Desktop in DirectQuery mode plants user filters several wrapper levels deep —
+        // here `where "_"."Freight" > 50` is at the level that wraps the innermost projection,
+        // *not* at the outermost SELECT. Before the multi-level-WHERE fix, recognizer only read
+        // selectStmt.WhereClause (outermost) and silently dropped the filter, so the resulting
+        // RQL queried the entire Orders collection. This test asserts the filter makes it into
+        // the emitted RQL.
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
+        public void DirectQuery_with_intermediate_wrapper_level_where_should_apply_filter_to_inner_query()
+        {
+            const string sql = @"select ""_"".""Freight"" as ""c32""
+from
+(
+    select ""Freight"",
+        ""_"".""t0_0"" as ""t0_0"",
+        ""_"".""t1_0"" as ""t1_0""
+    from
+    (
+        select ""_"".""Freight"",
+            ""_"".""o0"",
+            ""_"".""t0_0"",
+            ""_"".""t1_0""
+        from
+        (
+            select ""_"".""Freight"" as ""Freight"",
+                ""_"".""o0"" as ""o0"",
+                case
+                    when ""_"".""o0"" is not null
+                    then ""_"".""o0""
+                    else 0
+                end as ""t0_0"",
+                case
+                    when ""_"".""o0"" is null
+                    then 0
+                    else 1
+                end as ""t1_0""
+            from
+            (
+                select ""rows"".""Freight"" as ""Freight"",
+                    ""rows"".""o0"" as ""o0""
+                from
+                (
+                    select ""_"".""Freight"" as ""Freight"",
+                        ""_"".""Freight"" as ""o0""
+                    from
+                    (
+                        select ""Freight""
+                        from ""public"".""Orders"" ""$Table""
+                    ) ""_""
+                    where ""_"".""Freight"" > 50
+                ) ""rows""
+                group by ""Freight"",
+                    ""o0""
+            ) ""_""
+        ) ""_""
+    ) ""_""
+) ""_""
+order by ""_"".""t0_0"",
+        ""_"".""t1_0""
+limit 501";
+
+            Assert.True(PowerBIQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
+            Assert.IsType<PowerBIDirectQuery>(pgQuery);
+
+            var rql = GetQueryString(pgQuery);
+            Assert.NotNull(rql);
+            // The user filter must show up in the emitted RQL. The recognizer pulls it up from the
+            // intermediate wrapper into the inner query's where-clause.
+            Assert.Contains("Freight", rql, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("50", rql);
+            Assert.Contains(">", rql);
+        }
+
         private static string GetQueryString(PgQuery pgQuery)
         {
             return (string)typeof(PgQuery)

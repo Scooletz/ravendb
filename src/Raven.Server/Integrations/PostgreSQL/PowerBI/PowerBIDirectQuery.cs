@@ -66,6 +66,52 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 if (PowerBIWrapperRecognizer.TryNormalize(selectStmt, out var wrapper) == false)
                     return false;
 
+                // Apply WHEREs found at intermediate wrapper levels to the resolved inner query
+                // BEFORE either rewriter runs. PowerBI's DirectQuery routinely plants user filters
+                // inside nested wrappers (e.g. between the null-ordering CASE helpers and the
+                // distinct-grouping level), not at the outermost SELECT. Without this merge those
+                // filters get silently dropped and the query returns the whole collection.
+                //
+                // Both rewriters consume inner.ResolvedQuery.Where: the grouped-aggregate path
+                // preserves it via ShallowCopy, and the simple-direct path AND-merges it with the
+                // outer WHERE downstream. So we just need to populate it here once.
+                //
+                // IMPORTANT: we filter out WHEREs that reference aggregate-output aliases (e.g.
+                // `where not "_"."a0" is null` where `a0` came from `sum(Freight) as a0`). PowerBI
+                // emits those as post-grouping null-guards; RQL gets the same effect implicitly
+                // from GROUP BY semantics. Trying to translate them targets `a0` against the inner
+                // Orders query, which has no such field, and RavenDB rejects the resulting RQL
+                // ("Field 'a0' is neither an aggregation operation nor part of the group by key").
+                if (wrapper.IntermediateWheres is { Count: > 0 })
+                {
+                    var aggregateOutputNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                    if (wrapper.Aggregates != null)
+                    {
+                        foreach (var agg in wrapper.Aggregates)
+                        {
+                            if (string.IsNullOrEmpty(agg.OutputColumn) == false)
+                                aggregateOutputNames.Add(agg.OutputColumn);
+                        }
+                    }
+
+                    var iq = inner.ResolvedQuery;
+                    if (iq.From.Alias == null)
+                        iq.From.Alias = "_doc";
+
+                    foreach (var iw in wrapper.IntermediateWheres)
+                    {
+                        if (WhereClauseReferencesAnyColumn(iw.WhereClause, aggregateOutputNames))
+                            continue;
+
+                        if (PowerBIOuterWhereTranslator.TryTranslateWhere(iw.WhereClause, iw.WrapperAlias, iq.From.Alias, out var whereExpression) == false)
+                            return false;
+
+                        iq.Where = iq.Where == null
+                            ? whereExpression
+                            : new BinaryExpression(iq.Where, whereExpression, OperatorType.And);
+                    }
+                }
+
                 if (PowerBIShapeClassifier.TryBuildGroupedAggregateShape(wrapper, out var aggregateShape))
                 {
                     string rewritten;
@@ -214,6 +260,55 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
 
         private static FieldExpression MakeFieldExpression(string name)
             => new(new List<StringSegment> { new(name) });
+
+        // Walks a WHERE-clause AST and returns true if any ColumnRef (anywhere — wrapped in BoolExpr,
+        // A_Expr, NullTest, TypeCast, RelabelType) names a column in the given set. Used to detect
+        // intermediate WHEREs that reference aggregate-output aliases like `a0` — those are post-
+        // grouping null-guards that RQL handles implicitly, and translating them against the inner
+        // (pre-aggregation) query produces "field is neither aggregation nor group key" errors.
+        private static bool WhereClauseReferencesAnyColumn(Node node, HashSet<string> columnNames)
+        {
+            if (node == null || columnNames is not { Count: > 0 })
+                return false;
+
+            return Walk(node);
+
+            bool Walk(Node n)
+            {
+                if (n == null)
+                    return false;
+
+                if (n.ColumnRef?.Fields is { Count: > 0 } fields)
+                {
+                    var last = fields[^1]?.String?.Sval;
+                    if (last != null && columnNames.Contains(last))
+                        return true;
+                }
+
+                if (n.BoolExpr?.Args != null)
+                {
+                    foreach (var arg in n.BoolExpr.Args)
+                        if (Walk(arg)) return true;
+                }
+
+                if (n.AExpr != null)
+                {
+                    if (Walk(n.AExpr.Lexpr)) return true;
+                    if (Walk(n.AExpr.Rexpr)) return true;
+                }
+
+                if (n.NullTest?.Arg != null && Walk(n.NullTest.Arg))
+                    return true;
+
+                if (n.TypeCast?.Arg != null && Walk(n.TypeCast.Arg))
+                    return true;
+
+                if (n.RelabelType?.Arg != null && Walk(n.RelabelType.Arg))
+                    return true;
+
+                return false;
+            }
+        }
 
         private static bool TryBuildOrderByAst(GroupedAggregateShape shape, out List<(QueryExpression Expression, OrderByFieldType FieldType, bool Ascending)> orderBy)
         {

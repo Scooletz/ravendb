@@ -82,6 +82,18 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
             if (node.SqlvalueFunction != null && functionResolver != null)
                 return TryEvaluateSqlValueFunction(node.SqlvalueFunction, functionResolver, out value);
 
+            // ParamRef ($N): the parameter isn't bound at interpret time — the interpreter runs at
+            // Parse-time (Extended Query Protocol), before the Bind step. We resolve to NULL, which
+            // propagates through PG's three-valued logic: `oid = ANY($1)` becomes NULL → row excluded.
+            // The net effect is an empty rowset with the right column shape, which is the correct
+            // degraded behavior for pgAdmin's type-introspection probe (it falls back to showing
+            // raw oids when the typname lookup returns nothing).
+            if (node.ParamRef != null)
+            {
+                value = null;
+                return true;
+            }
+
             return false;
         }
 
@@ -361,6 +373,35 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
             if (TryEvaluate(aExpr.Rexpr, scope, subqueryResolver, functionResolver, out var rhs) == false)
                 return false;
 
+            // LIKE (~~), NOT LIKE (!~~), ILIKE (~~*), NOT ILIKE (!~~*).
+            // PG's parser folds these into A_Expr with the operator carrying the matching semantics
+            // (Kind is AexprLike/AexprIlike or AexprOp depending on parser version). Three-valued
+            // logic: NULL on either side yields NULL.
+            if (op is "~~" or "!~~" or "~~*" or "!~~*")
+            {
+                if (lhs is null || rhs is null)
+                {
+                    value = null;
+                    return true;
+                }
+                var ignoreCase = op is "~~*" or "!~~*";
+                var matched = MatchLikePattern(lhs.ToString(), rhs.ToString(), ignoreCase);
+                value = op is "!~~" or "!~~*" ? !matched : matched;
+                return true;
+            }
+
+            // String concatenation. PG: NULL || anything → NULL (strict).
+            if (op == "||")
+            {
+                if (lhs is null || rhs is null)
+                {
+                    value = null;
+                    return true;
+                }
+                value = lhs.ToString() + rhs.ToString();
+                return true;
+            }
+
             var cmp = CompareValues(lhs, rhs);
             if (cmp == null && IsEqualityOp(op) == false)
                 return false;
@@ -377,6 +418,48 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
                 _ => (object)null
             };
             return value != null;
+        }
+
+        // Translate SQL LIKE wildcards to an anchored .NET regex.
+        //   %   → .*        (any sequence, including empty)
+        //   _   → .         (any single char)
+        //   \X  → literal X (PG default escape with standard_conforming_strings on)
+        // Regex-meta chars in the pattern are escaped so they match literally.
+        private static bool MatchLikePattern(string input, string pattern, bool ignoreCase)
+        {
+            var sb = new System.Text.StringBuilder(pattern.Length + 4);
+            sb.Append('^');
+            for (int i = 0; i < pattern.Length; i++)
+            {
+                var c = pattern[i];
+                switch (c)
+                {
+                    case '%':
+                        sb.Append(".*");
+                        break;
+                    case '_':
+                        sb.Append('.');
+                        break;
+                    case '\\':
+                        if (i + 1 < pattern.Length)
+                        {
+                            sb.Append(System.Text.RegularExpressions.Regex.Escape(pattern[++i].ToString()));
+                        }
+                        break;
+                    default:
+                        if ("\\^$.|?*+()[]{}".IndexOf(c) >= 0)
+                            sb.Append('\\');
+                        sb.Append(c);
+                        break;
+                }
+            }
+            sb.Append('$');
+
+            var options = System.Text.RegularExpressions.RegexOptions.Singleline |
+                          System.Text.RegularExpressions.RegexOptions.CultureInvariant;
+            if (ignoreCase)
+                options |= System.Text.RegularExpressions.RegexOptions.IgnoreCase;
+            return System.Text.RegularExpressions.Regex.IsMatch(input, sb.ToString(), options);
         }
 
         private static bool TryEvaluateInExpr(A_Expr aExpr, RowScope scope, ScalarSubqueryResolver subqueryResolver, ScalarFunctionResolver functionResolver, out object value)

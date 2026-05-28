@@ -212,7 +212,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             if (IsSimplePublicRangeVarSelect(queryText) == false)
                 return false;
 
-            if (PgSqlToRqlTranslator.TryParse(queryText, parametersDataTypes, out var rql) == false)
+            if (PgSqlToRqlTranslator.TryParse(queryText, parametersDataTypes, documentDatabase, out var rql) == false)
                 return false;
 
             pgQuery = new PowerBIRqlQuery(rql, parametersDataTypes, documentDatabase, replaces: null, limit: null);
