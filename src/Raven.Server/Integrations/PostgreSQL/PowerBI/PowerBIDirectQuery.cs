@@ -261,11 +261,19 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
         private static FieldExpression MakeFieldExpression(string name)
             => new(new List<StringSegment> { new(name) });
 
-        // Walks a WHERE-clause AST and returns true if any ColumnRef (anywhere — wrapped in BoolExpr,
-        // A_Expr, NullTest, TypeCast, RelabelType) names a column in the given set. Used to detect
-        // intermediate WHEREs that reference aggregate-output aliases like `a0` — those are post-
-        // grouping null-guards that RQL handles implicitly, and translating them against the inner
-        // (pre-aggregation) query produces "field is neither aggregation nor group key" errors.
+        // Walks a WHERE-clause AST and returns true if any ColumnRef anywhere in the tree names
+        // a column in the given set. Used to detect intermediate WHEREs that reference aggregate-
+        // output aliases like `a0` — those are post-grouping null-guards that RQL handles
+        // implicitly, and translating them against the inner (pre-aggregation) query produces
+        // "field is neither aggregation nor group key" errors.
+        //
+        // PowerBI doesn't always emit a bare `NOT col IS NULL` for these guards. We have seen
+        // variants that wrap the aggregate alias in a function call (`coalesce(a0, 0) > 0`),
+        // a CASE expression (`CASE WHEN a0 IS NULL THEN 0 ELSE 1 END = 1`), or an explicit
+        // CoalesceExpr node. The walker MUST recurse into FuncCall.Args, CaseExpr.Args/Defresult,
+        // and CoalesceExpr.Args to recognize the alias underneath — otherwise the IntermediateWhere
+        // gets translated against the inner query, RavenDB rejects the resulting RQL, and the
+        // whole query falls through to "Unhandled query".
         private static bool WhereClauseReferencesAnyColumn(Node node, HashSet<string> columnNames)
         {
             if (node == null || columnNames is not { Count: > 0 })
@@ -305,6 +313,65 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
 
                 if (n.RelabelType?.Arg != null && Walk(n.RelabelType.Arg))
                     return true;
+
+                // Function calls — `coalesce(a0, 0)`, `nullif(a0, 0)`, `length(a0)`, etc.
+                if (n.FuncCall?.Args != null)
+                {
+                    foreach (var arg in n.FuncCall.Args)
+                        if (Walk(arg)) return true;
+                }
+
+                // CASE WHEN cond THEN result [WHEN ...] [ELSE defresult] END. Each WHEN node has
+                // its own Expr (the condition) and Result (the value); Defresult is the ELSE.
+                // CaseExpr.Arg is the optional "switch" expression (`CASE x WHEN ... THEN ...`).
+                if (n.CaseExpr != null)
+                {
+                    if (n.CaseExpr.Arg != null && Walk(n.CaseExpr.Arg)) return true;
+                    if (n.CaseExpr.Args != null)
+                    {
+                        foreach (var whenNode in n.CaseExpr.Args)
+                        {
+                            var when = whenNode?.CaseWhen;
+                            if (when == null)
+                                continue;
+                            if (Walk(when.Expr)) return true;
+                            if (Walk(when.Result)) return true;
+                        }
+                    }
+                    if (n.CaseExpr.Defresult != null && Walk(n.CaseExpr.Defresult)) return true;
+                }
+
+                // COALESCE: PG's parser emits this as a dedicated CoalesceExpr node, NOT as a
+                // FuncCall — `coalesce(a, b, c)` becomes CoalesceExpr with Args=[a, b, c]. Without
+                // this handler, `where coalesce(a0, 0) > 0` would slip past the alias-detection
+                // and the outer-WHERE translator would target `a0` against the inner query.
+                if (n.CoalesceExpr?.Args != null)
+                {
+                    foreach (var arg in n.CoalesceExpr.Args)
+                        if (Walk(arg)) return true;
+                }
+
+                // GREATEST / LEAST: same pattern as COALESCE — dedicated MinMaxExpr node, not a
+                // FuncCall. PowerBI occasionally uses these for null-safe comparisons.
+                if (n.MinMaxExpr?.Args != null)
+                {
+                    foreach (var arg in n.MinMaxExpr.Args)
+                        if (Walk(arg)) return true;
+                }
+
+                // SubLink: the testexpr is in our scope (e.g. `<x> IN (SELECT ...)`'s `<x>`).
+                // We intentionally do NOT walk the inner Subselect — its column references live
+                // in their own scope and aren't aggregate-alias matches at this level.
+                if (n.SubLink?.Testexpr != null && Walk(n.SubLink.Testexpr))
+                    return true;
+
+                // List items — e.g. the right side of `x IN (a, b, c)` where the list contains
+                // the candidate expressions.
+                if (n.List?.Items != null)
+                {
+                    foreach (var item in n.List.Items)
+                        if (Walk(item)) return true;
+                }
 
                 return false;
             }

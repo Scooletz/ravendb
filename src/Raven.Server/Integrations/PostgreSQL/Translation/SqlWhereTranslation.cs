@@ -196,8 +196,11 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
             if (c == null)
                 return false;
 
-            if (c.Sval != null && string.IsNullOrEmpty(c.Sval.Sval) == false)
+            if (c.Sval != null && c.Sval.Sval != null)
             {
+                // Empty string '' is a valid SQL literal — `WHERE col = ''` is a common
+                // idiom for "filter to rows where col is the empty string". Don't reject
+                // c.Sval.Sval == "" here; it's distinct from c.Sval being null.
                 value = new ParsedValue(c.Sval.Sval, ParsedValueKind.String);
                 return true;
             }

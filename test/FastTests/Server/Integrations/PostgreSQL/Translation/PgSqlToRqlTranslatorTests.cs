@@ -41,6 +41,18 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
             Assert.Equal(expected, Translate(sql));
         }
 
+        // SqlWhereParser used to reject `''` (treated as falsy via string.IsNullOrEmpty), so
+        // the entire WHERE translation collapsed for queries that want to filter for empty
+        // strings — an extremely common idiom. The Sval-null guard alone is the right gate.
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void WhereStringEqualsEmpty_PreservesEmptyLiteral()
+        {
+            var sql = "SELECT * FROM users WHERE name = ''";
+            var expected = "from 'users' where name = ''";
+
+            Assert.Equal(expected, Translate(sql));
+        }
+
         [RavenFact(RavenTestCategory.PostgreSql)]
         public void Easy_04_WhereActiveTrue()
         {

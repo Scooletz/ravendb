@@ -1344,6 +1344,95 @@ SELECT {
             Assert.Contains(">", rql);
         }
 
+        // The WhereClauseReferencesAnyColumn AST walker must descend into function calls,
+        // CASE expressions, and CoalesceExprs so that PowerBI's null-guard predicates wrapping
+        // aggregate-output aliases are recognized as such and skipped. Before this coverage, only
+        // bare `NOT col IS NULL` would be detected — a guard like `coalesce(a0, 0) > 0` would be
+        // translated against the inner pre-aggregation Orders query, RavenDB would reject the
+        // resulting RQL, and the whole query would fall through to "Unhandled query".
+
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
+        public void DirectQuery_with_coalesce_wrapped_aggregate_alias_in_intermediate_where_is_skipped()
+        {
+            // Identical to the grouped-aggregate desktop shape but the intermediate WHERE wraps
+            // the aggregate alias in coalesce(...) instead of using a bare IS NOT NULL guard.
+            // Without the AST walker recursing into FuncCall.Args, this whole query fails.
+            const string sql = """
+                select "_"."Employee" as "c2",
+                    "_"."a0" as "a0"
+                from
+                (
+                    select "_"."Employee",
+                        "_"."a0"
+                    from
+                    (
+                        select "rows"."Employee" as "Employee",
+                            sum("rows"."Freight") as "a0"
+                        from
+                        (
+                            from Orders
+                        ) "rows"
+                        group by "Employee"
+                    ) "_"
+                    where coalesce("_"."a0", 0) > 0
+                ) "_"
+                limit 1001
+                """;
+
+            Assert.True(PowerBIQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
+            Assert.IsType<PowerBIDirectQuery>(pgQuery);
+
+            var rql = GetQueryString(pgQuery);
+            Assert.NotNull(rql);
+            // The aggregate-alias `a0` should NOT reappear in the inner-query WHERE — the walker
+            // identified it inside coalesce(...) and the entire intermediate WHERE was dropped.
+            // (RQL's GROUP BY semantics already exclude null aggregate groups, so the post-filter
+            // is implicit and dropping the predicate doesn't change result semantics.)
+            Assert.DoesNotContain("a0 >", rql, StringComparison.OrdinalIgnoreCase);
+            // Sanity: the grouped-aggregate shape was still recognized.
+            Assert.Contains("group by", rql, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("sum(", rql, StringComparison.OrdinalIgnoreCase);
+        }
+
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
+        public void DirectQuery_with_case_wrapped_aggregate_alias_in_intermediate_where_is_skipped()
+        {
+            // CASE-based null guard variant: `case when "_"."a0" is null then 0 else 1 end = 1`.
+            // Same expected outcome — walker descends into CaseExpr.Args / Defresult and finds
+            // the aggregate-alias reference.
+            const string sql = """
+                select "_"."Employee" as "c2",
+                    "_"."a0" as "a0"
+                from
+                (
+                    select "_"."Employee",
+                        "_"."a0"
+                    from
+                    (
+                        select "rows"."Employee" as "Employee",
+                            sum("rows"."Freight") as "a0"
+                        from
+                        (
+                            from Orders
+                        ) "rows"
+                        group by "Employee"
+                    ) "_"
+                    where case when "_"."a0" is null then 0 else 1 end = 1
+                ) "_"
+                limit 1001
+                """;
+
+            Assert.True(PowerBIQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
+            Assert.IsType<PowerBIDirectQuery>(pgQuery);
+
+            var rql = GetQueryString(pgQuery);
+            Assert.NotNull(rql);
+            // The CASE expression wrapping `a0` should have been recognized and the whole WHERE
+            // dropped — no `case` artifacts should leak into the emitted RQL.
+            Assert.DoesNotContain("case", rql, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("group by", rql, StringComparison.OrdinalIgnoreCase);
+        }
+
         private static string GetQueryString(PgQuery pgQuery)
         {
             return (string)typeof(PgQuery)

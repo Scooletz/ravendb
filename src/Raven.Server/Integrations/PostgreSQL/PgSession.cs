@@ -32,6 +32,12 @@ namespace Raven.Server.Integrations.PostgreSQL
         private readonly ServerStore _serverStore;
         private readonly CancellationToken _token;
         private Dictionary<string, string> _clientOptions;
+        // Tracks the stream currently in effect during the handshake — raw TcpClient stream
+        // up until TLS upgrade, then the SslStream after. Updated from HandleInitialMessage as
+        // upgrades happen so Run()'s outer error-handling catch can write ErrorResponse on the
+        // correct (possibly-encrypted) stream even when HandleInitialMessage throws after the
+        // upgrade. Async methods can't use `ref Stream` parameters, hence the field.
+        private Stream _activeHandshakeStream;
 
         public PgSession(
             TcpClient client,
@@ -53,6 +59,8 @@ namespace Raven.Server.Integrations.PostgreSQL
 
         private async Task<Stream> HandleInitialMessage(Stream stream, MessageBuilder messageBuilder)
         {
+            _activeHandshakeStream = stream;
+
             var reader = PipeReader.Create(stream);
             var writer = PipeWriter.Create(stream);
 
@@ -81,6 +89,11 @@ namespace Raven.Server.Integrations.PostgreSQL
                     }, _token);
 
                     streamToUse = sslStream;
+                    // Track the upgrade so Run()'s catch can send any post-upgrade ErrorResponse
+                    // on the SslStream rather than the raw NetworkStream. Without this, a fatal
+                    // exception from the post-TLS StartupMessage parse would emit unencrypted
+                    // bytes on a channel the client now treats as TLS-encrypted.
+                    _activeHandshakeStream = sslStream;
 
                     var encryptedReader = PipeReader.Create(sslStream);
                     initialMessage = await messageReader.ReadInitialMessage(encryptedReader, _token);
@@ -126,8 +139,10 @@ namespace Raven.Server.Integrations.PostgreSQL
             // We need a writer that can deliver an ErrorResponse if the initial handshake fails. Without
             // this wrapper, any PgFatalException thrown out of StartupMessage parsing propagates past Run()
             // and the client sees the socket close with no diagnostic ("server closed the connection
-            // unexpectedly"). Sending the error on the raw pre-TLS stream is correct for the cases that
-            // throw here — they're all pre-TLS parsing failures.
+            // unexpectedly"). The catch writes on whichever stream the handshake was using at the time
+            // of the throw — raw NetworkStream pre-TLS-upgrade, SslStream post-upgrade — which the
+            // helper tracks via _activeHandshakeStream so failures during the post-TLS StartupMessage
+            // parse don't emit plaintext on an established TLS channel.
             try
             {
                 stream = await HandleInitialMessage(stream, messageBuilder);
@@ -139,7 +154,8 @@ namespace Raven.Server.Integrations.PostgreSQL
 
                 try
                 {
-                    var earlyWriter = PipeWriter.Create(stream);
+                    var streamForError = _activeHandshakeStream ?? stream;
+                    var earlyWriter = PipeWriter.Create(streamForError);
                     await earlyWriter.WriteAsync(messageBuilder.ErrorResponse(
                         PgSeverity.Fatal,
                         e.ErrorCode,

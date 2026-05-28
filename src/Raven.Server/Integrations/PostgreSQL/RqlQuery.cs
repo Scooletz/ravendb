@@ -396,7 +396,15 @@ namespace Raven.Server.Integrations.PostgreSQL
                     }
 
                 case (BlittableJsonToken.String, PgTypeOIDs.Float8):
-                    return pgColumn.PgType.ToBytes(double.Parse((LazyStringValue)value), pgColumn.FormatCode);
+                    // Must pass CultureInfo.InvariantCulture explicitly — `.` is the JSON-native
+                    // decimal separator, but `double.Parse(string)` honors the current culture.
+                    // Without this, a server running under a locale with a comma decimal separator
+                    // (de-DE, pl-PL, fr-FR, etc.) throws FormatException mid-row write and
+                    // corrupts the wire protocol. The explicit `(string)` cast disambiguates
+                    // LazyStringValue's overloaded implicit conversion (it also has ReadOnlySpan<byte>).
+                    return pgColumn.PgType.ToBytes(
+                        double.Parse((string)(LazyStringValue)value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture),
+                        pgColumn.FormatCode);
 
                 case (BlittableJsonToken.Null, PgTypeOIDs.Json):
                     return Array.Empty<byte>();
