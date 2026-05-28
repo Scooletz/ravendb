@@ -1031,6 +1031,201 @@ ORDER BY ord";
             Assert.NotEmpty(table.Data);
         }
 
+        // ── Npgsql 7.x / 8.x type-loading query ───────────────────────────────────────
+        // Npgsql 7+ kept the two-level nested structure from 4.1.3–5.x ModernNested but
+        // added `'m'` (multirange) to the typtype IN list (introduced in PG 14) and broke
+        // the ord CASE into more buckets. Our pg_type CSV doesn't carry multirange rows,
+        // which is fine — they simply produce zero matches; the structural shape is what
+        // we're validating. Adding multirange rows to the CSV would make `int4multirange`
+        // & co. show up in results but isn't required for the query to be accepted.
+
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void Npgsql7_modern_nested_with_multirange_filter_runs_through_interpreter()
+        {
+            const string sql = """
+                SELECT ns.nspname, typ_and_elem_type.*,
+                   CASE
+                       WHEN typtype IN ('b', 'e', 'p') THEN 0
+                       WHEN typtype = 'r' THEN 1
+                       WHEN typtype = 'm' THEN 2
+                       WHEN typtype = 'c' THEN 3
+                       WHEN typtype = 'd' AND elemtyptype <> 'a' THEN 4
+                       WHEN typtype = 'a' THEN 5
+                       WHEN typtype = 'd' AND elemtyptype = 'a' THEN 6
+                    END AS ord
+                FROM (
+                    SELECT
+                        typ.oid, typ.typnamespace, typ.typname, typ.typtype, typ.typrelid, typ.typnotnull, typ.relkind,
+                        elemtyp.oid AS elemtypoid, elemtyp.typname AS elemtypname, elemcls.relkind AS elemrelkind,
+                        CASE WHEN elemproc.proname='array_recv' THEN 'a' ELSE elemtyp.typtype END AS elemtyptype
+                    FROM (
+                        SELECT typ.oid, typnamespace, typname, typrelid, typnotnull, relkind, typelem AS elemoid,
+                            CASE WHEN proc.proname='array_recv' THEN 'a' ELSE typ.typtype END AS typtype,
+                            CASE
+                                WHEN proc.proname='array_recv' THEN typ.typelem
+                                WHEN typ.typtype='r' THEN rngsubtype
+                                WHEN typ.typtype='d' THEN typ.typbasetype
+                            END AS elemtypoid
+                        FROM pg_type AS typ
+                        LEFT JOIN pg_class AS cls ON (cls.oid = typ.typrelid)
+                        LEFT JOIN pg_proc AS proc ON proc.oid = typ.typreceive
+                        LEFT JOIN pg_range ON (pg_range.rngtypid = typ.oid)
+                    ) AS typ
+                    LEFT JOIN pg_type AS elemtyp ON elemtyp.oid = elemtypoid
+                    LEFT JOIN pg_class AS elemcls ON (elemcls.oid = elemtyp.typrelid)
+                    LEFT JOIN pg_proc AS elemproc ON elemproc.oid = elemtyp.typreceive
+                ) AS typ_and_elem_type
+                JOIN pg_namespace AS ns ON (ns.oid = typnamespace)
+                WHERE
+                    typtype IN ('b', 'r', 'm', 'e', 'd') OR
+                    (typtype = 'c' AND relkind='c') OR
+                    (typtype = 'p' AND typname IN ('record', 'void')) OR
+                    (typtype = 'a' AND (
+                        elemtyptype IN ('b', 'r', 'm', 'e', 'd') OR
+                        (elemtyptype = 'p' AND elemtypname IN ('record', 'void')) OR
+                        (elemtyptype = 'c' AND elemrelkind='c')
+                    ))
+                ORDER BY ord
+                """;
+
+            Assert.True(PgVirtualInterpreter.TryExecute(sql, EmptyCtx(), out var table));
+            // 1 (ns.nspname) + 11 (typ_and_elem_type's columns) + 1 (ord) = 13.
+            Assert.Equal(13, table.Columns.Count);
+            Assert.Equal("nspname", table.Columns[0].Name);
+            Assert.Equal("ord", table.Columns[12].Name);
+            Assert.NotEmpty(table.Data);
+
+            // The `ord` column must be non-decreasing across rows — Npgsql relies on that
+            // order to set up its type-resolution sequence (base types must resolve before
+            // arrays of those base types). Without it the client would crash later.
+            int prev = int.MinValue;
+            foreach (var row in table.Data)
+            {
+                var cell = row.ColumnData.Span[12];
+                Assert.True(cell.HasValue, "ord must be non-null");
+                var v = int.Parse(Encoding.UTF8.GetString(cell.Value.Span));
+                Assert.True(v >= prev, "rows must be in non-decreasing ord order");
+                prev = v;
+            }
+        }
+
+        // Npgsql 8.x is structurally identical to 7.x for the type-loading query — same
+        // multirange branching, same ord categorization. The version-bump didn't change
+        // the query shape, but pinning it here makes intent obvious and gives us a
+        // regression net if Npgsql 8.x ever quietly changes.
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void Npgsql8_compatible_types_query_is_accepted_same_as_7x()
+        {
+            // Same shape, just using a slightly different surface trick — Npgsql 8's
+            // GenerateLoadTypesQuery sometimes adds an explicit `t.typname NOT LIKE '\_\_%'`
+            // guard on array types to skip system-internal pseudo-arrays. Mirrors the
+            // Fabric compact shape's LIKE clause; verifies our LIKE handles escaped chars.
+            const string sql = """
+                SELECT ns.nspname, t.oid, t.typname, t.typtype, t.typnotnull, t.elemtypoid
+                FROM (
+                    SELECT
+                        t.oid, t.typnamespace, t.typname, t.typnotnull,
+                        CASE WHEN proc.proname = 'array_recv' THEN 'a' ELSE t.typtype END AS typtype,
+                        CASE
+                            WHEN proc.proname = 'array_recv' THEN t.typelem
+                            WHEN t.typtype = 'r' THEN rngsubtype
+                            WHEN t.typtype = 'm' THEN rngtypid
+                            WHEN t.typtype = 'd' THEN t.typbasetype
+                        END AS elemtypoid
+                    FROM pg_type AS t
+                    LEFT JOIN pg_class AS cls ON (cls.oid = t.typrelid)
+                    LEFT JOIN pg_proc AS proc ON (proc.oid = t.typreceive)
+                    LEFT JOIN pg_range ON (pg_range.rngtypid = t.oid)
+                ) AS t
+                JOIN pg_namespace AS ns ON (ns.oid = t.typnamespace)
+                WHERE
+                    t.typtype IN ('b', 'r', 'm', 'e', 'd') OR
+                    t.typtype = 'c' OR
+                    (t.typtype = 'p' AND t.typname IN ('record', 'void')) OR
+                    (t.typtype = 'a' AND t.typname NOT LIKE '\_\_%')
+                ORDER BY t.oid
+                """;
+
+            Assert.True(PgVirtualInterpreter.TryExecute(sql, EmptyCtx(), out var table));
+            Assert.Equal(6, table.Columns.Count);
+            Assert.NotEmpty(table.Data);
+        }
+
+        // ── Npgsql 9.x / 10.x type-loading query ──────────────────────────────────────
+        // Npgsql 9 / 10 added on top of the 7/8 ModernNested shape:
+        //   1. `typ.typcategory` column projected through both subquery levels.
+        //   2. A CORRELATED SCALAR SUBQUERY inside a CASE branch — the multirange case
+        //      reads `(SELECT rngtypid FROM pg_range WHERE rngmultitypid = typ.oid)` to
+        //      resolve the underlying range type for a multirange. This exercises both
+        //      Step Q-D (correlated subqueries) and Step Q-B (scalar subquery as a value)
+        //      in combination, inside CASE, inside a projection of a sub-FROM.
+        //   3. Refined WHERE structure with `typcategory = 'U'` and schema-conditional
+        //      composite/array branches.
+        //   4. `'p'` typtype now includes 'unknown' alongside 'record' and 'void'.
+
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void Npgsql9_modern_nested_with_multirange_subquery_runs_through_interpreter()
+        {
+            const string sql = """
+                SELECT ns.nspname, t.oid, t.typname, t.typtype, t.typnotnull, t.elemtypoid
+                FROM (
+                    SELECT
+                        typ.oid, typ.typnamespace, typ.typname, typ.typtype, typ.typrelid, typ.typnotnull, typ.relkind,
+                        elemtyp.oid AS elemtypoid, elemtyp.typname AS elemtypname, elemcls.relkind AS elemrelkind,
+                        CASE WHEN elemproc.proname='array_recv' THEN 'a' ELSE elemtyp.typtype END AS elemtyptype,
+                        typ.typcategory
+                    FROM (
+                        SELECT typ.oid, typnamespace, typname, typrelid, typnotnull, relkind, typelem AS elemoid,
+                            CASE WHEN proc.proname='array_recv' THEN 'a' ELSE typ.typtype END AS typtype,
+                            CASE
+                                WHEN proc.proname='array_recv' THEN typ.typelem
+                                WHEN typ.typtype='r' THEN rngsubtype
+                                WHEN typ.typtype='m' THEN (SELECT rngtypid FROM pg_range WHERE rngmultitypid = typ.oid)
+                                WHEN typ.typtype='d' THEN typ.typbasetype
+                            END AS elemtypoid,
+                            typ.typcategory
+                        FROM pg_type AS typ
+                        LEFT JOIN pg_class AS cls ON (cls.oid = typ.typrelid)
+                        LEFT JOIN pg_proc AS proc ON proc.oid = typ.typreceive
+                        LEFT JOIN pg_range ON (pg_range.rngtypid = typ.oid)
+                    ) AS typ
+                    LEFT JOIN pg_type AS elemtyp ON elemtyp.oid = elemtypoid
+                    LEFT JOIN pg_class AS elemcls ON (elemcls.oid = elemtyp.typrelid)
+                    LEFT JOIN pg_proc AS elemproc ON elemproc.oid = elemtyp.typreceive
+                ) AS t
+                JOIN pg_namespace AS ns ON (ns.oid = typnamespace)
+                WHERE
+                    (ns.nspname IN ('pg_catalog', 'information_schema', 'pg_toast') OR typcategory = 'U') AND (
+                    typtype IN ('b', 'r', 'm', 'e', 'd') OR
+                    (typtype = 'c' AND ns.nspname NOT IN ('pg_catalog', 'information_schema', 'pg_toast')) OR
+                    (typtype = 'p' AND typname IN ('record', 'void', 'unknown')) OR
+                    (typtype = 'a' AND (
+                        elemtyptype IN ('b', 'r', 'm', 'e', 'd') OR
+                        (elemtyptype = 'p' AND elemtypname IN ('record', 'void')) OR
+                        (elemtyptype = 'c' AND ns.nspname NOT IN ('pg_catalog', 'information_schema', 'pg_toast'))
+                    )))
+                ORDER BY CASE
+                       WHEN typtype IN ('b', 'e', 'p') THEN 0
+                       WHEN typtype = 'c' THEN 1
+                       WHEN typtype = 'r' THEN 2
+                       WHEN typtype = 'm' THEN 3
+                       WHEN typtype = 'd' AND elemtyptype <> 'a' THEN 4
+                       WHEN typtype = 'a' THEN 5
+                       WHEN typtype = 'd' AND elemtyptype = 'a' THEN 6
+                END
+                """;
+
+            Assert.True(PgVirtualInterpreter.TryExecute(sql, EmptyCtx(), out var table));
+            Assert.Equal(6, table.Columns.Count);
+            Assert.Equal("nspname",    table.Columns[0].Name);
+            Assert.Equal("oid",        table.Columns[1].Name);
+            Assert.Equal("typname",    table.Columns[2].Name);
+            Assert.Equal("typtype",    table.Columns[3].Name);
+            Assert.Equal("typnotnull", table.Columns[4].Name);
+            Assert.Equal("elemtypoid", table.Columns[5].Name);
+            Assert.NotEmpty(table.Data);
+        }
+
         private static VirtualQueryContext EmptyCtx() => new();
 
         private static string DecodeCell(Raven.Server.Integrations.PostgreSQL.Messages.PgTable table, int row, int column)

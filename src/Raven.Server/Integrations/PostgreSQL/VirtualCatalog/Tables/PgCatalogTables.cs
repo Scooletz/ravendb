@@ -71,8 +71,14 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog.Tables
 
         public override IReadOnlyList<PgVirtualColumn> Columns { get; } = new PgVirtualColumn[]
         {
-            new("rngtypid",   PgOid.Default, PgFormat.Text),
-            new("rngsubtype", PgOid.Default, PgFormat.Text),
+            new("rngtypid",      PgOid.Default, PgFormat.Text),
+            new("rngsubtype",    PgOid.Default, PgFormat.Text),
+            // rngmultitypid: PG 14+ multirange link. Npgsql 9+ joins on this to discover
+            // multirange element types. For older PG (<14) or systems without multirange
+            // types this is NULL; we carry the canonical mappings (int4multirange=4451,
+            // int8multirange=4536, nummultirange=4532, tsmultirange=4533, tstzmultirange=4534,
+            // datemultirange=4535) so Npgsql 9+ can resolve them when it asks.
+            new("rngmultitypid", PgOid.Default, PgFormat.Text),
         };
     }
 
