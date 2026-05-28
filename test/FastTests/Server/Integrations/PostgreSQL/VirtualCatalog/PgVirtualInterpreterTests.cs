@@ -250,26 +250,28 @@ namespace FastTests.Server.Integrations.PostgreSQL.VirtualCatalog
             //
             // Expected: one row with can_signal_backend=false (the connected user has no role
             // hierarchy and therefore isn't a member of pg_signal_backend).
-            const string sql = @"SELECT
-            roles.oid as id, roles.rolname as name,
-            roles.rolsuper as is_superuser,
-            CASE WHEN roles.rolsuper THEN true ELSE roles.rolcreaterole END as
-            can_create_role,
-            CASE WHEN roles.rolsuper THEN true
-            ELSE roles.rolcreatedb END as can_create_db,
-            CASE WHEN 'pg_signal_backend'=ANY(ARRAY(WITH RECURSIVE cte AS (
-            SELECT pg_roles.oid,pg_roles.rolname FROM pg_roles
-                WHERE pg_roles.oid = roles.oid
-            UNION ALL
-            SELECT m.roleid,pgr.rolname FROM cte cte_1
-                JOIN pg_auth_members m ON m.member = cte_1.oid
-                JOIN pg_roles pgr ON pgr.oid = m.roleid)
-            SELECT rolname  FROM cte)) THEN True
-            ELSE False END as can_signal_backend
-        FROM
-            pg_catalog.pg_roles as roles
-        WHERE
-            rolname = current_user";
+            const string sql = """
+                SELECT
+                            roles.oid as id, roles.rolname as name,
+                            roles.rolsuper as is_superuser,
+                            CASE WHEN roles.rolsuper THEN true ELSE roles.rolcreaterole END as
+                            can_create_role,
+                            CASE WHEN roles.rolsuper THEN true
+                            ELSE roles.rolcreatedb END as can_create_db,
+                            CASE WHEN 'pg_signal_backend'=ANY(ARRAY(WITH RECURSIVE cte AS (
+                            SELECT pg_roles.oid,pg_roles.rolname FROM pg_roles
+                                WHERE pg_roles.oid = roles.oid
+                            UNION ALL
+                            SELECT m.roleid,pgr.rolname FROM cte cte_1
+                                JOIN pg_auth_members m ON m.member = cte_1.oid
+                                JOIN pg_roles pgr ON pgr.oid = m.roleid)
+                            SELECT rolname  FROM cte)) THEN True
+                            ELSE False END as can_signal_backend
+                        FROM
+                            pg_catalog.pg_roles as roles
+                        WHERE
+                            rolname = current_user
+                """;
 
             var ctx = new VirtualQueryContext { Username = "root" };
             Assert.True(PgVirtualInterpreter.TryExecute(sql, ctx, out var table));
@@ -294,28 +296,30 @@ namespace FastTests.Server.Integrations.PostgreSQL.VirtualCatalog
             // array_to_string, extended current_setting keys (lc_collate, lc_ctype,
             // default_tablespace), datconnlimit/datacl on pg_database, nested scalar subqueries
             // around current_setting().
-            const string sql = @"SELECT
-db.oid AS did, db.oid, db.datname AS name, db.dattablespace AS spcoid,
-spcname, datallowconn, pg_catalog.pg_encoding_to_char(encoding) AS encoding,
-pg_catalog.pg_get_userbyid(datdba) AS datowner,
-(select pg_catalog.current_setting('lc_collate')) as datcollate,
-(select pg_catalog.current_setting('lc_ctype')) as datctype,
-datconnlimit,
-pg_catalog.has_database_privilege(db.oid, 'CREATE') AS cancreate,
-pg_catalog.current_setting('default_tablespace') AS default_tablespace,
-descr.description AS comments, db.datistemplate AS is_template,
-'' AS tblacl,
-'' AS seqacl,
-'' AS funcacl,
-pg_catalog.array_to_string(datacl::text[], ', ') AS acl
-FROM pg_catalog.pg_database db
-LEFT OUTER JOIN pg_catalog.pg_tablespace ta ON db.dattablespace=ta.OID
-LEFT OUTER JOIN pg_catalog.pg_shdescription descr ON (
-db.oid=descr.objoid AND descr.classoid='pg_database'::regclass
-)
-WHERE
-db.oid = 16384::OID
-ORDER BY datname";
+            const string sql = """
+                SELECT
+                db.oid AS did, db.oid, db.datname AS name, db.dattablespace AS spcoid,
+                spcname, datallowconn, pg_catalog.pg_encoding_to_char(encoding) AS encoding,
+                pg_catalog.pg_get_userbyid(datdba) AS datowner,
+                (select pg_catalog.current_setting('lc_collate')) as datcollate,
+                (select pg_catalog.current_setting('lc_ctype')) as datctype,
+                datconnlimit,
+                pg_catalog.has_database_privilege(db.oid, 'CREATE') AS cancreate,
+                pg_catalog.current_setting('default_tablespace') AS default_tablespace,
+                descr.description AS comments, db.datistemplate AS is_template,
+                '' AS tblacl,
+                '' AS seqacl,
+                '' AS funcacl,
+                pg_catalog.array_to_string(datacl::text[], ', ') AS acl
+                FROM pg_catalog.pg_database db
+                LEFT OUTER JOIN pg_catalog.pg_tablespace ta ON db.dattablespace=ta.OID
+                LEFT OUTER JOIN pg_catalog.pg_shdescription descr ON (
+                db.oid=descr.objoid AND descr.classoid='pg_database'::regclass
+                )
+                WHERE
+                db.oid = 16384::OID
+                ORDER BY datname
+                """;
 
             Assert.True(PgVirtualInterpreter.TryExecute(sql, new VirtualQueryContext { Username = "root" }, out var table));
             Assert.Equal(19, table.Columns.Count);
@@ -330,20 +334,22 @@ ORDER BY datname";
             // / pg_shdescription, qualified function name (pg_catalog.has_database_privilege),
             // type-cast unwrapping (16383::OID, 'pg_database'::regclass), IN-list, ORDER BY a
             // projected name.
-            const string sql = @"SELECT
-db.oid as did, db.datname as name, ta.spcname as spcname, db.datallowconn,
-db.datistemplate AS is_template,
-pg_catalog.has_database_privilege(db.oid, 'CREATE') as cancreate, datdba as owner,
-descr.description
-FROM
-pg_catalog.pg_database db
-LEFT OUTER JOIN pg_catalog.pg_tablespace ta ON db.dattablespace = ta.oid
-LEFT OUTER JOIN pg_catalog.pg_shdescription descr ON (
-db.oid=descr.objoid AND descr.classoid='pg_database'::regclass
-)
-WHERE db.oid > 16383::OID OR db.datname IN ('postgres', 'edb')
+            const string sql = """
+                SELECT
+                db.oid as did, db.datname as name, ta.spcname as spcname, db.datallowconn,
+                db.datistemplate AS is_template,
+                pg_catalog.has_database_privilege(db.oid, 'CREATE') as cancreate, datdba as owner,
+                descr.description
+                FROM
+                pg_catalog.pg_database db
+                LEFT OUTER JOIN pg_catalog.pg_tablespace ta ON db.dattablespace = ta.oid
+                LEFT OUTER JOIN pg_catalog.pg_shdescription descr ON (
+                db.oid=descr.objoid AND descr.classoid='pg_database'::regclass
+                )
+                WHERE db.oid > 16383::OID OR db.datname IN ('postgres', 'edb')
 
-ORDER BY datname";
+                ORDER BY datname
+                """;
 
             // No DocumentDatabase wired in for this unit test — pg_database yields zero rows
             // without one. The point of this test is that the query *parses and dispatches*
@@ -362,14 +368,16 @@ ORDER BY datname";
             // dispatch path (inline FuncCall via ExpressionEvaluator, pg_database virtual table,
             // current_database()/pg_encoding_to_char()/has_database_privilege() functions) must
             // accept the SQL and project six columns.
-            const string sql = @"SELECT
-    db.oid as did, db.datname, db.datallowconn,
-    pg_encoding_to_char(db.encoding) AS serverencoding,
-    has_database_privilege(db.oid, 'CREATE') as cancreate,
-    datistemplate
-FROM
-    pg_catalog.pg_database db
-WHERE db.datname = current_database()";
+            const string sql = """
+                SELECT
+                    db.oid as did, db.datname, db.datallowconn,
+                    pg_encoding_to_char(db.encoding) AS serverencoding,
+                    has_database_privilege(db.oid, 'CREATE') as cancreate,
+                    datistemplate
+                FROM
+                    pg_catalog.pg_database db
+                WHERE db.datname = current_database()
+                """;
 
             Assert.True(PgVirtualInterpreter.TryExecute(sql, EmptyCtx(), out var table));
             Assert.Equal(6, table.Columns.Count);
@@ -386,13 +394,15 @@ WHERE db.datname = current_database()";
             // pg_extension and pg_replication_slots are empty virtual tables, both COUNTs are 0,
             // and the CASE falls through to ELSE NULL. Exercises: no-FROM expression path, scalar
             // subqueries, COUNT aggregate without GROUP BY.
-            const string sql = @"SELECT CASE
-WHEN (SELECT count(extname) FROM pg_catalog.pg_extension WHERE extname='bdr') > 0
-THEN 'pgd'
-WHEN (SELECT COUNT(*) FROM pg_replication_slots) > 0
-THEN 'log'
-ELSE NULL
-END as type";
+            const string sql = """
+                SELECT CASE
+                WHEN (SELECT count(extname) FROM pg_catalog.pg_extension WHERE extname='bdr') > 0
+                THEN 'pgd'
+                WHEN (SELECT COUNT(*) FROM pg_replication_slots) > 0
+                THEN 'log'
+                ELSE NULL
+                END as type
+                """;
 
             Assert.True(PgVirtualInterpreter.TryExecute(sql, EmptyCtx(), out var table));
             Assert.Single(table.Columns);
@@ -658,32 +668,33 @@ END as type";
             // The legacy Npgsql 3.2.x type-loader. Five-source join (pg_type + pg_namespace +
             // pg_proc + LEFT OUTER pg_type + LEFT OUTER pg_range) with CASE WHEN projection,
             // OR-of-AND WHERE, and ORDER BY a projected alias. Exercises every Step B capability.
-            const string sql =
-                @"SELECT ns.nspname, a.typname, a.oid, a.typrelid, a.typbasetype,
-CASE WHEN pg_proc.proname='array_recv' THEN 'a' ELSE a.typtype END AS type,
-CASE
-  WHEN pg_proc.proname='array_recv' THEN a.typelem
-  WHEN a.typtype='r' THEN rngsubtype
-  ELSE 0
-END AS elemoid,
-CASE
-  WHEN pg_proc.proname IN ('array_recv','oidvectorrecv') THEN 3
-  WHEN a.typtype='r' THEN 2
-  WHEN a.typtype='d' THEN 1
-  ELSE 0
-END AS ord
-FROM pg_type AS a
-JOIN pg_namespace AS ns ON (ns.oid = a.typnamespace)
-JOIN pg_proc ON pg_proc.oid = a.typreceive
-LEFT OUTER JOIN pg_type AS b ON (b.oid = a.typelem)
-LEFT OUTER JOIN pg_range ON (pg_range.rngtypid = a.oid)
-WHERE
-  (
-    a.typtype IN ('b', 'r', 'e', 'd') AND
-    (b.typtype IS NULL OR b.typtype IN ('b', 'r', 'e', 'd'))
-  ) OR
-  (a.typname IN ('record', 'void') AND a.typtype = 'p')
-ORDER BY ord";
+            const string sql = """
+                SELECT ns.nspname, a.typname, a.oid, a.typrelid, a.typbasetype,
+                CASE WHEN pg_proc.proname='array_recv' THEN 'a' ELSE a.typtype END AS type,
+                CASE
+                  WHEN pg_proc.proname='array_recv' THEN a.typelem
+                  WHEN a.typtype='r' THEN rngsubtype
+                  ELSE 0
+                END AS elemoid,
+                CASE
+                  WHEN pg_proc.proname IN ('array_recv','oidvectorrecv') THEN 3
+                  WHEN a.typtype='r' THEN 2
+                  WHEN a.typtype='d' THEN 1
+                  ELSE 0
+                END AS ord
+                FROM pg_type AS a
+                JOIN pg_namespace AS ns ON (ns.oid = a.typnamespace)
+                JOIN pg_proc ON pg_proc.oid = a.typreceive
+                LEFT OUTER JOIN pg_type AS b ON (b.oid = a.typelem)
+                LEFT OUTER JOIN pg_range ON (pg_range.rngtypid = a.oid)
+                WHERE
+                  (
+                    a.typtype IN ('b', 'r', 'e', 'd') AND
+                    (b.typtype IS NULL OR b.typtype IN ('b', 'r', 'e', 'd'))
+                  ) OR
+                  (a.typname IN ('record', 'void') AND a.typtype = 'p')
+                ORDER BY ord
+                """;
 
             Assert.True(PgVirtualInterpreter.TryExecute(sql, EmptyCtx(), out var table));
             Assert.Equal(8, table.Columns.Count);

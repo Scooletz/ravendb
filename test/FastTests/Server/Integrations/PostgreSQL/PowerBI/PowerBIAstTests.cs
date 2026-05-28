@@ -14,8 +14,10 @@ namespace FastTests.Server.Integrations.PostgreSQL.PowerBI
         [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void Simple_public_table_fetch_should_translate_via_ast_and_strip_table_alias_and_json_projection()
         {
-            const string sql = @"select ""$Table"".""id()"" as ""id()"", ""$Table"".""Company"" as ""Company"", ""$Table"".""json()"" as ""json()""
-from ""public"".""Orders"" ""$Table"" limit 200";
+            const string sql = """
+                select "$Table"."id()" as "id()", "$Table"."Company" as "Company", "$Table"."json()" as "json()"
+                from "public"."Orders" "$Table" limit 200
+                """;
 
             Assert.True(PowerBIFetchQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
 
@@ -39,7 +41,7 @@ from ""public"".""Orders"" ""$Table"" limit 200";
         [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void TryParse_should_match_wrapped_rql_fetch_shape_and_apply_outer_limit()
         {
-            const string sql = "select * from (from Employees) \"$Table\" limit 1000";
+            const string sql = """select * from (from Employees) "$Table" limit 1000""";
 
             Assert.True(PowerBIFetchQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
 
@@ -56,7 +58,7 @@ from ""public"".""Orders"" ""$Table"" limit 200";
             // Sub-item 1 of Item B: the "rows" wrapper alias variant must be accepted by the Fetch
             // walker just like "_" and "$Table". Pinned here so future narrowing of the alias list
             // (e.g. accidentally returning to the old "_/$Table" only check) regresses loudly.
-            const string sql = "select * from (from Employees) \"rows\" limit 1000";
+            const string sql = """select * from (from Employees) "rows" limit 1000""";
 
             Assert.True(PowerBIFetchQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
 
@@ -69,19 +71,21 @@ from ""public"".""Orders"" ""$Table"" limit 200";
         {
             // Item B relax #1: LIMIT N OFFSET 0 is a semantic no-op at the outer aggregate level.
             // PowerBI occasionally emits it; DirectQuery must accept it instead of bailing out.
-            const string sql = @"select ""_"".""Employee"",
-    ""_"".""a0""
-from
-(
-    select ""rows"".""Employee"" as ""Employee"",
-        sum(""rows"".""Freight"") as ""a0""
-    from
-    (
-        from Orders
-    ) ""rows""
-    group by ""Employee""
-) ""_""
-limit 1000 offset 0";
+            const string sql = """
+                select "_"."Employee",
+                    "_"."a0"
+                from
+                (
+                    select "rows"."Employee" as "Employee",
+                        sum("rows"."Freight") as "a0"
+                    from
+                    (
+                        from Orders
+                    ) "rows"
+                    group by "Employee"
+                ) "_"
+                limit 1000 offset 0
+                """;
 
             Assert.True(PowerBIQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
             Assert.IsType<PowerBIDirectQuery>(pgQuery);
@@ -93,19 +97,21 @@ limit 1000 offset 0";
             // Item B relax #2: GROUP BY through TypeCast/RelabelType must unwrap to the underlying
             // ColumnRef. PowerBI sometimes emits explicit type coercions in GROUP BY; the cast is
             // semantically irrelevant for RQL grouping.
-            const string sql = @"select ""_"".""Employee"",
-    ""_"".""a0""
-from
-(
-    select ""rows"".""Employee"" as ""Employee"",
-        sum(""rows"".""Freight"") as ""a0""
-    from
-    (
-        from Orders
-    ) ""rows""
-    group by ""Employee""::text
-) ""_""
-limit 1000";
+            const string sql = """
+                select "_"."Employee",
+                    "_"."a0"
+                from
+                (
+                    select "rows"."Employee" as "Employee",
+                        sum("rows"."Freight") as "a0"
+                    from
+                    (
+                        from Orders
+                    ) "rows"
+                    group by "Employee"::text
+                ) "_"
+                limit 1000
+                """;
 
             Assert.True(PowerBIQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
             Assert.IsType<PowerBIDirectQuery>(pgQuery);
@@ -117,20 +123,22 @@ limit 1000";
             // Item B relax #4: ORDER BY on a non-"_" wrapper alias (e.g. "rows"."a0") must be
             // tolerated. The qualifier is a wrapper alias; only the last identifier segment is
             // meaningful for RQL. Also exercises relax #3 (multi-segment projection via "rows".X).
-            const string sql = @"select ""rows"".""Employee"" as ""Employee"",
-    ""rows"".""a0"" as ""a0""
-from
-(
-    select ""$Table"".""Employee"" as ""Employee"",
-        sum(""$Table"".""Freight"") as ""a0""
-    from
-    (
-        from Orders
-    ) ""$Table""
-    group by ""Employee""
-) ""rows""
-order by ""rows"".""a0""
-limit 1000";
+            const string sql = """
+                select "rows"."Employee" as "Employee",
+                    "rows"."a0" as "a0"
+                from
+                (
+                    select "$Table"."Employee" as "Employee",
+                        sum("$Table"."Freight") as "a0"
+                    from
+                    (
+                        from Orders
+                    ) "$Table"
+                    group by "Employee"
+                ) "rows"
+                order by "rows"."a0"
+                limit 1000
+                """;
 
             Assert.True(PowerBIQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
             Assert.IsType<PowerBIDirectQuery>(pgQuery);
@@ -139,7 +147,7 @@ limit 1000";
         [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void DirectQuery_desktop_null_order_helper_wrapper_should_be_handled_by_direct_query_parser_not_fetch()
         {
-            const string sql = @"select ""_"".""OrderedAt"" as ""c2"", ""_"".""RequireAt"" as ""c3"" from ( select ""OrderedAt"", ""RequireAt"", ""_"".""t0_0"" as ""t0_0"", ""_"".""t1_0"" as ""t1_0"", ""_"".""t2_0"" as ""t2_0"", ""_"".""t3_0"" as ""t3_0"" from ( select ""_"".""OrderedAt"", ""_"".""RequireAt"", ""_"".""o0"", ""_"".""o1"", ""_"".""t0_0"", ""_"".""t1_0"", ""_"".""t2_0"", ""_"".""t3_0"" from ( select ""_"".""OrderedAt"" as ""OrderedAt"", ""_"".""RequireAt"" as ""RequireAt"", ""_"".""o0"" as ""o0"", ""_"".""o1"" as ""o1"", case when ""_"".""o0"" is not null then ""_"".""o0"" else timestamp '1899-12-28 00:00:00' end as ""t0_0"", case when ""_"".""o0"" is null then 0 else 1 end as ""t1_0"", case when ""_"".""o1"" is not null then ""_"".""o1"" else timestamp '1899-12-28 00:00:00' end as ""t2_0"", case when ""_"".""o1"" is null then 0 else 1 end as ""t3_0"" from ( select ""rows"".""OrderedAt"" as ""OrderedAt"", ""rows"".""RequireAt"" as ""RequireAt"", ""rows"".""o0"" as ""o0"", ""rows"".""o1"" as ""o1"" from ( select ""OrderedAt"" as ""OrderedAt"", ""RequireAt"" as ""RequireAt"", ""OrderedAt"" as ""o0"", ""RequireAt"" as ""o1"" from ( from Orders as o where o.Company = ""Companies/1-A"" OR o.Company = ""Companies/2-A"" select { OrderedAt: o.OrderedAt, RequireAt: o.RequireAt} ) ""$Table"" ) ""rows"" group by ""OrderedAt"", ""RequireAt"", ""o0"", ""o1"" ) ""_"" ) ""_"" ) ""_"" ) ""_"" order by ""_"".""t0_0"", ""_"".""t1_0"", ""_"".""t2_0"", ""_"".""t3_0"" limit 501";
+            const string sql = """select "_"."OrderedAt" as "c2", "_"."RequireAt" as "c3" from ( select "OrderedAt", "RequireAt", "_"."t0_0" as "t0_0", "_"."t1_0" as "t1_0", "_"."t2_0" as "t2_0", "_"."t3_0" as "t3_0" from ( select "_"."OrderedAt", "_"."RequireAt", "_"."o0", "_"."o1", "_"."t0_0", "_"."t1_0", "_"."t2_0", "_"."t3_0" from ( select "_"."OrderedAt" as "OrderedAt", "_"."RequireAt" as "RequireAt", "_"."o0" as "o0", "_"."o1" as "o1", case when "_"."o0" is not null then "_"."o0" else timestamp '1899-12-28 00:00:00' end as "t0_0", case when "_"."o0" is null then 0 else 1 end as "t1_0", case when "_"."o1" is not null then "_"."o1" else timestamp '1899-12-28 00:00:00' end as "t2_0", case when "_"."o1" is null then 0 else 1 end as "t3_0" from ( select "rows"."OrderedAt" as "OrderedAt", "rows"."RequireAt" as "RequireAt", "rows"."o0" as "o0", "rows"."o1" as "o1" from ( select "OrderedAt" as "OrderedAt", "RequireAt" as "RequireAt", "OrderedAt" as "o0", "RequireAt" as "o1" from ( from Orders as o where o.Company = "Companies/1-A" OR o.Company = "Companies/2-A" select { OrderedAt: o.OrderedAt, RequireAt: o.RequireAt} ) "$Table" ) "rows" group by "OrderedAt", "RequireAt", "o0", "o1" ) "_" ) "_" ) "_" ) "_" order by "_"."t0_0", "_"."t1_0", "_"."t2_0", "_"."t3_0" limit 501""";
 
             // Use the same PowerBI parsing entry point as production.
             Assert.True(PowerBIQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
@@ -151,24 +159,26 @@ limit 1000";
         [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void DirectQuery_desktop_grouped_sum_two_group_fields_with_outer_where_not_null_should_be_classified_as_direct_query()
         {
-            const string sql = @"select ""_"".""Employee"",
-    ""_"".""RequireAt"",
-    ""_"".""a0""
-from 
-(
-    select ""rows"".""Employee"" as ""Employee"",
-        ""rows"".""RequireAt"" as ""RequireAt"",
-        sum(""rows"".""Freight"") as ""a0""
-    from 
-    (
-        from Orders
-        where Company in ('Companies/1-A', 'Companies/2-A', 'Companies/3-A')
-    ) ""rows""
-    group by ""Employee"",
-        ""RequireAt""
-) ""_""
-where not ""_"".""a0"" is null
-limit 1000001";
+            const string sql = """
+                select "_"."Employee",
+                    "_"."RequireAt",
+                    "_"."a0"
+                from
+                (
+                    select "rows"."Employee" as "Employee",
+                        "rows"."RequireAt" as "RequireAt",
+                        sum("rows"."Freight") as "a0"
+                    from
+                    (
+                        from Orders
+                        where Company in ('Companies/1-A', 'Companies/2-A', 'Companies/3-A')
+                    ) "rows"
+                    group by "Employee",
+                        "RequireAt"
+                ) "_"
+                where not "_"."a0" is null
+                limit 1000001
+                """;
 
             Assert.True(PowerBIQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
             Assert.IsType<PowerBIDirectQuery>(pgQuery);
@@ -177,15 +187,17 @@ limit 1000001";
         [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi, Skip = "Scalar aggregates are intentionally unsupported (RQL requires group by for sum). Remove/enable when scalar support is implemented.")]
         public void DirectQuery_aggregate_only_sum_should_be_classified_as_direct_query()
         {
-            const string sql = @"select sum(""rows"".""Freight"") as ""a0""
-from
-(
-    select ""Freight""
-    from
-    (
-        from Orders
-    ) ""$Table""
-) ""rows""";
+            const string sql = """
+                select sum("rows"."Freight") as "a0"
+                from
+                (
+                    select "Freight"
+                    from
+                    (
+                        from Orders
+                    ) "$Table"
+                ) "rows"
+                """;
 
             Assert.True(PowerBIQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
             Assert.IsType<PowerBIDirectQuery>(pgQuery);
@@ -194,24 +206,26 @@ from
         [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void DirectQuery_desktop_grouped_sum_two_group_fields_with_inner_filter_on_group_field_should_be_classified_as_direct_query()
         {
-            const string sql = @"select ""_"".""Employee"",
-    ""_"".""RequireAt"",
-    ""_"".""a0""
-from
-(
-    select ""rows"".""Employee"" as ""Employee"",
-        ""rows"".""RequireAt"" as ""RequireAt"",
-        sum(""rows"".""Freight"") as ""a0""
-    from
-    (
-        from Orders
-        where Employee != null
-    ) ""rows""
-    group by ""Employee"",
-        ""RequireAt""
-) ""_""
-where not ""_"".""a0"" is null
-limit 1000001";
+            const string sql = """
+                select "_"."Employee",
+                    "_"."RequireAt",
+                    "_"."a0"
+                from
+                (
+                    select "rows"."Employee" as "Employee",
+                        "rows"."RequireAt" as "RequireAt",
+                        sum("rows"."Freight") as "a0"
+                    from
+                    (
+                        from Orders
+                        where Employee != null
+                    ) "rows"
+                    group by "Employee",
+                        "RequireAt"
+                ) "_"
+                where not "_"."a0" is null
+                limit 1000001
+                """;
 
             Assert.True(PowerBIQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
             Assert.IsType<PowerBIDirectQuery>(pgQuery);
@@ -220,71 +234,73 @@ limit 1000001";
         [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void DirectQuery_desktop_employee_requireAt_json_with_null_order_helper_columns_should_be_classified_as_direct_query()
         {
-            const string sql = @"select ""_"".""Employee"" as ""c3"",
-    ""_"".""RequireAt"" as ""c7"",
-    ""_"".""json()"" as ""c11""
-from 
-(
-    select ""Employee"",
-        ""RequireAt"",
-        ""json()"",
-        ""_"".""t2_0"" as ""t2_0"",
-        ""_"".""t3_0"" as ""t3_0""
-    from 
-    (
-        select ""_"".""Employee"",
-            ""_"".""RequireAt"",
-            ""_"".""json()"",
-            ""_"".""o2"",
-            ""_"".""t2_0"",
-            ""_"".""t3_0""
-        from 
-        (
-            select ""_"".""Employee"" as ""Employee"",
-                ""_"".""RequireAt"" as ""RequireAt"",
-                ""_"".""json()"" as ""json()"",
-                ""_"".""o2"" as ""o2"",
-                case
-                    when ""_"".""o2"" is not null
-                    then ""_"".""o2""
-                    else timestamp '1899-12-28 00:00:00'
-                end as ""t2_0"",
-                case
-                    when ""_"".""o2"" is null
-                    then 0
-                    else 1
-                end as ""t3_0""
-            from 
-            (
-                select ""rows"".""Employee"" as ""Employee"",
-                    ""rows"".""RequireAt"" as ""RequireAt"",
-                    ""rows"".""json()"" as ""json()"",
-                    ""rows"".""o2"" as ""o2""
-                from 
+            const string sql = """
+                select "_"."Employee" as "c3",
+                    "_"."RequireAt" as "c7",
+                    "_"."json()" as "c11"
+                from
                 (
-                    select ""Employee"" as ""Employee"",
-                        ""RequireAt"" as ""RequireAt"",
-                        ""json()"" as ""json()"",
-                        ""RequireAt"" as ""o2""
-                    from 
+                    select "Employee",
+                        "RequireAt",
+                        "json()",
+                        "_"."t2_0" as "t2_0",
+                        "_"."t3_0" as "t3_0"
+                    from
                     (
-                        from Orders
-                        where Company in ('Companies/1-A', 'Companies/2-A', 'Companies/3-A')
-                    ) ""$Table""
-                ) ""rows""
-                group by ""Employee"",
-                    ""RequireAt"",
-                    ""json()"",
-                    ""o2""
-            ) ""_""
-        ) ""_""
-    ) ""_""
-) ""_""
-order by ""_"".""Employee"",
-        ""_"".""json()"",
-        ""_"".""t2_0"",
-        ""_"".""t3_0""
-limit 501";
+                        select "_"."Employee",
+                            "_"."RequireAt",
+                            "_"."json()",
+                            "_"."o2",
+                            "_"."t2_0",
+                            "_"."t3_0"
+                        from
+                        (
+                            select "_"."Employee" as "Employee",
+                                "_"."RequireAt" as "RequireAt",
+                                "_"."json()" as "json()",
+                                "_"."o2" as "o2",
+                                case
+                                    when "_"."o2" is not null
+                                    then "_"."o2"
+                                    else timestamp '1899-12-28 00:00:00'
+                                end as "t2_0",
+                                case
+                                    when "_"."o2" is null
+                                    then 0
+                                    else 1
+                                end as "t3_0"
+                            from
+                            (
+                                select "rows"."Employee" as "Employee",
+                                    "rows"."RequireAt" as "RequireAt",
+                                    "rows"."json()" as "json()",
+                                    "rows"."o2" as "o2"
+                                from
+                                (
+                                    select "Employee" as "Employee",
+                                        "RequireAt" as "RequireAt",
+                                        "json()" as "json()",
+                                        "RequireAt" as "o2"
+                                    from
+                                    (
+                                        from Orders
+                                        where Company in ('Companies/1-A', 'Companies/2-A', 'Companies/3-A')
+                                    ) "$Table"
+                                ) "rows"
+                                group by "Employee",
+                                    "RequireAt",
+                                    "json()",
+                                    "o2"
+                            ) "_"
+                        ) "_"
+                    ) "_"
+                ) "_"
+                order by "_"."Employee",
+                        "_"."json()",
+                        "_"."t2_0",
+                        "_"."t3_0"
+                limit 501
+                """;
 
             Assert.True(PowerBIQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
             Assert.IsType<PowerBIDirectQuery>(pgQuery);
@@ -293,23 +309,25 @@ limit 501";
         [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void DirectQuery_distinct_list_wrapper_single_column_orders_employee_should_be_classified_as_direct_query()
         {
-            const string sql = @"select ""_"".""Employee""
-from 
-(
-    select ""rows"".""Employee"" as ""Employee""
-    from 
-    (
-        select ""Employee""
-        from 
-        (
-            from Orders
-            where Company in ('Companies/1-A', 'Companies/2-A', 'Companies/3-A')
-        ) ""$Table""
-    ) ""rows""
-    group by ""Employee""
-) ""_""
-order by ""_"".""Employee""
-limit 1001";
+            const string sql = """
+                select "_"."Employee"
+                from
+                (
+                    select "rows"."Employee" as "Employee"
+                    from
+                    (
+                        select "Employee"
+                        from
+                        (
+                            from Orders
+                            where Company in ('Companies/1-A', 'Companies/2-A', 'Companies/3-A')
+                        ) "$Table"
+                    ) "rows"
+                    group by "Employee"
+                ) "_"
+                order by "_"."Employee"
+                limit 1001
+                """;
 
             Assert.True(PowerBIQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
             Assert.IsType<PowerBIDirectQuery>(pgQuery);
@@ -318,30 +336,32 @@ limit 1001";
         [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void DirectQuery_distinct_list_wrapper_with_inner_rql_load_should_report_actual_parser_classification()
         {
-            const string sql = @"select ""_"".""Name"",
-        ""_"".""Manager""
-from
-(
-    select ""rows"".""Name"" as ""Name"",
-        ""rows"".""Manager"" as ""Manager""
-    from
-    (
-        select ""Name"",
-            ""Manager""
-        from
-        (
-            from Employees as e
-            where id() in ('employees/1-A')
-            load e.ReportsTo as boss
-            select { Name: e.FirstName, Manager: boss.FirstName }
-        ) ""$Table""
-    ) ""rows""
-    group by ""Name"",
-        ""Manager""
-) ""_""
-order by ""_"".""Name"",
-        ""_"".""Manager""
-limit 501";
+            const string sql = """
+                select "_"."Name",
+                        "_"."Manager"
+                from
+                (
+                    select "rows"."Name" as "Name",
+                        "rows"."Manager" as "Manager"
+                    from
+                    (
+                        select "Name",
+                            "Manager"
+                        from
+                        (
+                            from Employees as e
+                            where id() in ('employees/1-A')
+                            load e.ReportsTo as boss
+                            select { Name: e.FirstName, Manager: boss.FirstName }
+                        ) "$Table"
+                    ) "rows"
+                    group by "Name",
+                        "Manager"
+                ) "_"
+                order by "_"."Name",
+                        "_"."Manager"
+                limit 501
+                """;
 
             Assert.True(PowerBIQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
 
@@ -351,39 +371,41 @@ limit 501";
         [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void DirectQuery_desktop_grouped_sum_wrapper_should_be_handled_by_direct_query_parser_not_fetch()
         {
-            const string sql = @"select ""_"".""Company"" as ""c2"",
-    ""_"".""a0"" as ""a0""
-from
-(
-    select ""_"".""Company"",
-        ""_"".""a0""
-    from
-    (
-        select ""_"".""Company"",
-            ""_"".""a0""
-        from
-        (
-            select ""rows"".""Company"" as ""Company"",
-                sum(""rows"".""Freight"") as ""a0""
-            from
-            (
-                select ""Company"",
-                    ""Freight""
+            const string sql = """
+                select "_"."Company" as "c2",
+                    "_"."a0" as "a0"
                 from
                 (
-                    from Orders as o
-                    where o.Company = ""Companies/1-A"" OR o.Company = ""Companies/2-A""
-                    select { Company: o.Company, Freight: o.Freight}
-                ) ""$Table""
-            ) ""rows""
-            group by ""Company""
-        ) ""_""
-        where not ""_"".""a0"" is null
-    ) ""_""
-) ""_""
-order by ""_"".""a0"" desc,
-        ""_"".""Company""
-limit 1001";
+                    select "_"."Company",
+                        "_"."a0"
+                    from
+                    (
+                        select "_"."Company",
+                            "_"."a0"
+                        from
+                        (
+                            select "rows"."Company" as "Company",
+                                sum("rows"."Freight") as "a0"
+                            from
+                            (
+                                select "Company",
+                                    "Freight"
+                                from
+                                (
+                                    from Orders as o
+                                    where o.Company = "Companies/1-A" OR o.Company = "Companies/2-A"
+                                    select { Company: o.Company, Freight: o.Freight}
+                                ) "$Table"
+                            ) "rows"
+                            group by "Company"
+                        ) "_"
+                        where not "_"."a0" is null
+                    ) "_"
+                ) "_"
+                order by "_"."a0" desc,
+                        "_"."Company"
+                limit 1001
+                """;
 
             Assert.True(PowerBIQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
             Assert.IsType<PowerBIDirectQuery>(pgQuery);
@@ -392,13 +414,15 @@ limit 1001";
         [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void TryParse_should_match_wrapped_rql_fetch_with_outer_where_not_equal_or_is_null()
         {
-            const string sql = @"select ""_"".""id()"" as ""id()"", ""_"".""FirstName"" as ""FirstName""
-from
-(
-    from Employees
-) ""_""
-where (""_"".""FirstName"" <> 'Anne' or ""_"".""FirstName"" is null)
-limit 1000";
+            const string sql = """
+                select "_"."id()" as "id()", "_"."FirstName" as "FirstName"
+                from
+                (
+                    from Employees
+                ) "_"
+                where ("_"."FirstName" <> 'Anne' or "_"."FirstName" is null)
+                limit 1000
+                """;
 
             Assert.True(PowerBIFetchQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
 
@@ -415,13 +439,15 @@ limit 1000";
         [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void TryParse_should_translate_between_in_outer_where()
         {
-            const string sql = @"select ""_"".""id()"" as ""id()"", ""_"".""OrderedAt"" as ""OrderedAt""
-from
-(
-    from Orders
-) ""_""
-where ""_"".""OrderedAt"" between 1 and 10
-limit 1000";
+            const string sql = """
+                select "_"."id()" as "id()", "_"."OrderedAt" as "OrderedAt"
+                from
+                (
+                    from Orders
+                ) "_"
+                where "_"."OrderedAt" between 1 and 10
+                limit 1000
+                """;
 
             Assert.True(PowerBIFetchQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
 
@@ -437,13 +463,15 @@ limit 1000";
         [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void TryParse_should_merge_inner_where_with_outer_where()
         {
-            const string sql = @"select ""_"".""id()"" as ""id()"", ""_"".""FirstName"" as ""FirstName""
-from
-(
-    from Employees where startsWith(LastName, 'D')
-) ""_""
-where ""_"".""FirstName"" = 'Anne'
-limit 1000";
+            const string sql = """
+                select "_"."id()" as "id()", "_"."FirstName" as "FirstName"
+                from
+                (
+                    from Employees where startsWith(LastName, 'D')
+                ) "_"
+                where "_"."FirstName" = 'Anne'
+                limit 1000
+                """;
 
             Assert.True(PowerBIFetchQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
 
@@ -459,13 +487,15 @@ limit 1000";
         [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void TryParse_should_translate_timestamp_literal_in_outer_where()
         {
-            const string sql = @"select ""_"".""id()"" as ""id()"", ""_"".""HiredAt"" as ""HiredAt""
-from
-(
-    from Employees
-) ""_""
-where ""_"".""HiredAt"" = timestamp '1994-11-15 00:00:00' and ""_"".""HiredAt"" is not null
-limit 1000";
+            const string sql = """
+                select "_"."id()" as "id()", "_"."HiredAt" as "HiredAt"
+                from
+                (
+                    from Employees
+                ) "_"
+                where "_"."HiredAt" = timestamp '1994-11-15 00:00:00' and "_"."HiredAt" is not null
+                limit 1000
+                """;
 
             Assert.True(PowerBIFetchQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
 
@@ -482,12 +512,14 @@ limit 1000";
         [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void TryParse_should_extract_single_replace_projection_via_ast()
         {
-            const string sql = @"select ""_"".""id()"" as ""id()"", ""_"".""Title"" as ""Title"", replace(""_"".""Title"", 'Sales', 'Marketing') as ""t0_0""
-from
-(
-    from Employees where startsWith(LastName, 'D') select Title
-) ""_""
-limit 1000";
+            const string sql = """
+                select "_"."id()" as "id()", "_"."Title" as "Title", replace("_"."Title", 'Sales', 'Marketing') as "t0_0"
+                from
+                (
+                    from Employees where startsWith(LastName, 'D') select Title
+                ) "_"
+                limit 1000
+                """;
 
             Assert.True(PowerBIFetchQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
 
@@ -508,15 +540,17 @@ limit 1000";
         [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void TryParse_should_extract_multiple_replace_projections_via_ast()
         {
-            const string sql = @"select ""_"".""id()"" as ""id()"",
-    ""_"".""Title"" as ""Title"",
-    replace(""_"".""Title"", 'Sales', 'Marketing') as ""t0_0"",
-    replace(""_"".""FirstName"", 'Anne', 'Annie') as ""t0_1""
-from
-(
-    from Employees where startsWith(LastName, 'D') select Title, FirstName
-) ""_""
-limit 1000";
+            const string sql = """
+                select "_"."id()" as "id()",
+                    "_"."Title" as "Title",
+                    replace("_"."Title", 'Sales', 'Marketing') as "t0_0",
+                    replace("_"."FirstName", 'Anne', 'Annie') as "t0_1"
+                from
+                (
+                    from Employees where startsWith(LastName, 'D') select Title, FirstName
+                ) "_"
+                limit 1000
+                """;
 
             Assert.True(PowerBIFetchQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
 
@@ -544,18 +578,20 @@ limit 1000";
         [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void TryParse_should_support_multi_nested_wrapped_rql_with_multiple_wheres_and_replace()
         {
-            const string sql = @"select ""_"".""id()"" as ""id()"", replace(""_"".""Title"", 'Sales', 'Marketing') as ""t0_0""
-from
-(
-    select ""_"".""id()"" as ""id()"", ""_"".""Title"" as ""Title""
-    from
-    (
-        from Employees where startsWith(LastName, 'D')
-    ) ""_""
-    where ""_"".""FirstName"" = 'Anne'
-) ""_""
-where ((""_"".""LastName"" <> 'Dodsworth' or ""_"".""LastName"" is null) and ""_"".""ReportsTo"" between 1 and 10)
-limit 1000";
+            const string sql = """
+                select "_"."id()" as "id()", replace("_"."Title", 'Sales', 'Marketing') as "t0_0"
+                from
+                (
+                    select "_"."id()" as "id()", "_"."Title" as "Title"
+                    from
+                    (
+                        from Employees where startsWith(LastName, 'D')
+                    ) "_"
+                    where "_"."FirstName" = 'Anne'
+                ) "_"
+                where (("_"."LastName" <> 'Dodsworth' or "_"."LastName" is null) and "_"."ReportsTo" between 1 and 10)
+                limit 1000
+                """;
 
             Assert.True(PowerBIFetchQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
 
@@ -578,99 +614,103 @@ limit 1000";
         [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void TryParse_should_support_deep_wrapper_nesting_with_complex_outer_where_and_multiple_replace_levels_and_huge_inner_rql()
         {
-            var innerRql = @"from 'Users' as u
-where u.Age > 0 and u.Name != null
-order by u.Name
-select {
-    Name: u.Name,
-    Age: u.Age,
-    Title: u.Title,
-    Field01: u.Field01,
-    Field02: u.Field02,
-    Field03: u.Field03,
-    Field04: u.Field04,
-    Field05: u.Field05,
-    Field06: u.Field06,
-    Field07: u.Field07,
-    Field08: u.Field08,
-    Field09: u.Field09,
-    Field10: u.Field10,
-    VeryLongTailMarker123: u.VeryLongTailMarker123
-}";
+            var innerRql = """
+                from 'Users' as u
+                where u.Age > 0 and u.Name != null
+                order by u.Name
+                select {
+                    Name: u.Name,
+                    Age: u.Age,
+                    Title: u.Title,
+                    Field01: u.Field01,
+                    Field02: u.Field02,
+                    Field03: u.Field03,
+                    Field04: u.Field04,
+                    Field05: u.Field05,
+                    Field06: u.Field06,
+                    Field07: u.Field07,
+                    Field08: u.Field08,
+                    Field09: u.Field09,
+                    Field10: u.Field10,
+                    VeryLongTailMarker123: u.VeryLongTailMarker123
+                }
+                """;
 
-            var sql = $@"select ""_"".""id()"",
-       ""_"".""Company"",
-       ""_"".""Employee"",
-       ""_"".""Freight"",
-       ""_"".""Lines"",
-       ""_"".""OrderedAt"",
-       ""_"".""RequireAt"",
-       ""_"".""ShipTo"",
-       ""_"".""ShipVia"",
-       ""_"".""ShippedAt"",
-       ""_"".""json()""
-from
-(
-    select ""_"".""id()"" as ""id()"",
-           ""_"".""Company"" as ""Company"",
-           ""_"".""Employee"" as ""Employee"",
-           ""_"".""Freight"" as ""Freight"",
-           ""_"".""Lines"" as ""Lines"",
-           ""_"".""OrderedAt"" as ""OrderedAt"",
-           ""_"".""RequireAt"" as ""RequireAt"",
-           ""_"".""ShipTo"" as ""ShipTo"",
-           ""_"".""ShipVia"" as ""ShipVia"",
-           ""_"".""ShippedAt"" as ""ShippedAt"",
-           ""_"".""json()"" as ""json()"",
-           ""_"".""FirstName"" as ""FirstName"",
-           replace(""_"".""FirstName"", 'Ann', 'Anne') as ""t1_0""
-    from
-    (
-        select ""$Table"".""id()"" as ""id()"",
-               ""$Table"".""Company"" as ""Company"",
-               ""$Table"".""Employee"" as ""Employee"",
-               ""$Table"".""Freight"" as ""Freight"",
-               ""$Table"".""Lines"" as ""Lines"",
-               ""$Table"".""OrderedAt"" as ""OrderedAt"",
-               ""$Table"".""RequireAt"" as ""RequireAt"",
-               ""$Table"".""ShipTo"" as ""ShipTo"",
-               ""$Table"".""ShipVia"" as ""ShipVia"",
-               ""$Table"".""ShippedAt"" as ""ShippedAt"",
-               ""$Table"".""json()"" as ""json()"",
-               ""$Table"".""Title"" as ""Title"",
-               replace(""$Table"".""Title"", 'Sales', 'Marketing') as ""t0_0""
-        from
-        (
-            select ""_"".""id()"" as ""id()"",
-                   ""_"".""Age"" as ""Age"",
-                   ""_"".""Name"" as ""Name"",
-                   ""_"".""Company"" as ""Company"",
-                   ""_"".""Employee"" as ""Employee"",
-                   ""_"".""Freight"" as ""Freight"",
-                   ""_"".""Lines"" as ""Lines"",
-                   ""_"".""OrderedAt"" as ""OrderedAt"",
-                   ""_"".""RequireAt"" as ""RequireAt"",
-                   ""_"".""ShipTo"" as ""ShipTo"",
-                   ""_"".""ShipVia"" as ""ShipVia"",
-                   ""_"".""ShippedAt"" as ""ShippedAt"",
-                   ""_"".""json()"" as ""json()"",
-                   ""_"".""Title"" as ""Title"",
-                   ""_"".""DeletedAt"" as ""DeletedAt"",
-                   ""_"".""IsActive"" as ""IsActive"",
-                   ""_"".""Score"" as ""Score"",
-                   ""_"".""FirstName"" as ""FirstName""
-            from
-            (
-                {innerRql}
-            ) ""_""
-            where ((""_"".""Age"" between 10 and 20 and ""_"".""Name"" in ('a','b','c')) and (""_"".""DeletedAt"" is null))
-        ) ""$Table""
-        where (((not (""$Table"".""IsActive"" = true)) or (""$Table"".""Score"" <> 5)) and ""$Table"".""Title"" is not null)
-    ) ""_""
-    where (""_"".""FirstName"" is not null and ""_"".""Score"" <> 5)
-) ""_""
-where ((""_"".""Company"" is not null) and ((""_"".""Freight"" <> 5) or (""_"".""Freight"" is null)) and (""_"".""OrderedAt"" between 1 and 10))
-limit 25";
+            var sql = $$"""
+                select "_"."id()",
+                       "_"."Company",
+                       "_"."Employee",
+                       "_"."Freight",
+                       "_"."Lines",
+                       "_"."OrderedAt",
+                       "_"."RequireAt",
+                       "_"."ShipTo",
+                       "_"."ShipVia",
+                       "_"."ShippedAt",
+                       "_"."json()"
+                from
+                (
+                    select "_"."id()" as "id()",
+                           "_"."Company" as "Company",
+                           "_"."Employee" as "Employee",
+                           "_"."Freight" as "Freight",
+                           "_"."Lines" as "Lines",
+                           "_"."OrderedAt" as "OrderedAt",
+                           "_"."RequireAt" as "RequireAt",
+                           "_"."ShipTo" as "ShipTo",
+                           "_"."ShipVia" as "ShipVia",
+                           "_"."ShippedAt" as "ShippedAt",
+                           "_"."json()" as "json()",
+                           "_"."FirstName" as "FirstName",
+                           replace("_"."FirstName", 'Ann', 'Anne') as "t1_0"
+                    from
+                    (
+                        select "$Table"."id()" as "id()",
+                               "$Table"."Company" as "Company",
+                               "$Table"."Employee" as "Employee",
+                               "$Table"."Freight" as "Freight",
+                               "$Table"."Lines" as "Lines",
+                               "$Table"."OrderedAt" as "OrderedAt",
+                               "$Table"."RequireAt" as "RequireAt",
+                               "$Table"."ShipTo" as "ShipTo",
+                               "$Table"."ShipVia" as "ShipVia",
+                               "$Table"."ShippedAt" as "ShippedAt",
+                               "$Table"."json()" as "json()",
+                               "$Table"."Title" as "Title",
+                               replace("$Table"."Title", 'Sales', 'Marketing') as "t0_0"
+                        from
+                        (
+                            select "_"."id()" as "id()",
+                                   "_"."Age" as "Age",
+                                   "_"."Name" as "Name",
+                                   "_"."Company" as "Company",
+                                   "_"."Employee" as "Employee",
+                                   "_"."Freight" as "Freight",
+                                   "_"."Lines" as "Lines",
+                                   "_"."OrderedAt" as "OrderedAt",
+                                   "_"."RequireAt" as "RequireAt",
+                                   "_"."ShipTo" as "ShipTo",
+                                   "_"."ShipVia" as "ShipVia",
+                                   "_"."ShippedAt" as "ShippedAt",
+                                   "_"."json()" as "json()",
+                                   "_"."Title" as "Title",
+                                   "_"."DeletedAt" as "DeletedAt",
+                                   "_"."IsActive" as "IsActive",
+                                   "_"."Score" as "Score",
+                                   "_"."FirstName" as "FirstName"
+                            from
+                            (
+                                {{innerRql}}
+                            ) "_"
+                            where (("_"."Age" between 10 and 20 and "_"."Name" in ('a','b','c')) and ("_"."DeletedAt" is null))
+                        ) "$Table"
+                        where (((not ("$Table"."IsActive" = true)) or ("$Table"."Score" <> 5)) and "$Table"."Title" is not null)
+                    ) "_"
+                    where ("_"."FirstName" is not null and "_"."Score" <> 5)
+                ) "_"
+                where (("_"."Company" is not null) and (("_"."Freight" <> 5) or ("_"."Freight" is null)) and ("_"."OrderedAt" between 1 and 10))
+                limit 25
+                """;
 
             Assert.True(PowerBIFetchQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
 
@@ -723,49 +763,53 @@ SELECT {
         [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void TryParse_should_support_declare_function_inner_rql_with_wrappers_outer_where_and_limit()
         {
-            var innerRql = @"declare function isGood(u) { return u.Age > 18; }
-from 'Users' as u
-where isGood(u)
-select { Name: u.Name, Age: u.Age }";
+            var innerRql = """
+                declare function isGood(u) { return u.Age > 18; }
+                from 'Users' as u
+                where isGood(u)
+                select { Name: u.Name, Age: u.Age }
+                """;
 
-            var sql = $@"select ""_"".""id()"",
-       ""_"".""Company"",
-       ""_"".""Employee"",
-       ""_"".""Freight"",
-       ""_"".""Lines"",
-       ""_"".""OrderedAt"",
-       ""_"".""RequireAt"",
-       ""_"".""ShipTo"",
-       ""_"".""ShipVia"",
-       ""_"".""ShippedAt"",
-       ""_"".""json()""
-from
-(
-    select ""$Table"".""id()"" as ""id()"",
-           ""$Table"".""Company"" as ""Company"",
-           ""$Table"".""Employee"" as ""Employee"",
-           ""$Table"".""Freight"" as ""Freight"",
-           ""$Table"".""Lines"" as ""Lines"",
-           ""$Table"".""OrderedAt"" as ""OrderedAt"",
-           ""$Table"".""RequireAt"" as ""RequireAt"",
-           ""$Table"".""ShipTo"" as ""ShipTo"",
-           ""$Table"".""ShipVia"" as ""ShipVia"",
-           ""$Table"".""ShippedAt"" as ""ShippedAt"",
-           ""$Table"".""json()"" as ""json()"",
-           ""$Table"".""Name"" as ""Name"",
-           replace(""$Table"".""Name"", 'a', 'b') as ""n0""
-    from
-    (
-        select ""_"".""Name"" as ""Name""
-        from
-        (
-            {innerRql}
-        ) ""_""
-    ) ""$Table""
-    where (""$Table"".""Name"" in ('a','b') and ""$Table"".""Name"" is not null)
-) ""_""
-where (""_"".""Company"" in ('a','b') and ""_"".""Company"" is not null)
-limit 7";
+            var sql = $$"""
+                select "_"."id()",
+                       "_"."Company",
+                       "_"."Employee",
+                       "_"."Freight",
+                       "_"."Lines",
+                       "_"."OrderedAt",
+                       "_"."RequireAt",
+                       "_"."ShipTo",
+                       "_"."ShipVia",
+                       "_"."ShippedAt",
+                       "_"."json()"
+                from
+                (
+                    select "$Table"."id()" as "id()",
+                           "$Table"."Company" as "Company",
+                           "$Table"."Employee" as "Employee",
+                           "$Table"."Freight" as "Freight",
+                           "$Table"."Lines" as "Lines",
+                           "$Table"."OrderedAt" as "OrderedAt",
+                           "$Table"."RequireAt" as "RequireAt",
+                           "$Table"."ShipTo" as "ShipTo",
+                           "$Table"."ShipVia" as "ShipVia",
+                           "$Table"."ShippedAt" as "ShippedAt",
+                           "$Table"."json()" as "json()",
+                           "$Table"."Name" as "Name",
+                           replace("$Table"."Name", 'a', 'b') as "n0"
+                    from
+                    (
+                        select "_"."Name" as "Name"
+                        from
+                        (
+                            {{innerRql}}
+                        ) "_"
+                    ) "$Table"
+                    where ("$Table"."Name" in ('a','b') and "$Table"."Name" is not null)
+                ) "_"
+                where ("_"."Company" in ('a','b') and "_"."Company" is not null)
+                limit 7
+                """;
 
             Assert.True(PowerBIFetchQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
 
@@ -796,59 +840,63 @@ SELECT {
         [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void TryParse_should_support_projection_heavy_multi_wrapper_with_replace_at_outer_and_inner_levels_and_complex_outer_where()
         {
-            var innerRql = @"from Orders as o
-where o.Company != null
-select { Company: o.Company, Employee: o.Employee, Freight: o.Freight, OrderedAt: o.OrderedAt, ShippedAt: o.ShippedAt }";
+            var innerRql = """
+                from Orders as o
+                where o.Company != null
+                select { Company: o.Company, Employee: o.Employee, Freight: o.Freight, OrderedAt: o.OrderedAt, ShippedAt: o.ShippedAt }
+                """;
 
             const int limit = 33;
 
-            var sql = $@"select ""_"".""id()"",
-       ""_"".""Company"",
-       ""_"".""Employee"",
-       replace(""_"".""Employee"", 'X', 'Y') as ""tOuter_0"",
-       ""_"".""Freight"",
-       ""_"".""Lines"",
-       ""_"".""OrderedAt"",
-       ""_"".""RequireAt"",
-       ""_"".""ShipTo"",
-       ""_"".""ShipVia"",
-       ""_"".""ShippedAt"",
-       ""_"".""json()""
-from
-(
-    select ""_"".""id()"" as ""id()"",
-           ""_"".""Company"" as ""Company"",
-           ""_"".""Employee"" as ""Employee"",
-           ""_"".""Freight"" as ""Freight"",
-           ""_"".""Lines"" as ""Lines"",
-           ""_"".""OrderedAt"" as ""OrderedAt"",
-           ""_"".""RequireAt"" as ""RequireAt"",
-           ""_"".""ShipTo"" as ""ShipTo"",
-           ""_"".""ShipVia"" as ""ShipVia"",
-           ""_"".""ShippedAt"" as ""ShippedAt"",
-           ""_"".""json()"" as ""json()""
-    from
-    (
-        select ""$Table"".""id()"" as ""id()"",
-               ""$Table"".""Company"" as ""Company"",
-               replace(""$Table"".""Company"", 'A', 'B') as ""tInner_0"",
-               ""$Table"".""Employee"" as ""Employee"",
-               ""$Table"".""Freight"" as ""Freight"",
-               ""$Table"".""Lines"" as ""Lines"",
-               ""$Table"".""OrderedAt"" as ""OrderedAt"",
-               ""$Table"".""RequireAt"" as ""RequireAt"",
-               ""$Table"".""ShipTo"" as ""ShipTo"",
-               ""$Table"".""ShipVia"" as ""ShipVia"",
-               ""$Table"".""ShippedAt"" as ""ShippedAt"",
-               ""$Table"".""json()"" as ""json()""
-        from
-        (
-            {innerRql}
-        ) ""$Table""
-    ) ""_""
-) ""_""
-where (((""_"".""Employee"" <> 'X' or ""_"".""Employee"" is null) and (""_"".""ShippedAt"" is not null)) and (""_"".""Freight"" between 10 and 20))
-limit {limit}";
+            var sql = $$"""
+                select "_"."id()",
+                       "_"."Company",
+                       "_"."Employee",
+                       replace("_"."Employee", 'X', 'Y') as "tOuter_0",
+                       "_"."Freight",
+                       "_"."Lines",
+                       "_"."OrderedAt",
+                       "_"."RequireAt",
+                       "_"."ShipTo",
+                       "_"."ShipVia",
+                       "_"."ShippedAt",
+                       "_"."json()"
+                from
+                (
+                    select "_"."id()" as "id()",
+                           "_"."Company" as "Company",
+                           "_"."Employee" as "Employee",
+                           "_"."Freight" as "Freight",
+                           "_"."Lines" as "Lines",
+                           "_"."OrderedAt" as "OrderedAt",
+                           "_"."RequireAt" as "RequireAt",
+                           "_"."ShipTo" as "ShipTo",
+                           "_"."ShipVia" as "ShipVia",
+                           "_"."ShippedAt" as "ShippedAt",
+                           "_"."json()" as "json()"
+                    from
+                    (
+                        select "$Table"."id()" as "id()",
+                               "$Table"."Company" as "Company",
+                               replace("$Table"."Company", 'A', 'B') as "tInner_0",
+                               "$Table"."Employee" as "Employee",
+                               "$Table"."Freight" as "Freight",
+                               "$Table"."Lines" as "Lines",
+                               "$Table"."OrderedAt" as "OrderedAt",
+                               "$Table"."RequireAt" as "RequireAt",
+                               "$Table"."ShipTo" as "ShipTo",
+                               "$Table"."ShipVia" as "ShipVia",
+                               "$Table"."ShippedAt" as "ShippedAt",
+                               "$Table"."json()" as "json()"
+                        from
+                        (
+                            {{innerRql}}
+                        ) "$Table"
+                    ) "_"
+                ) "_"
+                where ((("_"."Employee" <> 'X' or "_"."Employee" is null) and ("_"."ShippedAt" is not null)) and ("_"."Freight" between 10 and 20))
+                limit {{limit}}
+                """;
 
             Assert.True(PowerBIFetchQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
 
@@ -884,57 +932,61 @@ SELECT {
         [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void TryParse_should_support_projection_heavy_wrapper_with_large_inner_rql_and_in_and_not_outer_where_and_limit()
         {
-            var innerRql = @"from 'Users' as u
-where u.Age > 0
-order by u.Name
-select {
-    Name: u.Name,
-    Age: u.Age,
-    Company: u.Company,
-    Employee: u.Employee,
-    Freight: u.Freight,
-    Lines: u.Lines,
-    OrderedAt: u.OrderedAt,
-    RequireAt: u.RequireAt,
-    ShipTo: u.ShipTo,
-    ShipVia: u.ShipVia,
-    ShippedAt: u.ShippedAt,
-    TailMarkerB987: u.TailMarkerB987
-}";
+            var innerRql = """
+                from 'Users' as u
+                where u.Age > 0
+                order by u.Name
+                select {
+                    Name: u.Name,
+                    Age: u.Age,
+                    Company: u.Company,
+                    Employee: u.Employee,
+                    Freight: u.Freight,
+                    Lines: u.Lines,
+                    OrderedAt: u.OrderedAt,
+                    RequireAt: u.RequireAt,
+                    ShipTo: u.ShipTo,
+                    ShipVia: u.ShipVia,
+                    ShippedAt: u.ShippedAt,
+                    TailMarkerB987: u.TailMarkerB987
+                }
+                """;
 
             const int limit = 12;
 
-            var sql = $@"select ""_"".""id()"",
-       ""_"".""Company"",
-       ""_"".""Employee"",
-       ""_"".""Freight"",
-       ""_"".""Lines"",
-       ""_"".""OrderedAt"",
-       ""_"".""RequireAt"",
-       ""_"".""ShipTo"",
-       ""_"".""ShipVia"",
-       ""_"".""ShippedAt"",
-       ""_"".""json()""
-from
-(
-    select ""_"".""id()"" as ""id()"",
-           ""_"".""Company"" as ""Company"",
-           ""_"".""Employee"" as ""Employee"",
-           ""_"".""Freight"" as ""Freight"",
-           ""_"".""Lines"" as ""Lines"",
-           ""_"".""OrderedAt"" as ""OrderedAt"",
-           ""_"".""RequireAt"" as ""RequireAt"",
-           ""_"".""ShipTo"" as ""ShipTo"",
-           ""_"".""ShipVia"" as ""ShipVia"",
-           ""_"".""ShippedAt"" as ""ShippedAt"",
-           ""_"".""json()"" as ""json()""
-    from
-    (
-        {innerRql}
-    ) ""_""
-) ""_""
-where ((""_"".""Company"" in ('a','b','c')) and (not (""_"".""Company"" in ('x','y'))))
-limit {limit}";
+            var sql = $$"""
+                select "_"."id()",
+                       "_"."Company",
+                       "_"."Employee",
+                       "_"."Freight",
+                       "_"."Lines",
+                       "_"."OrderedAt",
+                       "_"."RequireAt",
+                       "_"."ShipTo",
+                       "_"."ShipVia",
+                       "_"."ShippedAt",
+                       "_"."json()"
+                from
+                (
+                    select "_"."id()" as "id()",
+                           "_"."Company" as "Company",
+                           "_"."Employee" as "Employee",
+                           "_"."Freight" as "Freight",
+                           "_"."Lines" as "Lines",
+                           "_"."OrderedAt" as "OrderedAt",
+                           "_"."RequireAt" as "RequireAt",
+                           "_"."ShipTo" as "ShipTo",
+                           "_"."ShipVia" as "ShipVia",
+                           "_"."ShippedAt" as "ShippedAt",
+                           "_"."json()" as "json()"
+                    from
+                    (
+                        {{innerRql}}
+                    ) "_"
+                ) "_"
+                where (("_"."Company" in ('a','b','c')) and (not ("_"."Company" in ('x','y'))))
+                limit {{limit}}
+                """;
 
             Assert.True(PowerBIFetchQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
 
@@ -969,28 +1021,30 @@ SELECT {
         [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void TryParse_should_extract_nested_replace_projection_aliases_as_keys()
         {
-            const string sql = @"select ""_"".""id()"" as ""id()"",
-    ""_"".""LastName"" as ""LastName"",
-    ""_"".""FirstName"" as ""FirstName"",
-    ""_"".""json()"" as ""json()"",
-    ""_"".""t0_0"" as ""t0_0"",
-    ""_"".""t0_03"" as ""t0_03"",
-    replace(""_"".""t0_0"", 'aaa', 'bbb') as ""t0_02"",
-    replace(""_"".""t0_03"", 'Steven', 'ddd') as ""t0_04""
-from
-(
-    select ""_"".""id()"" as ""id()"",
-        ""_"".""LastName"" as ""LastName"",
-        ""_"".""FirstName"" as ""FirstName"",
-        ""_"".""json()"" as ""json()"",
-        replace(""_"".""LastName"", 'Dodsworth', 'aaa') as ""t0_0"",
-        replace(""_"".""FirstName"", 'Janet', 'ccc') as ""t0_03""
-    from
-    (
-        from Employees
-    ) ""_""
-) ""_""
-limit 1000";
+            const string sql = """
+                select "_"."id()" as "id()",
+                    "_"."LastName" as "LastName",
+                    "_"."FirstName" as "FirstName",
+                    "_"."json()" as "json()",
+                    "_"."t0_0" as "t0_0",
+                    "_"."t0_03" as "t0_03",
+                    replace("_"."t0_0", 'aaa', 'bbb') as "t0_02",
+                    replace("_"."t0_03", 'Steven', 'ddd') as "t0_04"
+                from
+                (
+                    select "_"."id()" as "id()",
+                        "_"."LastName" as "LastName",
+                        "_"."FirstName" as "FirstName",
+                        "_"."json()" as "json()",
+                        replace("_"."LastName", 'Dodsworth', 'aaa') as "t0_0",
+                        replace("_"."FirstName", 'Janet', 'ccc') as "t0_03"
+                    from
+                    (
+                        from Employees
+                    ) "_"
+                ) "_"
+                limit 1000
+                """;
 
             Assert.True(PowerBIFetchQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
 
@@ -1028,15 +1082,17 @@ limit 1000";
         [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void TryParse_should_match_wrapped_rql_fetch_shape_with_outer_where_and_apply_filter_to_inner_alias()
         {
-            const string sql = @"select ""_"".""id()"",
-    ""_"".""FirstName"",
-    ""_"".""json()""
-from
-(
-    from Employees as e
-) ""_""
-where ""_"".""FirstName"" = 'Anne' and ""_"".""FirstName"" is not null
-limit 1000";
+            const string sql = """
+                select "_"."id()",
+                    "_"."FirstName",
+                    "_"."json()"
+                from
+                (
+                    from Employees as e
+                ) "_"
+                where "_"."FirstName" = 'Anne' and "_"."FirstName" is not null
+                limit 1000
+                """;
 
             Assert.True(PowerBIFetchQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
 
@@ -1051,15 +1107,17 @@ limit 1000";
         [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void TryParse_should_match_wrapped_rql_fetch_with_outer_where_swapped_predicate_order()
         {
-            const string sql = @"select ""_"".""id()"",
-    ""_"".""FirstName"",
-    ""_"".""json()""
-from
-(
-    from Employees as e
-) ""_""
-where ""_"".""FirstName"" is not null and ""_"".""FirstName"" = 'Anne'
-limit 1000";
+            const string sql = """
+                select "_"."id()",
+                    "_"."FirstName",
+                    "_"."json()"
+                from
+                (
+                    from Employees as e
+                ) "_"
+                where "_"."FirstName" is not null and "_"."FirstName" = 'Anne'
+                limit 1000
+                """;
 
             Assert.True(PowerBIFetchQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
 
@@ -1074,15 +1132,17 @@ limit 1000";
         [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void TryParse_should_match_wrapped_rql_fetch_with_outer_where_or_nesting()
         {
-            const string sql = @"select ""_"".""id()"",
-    ""_"".""FirstName"",
-    ""_"".""Title""
-from
-(
-    from Employees as e
-) ""_""
-where ((""_"".""FirstName"" <> 'Anne' or ""_"".""FirstName"" is null) and (""_"".""Title"" = 'Vice President, Sales' and ""_"".""Title"" is not null))
-limit 1000";
+            const string sql = """
+                select "_"."id()",
+                    "_"."FirstName",
+                    "_"."Title"
+                from
+                (
+                    from Employees as e
+                ) "_"
+                where (("_"."FirstName" <> 'Anne' or "_"."FirstName" is null) and ("_"."Title" = 'Vice President, Sales' and "_"."Title" is not null))
+                limit 1000
+                """;
 
             Assert.True(PowerBIFetchQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
 
@@ -1101,7 +1161,7 @@ limit 1000";
         [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void TryParse_should_match_wrapped_rql_fetch_shape_with_underscore_alias_and_limit_0()
         {
-            const string sql = "select * from (from Orders) \"_\" limit 0";
+            const string sql = """select * from (from Orders) "_" limit 0""";
 
             Assert.True(PowerBIFetchQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
 
@@ -1113,21 +1173,101 @@ limit 1000";
         [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void TryParse_should_match_projected_wrapped_rql_fetch_shape_and_apply_outer_limit()
         {
-            const string sql = @"select ""$Table"".""id()"" as ""id()"",
-       ""$Table"".""LastName"" as ""LastName"",
-       ""$Table"".""FirstName"" as ""FirstName"",
-       ""$Table"".""json()"" as ""json()""
-from
-(
-    from Employees
-) ""$Table""
-limit 1000";
+            const string sql = """
+                select "$Table"."id()" as "id()",
+                       "$Table"."LastName" as "LastName",
+                       "$Table"."FirstName" as "FirstName",
+                       "$Table"."json()" as "json()"
+                from
+                (
+                    from Employees
+                ) "$Table"
+                limit 1000
+                """;
 
             Assert.True(PowerBIFetchQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
 
             Assert.IsType<PowerBIRqlQuery>(pgQuery);
             Assert.Contains("from Employees", GetQueryString(pgQuery), StringComparison.OrdinalIgnoreCase);
             Assert.Equal(1000, GetLimit(pgQuery));
+        }
+
+        // ── PowerBI incremental refresh ───────────────────────────────────────────────
+        //
+        // Incremental refresh fires repeated queries with a half-open date window —
+        // `WHERE "col" >= start AND "col" < end` — once per refresh partition. PowerBI's
+        // emitted SQL wraps the table reference in its standard `"public"."Coll" "$Table"`
+        // pattern. These tests pin the "inline literal" form (PG's `timestamp 'X'`); the
+        // parameterized form is gated on translator-level ParamRef support and is tracked
+        // in PgSqlToRqlTranslatorTests.
+
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
+        public void IncrementalRefresh_WrappedTableWithDateRange_TranslatesToRangeFilter()
+        {
+            // Shape PowerBI emits for the simplest incremental refresh: explicit projection
+            // of all columns it cares about, wrapped table reference, half-open date range.
+            const string sql = """
+                select "$Table"."id()" as "id()", "$Table"."OrderedAt" as "OrderedAt", "$Table"."Freight" as "Freight"
+                from "public"."Orders" "$Table"
+                where "$Table"."OrderedAt" >= timestamp '2024-01-01' and "$Table"."OrderedAt" < timestamp '2024-02-01'
+                limit 1000
+                """;
+
+            Assert.True(PowerBIFetchQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
+
+            var rqlQuery = Assert.IsType<PowerBIRqlQuery>(pgQuery);
+            var rql = GetQueryString(rqlQuery);
+
+            Assert.NotNull(rql);
+            Assert.Contains("from 'Orders'", rql, StringComparison.Ordinal);
+            Assert.Contains("OrderedAt", rql, StringComparison.Ordinal);
+            // Both range ends must survive translation — the whole point of incremental
+            // refresh is that each partition's bounds reach RavenDB's index.
+            Assert.Contains("2024-01", rql, StringComparison.Ordinal);
+            Assert.Contains("2024-02", rql, StringComparison.Ordinal);
+            // LIMIT is inlined into the emitted RQL by the simple-table-fetch path (rather
+            // than stored on the PgQuery instance via _limit) — check the RQL text directly.
+            Assert.Contains("1000", rql, StringComparison.Ordinal);
+        }
+
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
+        public void IncrementalRefresh_WrappedTableWithDateRange_PreservesOrderByForPartitioning()
+        {
+            // Power Query sometimes adds an ORDER BY to make refresh deterministic. This
+            // pins that adding a sort doesn't knock the query off the wrapped-fetch path.
+            const string sql = """
+                select "$Table"."id()" as "id()", "$Table"."OrderedAt" as "OrderedAt"
+                from "public"."Orders" "$Table"
+                where "$Table"."OrderedAt" >= timestamp '2024-01-01' and "$Table"."OrderedAt" < timestamp '2024-02-01'
+                order by "$Table"."OrderedAt"
+                limit 5000
+                """;
+
+            Assert.True(PowerBIFetchQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
+
+            var rql = GetQueryString(pgQuery);
+            Assert.NotNull(rql);
+            Assert.Contains("from 'Orders'", rql, StringComparison.Ordinal);
+            Assert.Contains("order by", rql, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("OrderedAt", rql, StringComparison.Ordinal);
+        }
+
+        // Parameterized form is what PowerBI Desktop actually wires up for incremental
+        // refresh (RangeStart/RangeEnd bound at Bind time). It hits the same ParamRef gap
+        // as the translator-level test — TryParse rejects it rather than producing an
+        // unbounded query. Flip to passing once ParamRef support lands in the translator.
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi, Skip = "ParamRef in WHERE values is not yet supported. Tracked alongside DateRange_ParameterizedBounds_TranslatesWithParamRefs in PgSqlToRqlTranslatorTests.")]
+        public void IncrementalRefresh_WrappedTableWithParameterizedDateRange_IsAccepted()
+        {
+            const string sql = """
+                select "$Table"."id()" as "id()", "$Table"."OrderedAt" as "OrderedAt"
+                from "public"."Orders" "$Table"
+                where "$Table"."OrderedAt" >= $1 and "$Table"."OrderedAt" < $2
+                limit 1000
+                """;
+
+            Assert.True(PowerBIFetchQuery.TryParse(sql, new int[] { 1114, 1114 }, documentDatabase: null, out var pgQuery));
+            Assert.IsType<PowerBIRqlQuery>(pgQuery);
         }
 
         // PowerBI Desktop in DirectQuery mode plants user filters several wrapper levels deep —
@@ -1139,56 +1279,58 @@ limit 1000";
         [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void DirectQuery_with_intermediate_wrapper_level_where_should_apply_filter_to_inner_query()
         {
-            const string sql = @"select ""_"".""Freight"" as ""c32""
-from
-(
-    select ""Freight"",
-        ""_"".""t0_0"" as ""t0_0"",
-        ""_"".""t1_0"" as ""t1_0""
-    from
-    (
-        select ""_"".""Freight"",
-            ""_"".""o0"",
-            ""_"".""t0_0"",
-            ""_"".""t1_0""
-        from
-        (
-            select ""_"".""Freight"" as ""Freight"",
-                ""_"".""o0"" as ""o0"",
-                case
-                    when ""_"".""o0"" is not null
-                    then ""_"".""o0""
-                    else 0
-                end as ""t0_0"",
-                case
-                    when ""_"".""o0"" is null
-                    then 0
-                    else 1
-                end as ""t1_0""
-            from
-            (
-                select ""rows"".""Freight"" as ""Freight"",
-                    ""rows"".""o0"" as ""o0""
+            const string sql = """
+                select "_"."Freight" as "c32"
                 from
                 (
-                    select ""_"".""Freight"" as ""Freight"",
-                        ""_"".""Freight"" as ""o0""
+                    select "Freight",
+                        "_"."t0_0" as "t0_0",
+                        "_"."t1_0" as "t1_0"
                     from
                     (
-                        select ""Freight""
-                        from ""public"".""Orders"" ""$Table""
-                    ) ""_""
-                    where ""_"".""Freight"" > 50
-                ) ""rows""
-                group by ""Freight"",
-                    ""o0""
-            ) ""_""
-        ) ""_""
-    ) ""_""
-) ""_""
-order by ""_"".""t0_0"",
-        ""_"".""t1_0""
-limit 501";
+                        select "_"."Freight",
+                            "_"."o0",
+                            "_"."t0_0",
+                            "_"."t1_0"
+                        from
+                        (
+                            select "_"."Freight" as "Freight",
+                                "_"."o0" as "o0",
+                                case
+                                    when "_"."o0" is not null
+                                    then "_"."o0"
+                                    else 0
+                                end as "t0_0",
+                                case
+                                    when "_"."o0" is null
+                                    then 0
+                                    else 1
+                                end as "t1_0"
+                            from
+                            (
+                                select "rows"."Freight" as "Freight",
+                                    "rows"."o0" as "o0"
+                                from
+                                (
+                                    select "_"."Freight" as "Freight",
+                                        "_"."Freight" as "o0"
+                                    from
+                                    (
+                                        select "Freight"
+                                        from "public"."Orders" "$Table"
+                                    ) "_"
+                                    where "_"."Freight" > 50
+                                ) "rows"
+                                group by "Freight",
+                                    "o0"
+                            ) "_"
+                        ) "_"
+                    ) "_"
+                ) "_"
+                order by "_"."t0_0",
+                        "_"."t1_0"
+                limit 501
+                """;
 
             Assert.True(PowerBIQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
             Assert.IsType<PowerBIDirectQuery>(pgQuery);
@@ -1237,30 +1379,32 @@ limit 501";
         {
             // Outer SELECT contains real business columns plus CASE-based t<N>_0 helper columns.
             // The helpers must be skipped; the real columns (Employee, RequireAt) must be extracted.
-            const string sql = @"select ""_"".""Employee"" as ""c3"",
-    ""_"".""RequireAt"" as ""c7"",
-    case when ""_"".""o2"" is not null then ""_"".""o2"" else timestamp '1899-12-28 00:00:00' end as ""t2_0"",
-    case when ""_"".""o2"" is null then 0 else 1 end as ""t3_0""
-from
-(
-    select ""rows"".""Employee"" as ""Employee"",
-        ""rows"".""RequireAt"" as ""RequireAt"",
-        ""rows"".""RequireAt"" as ""o2""
-    from
-    (
-        select ""Employee"" as ""Employee"",
-            ""RequireAt"" as ""RequireAt"",
-            ""RequireAt"" as ""o2""
-        from
-        (
-            from Orders
-            where Company in ('Companies/1-A', 'Companies/2-A', 'Companies/3-A')
-        ) ""$Table""
-    ) ""rows""
-    group by ""Employee"", ""RequireAt"", ""o2""
-) ""_""
-order by ""_"".""t2_0"", ""_"".""t3_0""
-limit 501";
+            const string sql = """
+                select "_"."Employee" as "c3",
+                    "_"."RequireAt" as "c7",
+                    case when "_"."o2" is not null then "_"."o2" else timestamp '1899-12-28 00:00:00' end as "t2_0",
+                    case when "_"."o2" is null then 0 else 1 end as "t3_0"
+                from
+                (
+                    select "rows"."Employee" as "Employee",
+                        "rows"."RequireAt" as "RequireAt",
+                        "rows"."RequireAt" as "o2"
+                    from
+                    (
+                        select "Employee" as "Employee",
+                            "RequireAt" as "RequireAt",
+                            "RequireAt" as "o2"
+                        from
+                        (
+                            from Orders
+                            where Company in ('Companies/1-A', 'Companies/2-A', 'Companies/3-A')
+                        ) "$Table"
+                    ) "rows"
+                    group by "Employee", "RequireAt", "o2"
+                ) "_"
+                order by "_"."t2_0", "_"."t3_0"
+                limit 501
+                """;
 
             Assert.True(PowerBIQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
             Assert.IsType<PowerBIDirectQuery>(pgQuery);
@@ -1281,25 +1425,27 @@ limit 501";
             // After skipping all helpers, cols.Count == 0 at each level, so TryParse must fail.
             // This validates the cols.Count > 0 guard in TryExtractOuterProjectedColumns
             // and TryExtractSimpleProjectedColumns.
-            const string sql = @"select ""_"".""t2_0"" as ""t2_0"",
-    ""_"".""t3_0"" as ""t3_0""
-from
-(
-    select ""_"".""t2_0"" as ""t2_0"",
-        ""_"".""t3_0"" as ""t3_0""
-    from
-    (
-        select ""o2"" as ""o2""
-        from
-        (
-            from Orders
-            where Company = 'Companies/1-A'
-        ) ""$Table""
-        group by ""o2""
-    ) ""_""
-) ""_""
-order by ""_"".""t2_0""
-limit 501";
+            const string sql = """
+                select "_"."t2_0" as "t2_0",
+                    "_"."t3_0" as "t3_0"
+                from
+                (
+                    select "_"."t2_0" as "t2_0",
+                        "_"."t3_0" as "t3_0"
+                    from
+                    (
+                        select "o2" as "o2"
+                        from
+                        (
+                            from Orders
+                            where Company = 'Companies/1-A'
+                        ) "$Table"
+                        group by "o2"
+                    ) "_"
+                ) "_"
+                order by "_"."t2_0"
+                limit 501
+                """;
 
             Assert.False(PowerBIDirectQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out _));
         }
@@ -1313,26 +1459,28 @@ limit 501";
             //
             // Inner levels use only helper-named columns (t<N>_0, o<N>) so the
             // projection-column walker cannot find real columns at any fallback level.
-            const string sql = @"select ""_"".""Employee"" as ""c3"",
-    case when ""_"".""RequireAt"" > 5 then 'late' else 'on-time' end as ""delivery_status""
-from
-(
-    select ""_"".""t2_0"" as ""t2_0"",
-        ""_"".""o2"" as ""o2""
-    from
-    (
-        select ""t2_0"" as ""t2_0"",
-            ""o2"" as ""o2""
-        from
-        (
-            from Orders
-            where Company = 'Companies/1-A'
-        ) ""$Table""
-        group by ""t2_0"", ""o2""
-    ) ""_""
-) ""_""
-order by ""_"".""Employee""
-limit 501";
+            const string sql = """
+                select "_"."Employee" as "c3",
+                    case when "_"."RequireAt" > 5 then 'late' else 'on-time' end as "delivery_status"
+                from
+                (
+                    select "_"."t2_0" as "t2_0",
+                        "_"."o2" as "o2"
+                    from
+                    (
+                        select "t2_0" as "t2_0",
+                            "o2" as "o2"
+                        from
+                        (
+                            from Orders
+                            where Company = 'Companies/1-A'
+                        ) "$Table"
+                        group by "t2_0", "o2"
+                    ) "_"
+                ) "_"
+                order by "_"."Employee"
+                limit 501
+                """;
 
             Assert.False(PowerBIDirectQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out _));
         }
@@ -1340,36 +1488,37 @@ limit 501";
         [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void DirectQuery_InnerRql_4LevelWrapper_AiringNameDistinctList_Parses()
         {
-            const string sql =
-                @"select ""_"".""AiringName""
-from
-(
-    select ""rows"".""AiringName"" as ""AiringName""
-    from
-    (
-        select ""AiringName""
-        from
-        (
-            from ""AiringSummaries""
-            select
-                AiringLegacyId,
-                AiringId,
-                ProgramId,
-                ProgramCodeId,
-                ProgramCategoryCodeId,
-                AiringName,
-                Air.AirDateTime,
-                Air.EndAirDateTime,
-                Air.Duration,
-                BroadcastAiringDetail.AirDateTime,
-                BroadcastAiringDetail.EstimatedAirDateTime,
-                BroadcastAiringDetail.ActualAirDateTime
-        ) ""$Table""
-    ) ""rows""
-    group by ""AiringName""
-) ""_""
-order by ""_"".""AiringName""
-limit 501";
+            const string sql = """
+                select "_"."AiringName"
+                from
+                (
+                    select "rows"."AiringName" as "AiringName"
+                    from
+                    (
+                        select "AiringName"
+                        from
+                        (
+                            from "AiringSummaries"
+                            select
+                                AiringLegacyId,
+                                AiringId,
+                                ProgramId,
+                                ProgramCodeId,
+                                ProgramCategoryCodeId,
+                                AiringName,
+                                Air.AirDateTime,
+                                Air.EndAirDateTime,
+                                Air.Duration,
+                                BroadcastAiringDetail.AirDateTime,
+                                BroadcastAiringDetail.EstimatedAirDateTime,
+                                BroadcastAiringDetail.ActualAirDateTime
+                        ) "$Table"
+                    ) "rows"
+                    group by "AiringName"
+                ) "_"
+                order by "_"."AiringName"
+                limit 501
+                """;
 
             Assert.True(PowerBIDirectQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
             Assert.IsType<PowerBIDirectQuery>(pgQuery);
@@ -1388,19 +1537,20 @@ limit 501";
             // PowerBI "Count" visual: GROUP BY at outermost level, count() aggregate, inner SQL with SELECT *.
             // Tests: (a) flat-grouped normalizer path, (b) count() emitted without field argument,
             // (c) "as long" sort type used instead of "as double".
-            const string sql =
-                @"select ""rows"".""Company"" as ""Company"",
-    ""rows"".""Employee"" as ""Employee"",
-    count(""rows"".""Freight"") as ""a0""
-from
-(
-    select *
-    from Orders
-    where Company in ('Companies/1-A', 'Companies/2-A', 'Companies/3-A')
-) ""rows""
-group by ""Company"",
-    ""Employee""
-limit 1000001";
+            const string sql = """
+                select "rows"."Company" as "Company",
+                    "rows"."Employee" as "Employee",
+                    count("rows"."Freight") as "a0"
+                from
+                (
+                    select *
+                    from Orders
+                    where Company in ('Companies/1-A', 'Companies/2-A', 'Companies/3-A')
+                ) "rows"
+                group by "Company",
+                    "Employee"
+                limit 1000001
+                """;
 
             Assert.True(PowerBIDirectQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
             Assert.IsType<PowerBIDirectQuery>(pgQuery);
@@ -1417,16 +1567,17 @@ limit 1000001";
         public void DirectQuery_grouped_count_flat_shape_inner_rql_should_parse_and_emit_count()
         {
             // Same flat-grouped shape, but inner is plain RQL (not SQL).
-            const string sql =
-                @"select ""rows"".""Company"" as ""Company"",
-    count(""rows"".""Freight"") as ""a0""
-from
-(
-    from Orders
-    where Company in ('Companies/1-A', 'Companies/2-A')
-) ""rows""
-group by ""Company""
-limit 1000001";
+            const string sql = """
+                select "rows"."Company" as "Company",
+                    count("rows"."Freight") as "a0"
+                from
+                (
+                    from Orders
+                    where Company in ('Companies/1-A', 'Companies/2-A')
+                ) "rows"
+                group by "Company"
+                limit 1000001
+                """;
 
             Assert.True(PowerBIDirectQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
             Assert.IsType<PowerBIDirectQuery>(pgQuery);
@@ -1445,19 +1596,21 @@ limit 1000001";
             // PowerBI "AVG" visual: AVG is sent as SUM + COUNT so PowerBI can divide on the client.
             // Verifies: (a) TryParse succeeds, (b) classified as PowerBIDirectQuery, (c) emitted RQL
             // contains both group keys and both aggregate projections with their original aliases.
-            const string sql = @"select ""rows"".""Company"" as ""Company"",
-    ""rows"".""Employee"" as ""Employee"",
-    sum(""rows"".""Freight"") as ""a0"",
-    count(""rows"".""Freight"") as ""a1""
-from
-(
-    select *
-from Orders
-where Company in ('Companies/1-A', 'Companies/2-A', 'Companies/3-A')
-) ""rows""
-group by ""Company"",
-    ""Employee""
-limit 1000001";
+            const string sql = """
+                select "rows"."Company" as "Company",
+                    "rows"."Employee" as "Employee",
+                    sum("rows"."Freight") as "a0",
+                    count("rows"."Freight") as "a1"
+                from
+                (
+                    select *
+                from Orders
+                where Company in ('Companies/1-A', 'Companies/2-A', 'Companies/3-A')
+                ) "rows"
+                group by "Company",
+                    "Employee"
+                limit 1000001
+                """;
 
             Assert.True(PowerBIQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
             Assert.IsType<PowerBIDirectQuery>(pgQuery);
@@ -1479,16 +1632,18 @@ limit 1000001";
         {
             // Swap of the AVG shape: count first, sum second. Verifies aggregate ordering follows
             // the target list, not some hard-coded sum-first convention.
-            const string sql = @"select ""rows"".""Company"" as ""Company"",
-    count(""rows"".""Freight"") as ""a0"",
-    sum(""rows"".""Freight"") as ""a1""
-from
-(
-    select *
-from Orders
-) ""rows""
-group by ""Company""
-limit 1000001";
+            const string sql = """
+                select "rows"."Company" as "Company",
+                    count("rows"."Freight") as "a0",
+                    sum("rows"."Freight") as "a1"
+                from
+                (
+                    select *
+                from Orders
+                ) "rows"
+                group by "Company"
+                limit 1000001
+                """;
 
             Assert.True(PowerBIDirectQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
             Assert.IsType<PowerBIDirectQuery>(pgQuery);
@@ -1508,20 +1663,21 @@ limit 1000001";
         public void DirectQuery_inner_rql_non_aggregate_wrapper_should_still_parse_correctly()
         {
             // Regression: DirectQuery with inner RQL (non-aggregate distinct-list wrapper).
-            const string sql =
-                @"select ""_"".""Employee""
-from
-(
-    select ""rows"".""Employee"" as ""Employee""
-    from
-    (
-        from Orders
-        where Company in ('Companies/1-A', 'Companies/2-A')
-    ) ""rows""
-    group by ""Employee""
-) ""_""
-order by ""_"".""Employee""
-limit 501";
+            const string sql = """
+                select "_"."Employee"
+                from
+                (
+                    select "rows"."Employee" as "Employee"
+                    from
+                    (
+                        from Orders
+                        where Company in ('Companies/1-A', 'Companies/2-A')
+                    ) "rows"
+                    group by "Employee"
+                ) "_"
+                order by "_"."Employee"
+                limit 501
+                """;
 
             Assert.True(PowerBIDirectQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
             Assert.IsType<PowerBIDirectQuery>(pgQuery);
