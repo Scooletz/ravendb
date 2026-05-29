@@ -48,8 +48,8 @@ namespace Raven.Server.Integrations.PostgreSQL.Messages
             }
 
             // Don't reject non-UTF8 client_encoding. psql on Windows defaults to the local OS code page
-            // (e.g. WIN1252) which would previously cause us to drop the connection mid-handshake with no
-            // useful diagnostic. We always announce client_encoding=UTF8 in our ParameterStatus reply, so
+            // (e.g. WIN1252); rejecting that would drop the connection mid-handshake with no useful
+            // diagnostic. We always announce client_encoding=UTF8 in our ParameterStatus reply, so
             // libpq-based clients honor that and switch to UTF8 anyway. For simple ASCII traffic (the
             // pgAdmin/PowerBI probes that hit our virtual catalog) any mismatch is moot.
 

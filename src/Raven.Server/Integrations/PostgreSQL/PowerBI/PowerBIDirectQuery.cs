@@ -18,10 +18,10 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
 {
     // Handles PowerBI's DirectQuery mode — outer SQL wrapping inner RQL — by recognizing the
     // wrapper shape, classifying it (grouped aggregate or simple projection), and rewriting the
-    // resolved Raven.Server.Documents.Queries.AST.Query in place. The class focuses on the
-    // PgQuery lifecycle plus the AST rewriters; recognition + shape classification live in
-    // PowerBIWrapperRecognizer / PowerBIShapeClassifier (extracted in the P-C refactor), and the
-    // RQL is rendered by the canonical StringQueryVisitor via Query.ToString() (P-D / P-E).
+    // resolved Raven.Server.Documents.Queries.AST.Query in place. This class focuses on the
+    // PgQuery lifecycle plus the AST rewriters; recognition and shape classification live in
+    // PowerBIWrapperRecognizer / PowerBIShapeClassifier, and the RQL is rendered by the canonical
+    // StringQueryVisitor via Query.ToString().
     public sealed class PowerBIDirectQuery : PowerBIRqlQuery
     {
         private static readonly RavenLogger Logger = RavenLogManager.Instance.GetLoggerForServer<PowerBIDirectQuery>();
@@ -182,13 +182,13 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             }
         }
 
-        // AST-based grouped-aggregate emission (Step P-D). The previous StringBuilder version
-        // hand-rolled every RQL fragment ("group by ", ", ", " as long", "limit 0, "); this one
-        // mutates the resolved Raven.Server.Documents.Queries.AST.Query in place and lets the
-        // canonical StringQueryVisitor (via Query.ToString()) produce the final RQL. Same
-        // observable behaviour — same group-key + aggregate projection, same ORDER BY semantics
-        // (Long for count, Double for sum), same Limit. When a SQL shape can't be represented in
-        // the AST we return null and surface a clear failure to the dispatch chain.
+        // AST-based grouped-aggregate emission: mutates the resolved
+        // Raven.Server.Documents.Queries.AST.Query in place and lets the canonical
+        // StringQueryVisitor (via Query.ToString()) produce the final RQL — so we don't hand-roll
+        // RQL fragments. Produces a group-key + aggregate projection, ORDER BY with the right
+        // value types (Long for count, Double for sum), and the requested Limit. When a SQL shape
+        // can't be represented in the AST we return null and surface a clear failure to the
+        // dispatch chain.
         private static string RewriteGroupedAggregateRql(Documents.Queries.AST.Query q, GroupedAggregateShape shape)
         {
             if (q == null || shape == null)
@@ -200,7 +200,6 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             if (shape.GroupByFields is not { Count: > 0 } groupByFields)
                 return null;
 
-            // Validate every identifier the same way the StringBuilder emitter used to —
             // FormatRqlIdentifier is strict (ASCII plain only). Returns null to drop the shape so
             // a query like `count("Field With Space") as a0` falls through instead of producing
             // RQL the downstream parser won't accept.
@@ -398,7 +397,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
 
                 // Aggregate-output alias? Use the alias as a field reference and tag with the
                 // numeric sort type matching the aggregate's RQL output kind (Long for count,
-                // Double for sum) — preserves the StringBuilder emitter's `as long` / `as double`.
+                // Double for sum) so the visitor emits the `as long` / `as double` cast PowerBI expects.
                 int aggIndex = -1;
                 for (int a = 0; a < shape.Aggregates.Count; a++)
                 {
@@ -456,13 +455,12 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             PreserveWithExtras
         }
 
-        // AST-based simple direct-query emission (Step P-E). RQL's `select { … }` object
-        // projection is an opaque string in the Query AST (SelectFunctionBody), so the rebuild
-        // path still hand-builds that body text — but the surrounding clauses (Limit, etc.) are
-        // set through the AST and rendered by the canonical StringQueryVisitor. The previous
-        // version called Query.ToString() to get a prefix and then concatenated `\nselect { … }\n
-        // limit 0, N` by hand; this one threads the rebuilt body through SelectFunctionBody so the
-        // visitor emits everything in canonical order.
+        // AST-based simple direct-query emission. RQL's `select { … }` object projection is an
+        // opaque string in the Query AST (SelectFunctionBody), so the rebuild path hand-builds
+        // that body text — but the surrounding clauses (Limit, etc.) are set through the AST and
+        // rendered by the canonical StringQueryVisitor. The rebuilt body is threaded through
+        // SelectFunctionBody so the visitor emits everything in canonical order rather than us
+        // concatenating an RQL prefix with a hand-written `\nselect { … }\nlimit 0, N` tail.
         private static string RewriteSimpleDirectQueryRql(Documents.Queries.AST.Query q, IReadOnlyList<string> projectionCols, int limit)
         {
             if (q == null)

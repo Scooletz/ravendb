@@ -128,8 +128,8 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
         }
 
         // The emitter currently understands only sum + count. min/max/avg would be valid SQL but
-        // would fall through to the next dispatch tier — keeping parity with the original
-        // PowerBIDirectQuery support matrix. Widen here when the emitter gains coverage in P-D.
+        // fall through to the next dispatch tier. Widen this predicate when the emitter learns to
+        // produce RQL for additional aggregate functions.
         private static bool IsSupportedGroupedAggregateFunction(string name) =>
             string.Equals(name, "sum", StringComparison.OrdinalIgnoreCase) ||
             string.Equals(name, "count", StringComparison.OrdinalIgnoreCase);

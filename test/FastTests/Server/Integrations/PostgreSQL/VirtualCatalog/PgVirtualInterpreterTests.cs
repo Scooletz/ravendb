@@ -115,7 +115,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.VirtualCatalog
         [RavenFact(RavenTestCategory.PostgreSql)]
         public void Self_join_with_trivial_on_produces_cartesian_row()
         {
-            // Step B's JoinExecutor evaluates joins over non-empty sources. 1 row × 1 row = 1 row,
+            // JoinExecutor evaluates joins over non-empty sources. 1 row × 1 row = 1 row,
             // with `*` expanding to both sides → 2 columns.
             Assert.True(PgVirtualInterpreter.TryExecute(
                 "select * from information_schema.character_sets a join information_schema.character_sets b on 1=1",
@@ -593,8 +593,8 @@ namespace FastTests.Server.Integrations.PostgreSQL.VirtualCatalog
         [RavenFact(RavenTestCategory.PostgreSql)]
         public void Sub_from_with_non_empty_inner_source_is_materialized()
         {
-            // Step D's recursive sub-FROM evaluation: the inner SELECT runs against the real
-            // (non-empty) information_schema.character_sets table, then the outer references its
+            // Recursive sub-FROM evaluation: the inner SELECT runs against the real (non-empty)
+            // information_schema.character_sets table, then the outer references its
             // alias-prefixed column.
             const string sql =
                 "select cs.character_set_name from (select character_set_name from information_schema.character_sets) cs";
@@ -605,7 +605,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.VirtualCatalog
             Assert.Equal("UTF8", DecodeCell(table, row: 0, column: 0));
         }
 
-        // ── pg_catalog data (Step A) backs the Npgsql type-loading queries via the interpreter ───
+        // ── pg_catalog data backs the Npgsql type-loading queries via the interpreter ───
 
         [RavenFact(RavenTestCategory.PostgreSql)]
         public void Select_oid_typname_from_pg_type_returns_rows()
@@ -665,9 +665,9 @@ namespace FastTests.Server.Integrations.PostgreSQL.VirtualCatalog
         [RavenFact(RavenTestCategory.PostgreSql)]
         public void Npgsql3_legacy_types_query_runs_through_interpreter()
         {
-            // The legacy Npgsql 3.2.x type-loader. Five-source join (pg_type + pg_namespace +
+            // Npgsql 3.2.x type-loader query. Five-source join (pg_type + pg_namespace +
             // pg_proc + LEFT OUTER pg_type + LEFT OUTER pg_range) with CASE WHEN projection,
-            // OR-of-AND WHERE, and ORDER BY a projected alias. Exercises every Step B capability.
+            // OR-of-AND WHERE, and ORDER BY a projected alias.
             const string sql = """
                 SELECT ns.nspname, a.typname, a.oid, a.typrelid, a.typbasetype,
                 CASE WHEN pg_proc.proname='array_recv' THEN 'a' ELSE a.typtype END AS type,
@@ -736,9 +736,8 @@ namespace FastTests.Server.Integrations.PostgreSQL.VirtualCatalog
         [RavenFact(RavenTestCategory.PostgreSql)]
         public void Npgsql4_0_x_old_flat_types_query_runs_through_interpreter()
         {
-            // The OldFlat shape (Npgsql 4.0.x) joins pg_class on top of V3's sources and uses an
-            // OR-of-AND WHERE with nested ORs / IN-lists / pg_proc-on-array_recv guarded blocks.
-            // Step C makes this query traverse the interpreter instead of HardcodedQuery.
+            // The Npgsql 4.0.x type-loader shape: joins pg_class on top of V3's sources and uses
+            // an OR-of-AND WHERE with nested ORs / IN-lists / pg_proc-on-array_recv guarded blocks.
             const string sql =
                 @"/*** Load all supported types ***/
 SELECT ns.nspname, a.typname, a.oid, a.typrelid, a.typbasetype,
@@ -839,7 +838,7 @@ ORDER BY ord";
         {
             // The full Modern Nested shape: three-level FROM, two outer LEFT JOINs at each level,
             // qualified-wildcard `typ_and_elem_type.*` projection, an outer CASE WHEN producing ord.
-            // Exercises Step D's recursive sub-FROM execution and alias.* propagation.
+            // Exercises recursive sub-FROM execution and alias.* propagation.
             const string sql =
                 @"SELECT ns.nspname, typ_and_elem_type.*,
    CASE
@@ -1157,7 +1156,7 @@ ORDER BY ord";
         //   2. A CORRELATED SCALAR SUBQUERY inside a CASE branch — the multirange case
         //      reads `(SELECT rngtypid FROM pg_range WHERE rngmultitypid = typ.oid)` to
         //      resolve the underlying range type for a multirange. This exercises both
-        //      Step Q-D (correlated subqueries) and Step Q-B (scalar subquery as a value)
+        //      correlated-subquery resolution and scalar-subquery-as-a-value evaluation
         //      in combination, inside CASE, inside a projection of a sub-FROM.
         //   3. Refined WHERE structure with `typcategory = 'U'` and schema-conditional
         //      composite/array branches.
