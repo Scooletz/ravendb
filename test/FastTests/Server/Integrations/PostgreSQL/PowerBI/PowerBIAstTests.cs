@@ -1253,10 +1253,10 @@ SELECT {
         }
 
         // Parameterized form is what PowerBI Desktop actually wires up for incremental
-        // refresh (RangeStart/RangeEnd bound at Bind time). It hits the same ParamRef gap
-        // as the translator-level test — TryParse rejects it rather than producing an
-        // unbounded query. Flip to passing once ParamRef support lands in the translator.
-        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi, Skip = "ParamRef in WHERE values is not yet supported. Tracked alongside DateRange_ParameterizedBounds_TranslatesWithParamRefs in PgSqlToRqlTranslatorTests.")]
+        // refresh (RangeStart/RangeEnd bound at Bind time). The $N placeholders can't be
+        // inlined at translate time, so the wrapped-fetch path emits RQL parameter references
+        // ($1/$2) that PgQuery.Bind fills in from the OID-typed values at execute time.
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void IncrementalRefresh_WrappedTableWithParameterizedDateRange_IsAccepted()
         {
             const string sql = """
@@ -1268,6 +1268,14 @@ SELECT {
 
             Assert.True(PowerBIFetchQuery.TryParse(sql, new int[] { 1114, 1114 }, documentDatabase: null, out var pgQuery));
             Assert.IsType<PowerBIRqlQuery>(pgQuery);
+
+            var rql = GetQueryString(pgQuery);
+            Assert.NotNull(rql);
+            Assert.Contains("from 'Orders'", rql, StringComparison.Ordinal);
+            Assert.Contains("OrderedAt", rql, StringComparison.Ordinal);
+            // 1-based PG index maps straight through to the RQL parameter name.
+            Assert.Contains("$1", rql, StringComparison.Ordinal);
+            Assert.Contains("$2", rql, StringComparison.Ordinal);
         }
 
         // PowerBI Desktop in DirectQuery mode plants user filters several wrapper levels deep —

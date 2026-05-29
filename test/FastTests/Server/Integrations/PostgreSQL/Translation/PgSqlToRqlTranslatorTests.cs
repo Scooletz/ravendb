@@ -395,11 +395,11 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
             Assert.Contains("2024-02", rql, StringComparison.Ordinal);
         }
 
-        // The shape PowerBI actually sends for incremental refresh. Currently NOT supported:
-        // SqlWhereParser.TryExtractScalar only handles AConst / TypeCast literals — not
-        // ParamRef. Tracked here so the translator's progress on ParamRef support has a
-        // pinned test to flip from Skip → passing once the feature lands.
-        [RavenFact(RavenTestCategory.PostgreSql, Skip = "ParamRef in WHERE values is not yet supported by the SQL→RQL translator. Tracked: SqlWhereParser.TryExtractScalar should accept ParamRef and emit RQL with an inlined or named parameter reference.")]
+        // The shape PowerBI actually sends for incremental refresh. A $N placeholder in a WHERE
+        // value can't be inlined at translate time (Parse precedes Bind in the Extended Query
+        // Protocol), so the translator emits an RQL parameter reference instead. The 1-based PG
+        // index maps straight through: SQL $1/$2 → RQL $1/$2, which PgQuery.Bind then fills in.
+        [RavenFact(RavenTestCategory.PostgreSql)]
         public void DateRange_ParameterizedBounds_TranslatesWithParamRefs()
         {
             var sql = """SELECT * FROM "Orders" WHERE "OrderedAt" >= $1 AND "OrderedAt" < $2""";
@@ -407,26 +407,11 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
 
             Assert.Contains("from 'Orders'", rql, StringComparison.Ordinal);
             Assert.Contains("OrderedAt", rql, StringComparison.Ordinal);
-            // When implemented, RQL would carry parameter placeholders (e.g. $p0/$p1)
-            // that the Bind-time parameter values then fill in.
-            Assert.Contains("$", rql, StringComparison.Ordinal);
-        }
-
-        // Negative pin: until ParamRef support lands, TryParse must return false rather than
-        // silently dropping the predicate (which would produce a query returning the whole
-        // collection — exactly the silent-data-loss bug we want to avoid).
-        [RavenFact(RavenTestCategory.PostgreSql)]
-        public void DateRange_ParameterizedBounds_CurrentlyRejectsTranslation()
-        {
-            var sql = """SELECT * FROM "Orders" WHERE "OrderedAt" >= $1 AND "OrderedAt" < $2""";
-
-            // ParamRef in WHERE value → SqlWhereParser fails → translator returns false.
-            // Caller (PgQuery.CreateInstance) then raises "Unhandled query", which the PG
-            // client surfaces as an error rather than an unfiltered result set.
-            Assert.False(
-                Raven.Server.Integrations.PostgreSQL.Translation.PgSqlToRqlTranslator
-                    .TryParse(sql, Array.Empty<int>(), out _),
-                "Parameterized WHERE bounds should be rejected until ParamRef support is added — silent fall-through would return the whole table.");
+            // The PG parameter index doubles as the RQL parameter name (RQL allows numeric
+            // names), so the placeholders survive translation as $1 / $2 rather than being
+            // inlined as literals we don't have yet.
+            Assert.Contains("$1", rql, StringComparison.Ordinal);
+            Assert.Contains("$2", rql, StringComparison.Ordinal);
         }
     }
 }

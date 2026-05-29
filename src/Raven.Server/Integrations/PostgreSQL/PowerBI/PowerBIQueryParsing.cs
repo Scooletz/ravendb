@@ -623,6 +623,12 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 case ParsedValueKind.Null:
                     return new ValueExpression("null", ValueTokenType.Null);
 
+                case ParsedValueKind.Parameter:
+                    // $N placeholder → RQL parameter reference. StringQueryVisitor renders a
+                    // Parameter ValueExpression as "$" + token, and PgQuery.Bind keys the
+                    // Parameters dict by the same 1-based PG index, so the value binds at execute.
+                    return new ValueExpression(((int)value.Raw).ToString(CultureInfo.InvariantCulture), ValueTokenType.Parameter);
+
                 default:
                     return null;
             }

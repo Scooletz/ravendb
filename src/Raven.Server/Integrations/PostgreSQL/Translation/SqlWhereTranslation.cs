@@ -18,8 +18,10 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
     internal sealed record ParsedBetween(IReadOnlyList<string> FieldPath, ParsedValue Lower, ParsedValue Upper) : ParsedWhere;
     internal sealed record ParsedIsNull(IReadOnlyList<string> FieldPath, bool Negated) : ParsedWhere;
 
-    internal enum ParsedValueKind { String, Long, Double, Bool, Null, Timestamp }
+    internal enum ParsedValueKind { String, Long, Double, Bool, Null, Timestamp, Parameter }
 
+    // For the Parameter kind, Raw holds the 1-based PG parameter index (int) from a $N
+    // placeholder — not a literal value. The value itself isn't known until Bind time.
     internal sealed record ParsedValue(object Raw, ParsedValueKind Kind);
 
     internal static class SqlWhereParser
@@ -188,6 +190,19 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
             value = null;
             if (node == null)
                 return false;
+
+            // $N parameter placeholder. In the Extended Query Protocol the value isn't known at
+            // translate time (Parse precedes Bind), so we can't inline a literal. Carry the
+            // 1-based parameter index; the translator emits an RQL parameter reference ($N) that
+            // the Bind-time values fill in. PG numbers parameters from 1 — reject anything else
+            // so we never emit an unbindable $0.
+            if (node.ParamRef != null)
+            {
+                if (node.ParamRef.Number < 1)
+                    return false;
+                value = new ParsedValue(node.ParamRef.Number, ParsedValueKind.Parameter);
+                return true;
+            }
 
             if (TryExtractTimestampLiteral(node, out value))
                 return true;

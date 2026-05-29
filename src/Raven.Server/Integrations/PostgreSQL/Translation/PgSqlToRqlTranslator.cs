@@ -223,10 +223,22 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
             return sb.ToString();
         }
 
+        // Carries a $N parameter index through AsyncDocumentQuery's auto-parameterization
+        // (TransformValue leaves unknown reference types untouched) so InlineQueryParameters
+        // can rewrite the generated $pN token into an RQL parameter reference ($N) that maps to
+        // the Bind-time Parameters dict — instead of inlining a literal we don't have yet.
+        private sealed record PgBoundParameterReference(int OneBasedIndex);
+
         private static string FormatRqlLiteral(object value)
         {
             if (value == null)
                 return "null";
+
+            // A $N placeholder: emit an RQL parameter reference rather than a literal. The PG
+            // parameter index doubles as the RQL parameter name (RQL allows numeric names), and
+            // PgQuery.Bind keys the Parameters dict by the same 1-based index.
+            if (value is PgBoundParameterReference paramRef)
+                return "$" + paramRef.OneBasedIndex.ToString(CultureInfo.InvariantCulture);
 
             if (value is IEnumerable enumerable and not string)
                 return FormatRqlList(enumerable);
@@ -756,7 +768,7 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
                 case ParsedBinary b:
                 {
                     var field = JoinPath(b.FieldPath);
-                    var value = b.Value.Raw;
+                    var value = ToQueryValue(b.Value);
                     switch (b.Operator)
                     {
                         case "=":   q.WhereEquals(field, value); break;
@@ -777,9 +789,9 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
                     var values = new List<object>(i.Values.Count);
                     foreach (var v in i.Values)
                     {
-                        if (v.Raw == null)
+                        if (v.Kind != ParsedValueKind.Parameter && v.Raw == null)
                             throw new NotSupportedException("Unsupported IN (null value)");
-                        values.Add(v.Raw);
+                        values.Add(ToQueryValue(v));
                     }
                     if (i.Negated)
                         throw new NotSupportedException("NOT IN is not supported in general SQL→RQL WHERE translation");
@@ -790,9 +802,10 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
                 case ParsedBetween bt:
                 {
                     var field = JoinPath(bt.FieldPath);
-                    if (bt.Lower.Raw == null || bt.Upper.Raw == null)
+                    if ((bt.Lower.Kind != ParsedValueKind.Parameter && bt.Lower.Raw == null) ||
+                        (bt.Upper.Kind != ParsedValueKind.Parameter && bt.Upper.Raw == null))
                         throw new NotSupportedException("Unsupported BETWEEN (missing bound)");
-                    q.WhereBetween(field, bt.Lower.Raw, bt.Upper.Raw);
+                    q.WhereBetween(field, ToQueryValue(bt.Lower), ToQueryValue(bt.Upper));
                     break;
                 }
 
@@ -815,6 +828,14 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
         }
 
         private static string JoinPath(IReadOnlyList<string> fieldPath) => string.Join('.', fieldPath);
+
+        // Maps a parsed WHERE value to the object handed to AsyncDocumentQuery. Literals pass
+        // through as-is; a $N placeholder becomes a marker that survives auto-parameterization and
+        // is later rewritten to an RQL parameter reference by InlineQueryParameters/FormatRqlLiteral.
+        private static object ToQueryValue(ParsedValue value)
+            => value.Kind == ParsedValueKind.Parameter
+                ? new PgBoundParameterReference((int)value.Raw)
+                : value.Raw;
 
         private static void TranslateOrderBy(AsyncDocumentQuery<JObject> q, Google.Protobuf.Collections.RepeatedField<Node> sortClause, string fromAlias, IReadOnlyDictionary<string, OrderingType> sortTypeMap = null)
         {
