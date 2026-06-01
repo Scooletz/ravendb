@@ -60,6 +60,7 @@ class appUrl {
         editAmazonSqsEtl: (taskId?: number) => ko.pureComputed(() => appUrl.forEditAmazonSqsEtl(appUrl.currentDatabase(), taskId)),
         editKafkaSink: (taskId?: number) => ko.pureComputed(() => appUrl.forEditKafkaSink(appUrl.currentDatabase(), taskId)),
         editRabbitMqSink: (taskId?: number) => ko.pureComputed(() => appUrl.forEditRabbitMqSink(appUrl.currentDatabase(), taskId)),
+        editAzureServiceBusSink: (taskId?: number) => ko.pureComputed(() => appUrl.forEditAzureServiceBusSink(appUrl.currentDatabase(), taskId)),
         editCdcSink: (taskId?: number) => ko.pureComputed(() => appUrl.forEditCdcSink(appUrl.currentDatabase(), taskId)),
         query: (indexName?: string) => ko.pureComputed(() => appUrl.forQuery(appUrl.currentDatabase(), indexName)),
         terms: (indexName?: string) => ko.pureComputed(() => appUrl.forTerms(indexName, appUrl.currentDatabase())),
@@ -90,6 +91,7 @@ class appUrl {
         editAmazonSqsEtlTaskUrl: ko.pureComputed(() => appUrl.forEditAmazonSqsEtl(appUrl.currentDatabase())),
         editKafkaSinkTaskUrl: ko.pureComputed(() => appUrl.forEditKafkaSink(appUrl.currentDatabase())),
         editRabbitMqSinkTaskUrl: ko.pureComputed(() => appUrl.forEditRabbitMqSink(appUrl.currentDatabase())),
+        editAzureServiceBusSinkTaskUrl: ko.pureComputed(() => appUrl.forEditAzureServiceBusSink(appUrl.currentDatabase())),
         editCdcSinkTaskUrl: ko.pureComputed(() => appUrl.forEditCdcSink(appUrl.currentDatabase())),
         csvImportUrl: ko.pureComputed(() => appUrl.forCsvImport(appUrl.currentDatabase())),
         status: ko.pureComputed(() => appUrl.forStatus(appUrl.currentDatabase())),
@@ -753,6 +755,12 @@ class appUrl {
         const databasePart = appUrl.getEncodedDbPart(db);
         const taskPart = taskId ? "&taskId=" + taskId : "";
         return "#databases/tasks/editRabbitMqSinkTask?" + databasePart + taskPart;
+    }
+
+    static forEditAzureServiceBusSink(db: database | string, taskId?: number): string {
+        const databasePart = appUrl.getEncodedDbPart(db);
+        const taskPart = taskId ? "&taskId=" + taskId : "";
+        return "#databases/tasks/editAzureServiceBusSinkTask?" + databasePart + taskPart;
     }
 
     static forEditCdcSink(db: database | string, taskId?: number): string {

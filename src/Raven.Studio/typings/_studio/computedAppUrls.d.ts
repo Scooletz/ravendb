@@ -39,6 +39,7 @@ interface computedAppUrls {
     editAmazonSqsEtl: (taskId?: number, taskName?: string) => KnockoutComputed<string>;
     editKafkaSink: (taskId?: number, taskName?: string) => KnockoutComputed<string>;
     editRabbitMqSink: (taskId?: number, taskName?: string) => KnockoutComputed<string>;
+    editAzureServiceBusSink: (taskId?: number, taskName?: string) => KnockoutComputed<string>;
     editCdcSink: (taskId?: number, taskName?: string) => KnockoutComputed<string>;
     editEmbeddingsGeneration: (taskId?: number, taskName?: string) => KnockoutComputed<string>;
     editGenAi: (taskId?: number, taskName?: string) => KnockoutComputed<string>;
@@ -69,6 +70,7 @@ interface computedAppUrls {
     editAmazonSqsEtlTaskUrl: KnockoutComputed<string>;
     editKafkaSinkTaskUrl: KnockoutComputed<string>;
     editRabbitMqSinkTaskUrl: KnockoutComputed<string>;
+    editAzureServiceBusSinkTaskUrl: KnockoutComputed<string>;
     editCdcSinkTaskUrl: KnockoutComputed<string>;
     editEmbeddingsGenerationTaskUrl: KnockoutComputed<string>;
     editGenAiTaskUrl: KnockoutComputed<string>;

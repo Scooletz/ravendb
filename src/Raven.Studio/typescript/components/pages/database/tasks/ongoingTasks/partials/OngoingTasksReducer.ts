@@ -34,6 +34,7 @@ import {
     OngoingTaskCdcSinkSharedInfo,
     OngoingTaskEmbeddingsGenerationSharedInfo,
     OngoingTaskGenAiSharedInfo,
+    OngoingTaskAzureServiceBusSinkSharedInfo,
 } from "components/models/tasks";
 import OngoingTasksResult = Raven.Server.Web.System.OngoingTasksResult;
 import OngoingTask = Raven.Client.Documents.Operations.OngoingTasks.OngoingTask;
@@ -390,6 +391,15 @@ function mapSharedInfo(task: OngoingTask): OngoingTaskSharedInfo {
                 case "RabbitMq": {
                     // noinspection UnnecessaryLocalVariableJS
                     const result: OngoingTaskRabbitMqSinkSharedInfo = {
+                        ...commonProps,
+                        connectionStringName: incoming.ConnectionStringName,
+                        url: incoming.Url,
+                    };
+                    return result;
+                }
+                case "AzureServiceBus": {
+                    // noinspection UnnecessaryLocalVariableJS
+                    const result: OngoingTaskAzureServiceBusSinkSharedInfo = {
                         ...commonProps,
                         connectionStringName: incoming.ConnectionStringName,
                         url: incoming.Url,

@@ -178,6 +178,8 @@ export type OngoingTaskKafkaSinkSharedInfo = OngoingTaskQueueSinkSharedInfo;
 
 export type OngoingTaskRabbitMqSinkSharedInfo = OngoingTaskQueueSinkSharedInfo;
 
+export type OngoingTaskAzureServiceBusSinkSharedInfo = OngoingTaskQueueSinkSharedInfo;
+
 export interface OngoingTaskQueueEtlSharedInfo extends OngoingTaskSharedInfo {
     connectionStringName: string;
     url: string;
@@ -249,6 +251,8 @@ export type OngoingTaskAiEtlNodeInfoDetails = OngoingTaskNodeInfoDetails;
 export type OngoingTaskKafkaSinkNodeInfoDetails = OngoingTaskNodeInfoDetails;
 
 export type OngoingTaskRabbitMqSinkNodeInfoDetails = OngoingTaskNodeInfoDetails;
+
+export type OngoingTaskAzureServiceBusSinkNodeInfoDetails = OngoingTaskNodeInfoDetails;
 
 export type OngoingTaskCdcSinkNodeInfoDetails = OngoingTaskNodeInfoDetails;
 
@@ -359,6 +363,11 @@ export type OngoingTaskKafkaSinkInfo = OngoingTaskInfo<
 export type OngoingTaskRabbitMqSinkInfo = OngoingTaskInfo<
     OngoingTaskRabbitMqSinkSharedInfo,
     OngoingTaskNodeInfo<OngoingTaskRabbitMqSinkNodeInfoDetails>
+>;
+
+export type OngoingTaskAzureServiceBusSinkInfo = OngoingTaskInfo<
+    OngoingTaskAzureServiceBusSinkSharedInfo,
+    OngoingTaskNodeInfo<OngoingTaskAzureServiceBusSinkNodeInfoDetails>
 >;
 
 export type OngoingTaskCdcSinkInfo = OngoingTaskInfo<
