@@ -93,6 +93,50 @@ namespace EmbeddedTests.Server.Integrations.PostgreSQL
             }
         }
 
+        // Datetime-shaped strings in Raven documents must be reported as `timestamp without
+        // time zone` (or `timestamp with time zone` for UTC) by information_schema.columns —
+        // not as `text`. Without this, PowerBI's column-probe types datetime columns as text,
+        // and M filters like `[OrderedAt] >= RangeStart` fail with a type-mismatch error
+        // because RangeStart is DateTime and the column reads as text. Pins the heuristic in
+        // InformationSchemaColumnsTable.MapDataType that mirrors RqlQuery.GenerateSchema's
+        // value-inspection promotion (lines 184-194 in RqlQuery.cs).
+        [Fact]
+        public async Task InformationSchemaColumns_reports_datetime_string_fields_as_timestamp()
+        {
+            const string postgresQuery =
+                "select column_name, data_type from information_schema.columns " +
+                "where table_name = 'Orders' order by ordinal_position";
+
+            using (var store = GetDocumentStore())
+            {
+                await store.Maintenance.SendAsync(new CreateSampleDataOperation());
+
+                var result = await Act(store, postgresQuery);
+
+                Assert.NotNull(result);
+                Assert.NotEmpty(result.Rows);
+
+                var dataTypeByColumn = result.Rows
+                    .Cast<DataRow>()
+                    .ToDictionary(
+                        r => (string)r["column_name"],
+                        r => (string)r["data_type"],
+                        StringComparer.OrdinalIgnoreCase);
+
+                // OrderedAt / RequireAt / ShippedAt are stored as ISO 8601 strings in the
+                // Northwind sample Orders documents — they must be reported as a timestamp
+                // type so PowerBI can compare them against DateTime parameters.
+                foreach (var col in new[] { "OrderedAt", "RequireAt", "ShippedAt" })
+                {
+                    Assert.True(dataTypeByColumn.TryGetValue(col, out var dataType),
+                        $"Expected information_schema.columns to report a row for '{col}'.");
+                    Assert.True(
+                        dataType == "timestamp without time zone" || dataType == "timestamp with time zone",
+                        $"Expected '{col}' to be reported as a timestamp type, was '{dataType}'.");
+                }
+            }
+        }
+
         [Fact]
         public async Task ForSpecificDatabase_AndSpecificQuery_GetCorrectSelectedFields()
         {
