@@ -603,8 +603,6 @@ namespace TypingsGenerator
             scripter.AddType(typeof(CdcSinkPerformanceStats));
             scripter.AddType(typeof(CdcSinkProcessPerformanceStats));
             scripter.AddType(typeof(CdcSinkTaskPerformanceStats));
-            scripter.AddType(typeof(CdcSinkVerifyRequest));
-            scripter.AddType(typeof(CdcSinkVerificationResult));
 
             // ongoing tasks - Snowflake ETL
             scripter.AddType(typeof(OngoingTaskSnowflakeEtl));
