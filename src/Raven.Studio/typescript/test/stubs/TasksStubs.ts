@@ -50,6 +50,7 @@ export class TasksStubs {
                 TasksStubs.getAmazonSqsEtl(),
                 TasksStubs.getKafkaSink(),
                 TasksStubs.getRabbitSink(),
+                TasksStubs.getAzureServiceBusSink(),
                 TasksStubs.getCdcSink(),
                 TasksStubs.getReplicationSink(),
                 TasksStubs.getReplicationHub(),
@@ -596,6 +597,24 @@ export class TasksStubs {
             MentorNode: null,
             Url: "localhost:6006",
             BrokerType: "RabbitMq",
+            PinToMentorNode: false,
+            Configuration: null,
+        };
+    }
+
+    static getAzureServiceBusSink(): OngoingTaskQueueSink {
+        return {
+            TaskName: "AzureServiceBusSinkTask",
+            TaskId: 707,
+            TaskType: "QueueSink",
+            ConnectionStringName: "azure-service-bus-name",
+            ResponsibleNode: TasksStubs.getResponsibleNode(),
+            TaskState: "Enabled",
+            Error: null,
+            TaskConnectionStatus: "Active",
+            MentorNode: null,
+            BrokerType: "AzureServiceBus",
+            Url: "mynamespace.servicebus.windows.net",
             PinToMentorNode: false,
             Configuration: null,
         };

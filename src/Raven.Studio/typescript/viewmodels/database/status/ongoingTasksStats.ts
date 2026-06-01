@@ -1920,6 +1920,8 @@ class ongoingTasksStats extends shardViewModelBase {
                 return "Kafka Sink";
             case "RabbitQueueSink":
                 return "RabbitMQ Sink";
+            case "AzureServiceBusQueueSink":
+                return "Azure Service Bus Queue Sink";
             case "CdcSink":
                 return "CDC Sink";
             case "EmbeddingsGeneration":
@@ -1927,7 +1929,7 @@ class ongoingTasksStats extends shardViewModelBase {
             case "GenAi":
                 return "GenAI";
             default:
-                throw new Error("Unknown stats type: " + type);
+                generalUtils.assertUnreachable(type);
         }
         return "";
     }

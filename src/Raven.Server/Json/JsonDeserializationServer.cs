@@ -9,6 +9,7 @@ using Raven.Client.Documents.Operations.AI;
 using Raven.Client.Documents.Operations.Backups;
 using Raven.Client.Documents.Operations.CdcSink;
 using Raven.Client.Documents.Operations.Configuration;
+using Raven.Client.Documents.Operations.ETL.Queue;
 using Raven.Client.Documents.Operations.ETL.Snowflake;
 using Raven.Client.Documents.Operations.ETL.SQL;
 using Raven.Client.Documents.Operations.Expiration;
@@ -373,8 +374,10 @@ namespace Raven.Server.Json
 
         internal static readonly Func<BlittableJsonReaderObject, DatabaseNotificationsSummaryRequestConfig> NotificationsSummaryRequestConfig = GenerateJsonDeserializationRoutine<DatabaseNotificationsSummaryRequestConfig>();
 
-        public static readonly Func<BlittableJsonReaderObject, CdcSinkTaskState> CdcSinkTaskState = GenerateJsonDeserializationRoutine<CdcSinkTaskState>();
+        internal static readonly Func<BlittableJsonReaderObject, AzureServiceBusConnectionSettings> AzureServiceBusConnectionSettings = GenerateJsonDeserializationRoutine<AzureServiceBusConnectionSettings>();
         
+        public static readonly Func<BlittableJsonReaderObject, CdcSinkTaskState> CdcSinkTaskState = GenerateJsonDeserializationRoutine<CdcSinkTaskState>();
+
         public sealed class Parameters
         {
             private Parameters()
