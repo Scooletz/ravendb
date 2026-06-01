@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using Raven.Server.Integrations.PostgreSQL;
 using Raven.Server.Integrations.PostgreSQL.PowerBI;
+using Raven.Server.Integrations.PostgreSQL.Translation;
 using Sparrow.Extensions;
 using Tests.Infrastructure;
 using Xunit;
@@ -31,6 +32,45 @@ namespace FastTests.Server.Integrations.PostgreSQL.PowerBI
             Assert.DoesNotContain("$Table.", queryString, StringComparison.OrdinalIgnoreCase);
             Assert.DoesNotContain("json()", queryString, StringComparison.OrdinalIgnoreCase);
             Assert.Contains("limit 0, 200", queryString, StringComparison.OrdinalIgnoreCase);
+        }
+
+        // PowerBI's distinct-values probe (slicer / dropdown population): SELECT user_cols + GROUP BY
+        // same columns. The user didn't ask for id() or json(), so the RowDescription must NOT
+        // include them — PowerBI compares its requested column count to the schema and raises
+        // `Field count mismatch when mapping column types. N vs M` if the server adds synthetic
+        // columns the SQL never named. Pinned via dispatch type: PgSqlTranslatedRqlQuery has both
+        // synthetic-column flags off; PowerBIRqlQuery has them on.
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
+        public void Projected_fetch_without_id_or_json_routes_to_PgSqlTranslatedRqlQuery()
+        {
+            const string sql = """
+                select "rows"."Company" as "Company", "rows"."Freight" as "Freight"
+                from "public"."Orders" "rows"
+                group by "Company", "Freight"
+                limit 1000001
+                """;
+
+            Assert.True(PowerBIFetchQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
+            Assert.IsType<PgSqlTranslatedRqlQuery>(pgQuery);
+        }
+
+        // Narrow projection that doesn't name id() or json() — the user asked for specific
+        // user columns and expects the response to match column-for-column. Adding synthetic
+        // id() and json() on top widens the RowDescription past the requested set and PowerBI's
+        // mashup engine drops the connection. Row identity for DirectQuery comes from the PK
+        // metadata declared in information_schema (table_constraints + key_column_usage), not
+        // from the per-query projection.
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
+        public void Narrow_projection_without_id_or_json_routes_to_PgSqlTranslatedRqlQuery()
+        {
+            const string sql = """
+                select "Company", "Freight"
+                from "public"."Orders"
+                limit 100
+                """;
+
+            Assert.True(PowerBIFetchQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
+            Assert.IsType<PgSqlTranslatedRqlQuery>(pgQuery);
         }
 
         // information_schema.tables and information_schema.columns now flow through

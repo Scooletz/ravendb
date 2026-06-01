@@ -209,18 +209,86 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             if (string.IsNullOrWhiteSpace(queryText))
                 return false;
 
-            if (IsSimplePublicRangeVarSelect(queryText) == false)
+            if (TryGetSimplePublicRangeVarSelect(queryText, out var selectStmt) == false)
                 return false;
 
             if (PgSqlToRqlTranslator.TryParse(queryText, parametersDataTypes, documentDatabase, out var rql) == false)
                 return false;
 
-            pgQuery = new PowerBIRqlQuery(rql, parametersDataTypes, documentDatabase, replaces: null, limit: null);
+            // PowerBI's RowDescription expectations must match exactly what its SQL projected —
+            // any extra columns the server tacks on widen the response past the requested set and
+            // PowerBI's mashup engine breaks (either raises `Field count mismatch when mapping
+            // column types. N vs M` or, more subtly, dies inside the column-type mapper with
+            // `Nullable object must have a value` and drops the socket).
+            //
+            // Two shapes want PowerBIRqlQuery's auto-added id() + json() synthetic columns:
+            //   (1) `SELECT *` — PG semantics include every column the source has, which for
+            //       PowerBI Import shapes means the synthetics too.
+            //   (2) An explicit projection that literally names `id()` or `json()` — that's
+            //       PowerBI's standard "fetch all visible rows" shape; the synthetic columns are
+            //       part of the requested set, not server-side extras.
+            // Every other shape — narrow projections, DISTINCT, GROUP BY — is a query where
+            // PowerBI named exactly which columns it wants and expects the response to match
+            // column-for-column. PK metadata (information_schema.table_constraints +
+            // key_column_usage) tells PowerBI which logical column is the row identity, so
+            // omitting the synthetic id() from a narrow projection doesn't break row-substitution
+            // for tables PowerBI knows the PK of — that's already declared in metadata.
+            var wantsSyntheticColumns = WantsPowerBISyntheticColumns(selectStmt);
+
+            pgQuery = wantsSyntheticColumns
+                ? new PowerBIRqlQuery(rql, parametersDataTypes, documentDatabase, replaces: null, limit: null)
+                : new PgSqlTranslatedRqlQuery(rql, parametersDataTypes, documentDatabase);
             return true;
         }
 
-        private static bool IsSimplePublicRangeVarSelect(string sql)
+        // True for shapes where PowerBI expects id() and json() in the RowDescription — either
+        // `SELECT *` (implicit "all columns") or an explicit projection that names id() / json().
+        // False for narrow projections (user columns only, DISTINCT, GROUP BY) where PowerBI
+        // cares only about the exact columns it asked for.
+        private static bool WantsPowerBISyntheticColumns(SelectStmt selectStmt)
         {
+            var targets = selectStmt.TargetList;
+            if (targets == null || targets.Count == 0)
+                return true; // No target list → SELECT *-equivalent → wants everything.
+
+            // pgsqlparser models `SELECT *` as a single ColumnRef whose first (and only) field
+            // is an A_Star node. Match that shape so we don't strip synthetics for the implicit
+            // wildcard.
+            if (targets.Count == 1)
+            {
+                var only = targets[0]?.ResTarget?.Val;
+                var fields = only?.ColumnRef?.Fields;
+                if (fields is { Count: 1 } && fields[0]?.AStar != null)
+                    return true;
+            }
+
+            // Explicit projection: scan each target's column ref for `id()` or `json()` as the
+            // final path segment. PowerBI's standard fetch shape always names them — anything
+            // else (user columns only / slicer-distinct / aggregate output) deliberately omits
+            // them, and we should mirror that to keep the RowDescription matched.
+            foreach (var t in targets)
+            {
+                var col = t?.ResTarget?.Val?.ColumnRef;
+                var colFields = col?.Fields;
+                if (colFields == null || colFields.Count == 0)
+                    continue;
+
+                var last = colFields[colFields.Count - 1]?.String?.Sval;
+                if (string.IsNullOrEmpty(last))
+                    continue;
+
+                if (string.Equals(last, "id()", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(last, "json()", StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+
+            return false;
+        }
+
+        private static bool TryGetSimplePublicRangeVarSelect(string sql, out SelectStmt selectStmt)
+        {
+            selectStmt = null;
+
             var parseResult = Parser.Parse(sql);
             if (parseResult.IsSuccess == false || parseResult.Value == null)
                 return false;
@@ -246,6 +314,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             if (string.IsNullOrWhiteSpace(rangeVar.Relname))
                 return false;
 
+            selectStmt = select;
             return true;
         }
 
