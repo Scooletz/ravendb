@@ -329,9 +329,9 @@ namespace Raven.Server.Integrations.PostgreSQL
         
         private void DispatchPostgresQueryMessageToTrafficWatch(Query message, PgErrorException e = null)
         {
-            var clientIp = _client.Client.LocalEndPoint?.ToString();
+            var clientIp = _client.Client.RemoteEndPoint?.ToString();
             string databaseName = _clientOptions.GetValueOrDefault("database", "N/A");
-            string username = _clientOptions.GetValueOrDefault("username", "N/A");
+            string username = _clientOptions.GetValueOrDefault("user", "N/A");
 
             var twn = new TrafficWatchPostgresChange()
             {
