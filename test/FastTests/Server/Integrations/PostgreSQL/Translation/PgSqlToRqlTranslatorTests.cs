@@ -282,6 +282,53 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
             Assert.Equal(expected, Translate(sql));
         }
 
+        // PowerBI's distinct-values probe — used when populating slicer / filter-dropdown options.
+        // Instead of `SELECT DISTINCT col1, col2 ...` it sends `SELECT col1, col2 ... GROUP BY col1, col2`.
+        // For multi-column shapes we emit `group by ... select ...` rather than `select distinct
+        // ...` because RQL's `select distinct` isn't a tuple-distinct (it dedupes by first-field
+        // semantics and leaves duplicate tuples behind, which breaks PowerBI's mashup engine
+        // with a SubstituteWithIndex match-count error).
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void GroupBy_WithoutAggregates_TwoColumns_TranslatesToGroupByDistinct()
+        {
+            var sql = "SELECT status, region FROM orders GROUP BY status, region";
+            var expected = "from 'orders' group by status, region select status, region";
+            Assert.Equal(expected, Translate(sql));
+        }
+
+        // The exact shape PowerBI Desktop fires for a two-column slicer / dropdown probe against
+        // a `public.X` table — wrapper alias on the source, both columns aliased in the SELECT,
+        // and PowerBI's 1,000,001-row sentinel limit. Pinned so the recognizer-side dispatch
+        // (PowerBIFetchQuery → PgSqlToRqlTranslator) keeps working end-to-end.
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void GroupBy_PowerBI_DistinctValuesProbe_AliasedSource_TranslatesToGroupBy()
+        {
+            var sql = """
+                select "rows"."Company" as "Company", "rows"."Freight" as "Freight"
+                from "public"."Orders" "rows"
+                group by "Company", "Freight"
+                limit 1000001
+                """;
+
+            var rql = Translate(sql);
+
+            Assert.Contains("from 'Orders'", rql, StringComparison.Ordinal);
+            Assert.Contains("group by Company, Freight", rql, StringComparison.Ordinal);
+            Assert.Contains("select Company, Freight", rql, StringComparison.Ordinal);
+            Assert.Contains("limit 0, 1000001", rql, StringComparison.OrdinalIgnoreCase);
+        }
+
+        // Existing single-column-without-aggregate case must keep working — same path that
+        // SELECT DISTINCT goes through, just via GROUP BY surface. Regression pin for the
+        // single-col branch when ApplyGroupBy was rewritten to handle multi-col.
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void GroupBy_WithoutAggregates_SingleColumn_TranslatesToDistinct()
+        {
+            var sql = "SELECT status FROM orders GROUP BY status";
+            var expected = "from 'orders' select distinct status";
+            Assert.Equal(expected, Translate(sql));
+        }
+
         [RavenFact(RavenTestCategory.PostgreSql)]
         public void Complex_29_IndexQueryContains()
         {

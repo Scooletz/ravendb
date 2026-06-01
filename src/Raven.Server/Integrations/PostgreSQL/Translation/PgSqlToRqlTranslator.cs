@@ -123,7 +123,7 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
 
             if (isGroupBy)
             {
-                ApplyGroupBy(q, selectStmt);
+                ApplyGroupBy(q, selectStmt, fromAlias);
             }
             else
             {
@@ -411,18 +411,23 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
             return string.IsNullOrWhiteSpace(alias) == false && string.IsNullOrWhiteSpace(path) == false;
         }
 
-        private static void ApplyGroupBy(AsyncDocumentQuery<JObject> q, SelectStmt selectStmt)
+        private static void ApplyGroupBy(AsyncDocumentQuery<JObject> q, SelectStmt selectStmt, string fromAlias)
         {
-            if (selectStmt.GroupClause is not { Count: 1 })
+            if (selectStmt.GroupClause is not { Count: > 0 })
                 throw new NotSupportedException(UnsupportedGroupByMessage);
 
-            var groupKeyNode = selectStmt.GroupClause[0];
-            if (groupKeyNode.ColumnRef == null)
-                throw new NotSupportedException(UnsupportedGroupByMessage);
+            var groupFieldNames = new List<string>(capacity: selectStmt.GroupClause.Count);
+            foreach (var groupKeyNode in selectStmt.GroupClause)
+            {
+                if (groupKeyNode.ColumnRef == null)
+                    throw new NotSupportedException(UnsupportedGroupByMessage);
 
-            var groupFieldName = ExtractFieldName(groupKeyNode);
-            if (string.IsNullOrWhiteSpace(groupFieldName))
-                throw new NotSupportedException(UnsupportedGroupByMessage);
+                var name = ExtractFieldName(groupKeyNode, fromAlias);
+                if (string.IsNullOrWhiteSpace(name))
+                    throw new NotSupportedException(UnsupportedGroupByMessage);
+
+                groupFieldNames.Add(name);
+            }
 
             var targets = selectStmt.TargetList;
             if (targets == null || targets.Count == 0)
@@ -434,9 +439,70 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
             if (selectStmt.DistinctClause is { Count: > 0 })
                 throw new NotSupportedException(UnsupportedGroupByMessage);
 
-            var projections = new List<string>(capacity: targets.Count);
             bool hasAnyAggregate = false;
+            foreach (var t in targets)
+            {
+                if (t.ResTarget?.Val?.FuncCall != null)
+                {
+                    hasAnyAggregate = true;
+                    break;
+                }
+            }
 
+            // Distinct-rows shape (PowerBI's "fill a slicer/dropdown" probe):
+            //     SELECT col1, col2 ... FROM t GROUP BY col1, col2 [LIMIT N]
+            // No aggregates — the GROUP BY is being used as a DISTINCT mechanism.
+            //
+            // Single-column: emit RQL `select distinct <field>` — Raven dedupes the projection.
+            // Multi-column: use `group by <fields> select <fields>` instead. RQL's `select
+            // distinct <a>, <b>` is NOT a tuple-distinct — it dedupes by first-field semantics
+            // and leaves duplicate tuples in the result, which then breaks PowerBI's mashup
+            // engine ("more than one row in the index table matching to the current row"). The
+            // group-by form is the canonical tuple-dedup in RQL: every (col1, col2) pair becomes
+            // a group, and projecting the group keys gives back exactly the distinct tuples.
+            if (hasAnyAggregate == false)
+            {
+                var groupSet = new HashSet<string>(groupFieldNames, StringComparer.OrdinalIgnoreCase);
+                var projected = new List<string>(targets.Count);
+                foreach (var t in targets)
+                {
+                    var val = t.ResTarget?.Val;
+                    if (val?.ColumnRef == null)
+                        throw new NotSupportedException(UnsupportedGroupByMessage);
+
+                    var field = ExtractFieldName(val, fromAlias);
+                    if (string.IsNullOrWhiteSpace(field) || groupSet.Contains(field) == false)
+                        throw new NotSupportedException(UnsupportedGroupByMessage);
+
+                    projected.Add(field);
+                }
+
+                if (groupFieldNames.Count == 1)
+                {
+                    q.SelectFields<JObject>(projected.ToArray());
+                    q.Distinct();
+                }
+                else
+                {
+                    // Multi-key tuple-distinct via group-by. SelectFields after a multi-key
+                    // GroupBy projects each group's key values back as columns.
+                    var firstKey = groupFieldNames[0];
+                    var restKeys = groupFieldNames.Count > 1
+                        ? groupFieldNames.GetRange(1, groupFieldNames.Count - 1).ToArray()
+                        : Array.Empty<string>();
+                    q.GroupBy(firstKey, restKeys);
+                    q.SelectFields<JObject>(projected.ToArray());
+                }
+                return;
+            }
+
+            // Aggregate path: only single-column GROUP BY is representable in RQL today.
+            if (groupFieldNames.Count != 1)
+                throw new NotSupportedException(UnsupportedGroupByMessage);
+
+            var groupFieldName = groupFieldNames[0];
+
+            var projections = new List<string>(capacity: targets.Count);
             foreach (var t in targets)
             {
                 var val = t.ResTarget?.Val;
@@ -444,16 +510,6 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
                     throw new NotSupportedException(UnsupportedGroupByMessage);
 
                 projections.Add(BuildProjectionForGroupByTarget(val, groupFieldName));
-
-                if (val.FuncCall != null)
-                    hasAnyAggregate = true;
-            }
-
-            if (!hasAnyAggregate)
-            {
-                q.SelectFields<JObject>(groupFieldName);
-                q.Distinct();
-                return;
             }
 
             q.GroupBy(groupFieldName);
