@@ -510,21 +510,22 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
                 if (val == null)
                     throw new NotSupportedException(UnsupportedGroupByMessage);
 
-                projections.Add(BuildProjectionForGroupByTarget(val, groupFieldName));
+                projections.Add(BuildProjectionForGroupByTarget(val, groupFieldName, fromAlias, t.ResTarget?.Name));
             }
 
             q.GroupBy(groupFieldName);
             q.SelectFields<JObject>(projections.ToArray());
 
             if (selectStmt.SortClause != null && selectStmt.SortClause.Count > 0)
-                TranslateOrderByForGroupBy(q, selectStmt.SortClause, groupFieldName, projections);
+                TranslateOrderByForGroupBy(q, selectStmt.SortClause, groupFieldName, projections, fromAlias);
         }
 
         private static void TranslateOrderByForGroupBy(
             AsyncDocumentQuery<JObject> q,
             Google.Protobuf.Collections.RepeatedField<Node> sortClause,
             string groupFieldName,
-            IReadOnlyList<string> projections)
+            IReadOnlyList<string> projections,
+            string fromAlias = null)
         {
             foreach (var sortNode in sortClause)
             {
@@ -536,7 +537,7 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
 
                 if (sortBy.Node?.ColumnRef != null)
                 {
-                    var fieldName = ExtractFieldName(sortBy.Node);
+                    var fieldName = ExtractFieldName(sortBy.Node, fromAlias);
                     if (string.IsNullOrWhiteSpace(fieldName))
                         throw new NotSupportedException(UnsupportedOrderByForGroupByMessage);
 
@@ -547,7 +548,7 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
                 }
                 else if (sortBy.Node?.FuncCall != null)
                 {
-                    var projection = BuildAggregateProjectionForGroupByOrderBy(sortBy.Node.FuncCall);
+                    var projection = BuildAggregateProjectionForGroupByOrderBy(sortBy.Node.FuncCall, fromAlias);
 
                     if (projections.Any(p => string.Equals(p, projection, StringComparison.OrdinalIgnoreCase)) == false)
                         throw new NotSupportedException(UnsupportedOrderByForGroupByMessage);
@@ -587,7 +588,7 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
 
             if (allAgg)
             {
-                q.SelectFields<JObject>(BuildAggregateProjections(targets));
+                q.SelectFields<JObject>(BuildAggregateProjections(targets, fromAlias));
                 return;
             }
 
@@ -747,7 +748,7 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
             return false;
         }
 
-        private static string[] BuildAggregateProjections(IReadOnlyList<Node> targetList)
+        private static string[] BuildAggregateProjections(IReadOnlyList<Node> targetList, string fromAlias = null)
         {
             var projections = new List<string>(capacity: targetList.Count);
 
@@ -762,12 +763,12 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
                 switch (funcName)
                 {
                     case "count":
-                        projections.Add(BuildCountProjection(funcCall));
+                        projections.Add(BuildCountProjection(funcCall, fromAlias));
                         break;
 
                     case "sum":
                     case "avg":
-                        projections.Add(BuildSingleColumnAggregateProjection(funcName, funcCall));
+                        projections.Add(BuildSingleColumnAggregateProjection(funcName, funcCall, fromAlias));
                         break;
 
                     default:
@@ -794,7 +795,7 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
             return funcCall.Args[0];
         }
 
-        private static string BuildCountProjection(FuncCall funcCall)
+        private static string BuildCountProjection(FuncCall funcCall, string fromAlias = null)
         {
             if (funcCall.AggStar)
                 return "count()";
@@ -802,7 +803,7 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
             var countArg = GetSingleArgOrThrow(funcCall);
             if (countArg.ColumnRef != null)
             {
-                var countFieldName = ExtractFieldName(countArg);
+                var countFieldName = ExtractFieldName(countArg, fromAlias);
                 if (string.IsNullOrWhiteSpace(countFieldName))
                     throw new NotSupportedException(UnsupportedSelectAggregateMessage);
                 return $"count({countFieldName})";
@@ -814,24 +815,24 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
             throw new NotSupportedException(UnsupportedSelectAggregateMessage);
         }
 
-        private static string BuildSingleColumnAggregateProjection(string funcName, FuncCall funcCall)
+        private static string BuildSingleColumnAggregateProjection(string funcName, FuncCall funcCall, string fromAlias = null)
         {
             var arg0 = GetSingleArgOrThrow(funcCall);
             if (arg0?.ColumnRef == null)
                 throw new NotSupportedException(UnsupportedSelectAggregateMessage);
 
-            var fieldName = ExtractFieldName(arg0);
+            var fieldName = ExtractFieldName(arg0, fromAlias);
             if (string.IsNullOrWhiteSpace(fieldName))
                 throw new NotSupportedException(UnsupportedSelectAggregateMessage);
 
             return $"{funcName}({fieldName})";
         }
 
-        private static string BuildProjectionForGroupByTarget(Node val, string groupFieldName)
+        private static string BuildProjectionForGroupByTarget(Node val, string groupFieldName, string fromAlias = null, string sqlAlias = null)
         {
             if (val.ColumnRef != null)
             {
-                var field = ExtractFieldName(val);
+                var field = ExtractFieldName(val, fromAlias);
                 if (string.Equals(field, groupFieldName, StringComparison.OrdinalIgnoreCase) == false)
                     throw new NotSupportedException(UnsupportedGroupByMessage);
 
@@ -841,24 +842,39 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
             if (val.FuncCall != null)
             {
                 var funcName = GetFuncNameOrThrow(val.FuncCall);
-                return funcName switch
+                var expr = funcName switch
                 {
-                    "count" => BuildCountProjection(val.FuncCall),
-                    "sum" or "avg" => BuildSingleColumnAggregateProjection(funcName, val.FuncCall),
+                    "count" => BuildCountProjection(val.FuncCall, fromAlias),
+                    "sum" or "avg" => BuildSingleColumnAggregateProjection(funcName, val.FuncCall, fromAlias),
                     _ => throw new NotSupportedException(UnsupportedGroupByMessage)
                 };
+
+                // Aggregates over a group-by key collide on RQL's implicit alias rule:
+                // `sum(Freight)`'s implicit alias is `Freight`, identical to the group-by
+                // key's own alias, and RQL rejects the SELECT with
+                // `Duplicate alias 'Freight' detected`. Preserve the SQL's explicit AS clause
+                // when present — PowerBI always emits one (`as "a0"`/`as "a1"`/…) — so the
+                // RQL becomes `select Freight, sum(Freight) as a0` and the implicit alias
+                // never matters.
+                if (string.IsNullOrWhiteSpace(sqlAlias) == false &&
+                    string.Equals(sqlAlias, expr, StringComparison.OrdinalIgnoreCase) == false)
+                {
+                    return $"{expr} as {sqlAlias}";
+                }
+
+                return expr;
             }
 
             throw new NotSupportedException(UnsupportedGroupByMessage);
         }
 
-        private static string BuildAggregateProjectionForGroupByOrderBy(FuncCall funcCall)
+        private static string BuildAggregateProjectionForGroupByOrderBy(FuncCall funcCall, string fromAlias = null)
         {
             var funcName = GetFuncNameOrThrow(funcCall);
             return funcName switch
             {
-                "count" => BuildCountProjection(funcCall),
-                "sum" or "avg" => BuildSingleColumnAggregateProjection(funcName, funcCall),
+                "count" => BuildCountProjection(funcCall, fromAlias),
+                "sum" or "avg" => BuildSingleColumnAggregateProjection(funcName, funcCall, fromAlias),
                 _ => throw new NotSupportedException(UnsupportedOrderByForGroupByMessage)
             };
         }

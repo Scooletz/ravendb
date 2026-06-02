@@ -300,6 +300,45 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
             Assert.Equal(expected, Translate(sql));
         }
 
+        // PowerBI's Top-N visual-level filter on a Clustered Bar Chart fires this exact shape
+        // (alias-qualified projection + alias-qualified count argument). Before the fromAlias
+        // fix in BuildProjectionForGroupByTarget / BuildCountProjection, ExtractFieldName
+        // returned `"rows.Freight"` for the projection and `"rows.Freight"` for the count
+        // argument, neither matching the GROUP BY key `"Freight"` (stripped via fromAlias),
+        // so the translator threw `UnsupportedGroupByMessage` and the query fell through to
+        // the factory's `Unhandled query` error.
+        // PowerBI always emits an `AS` alias on aggregate projections (`as "a0"`, `as "a1"`...).
+        // RQL's implicit alias for `count(Freight)` is `Freight`, identical to a sibling
+        // group-by-key projection of `Freight`, and RQL rejects that with
+        // `Duplicate alias 'Freight' detected`. The translator must preserve the SQL alias so
+        // the RQL becomes `count(Freight) as a0` and the implicit-alias collision is avoided.
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void GroupBy_WithFromAlias_QualifiedProjectionAndAggregateArg_StripsAliasAndPreservesAggregateAlias()
+        {
+            var sql = """
+                select "rows"."Freight" as "Freight", count("rows"."Freight") as "a0"
+                from "public"."Orders" "rows"
+                group by "Freight"
+                limit 1000001
+                """;
+            var expected = "from 'Orders' group by Freight select Freight, count(Freight) as a0 limit 0, 1000001";
+
+            Assert.Equal(expected, Translate(sql));
+        }
+
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void GroupBy_WithFromAlias_SumWithAliasQualifiedArg_PreservesAggregateAlias()
+        {
+            var sql = """
+                select "rows"."Company" as "Company", sum("rows"."Freight") as "a0"
+                from "public"."Orders" "rows"
+                group by "Company"
+                """;
+            var expected = "from 'Orders' group by Company select Company, sum(Freight) as a0";
+
+            Assert.Equal(expected, Translate(sql));
+        }
+
         [RavenFact(RavenTestCategory.PostgreSql)]
         public void Complex_24_Sum()
         {
