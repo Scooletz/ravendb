@@ -73,6 +73,32 @@ namespace FastTests.Server.Integrations.PostgreSQL.PowerBI
             Assert.IsType<PgSqlTranslatedRqlQuery>(pgQuery);
         }
 
+        // PowerBI's standard post-aggregate fetch shape: `select _.col, _.aggAlias from (group by/aggregate) _
+        // where not _.aggAlias is null`. The OUTERMOST projection is narrow user columns + an aggregate
+        // output alias, never id()/json() — so synthetic columns must not be appended or the RowDescription
+        // widens by one and PowerBI errors out mid-query with
+        // `Field count mismatch when mapping column types. 2 vs 3`. Pin via dispatch type.
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
+        public void Wrapped_post_aggregate_narrow_projection_routes_to_PgSqlTranslatedRqlQuery()
+        {
+            const string sql = """
+                select "_"."Freight",
+                    "_"."a0"
+                from
+                (
+                    select "rows"."Freight" as "Freight",
+                        sum("rows"."Freight") as "a0"
+                    from "public"."Orders" "rows"
+                    group by "Freight"
+                ) "_"
+                where not "_"."a0" is null
+                limit 1000001
+                """;
+
+            Assert.True(PowerBIFetchQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
+            Assert.IsType<PgSqlTranslatedRqlQuery>(pgQuery);
+        }
+
         // information_schema.tables and information_schema.columns now flow through
         // PgVirtualInterpreter as virtual tables; the dedicated PowerBIAllCollectionsQuery /
         // PowerBIPreviewQuery recognizers were retired. See PgVirtualInterpreterTests for

@@ -152,7 +152,27 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
 
                 var newRql = query.ToString();
 
-                pgQuery = new PowerBIRqlQuery(newRql, parametersDataTypes, documentDatabase, allReplaces, limit: limit, constProjections: constProjections);
+                // Mirror the dispatch rule from TryParseSimpleTableFetchViaAst: PowerBI's
+                // RowDescription expectations come from its OUTERMOST projection list. When the
+                // outermost asks for narrow user columns only (no id()/json() references) the
+                // synthetic id+json appended by PowerBIRqlQuery widens the response past the
+                // requested set — PowerBI's mashup engine then bails with `Field count mismatch
+                // when mapping column types. N vs N+1`. This commonly happens for post-aggregate
+                // wrappers like `select "_"."Freight", "_"."a0" from (group by/aggregate) "_"
+                // where not "_"."a0" is null` — outer asks for 2 cols, base would emit 3.
+                //
+                // Stay on PowerBIRqlQuery when its extra plumbing is actually doing work —
+                // wrapper-level REPLACE() column rewrites (allReplaces) or constant-marker
+                // outer projections (constProjections) — both of which PgSqlTranslatedRqlQuery
+                // doesn't implement.
+                if (WantsPowerBISyntheticColumns(selectStmt) || allReplaces != null || constProjections != null)
+                {
+                    pgQuery = new PowerBIRqlQuery(newRql, parametersDataTypes, documentDatabase, allReplaces, limit: limit, constProjections: constProjections);
+                }
+                else
+                {
+                    pgQuery = new PgSqlTranslatedRqlQuery(newRql, parametersDataTypes, documentDatabase, limit: limit);
+                }
                 return true;
             }
             catch (Exception e)
