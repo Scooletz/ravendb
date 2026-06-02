@@ -10,35 +10,11 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog.Tables
         public override IEnumerable<object[]> EnumerateRows(VirtualQueryContext ctx) => System.Linq.Enumerable.Empty<object[]>();
     }
 
-    // PowerBI metadata sources (queried with PgFormat.Binary).
-    internal sealed class InformationSchemaTableConstraintsTable : EmptyCatalogTable
-    {
-        public override string SchemaName => "information_schema";
-        public override string TableName => "table_constraints";
-        public override IReadOnlyList<PgVirtualColumn> Columns { get; } = new PgVirtualColumn[]
-        {
-            new("constraint_schema", PgName.Default, PgFormat.Binary),
-            new("constraint_name",   PgName.Default, PgFormat.Binary),
-            new("constraint_type",   PgText.Default, PgFormat.Binary),
-            new("table_schema",      PgName.Default, PgFormat.Binary),
-            new("table_name",        PgName.Default, PgFormat.Binary),
-        };
-    }
-
-    internal sealed class InformationSchemaKeyColumnUsageTable : EmptyCatalogTable
-    {
-        public override string SchemaName => "information_schema";
-        public override string TableName => "key_column_usage";
-        public override IReadOnlyList<PgVirtualColumn> Columns { get; } = new PgVirtualColumn[]
-        {
-            new("constraint_schema", PgName.Default, PgFormat.Binary),
-            new("constraint_name",   PgName.Default, PgFormat.Binary),
-            new("table_schema",      PgName.Default, PgFormat.Binary),
-            new("table_name",        PgName.Default, PgFormat.Binary),
-            new("column_name",       PgName.Default, PgFormat.Binary),
-            new("ordinal_position",  PgInt4.Default, PgFormat.Binary),
-        };
-    }
+    // InformationSchemaTableConstraintsTable and InformationSchemaKeyColumnUsageTable moved
+    // into their own files — they're now populated per Raven collection to expose the synthetic
+    // `id` primary key. PowerBI's DirectQuery mashup engine needs PK metadata to build per-row
+    // identity; an empty table_constraints view causes SubstituteWithIndex failures for any
+    // visual / slicer / relationship that needs row substitution.
 
     internal sealed class InformationSchemaReferentialConstraintsTable : EmptyCatalogTable
     {

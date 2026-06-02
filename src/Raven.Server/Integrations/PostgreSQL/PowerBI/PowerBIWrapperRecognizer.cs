@@ -502,8 +502,11 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             return PgSqlAstHelpers.TryReadNonNegativeIntConst(selectStmt?.LimitOffset, out offset);
         }
 
-        // Shared by recognizer + emitter. Returns the last identifier segment of a ColumnRef,
-        // normalizing the magic "id" → "id()" RQL form.
+        // Shared by recognizer + emitter. Returns the last identifier segment of a ColumnRef
+        // verbatim — both `id` (PG-idiomatic) and `id()` (legacy RQL function-call form) pass
+        // through unchanged so the projection key the client requested is preserved in the
+        // emitted RQL. Downstream comparisons against synthetic-column names go through
+        // PgSyntheticColumns.IsSyntheticColumn so either form matches.
         internal static string TryExtractLastIdentifierSegment(ColumnRef colRef)
         {
             if (colRef?.Fields == null || colRef.Fields.Count == 0)
@@ -511,8 +514,6 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
 
             var last = colRef.Fields[^1];
             var name = last?.String?.Sval;
-            if (string.Equals(name, "id", StringComparison.OrdinalIgnoreCase))
-                name = "id()";
             return string.IsNullOrWhiteSpace(name) ? null : name;
         }
 
@@ -528,8 +529,6 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 return false;
 
             colName = TryExtractLastIdentifierSegment(colRef);
-            if (string.Equals(colName, "id", StringComparison.OrdinalIgnoreCase))
-                colName = "id()";
             return string.IsNullOrWhiteSpace(colName) == false;
         }
 

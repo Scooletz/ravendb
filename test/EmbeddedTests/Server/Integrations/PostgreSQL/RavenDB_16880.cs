@@ -93,6 +93,56 @@ namespace EmbeddedTests.Server.Integrations.PostgreSQL
             }
         }
 
+        // PowerBI's DirectQuery mashup engine joins information_schema.table_constraints to
+        // information_schema.key_column_usage to discover each table's primary key. Without PK
+        // metadata it can't build per-row identity for relationship inference or slicer-driven
+        // cross-filtering and raises `SubstituteWithIndex detected more than one row in the
+        // index table matching to the current row of the original table` on any visual that
+        // needs row substitution.
+        //
+        // Every Raven collection's PK is the synthetic `id` column (the PG-facing surface
+        // name for the document identifier; reporting it under the legacy RQL `id()` form
+        // breaks PowerBI's mashup parser because parens aren't a legal PG identifier character
+        // — see PgSyntheticColumns).
+        [Fact]
+        public async Task InformationSchemaConstraints_reports_synthetic_id_primary_key_for_each_collection()
+        {
+            // This is the literal SQL PowerBI Desktop fires per table to discover keys.
+            const string postgresQuery =
+                "select i.CONSTRAINT_SCHEMA || '_' || i.CONSTRAINT_NAME as INDEX_NAME, ii.COLUMN_NAME, ii.ORDINAL_POSITION, " +
+                "case when i.CONSTRAINT_TYPE = 'PRIMARY KEY' then 'Y' else 'N' end as PRIMARY_KEY " +
+                "from INFORMATION_SCHEMA.table_constraints i " +
+                "inner join INFORMATION_SCHEMA.key_column_usage ii " +
+                "on i.CONSTRAINT_SCHEMA = ii.CONSTRAINT_SCHEMA and i.CONSTRAINT_NAME = ii.CONSTRAINT_NAME " +
+                "and i.TABLE_SCHEMA = ii.TABLE_SCHEMA and i.TABLE_NAME = ii.TABLE_NAME " +
+                "where i.TABLE_SCHEMA = 'public' and i.TABLE_NAME = 'Orders' " +
+                "and i.CONSTRAINT_TYPE in ('PRIMARY KEY', 'UNIQUE') " +
+                "order by i.CONSTRAINT_SCHEMA || '_' || i.CONSTRAINT_NAME, ii.TABLE_SCHEMA, ii.TABLE_NAME, ii.ORDINAL_POSITION";
+
+            using (var store = GetDocumentStore())
+            {
+                await store.Maintenance.SendAsync(new CreateSampleDataOperation());
+
+                var result = await Act(store, postgresQuery);
+
+                Assert.NotNull(result);
+
+                // Exactly one PRIMARY KEY row for Orders, on column id, at ordinal 1.
+                Assert.Single(result.Rows);
+                var row = (DataRow)result.Rows[0];
+
+                Assert.Equal("id", (string)row["column_name"]);
+                Assert.Equal(1, (int)row["ordinal_position"]);
+                // `case when CONSTRAINT_TYPE='PRIMARY KEY' then 'Y' else 'N'` returns the literal
+                // string 'Y' typed as `text` (PG oid 25). Real PostgreSQL infers the case-when
+                // result type the same way — PG's internal `"char"` (oid 18) is only produced by
+                // explicit `::char` casts. PowerBI's mashup engine refuses to decode binary-format
+                // `"char"` as text inside RetrieveKeysForTable, so this column MUST be text.
+                Assert.Equal("Y", (string)row["primary_key"]);
+                Assert.Contains("Orders", (string)row["index_name"], StringComparison.Ordinal);
+            }
+        }
+
         // Datetime-shaped strings in Raven documents must be reported as `timestamp without
         // time zone` (or `timestamp with time zone` for UTC) by information_schema.columns —
         // not as `text`. Without this, PowerBI's column-probe types datetime columns as text,
@@ -165,7 +215,11 @@ namespace EmbeddedTests.Server.Integrations.PostgreSQL
             const string firstField = "FirstName";
             const string secondField = "LastName";
             string query = $"from Employees select {firstField}, {secondField}";
-            const string idField = "id()";
+            // The PG endpoint exposes RavenDB's document identifier under the PG-idiomatic name
+            // `id` (not the RQL-side `id()` function form) so the column parses as a valid PG
+            // identifier — required by clients that re-use information_schema names to build
+            // further SQL (PowerBI's mashup engine being the canonical example).
+            const string idField = "id";
 
             using (var store = GetDocumentStore())
             {
@@ -452,7 +506,9 @@ select new
                     Assert.Contains("Company", columnNames);
                     Assert.Contains("Count", columnNames);
                     Assert.Contains("Total", columnNames);
-                    Assert.Contains(Constants.Documents.Querying.Fields.PowerBIJsonFieldName, columnNames);
+                    // PG-facing name for the metadata-blob column is `json` (not the RQL-side
+                    // `json()` referenced by Constants.Documents.Querying.Fields.PowerBIJsonFieldName).
+                    Assert.Contains("json", columnNames);
                 }
             }
         }

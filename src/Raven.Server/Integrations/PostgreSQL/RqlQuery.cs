@@ -121,13 +121,13 @@ namespace Raven.Server.Integrations.PostgreSQL
             var resultsFormat = GetDefaultResultsFormat();
 
             if (IncludeDocumentIdColumn && samples[0].Id != null)
-                Columns[Constants.Documents.Indexing.Fields.DocumentIdFieldName] = new PgColumn(Constants.Documents.Indexing.Fields.DocumentIdFieldName, (short)Columns.Count, PgText.Default, resultsFormat);
+                Columns[PgSyntheticColumns.DocumentId] = new PgColumn(PgSyntheticColumns.DocumentId, (short)Columns.Count, PgText.Default, resultsFormat);
 
             BlittableJsonReaderObject.PropertyDetails prop = default;
 
             // If there's a null value in a particular column of the record, don't write null type to the schema.
             // Instead, iterate over results trying to find a record with the value filled in this column.
-            // Keep 'unchecked type' columns names in the list below. 
+            // Keep 'unchecked type' columns names in the list below.
             var uncheckedTypePropertiesNames = samples[0].Data.GetPropertyNames().ToList();
 
             // Skip metadata() column, so it will be added later to json() column
@@ -205,13 +205,13 @@ namespace Raven.Server.Integrations.PostgreSQL
 
             if (IncludePowerBIJsonColumn)
             {
-                if (Columns.TryGetValue(Constants.Documents.Querying.Fields.PowerBIJsonFieldName, out var jsonColumn))
+                if (Columns.TryGetValue(PgSyntheticColumns.Json, out var jsonColumn))
                 {
                     jsonColumn.PgType = PgJson.Default;
                 }
                 else
                 {
-                    Columns[Constants.Documents.Querying.Fields.PowerBIJsonFieldName] = new PgColumn(Constants.Documents.Querying.Fields.PowerBIJsonFieldName, (short)Columns.Count, PgJson.Default, resultsFormat);
+                    Columns[PgSyntheticColumns.Json] = new PgColumn(PgSyntheticColumns.Json, (short)Columns.Count, PgJson.Default, resultsFormat);
                 }
             }
 
@@ -418,7 +418,7 @@ namespace Raven.Server.Integrations.PostgreSQL
             if (IncludeDocumentIdColumn == false)
                 return null;
 
-            return Columns.TryGetValue(Constants.Documents.Indexing.Fields.DocumentIdFieldName, out var col)
+            return Columns.TryGetValue(PgSyntheticColumns.DocumentId, out var col)
                 ? col.ColumnIndex
                 : null;
         }
@@ -428,7 +428,7 @@ namespace Raven.Server.Integrations.PostgreSQL
             if (IncludePowerBIJsonColumn == false)
                 return null;
 
-            return Columns.TryGetValue(Constants.Documents.Querying.Fields.PowerBIJsonFieldName, out var jsonCol)
+            return Columns.TryGetValue(PgSyntheticColumns.Json, out var jsonCol)
                 ? jsonCol.ColumnIndex
                 : null;
         }

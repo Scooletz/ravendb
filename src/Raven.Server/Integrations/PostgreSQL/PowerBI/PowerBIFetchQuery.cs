@@ -277,8 +277,10 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 if (string.IsNullOrEmpty(last))
                     continue;
 
-                if (string.Equals(last, "id()", StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(last, "json()", StringComparison.OrdinalIgnoreCase))
+                // Accept both the new PG-idiomatic forms (`id`, `json`) and the legacy
+                // parenthesised forms (`id()`, `json()`) that older PowerBI metadata caches
+                // still send. Either signals "this is the PowerBI fetch shape — keep synthetics".
+                if (PgSyntheticColumns.IsSyntheticColumn(last))
                     return true;
             }
 

@@ -963,7 +963,15 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
             if (c.Ival != null) return PgInt4.Default;
             if (c.Boolval != null) return PgBool.Default;
             if (c.Fval != null) return PgFloat8.Default;
-            if (c.Sval?.Sval is { Length: 1 }) return PgChar.Default;
+            // String literals — even single-character ones like 'Y' / 'N' — must be text.
+            // PgChar (oid 18) is PG's internal `"char"` type (single byte, used in
+            // pg_catalog rows like pg_type.typtype) and is only ever produced by an
+            // explicit ::char cast. Typing a `case when ... then 'Y' else 'N' end`
+            // result as PgChar breaks PowerBI's mashup engine inside RetrieveKeysForTable
+            // when it decodes the PRIMARY_KEY column of our PK metadata join — the binary
+            // single byte doesn't match its text-decoder contract and crashes with
+            // `Nullable object must have a value` during the PK lookup that drives
+            // SupportsPaging for every imported table.
             return PgText.Default;
         }
 

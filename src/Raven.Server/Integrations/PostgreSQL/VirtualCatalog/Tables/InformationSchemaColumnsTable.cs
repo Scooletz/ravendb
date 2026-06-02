@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using Raven.Client;
 using Raven.Server.Integrations.PostgreSQL.Messages;
 using Raven.Server.Integrations.PostgreSQL.Types;
 using Raven.Server.ServerWide.Context;
@@ -79,11 +78,15 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog.Tables
                 var dbName = ctx.Database.Name;
                 int ordinal = 1;
 
-                // 1) id() — RqlQuery prepends this as the document-identifier column (PgText).
+                // 1) id — RqlQuery prepends this as the document-identifier column (PgText).
+                // We report the PG-facing name (`id`, not `id()`) so the value parses as a bare
+                // PG identifier — required by clients (including PowerBI's mashup engine when
+                // building relationship metadata) that re-use information_schema column names
+                // to construct further SQL.
                 yield return new object[]
                 {
                     dbName, "public", collection,
-                    Constants.Documents.Indexing.Fields.DocumentIdFieldName,
+                    PgSyntheticColumns.DocumentId,
                     ordinal++, Yes, "text"
                 };
 
@@ -109,12 +112,12 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog.Tables
                     yield return new object[] { dbName, "public", collection, name, ordinal++, Yes, dataType };
                 }
 
-                // 3) json() — RqlQuery appends this as the metadata blob column (PgJson). Always
-                //    last in RowDescription, so it goes last here too.
+                // 3) json — RqlQuery appends this as the metadata blob column (PgJson). Always
+                //    last in RowDescription, so it goes last here too. PG-facing name as above.
                 yield return new object[]
                 {
                     dbName, "public", collection,
-                    Constants.Documents.Querying.Fields.PowerBIJsonFieldName,
+                    PgSyntheticColumns.Json,
                     ordinal++, Yes, "json"
                 };
             }

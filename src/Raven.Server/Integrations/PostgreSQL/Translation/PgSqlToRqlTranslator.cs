@@ -654,10 +654,14 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
                 if (string.IsNullOrWhiteSpace(fieldName))
                     throw new NotSupportedException("Unsupported column reference in SELECT projection");
 
-                if (string.Equals(fieldName, "json()", StringComparison.OrdinalIgnoreCase))
+                // Synthetic columns: `json` (or legacy `json()`) is metadata-blob, emitted by
+                // the RQL row writer separately so we drop it from the projection. `id` (or
+                // legacy `id()`) maps to RQL's id() function call regardless of which surface
+                // name the client used.
+                if (PgSyntheticColumns.IsJsonColumn(fieldName))
                     return null;
 
-                if (string.Equals(fieldName, "id()", StringComparison.OrdinalIgnoreCase))
+                if (PgSyntheticColumns.IsDocumentIdColumn(fieldName))
                     return "id()";
 
                 return fieldName;
