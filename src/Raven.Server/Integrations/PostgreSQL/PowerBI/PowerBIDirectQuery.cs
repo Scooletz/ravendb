@@ -274,7 +274,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
         // and CoalesceExpr.Args to recognize the alias underneath — otherwise the IntermediateWhere
         // gets translated against the inner query, RavenDB rejects the resulting RQL, and the
         // whole query falls through to "Unhandled query".
-        private static bool WhereClauseReferencesAnyColumn(Node node, HashSet<string> columnNames)
+        internal static bool WhereClauseReferencesAnyColumn(Node node, HashSet<string> columnNames)
         {
             if (node == null || columnNames is not { Count: > 0 })
                 return false;

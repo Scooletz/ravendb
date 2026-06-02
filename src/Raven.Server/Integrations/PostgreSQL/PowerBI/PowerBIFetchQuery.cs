@@ -57,6 +57,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
 
                 Dictionary<string, ReplaceColumnValue> allReplaces = null;
                 List<Dictionary<string, ReplaceColumnValue>> wrapperReplaces = null;
+                List<(Node WhereClause, string WrapperAlias)> deferredWheres = null;
 
                 var currentSelect = selectStmt;
                 var isOuterMost = true;
@@ -80,14 +81,18 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                         wrapperReplaces.Add(levelReplaces);
                     }
 
+                    // Defer WHERE application until after we've walked to the innermost SELECT
+                    // and collected its aggregate-output aliases. PowerBI commonly emits an
+                    // outer `where not "_"."a0" is null` guard on top of an inner
+                    // `select Freight, sum(Freight) as "a0" ... group by Freight` — translating
+                    // that WHERE against the inner query produces invalid RQL (`a0` isn't a
+                    // field of Orders) and the engine throws mid-response with
+                    // `Exception while reading from stream`. We need the alias set first to
+                    // know which WHEREs to drop, but we can only see it after the walk.
                     if (currentSelect.WhereClause != null)
                     {
-                        if (PowerBIOuterWhereTranslator.TryTranslateWhere(currentSelect.WhereClause, wrapperAlias, query.From.Alias, out var whereExpression) == false)
-                            return false;
-
-                        query.Where = query.Where == null
-                            ? whereExpression
-                            : new BinaryExpression(query.Where, whereExpression, OperatorType.And);
+                        deferredWheres ??= new List<(Node, string)>();
+                        deferredWheres.Add((currentSelect.WhereClause, wrapperAlias));
                     }
 
                     if (nextSelect == null)
@@ -104,6 +109,32 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                         allReplaces ??= new Dictionary<string, ReplaceColumnValue>(StringComparer.OrdinalIgnoreCase);
                         foreach (var kvp in wrapperReplaces[i])
                             allReplaces[kvp.Key] = kvp.Value;
+                    }
+                }
+
+                // `currentSelect` is the SANITIZED innermost — PowerBIInnerRqlExtractor replaces
+                // the real inner text with `select 1` so pgsqlparser can parse the outer wrapper
+                // structure (the real inner is often RQL or shapes pgsqlparser can't handle).
+                // So we can't get aggregate aliases from currentSelect.TargetList — it just has
+                // `select 1`. Re-parse the raw inner text instead. If the inner is SQL, this
+                // surfaces its aggregate-output aliases; if the inner is RQL, parsing fails and
+                // we return an empty set (RQL doesn't preserve SQL aliases anyway, so there's
+                // nothing for the outer WHERE to reference by alias).
+                var aggregateOutputAliases = CollectAggregateAliasesFromInnerSql(inner.InnerText);
+
+                if (deferredWheres != null)
+                {
+                    foreach (var (whereClause, wrapperAlias) in deferredWheres)
+                    {
+                        if (PowerBIDirectQuery.WhereClauseReferencesAnyColumn(whereClause, aggregateOutputAliases))
+                            continue;
+
+                        if (PowerBIOuterWhereTranslator.TryTranslateWhere(whereClause, wrapperAlias, query.From.Alias, out var whereExpression) == false)
+                            return false;
+
+                        query.Where = query.Where == null
+                            ? whereExpression
+                            : new BinaryExpression(query.Where, whereExpression, OperatorType.And);
                     }
                 }
 
@@ -155,6 +186,54 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 nextSelect = rss.Subquery?.SelectStmt;
                 return true;
             }
+        }
+
+        // Parses the raw inner text as SQL and collects aggregate-output aliases — projections
+        // of the form `<aggregate-func>(<args>) AS <alias>`. Outer wrapper levels often
+        // reference these aliases in their WHERE clauses (PowerBI's standard post-aggregation
+        // null guard, e.g. `where not "_"."a0" is null`); those WHEREs must be dropped because
+        // the RQL we emit already encodes the aggregation — the alias doesn't survive as a
+        // field of the underlying collection, and trying to translate the WHERE against the
+        // RQL produces an invalid `WHERE a0 != null` that explodes mid-response with
+        // `Exception while reading from stream`.
+        //
+        // If the inner text isn't parseable as SQL (e.g. it's RQL embedded inside the wrapper),
+        // returns an empty set — RQL doesn't carry SQL aliases anyway, so the outer WHERE
+        // wouldn't be referencing them by alias.
+        private static HashSet<string> CollectAggregateAliasesFromInnerSql(string innerText)
+        {
+            var aliases = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            if (string.IsNullOrWhiteSpace(innerText))
+                return aliases;
+
+            try
+            {
+                var parseResult = Parser.Parse(innerText);
+                if (parseResult.IsSuccess == false || parseResult.Value?.Stmts is not { Count: 1 })
+                    return aliases;
+
+                var innerSelect = parseResult.Value.Stmts[0]?.Stmt?.SelectStmt;
+                if (innerSelect?.TargetList == null)
+                    return aliases;
+
+                foreach (var t in innerSelect.TargetList)
+                {
+                    var resTarget = t?.ResTarget;
+                    if (resTarget?.Val?.FuncCall == null)
+                        continue;
+                    if (string.IsNullOrWhiteSpace(resTarget.Name))
+                        continue;
+                    aliases.Add(resTarget.Name);
+                }
+            }
+            catch
+            {
+                // Inner text isn't SQL (probably RQL or some malformed shape) — leave the
+                // alias set empty. Outer WHEREs that reference aggregate aliases via this
+                // path won't occur because the alias structure only exists in SQL.
+            }
+
+            return aliases;
         }
 
         // Scans the outermost SELECT's TargetList for `<literal> as <alias>` projections —
