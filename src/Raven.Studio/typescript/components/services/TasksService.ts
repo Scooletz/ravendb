@@ -42,7 +42,6 @@ import getEtlStatsCommand from "commands/database/tasks/getEtlStatsCommand";
 import deleteEtlErrorsCommand from "commands/database/tasks/deleteEtlErrorsCommand";
 import retryBatchEtlCommand from "commands/database/tasks/retryBatchEtlCommand";
 import testCdcSinkCommand from "commands/database/tasks/testCdcSinkCommand";
-import verifyCdcSinkCommand from "commands/database/tasks/verifyCdcSinkCommand";
 import saveCdcSinkTaskCommand from "commands/database/tasks/saveCdcSinkTaskCommand";
 import getCdcSinkTaskSchemaCommand from "commands/database/tasks/getCdcSinkTaskSchemaCommand";
 
@@ -243,10 +242,6 @@ export default class TasksService {
 
     async testCdcSink(...args: ConstructorParameters<typeof testCdcSinkCommand>) {
         return new testCdcSinkCommand(...args).execute();
-    }
-
-    async verifyCdcSink(...args: ConstructorParameters<typeof verifyCdcSinkCommand>) {
-        return new verifyCdcSinkCommand(...args).execute();
     }
 
     async saveCdcSinkTask(...args: ConstructorParameters<typeof saveCdcSinkTaskCommand>) {
