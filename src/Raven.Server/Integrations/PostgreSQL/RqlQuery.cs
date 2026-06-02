@@ -136,7 +136,27 @@ namespace Raven.Server.Integrations.PostgreSQL
             // Fulfill the 'Columns' to prevent losing the order later.
             // Assign them null type (PgJson.Default) at the start.
             foreach (var property in uncheckedTypePropertiesNames.ToArray())
+            {
+                // RQL projects the document identifier as a property literally named `id()`
+                // (the RQL function-call form). When IncludeDocumentIdColumn is true the
+                // synthetic `id` column has already been prepended above; adding `id()`
+                // as a SECOND column would create a 12-vs-11 mismatch against
+                // information_schema.columns (which reports only `id`) and crash PowerBI's
+                // mashup engine inside RetrieveKeysForTable with
+                // `Nullable object must have a value` when it tries to reconcile the two
+                // schemas during PK lookup. Skip the duplicate; synthetic prepend covers it.
+                // (The matching `json()` case is handled upstream — the SQL→RQL translator
+                // already drops json/json() from the projection so RQL never returns a
+                // json() property in the first place.)
+                if (PgSyntheticColumns.IsDocumentIdColumn(property)
+                    && Columns.ContainsKey(PgSyntheticColumns.DocumentId))
+                {
+                    uncheckedTypePropertiesNames.Remove(property);
+                    continue;
+                }
+
                 Columns.TryAdd(property, new PgColumn(property, (short)Columns.Count, PgJson.Default, resultsFormat));
+            }
 
             // Go through results - we'll try to find all properties types.
             for (int sampleIndex = 0; sampleIndex < samples.Count && sampleIndex < 1000; sampleIndex++)
