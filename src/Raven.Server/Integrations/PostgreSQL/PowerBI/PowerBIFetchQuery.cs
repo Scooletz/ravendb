@@ -1,7 +1,10 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using PgSqlParser;
+using Sparrow;
 using Raven.Server.Integrations.PostgreSQL.Translation;
+using Raven.Server.Integrations.PostgreSQL.Types;
 using Raven.Server.Documents;
 using Raven.Server.Documents.Queries.AST;
 using Raven.Server.Logging;
@@ -104,9 +107,21 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                     }
                 }
 
+                // PowerBI's row-preview / drill-down queries often decorate the outermost SELECT
+                // with constant markers like `1 as "c0"` so the client can count back a known
+                // fixed shape. The inner RQL we resolved above never sees those — they live in
+                // the outermost wrapper's projection list — so the engine returns one column
+                // fewer than PowerBI expects (`Field count mismatch when mapping column types.
+                // N vs N-1`). Collect them here and pass to PowerBIRqlQuery; it appends them as
+                // synthetic columns AFTER the json synthetic-append (so the wire-order matches
+                // PowerBI's SQL: id, user cols, json, c0) and types them per PG's literal
+                // inference rules (e.g. unadorned `1` is int4, not int8 — sending int8 trips
+                // PowerBI's OLE DB provider with DISP_E_TYPEMISMATCH).
+                var constProjections = TryCollectOuterConstProjections(selectStmt);
+
                 var newRql = query.ToString();
 
-                pgQuery = new PowerBIRqlQuery(newRql, parametersDataTypes, documentDatabase, allReplaces, limit: limit);
+                pgQuery = new PowerBIRqlQuery(newRql, parametersDataTypes, documentDatabase, allReplaces, limit: limit, constProjections: constProjections);
                 return true;
             }
             catch (Exception e)
@@ -140,6 +155,87 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 nextSelect = rss.Subquery?.SelectStmt;
                 return true;
             }
+        }
+
+        // Scans the outermost SELECT's TargetList for `<literal> as <alias>` projections —
+        // typically `1 as "c0"` from PowerBI's row-preview shape — and packages them as
+        // ConstProjection descriptors. PowerBIRqlQuery applies them as synthetic columns
+        // appended AFTER the auto-included json column (matching PowerBI's expected wire
+        // order: id, user cols, json, c0) and uses the PG-idiomatic type for each literal
+        // (e.g. unadorned `1` is int4, not int8 — PowerBI's OLE DB provider expects int4
+        // from parsing its own SQL and rejects int8 with DISP_E_TYPEMISMATCH).
+        private static List<ConstProjection> TryCollectOuterConstProjections(SelectStmt outermost)
+        {
+            var targets = outermost?.TargetList;
+            if (targets == null || targets.Count == 0)
+                return null;
+
+            List<ConstProjection> constProjections = null;
+
+            foreach (var t in targets)
+            {
+                var resTarget = t?.ResTarget;
+                var aConst = resTarget?.Val?.AConst;
+                if (aConst == null)
+                    continue;
+
+                if (TryBuildConstProjection(aConst, resTarget.Name, out var cp) == false)
+                    continue;
+
+                constProjections ??= new List<ConstProjection>();
+                constProjections.Add(cp);
+            }
+
+            return constProjections;
+        }
+
+        // Maps the three concrete AConst kinds plus Boolval and SQL NULL to typed wire values.
+        // Integer literals are int4 — that's PG's default inference for an unadorned `1` token
+        // and what PowerBI's OLE DB type-mapping expects. Float literals are float8 (numeric
+        // promotion at parse time is rare for what PowerBI emits). Strings are text. Booleans
+        // are bool. All-null components emit a NULL value in the synthetic column.
+        private static bool TryBuildConstProjection(A_Const c, string alias, out ConstProjection projection)
+        {
+            projection = null;
+            if (c == null || string.IsNullOrWhiteSpace(alias))
+                return false;
+
+            if (c.Ival != null)
+            {
+                // PG types `1` as int4 — narrow long to int. Out-of-range silently wraps,
+                // which is fine for PowerBI's row-preview markers (always small positive ints).
+                projection = new ConstProjection(alias, PgInt4.Default, (int)c.Ival.Ival);
+                return true;
+            }
+
+            if (c.Fval != null && string.IsNullOrEmpty(c.Fval.Fval) == false &&
+                double.TryParse(c.Fval.Fval, NumberStyles.Float, CultureInfo.InvariantCulture, out var dv))
+            {
+                projection = new ConstProjection(alias, PgFloat8.Default, dv);
+                return true;
+            }
+
+            if (c.Sval != null && c.Sval.Sval != null)
+            {
+                projection = new ConstProjection(alias, PgText.Default, c.Sval.Sval);
+                return true;
+            }
+
+            if (c.Boolval != null)
+            {
+                projection = new ConstProjection(alias, PgBool.Default, c.Boolval.Boolval);
+                return true;
+            }
+
+            // All-null components → SQL NULL. The synthetic column will encode as wire NULL
+            // (no bytes, length prefix = -1) regardless of declared type.
+            if (c.Ival == null && c.Fval == null && c.Sval == null && c.Boolval == null)
+            {
+                projection = new ConstProjection(alias, PgText.Default, null);
+                return true;
+            }
+
+            return false;
         }
 
         private static bool TryExtractPowerBiReplaceColumns(SelectStmt selectStmt, string outerAlias, out Dictionary<string, ReplaceColumnValue> replaces)

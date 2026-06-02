@@ -11,15 +11,34 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
     public class PowerBIRqlQuery : RqlQuery
     {
         private readonly Dictionary<string, ReplaceColumnValue> _replaces;
+        private readonly IReadOnlyList<ConstProjection> _constProjections;
 
-        public PowerBIRqlQuery(string queryString, int[] parametersDataTypes, DocumentDatabase documentDatabase, Dictionary<string, ReplaceColumnValue> replaces = null, int? limit = null) : base(queryString, parametersDataTypes, documentDatabase, limit)
+        public PowerBIRqlQuery(string queryString, int[] parametersDataTypes, DocumentDatabase documentDatabase, Dictionary<string, ReplaceColumnValue> replaces = null, int? limit = null, IReadOnlyList<ConstProjection> constProjections = null) : base(queryString, parametersDataTypes, documentDatabase, limit)
         {
             _replaces = replaces;
+            _constProjections = constProjections is { Count: > 0 } ? constProjections : null;
         }
 
         protected override async Task<ICollection<PgColumn>> GenerateSchema()
         {
             await base.GenerateSchema();
+
+            // Add synthetic columns for the outer-wrapper constant projections AFTER base's
+            // own appends (the json synthetic is the last one base adds). PowerBI's SQL puts
+            // them after json in its projection list, so wire-order must match — getting it
+            // wrong manifests client-side as either DISP_E_TYPEMISMATCH (column N's expected
+            // .NET type doesn't match the value type) or silent data corruption.
+            if (_constProjections != null)
+            {
+                foreach (var cp in _constProjections)
+                {
+                    if (string.IsNullOrWhiteSpace(cp.ColumnName))
+                        continue;
+                    if (Columns.ContainsKey(cp.ColumnName))
+                        continue;
+                    Columns[cp.ColumnName] = new PgColumn(cp.ColumnName, (short)Columns.Count, cp.PgType, GetDefaultResultsFormat());
+                }
+            }
 
             if (_replaces == null)
                 return Columns.Values;
@@ -62,9 +81,29 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             return Columns.Values;
         }
 
+        protected override void AfterRow(BlittableJsonReaderObject jsonResult, ReadOnlyMemory<byte>?[] row, short? jsonIndex)
+        {
+            base.AfterRow(jsonResult, row, jsonIndex);
+
+            // Write the literal value into each outer-wrapper constant column for every row.
+            // Encoded per-row at the column's PgType and format code; a null Value is left as
+            // the array's default null slot, which the protocol writer emits as wire NULL.
+            if (_constProjections == null)
+                return;
+
+            foreach (var cp in _constProjections)
+            {
+                if (cp.Value == null)
+                    continue;
+                if (Columns.TryGetValue(cp.ColumnName, out var col) == false)
+                    continue;
+                row[col.ColumnIndex] = cp.PgType.ToBytes(cp.Value, col.FormatCode);
+            }
+        }
+
         protected override void HandleSpecialColumnsIfNeeded(string columnName, BlittableJsonReaderObject.PropertyDetails property, object value, ref ReadOnlyMemory<byte>?[] row)
         {
-            if (_replaces == null) 
+            if (_replaces == null)
                 return;
 
             if (_replaces.TryGetValue(columnName, out var replace))
