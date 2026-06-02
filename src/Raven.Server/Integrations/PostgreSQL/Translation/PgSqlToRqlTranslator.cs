@@ -7,6 +7,7 @@ using System.Text;
 using Newtonsoft.Json.Linq;
 using PgSqlParser;
 using Raven.Client;
+using Raven.Client.Documents.Queries;
 using Raven.Client.Documents.Session;
 using Raven.Server.Documents;
 using Raven.Server.Logging;
@@ -590,14 +591,18 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
                 return;
             }
 
-            var projectionFields = BuildColumnProjections(targets, fromAlias);
+            var (projectionFields, projectionAliases) = BuildColumnProjections(targets, fromAlias);
             if (isDistinct && projectionFields.Length != 1)
                 throw new NotSupportedException(UnsupportedDistinctMessage);
 
             if (projectionFields.Length == 0)
                 return;
 
-            q.SelectFields<JObject>(projectionFields);
+            // QueryData with distinct Fields vs Projections lets us emit `<expr> as <alias>` in
+            // RQL when they differ — required to preserve PowerBI's SQL aliases on constant
+            // projections like `1 as "c0"`. When the SQL alias matches the field expression
+            // (the common case for column references), FieldsToFetchToken skips the `as` clause.
+            q.SelectFields<JObject>(new QueryData(projectionFields, projectionAliases) { IsProjectInto = true });
             if (isDistinct)
                 q.Distinct();
         }
@@ -626,13 +631,21 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
             return target.ResTarget?.Val?.FuncCall != null;
         }
 
-        private static string[] BuildColumnProjections(IReadOnlyList<Node> targetList, string fromAlias)
+        // Returns parallel arrays: projectionFields are the RQL expressions, projectionAliases
+        // are the SQL `AS <alias>` names (defaulting to the field expression itself when the
+        // SQL projection had no explicit alias). QueryData.Fields/Projections renders
+        // `<field> as <alias>` when the two differ — which is the only way to preserve
+        // PowerBI's aliases for constant projections like `1 as "c0"` (their row-preview
+        // queries emit those and would otherwise produce a column-count mismatch).
+        private static (string[] Fields, string[] Aliases) BuildColumnProjections(IReadOnlyList<Node> targetList, string fromAlias)
         {
             var projectionFields = new List<string>(capacity: targetList.Count);
+            var projectionAliases = new List<string>(capacity: targetList.Count);
 
             foreach (var t in targetList)
             {
-                var val = t.ResTarget?.Val;
+                var resTarget = t.ResTarget;
+                var val = resTarget?.Val;
                 if (val == null)
                     throw new NotSupportedException(UnsupportedSelectProjectionMessage);
 
@@ -641,9 +654,15 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
                     continue; // e.g. PowerBI pseudo-column json()
 
                 projectionFields.Add(fieldName);
+
+                // Use the SQL `AS <alias>` when explicit; otherwise the field expression itself
+                // doubles as the alias (matches existing single-arg SelectFields semantics where
+                // Fields[i] == Projections[i] and FieldsToFetchToken skips the `as` clause).
+                var alias = resTarget.Name;
+                projectionAliases.Add(string.IsNullOrWhiteSpace(alias) ? fieldName : alias);
             }
 
-            return projectionFields.ToArray();
+            return (projectionFields.ToArray(), projectionAliases.ToArray());
         }
 
         private static string TranslateSelectTargetValue(Node val, string fromAlias)
@@ -667,7 +686,65 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
                 return fieldName;
             }
 
+            // PowerBI's row-preview queries decorate their projection list with constant
+            // markers (e.g. `1 as "c0"`) so the client can count back a known fixed shape.
+            // Without literal handling here the translator would throw NotSupported and the
+            // whole query would fall through to a code path that strips the constant
+            // (losing the column entirely), and PowerBI then reports
+            // `Field count mismatch when mapping column types. 12 vs 11`.
+            if (val.AConst != null)
+            {
+                if (TryRenderRqlLiteral(val.AConst, out var literal))
+                    return literal;
+            }
+
             throw new NotSupportedException(UnsupportedSelectProjectionMessage);
+        }
+
+        // Renders the three concrete AConst kinds — Ival (integer), Fval (float), Sval
+        // (string) — plus the all-null case (SQL NULL literal). Returns false for shapes the
+        // RQL select clause can't accept verbatim, letting the caller fall through to the
+        // unsupported-projection error. Strings are rendered with single-quote RQL syntax
+        // and inner single quotes doubled (RQL's escape convention), matching how the WHERE
+        // translator emits its literals.
+        private static bool TryRenderRqlLiteral(A_Const c, out string rendered)
+        {
+            rendered = null;
+            if (c == null)
+                return false;
+
+            if (c.Ival != null)
+            {
+                rendered = c.Ival.Ival.ToString(CultureInfo.InvariantCulture);
+                return true;
+            }
+
+            if (c.Fval != null && string.IsNullOrEmpty(c.Fval.Fval) == false)
+            {
+                rendered = c.Fval.Fval;
+                return true;
+            }
+
+            if (c.Sval != null && c.Sval.Sval != null)
+            {
+                rendered = "'" + c.Sval.Sval.Replace("'", "''") + "'";
+                return true;
+            }
+
+            if (c.Boolval != null)
+            {
+                rendered = c.Boolval.Boolval ? "true" : "false";
+                return true;
+            }
+
+            // All null components → SQL NULL.
+            if (c.Ival == null && c.Fval == null && c.Sval == null && c.Boolval == null)
+            {
+                rendered = "null";
+                return true;
+            }
+
+            return false;
         }
 
         private static string[] BuildAggregateProjections(IReadOnlyList<Node> targetList)

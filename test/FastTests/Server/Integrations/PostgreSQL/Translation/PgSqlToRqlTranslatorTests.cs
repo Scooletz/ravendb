@@ -212,11 +212,16 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
 
         // Complex (10)
 
+        // The PG endpoint exposes the document identifier as `id` (the PG-idiomatic surface
+        // name — see PgSyntheticColumns); under the hood it's still RQL's `id()` function.
+        // The translator maps both `id` and `id()` references in user SQL to `id()` in RQL
+        // so the engine reads the document identifier instead of looking for a stored field
+        // literally called `id`.
         [RavenFact(RavenTestCategory.PostgreSql)]
         public void Complex_21_SelectColumns()
         {
             var sql = "SELECT id, name FROM users";
-            var expected = "from 'users' select id, name";
+            var expected = "from 'users' select id(), name";
 
             Assert.Equal(expected, Translate(sql));
         }
@@ -225,7 +230,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
         public void Complex_22_SelectColumnsWithWhere()
         {
             var sql = "SELECT id, status, shipTo.city FROM orders WHERE amount > 10";
-            var expected = "from 'orders' where amount > 10 select id, status, shipto.city";
+            var expected = "from 'orders' where amount > 10 select id(), status, shipto.city";
 
             Assert.Equal(expected, Translate(sql));
         }
@@ -235,6 +240,62 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
         {
             var sql = "SELECT COUNT(*) FROM orders";
             var expected = "from 'orders' select count()";
+
+            Assert.Equal(expected, Translate(sql));
+        }
+
+        // PowerBI's row-preview / drill-down queries decorate their projection list with
+        // constant markers (e.g. `1 as "c0"`) so the client can count back a fixed shape.
+        // The translator has to forward the literal — silently dropping the column produces
+        // a `Field count mismatch when mapping column types. N vs N-1` error PowerBI-side.
+        // The SQL alias must survive too so PowerBI's column-name lookup succeeds.
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void ConstLiteral_IntegerProjection_WithAlias_PreservesLiteralAndAlias()
+        {
+            var sql = "SELECT name, 1 AS \"c0\" FROM users";
+            var expected = "from 'users' select name, 1 as c0";
+
+            Assert.Equal(expected, Translate(sql));
+        }
+
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void ConstLiteral_StringProjection_WithAlias_QuotesValueAndPreservesAlias()
+        {
+            var sql = "SELECT name, 'literal' AS \"marker\" FROM users";
+            var expected = "from 'users' select name, 'literal' as marker";
+
+            Assert.Equal(expected, Translate(sql));
+        }
+
+        // Single-quote inside a string literal must double up — RQL uses the same escape
+        // convention as SQL standards (and PG itself). Without this, e.g.
+        // `'O''Brien' as note` would break RQL parsing of the projection.
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void ConstLiteral_StringWithSingleQuote_EscapesByDoubling()
+        {
+            var sql = "SELECT name, 'O''Brien' AS \"note\" FROM users";
+            var expected = "from 'users' select name, 'O''Brien' as note";
+
+            Assert.Equal(expected, Translate(sql));
+        }
+
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void ConstLiteral_BooleanProjection_PreservesAsRqlBoolean()
+        {
+            var sql = "SELECT name, true AS \"flag\" FROM users";
+            var expected = "from 'users' select name, true as flag";
+
+            Assert.Equal(expected, Translate(sql));
+        }
+
+        // A literal without an explicit AS alias falls through to the field expression itself,
+        // matching the existing single-arg SelectFields semantics. RQL accepts `select 1`
+        // (auto-naming the column in the result).
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void ConstLiteral_IntegerProjection_WithoutAlias_OmitsAsClause()
+        {
+            var sql = "SELECT name, 1 FROM users";
+            var expected = "from 'users' select name, 1";
 
             Assert.Equal(expected, Translate(sql));
         }
