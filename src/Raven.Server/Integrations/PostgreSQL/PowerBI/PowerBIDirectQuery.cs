@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Text;
 using PgSqlParser;
 using Raven.Server.Documents;
@@ -466,19 +467,20 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             if (q == null)
                 return null;
 
-            if (q.From.Alias == null)
-                q.From.Alias = "_doc";
-
             if (projectionCols == null || projectionCols.Count == 0)
                 return null;
 
-            // Preserve the inner object projection when its keys match the outer columns —
-            // rebuilding would drop computed expressions (declare-function calls, concats).
-            var mode = InnerProjectionMode.Rebuild;
-            List<string> extras = null;
-            if (TryGetSelectFunctionBodyObjectKeys(q.SelectFunctionBody.FunctionText, out var innerKeys))
-                mode = ClassifyInnerProjection(projectionCols, innerKeys, out extras);
-
+            // Direct-query shape always carries a GROUP BY (TryBuildDirectQueryShape requires it).
+            // PowerBI's outer wrapper wraps the inner query with `GROUP BY <projected cols>` to ask
+            // for tuple-distinct values — the same shape we handle for flat SQL via #25's
+            // PgSqlToRqlTranslator path. We mirror that here: emit `from Coll group by <cols>
+            // select <cols>` so the result is one row per distinct tuple.
+            //
+            // Function-style object projection (the prior implementation) silently dropped the
+            // GROUP BY because RQL's `select { ... }` form is per-document, not per-group — so the
+            // engine returned every Orders row instead of distinct values. PowerBI's chart engine
+            // then crashed in SubstituteWithIndex because its chart-bucket index found multiple
+            // raw rows mapping to a single logical category.
             var core = q.ShallowCopy();
             core.IsDistinct = false;
             core.Filter = null;
@@ -486,33 +488,110 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             core.OrderBy = null;
             core.CachedOrderBy = null;
             core.Offset = null;
-            core.Select = null; // we always emit via SelectFunctionBody for object projections.
+            core.SelectFunctionBody = (null, null, null);
 
-            switch (mode)
+            if (core.From.Alias == null)
+                core.From.Alias = "_doc";
+            var aliasText = core.From.Alias?.Value;
+
+            // RQL constraint: WHERE clauses on grouped queries can only reference fields that are
+            // GROUP BY keys (DynamicQueryMapping.Create throws `Field 'X' is neither an aggregation
+            // operation nor part of the group by key` otherwise). PowerBI happily generates
+            // `WHERE Company = 'X' GROUP BY Freight` — pre-grouping filter semantics — which
+            // violates that rule.
+            //
+            // Workaround: collect every field name referenced by WHERE and add it to GROUP BY
+            // (without adding it to SELECT, so the RowDescription matches PowerBI's expectation).
+            // For a typical chart filter like `Company = 'CompanyA'` this just produces grouping
+            // tuples `(Freight, 'CompanyA')` — collapsed back to distinct Freight values when
+            // projected. For multi-value filters (`OR`, `IN`, ranges) the projected Freight set
+            // may contain duplicates across the matching Company values, which PowerBI's local
+            // chart aggregation will dedupe anyway.
+            var groupByCols = new List<string>(projectionCols);
+            if (core.Where != null)
             {
-                case InnerProjectionMode.Rebuild:
-                    if (TryBuildObjectProjectionBody(projectionCols, q.From.Alias?.Value, out var newBody) == false)
-                        return null;
-                    core.SelectFunctionBody = (newBody, null, null);
-                    break;
-
-                case InnerProjectionMode.PreserveExact:
-                    // Leave core.SelectFunctionBody as shallow-copied from q.
-                    break;
-
-                case InnerProjectionMode.PreserveWithExtras:
-                    var aliasText = q.From.Alias?.Value ?? "_doc";
-                    if (TryExtendInnerProjectionBody(q.SelectFunctionBody.FunctionText, extras, aliasText, out var extendedBody) == false)
-                        return null;
-                    core.SelectFunctionBody = (extendedBody, null, null);
-                    break;
+                var whereFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                CollectFieldNames(core.Where, whereFields, aliasText);
+                foreach (var f in whereFields)
+                {
+                    if (groupByCols.Contains(f, StringComparer.OrdinalIgnoreCase))
+                        continue;
+                    groupByCols.Add(f);
+                }
             }
+
+            var groupBy = new List<(QueryExpression Expression, StringSegment? Alias)>(groupByCols.Count);
+            foreach (var col in groupByCols)
+            {
+                if (string.IsNullOrWhiteSpace(col))
+                    return null;
+                groupBy.Add((BuildFieldExpression(col), null));
+            }
+
+            var select = new List<(QueryExpression Expression, StringSegment? Alias)>(projectionCols.Count);
+            foreach (var col in projectionCols)
+            {
+                if (string.IsNullOrWhiteSpace(col))
+                    return null;
+                select.Add((BuildFieldExpression(col), null));
+            }
+
+            core.GroupBy = groupBy;
+            core.Select = select;
 
             if (limit >= 0)
                 core.Limit = new ValueExpression(limit.ToString(CultureInfo.InvariantCulture), ValueTokenType.Long);
 
             var rql = core.ToString();
             return string.IsNullOrWhiteSpace(rql) ? null : rql;
+        }
+
+        private static FieldExpression BuildFieldExpression(string fieldName)
+        {
+            return new FieldExpression(new List<StringSegment> { new StringSegment(fieldName) });
+        }
+
+        // Walk a WHERE-style QueryExpression tree and collect every bare field name it references,
+        // stripping the from-clause alias prefix when present. Used to amend GROUP BY for filtered
+        // tuple-distinct queries (see comment in RewriteSimpleDirectQueryRql).
+        private static void CollectFieldNames(QueryExpression expr, HashSet<string> fields, string aliasToStrip)
+        {
+            switch (expr)
+            {
+                case null:
+                    return;
+                case FieldExpression fe:
+                    if (fe.Compound == null || fe.Compound.Count == 0)
+                        return;
+                    var startIdx = 0;
+                    if (aliasToStrip != null && fe.Compound.Count > 1 &&
+                        string.Equals(fe.Compound[0].Value, aliasToStrip, StringComparison.OrdinalIgnoreCase))
+                        startIdx = 1;
+                    if (startIdx < fe.Compound.Count)
+                        fields.Add(fe.Compound[startIdx].Value);
+                    return;
+                case BinaryExpression be:
+                    CollectFieldNames(be.Left, fields, aliasToStrip);
+                    CollectFieldNames(be.Right, fields, aliasToStrip);
+                    return;
+                case NegatedExpression ne:
+                    CollectFieldNames(ne.Expression, fields, aliasToStrip);
+                    return;
+                case BetweenExpression bet:
+                    CollectFieldNames(bet.Source, fields, aliasToStrip);
+                    return;
+                case InExpression ie:
+                    CollectFieldNames(ie.Source, fields, aliasToStrip);
+                    return;
+                case MethodExpression me:
+                    if (me.Arguments != null)
+                    {
+                        foreach (var arg in me.Arguments)
+                            CollectFieldNames(arg, fields, aliasToStrip);
+                    }
+                    return;
+                // ValueExpression literals contribute no field references.
+            }
         }
 
         // Builds the body of a `select { … }` object projection. Returns false when any column
@@ -528,15 +607,19 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 if (string.IsNullOrWhiteSpace(colName))
                     return false;
 
-                if (string.Equals(colName, "json()", StringComparison.OrdinalIgnoreCase))
+                // Synthetic columns are emitted as their RQL function calls (id(alias) / alias
+                // itself for json), but the projection key preserves whatever the user wrote —
+                // legacy `id()` / `json()` from cached PowerBI metadata or the new PG-idiomatic
+                // `id` / `json` — so the resulting column name matches the client's request.
+                if (PgSyntheticColumns.IsJsonColumn(colName))
                 {
-                    selectParts.Add($"\"json()\": {fromAlias}");
+                    selectParts.Add($"\"{colName}\": {fromAlias}");
                     continue;
                 }
 
-                if (string.Equals(colName, "id()", StringComparison.OrdinalIgnoreCase))
+                if (PgSyntheticColumns.IsDocumentIdColumn(colName))
                 {
-                    selectParts.Add($"\"id()\": id({fromAlias})");
+                    selectParts.Add($"\"{colName}\": id({fromAlias})");
                     continue;
                 }
 
@@ -581,8 +664,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 if (string.IsNullOrWhiteSpace(c))
                     return InnerProjectionMode.Rebuild;
 
-                if (string.Equals(c, "id()", StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(c, "json()", StringComparison.OrdinalIgnoreCase))
+                if (PgSyntheticColumns.IsSyntheticColumn(c))
                 {
                     if (seenExtras.Add(c) == false)
                         return InnerProjectionMode.Rebuild;
@@ -635,13 +717,15 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             foreach (var extra in extras)
             {
                 sb.Append(", ");
-                if (string.Equals(extra, "id()", StringComparison.OrdinalIgnoreCase))
+                // Preserve whatever name the client asked for (`id` / `json` or legacy
+                // `id()` / `json()`) as the projection key.
+                if (PgSyntheticColumns.IsDocumentIdColumn(extra))
                 {
-                    sb.Append("\"id()\": id(").Append(aliasText).Append(')');
+                    sb.Append('"').Append(extra).Append("\": id(").Append(aliasText).Append(')');
                 }
-                else if (string.Equals(extra, "json()", StringComparison.OrdinalIgnoreCase))
+                else if (PgSyntheticColumns.IsJsonColumn(extra))
                 {
-                    sb.Append("\"json()\": ").Append(aliasText);
+                    sb.Append('"').Append(extra).Append("\": ").Append(aliasText);
                 }
                 else
                 {
