@@ -44,6 +44,12 @@ namespace Raven.Server.Integrations.PostgreSQL
                 return true;
             }
 
+            if (HasMinOrMaxAggregate(outer))
+            {
+                message = "min() and max() aggregates are not supported by RavenDB's map-reduce engine — its AggregationOperation set is limited to Count and Sum (avg is composed from those). To get the minimum / maximum of a field, do `ORDER BY <field> ASC LIMIT 1` (min) or `ORDER BY <field> DESC LIMIT 1` (max) and read the single value client-side.";
+                return true;
+            }
+
             if (IsScalarAggregateWithoutGroupBy(outer))
             {
                 message = "Scalar aggregate (e.g. `SELECT sum(...) FROM t` with no GROUP BY) is not yet supported. Wrap the query in a GROUP BY (even a constant key) or compute the aggregate client-side from the underlying rows.";
@@ -60,6 +66,35 @@ namespace Raven.Server.Integrations.PostgreSQL
             foreach (var item in selectStmt.FromClause)
             {
                 if (item?.JoinExpr != null)
+                    return true;
+            }
+            return false;
+        }
+
+        // True iff any target projection is a min() or max() FuncCall. We surface this BEFORE the
+        // generic scalar-aggregate-without-GROUP-BY check because min/max are unsupported in BOTH
+        // shapes (with and without GROUP BY) — RavenDB's AggregationOperation enum only models
+        // Count and Sum — and the workaround (ORDER BY + LIMIT 1) is different from the
+        // "wrap in GROUP BY" suggestion that fits sum/count/avg.
+        private static bool HasMinOrMaxAggregate(SelectStmt selectStmt)
+        {
+            if (selectStmt.TargetList is not { Count: > 0 } targets)
+                return false;
+
+            foreach (var t in targets)
+            {
+                var funcCall = t?.ResTarget?.Val?.FuncCall;
+                if (funcCall == null)
+                    continue;
+
+                var name = funcCall.Funcname is { Count: > 0 }
+                    ? funcCall.Funcname[funcCall.Funcname.Count - 1]?.String?.Sval
+                    : null;
+                if (string.IsNullOrEmpty(name))
+                    continue;
+
+                if (string.Equals(name, "min", System.StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(name, "max", System.StringComparison.OrdinalIgnoreCase))
                     return true;
             }
             return false;

@@ -109,5 +109,51 @@ namespace FastTests.Server.Integrations.PostgreSQL
         {
             Assert.False(UnhandledQueryDiagnoser.TryDiagnose("not valid sql at all $$$", out _));
         }
+
+        // min()/max() aggregates aren't supported by RavenDB's map-reduce engine — the
+        // AggregationOperation enum models only Count and Sum. The diagnoser must catch this
+        // (both with and without GROUP BY) and point at the ORDER BY + LIMIT 1 workaround.
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void MinAggregate_WithGroupBy_Detected()
+        {
+            var sql = """
+                SELECT "Company", min("Freight") AS "m"
+                FROM "public"."Orders"
+                GROUP BY "Company"
+                """;
+
+            Assert.True(UnhandledQueryDiagnoser.TryDiagnose(sql, out var message));
+            Assert.Contains("min()", message);
+            Assert.Contains("max()", message);
+            Assert.Contains("ORDER BY", message);
+            Assert.Contains("LIMIT 1", message);
+        }
+
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void MaxAggregate_WithoutGroupBy_Detected()
+        {
+            // Bare scalar `SELECT max(x) FROM t` is doubly unsupported (no GROUP BY AND uses
+            // max). The min/max diagnostic must win because its workaround is more useful.
+            var sql = """SELECT max("Freight") FROM "public"."Orders" """;
+
+            Assert.True(UnhandledQueryDiagnoser.TryDiagnose(sql, out var message));
+            Assert.Contains("max()", message);
+        }
+
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void MixedMinAndSum_Detected()
+        {
+            // If any projection is min/max we still produce the min/max-specific message —
+            // explaining only "scalar aggregate without GROUP BY" would mislead since adding a
+            // GROUP BY wouldn't help.
+            var sql = """
+                SELECT "Company", min("Freight"), sum("Freight")
+                FROM "public"."Orders"
+                GROUP BY "Company"
+                """;
+
+            Assert.True(UnhandledQueryDiagnoser.TryDiagnose(sql, out var message));
+            Assert.Contains("min()", message);
+        }
     }
 }
