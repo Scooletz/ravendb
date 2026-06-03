@@ -206,6 +206,23 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
         }
     }
 
+    // pgAdmin's schema-tree probe calls has_schema_privilege(oid, 'CREATE'/'USAGE') per namespace
+    // row to populate the can_create / has_usage flags it shows in the UI. Same rationale as
+    // has_database_privilege: returning true keeps the UI usable; any actual DDL is rejected
+    // elsewhere. Signature variants: (schema, privilege) | (user, schema, privilege).
+    internal sealed class HasSchemaPrivilegeFunction : ScalarFunction
+    {
+        public override string Name => "has_schema_privilege";
+        public override string ResultColumnName => "has_schema_privilege";
+        public override PgType PgType => PgBool.Default;
+
+        public override bool TryEvaluate(IReadOnlyList<object> args, VirtualQueryContext ctx, out object result)
+        {
+            result = true;
+            return args is { Count: >= 2 and <= 3 };
+        }
+    }
+
     // Returns the server process ID for the current backend. pgAdmin uses this to filter
     // pg_stat_*/pg_locks views to just the current connection. We don't model multiple PG
     // backends, so any stable integer is fine; the host process id is a reasonable choice.

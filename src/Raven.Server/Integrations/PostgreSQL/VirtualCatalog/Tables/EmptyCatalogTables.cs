@@ -145,4 +145,23 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog.Tables
             new("description", PgText.Default, PgFormat.Text),
         };
     }
+
+    // Per-object comments (schemas, tables, columns, …). pgAdmin's schema-tree probe LEFT-JOINs
+    // pg_namespace against this to render schema descriptions. We don't model comments, so an
+    // empty view returns NULL for `des.description` on every namespace row — exactly what pgAdmin
+    // expects when no description is set. JoinExecutor's TryParseOnCondition drops the
+    // column-to-literal arm (`des.classoid = 'pg_namespace'::regclass`), so the join key is
+    // effectively `des.objoid = nsp.oid` against zero right rows.
+    internal sealed class PgCatalogPgDescriptionTable : EmptyCatalogTable
+    {
+        public override string SchemaName => "pg_catalog";
+        public override string TableName => "pg_description";
+        public override IReadOnlyList<PgVirtualColumn> Columns { get; } = new PgVirtualColumn[]
+        {
+            new("objoid",      PgOid.Default,  PgFormat.Text),
+            new("classoid",    PgOid.Default,  PgFormat.Text),
+            new("objsubid",    PgInt4.Default, PgFormat.Text),
+            new("description", PgText.Default, PgFormat.Text),
+        };
+    }
 }

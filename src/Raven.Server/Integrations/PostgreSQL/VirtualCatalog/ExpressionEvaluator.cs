@@ -133,6 +133,18 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
                 return true;
             }
 
+            // EXISTS — pure cardinality predicate, projection values are irrelevant. pgAdmin's
+            // schema-tree probe uses this to gate per-namespace WHERE clauses, e.g.
+            // `EXISTS (SELECT 1 FROM pg_class WHERE relname='pg_class' AND relnamespace=nsp.oid)`.
+            // The subquery has already executed (correlated outer columns resolved via `scope`);
+            // we just need to know whether it produced any rows. NULL row values still count as
+            // existing rows in PG's EXISTS semantics — we agree by counting unconditionally.
+            if (subLink.SubLinkType == SubLinkType.ExistsSublink)
+            {
+                value = values.Count > 0;
+                return true;
+            }
+
             // Scalar (EXPR_SUBLINK): 0 → null, 1 → the value, anything else → fail (we don't
             // model the cardinality-violation error other PG implementations throw).
             if (values.Count == 0)

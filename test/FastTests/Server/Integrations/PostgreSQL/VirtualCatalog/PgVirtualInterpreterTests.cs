@@ -361,6 +361,53 @@ namespace FastTests.Server.Integrations.PostgreSQL.VirtualCatalog
         }
 
         [RavenFact(RavenTestCategory.PostgreSql)]
+        public void Pgadmin_schema_tree_load_query_shape_is_accepted()
+        {
+            // pgAdmin's schema-tree-load probe. Exercises: LEFT JOIN against empty pg_description,
+            // has_schema_privilege() function, EXISTS (SELECT 1 FROM pg_class WHERE ...) correlated
+            // subqueries, deeply nested NOT (a OR b OR c) WHERE shape, LIKE with E'...' escape
+            // string (NOT LIKE E'pg\_%' to hide internal pg_* schemas).
+            //
+            // Before pg_description + has_schema_privilege + ExistsSublink support landed, this
+            // query fell through every dispatch arm and surfaced as `Unhandled query` in pgAdmin's
+            // browser tree.
+            const string sql = """
+                SELECT
+                nsp.oid,
+                nsp.nspname as name,
+                pg_catalog.has_schema_privilege(nsp.oid, 'CREATE') as can_create,
+                pg_catalog.has_schema_privilege(nsp.oid, 'USAGE') as has_usage,
+                des.description
+                FROM
+                pg_catalog.pg_namespace nsp
+                LEFT OUTER JOIN pg_catalog.pg_description des ON
+                (des.objoid=nsp.oid AND des.classoid='pg_namespace'::regclass)
+                WHERE
+                nspname NOT LIKE E'pg\\_%' AND
+                NOT (
+                (nsp.nspname = 'pg_catalog' AND EXISTS
+                (SELECT 1 FROM pg_catalog.pg_class WHERE relname = 'pg_class' AND
+                relnamespace = nsp.oid LIMIT 1)) OR
+                (nsp.nspname = 'pgagent' AND EXISTS
+                (SELECT 1 FROM pg_catalog.pg_class WHERE relname = 'pga_job' AND
+                relnamespace = nsp.oid LIMIT 1)) OR
+                (nsp.nspname = 'information_schema' AND EXISTS
+                (SELECT 1 FROM pg_catalog.pg_class WHERE relname = 'tables' AND
+                relnamespace = nsp.oid LIMIT 1))
+                )
+                ORDER BY nspname
+                """;
+
+            Assert.True(PgVirtualInterpreter.TryExecute(sql, EmptyCtx(), out var table));
+            Assert.Equal(5, table.Columns.Count);
+            Assert.Equal("oid", table.Columns[0].Name);
+            Assert.Equal("name", table.Columns[1].Name);
+            Assert.Equal("can_create", table.Columns[2].Name);
+            Assert.Equal("has_usage", table.Columns[3].Name);
+            Assert.Equal("description", table.Columns[4].Name);
+        }
+
+        [RavenFact(RavenTestCategory.PostgreSql)]
         public void Pgadmin_database_probe_shape_is_accepted()
         {
             // pgAdmin's next probe after the replication check — reads `pg_database` for the

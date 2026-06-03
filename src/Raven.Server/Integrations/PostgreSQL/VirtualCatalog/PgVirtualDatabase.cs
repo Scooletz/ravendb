@@ -39,12 +39,14 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
             RegisterTable(new PgCatalogPgAuthMembersTable());
             RegisterTable(new PgCatalogPgTablespaceTable());
             RegisterTable(new PgCatalogPgShdescriptionTable());
+            RegisterTable(new PgCatalogPgDescriptionTable());
 
             RegisterFunction(new VersionFunction());
             RegisterFunction(new CurrentSettingFunction());
             RegisterFunction(new CurrentDatabaseFunction());
             RegisterFunction(new PgEncodingToCharFunction());
             RegisterFunction(new HasDatabasePrivilegeFunction());
+            RegisterFunction(new HasSchemaPrivilegeFunction());
             RegisterFunction(new PgBackendPidFunction());
             RegisterFunction(new CurrentUserFunction("current_user"));
             RegisterFunction(new CurrentUserFunction("session_user"));
