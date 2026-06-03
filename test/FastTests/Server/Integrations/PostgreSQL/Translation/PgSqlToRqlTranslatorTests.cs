@@ -136,6 +136,32 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
             Assert.Equal(expected, Translate(sql));
         }
 
+        // Gap #3: NOT IN. RavenDB's client query API has no WhereNotIn — instead callers flip the
+        // polarity via NegateNext() applied to the WhereIn that follows. The translator used to
+        // throw `NOT IN is not supported`; now it threads negation through correctly. NegateNext()
+        // also prepends an `exists(<field>)` clause so the negation is null-safe (RQL: rows where
+        // the field is missing don't match a negated predicate; PG's NOT IN semantics match).
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void NotIn_FlipsViaNegateNext()
+        {
+            var sql = @"SELECT ""Company"" FROM ""public"".""Orders"" WHERE ""Freight"" NOT IN (1.21, 1.35) LIMIT 5";
+            var expected = "from 'Orders' where exists(Freight) and not Freight in (1.21, 1.35) select Company limit 0, 5";
+
+            Assert.Equal(expected, Translate(sql));
+        }
+
+        // Gap #3 (continued): general NOT around a primitive predicate. NegateNext() flips the
+        // next emitted predicate; compound NOTs (e.g. NOT(a AND b)) still throw — see the
+        // explicit ParsedNot guard in PgSqlToRqlTranslator.
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void NotBinary_FlipsViaNegateNext()
+        {
+            var sql = @"SELECT ""Company"" FROM ""public"".""Orders"" WHERE NOT (""Freight"" > 50) LIMIT 5";
+            var expected = "from 'Orders' where exists(Freight) and not Freight > 50 select Company limit 0, 5";
+
+            Assert.Equal(expected, Translate(sql));
+        }
+
         // Mid (10)
 
         [RavenFact(RavenTestCategory.PostgreSql)]

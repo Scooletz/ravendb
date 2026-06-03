@@ -914,9 +914,22 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
                     }
                     break;
 
-                case ParsedNot:
-                    // General SQL→RQL flow does not currently support NOT. PowerBI translator handles it separately.
-                    throw new NotSupportedException("NOT is not supported in general SQL→RQL WHERE translation");
+                case ParsedNot n:
+                {
+                    // RQL has no `NOT (expr)` syntax; instead the client side exposes NegateNext()
+                    // which flips the polarity of the very next predicate. That maps cleanly when the
+                    // child is a single primitive predicate (Binary / In / IsNull / Between). For a
+                    // compound child (AND / OR / nested NOT), NegateNext() would only flip the first
+                    // emitted predicate and silently drop the negation of the rest — better to fail
+                    // explicitly than to silently return wrong rows.
+                    if (n.Child is ParsedBinary or ParsedIn or ParsedIsNull or ParsedBetween)
+                    {
+                        q.NegateNext();
+                        EmitWhere(q, n.Child, wrapInSubclause: false);
+                        break;
+                    }
+                    throw new NotSupportedException("NOT over compound expressions is not supported in SQL→RQL WHERE translation");
+                }
 
                 case ParsedBinary b:
                 {
@@ -947,7 +960,7 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
                         values.Add(ToQueryValue(v));
                     }
                     if (i.Negated)
-                        throw new NotSupportedException("NOT IN is not supported in general SQL→RQL WHERE translation");
+                        q.NegateNext();
                     q.WhereIn(field, values);
                     break;
                 }
