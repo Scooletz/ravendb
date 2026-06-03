@@ -86,6 +86,34 @@ namespace Raven.Server.Integrations.PostgreSQL
             {
                 indexQuery.PageSize = _limit.Value == 0 ? 1 : _limit.Value;
             }
+            else
+            {
+                // The IndexQueryServerSide(string, ...) constructor populates Metadata.Query but
+                // does NOT carry the parsed `LIMIT` / `OFFSET` through to PageSize / Start —
+                // only the JSON-body Create() path does that. So a SQL→RQL translation like
+                // `from 'Orders' select … limit 0, 5` would otherwise execute with the default
+                // PageSize = int.MaxValue and return ALL rows in the collection. pgAdmin probes,
+                // psql, anything sending RQL-as-text through PG hit this. Apply the embedded
+                // bounds here so the RQL's own LIMIT is honored, while still letting an explicit
+                // _limit override (PowerBI's outer-wrapper limit, schema-gen probes) win above.
+                if (indexQuery.Metadata.Query.Limit != null)
+                {
+                    var limit = QueryBuilderHelper.GetLongValue(
+                        indexQuery.Metadata.Query, indexQuery.Metadata,
+                        indexQuery.QueryParameters, indexQuery.Metadata.Query.Limit, int.MaxValue);
+                    indexQuery.Limit = limit;
+                    indexQuery.PageSize = Math.Min(limit, indexQuery.PageSize);
+                }
+
+                if (indexQuery.Metadata.Query.Offset != null)
+                {
+                    var offset = QueryBuilderHelper.GetLongValue(
+                        indexQuery.Metadata.Query, indexQuery.Metadata,
+                        indexQuery.QueryParameters, indexQuery.Metadata.Query.Offset, 0);
+                    indexQuery.Offset = offset;
+                    indexQuery.Start = Math.Max(offset, indexQuery.Start);
+                }
+            }
 
             _queryWasRun = true;
             var documentQueryResult =

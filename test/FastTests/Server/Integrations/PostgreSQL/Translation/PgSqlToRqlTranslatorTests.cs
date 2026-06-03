@@ -118,6 +118,24 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
             Assert.Equal(expected, Translate(sql));
         }
 
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void QuotedExplicitProjectionWithLimit_EmitsLimitClause()
+        {
+            // Regression for the pgAdmin "LIMIT 5 returns all 830 rows" bug. The translator was
+            // never the problem — it correctly emits `limit 0, 5` here — but earlier debug logs
+            // proved the LIMIT was being silently dropped downstream. The downstream fix lives in
+            // RqlQuery.RunRqlQuery (it now applies Metadata.Query.Limit to PageSize when no
+            // explicit _limit override is set). This test pins the translator side so any future
+            // refactor that loses the LIMIT projection regresses loudly here too.
+            var sql = """
+                SELECT "Company", "Freight" AS "shipping_cost", "OrderedAt" AS "placed"
+                FROM "public"."Orders"
+                LIMIT 5
+                """;
+            var expected = "from 'Orders' select Company, Freight as shipping_cost, OrderedAt as placed limit 0, 5";
+            Assert.Equal(expected, Translate(sql));
+        }
+
         // Mid (10)
 
         [RavenFact(RavenTestCategory.PostgreSql)]
