@@ -43,15 +43,15 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog.Tables
         public override string TableName => "referential_constraints";
         public override IReadOnlyList<PgVirtualColumn> Columns { get; } = new PgVirtualColumn[]
         {
-            new("constraint_catalog",        PgName.Default, PgFormat.Binary),
-            new("constraint_schema",         PgName.Default, PgFormat.Binary),
-            new("constraint_name",           PgName.Default, PgFormat.Binary),
-            new("unique_constraint_catalog", PgName.Default, PgFormat.Binary),
-            new("unique_constraint_schema",  PgName.Default, PgFormat.Binary),
-            new("unique_constraint_name",    PgName.Default, PgFormat.Binary),
-            new("match_option",              PgText.Default, PgFormat.Binary),
-            new("update_rule",               PgText.Default, PgFormat.Binary),
-            new("delete_rule",               PgText.Default, PgFormat.Binary),
+            new("constraint_catalog",        PgName.Default, PgFormat.Text),
+            new("constraint_schema",         PgName.Default, PgFormat.Text),
+            new("constraint_name",           PgName.Default, PgFormat.Text),
+            new("unique_constraint_catalog", PgName.Default, PgFormat.Text),
+            new("unique_constraint_schema",  PgName.Default, PgFormat.Text),
+            new("unique_constraint_name",    PgName.Default, PgFormat.Text),
+            new("match_option",              PgText.Default, PgFormat.Text),
+            new("update_rule",               PgText.Default, PgFormat.Text),
+            new("delete_rule",               PgText.Default, PgFormat.Text),
         };
     }
 

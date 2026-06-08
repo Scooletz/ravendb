@@ -28,15 +28,15 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog.Tables
         // is NULL for PRIMARY KEY rows by PG convention (only set for FK columns).
         public override IReadOnlyList<PgVirtualColumn> Columns { get; } = new PgVirtualColumn[]
         {
-            new("constraint_catalog",            PgName.Default, PgFormat.Binary),
-            new("constraint_schema",             PgName.Default, PgFormat.Binary),
-            new("constraint_name",               PgName.Default, PgFormat.Binary),
-            new("table_catalog",                 PgName.Default, PgFormat.Binary),
-            new("table_schema",                  PgName.Default, PgFormat.Binary),
-            new("table_name",                    PgName.Default, PgFormat.Binary),
-            new("column_name",                   PgName.Default, PgFormat.Binary),
-            new("ordinal_position",              PgInt4.Default, PgFormat.Binary),
-            new("position_in_unique_constraint", PgInt4.Default, PgFormat.Binary),
+            new("constraint_catalog",            PgName.Default, PgFormat.Text),
+            new("constraint_schema",             PgName.Default, PgFormat.Text),
+            new("constraint_name",               PgName.Default, PgFormat.Text),
+            new("table_catalog",                 PgName.Default, PgFormat.Text),
+            new("table_schema",                  PgName.Default, PgFormat.Text),
+            new("table_name",                    PgName.Default, PgFormat.Text),
+            new("column_name",                   PgName.Default, PgFormat.Text),
+            new("ordinal_position",              PgInt4.Default, PgFormat.Text),
+            new("position_in_unique_constraint", PgInt4.Default, PgFormat.Text),
         };
 
         public override IEnumerable<object[]> EnumerateRows(VirtualQueryContext ctx)

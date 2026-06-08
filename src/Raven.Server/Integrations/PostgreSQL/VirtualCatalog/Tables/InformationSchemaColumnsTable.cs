@@ -46,7 +46,7 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog.Tables
             new("table_schema",     PgName.Default,    PgFormat.Text),
             new("table_name",       PgName.Default,    PgFormat.Text),
             new("column_name",      PgName.Default,    PgFormat.Text),
-            new("ordinal_position", PgInt4.Default,    PgFormat.Binary),
+            new("ordinal_position", PgInt4.Default,    PgFormat.Text),
             new("is_nullable",      PgVarchar.Default, PgFormat.Text),
             new("data_type",        PgVarchar.Default, PgFormat.Text),
         };

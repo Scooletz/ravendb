@@ -36,12 +36,12 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog.Tables
         // to access fields that aren't there.
         public override IReadOnlyList<PgVirtualColumn> Columns { get; } = new PgVirtualColumn[]
         {
-            new("constraint_catalog", PgName.Default,    PgFormat.Binary),
-            new("constraint_schema",  PgName.Default,    PgFormat.Binary),
-            new("constraint_name",    PgName.Default,    PgFormat.Binary),
-            new("table_catalog",      PgName.Default,    PgFormat.Binary),
-            new("table_schema",       PgName.Default,    PgFormat.Binary),
-            new("table_name",         PgName.Default,    PgFormat.Binary),
+            new("constraint_catalog", PgName.Default,    PgFormat.Text),
+            new("constraint_schema",  PgName.Default,    PgFormat.Text),
+            new("constraint_name",    PgName.Default,    PgFormat.Text),
+            new("table_catalog",      PgName.Default,    PgFormat.Text),
+            new("table_schema",       PgName.Default,    PgFormat.Text),
+            new("table_name",         PgName.Default,    PgFormat.Text),
             new("constraint_type",    PgVarchar.Default, PgFormat.Text),
             new("is_deferrable",      PgVarchar.Default, PgFormat.Text),
             new("initially_deferred", PgVarchar.Default, PgFormat.Text),
