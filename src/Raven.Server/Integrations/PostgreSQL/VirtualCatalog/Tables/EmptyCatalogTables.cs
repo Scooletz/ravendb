@@ -16,6 +16,27 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog.Tables
     // identity; an empty table_constraints view causes SubstituteWithIndex failures for any
     // visual / slicer / relationship that needs row substitution.
 
+    // RavenDB has no views, so this is always empty. Clients (e.g. Microsoft Fabric Copy Job)
+    // UNION pull `information_schema.tables` and `information_schema.views` together when
+    // populating their "Choose data" pickers — without this table registered the UNION fails
+    // before the empty arm even matters. Column set matches the SQL standard's `views`.
+    internal sealed class InformationSchemaViewsTable : EmptyCatalogTable
+    {
+        public override string SchemaName => "information_schema";
+        public override string TableName => "views";
+        public override IReadOnlyList<PgVirtualColumn> Columns { get; } = new PgVirtualColumn[]
+        {
+            new("table_catalog",         PgName.Default,    PgFormat.Text),
+            new("table_schema",          PgName.Default,    PgFormat.Text),
+            new("table_name",            PgName.Default,    PgFormat.Text),
+            new("view_definition",       PgText.Default,    PgFormat.Text),
+            new("check_option",          PgVarchar.Default, PgFormat.Text),
+            new("is_updatable",          PgVarchar.Default, PgFormat.Text),
+            new("is_insertable_into",    PgVarchar.Default, PgFormat.Text),
+            new("is_trivially_updatable",PgVarchar.Default, PgFormat.Text),
+        };
+    }
+
     internal sealed class InformationSchemaReferentialConstraintsTable : EmptyCatalogTable
     {
         public override string SchemaName => "information_schema";

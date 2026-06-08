@@ -23,6 +23,7 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
             RegisterTable(new InformationSchemaTableConstraintsTable());
             RegisterTable(new InformationSchemaKeyColumnUsageTable());
             RegisterTable(new InformationSchemaReferentialConstraintsTable());
+            RegisterTable(new InformationSchemaViewsTable());
 
             RegisterTable(new PgCatalogPgTypeTable());
             RegisterTable(new PgCatalogPgProcTable());

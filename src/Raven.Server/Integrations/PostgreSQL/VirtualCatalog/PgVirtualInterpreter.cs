@@ -58,6 +58,18 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
                         return false;
                 }
 
+                // UNION / UNION ALL at the top level. Used by Microsoft Fabric Copy Job's
+                // "Choose data" picker (`information_schema.tables UNION information_schema.views`)
+                // and by pgAdmin variants. UNION ALL inside a CTE body for WITH RECURSIVE is
+                // handled in TryMaterializeRecursiveCte; this branch covers the OUTERMOST set op.
+                // Must run BEFORE HasNoFromClause — a top-level UNION's outer SelectStmt has no
+                // FROM clause of its own (only Larg/Rarg), so the FROM-less path would otherwise
+                // grab it and try to evaluate it as `select <expr>` with no targets.
+                if (selectStmt.Op != SetOperation.SetopNone)
+                {
+                    return TryExecuteSetOperation(selectStmt, ctx, outerScope, out result);
+                }
+
                 if (SelectStmtShape.HasNoFromClause(selectStmt))
                 {
                     if (TryExecuteScalarFunction(selectStmt, ctx, out result))
@@ -67,18 +79,173 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
                     return TryExecuteNoFromExpression(selectStmt, ctx, outerScope, out result);
                 }
 
-                // UNION ALL is the only set operation we handle (needed for WITH RECURSIVE's body).
-                // For a top-level UNION ALL we'd run Larg + Rarg and concatenate; we don't have a
-                // use case for that yet, so leave it unimplemented.
-                if (selectStmt.Op != SetOperation.SetopNone)
-                    return false;
-
                 return TryExecuteTableQuery(selectStmt, ctx, outerScope, out result);
             }
             finally
             {
                 ctx.Ctes = previousCtes;
             }
+        }
+
+        // Executes a top-level set operation (currently: UNION / UNION ALL). PG semantics:
+        //   - Output column NAMES come from the LEFT arm.
+        //   - Both arms must project the same number of columns.
+        //   - UNION dedupes; UNION ALL keeps duplicates.
+        //   - The outermost SelectStmt's SortClause / LimitCount / LimitOffset apply to the
+        //     COMBINED result (not each arm individually), and the SortClause references
+        //     output column names which match the left arm's projection.
+        //
+        // We run both arms via TryExecuteAsRows to stay on the raw object[] row representation
+        // until the very end — that lets us reuse the existing sort/limit/dedupe machinery
+        // before serializing to wire bytes via BuildPgTable.
+        //
+        // INTERSECT / EXCEPT are not implemented — no observed client need so far.
+        private static bool TryExecuteSetOperation(SelectStmt s, VirtualQueryContext ctx, RowScope outerScope, out PgTable result)
+        {
+            result = null;
+
+            if (s.Op != SetOperation.SetopUnion)
+                return false;
+            if (s.Larg == null || s.Rarg == null)
+                return false;
+
+            if (TryExecuteSingleWithOuterScope(s.Larg, ctx, outerScope, out var leftTable) == false || leftTable == null)
+                return false;
+            if (TryExecuteSingleWithOuterScope(s.Rarg, ctx, outerScope, out var rightTable) == false || rightTable == null)
+                return false;
+
+            // PG requires same column count across arms; we honor that. Cross-arm type coercion
+            // (e.g. promote int to numeric to match the right arm's wider type) isn't done — for
+            // the empty-views + tables case the arms are structurally identical anyway.
+            if (leftTable.Columns.Count != rightTable.Columns.Count)
+                return false;
+
+            var combined = new List<PgDataRow>(leftTable.Data.Count + rightTable.Data.Count);
+            combined.AddRange(leftTable.Data);
+            combined.AddRange(rightTable.Data);
+
+            // UNION (not ALL) dedupes. We key off a string-encoded form of each row — adequate
+            // for the catalog-list shapes that drive this code path (name/text columns, small
+            // row counts). If/when this gets used for big numeric or binary payloads we'd want
+            // a typed comparer instead.
+            if (s.All == false)
+                combined = DedupCombinedRows(combined);
+
+            // Outer ORDER BY / LIMIT / OFFSET. Sort plan is built against the LEFT arm's
+            // projected output (output column names come from the left).
+            if (s.SortClause is { Count: > 0 })
+            {
+                if (TryBuildSetOpSortPlan(s.SortClause, leftTable.Columns, out var sortPlan) == false)
+                    return false;
+                if (sortPlan.Count > 0)
+                    combined = SortPgRowsByBytes(combined, sortPlan);
+            }
+
+            int offset = 0;
+            int? limit = null;
+            if (s.LimitOffset != null)
+            {
+                if (PgSqlAstHelpers.TryReadNonNegativeIntConst(s.LimitOffset, out offset) == false)
+                    return false;
+            }
+            if (s.LimitCount != null)
+            {
+                if (PgSqlAstHelpers.TryReadNonNegativeIntConst(s.LimitCount, out var l) == false)
+                    return false;
+                limit = l;
+            }
+            if (offset > 0)
+                combined = combined.Skip(offset).ToList();
+            if (limit.HasValue)
+                combined = combined.Take(limit.Value).ToList();
+
+            result = new PgTable
+            {
+                Columns = leftTable.Columns,
+                Data = combined,
+            };
+            return true;
+        }
+
+        private static List<PgDataRow> DedupCombinedRows(List<PgDataRow> rows)
+        {
+            if (rows.Count == 0)
+                return rows;
+            var seen = new HashSet<string>(rows.Count);
+            var output = new List<PgDataRow>(rows.Count);
+            foreach (var row in rows)
+            {
+                if (seen.Add(BytesRowKey(row)))
+                    output.Add(row);
+            }
+            return output;
+        }
+
+        private static string BytesRowKey(PgDataRow row)
+        {
+            // Per-column wire bytes, base64-encoded so we can use a string HashSet without
+            // worrying about embedded NULs or separator collisions. Null cells get a sentinel.
+            var sb = new System.Text.StringBuilder();
+            var span = row.ColumnData.Span;
+            for (int i = 0; i < span.Length; i++)
+            {
+                if (i > 0)
+                    sb.Append('|');
+                if (span[i] is null)
+                    sb.Append("__NULL__");
+                else
+                    sb.Append(System.Convert.ToBase64String(span[i].Value.Span));
+            }
+            return sb.ToString();
+        }
+
+        private static bool TryBuildSetOpSortPlan(Google.Protobuf.Collections.RepeatedField<Node> sortClause, List<PgColumn> outputColumns, out List<SortKey> plan)
+        {
+            plan = new List<SortKey>();
+            foreach (var sortNode in sortClause)
+            {
+                var sortBy = sortNode?.SortBy;
+                if (sortBy?.Node?.ColumnRef?.Fields is not { Count: 1 } fields)
+                    return false;
+                var name = fields[0]?.String?.Sval;
+                if (string.IsNullOrEmpty(name))
+                    return false;
+                int idx = -1;
+                for (int i = 0; i < outputColumns.Count; i++)
+                {
+                    if (string.Equals(outputColumns[i].Name, name, StringComparison.OrdinalIgnoreCase))
+                    {
+                        idx = i;
+                        break;
+                    }
+                }
+                if (idx == -1)
+                    return false;
+                bool descending = sortBy.SortbyDir == SortByDir.SortbyDesc;
+                plan.Add(new SortKey(idx, descending));
+            }
+            return true;
+        }
+
+        private static List<PgDataRow> SortPgRowsByBytes(List<PgDataRow> rows, List<SortKey> plan)
+        {
+            rows.Sort((a, b) =>
+            {
+                foreach (var key in plan)
+                {
+                    var av = a.ColumnData.Span[key.CellIndex];
+                    var bv = b.ColumnData.Span[key.CellIndex];
+                    int cmp;
+                    if (av == null && bv == null) cmp = 0;
+                    else if (av == null) cmp = -1;
+                    else if (bv == null) cmp = 1;
+                    else cmp = av.Value.Span.SequenceCompareTo(bv.Value.Span);
+                    if (cmp != 0)
+                        return key.Descending ? -cmp : cmp;
+                }
+                return 0;
+            });
+            return rows;
         }
 
         // Materializes each CTE in the WITH clause into ctx.Ctes. For non-recursive WITH the body

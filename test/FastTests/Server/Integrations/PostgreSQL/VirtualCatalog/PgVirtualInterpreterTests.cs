@@ -1272,6 +1272,68 @@ ORDER BY ord";
             Assert.NotEmpty(table.Data);
         }
 
+        // Microsoft Fabric Copy Job's "Choose data" picker sends this UNION between the tables
+        // and (empty) views catalogs. Before top-level UNION support + InformationSchemaViewsTable
+        // registration, this dispatched all the way through to "Unhandled query". Pins both fixes.
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void Fabric_copy_job_tables_union_views_shape_is_accepted()
+        {
+            const string sql = """
+                select table_schema,table_name from information_schema.tables where table_schema !='pg_catalog'
+                union
+                select table_schema,table_name from information_schema.views where table_schema !='pg_catalog'
+                order by table_schema,table_name
+                """;
+
+            Assert.True(PgVirtualInterpreter.TryExecute(sql, EmptyCtx(), out var table));
+            Assert.Equal(2, table.Columns.Count);
+            Assert.Equal("table_schema", table.Columns[0].Name);
+            Assert.Equal("table_name", table.Columns[1].Name);
+            // No DocumentDatabase wired in here — InformationSchemaTablesTable yields zero rows,
+            // and views is always empty, so the UNION produces no data. The point is that the
+            // SHAPE is recognized and dispatched.
+        }
+
+        // UNION ALL must preserve duplicates whereas UNION dedupes. Smoke-test against two
+        // arms that both produce a known catalog row (any oid present in pg_class works).
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void Union_all_keeps_duplicates_union_dedupes()
+        {
+            const string unionDistinctSql = """
+                select 'a' as col
+                union
+                select 'a' as col
+                """;
+            const string unionAllSql = """
+                select 'a' as col
+                union all
+                select 'a' as col
+                """;
+
+            Assert.True(PgVirtualInterpreter.TryExecute(unionDistinctSql, EmptyCtx(), out var distinctTable));
+            Assert.Single(distinctTable.Data);
+
+            Assert.True(PgVirtualInterpreter.TryExecute(unionAllSql, EmptyCtx(), out var allTable));
+            Assert.Equal(2, allTable.Data.Count);
+        }
+
+        // Outer ORDER BY on a UNION result must sort the COMBINED rows, not each arm.
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void Union_outer_order_by_sorts_combined_result()
+        {
+            const string sql = """
+                select 'b' as col
+                union
+                select 'a' as col
+                order by col
+                """;
+
+            Assert.True(PgVirtualInterpreter.TryExecute(sql, EmptyCtx(), out var table));
+            Assert.Equal(2, table.Data.Count);
+            Assert.Equal("a", DecodeCell(table, row: 0, column: 0));
+            Assert.Equal("b", DecodeCell(table, row: 1, column: 0));
+        }
+
         private static VirtualQueryContext EmptyCtx() => new();
 
         private static string DecodeCell(Raven.Server.Integrations.PostgreSQL.Messages.PgTable table, int row, int column)
