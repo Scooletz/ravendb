@@ -20,6 +20,19 @@ namespace Raven.Server.Integrations.PostgreSQL
             if (string.IsNullOrWhiteSpace(queryText))
                 return false;
 
+            // PowerBI's PostgreSQL connector splits the M `Query=` value on `;` client-side
+            // before sending. For RQL with a `declare function {...; ...}` body, the JS-body
+            // semicolons cause it to send only the first fragment — text that begins with
+            // `declare function` and has unbalanced `{`. The fragment fails to parse as either
+            // SQL or RQL, and the generic "Unhandled query" message doesn't tell the user the
+            // ASI workaround. Catch it first, before the parser-based checks, since the
+            // fragment fails to parse.
+            if (LooksLikeJsBodyFragment(queryText))
+            {
+                message = "The query content looks like a fragment of a `declare function {...}` body. Some PostgreSQL clients split queries on `;` before sending, so only the first piece reaches the server. Remove the semicolons from the JS body.";
+                return true;
+            }
+
             SelectStmt outer;
             try
             {
@@ -57,6 +70,28 @@ namespace Raven.Server.Integrations.PostgreSQL
             }
 
             return false;
+        }
+
+        // Detects a textual fragment of a `declare function {...}` body. The fragment will
+        // have more open braces than close braces (because the client cut us off at a `;`
+        // inside the body). Pure textual check — pgsqlparser fails on the fragment, so we
+        // run this before any AST-based diagnostics. False-positive risk is low: a balanced
+        // `declare function` query would have matched braces and wouldn't even reach the
+        // diagnoser (it dispatches successfully through RqlQuery.TryParse).
+        private static bool LooksLikeJsBodyFragment(string queryText)
+        {
+            if (queryText.IndexOf("declare function", System.StringComparison.OrdinalIgnoreCase) < 0)
+                return false;
+
+            int openBraces = 0;
+            int closeBraces = 0;
+            for (int i = 0; i < queryText.Length; i++)
+            {
+                var ch = queryText[i];
+                if (ch == '{') openBraces++;
+                else if (ch == '}') closeBraces++;
+            }
+            return openBraces > closeBraces;
         }
 
         private static bool HasJoinExpr(SelectStmt selectStmt)

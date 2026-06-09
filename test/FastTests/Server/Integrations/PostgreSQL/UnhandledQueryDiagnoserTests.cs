@@ -110,6 +110,49 @@ namespace FastTests.Server.Integrations.PostgreSQL
             Assert.False(UnhandledQueryDiagnoser.TryDiagnose("not valid sql at all $$$", out _));
         }
 
+        // PowerBI's PostgreSQL connector splits the M `Query=` value on `;` client-side, so an
+        // RQL `declare function {...; ...}` arrives as just the first piece — unbalanced braces,
+        // unparseable. Diagnoser must catch this and point at the ASI workaround instead of
+        // dumping the fragment with a generic "Unhandled query".
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void JsBodyFragment_FromPowerBiSemicolonSplit_PointsAtAsiWorkaround()
+        {
+            const string fragment = "declare function output(usage) { var r = usage.ModelLog.Response.filter(y => y.Id == usage.ModelId)";
+
+            Assert.True(UnhandledQueryDiagnoser.TryDiagnose(fragment, out var message));
+            Assert.Contains("fragment", message);
+            Assert.Contains("declare function", message);
+            Assert.Contains("semicolons", message);
+        }
+
+        // A complete `declare function { ... }` RQL with balanced braces should NOT be
+        // classified — that's valid RQL and would dispatch through RqlQuery.TryParse normally.
+        // Diagnoser only fires when both arms of the parse fail; this query parses as RQL.
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void CompleteDeclareFunction_NotClassifiedAsFragment()
+        {
+            const string complete = """
+                declare function output(u) {
+                    var r = u.ModelLog.Response.filter(y => y.Id == u.ModelId)
+                    return { Id: u.ModelId, Response: r[0] }
+                }
+
+                from 'Usages' as x select output(x)
+                """;
+
+            // Braces are balanced here so the fragment-detector returns false; the parser
+            // would also fail (this is RQL, not SQL) so other diagnoser arms also return false.
+            // Final result: no classification — caller handles as plain "unsupported".
+            Assert.False(UnhandledQueryDiagnoser.TryDiagnose(complete, out _));
+        }
+
+        // SQL queries without "declare function" anywhere must not get the fragment classification.
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void PlainSql_NotClassifiedAsFragment()
+        {
+            Assert.False(UnhandledQueryDiagnoser.TryDiagnose("SELECT * FROM unknown_table", out _));
+        }
+
         // min()/max() aggregates aren't supported by RavenDB's map-reduce engine — the
         // AggregationOperation enum models only Count and Sum. The diagnoser must catch this
         // (both with and without GROUP BY) and point at the ORDER BY + LIMIT 1 workaround.
