@@ -47,11 +47,9 @@ namespace Raven.Server.Integrations.PostgreSQL.Messages
                 msgLen -= valLenInBytes;
             }
 
-            // Don't reject non-UTF8 client_encoding. psql on Windows defaults to the local OS code page
-            // (e.g. WIN1252); rejecting that would drop the connection mid-handshake with no useful
-            // diagnostic. We always announce client_encoding=UTF8 in our ParameterStatus reply, so
-            // libpq-based clients honor that and switch to UTF8 anyway. For simple ASCII traffic (the
-            // pgAdmin/PowerBI probes that hit our virtual catalog) any mismatch is moot.
+            // Tolerate non-UTF8 client_encoding: psql on Windows defaults to the OS code page,
+            // libpq clients switch to UTF8 on our ParameterStatus reply, and ASCII traffic
+            // (catalog probes) tolerates any mismatch.
 
             if (clientOptions.TryGetValue("database", out _) == false)
                 throw new PgFatalException(PgErrorCodes.ConnectionException, "The database wasn't specified, but is mandatory");

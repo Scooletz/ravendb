@@ -183,13 +183,9 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             }
         }
 
-        // AST-based grouped-aggregate emission: mutates the resolved
-        // Raven.Server.Documents.Queries.AST.Query in place and lets the canonical
-        // StringQueryVisitor (via Query.ToString()) produce the final RQL — so we don't hand-roll
-        // RQL fragments. Produces a group-key + aggregate projection, ORDER BY with the right
-        // value types (Long for count, Double for sum), and the requested Limit. When a SQL shape
-        // can't be represented in the AST we return null and surface a clear failure to the
-        // dispatch chain.
+        // Mutates a shallow copy of the resolved RQL AST and emits the final string via the
+        // canonical StringQueryVisitor (Query.ToString()) — no hand-rolled RQL fragments.
+        // Returns null when the shape can't be expressed in the AST.
         private static string RewriteGroupedAggregateRql(Documents.Queries.AST.Query q, GroupedAggregateShape shape)
         {
             if (q == null || shape == null)
@@ -224,13 +220,13 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             core.Offset = null;
             core.SelectFunctionBody = default;
 
-            // GROUP BY: one FieldExpression per key, no aliases.
+            // GROUP BY: one FieldExpression per key.
             core.GroupBy = new List<(QueryExpression Expression, StringSegment? Alias)>(groupByFields.Count);
             foreach (var f in groupByFields)
                 core.GroupBy.Add((MakeFieldExpression(f), null));
 
-            // SELECT: group keys first, then each aggregate as `<fn>(<field>) AS <alias>` (or
-            // `count() AS <alias>` — Raven's grouped RQL is row-count, never field-count).
+            // SELECT: keys, then aggregates. `count()` is argless (Raven's grouped RQL is
+            // row-count, never field-count); other aggregates take the field as a single arg.
             core.Select = new List<(QueryExpression Expression, StringSegment? Alias)>(groupByFields.Count + aggregates.Count);
             foreach (var f in groupByFields)
                 core.Select.Add((MakeFieldExpression(f), null));
@@ -242,17 +238,15 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 core.Select.Add((new MethodExpression(agg.FunctionName, args), new StringSegment(agg.OutputColumn)));
             }
 
-            // ORDER BY: resolve each entry against the group-key set or the aggregate-output set.
             if (TryBuildOrderByAst(shape, out var orderBy) == false)
                 return null;
-            core.OrderBy = orderBy; // null when shape has no ORDER BY
+            core.OrderBy = orderBy;
 
-            // LIMIT: keep PowerBI's 1,000,001 default when the wrapper didn't supply one.
+            // Default LIMIT preserves PowerBI's 1,000,001 cap when the wrapper didn't supply one.
             core.Limit = new ValueExpression(shape.Limit.ToString(CultureInfo.InvariantCulture), ValueTokenType.Long);
 
-            // q.Where is preserved as-is (already populated during inner resolution + outer
-            // WHERE merge upstream). The classifier guarantees the outer WHERE is just the
-            // `<agg-output> IS NOT NULL` post-filter, which RQL gets implicitly via GROUP BY.
+            // q.Where stays as-is: the classifier already guarantees the outer WHERE is just
+            // a `<agg-output> IS NOT NULL` post-filter, which RQL gets implicitly via GROUP BY.
 
             var rql = core.ToString();
             return string.IsNullOrWhiteSpace(rql) ? null : rql;
@@ -261,19 +255,12 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
         private static FieldExpression MakeFieldExpression(string name)
             => new(new List<StringSegment> { new(name) });
 
-        // Walks a WHERE-clause AST and returns true if any ColumnRef anywhere in the tree names
-        // a column in the given set. Used to detect intermediate WHEREs that reference aggregate-
-        // output aliases like `a0` — those are post-grouping null-guards that RQL handles
-        // implicitly, and translating them against the inner (pre-aggregation) query produces
-        // "field is neither aggregation nor group key" errors.
-        //
-        // PowerBI doesn't always emit a bare `NOT col IS NULL` for these guards. We have seen
-        // variants that wrap the aggregate alias in a function call (`coalesce(a0, 0) > 0`),
-        // a CASE expression (`CASE WHEN a0 IS NULL THEN 0 ELSE 1 END = 1`), or an explicit
-        // CoalesceExpr node. The walker MUST recurse into FuncCall.Args, CaseExpr.Args/Defresult,
-        // and CoalesceExpr.Args to recognize the alias underneath — otherwise the IntermediateWhere
-        // gets translated against the inner query, RavenDB rejects the resulting RQL, and the
-        // whole query falls through to "Unhandled query".
+        // Detects intermediate WHEREs that reference aggregate-output aliases (post-grouping
+        // null guards that RQL handles implicitly). Recursion must reach inside FuncCall,
+        // CaseExpr, and CoalesceExpr — PowerBI wraps the alias in `coalesce(a0, 0) > 0`,
+        // `CASE WHEN a0 IS NULL THEN 0 ELSE 1 END`, etc. Missing those produces RQL like
+        // `WHERE a0 IS NOT NULL` that the inner query rejects (a0 isn't a field of the
+        // source collection, only an output alias of the aggregation).
         internal static bool WhereClauseReferencesAnyColumn(Node node, HashSet<string> columnNames)
         {
             if (node == null || columnNames is not { Count: > 0 })

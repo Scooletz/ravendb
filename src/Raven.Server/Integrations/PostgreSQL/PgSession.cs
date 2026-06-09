@@ -172,7 +172,7 @@ namespace Raven.Server.Integrations.PostgreSQL
             var reader = PipeReader.Create(stream);
             var writer = PipeWriter.Create(stream);
 
-            if (_clientOptions == null) //TODO pfyasu maybe unused when cancel message will be implemented
+            if (_clientOptions == null)
                 return;
 
             if (_clientOptions.TryGetValue("database", out string databaseName) == false)

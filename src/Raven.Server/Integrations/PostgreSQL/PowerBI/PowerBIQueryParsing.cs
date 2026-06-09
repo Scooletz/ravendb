@@ -16,8 +16,8 @@ using Sparrow.Server.Logging;
 
 namespace Raven.Server.Integrations.PostgreSQL.PowerBI
 {
-    // SanitizedSql / SanitizedSelectStmt is the wrapper with the innermost query swapped for
-    // `select 1` so pgsqlparser can parse the outer structure without tripping over embedded RQL.
+    // SanitizedSql is the wrapper with innermost text replaced by `select 1` so pgsqlparser
+    // can read the outer structure (real inner may be RQL or shapes pgsqlparser can't handle).
     internal sealed record InnerTextResult(
         string InnerText,
         string SanitizedSql,

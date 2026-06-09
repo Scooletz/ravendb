@@ -6,20 +6,10 @@ using Raven.Server.ServerWide.Context;
 
 namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog.Tables
 {
-    // information_schema.table_constraints: one PRIMARY KEY row per Raven collection. The PK
-    // column itself is reported via the sibling key_column_usage view; PowerBI joins the two on
-    // (constraint_schema, constraint_name, table_schema, table_name) to discover that `id` is
-    // the primary key of every Raven table.
-    //
-    // Without this, PowerBI's DirectQuery mashup engine sees "table has no primary key", fails
-    // to establish per-row identity, and raises `SubstituteWithIndex detected more than one row
-    // in the index table matching to the current row of the original table` for any visual,
-    // slicer, or relationship that needs unique row substitution.
-    //
-    // The PK column name we report (`id`) is the PG-idiomatic surface name — PG identifiers
-    // cannot contain parens unquoted, so reporting `id()` (the RQL function-call form) here
-    // would parse-fail in PowerBI's mashup engine and trigger `Nullable object must have a
-    // value` during model construction. See PgSyntheticColumns for the rename detail.
+    // Exposes one PRIMARY KEY row per Raven collection — synthetic `id` column. PowerBI's
+    // DirectQuery joins this with key_column_usage to establish per-row identity; without it
+    // the mashup engine fails with `SubstituteWithIndex detected more than one row`.
+    // PG-facing name is `id` (not RQL's `id()`) — see PgSyntheticColumns for the rationale.
     internal sealed class InformationSchemaTableConstraintsTable : PgVirtualTable
     {
         private const string PublicSchema = "public";

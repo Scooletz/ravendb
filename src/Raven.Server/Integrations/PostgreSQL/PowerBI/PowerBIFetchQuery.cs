@@ -81,14 +81,10 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                         wrapperReplaces.Add(levelReplaces);
                     }
 
-                    // Defer WHERE application until after we've walked to the innermost SELECT
-                    // and collected its aggregate-output aliases. PowerBI commonly emits an
-                    // outer `where not "_"."a0" is null` guard on top of an inner
-                    // `select Freight, sum(Freight) as "a0" ... group by Freight` — translating
-                    // that WHERE against the inner query produces invalid RQL (`a0` isn't a
-                    // field of Orders) and the engine throws mid-response with
-                    // `Exception while reading from stream`. We need the alias set first to
-                    // know which WHEREs to drop, but we can only see it after the walk.
+                    // Defer WHERE application — we need the innermost aggregate-output aliases
+                    // first to know which outer WHEREs to drop (PowerBI's post-aggregate null
+                    // guards like `not "_"."a0" is null` would otherwise translate against the
+                    // pre-aggregation inner query and fail).
                     if (currentSelect.WhereClause != null)
                     {
                         deferredWheres ??= new List<(Node, string)>();
@@ -112,14 +108,10 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                     }
                 }
 
-                // `currentSelect` is the SANITIZED innermost — PowerBIInnerRqlExtractor replaces
-                // the real inner text with `select 1` so pgsqlparser can parse the outer wrapper
-                // structure (the real inner is often RQL or shapes pgsqlparser can't handle).
-                // So we can't get aggregate aliases from currentSelect.TargetList — it just has
-                // `select 1`. Re-parse the raw inner text instead. If the inner is SQL, this
-                // surfaces its aggregate-output aliases; if the inner is RQL, parsing fails and
-                // we return an empty set (RQL doesn't preserve SQL aliases anyway, so there's
-                // nothing for the outer WHERE to reference by alias).
+                // currentSelect's TargetList is sanitized (real inner replaced with `select 1`
+                // so pgsqlparser can read the wrapper). Re-parse the raw inner text to recover
+                // its aggregate aliases. RQL inner fails parsing and yields an empty set —
+                // RQL doesn't preserve SQL aliases anyway.
                 var aggregateOutputAliases = CollectAggregateAliasesFromInnerSql(inner.InnerText);
 
                 if (deferredWheres != null)
@@ -152,19 +144,12 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
 
                 var newRql = query.ToString();
 
-                // Mirror the dispatch rule from TryParseSimpleTableFetchViaAst: PowerBI's
-                // RowDescription expectations come from its OUTERMOST projection list. When the
-                // outermost asks for narrow user columns only (no id()/json() references) the
-                // synthetic id+json appended by PowerBIRqlQuery widens the response past the
-                // requested set — PowerBI's mashup engine then bails with `Field count mismatch
-                // when mapping column types. N vs N+1`. This commonly happens for post-aggregate
-                // wrappers like `select "_"."Freight", "_"."a0" from (group by/aggregate) "_"
-                // where not "_"."a0" is null` — outer asks for 2 cols, base would emit 3.
-                //
-                // Stay on PowerBIRqlQuery when its extra plumbing is actually doing work —
-                // wrapper-level REPLACE() column rewrites (allReplaces) or constant-marker
-                // outer projections (constProjections) — both of which PgSqlTranslatedRqlQuery
-                // doesn't implement.
+                // PowerBI's RowDescription expectations come from the OUTERMOST projection.
+                // Narrow projections (no id()/json()) must not pick up synthetic id+json, or
+                // the response widens past the asked-for column count and PowerBI bails with
+                // `Field count mismatch`. Stay on PowerBIRqlQuery only when its extra plumbing
+                // is doing work (REPLACE() rewrites or constant-marker projections — neither
+                // supported by PgSqlTranslatedRqlQuery).
                 if (WantsPowerBISyntheticColumns(selectStmt) || allReplaces != null || constProjections != null)
                 {
                     pgQuery = new PowerBIRqlQuery(newRql, parametersDataTypes, documentDatabase, allReplaces, limit: limit, constProjections: constProjections);

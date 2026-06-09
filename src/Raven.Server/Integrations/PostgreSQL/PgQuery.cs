@@ -68,11 +68,9 @@ namespace Raven.Server.Integrations.PostgreSQL
                         : new RqlQuery(rql, parametersDataTypes, documentDatabase);
                 }
 
-                // Before falling back to the generic "Unhandled query" dump, look for known
-                // unsupported AST shapes (SQL JOIN, scalar aggregate without GROUP BY) and surface
-                // a targeted FeatureNotSupported error that tells the client WHY and how to work
-                // around it. Anything we can't classify still hits the generic StatementTooComplex
-                // path so it's not silently mistaken for a known limitation.
+                // Targeted FeatureNotSupported errors for known unsupported shapes (JOIN,
+                // scalar aggregate, etc.) before the generic StatementTooComplex fallback —
+                // gives clients actionable workaround hints instead of an SQL dump.
                 if (UnhandledQueryDiagnoser.TryDiagnose(queryText, out var diagnosis))
                 {
                     throw new PgErrorException(

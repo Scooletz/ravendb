@@ -23,11 +23,9 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
         {
             await base.GenerateSchema();
 
-            // Add synthetic columns for the outer-wrapper constant projections AFTER base's
-            // own appends (the json synthetic is the last one base adds). PowerBI's SQL puts
-            // them after json in its projection list, so wire-order must match — getting it
-            // wrong manifests client-side as either DISP_E_TYPEMISMATCH (column N's expected
-            // .NET type doesn't match the value type) or silent data corruption.
+            // Append outer-wrapper const projections AFTER base's synthetic json — PowerBI's
+            // SQL puts them after json in its projection list, and wire-order mismatch shows
+            // up client-side as DISP_E_TYPEMISMATCH or silent data corruption.
             if (_constProjections != null)
             {
                 foreach (var cp in _constProjections)

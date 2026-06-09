@@ -6,14 +6,9 @@ using Raven.Server.ServerWide.Context;
 
 namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog.Tables
 {
-    // information_schema.key_column_usage: one row per Raven collection identifying the
-    // column that participates in the PRIMARY KEY. For Raven every table's PK is the synthetic
-    // `id` column (PG-facing name for the document identifier; see PgSyntheticColumns), at
-    // ordinal position 1.
-    //
-    // Joined by PowerBI to information_schema.table_constraints on (constraint_schema,
-    // constraint_name, table_schema, table_name) — both rows here use the same `pk_<TableName>`
-    // constraint name so the join produces exactly one row per table for the PK probe.
+    // Per-collection PK column row (synthetic `id` at position 1). Joined to
+    // table_constraints on `pk_<TableName>` so PowerBI's PK probe sees exactly one row per
+    // table. See PgSyntheticColumns for the `id` vs RQL `id()` naming.
     internal sealed class InformationSchemaKeyColumnUsageTable : PgVirtualTable
     {
         private const string PublicSchema = "public";

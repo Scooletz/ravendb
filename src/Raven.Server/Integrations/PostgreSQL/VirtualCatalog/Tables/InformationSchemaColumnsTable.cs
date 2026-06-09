@@ -78,11 +78,7 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog.Tables
                 var dbName = ctx.Database.Name;
                 int ordinal = 1;
 
-                // 1) id — RqlQuery prepends this as the document-identifier column (PgText).
-                // We report the PG-facing name (`id`, not `id()`) so the value parses as a bare
-                // PG identifier — required by clients (including PowerBI's mashup engine when
-                // building relationship metadata) that re-use information_schema column names
-                // to construct further SQL.
+                // 1) Synthetic id column (PG-facing name; see PgSyntheticColumns).
                 yield return new object[]
                 {
                     dbName, "public", collection,
@@ -90,10 +86,7 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog.Tables
                     ordinal++, Yes, "text"
                 };
 
-                // 2) User columns in INSERTION order — same order RqlQuery uses (line 131 in
-                //    RqlQuery.cs: `samples[0].Data.GetPropertyNames()`). We get the type via
-                //    GetPropertyIndex + GetPropertyByIndex because GetPropertyNames() returns
-                //    just the names without the BlittableJsonToken.
+                // 2) User columns in document insertion order (same order RqlQuery emits).
                 var prop = default(BlittableJsonReaderObject.PropertyDetails);
                 foreach (var name in sample.GetPropertyNames())
                 {

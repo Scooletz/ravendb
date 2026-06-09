@@ -165,17 +165,10 @@ namespace Raven.Server.Integrations.PostgreSQL
             // Assign them null type (PgJson.Default) at the start.
             foreach (var property in uncheckedTypePropertiesNames.ToArray())
             {
-                // RQL projects the document identifier as a property literally named `id()`
-                // (the RQL function-call form). When IncludeDocumentIdColumn is true the
-                // synthetic `id` column has already been prepended above; adding `id()`
-                // as a SECOND column would create a 12-vs-11 mismatch against
-                // information_schema.columns (which reports only `id`) and crash PowerBI's
-                // mashup engine inside RetrieveKeysForTable with
-                // `Nullable object must have a value` when it tries to reconcile the two
-                // schemas during PK lookup. Skip the duplicate; synthetic prepend covers it.
-                // (The matching `json()` case is handled upstream — the SQL→RQL translator
-                // already drops json/json() from the projection so RQL never returns a
-                // json() property in the first place.)
+                // RQL returns the document identifier as a property literally named `id()`.
+                // The synthetic `id` column was already prepended; skip the duplicate or
+                // we'd report N+1 columns where information_schema.columns reports N, and
+                // PowerBI's mashup engine crashes in PK reconciliation.
                 if (PgSyntheticColumns.IsDocumentIdColumn(property)
                     && Columns.ContainsKey(PgSyntheticColumns.DocumentId))
                 {
@@ -385,20 +378,15 @@ namespace Raven.Server.Integrations.PostgreSQL
                 case (BlittableJsonToken.LazyNumber, PgTypeOIDs.Float8):
                     return pgColumn.PgType.ToBytes((double)(LazyNumberValue)value, pgColumn.FormatCode);
 
-                // Cross-type numeric mismatches: a column's PgType is fixed at schema-inference time
-                // (first non-null sample wins), but RavenDB doesn't enforce a type across docs in the
-                // same collection. So `Freight = 89` (Integer) and `Freight = 89.5` (LazyNumber) can
-                // coexist. Without these cases, GetValueByType returns null on the mismatched token
-                // and PowerBI/pgAdmin show the cell as empty. Promote/coerce instead.
+                // Column PgType is fixed at schema-inference time, but RavenDB docs in one
+                // collection can mix numeric types (Integer + LazyNumber). Coerce instead of
+                // dropping the row.
                 case (BlittableJsonToken.Integer, PgTypeOIDs.Float8):
                     // long → double is lossless up to 2^53.
                     return pgColumn.PgType.ToBytes((double)(long)value, pgColumn.FormatCode);
 
                 case (BlittableJsonToken.LazyNumber, PgTypeOIDs.Int8):
-                    // Decimal narrowing to long — lossy for any fractional part, but rendering the
-                    // integer part is strictly better than dropping the row entirely. The schema
-                    // inference picked Int8 because the first sample happened to be a whole number;
-                    // mixed-type collections are inherently ambiguous to PG's static-typed surface.
+                    // Lossy fractional narrowing — better than rendering blank.
                     return pgColumn.PgType.ToBytes((long)(double)(LazyNumberValue)value, pgColumn.FormatCode);
 
                 case (BlittableJsonToken.CompressedString, PgTypeOIDs.Timestamp):

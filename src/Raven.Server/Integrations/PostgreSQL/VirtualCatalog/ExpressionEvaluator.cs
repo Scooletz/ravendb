@@ -4,14 +4,10 @@ using PgSqlParser;
 
 namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
 {
-    // Evaluates a value expression (a parser Node) against a RowScope, returning the cell value
-    // as an object. Mirror of PredicateEvaluator but on the raw AST — projection targets and
-    // CASE WHEN result clauses don't have a ParsedWhere IR.
-    //
-    // Scope: AConst literals, ColumnRef, CaseExpr (sequential WHENs, ELSE result), NullTest,
-    // BoolExpr/AExpr boolean expressions (evaluate to a bool object), and a narrow FuncCall slice
-    // (only literal-name proname checks via array_recv handling appear in the target queries, and
-    // those are surfaced as ColumnRef on a join scope rather than a function call here).
+    // Evaluates a value expression (parser Node) against a RowScope. Mirror of PredicateEvaluator
+    // but on the raw AST — projection targets and CASE WHEN result clauses don't have a
+    // ParsedWhere IR. Handles: AConst literals, ColumnRef, CaseExpr, NullTest, BoolExpr/AExpr,
+    // SubLink, and a narrow FuncCall slice (the catalog scalar functions).
     internal static class ExpressionEvaluator
     {
         // A subquery resolver injected by the interpreter so this class doesn't need to depend on
