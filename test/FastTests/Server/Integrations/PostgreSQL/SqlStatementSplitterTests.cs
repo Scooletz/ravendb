@@ -214,5 +214,54 @@ namespace FastTests.Server.Integrations.PostgreSQL
             var parts = SqlStatementSplitter.Split("SELECT fromage FROM cheeses; SELECT 1");
             Assert.Equal(2, parts.Count);
         }
+
+        // PowerBI Desktop's schema-discovery probe wraps user-provided RQL as
+        // `select * from (USER_RQL) "_" limit 0`. If USER_RQL contains a `declare function {...}`
+        // body, the JS body has semicolons. The outer text starts with `select` (not `declare`/`from`),
+        // so the RQL passthrough doesn't apply — meaning the splitter has to NOT split on `;` that
+        // are inside the outer `(...)` (or inside the JS body's `{...}`). Reported by
+        // leadsoftlucas/karmeli87 on PR-22711.
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void Powerbi_wrapped_rql_with_declare_function_is_not_split()
+        {
+            const string wrapped = """
+                select * from (
+                    declare function output(usage) {
+                        var r = usage.ModelLog.Response.filter(y => y.Id == usage.ModelId);
+                        return { Id: usage.ModelId, Response: r[0] };
+                    }
+                    from 'Usages' as x
+                    select output(x)
+                ) "_" limit 0
+                """;
+
+            var parts = SqlStatementSplitter.Split(wrapped);
+            Assert.Single(parts);
+            Assert.Contains("declare function output", parts[0]);
+            Assert.Contains("from 'Usages'", parts[0]);
+        }
+
+        // Semicolons inside a top-level `{...}` brace block (without enclosing parens) also
+        // must not split. Belt-and-braces alongside the paren-depth tracking — covers the case
+        // where a future client sends `declare function {...} from X` directly without the
+        // PowerBI wrapper but as SQL-shaped input the RQL passthrough doesn't catch.
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void Semicolons_inside_top_level_brace_block_do_not_split()
+        {
+            const string sql = "FOO { var a = 1; var b = 2; } BAR";
+
+            var parts = SqlStatementSplitter.Split(sql);
+            Assert.Single(parts);
+        }
+
+        // Paren-depth tracking must also preserve `;` inside nested parens.
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void Semicolons_inside_parens_do_not_split()
+        {
+            const string sql = "SELECT * FROM (SELECT 1; SELECT 2) x";
+
+            var parts = SqlStatementSplitter.Split(sql);
+            Assert.Single(parts);
+        }
     }
 }

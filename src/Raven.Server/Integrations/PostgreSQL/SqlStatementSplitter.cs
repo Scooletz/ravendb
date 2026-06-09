@@ -33,6 +33,16 @@ namespace Raven.Server.Integrations.PostgreSQL
 
             int start = 0;
             int i = 0;
+            // PG `;` is a top-level statement terminator; never a statement boundary inside
+            // a `(...)` subquery / function-arg list. PowerBI's schema-discovery probe wraps
+            // user SQL/RQL as `select * from (USER_QUERY) "_" limit 0` — if USER_QUERY is RQL
+            // with a `declare function { var x = ...; return ...; }` body, the JS semicolons
+            // are nested inside the outer `(...)`. Without depth tracking we'd shred the JS
+            // body into "statements" that look like garbage to the dispatcher.
+            // Brace depth is tracked separately so a `;` inside `{...}` (RQL declare-function
+            // JS body, even if not wrapped in outer parens) is also preserved.
+            int parenDepth = 0;
+            int braceDepth = 0;
             while (i < sql.Length)
             {
                 char c = sql[i];
@@ -135,13 +145,46 @@ namespace Raven.Server.Integrations.PostgreSQL
                     continue;
                 }
 
+                if (c == '(')
+                {
+                    parenDepth++;
+                    i++;
+                    continue;
+                }
+                if (c == ')')
+                {
+                    if (parenDepth > 0)
+                        parenDepth--;
+                    i++;
+                    continue;
+                }
+                if (c == '{')
+                {
+                    braceDepth++;
+                    i++;
+                    continue;
+                }
+                if (c == '}')
+                {
+                    if (braceDepth > 0)
+                        braceDepth--;
+                    i++;
+                    continue;
+                }
+
                 if (c == ';')
                 {
-                    var piece = sql.Substring(start, i - start).Trim();
-                    if (piece.Length > 0)
-                        result.Add(piece);
+                    if (parenDepth == 0 && braceDepth == 0)
+                    {
+                        var piece = sql.Substring(start, i - start).Trim();
+                        if (piece.Length > 0)
+                            result.Add(piece);
+                        i++;
+                        start = i;
+                        continue;
+                    }
+                    // Nested `;` — part of a JS body or other inner content, not a statement boundary.
                     i++;
-                    start = i;
                     continue;
                 }
 
