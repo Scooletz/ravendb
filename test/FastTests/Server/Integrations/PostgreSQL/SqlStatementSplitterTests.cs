@@ -140,7 +140,6 @@ namespace FastTests.Server.Integrations.PostgreSQL
 
             var parts = SqlStatementSplitter.Split(rql);
             Assert.Single(parts);
-            // The whole RQL — function body + query — must survive intact.
             Assert.Contains("declare function output", parts[0]);
             Assert.Contains("from index 'UsageByModel'", parts[0]);
             Assert.Contains("select output(x)", parts[0]);
@@ -219,8 +218,7 @@ namespace FastTests.Server.Integrations.PostgreSQL
         // `select * from (USER_RQL) "_" limit 0`. If USER_RQL contains a `declare function {...}`
         // body, the JS body has semicolons. The outer text starts with `select` (not `declare`/`from`),
         // so the RQL passthrough doesn't apply — meaning the splitter has to NOT split on `;` that
-        // are inside the outer `(...)` (or inside the JS body's `{...}`). Reported by
-        // leadsoftlucas/karmeli87 on PR-22711.
+        // are inside the outer `(...)` (or inside the JS body's `{...}`).
         [RavenFact(RavenTestCategory.PostgreSql)]
         public void Powerbi_wrapped_rql_with_declare_function_is_not_split()
         {

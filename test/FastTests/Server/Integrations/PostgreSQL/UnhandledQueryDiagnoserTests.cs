@@ -93,7 +93,6 @@ namespace FastTests.Server.Integrations.PostgreSQL
                 LIMIT 100
                 """;
 
-            // No JOIN anywhere, no scalar aggregate, no min/max → diagnoser returns false.
             Assert.False(UnhandledQueryDiagnoser.TryDiagnose(sql, out _));
         }
 
@@ -198,9 +197,6 @@ namespace FastTests.Server.Integrations.PostgreSQL
                 from 'Usages' as x select output(x)
                 """;
 
-            // Braces are balanced here so the fragment-detector returns false; the parser
-            // would also fail (this is RQL, not SQL) so other diagnoser arms also return false.
-            // Final result: no classification — caller handles as plain "unsupported".
             Assert.False(UnhandledQueryDiagnoser.TryDiagnose(complete, out _));
         }
 

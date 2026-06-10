@@ -12,13 +12,8 @@ using Xunit;
 
 namespace SlowTests.Server.Integrations.PostgreSQL;
 
-// Pins the security contract that PgSession must NOT prompt for a cleartext password on a
-// plaintext socket. A secured RavenDB server (one configured with a certificate) requires
-// password authentication; without this guard, a client connecting with `SSL Mode=Disable`
-// would skip the SSLRequest, land on the raw TCP stream, and have its password travel in
-// the clear. The fix in PgSession.Run refuses authentication unless the active stream is
-// an SslStream; this test exercises the refusal path by speaking the PG wire protocol
-// directly (no Npgsql dependency in this project).
+// Pins that a secured server refuses cleartext-password auth on a non-TLS socket — a client with
+// `SSL Mode=Disable` skips SSLRequest and would otherwise send its password in the clear.
 public sealed class PgSessionTlsRequiredTests : RavenTestBase
 {
     public PgSessionTlsRequiredTests(ITestOutputHelper output) : base(output)
@@ -35,8 +30,7 @@ public sealed class PgSessionTlsRequiredTests : RavenTestBase
             ["Features.Availability"] = "Experimental",
         };
 
-        // Adds CertificatePath + https ServerUrls into customSettings. The next GetNewServer
-        // picks them up and brings the server up in secured mode.
+        // Mutates customSettings (server cert + https URLs) so GetNewServer comes up secured.
         Certificates.SetupServerAuthentication(customSettings);
 
         using var server = GetNewServer(new ServerCreationOptions { CustomSettings = customSettings });
@@ -52,13 +46,10 @@ public sealed class PgSessionTlsRequiredTests : RavenTestBase
         await tcp.ConnectAsync(IPAddress.Loopback, port);
         var stream = tcp.GetStream();
 
-        // Send a PG v3.0 StartupMessage directly — NO SSLRequest first. This simulates a
-        // client with `SSL Mode=Disable`. The server should refuse with an ErrorResponse
-        // instead of asking for a cleartext password.
+        // StartupMessage with NO preceding SSLRequest (i.e. SSL Mode=Disable) — secured server must refuse, not prompt for a password.
         await WriteStartupMessageAsync(stream, user: "anyone", database: "any-db");
 
-        // The server replies with one byte for message type, then a 4-byte length (BE), then
-        // body. We want type 'E' (ErrorResponse), NOT 'R' (Authentication).
+        // Reply: 1-byte type + 4-byte BE length + body. Want 'E' (ErrorResponse), not 'R' (Authentication).
         var msgType = (char)await ReadByteAsync(stream);
         Assert.Equal('E', msgType);
 
@@ -66,8 +57,7 @@ public sealed class PgSessionTlsRequiredTests : RavenTestBase
         var body = new byte[bodyLen];
         await ReadExactlyAsync(stream, body, bodyLen);
 
-        // ErrorResponse body is a sequence of (1-byte field code, null-terminated string) tuples
-        // ending with a single null byte. We just scan for the TLS-required hint in the message.
+        // Scan the ErrorResponse text for the TLS hint.
         var asText = Encoding.UTF8.GetString(body);
         Assert.Contains("TLS", asText, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("SSL", asText, StringComparison.OrdinalIgnoreCase);

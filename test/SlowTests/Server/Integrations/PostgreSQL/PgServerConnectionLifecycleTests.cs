@@ -10,10 +10,8 @@ using Xunit;
 
 namespace SlowTests.Server.Integrations.PostgreSQL;
 
-// Pins the cleanup contract on PgServer's in-flight connection dictionary: every accepted
-// connection must be removed from the dictionary once its session task completes. Without
-// this, short-lived PowerBI traffic accumulates one (TcpClient + completed-Task) tuple per
-// connection ever made — a slow leak that only surfaces in long-running deployments.
+// Pins PgServer's in-flight connection cleanup: every accepted connection must leave the dictionary
+// once its session ends, else short-lived PowerBI traffic slowly leaks a tuple per connection.
 public sealed class PgServerConnectionLifecycleTests : RavenTestBase
 {
     public PgServerConnectionLifecycleTests(ITestOutputHelper output) : base(output)
@@ -42,10 +40,8 @@ public sealed class PgServerConnectionLifecycleTests : RavenTestBase
 
         int port = pgServer.GetListenerPort();
 
-        // Churn raw TCP connections — we don't bother with a real PG handshake. PgSession
-        // reads the initial message, gets EOF, and the session exits via the IOException path.
-        // The cleanup we're testing happens unconditionally whenever HandleConnection's task
-        // finishes, regardless of whether the session ran a handshake or not.
+        // Churn raw TCP connect/close — no real handshake needed; the session hits EOF and exits, and
+        // cleanup fires whenever HandleConnection's task finishes.
         const int churn = 25;
         for (int i = 0; i < churn; i++)
         {
@@ -54,10 +50,8 @@ public sealed class PgServerConnectionLifecycleTests : RavenTestBase
             c.Close();
         }
 
-        // Each accepted TcpClient is added to the dictionary in PgServer.ListenToConnections;
-        // a ContinueWith on the session task removes it. Both steps are async — give them
-        // time to settle. A retained entry past this window indicates a regression of the
-        // cleanup contract.
+        // Add (ListenToConnections) and remove (ContinueWith on the session task) are both async, so poll
+        // briefly; a non-zero count past this window is a cleanup regression.
         var sw = Stopwatch.StartNew();
         while (pgServer.InFlightConnectionCount > 0 && sw.Elapsed < TimeSpan.FromSeconds(15))
             await Task.Delay(100);
