@@ -280,12 +280,14 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
         }
 
         [RavenFact(RavenTestCategory.PostgreSql)]
-        public void Complex_23_CountStar()
+        public void Complex_23_ScalarCountStar_IsRejected()
         {
+            // Scalar count(*) with no GROUP BY has no valid RQL form (the engine rejects
+            // `from t select count()` with "count may only be used in group by queries").
+            // The translator bails so PgQuery surfaces a friendly diagnoser message instead.
             var sql = "SELECT COUNT(*) FROM orders";
-            var expected = "from 'orders' select count()";
 
-            Assert.Equal(expected, Translate(sql));
+            Assert.False(Raven.Server.Integrations.PostgreSQL.Translation.PgSqlToRqlTranslator.TryParse(sql, Array.Empty<int>(), out _));
         }
 
         // PowerBI's row-preview / drill-down queries decorate their projection list with
@@ -422,22 +424,24 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
             Assert.Equal(expected, Translate(sql));
         }
 
+        // Scalar aggregates (all-aggregate SELECT, no GROUP BY) have no valid RQL form — the engine
+        // rejects `from t select sum(x)` with "sum may only be used in group by queries". The
+        // translator now bails so PgQuery falls through to UnhandledQueryDiagnoser for a friendly
+        // message instead of emitting RQL that explodes at execution time.
         [RavenFact(RavenTestCategory.PostgreSql)]
-        public void Complex_24_Sum()
+        public void Complex_24_ScalarAggregates_AreRejected()
         {
             var sql = "SELECT COUNT(*), SUM(amount), AVG(score) FROM orders";
-            var expected = "from 'orders' select count(), sum(amount), avg(score)";
 
-            Assert.Equal(expected, Translate(sql));
+            Assert.False(Raven.Server.Integrations.PostgreSQL.Translation.PgSqlToRqlTranslator.TryParse(sql, Array.Empty<int>(), out _));
         }
 
         [RavenFact(RavenTestCategory.PostgreSql)]
-        public void Complex_25_AvgWithWhere()
+        public void Complex_25_ScalarAvgWithWhere_IsRejected()
         {
             var sql = "SELECT AVG(amount) FROM orders WHERE status = 'Paid'";
-            var expected = "from 'orders' where status = 'Paid' select avg(amount)";
 
-            Assert.Equal(expected, Translate(sql));
+            Assert.False(Raven.Server.Integrations.PostgreSQL.Translation.PgSqlToRqlTranslator.TryParse(sql, Array.Empty<int>(), out _));
         }
 
         [RavenFact(RavenTestCategory.PostgreSql)]

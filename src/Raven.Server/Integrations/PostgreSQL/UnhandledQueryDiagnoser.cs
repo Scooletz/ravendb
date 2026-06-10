@@ -66,7 +66,13 @@ namespace Raven.Server.Integrations.PostgreSQL
 
             if (HasMinOrMaxAggregate(outer))
             {
-                message = "min() and max() aggregates are not supported by RavenDB's map-reduce engine — its AggregationOperation set is limited to Count and Sum (avg is composed from those). To get the minimum / maximum of a field, do `ORDER BY <field> ASC LIMIT 1` (min) or `ORDER BY <field> DESC LIMIT 1` (max) and read the single value client-side.";
+                message = "min() and max() aggregates are not supported by RavenDB's map-reduce engine — its AggregationOperation set is limited to Count and Sum. To get the minimum / maximum of a field, do `ORDER BY <field> ASC LIMIT 1` (min) or `ORDER BY <field> DESC LIMIT 1` (max) and read the single value client-side.";
+                return true;
+            }
+
+            if (HasAvgAggregate(outer))
+            {
+                message = "avg() is not supported by RavenDB's map-reduce engine — its AggregationOperation set is limited to Count and Sum. Compute the average client-side: select sum(<field>) and count(*) and divide.";
                 return true;
             }
 
@@ -220,6 +226,33 @@ namespace Raven.Server.Integrations.PostgreSQL
 
                 if (string.Equals(name, "min", System.StringComparison.OrdinalIgnoreCase)
                     || string.Equals(name, "max", System.StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+            return false;
+        }
+
+        // True iff any target projection is an avg() FuncCall. avg has no RQL grouped-SELECT form
+        // (RQL aggregates are Count and Sum only), so it's unsupported in both scalar and GROUP BY
+        // shapes — surfaced before the generic scalar-aggregate check so the message names avg and
+        // gives the sum/count workaround rather than the "wrap in GROUP BY" hint that won't help.
+        private static bool HasAvgAggregate(SelectStmt selectStmt)
+        {
+            if (selectStmt.TargetList is not { Count: > 0 } targets)
+                return false;
+
+            foreach (var t in targets)
+            {
+                var funcCall = t?.ResTarget?.Val?.FuncCall;
+                if (funcCall == null)
+                    continue;
+
+                var name = funcCall.Funcname is { Count: > 0 }
+                    ? funcCall.Funcname[funcCall.Funcname.Count - 1]?.String?.Sval
+                    : null;
+                if (string.IsNullOrEmpty(name))
+                    continue;
+
+                if (string.Equals(name, "avg", System.StringComparison.OrdinalIgnoreCase))
                     return true;
             }
             return false;

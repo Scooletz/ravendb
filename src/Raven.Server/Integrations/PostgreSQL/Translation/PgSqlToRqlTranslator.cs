@@ -30,6 +30,11 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
         // ad-hoc throws elsewhere still use NotSupportedException(string) until migrated.
         private static PgTranslationException UnsupportedSelectAggregate() =>
             new(TranslationFailureCategory.Aggregate, "Unsupported SELECT aggregate");
+        // Scalar aggregate (all-aggregate SELECT with no GROUP BY) and avg() have no RQL form —
+        // bail so PgQuery falls through to UnhandledQueryDiagnoser for a user-facing explanation
+        // instead of emitting RQL the engine rejects at execution time with an opaque error.
+        private static PgTranslationException ScalarAggregateWithoutGroupBy() =>
+            new(TranslationFailureCategory.Aggregate, "Scalar aggregate without GROUP BY is not supported");
         private static PgTranslationException UnsupportedSelectProjection() =>
             new(TranslationFailureCategory.SelectProjection, "Unsupported SELECT projection");
         private static PgTranslationException MixedAggregateAndNonAggregate() =>
@@ -613,8 +618,10 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
 
             if (allAgg)
             {
-                q.SelectFields<JObject>(BuildAggregateProjections(targets, fromAlias));
-                return;
+                // No GROUP BY here (this method is the non-group-by branch), so every
+                // RQL aggregate form — count()/sum()/avg() — is rejected by the query engine
+                // ("X may only be used in group by queries"). Bail to the diagnoser.
+                throw ScalarAggregateWithoutGroupBy();
             }
 
             var (projectionFields, projectionAliases) = BuildColumnProjections(targets, fromAlias);
@@ -769,37 +776,6 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
             return false;
         }
 
-        private static string[] BuildAggregateProjections(IReadOnlyList<Node> targetList, string fromAlias = null)
-        {
-            var projections = new List<string>(capacity: targetList.Count);
-
-            foreach (var t in targetList)
-            {
-                var funcCall = t.ResTarget?.Val?.FuncCall;
-                if (funcCall == null)
-                    throw UnsupportedSelectAggregate();
-
-                var funcName = GetFuncNameOrThrow(funcCall);
-
-                switch (funcName)
-                {
-                    case "count":
-                        projections.Add(BuildCountProjection(funcCall, fromAlias));
-                        break;
-
-                    case "sum":
-                    case "avg":
-                        projections.Add(BuildSingleColumnAggregateProjection(funcName, funcCall, fromAlias));
-                        break;
-
-                    default:
-                        throw UnsupportedSelectAggregate();
-                }
-            }
-
-            return projections.ToArray();
-        }
-
         private static string GetFuncNameOrThrow(FuncCall funcCall)
         {
             if (funcCall.Funcname == null || funcCall.Funcname.Count == 0 || funcCall.Funcname[0].String == null)
@@ -866,7 +842,9 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
                 var expr = funcName switch
                 {
                     "count" => BuildCountProjection(val.FuncCall, fromAlias),
-                    "sum" or "avg" => BuildSingleColumnAggregateProjection(funcName, val.FuncCall, fromAlias),
+                    "sum" => BuildSingleColumnAggregateProjection(funcName, val.FuncCall, fromAlias),
+                    // avg() is intentionally absent: RQL's grouped SELECT supports only count/sum,
+                    // so avg falls through to UnhandledQueryDiagnoser for a friendly message.
                     _ => throw UnsupportedGroupBy()
                 };
 
@@ -895,7 +873,7 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
             return funcName switch
             {
                 "count" => BuildCountProjection(funcCall, fromAlias),
-                "sum" or "avg" => BuildSingleColumnAggregateProjection(funcName, funcCall, fromAlias),
+                "sum" => BuildSingleColumnAggregateProjection(funcName, funcCall, fromAlias),
                 _ => throw UnsupportedOrderByForGroupBy()
             };
         }
