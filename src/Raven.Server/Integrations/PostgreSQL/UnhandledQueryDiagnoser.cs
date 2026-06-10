@@ -1,3 +1,4 @@
+using System;
 using PgSqlParser;
 
 namespace Raven.Server.Integrations.PostgreSQL
@@ -75,19 +76,67 @@ namespace Raven.Server.Integrations.PostgreSQL
         // Detects a textual fragment of a `declare function {...}` body. The fragment will
         // have more open braces than close braces (because the client cut us off at a `;`
         // inside the body). Pure textual check — pgsqlparser fails on the fragment, so we
-        // run this before any AST-based diagnostics. False-positive risk is low: a balanced
-        // `declare function` query would have matched braces and wouldn't even reach the
-        // diagnoser (it dispatches successfully through RqlQuery.TryParse).
+        // run this before any AST-based diagnostics. Two guards keep this from false-firing:
+        //   1) The text must START with `declare function`. Stops a SQL query that happens
+        //      to contain "declare function" inside a string literal from triggering.
+        //   2) Brace counting skips quoted regions. Stops a JS string in the body like
+        //      `return "}"` from balancing out a real open brace.
+        // We deliberately do NOT skip `--` or `/* */` style comments: the fragment is JS, not
+        // SQL, and `i--` (JS decrement) is far more common inside a function body than a
+        // SQL line comment — skipping `--` would falsely consume real characters.
         private static bool LooksLikeJsBodyFragment(string queryText)
         {
-            if (queryText.IndexOf("declare function", System.StringComparison.OrdinalIgnoreCase) < 0)
+            var trimmed = queryText.AsSpan().TrimStart();
+            if (trimmed.StartsWith("declare function", System.StringComparison.OrdinalIgnoreCase) == false)
                 return false;
 
             int openBraces = 0;
             int closeBraces = 0;
-            for (int i = 0; i < queryText.Length; i++)
+            for (int i = 0; i < trimmed.Length; i++)
             {
-                var ch = queryText[i];
+                var ch = trimmed[i];
+
+                // Single-quoted string: '' is an escaped quote.
+                if (ch == '\'')
+                {
+                    i++;
+                    while (i < trimmed.Length)
+                    {
+                        if (trimmed[i] == '\'')
+                        {
+                            if (i + 1 < trimmed.Length && trimmed[i + 1] == '\'')
+                            {
+                                i += 2;
+                                continue;
+                            }
+                            break;
+                        }
+                        i++;
+                    }
+                    continue;
+                }
+
+                // Double-quoted string / identifier. JS bodies use "..." for strings; skipping
+                // its contents stops a stray `}` inside a JS string from balancing the body.
+                if (ch == '"')
+                {
+                    i++;
+                    while (i < trimmed.Length)
+                    {
+                        if (trimmed[i] == '"')
+                        {
+                            if (i + 1 < trimmed.Length && trimmed[i + 1] == '"')
+                            {
+                                i += 2;
+                                continue;
+                            }
+                            break;
+                        }
+                        i++;
+                    }
+                    continue;
+                }
+
                 if (ch == '{') openBraces++;
                 else if (ch == '}') closeBraces++;
             }

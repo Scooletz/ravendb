@@ -211,6 +211,38 @@ namespace FastTests.Server.Integrations.PostgreSQL
             Assert.False(UnhandledQueryDiagnoser.TryDiagnose("SELECT * FROM unknown_table", out _));
         }
 
+        // A SQL query that happens to mention "declare function" inside a string literal must
+        // NOT be classified as a fragment — only queries that actually START with `declare
+        // function` are real RQL fragments.
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void DeclareFunctionInStringLiteral_NotClassifiedAsFragment()
+        {
+            const string sql = "SELECT * FROM \"docs\" WHERE \"note\" = 'we declare function {x' AND \"id\" > 0";
+            Assert.False(UnhandledQueryDiagnoser.TryDiagnose(sql, out _));
+        }
+
+        // A `declare function` body that contains a JS string literal with a stray `}` (e.g.
+        // `return "}"`) must still be classified as a fragment if the outer body is truncated
+        // — brace counting must skip the string contents so the literal's `}` doesn't balance
+        // the body's real `{`.
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void JsBodyFragment_WithBraceInStringLiteral_StillDetected()
+        {
+            const string fragment = "declare function f(x) { var y = \"}\"; var z = x.foo";
+            Assert.True(UnhandledQueryDiagnoser.TryDiagnose(fragment, out var message));
+            Assert.Contains("fragment", message);
+        }
+
+        // A JS body containing single-quoted strings with stray `{` should still be detected
+        // as a fragment when braces are actually unbalanced — single-quote skipping mustn't
+        // accidentally swallow real braces outside the string.
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void JsBodyFragment_WithSingleQuotedString_StillDetected()
+        {
+            const string fragment = "declare function f(x) { var y = 'has-an-open-{-inside'; var z = x.foo";
+            Assert.True(UnhandledQueryDiagnoser.TryDiagnose(fragment, out _));
+        }
+
         // min()/max() aggregates aren't supported by RavenDB's map-reduce engine — the
         // AggregationOperation enum models only Count and Sum. The diagnoser must catch this
         // (both with and without GROUP BY) and point at the ORDER BY + LIMIT 1 workaround.
