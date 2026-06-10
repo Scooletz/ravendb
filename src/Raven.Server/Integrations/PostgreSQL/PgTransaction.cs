@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using NCrontab.Advanced.Extensions;
 using Raven.Server.Documents;
+using Raven.Server.Integrations.PostgreSQL.Exceptions;
 using Raven.Server.Integrations.PostgreSQL.Messages;
 
 namespace Raven.Server.Integrations.PostgreSQL
@@ -45,13 +46,24 @@ namespace Raven.Server.Integrations.PostgreSQL
 
             // Extended Protocol's Parse message should contain a single statement. Some clients
             // (e.g. Npgsql-based connectors like Microsoft Fabric Copy Job) send a multi-statement
-            // batch in one Parse message anyway. We take the last statement in the batch — for
-            // Npgsql startup batches (SELECT version(); SELECT <type-discovery>) that is always the
-            // meaningful data query. The trivial probes (version, current_setting) are silently
-            // dropped; Describe/Execute then serve the real query's schema and rows.
+            // batch in one Parse message anyway. We take the LAST statement and silently drop
+            // the leading ones — but only when those leading statements are known startup-probe
+            // trivia (SET / SHOW / RESET / transaction control / version probe). If any dropped
+            // statement looks like real work, refuse loudly instead of silently losing it.
             var stmts = SqlStatementSplitter.Split(cleanQueryText);
             if (stmts.Count > 1)
+            {
+                for (int i = 0; i < stmts.Count - 1; i++)
+                {
+                    if (IsTriviaStatement(stmts[i]) == false)
+                    {
+                        throw new PgErrorException(
+                            PgErrorCodes.FeatureNotSupported,
+                            $"Extended Protocol Parse received {stmts.Count} statements, but only the last is served and the leading ones must be startup-probe trivia (SET / SHOW / RESET / BEGIN / COMMIT / ROLLBACK / SELECT version() / SELECT current_setting). Got a non-trivia leading statement: {stmts[i]}");
+                    }
+                }
                 cleanQueryText = stmts[^1];
+            }
 
             _currentQuery = PgQuery.CreateInstance(cleanQueryText, parametersDataTypes, DocumentDatabase, Session, Username);
         }
@@ -104,6 +116,59 @@ namespace Raven.Server.Integrations.PostgreSQL
 
             MessageReader?.Dispose();
             MessageReader = null;
+        }
+
+        // Whitelist of statement shapes safe to silently drop when a client sends a multi-statement
+        // Parse. These are the shapes observed in Npgsql/Microsoft Fabric/pgAdmin startup probes,
+        // none of which produce data the application needs. Anything not on this list might be a
+        // real query whose silent drop would corrupt results — refuse loudly instead.
+        internal static bool IsTriviaStatement(string stmt)
+        {
+            if (string.IsNullOrWhiteSpace(stmt))
+                return true;
+
+            var span = stmt.AsSpan().TrimStart();
+            // Strip a trailing semicolon if any (defensive — splitter already strips them).
+            while (span.Length > 0 && (span[^1] == ';' || char.IsWhiteSpace(span[^1])))
+                span = span[..^1];
+
+            if (StartsWithKeyword(span, "set") ||
+                StartsWithKeyword(span, "show") ||
+                StartsWithKeyword(span, "reset") ||
+                StartsWithKeyword(span, "begin") ||
+                StartsWithKeyword(span, "commit") ||
+                StartsWithKeyword(span, "rollback") ||
+                StartsWithKeyword(span, "end") ||
+                StartsWithKeyword(span, "start"))
+                return true;
+
+            // Allow Npgsql version probe (`SELECT version()`) and current_setting probes.
+            if (StartsWithKeyword(span, "select"))
+            {
+                var rest = span[6..].TrimStart();
+                if (rest.StartsWith("version", StringComparison.OrdinalIgnoreCase) ||
+                    rest.StartsWith("current_setting", StringComparison.OrdinalIgnoreCase) ||
+                    rest.StartsWith("pg_catalog.set_config", StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+
+            return false;
+        }
+
+        private static bool StartsWithKeyword(ReadOnlySpan<char> span, string keyword)
+        {
+            if (span.Length < keyword.Length)
+                return false;
+            for (int i = 0; i < keyword.Length; i++)
+            {
+                if (char.ToLowerInvariant(span[i]) != keyword[i])
+                    return false;
+            }
+            if (span.Length == keyword.Length)
+                return true;
+            var next = span[keyword.Length];
+            // Keyword must be followed by a word boundary (whitespace, end-of-string, or punctuation).
+            return char.IsLetterOrDigit(next) == false && next != '_';
         }
     }
 }
