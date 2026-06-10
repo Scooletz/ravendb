@@ -607,22 +607,8 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
             var subqueryResolver = MakeSubqueryResolver(ctx);
             var functionResolver = MakeFunctionResolver(ctx);
 
-            var filtered = new List<JoinExecutor.JoinedRow>();
-            foreach (var jr in joinedRows)
-            {
-                if (s.WhereClause == null)
-                {
-                    filtered.Add(jr);
-                    continue;
-                }
-                var scope = jr.ToScope(sources);
-                if (outerScope != null)
-                    scope = scope.WithParent(outerScope);
-                if (ExpressionEvaluator.TryEvaluate(s.WhereClause, scope, subqueryResolver, functionResolver, out var match) == false)
-                    return false;
-                if (ExpressionEvaluator.IsTruthy(match))
-                    filtered.Add(jr);
-            }
+            if (TryApplyWhereFilter(s.WhereClause, joinedRows, sources, outerScope, subqueryResolver, functionResolver, out var filtered) == false)
+                return false;
 
             var columns = new List<PgColumn>(targetList.Count);
             var cells = new ReadOnlyMemory<byte>?[targetList.Count];
@@ -644,6 +630,38 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
                 Columns = columns,
                 Data = new List<PgDataRow> { new(cells) },
             };
+            return true;
+        }
+
+        // Filters joined rows by an optional WHERE clause, evaluating each row against an
+        // ExpressionEvaluator scope chained onto outerScope (for correlated subqueries). Returns
+        // false on evaluator failure so the caller can bail; success path always returns true,
+        // even when whereClause is null or all rows are rejected.
+        private static bool TryApplyWhereFilter(
+            Node whereClause,
+            List<JoinExecutor.JoinedRow> joinedRows,
+            IReadOnlyList<JoinExecutor.SourceInfo> sources,
+            RowScope outerScope,
+            ExpressionEvaluator.ScalarSubqueryResolver subqueryResolver,
+            ExpressionEvaluator.ScalarFunctionResolver functionResolver,
+            out List<JoinExecutor.JoinedRow> filtered)
+        {
+            filtered = new List<JoinExecutor.JoinedRow>(joinedRows.Count);
+            if (whereClause == null)
+            {
+                filtered.AddRange(joinedRows);
+                return true;
+            }
+            foreach (var jr in joinedRows)
+            {
+                var scope = jr.ToScope(sources);
+                if (outerScope != null)
+                    scope = scope.WithParent(outerScope);
+                if (ExpressionEvaluator.TryEvaluate(whereClause, scope, subqueryResolver, functionResolver, out var match) == false)
+                    return false;
+                if (ExpressionEvaluator.IsTruthy(match))
+                    filtered.Add(jr);
+            }
             return true;
         }
 
@@ -741,22 +759,8 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
             var subqueryResolver = MakeSubqueryResolver(ctx);
             var functionResolver = MakeFunctionResolver(ctx);
 
-            var filtered = new List<JoinExecutor.JoinedRow>();
-            foreach (var jr in joinedRows)
-            {
-                if (s.WhereClause == null)
-                {
-                    filtered.Add(jr);
-                    continue;
-                }
-                var scope = jr.ToScope(sources);
-                if (outerScope != null)
-                    scope = scope.WithParent(outerScope);
-                if (ExpressionEvaluator.TryEvaluate(s.WhereClause, scope, subqueryResolver, functionResolver, out var match) == false)
-                    return false;
-                if (ExpressionEvaluator.IsTruthy(match))
-                    filtered.Add(jr);
-            }
+            if (TryApplyWhereFilter(s.WhereClause, joinedRows, sources, outerScope, subqueryResolver, functionResolver, out var filtered) == false)
+                return false;
 
             // Sort plan: each entry either reuses a projected column or evaluates an expression
             // against the joined row alongside the projection (kept in a hidden tail of each row).
