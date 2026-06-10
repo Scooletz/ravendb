@@ -946,7 +946,7 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
                         EmitWhere(q, n.Child, wrapInSubclause: false);
                         break;
                     }
-                    throw new NotSupportedException("NOT over compound expressions is not supported in SQL→RQL WHERE translation");
+                    throw new NotSupportedException("NOT over compound expressions is not supported in SQL to RQL WHERE translation");
                 }
 
                 case ParsedBinary b:

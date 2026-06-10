@@ -5,7 +5,7 @@ using Raven.Server.Integrations.PostgreSQL.Types;
 namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog.Tables
 {
     // CSV-backed pg_catalog tables — let Npgsql startup type-loading queries run through
-    // PgVirtualInterpreter. See VirtualCatalog/TYPE-CATALOG-DESIGN.md.
+    // PgVirtualInterpreter.
     internal abstract class CsvBackedCatalogTable : PgVirtualTable
     {
         private readonly object _gate = new();

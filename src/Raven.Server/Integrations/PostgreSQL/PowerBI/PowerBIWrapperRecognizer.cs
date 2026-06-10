@@ -6,7 +6,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
 {
     // Recognizes PowerBI's outer-wrapper SQL and normalizes it into a NormalizedWrapper that the
     // shape classifier (PowerBIShapeClassifier) and the RQL rewriters in PowerBIDirectQuery can
-    // consume. Pure analysis — no RQL mutation, no side effects. See POWERBI-REFACTOR-DESIGN.md.
+    // consume. Pure analysis — no RQL mutation, no side effects.
     internal static class PowerBIWrapperRecognizer
     {
         public static bool TryNormalize(SelectStmt selectStmt, out NormalizedWrapper wrapper)

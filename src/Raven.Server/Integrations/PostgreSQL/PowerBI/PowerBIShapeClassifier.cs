@@ -5,7 +5,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
 {
     // Classifies a NormalizedWrapper into either a grouped-aggregate shape or a simple direct-query
     // shape. Pure analysis — produces shape records that the rewriters in PowerBIDirectQuery
-    // consume to mutate the resolved RQL Query AST. See POWERBI-REFACTOR-DESIGN.md.
+    // consume to mutate the resolved RQL Query AST.
     internal static class PowerBIShapeClassifier
     {
         // PowerBI's "top 1,000,000 + 1" convention when the wrapper has no LIMIT.

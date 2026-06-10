@@ -85,7 +85,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 }
             }
 
-            // AST fallback: the inner text is ambiguous. Try RQL first, then SQL→RQL translation.
+            // AST fallback: the inner text is ambiguous. Try RQL first, then SQL to RQL translation.
             try
             {
                 return QueryMetadata.ParseQuery(innerText, QueryType.Select);
@@ -93,7 +93,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             catch (Exception e)
             {
                 if (Logger.IsDebugEnabled)
-                    Logger.Debug($"{nameof(PowerBIInnerRqlExtractor)}: inner text is not RQL, will attempt SQL→RQL translation. Reason: {e.Message}");
+                    Logger.Debug($"{nameof(PowerBIInnerRqlExtractor)}: inner text is not RQL, will attempt SQL to RQL translation. Reason: {e.Message}");
             }
 
             if (PgSqlToRqlTranslator.TryParse(innerText, parameterTypes: Array.Empty<int>(), out var translatedRql) == false)
@@ -106,7 +106,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             catch (Exception e)
             {
                 if (Logger.IsDebugEnabled)
-                    Logger.Debug($"{nameof(PowerBIInnerRqlExtractor)}: SQL→RQL-translated query failed to re-parse as RQL. Reason: {e.Message}");
+                    Logger.Debug($"{nameof(PowerBIInnerRqlExtractor)}: SQL to RQL-translated query failed to re-parse as RQL. Reason: {e.Message}");
                 return null;
             }
         }

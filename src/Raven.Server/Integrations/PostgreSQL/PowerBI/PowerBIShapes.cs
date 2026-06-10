@@ -4,9 +4,7 @@ using PgSqlParser;
 namespace Raven.Server.Integrations.PostgreSQL.PowerBI
 {
     // Data records produced by PowerBI recognition (PowerBIWrapperRecognizer / PowerBIShapeClassifier)
-    // and consumed by the rewriters in PowerBIDirectQuery. Lifted out of PowerBIDirectQuery's private
-    // nested types so the recognizer and classifier can live in their own files. See
-    // POWERBI-REFACTOR-DESIGN.md for the architectural rationale.
+    // and consumed by the rewriters in PowerBIDirectQuery.
 
     internal sealed record DirectQueryShape(
         List<string> ProjectionCols,

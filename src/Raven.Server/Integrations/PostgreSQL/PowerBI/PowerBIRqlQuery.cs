@@ -83,9 +83,8 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
         {
             base.AfterRow(jsonResult, row, jsonIndex);
 
-            // Write the literal value into each outer-wrapper constant column for every row.
-            // Encoded per-row at the column's PgType and format code; a null Value is left as
-            // the array's default null slot, which the protocol writer emits as wire NULL.
+            // Encode each const projection's literal at the column's PgType/format code. A null Value is
+            // left as the array's default slot, which the protocol writer emits as wire NULL.
             if (_constProjections == null)
                 return;
 

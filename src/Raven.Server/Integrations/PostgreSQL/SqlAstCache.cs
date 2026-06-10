@@ -3,7 +3,7 @@ using PgSqlParser;
 namespace Raven.Server.Integrations.PostgreSQL
 {
     // Single-entry per-thread cache around pgsqlparser's Parser.Parse. PgQuery.CreateInstance
-    // dispatches a SQL query through several arms (PowerBI / virtual interpreter / SQL→RQL
+    // dispatches a SQL query through several arms (PowerBI / virtual interpreter / SQL to RQL
     // translator / unhandled diagnoser), each of which parses the same text independently. For
     // a query that falls through to the diagnoser the same string gets parsed 4–6 times.
     //

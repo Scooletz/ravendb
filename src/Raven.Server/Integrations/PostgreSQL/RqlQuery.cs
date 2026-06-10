@@ -90,7 +90,7 @@ namespace Raven.Server.Integrations.PostgreSQL
             {
                 // The IndexQueryServerSide(string, ...) constructor populates Metadata.Query but
                 // does NOT carry the parsed `LIMIT` / `OFFSET` through to PageSize / Start —
-                // only the JSON-body Create() path does that. So a SQL→RQL translation like
+                // only the JSON-body Create() path does that. So a SQL to RQL translation like
                 // `from 'Orders' select … limit 0, 5` would otherwise execute with the default
                 // PageSize = int.MaxValue and return ALL rows in the collection. pgAdmin probes,
                 // psql, anything sending RQL-as-text through PG hit this. Apply the embedded
@@ -275,7 +275,7 @@ namespace Raven.Server.Integrations.PostgreSQL
             catch (Exception e) when (e is InvalidQueryException or QueryParser.ParseException)
             {
                 // Input is not valid RQL — leave it for the next dispatch arm (PowerBI / hardcoded /
-                // SQL→RQL translator). Any other exception type (OOM, stack overflow, …) is a real
+                // SQL to RQL translator). Any other exception type (OOM, stack overflow, …) is a real
                 // failure and must propagate rather than be silently reclassified as "not RQL".
                 if (Logger.IsDebugEnabled)
                     Logger.Debug($"{nameof(RqlQuery)}.{nameof(TryParse)} rejected query as non-RQL: {e.Message}");
