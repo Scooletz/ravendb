@@ -82,6 +82,21 @@ namespace Raven.Server.Integrations.PostgreSQL
                 return true;
             }
 
+            if (outer.HavingClause != null)
+            {
+                message = "SQL HAVING is not supported. RavenDB filters aggregated groups with a post-reduction predicate the bridge doesn't translate yet — fetch the grouped rows without HAVING and apply the threshold client-side.";
+                return true;
+            }
+
+            // A WHERE that reaches here alongside a GROUP BY is a non-key pre-aggregation filter (a
+            // WHERE on the group key translates fine and never falls through). RavenDB's map-reduce
+            // applies WHERE post-reduction, so translating it would silently change the aggregates.
+            if (outer.GroupClause is { Count: > 0 } && outer.WhereClause != null)
+            {
+                message = "A WHERE on a non-grouped field can't be combined with GROUP BY: RavenDB's map-reduce applies WHERE to the aggregated result, not the source rows, so the filter would silently change the aggregates. Filter only on a GROUP BY key, or pre-filter the data (e.g. via a dedicated index) before aggregating.";
+                return true;
+            }
+
             return false;
         }
 

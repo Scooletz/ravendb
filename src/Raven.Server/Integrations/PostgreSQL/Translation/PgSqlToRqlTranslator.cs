@@ -35,6 +35,13 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
         // instead of emitting RQL the engine rejects at execution time with an opaque error.
         private static PgTranslationException ScalarAggregateWithoutGroupBy() =>
             new(TranslationFailureCategory.Aggregate, "Scalar aggregate without GROUP BY is not supported");
+        // RavenDB's map-reduce 'where' runs POST-reduction, so SQL HAVING and a pre-aggregation WHERE
+        // on a non-grouped field both silently change the aggregates if translated naively. Reject so
+        // PgQuery falls through to UnhandledQueryDiagnoser instead of returning wrong numbers.
+        private static PgTranslationException UnsupportedGroupByHaving() =>
+            new(TranslationFailureCategory.GroupBy, "HAVING is not supported");
+        private static PgTranslationException UnsupportedGroupByFilter() =>
+            new(TranslationFailureCategory.GroupBy, "WHERE on a non-grouped field in a GROUP BY query is not supported");
         private static PgTranslationException UnsupportedSelectProjection() =>
             new(TranslationFailureCategory.SelectProjection, "Unsupported SELECT projection");
         private static PgTranslationException MixedAggregateAndNonAggregate() =>
@@ -457,6 +464,20 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
                 groupFieldNames.Add(name);
             }
 
+            // RavenDB applies a group-by query's WHERE to the REDUCED result (post-aggregation), not
+            // the source rows. SQL HAVING is also post-aggregation but the bridge doesn't translate it.
+            // Both would silently corrupt the aggregates, so reject them — except a WHERE that touches
+            // only GROUP BY keys, which is equivalent whether applied before or after grouping.
+            if (selectStmt.HavingClause != null)
+                throw UnsupportedGroupByHaving();
+
+            if (selectStmt.WhereClause != null)
+            {
+                var keySet = new HashSet<string>(groupFieldNames, StringComparer.OrdinalIgnoreCase);
+                if (WhereReferencesOnlyFields(selectStmt.WhereClause, keySet, fromAlias) == false)
+                    throw UnsupportedGroupByFilter();
+            }
+
             var targets = selectStmt.TargetList;
             if (targets == null || targets.Count == 0)
                 throw UnsupportedGroupBy();
@@ -545,6 +566,56 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
 
             if (selectStmt.SortClause != null && selectStmt.SortClause.Count > 0)
                 TranslateOrderByForGroupBy(q, selectStmt.SortClause, groupFieldName, projections, fromAlias);
+        }
+
+        // True iff every column referenced by the WHERE predicate is in <paramref name="allowed"/>.
+        // Returns false on any predicate shape we can't confidently decompose, so the caller rejects
+        // rather than risk passing a filter that RavenDB would apply post-aggregation.
+        private static bool WhereReferencesOnlyFields(Node where, HashSet<string> allowed, string fromAlias)
+        {
+            var fields = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            if (TryCollectWhereFields(where, fields, fromAlias) == false)
+                return false;
+            foreach (var f in fields)
+                if (allowed.Contains(f) == false)
+                    return false;
+            return true;
+        }
+
+        private static bool TryCollectWhereFields(Node node, HashSet<string> fields, string fromAlias)
+        {
+            if (node == null)
+                return true;
+            if (node.ColumnRef != null)
+            {
+                var f = ExtractFieldName(node, fromAlias);
+                if (string.IsNullOrWhiteSpace(f))
+                    return false;
+                fields.Add(f);
+                return true;
+            }
+            if (node.AConst != null)
+                return true;
+            if (node.AExpr is { } ae)
+                return TryCollectWhereFields(ae.Lexpr, fields, fromAlias) && TryCollectWhereFields(ae.Rexpr, fields, fromAlias);
+            if (node.BoolExpr is { Args: { } args })
+            {
+                foreach (var arg in args)
+                    if (TryCollectWhereFields(arg, fields, fromAlias) == false)
+                        return false;
+                return true;
+            }
+            if (node.NullTest is { } nt)
+                return TryCollectWhereFields(nt.Arg, fields, fromAlias);
+            if (node.List is { Items: { } items })
+            {
+                foreach (var it in items)
+                    if (TryCollectWhereFields(it, fields, fromAlias) == false)
+                        return false;
+                return true;
+            }
+            // FuncCall / SubLink / CaseExpr / … in a group-by WHERE: can't vouch for it → reject.
+            return false;
         }
 
         private static void TranslateOrderByForGroupBy(
