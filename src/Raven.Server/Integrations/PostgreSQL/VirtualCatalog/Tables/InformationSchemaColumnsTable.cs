@@ -21,13 +21,9 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog.Tables
     //     gives a different (property-id / alphabetical) order and breaks the contract.
     //   - Auto-columns: RqlQuery prepends `id()` and appends `json()` for every collection query.
     //     We have to bracket the user properties with the same pseudo-columns.
-    //   - Types: must mirror RqlQuery's BlittableJsonToken → PgType mapping exactly. Notably
-    //     objects/arrays/embedded blittable map to PgJson (PG `json` oid 114), NOT jsonb.
-    //     Strings get the same value-inspection promotion RqlQuery does:
-    //     a String/CompressedString whose value parses to DateTime/DateTimeOffset/TimeSpan
-    //     is reported as `timestamp without time zone` / `timestamp with time zone` / `interval`
-    //     respectively — otherwise PowerBI types the column as text from the columns-probe and
-    //     mismatches the actual data-query schema, breaking date filters and incremental refresh.
+    //   - Types: must mirror RqlQuery's BlittableJsonToken → PgType mapping exactly (see MapDataType),
+    //     including the datetime-shaped-string → timestamp promotion. A type mismatch makes PowerBI read
+    //     a column as text from the probe but timestamp from the data query, breaking date filters.
     //
     // Schema/catalog identity exposed in the rows:
     //   table_catalog = ctx.Database.Name (each RavenDB DB hosts one PG "catalog")

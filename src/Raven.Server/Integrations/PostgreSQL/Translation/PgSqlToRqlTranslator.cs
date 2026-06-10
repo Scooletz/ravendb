@@ -96,10 +96,8 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
             }
             catch (NotSupportedException ex)
             {
-                // Intentional swallow: PgQuery.CreateInstance falls through to
-                // UnhandledQueryDiagnoser, which surfaces a user-facing classification. The
-                // PgTranslationException subclass carries a machine-actionable Category — log it
-                // so we can correlate translator failures with diagnoser outcomes in the wild.
+                // Intentional swallow (see architectural note above). Log the failure category so we
+                // can correlate translator misses with diagnoser outcomes in the wild.
                 rql = null;
                 var category = (ex as PgTranslationException)?.Category ?? TranslationFailureCategory.Other;
                 var reason = string.IsNullOrWhiteSpace(ex.Message)
@@ -253,9 +251,7 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
             if (value == null)
                 return "null";
 
-            // A $N placeholder: emit an RQL parameter reference rather than a literal. The PG
-            // parameter index doubles as the RQL parameter name (RQL allows numeric names), and
-            // PgQuery.Bind keys the Parameters dict by the same 1-based index.
+            // The $N marker (see PgBoundParameterReference) emits an RQL parameter reference, not a literal.
             if (value is PgBoundParameterReference paramRef)
                 return "$" + paramRef.OneBasedIndex.ToString(CultureInfo.InvariantCulture);
 
@@ -617,10 +613,7 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
             if (projectionFields.Length == 0)
                 return;
 
-            // QueryData with distinct Fields vs Projections lets us emit `<expr> as <alias>` in
-            // RQL when they differ — required to preserve PowerBI's SQL aliases on constant
-            // projections like `1 as "c0"`. When the SQL alias matches the field expression
-            // (the common case for column references), FieldsToFetchToken skips the `as` clause.
+            // Distinct Fields vs Projections preserves `1 as "c0"`-style aliases (see BuildColumnProjections).
             q.SelectFields<JObject>(new QueryData(projectionFields, projectionAliases) { IsProjectInto = true });
             if (isDistinct)
                 q.Distinct();
@@ -1013,9 +1006,8 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
 
         private static string JoinPath(IReadOnlyList<string> fieldPath) => string.Join('.', fieldPath);
 
-        // Maps a parsed WHERE value to the object handed to AsyncDocumentQuery. Literals pass
-        // through as-is; a $N placeholder becomes a marker that survives auto-parameterization and
-        // is later rewritten to an RQL parameter reference by InlineQueryParameters/FormatRqlLiteral.
+        // Literals pass through as-is; a $N placeholder becomes a PgBoundParameterReference marker
+        // (see that record for how it survives to become an RQL parameter reference).
         private static object ToQueryValue(ParsedValue value)
             => value.Kind == ParsedValueKind.Parameter
                 ? new PgBoundParameterReference((int)value.Raw)

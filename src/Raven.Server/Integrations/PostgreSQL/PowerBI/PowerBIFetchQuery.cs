@@ -130,16 +130,11 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                     }
                 }
 
-                // PowerBI's row-preview / drill-down queries often decorate the outermost SELECT
-                // with constant markers like `1 as "c0"` so the client can count back a known
-                // fixed shape. The inner RQL we resolved above never sees those — they live in
-                // the outermost wrapper's projection list — so the engine returns one column
-                // fewer than PowerBI expects (`Field count mismatch when mapping column types.
-                // N vs N-1`). Collect them here and pass to PowerBIRqlQuery; it appends them as
-                // synthetic columns AFTER the json synthetic-append (so the wire-order matches
-                // PowerBI's SQL: id, user cols, json, c0) and types them per PG's literal
-                // inference rules (e.g. unadorned `1` is int4, not int8 — sending int8 trips
-                // PowerBI's OLE DB provider with DISP_E_TYPEMISMATCH).
+                // PowerBI's row-preview / drill-down queries decorate the outermost SELECT with
+                // constant markers like `1 as "c0"`. The inner RQL never sees them, so without this
+                // the engine returns one column fewer than PowerBI expects (`Field count mismatch`).
+                // Collect them and pass to PowerBIRqlQuery, which appends them as synthetic columns
+                // AFTER the json append so the wire-order matches PowerBI's SQL (id, user cols, json, c0).
                 var constProjections = TryCollectOuterConstProjections(selectStmt);
 
                 var newRql = query.ToString();
@@ -245,11 +240,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
 
         // Scans the outermost SELECT's TargetList for `<literal> as <alias>` projections —
         // typically `1 as "c0"` from PowerBI's row-preview shape — and packages them as
-        // ConstProjection descriptors. PowerBIRqlQuery applies them as synthetic columns
-        // appended AFTER the auto-included json column (matching PowerBI's expected wire
-        // order: id, user cols, json, c0) and uses the PG-idiomatic type for each literal
-        // (e.g. unadorned `1` is int4, not int8 — PowerBI's OLE DB provider expects int4
-        // from parsing its own SQL and rejects int8 with DISP_E_TYPEMISMATCH).
+        // ConstProjection descriptors. Per-literal typing happens in TryBuildConstProjection.
         private static List<ConstProjection> TryCollectOuterConstProjections(SelectStmt outermost)
         {
             var targets = outermost?.TargetList;
@@ -397,24 +388,9 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             if (PgSqlToRqlTranslator.TryParse(queryText, parametersDataTypes, documentDatabase, out var rql) == false)
                 return false;
 
-            // PowerBI's RowDescription expectations must match exactly what its SQL projected —
-            // any extra columns the server tacks on widen the response past the requested set and
-            // PowerBI's mashup engine breaks (either raises `Field count mismatch when mapping
-            // column types. N vs M` or, more subtly, dies inside the column-type mapper with
-            // `Nullable object must have a value` and drops the socket).
-            //
-            // Two shapes want PowerBIRqlQuery's auto-added id() + json() synthetic columns:
-            //   (1) `SELECT *` — PG semantics include every column the source has, which for
-            //       PowerBI Import shapes means the synthetics too.
-            //   (2) An explicit projection that literally names `id()` or `json()` — that's
-            //       PowerBI's standard "fetch all visible rows" shape; the synthetic columns are
-            //       part of the requested set, not server-side extras.
-            // Every other shape — narrow projections, DISTINCT, GROUP BY — is a query where
-            // PowerBI named exactly which columns it wants and expects the response to match
-            // column-for-column. PK metadata (information_schema.table_constraints +
-            // key_column_usage) tells PowerBI which logical column is the row identity, so
-            // omitting the synthetic id() from a narrow projection doesn't break row-substitution
-            // for tables PowerBI knows the PK of — that's already declared in metadata.
+            // Route to PowerBIRqlQuery only when the shape wants the synthetic id()/json() columns
+            // (see WantsPowerBISyntheticColumns); otherwise PgSqlTranslatedRqlQuery keeps the
+            // RowDescription column-for-column — extra columns trip PowerBI's `Field count mismatch`.
             var wantsSyntheticColumns = WantsPowerBISyntheticColumns(selectStmt);
 
             pgQuery = wantsSyntheticColumns

@@ -8,18 +8,11 @@ using Sparrow.Json;
 
 namespace Raven.Server.Integrations.PostgreSQL.Translation
 {
-    // Used for SQL queries that PgSqlToRqlTranslator handled with an EXPLICIT projection — i.e.
-    // the user wrote `SELECT col1, col2 FROM t`, not `SELECT * FROM t`. The base RqlQuery class
-    // is designed around PowerBI's needs and unconditionally appends `id()` and `json()` to the
-    // result schema; that's right when serving PowerBI shapes (info_schema.columns reports those
-    // pseudo-columns so PowerBI expects them), but wrong when a SQL client explicitly listed
-    // its desired columns and would be surprised to find an extra `json()` blob alongside.
-    //
-    // SELECT * still goes through plain RqlQuery to preserve the all-visible-columns behavior.
-    //
-    // Const projections (`1 as "c0"` from PowerBI's row-preview shape) are supported here so
-    // narrow projections with const markers route here — not to PowerBIRqlQuery — and avoid
-    // picking up the unwanted id+json synthetic columns.
+    // For SQL queries the translator handled with an EXPLICIT projection (`SELECT col1, col2 FROM t`,
+    // not `SELECT *`). Base RqlQuery unconditionally appends id()/json() — right for PowerBI shapes,
+    // wrong for a SQL client that listed its columns and shouldn't get an extra json() blob. SELECT *
+    // still goes through plain RqlQuery. Const projections (`1 as "c0"`) are supported here so a narrow
+    // projection carrying a const marker routes here, not to PowerBIRqlQuery, and avoids id()+json().
     internal sealed class PgSqlTranslatedRqlQuery : RqlQuery
     {
         private readonly IReadOnlyList<ConstProjection> _constProjections;
