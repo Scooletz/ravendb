@@ -104,6 +104,7 @@ namespace Raven.Server.Integrations.PostgreSQL
             {
                 case StartupMessage startupMessage:
                     _clientOptions = startupMessage.ClientOptions;
+                    WarnIfUnsupportedClientEncoding(_clientOptions);
                     break;
                 case SSLRequest:
                     await writer.WriteAsync(messageBuilder.ErrorResponse(
@@ -127,6 +128,28 @@ namespace Raven.Server.Integrations.PostgreSQL
             }
 
             return streamToUse;
+        }
+
+        // We always operate in and report UTF8 (see PgConfig.ParameterStatusList) and cannot transcode.
+        // A client may still declare a different client_encoding in its startup packet. We deliberately
+        // accept it rather than reject the connection — pgAdmin / PowerBI / Microsoft Fabric rely on
+        // connecting, and a spec-compliant client honours the UTF8 we report back in ParameterStatus.
+        // We log the mismatch so that, if a client ignores the reported encoding and mis-decodes results,
+        // the cause is diagnosable instead of silent.
+        private static void WarnIfUnsupportedClientEncoding(Dictionary<string, string> clientOptions)
+        {
+            if (Logger.IsInfoEnabled == false)
+                return;
+            if (clientOptions == null || clientOptions.TryGetValue("client_encoding", out var encoding) == false || string.IsNullOrEmpty(encoding))
+                return;
+
+            // Accept the common UTF8 spellings (UTF8, utf-8, UNICODE) without logging noise.
+            var normalized = encoding.Replace("-", "").Replace("_", "");
+            if (normalized.Equals("UTF8", StringComparison.OrdinalIgnoreCase) || normalized.Equals("UNICODE", StringComparison.OrdinalIgnoreCase))
+                return;
+
+            Logger.Info($"PostgreSQL client requested client_encoding='{encoding}', which is not supported. " +
+                        "The server reports and emits UTF8; a client that ignores the reported encoding may mis-decode results.");
         }
 
         public async Task Run()

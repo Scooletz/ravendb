@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO.Pipelines;
 using System.Threading;
 using System.Threading.Tasks;
+using Raven.Server.Integrations.PostgreSQL.Exceptions;
 using Raven.Server.Integrations.PostgreSQL.Messages;
 
 namespace Raven.Server.Integrations.PostgreSQL
@@ -114,14 +115,17 @@ namespace Raven.Server.Integrations.PostgreSQL
         private static void HandleDeallocate(string normalized, PgSession session)
         {
             // Expected form: DEALLOCATE "<name>" — the name is the quoted token after the keyword.
+            // Both failures below throw PgErrorException (a non-fatal ErrorResponse) rather than a generic
+            // exception: in PostgreSQL, deallocating an unknown or unparseable statement is an ordinary
+            // client error, so it must surface as an error on the connection — not tear down the session.
             var firstQuote = normalized.IndexOf('"');
             var lastQuote  = normalized.LastIndexOf('"');
             if (firstQuote < 0 || firstQuote == lastQuote)
-                throw new InvalidOperationException($"Unexpected DEALLOCATE syntax (expected quoted name): {normalized}");
+                throw new PgErrorException(PgErrorCodes.FeatureNotSupported, $"Unsupported DEALLOCATE form (only DEALLOCATE \"<name>\" is supported): {normalized}");
 
             var statementName = normalized.Substring(firstQuote + 1, lastQuote - firstQuote - 1);
             if (session.NamedStatements.TryRemove(statementName, out var statement) == false)
-                throw new InvalidOperationException($"Failed to remove prepared statement '{statementName}'");
+                throw new PgErrorException(PgErrorCodes.InvalidSqlStatementName, $"prepared statement \"{statementName}\" does not exist");
 
             // Precaution — the query context should already be disposed by the time we hit DEALLOCATE.
             statement.Dispose();
