@@ -37,7 +37,7 @@ namespace Raven.Server.Integrations.PostgreSQL
             SelectStmt outer;
             try
             {
-                var parseResult = Parser.Parse(queryText);
+                var parseResult = SqlAstCache.GetOrParse(queryText);
                 if (parseResult.IsSuccess == false || parseResult.Value?.Stmts is not { Count: 1 })
                     return false;
                 outer = parseResult.Value.Stmts[0]?.Stmt?.SelectStmt;

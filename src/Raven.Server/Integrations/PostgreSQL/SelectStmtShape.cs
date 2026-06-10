@@ -13,7 +13,7 @@ namespace Raven.Server.Integrations.PostgreSQL
             if (string.IsNullOrWhiteSpace(queryText))
                 return false;
 
-            var parseResult = Parser.Parse(queryText);
+            var parseResult = SqlAstCache.GetOrParse(queryText);
             if (parseResult.IsSuccess == false || parseResult.Value?.Stmts is not { Count: 1 })
                 return false;
 
@@ -28,7 +28,7 @@ namespace Raven.Server.Integrations.PostgreSQL
             if (string.IsNullOrWhiteSpace(queryText))
                 return false;
 
-            var parseResult = Parser.Parse(queryText);
+            var parseResult = SqlAstCache.GetOrParse(queryText);
             if (parseResult.IsSuccess == false || parseResult.Value?.Stmts == null)
                 return false;
 

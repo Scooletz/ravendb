@@ -54,7 +54,7 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
 
             try
             {
-                var parseResult = Parser.Parse(sql);
+                var parseResult = SqlAstCache.GetOrParse(sql);
 
                 if (parseResult.IsSuccess == false || parseResult.Value == null)
                 {

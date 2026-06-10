@@ -55,7 +55,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 sanitizedSql = sql[..innerStart] + "select 1" + sql[innerEnd..];
 
                 // Parse once and thread through so consumers reuse the SelectStmt.
-                var sanitizedParse = Parser.Parse(sanitizedSql);
+                var sanitizedParse = SqlAstCache.GetOrParse(sanitizedSql);
                 if (sanitizedParse.IsSuccess == false || sanitizedParse.Value?.Stmts is not { Count: 1 })
                     return false;
                 sanitizedSelectStmt = sanitizedParse.Value.Stmts[0]?.Stmt?.SelectStmt;
@@ -120,7 +120,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             if (string.IsNullOrWhiteSpace(sql))
                 return false;
 
-            var parseResult = Parser.Parse(sql);
+            var parseResult = SqlAstCache.GetOrParse(sql);
 
             if (parseResult.IsSuccess)
                 return false;
@@ -206,7 +206,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             if (string.IsNullOrWhiteSpace(sql))
                 return false;
 
-            var parseResult = Parser.Parse(sql);
+            var parseResult = SqlAstCache.GetOrParse(sql);
             if (parseResult.IsSuccess == false || parseResult.Value?.Stmts is not { Count: 1 })
                 return false;
 

@@ -215,7 +215,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
 
             try
             {
-                var parseResult = Parser.Parse(innerText);
+                var parseResult = SqlAstCache.GetOrParse(innerText);
                 if (parseResult.IsSuccess == false || parseResult.Value?.Stmts is not { Count: 1 })
                     return aliases;
 
@@ -473,7 +473,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
         {
             selectStmt = null;
 
-            var parseResult = Parser.Parse(sql);
+            var parseResult = SqlAstCache.GetOrParse(sql);
             if (parseResult.IsSuccess == false || parseResult.Value == null)
                 return false;
 
