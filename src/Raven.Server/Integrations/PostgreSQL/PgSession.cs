@@ -231,7 +231,20 @@ namespace Raven.Server.Integrations.PostgreSQL
 
                 if (_serverCertificateHolder.ServerCertificate != null)
                 {
-                    // Authentication is required only when running in secured mode
+                    // Authentication is required only when running in secured mode. The
+                    // ServerCertificate-only gate previously allowed the cleartext password
+                    // prompt to be emitted on a raw NetworkStream when a client connected
+                    // without first sending SSLRequest (Npgsql `SSL Mode=Disable` and similar)
+                    // — the password would then travel over plaintext. Require an SslStream
+                    // here so credentials are never solicited on an unencrypted channel.
+                    if (stream is not SslStream)
+                    {
+                        throw new PgFatalException(
+                            PgErrorCodes.InvalidAuthorizationSpecification,
+                            "This server requires a TLS connection for authentication. " +
+                            "Configure your client to use SSL (e.g. Npgsql 'SSL Mode=Require' " +
+                            "or 'SSL Mode=Prefer') so the password is encrypted in transit.");
+                    }
 
                     await writer.WriteAsync(messageBuilder.AuthenticationCleartextPassword(), _token);
                     var authMessage = await transaction.MessageReader.GetUninitializedMessage(reader, _token);
