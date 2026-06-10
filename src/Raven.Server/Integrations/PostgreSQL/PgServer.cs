@@ -40,6 +40,11 @@ namespace Raven.Server.Integrations.PostgreSQL
 
         public bool Active { get; private set; }
 
+        // Exposed for tests / diagnostics: count of in-flight sessions. Should converge to 0
+        // shortly after every accepted connection closes; a steady non-zero in a quiescent
+        // server points at a regression of the ContinueWith cleanup below.
+        public int InFlightConnectionCount => _connections.Count;
+
         public void Execute()
         {
             HandleServerActivation();
@@ -180,7 +185,22 @@ namespace Raven.Server.Integrations.PostgreSQL
                         if (client == null)
                             continue;
 
-                        _connections.TryAdd(client, HandleConnection(client));
+                        // Capture the accepted client into a fresh local so the continuation
+                        // sees this iteration's instance, not the outer `client` variable that
+                        // the next AcceptTcpClientAsync will overwrite.
+                        var capturedClient = client;
+                        var task = HandleConnection(capturedClient);
+                        _connections.TryAdd(capturedClient, task);
+                        // Remove the dictionary entry when the session finishes — without this
+                        // the (TcpClient + completed-Task) tuple stays in the map for the
+                        // lifetime of the server. Short-lived PowerBI traffic accumulates one
+                        // such tuple per connection ever made; the underlying socket IS freed
+                        // (PgSession.Run disposes it), but the wrapper objects leak.
+                        _ = task.ContinueWith(static (_, state) =>
+                        {
+                            var (connections, key) = ((ConcurrentDictionary<TcpClient, Task>, TcpClient))state;
+                            connections.TryRemove(key, out _);
+                        }, (_connections, capturedClient), CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
                     }
                 }
                 finally
