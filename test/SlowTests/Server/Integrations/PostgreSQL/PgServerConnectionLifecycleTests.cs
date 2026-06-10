@@ -46,7 +46,7 @@ public sealed class PgServerConnectionLifecycleTests : RavenTestBase
         for (int i = 0; i < churn; i++)
         {
             using var c = new TcpClient();
-            await c.ConnectAsync(IPAddress.Loopback, port);
+            await c.ConnectAsync(IPAddress.Loopback, port, TestContext.Current.CancellationToken);
             c.Close();
         }
 
@@ -54,7 +54,7 @@ public sealed class PgServerConnectionLifecycleTests : RavenTestBase
         // briefly; a non-zero count past this window is a cleanup regression.
         var sw = Stopwatch.StartNew();
         while (pgServer.InFlightConnectionCount > 0 && sw.Elapsed < TimeSpan.FromSeconds(15))
-            await Task.Delay(100);
+            await Task.Delay(100, TestContext.Current.CancellationToken);
 
         Assert.Equal(0, pgServer.InFlightConnectionCount);
     }

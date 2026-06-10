@@ -5,6 +5,7 @@ using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using FastTests;
 using Tests.Infrastructure;
@@ -43,19 +44,19 @@ public sealed class PgSessionTlsRequiredTests : RavenTestBase
         int port = pgServer.GetListenerPort();
 
         using var tcp = new TcpClient();
-        await tcp.ConnectAsync(IPAddress.Loopback, port);
+        await tcp.ConnectAsync(IPAddress.Loopback, port, TestContext.Current.CancellationToken);
         var stream = tcp.GetStream();
 
         // StartupMessage with NO preceding SSLRequest (i.e. SSL Mode=Disable) — secured server must refuse, not prompt for a password.
-        await WriteStartupMessageAsync(stream, user: "anyone", database: "any-db");
+        await WriteStartupMessageAsync(stream, user: "anyone", database: "any-db", TestContext.Current.CancellationToken);
 
         // Reply: 1-byte type + 4-byte BE length + body. Want 'E' (ErrorResponse), not 'R' (Authentication).
-        var msgType = (char)await ReadByteAsync(stream);
+        var msgType = (char)await ReadByteAsync(stream, TestContext.Current.CancellationToken);
         Assert.Equal('E', msgType);
 
-        var bodyLen = await ReadInt32BeAsync(stream) - sizeof(int);
+        var bodyLen = await ReadInt32BeAsync(stream, TestContext.Current.CancellationToken) - sizeof(int);
         var body = new byte[bodyLen];
-        await ReadExactlyAsync(stream, body, bodyLen);
+        await ReadExactlyAsync(stream, body, bodyLen, TestContext.Current.CancellationToken);
 
         // Scan the ErrorResponse text for the TLS hint.
         var asText = Encoding.UTF8.GetString(body);
@@ -63,7 +64,7 @@ public sealed class PgSessionTlsRequiredTests : RavenTestBase
         Assert.Contains("SSL", asText, StringComparison.OrdinalIgnoreCase);
     }
 
-    private static async Task WriteStartupMessageAsync(Stream stream, string user, string database)
+    private static async Task WriteStartupMessageAsync(Stream stream, string user, string database, CancellationToken token)
     {
         // body: protocol(4) + (key\0value\0)* + final\0
         var ms = new MemoryStream();
@@ -81,9 +82,9 @@ public sealed class PgSessionTlsRequiredTests : RavenTestBase
         Span<byte> len = stackalloc byte[4];
         BinaryPrimitives.WriteInt32BigEndian(len, totalLen);
 
-        await stream.WriteAsync(len.ToArray());
-        await stream.WriteAsync(body);
-        await stream.FlushAsync();
+        await stream.WriteAsync(len.ToArray(), token);
+        await stream.WriteAsync(body, token);
+        await stream.FlushAsync(token);
     }
 
     private static void WriteCString(Stream stream, string value)
@@ -93,26 +94,26 @@ public sealed class PgSessionTlsRequiredTests : RavenTestBase
         stream.WriteByte(0);
     }
 
-    private static async Task<byte> ReadByteAsync(Stream stream)
+    private static async Task<byte> ReadByteAsync(Stream stream, CancellationToken token)
     {
         var buf = new byte[1];
-        await ReadExactlyAsync(stream, buf, 1);
+        await ReadExactlyAsync(stream, buf, 1, token);
         return buf[0];
     }
 
-    private static async Task<int> ReadInt32BeAsync(Stream stream)
+    private static async Task<int> ReadInt32BeAsync(Stream stream, CancellationToken token)
     {
         var buf = new byte[4];
-        await ReadExactlyAsync(stream, buf, 4);
+        await ReadExactlyAsync(stream, buf, 4, token);
         return BinaryPrimitives.ReadInt32BigEndian(buf);
     }
 
-    private static async Task ReadExactlyAsync(Stream stream, byte[] buffer, int count)
+    private static async Task ReadExactlyAsync(Stream stream, byte[] buffer, int count, CancellationToken token)
     {
         int read = 0;
         while (read < count)
         {
-            int n = await stream.ReadAsync(buffer.AsMemory(read, count - read));
+            int n = await stream.ReadAsync(buffer.AsMemory(read, count - read), token);
             if (n <= 0)
                 throw new EndOfStreamException();
             read += n;
