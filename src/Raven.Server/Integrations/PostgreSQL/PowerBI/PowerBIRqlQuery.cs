@@ -126,12 +126,12 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                         break;
                 }
 
-                ReadOnlyMemory<byte>? replaceValueBytes;
-
-                if (replacedValue != null) 
-                    replaceValueBytes = GetValueByType(property, replacedValue, replaceColumn);
-                else
-                    replaceValueBytes = Array.Empty<byte>();
+                // null nullable -> MessageBuilder.DataRow writes length -1 = wire NULL.
+                // An empty-but-present byte array writes length 0 = empty string, which
+                // for non-string columns (e.g. int4) decodes to garbage on the client.
+                ReadOnlyMemory<byte>? replaceValueBytes = replacedValue != null
+                    ? GetValueByType(property, replacedValue, replaceColumn)
+                    : null;
 
                 row[replaceColumn.ColumnIndex] = replaceValueBytes;
 
