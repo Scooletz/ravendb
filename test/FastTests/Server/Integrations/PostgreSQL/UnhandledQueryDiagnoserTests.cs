@@ -39,6 +39,64 @@ namespace FastTests.Server.Integrations.PostgreSQL
             Assert.True(UnhandledQueryDiagnoser.TryDiagnose(sql, out _));
         }
 
+        // PowerBI's standard wrap shape: `SELECT * FROM (USER_SQL) "_" LIMIT N`. When USER_SQL
+        // contains a JOIN, the outer FromClause is a RangeSubselect — the JoinExpr lives one
+        // level deep. Diagnoser must descend into RangeSubselect.Subquery to find it; otherwise
+        // PowerBI users see the generic `Unhandled query` SQL dump instead of the actionable
+        // load/include hint.
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void Join_InsidePowerBiWrapper_IsDetected()
+        {
+            var sql = """
+                SELECT *
+                FROM (
+                    SELECT o."Company", e."LastName"
+                    FROM "public"."Orders" o
+                    JOIN "public"."Employees" e ON o."Employee" = e."id"
+                ) "_"
+                LIMIT 1000001
+                """;
+
+            Assert.True(UnhandledQueryDiagnoser.TryDiagnose(sql, out var message));
+            Assert.Contains("JOIN", message);
+            Assert.Contains("load", message);
+        }
+
+        // Doubly-wrapped shape that some PowerBI variants emit — JOIN two levels deep.
+        // Bounded recursion must still find it.
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void Join_InsideNestedWrapper_IsDetected()
+        {
+            var sql = """
+                SELECT *
+                FROM (
+                    SELECT *
+                    FROM (
+                        SELECT a, b
+                        FROM "public"."T1"
+                        JOIN "public"."T2" ON T1.id = T2.id
+                    ) "inner"
+                ) "outer"
+                """;
+
+            Assert.True(UnhandledQueryDiagnoser.TryDiagnose(sql, out _));
+        }
+
+        // Negative pin: a wrapper that doesn't contain a JOIN inside must NOT be classified as
+        // JOIN — the diagnoser would otherwise misclassify every PowerBI-wrapped query.
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void Wrapper_WithoutJoinInside_IsNotClassifiedAsJoin()
+        {
+            var sql = """
+                SELECT "Company", "Freight"
+                FROM (SELECT "Company", "Freight" FROM "public"."Orders") "_"
+                LIMIT 100
+                """;
+
+            // No JOIN anywhere, no scalar aggregate, no min/max → diagnoser returns false.
+            Assert.False(UnhandledQueryDiagnoser.TryDiagnose(sql, out _));
+        }
+
         [RavenFact(RavenTestCategory.PostgreSql)]
         public void ScalarSum_WithoutGroupBy_DetectedWithGroupByOrClientSideHint()
         {

@@ -94,13 +94,37 @@ namespace Raven.Server.Integrations.PostgreSQL
             return openBraces > closeBraces;
         }
 
-        private static bool HasJoinExpr(SelectStmt selectStmt)
+        // True if any SelectStmt in the tree has a JoinExpr in its FROM clause. Must descend
+        // into RangeSubselect.Subquery (PowerBI's standard `select * from (USER_SQL) "_"` wrap
+        // buries the user's JOIN one level deep) and into Larg/Rarg of set operations. Bounded
+        // recursion guards against pathological nesting.
+        private static bool HasJoinExpr(SelectStmt selectStmt) => HasJoinExpr(selectStmt, depth: 0);
+
+        private const int MaxJoinSearchDepth = 32;
+
+        private static bool HasJoinExpr(SelectStmt selectStmt, int depth)
         {
+            if (selectStmt == null || depth >= MaxJoinSearchDepth)
+                return false;
+
+            // Recurse into UNION/INTERSECT/EXCEPT arms.
+            if (selectStmt.Op != SetOperation.SetopNone)
+            {
+                if (HasJoinExpr(selectStmt.Larg, depth + 1)) return true;
+                if (HasJoinExpr(selectStmt.Rarg, depth + 1)) return true;
+            }
+
             if (selectStmt.FromClause == null)
                 return false;
+
             foreach (var item in selectStmt.FromClause)
             {
-                if (item?.JoinExpr != null)
+                if (item == null)
+                    continue;
+                if (item.JoinExpr != null)
+                    return true;
+                if (item.RangeSubselect?.Subquery?.SelectStmt is { } inner
+                    && HasJoinExpr(inner, depth + 1))
                     return true;
             }
             return false;
