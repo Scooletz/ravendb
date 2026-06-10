@@ -41,9 +41,11 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             return null;
         }
 
-        protected override void AfterRow(BlittableJsonReaderObject jsonResult, ReadOnlyMemory<byte>?[] row, short? jsonIndex)
-        {
-        }
+        // No AfterRow override: PowerBIRqlQuery.AfterRow chains base (RqlQuery, json-write, gated
+        // by IncludePowerBIJsonColumn — already false here) + writes const-projection cells.
+        // Suppressing it via an empty override would silently swallow const-projection cells if
+        // they ever start being passed to PowerBIDirectQuery, and saves nothing today because
+        // both base steps already short-circuit when their inputs are null/disabled.
 
         public static bool TryParse(string queryText, int[] parametersDataTypes, DocumentDatabase documentDatabase, out PgQuery pgQuery)
         {
