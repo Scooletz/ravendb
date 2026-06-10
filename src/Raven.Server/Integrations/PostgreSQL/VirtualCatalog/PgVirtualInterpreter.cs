@@ -65,9 +65,18 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
                 // Must run BEFORE HasNoFromClause — a top-level UNION's outer SelectStmt has no
                 // FROM clause of its own (only Larg/Rarg), so the FROM-less path would otherwise
                 // grab it and try to evaluate it as `select <expr>` with no targets.
+                if (selectStmt.Op == SetOperation.SetopUnion)
+                {
+                    return TryExecuteUnion(selectStmt, ctx, outerScope, out result);
+                }
                 if (selectStmt.Op != SetOperation.SetopNone)
                 {
-                    return TryExecuteSetOperation(selectStmt, ctx, outerScope, out result);
+                    // INTERSECT / EXCEPT are not implemented — return false so the next
+                    // dispatcher arm gets a chance, and UnhandledQueryDiagnoser surfaces a
+                    // targeted message instead of a generic SQL dump. Falling through to
+                    // HasNoFromClause would be wrong: the outer SelectStmt has no FromClause
+                    // and no TargetList; the targets live on the arms.
+                    return false;
                 }
 
                 if (SelectStmtShape.HasNoFromClause(selectStmt))
@@ -87,7 +96,7 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
             }
         }
 
-        // Executes a top-level set operation (currently: UNION / UNION ALL). PG semantics:
+        // Executes a top-level UNION / UNION ALL. PG semantics:
         //   - Output column NAMES come from the LEFT arm.
         //   - Both arms must project the same number of columns.
         //   - UNION dedupes; UNION ALL keeps duplicates.
@@ -98,14 +107,10 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
         // We run both arms via TryExecuteAsRows to stay on the raw object[] row representation
         // until the very end — that lets us reuse the existing sort/limit/dedupe machinery
         // before serializing to wire bytes via BuildPgTable.
-        //
-        // INTERSECT / EXCEPT are not implemented — no observed client need so far.
-        private static bool TryExecuteSetOperation(SelectStmt s, VirtualQueryContext ctx, RowScope outerScope, out PgTable result)
+        private static bool TryExecuteUnion(SelectStmt s, VirtualQueryContext ctx, RowScope outerScope, out PgTable result)
         {
             result = null;
 
-            if (s.Op != SetOperation.SetopUnion)
-                return false;
             if (s.Larg == null || s.Rarg == null)
                 return false;
 

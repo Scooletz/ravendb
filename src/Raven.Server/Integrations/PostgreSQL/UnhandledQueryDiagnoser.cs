@@ -52,6 +52,12 @@ namespace Raven.Server.Integrations.PostgreSQL
             if (outer == null)
                 return false;
 
+            if (HasIntersectOrExcept(outer))
+            {
+                message = "SQL INTERSECT / EXCEPT are not supported. The PG-bridge virtual catalog implements UNION / UNION ALL only — express the intent with a different combination (e.g. UNION of conditions) or compute the result client-side.";
+                return true;
+            }
+
             if (HasJoinExpr(outer))
             {
                 message = "SQL JOIN over RavenDB collections is not supported. RavenDB models cross-document relationships via document IDs rather than relational joins — express the relationship in RQL using `load` / `include`, or denormalize the data into the parent document.";
@@ -141,6 +147,17 @@ namespace Raven.Server.Integrations.PostgreSQL
                 else if (ch == '}') closeBraces++;
             }
             return openBraces > closeBraces;
+        }
+
+        // True if the outermost SelectStmt (or any arm at the same set-op level) uses INTERSECT
+        // or EXCEPT. We deliberately don't descend into FROM-clause subselects here: only the
+        // outer combination matters for the diagnostic.
+        private static bool HasIntersectOrExcept(SelectStmt selectStmt)
+        {
+            if (selectStmt == null)
+                return false;
+            return selectStmt.Op == SetOperation.SetopIntersect
+                || selectStmt.Op == SetOperation.SetopExcept;
         }
 
         // True if any SelectStmt in the tree has a JoinExpr in its FROM clause. Must descend

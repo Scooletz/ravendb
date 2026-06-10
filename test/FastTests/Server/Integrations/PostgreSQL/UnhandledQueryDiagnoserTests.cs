@@ -204,6 +204,54 @@ namespace FastTests.Server.Integrations.PostgreSQL
             Assert.False(UnhandledQueryDiagnoser.TryDiagnose(complete, out _));
         }
 
+        // INTERSECT / EXCEPT are not implemented in the virtual catalog interpreter (only UNION is).
+        // The diagnoser must catch these and point at the limitation instead of dumping the SQL.
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void Intersect_Detected()
+        {
+            const string sql = """
+                SELECT id FROM "public"."Orders"
+                INTERSECT
+                SELECT id FROM "public"."Companies"
+                """;
+
+            Assert.True(UnhandledQueryDiagnoser.TryDiagnose(sql, out var message));
+            Assert.Contains("INTERSECT", message);
+        }
+
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void Except_Detected()
+        {
+            const string sql = """
+                SELECT id FROM "public"."Orders"
+                EXCEPT
+                SELECT id FROM "public"."Companies"
+                """;
+
+            Assert.True(UnhandledQueryDiagnoser.TryDiagnose(sql, out var message));
+            Assert.Contains("EXCEPT", message);
+        }
+
+        // UNION must continue to NOT be classified as an unhandled set op — the virtual
+        // catalog actually supports it.
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void Union_NotClassifiedAsUnhandledSetOp()
+        {
+            const string sql = """
+                SELECT id FROM "public"."Orders"
+                UNION ALL
+                SELECT id FROM "public"."Companies"
+                """;
+
+            // Diagnoser may return false (no targeted message) — but if it does return true,
+            // the message must NOT mention INTERSECT/EXCEPT.
+            if (UnhandledQueryDiagnoser.TryDiagnose(sql, out var message))
+            {
+                Assert.DoesNotContain("INTERSECT", message);
+                Assert.DoesNotContain("EXCEPT", message);
+            }
+        }
+
         // SQL queries without "declare function" anywhere must not get the fragment classification.
         [RavenFact(RavenTestCategory.PostgreSql)]
         public void PlainSql_NotClassifiedAsFragment()
