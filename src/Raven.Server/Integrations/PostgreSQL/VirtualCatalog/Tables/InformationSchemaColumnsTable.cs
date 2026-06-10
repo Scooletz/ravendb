@@ -23,7 +23,7 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog.Tables
     //     We have to bracket the user properties with the same pseudo-columns.
     //   - Types: must mirror RqlQuery's BlittableJsonToken → PgType mapping exactly. Notably
     //     objects/arrays/embedded blittable map to PgJson (PG `json` oid 114), NOT jsonb.
-    //     Strings get the same value-inspection promotion RqlQuery does (line 184 onward):
+    //     Strings get the same value-inspection promotion RqlQuery does:
     //     a String/CompressedString whose value parses to DateTime/DateTimeOffset/TimeSpan
     //     is reported as `timestamp without time zone` / `timestamp with time zone` / `interval`
     //     respectively — otherwise PowerBI types the column as text from the columns-probe and
@@ -122,8 +122,8 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog.Tables
         // column-probe types disagree with the data-query types — silent type mismatches in M
         // filters (e.g. `[OrderedAt] >= RangeStart` fails because the column reads as text).
         // For String/CompressedString tokens we additionally peek at the value via
-        // TypeConverter, matching the same value-inspection promotion RqlQuery applies at
-        // lines 184-194 — datetime-shaped strings become timestamp, not text.
+        // TypeConverter, matching the same value-inspection promotion RqlQuery applies —
+        // datetime-shaped strings become timestamp, not text.
         private static string MapDataType(BlittableJsonToken token, object value)
         {
             var bjt = token & BlittableJsonToken.TypesMask;

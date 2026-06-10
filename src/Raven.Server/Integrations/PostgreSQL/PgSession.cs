@@ -164,8 +164,8 @@ namespace Raven.Server.Integrations.PostgreSQL
             catch (Exception e) when (e is IOException or EndOfStreamException)
             {
                 // Network failure during handshake (peer closed, timeout, TLS handshake aborted).
-                // The socket is almost certainly unwritable, but log so we have forensics — without
-                // this we used to silently exit Run() with the client seeing only a closed socket.
+                // The socket is almost certainly unwritable, but log so we have forensics — otherwise
+                // Run() exits silently and the client sees only a closed socket.
                 if (Logger.IsInfoEnabled)
                     Logger.Info($"Initial handshake aborted: {e.GetType().Name}: {e.Message}.", e);
                 return;
