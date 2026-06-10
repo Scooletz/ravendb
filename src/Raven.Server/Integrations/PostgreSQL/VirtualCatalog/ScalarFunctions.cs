@@ -71,6 +71,13 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
                 "default_tablespace" => "",            // empty string ⇒ pg_default
                 "search_path"        => "\"$user\", public",
                 "timezone"           => "UTC",
+                // Version probes. Many drivers / BI tools call current_setting('server_version')
+                // (and the *_num form) right after connecting to decide which SQL dialect features
+                // to use. Mirror the 13.3 banner reported by version() (see VersionFunction).
+                "server_version"     => "13.3",
+                "server_version_num" => "130003",
+                "standard_conforming_strings" => "on",
+                "integer_datetimes"  => "on",
                 _ => null,
             };
             return result != null;
@@ -245,14 +252,40 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
     // Used in pgAdmin's `SELECT oid, format_type(oid, NULL) AS typname FROM pg_type WHERE oid =
     // ANY($1)` probe to pretty-print result-set column types in the data grid.
     //
-    // Why this returns null: the probe is parameterized (`$1`) and the interpreter runs at
-    // Parse-time, before Bind has populated the parameter values. With `$1` resolving to NULL,
-    // `oid = ANY($1)` evaluates to NULL → all rows filtered out → format_type is never actually
-    // invoked. We still need the function registered so projection-shape resolution succeeds at
-    // Parse-time and the query returns an empty result set with the correct column metadata.
-    // pgAdmin tolerates this gracefully: it just shows raw oids instead of formatted type names.
+    // Note on the parameterized probe: pgAdmin's variant passes `$1`, and the interpreter runs at
+    // Parse-time before Bind populates parameters, so `oid = ANY($1)` filters to zero rows and
+    // format_type is never actually invoked there. But a direct, non-parameterized call such as
+    // `format_type(23, NULL)` reaches us with a concrete oid — map the common builtin oids to
+    // their SQL-standard display names rather than returning empty. Unknown oids fall back to the
+    // numeric oid as text (PG itself emits `???`/the oid for unknown types).
     internal sealed class FormatTypeFunction : ScalarFunction
     {
+        // oid → format_type display name for the builtin types the bridge surfaces / clients probe.
+        private static readonly Dictionary<long, string> TypeNames = new()
+        {
+            [16] = "boolean",
+            [17] = "bytea",
+            [18] = "\"char\"",
+            [19] = "name",
+            [20] = "bigint",
+            [21] = "smallint",
+            [23] = "integer",
+            [25] = "text",
+            [26] = "oid",
+            [114] = "json",
+            [700] = "real",
+            [701] = "double precision",
+            [1042] = "character",
+            [1043] = "character varying",
+            [1082] = "date",
+            [1083] = "time without time zone",
+            [1114] = "timestamp without time zone",
+            [1184] = "timestamp with time zone",
+            [1700] = "numeric",
+            [2950] = "uuid",
+            [3802] = "jsonb",
+        };
+
         public override string Name => "format_type";
         public override string ResultColumnName => "format_type";
         public override PgType PgType => PgText.Default;
@@ -261,7 +294,31 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
         {
             result = null;
             // format_type takes 1 or 2 args: (oid) or (oid, typmod). Anything else is malformed.
-            return args is { Count: >= 1 and <= 2 };
+            if (args is not { Count: >= 1 and <= 2 })
+                return false;
+
+            // A NULL oid → NULL result (matches PG). Otherwise resolve the oid to a type name.
+            if (args[0] == null)
+                return true;
+
+            if (TryGetOid(args[0], out var oid))
+                result = TypeNames.TryGetValue(oid, out var name) ? name : oid.ToString();
+            else
+                result = args[0].ToString();
+
+            return true;
+        }
+
+        private static bool TryGetOid(object value, out long oid)
+        {
+            switch (value)
+            {
+                case long l: oid = l; return true;
+                case int i: oid = i; return true;
+                case short s: oid = s; return true;
+                case string str when long.TryParse(str, out var parsed): oid = parsed; return true;
+                default: oid = 0; return false;
+            }
         }
     }
 }
