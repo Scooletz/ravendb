@@ -137,6 +137,11 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 // AFTER the json append so the wire-order matches PowerBI's SQL (id, user cols, json, c0).
                 var constProjections = TryCollectOuterConstProjections(selectStmt);
 
+                // Carry the outermost ORDER BY onto the resolved query so PowerBI's sort isn't
+                // dropped (e.g. "sort by measure": `order by "_"."a0" desc`). Without this the
+                // grouped/projected fetch returns correct rows in an arbitrary (index) order.
+                ApplyOuterOrderBy(selectStmt, query, aggregateOutputAliases);
+
                 var newRql = query.ToString();
 
                 // PowerBI's RowDescription expectations come from the OUTERMOST projection.
@@ -236,6 +241,51 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             }
 
             return aliases;
+        }
+
+        // Applies the outermost SQL ORDER BY to the resolved RQL query. Each `_`-qualified sort
+        // column maps to the query's projected output name: aggregate-output aliases are tagged
+        // `as double` (RQL sorts a projected alias numerically only with the cast — without it the
+        // alias sorts lexically), group keys / plain columns use the implicit (natural) order.
+        // Best-effort: an unresolvable sort term leaves ORDER BY unset rather than failing the
+        // whole query — degrading to the prior (unsorted) behavior, never a hard error.
+        private static void ApplyOuterOrderBy(SelectStmt outermost, Documents.Queries.AST.Query query, HashSet<string> aggregateAliases)
+        {
+            if (outermost?.SortClause is not { Count: > 0 } sortClause)
+                return;
+
+            // Don't clobber an ordering the inner RQL already carries.
+            if (query.OrderBy is { Count: > 0 })
+                return;
+
+            var orderBy = new List<(QueryExpression Expression, OrderByFieldType FieldType, bool Ascending)>(sortClause.Count);
+
+            foreach (var sortNode in sortClause)
+            {
+                var sortBy = sortNode?.SortBy;
+                if (sortBy == null)
+                    return;
+
+                var colRef = PgSqlAstHelpers.UnwrapThroughHarmlessNodes(sortBy.Node, static n => n.ColumnRef);
+                if (colRef == null)
+                    return;
+
+                if (PowerBIWrapperRecognizer.TryExtractOuterUnderscoreQualifiedColumn(colRef, out var colName) == false)
+                {
+                    colName = PowerBIWrapperRecognizer.TryExtractLastIdentifierSegment(colRef);
+                    if (string.IsNullOrWhiteSpace(colName))
+                        return;
+                }
+
+                var fieldType = aggregateAliases.Contains(colName)
+                    ? OrderByFieldType.Double
+                    : OrderByFieldType.Implicit;
+                var ascending = sortBy.SortbyDir != SortByDir.SortbyDesc;
+
+                orderBy.Add((new FieldExpression(new List<StringSegment> { new StringSegment(colName) }), fieldType, ascending));
+            }
+
+            query.OrderBy = orderBy;
         }
 
         // Scans the outermost SELECT's TargetList for `<literal> as <alias>` projections —
