@@ -137,7 +137,7 @@ namespace Raven.Server.Integrations.PostgreSQL
             Stream stream = _client.GetStream();
 
             // We need a writer that can deliver an ErrorResponse if the initial handshake fails. Without
-            // this wrapper, any PgFatalException thrown out of StartupMessage parsing propagates past Run()
+            // this wrapper, any exception thrown out of StartupMessage parsing propagates past Run()
             // and the client sees the socket close with no diagnostic ("server closed the connection
             // unexpectedly"). The catch writes on whichever stream the handshake was using at the time
             // of the throw — raw NetworkStream pre-TLS-upgrade, SslStream post-upgrade — which the
@@ -152,20 +152,32 @@ namespace Raven.Server.Integrations.PostgreSQL
                 if (Logger.IsInfoEnabled)
                     Logger.Info($"Initial handshake failed: {e.Message} (pg error code {e.ErrorCode}).", e);
 
-                try
-                {
-                    var streamForError = _activeHandshakeStream ?? stream;
-                    var earlyWriter = PipeWriter.Create(streamForError);
-                    await earlyWriter.WriteAsync(messageBuilder.ErrorResponse(
-                        PgSeverity.Fatal,
-                        e.ErrorCode,
-                        e.Message,
-                        e.ToString()), _token);
-                }
-                catch
-                {
-                    // best-effort: socket may already be unwritable
-                }
+                await TryWriteHandshakeErrorResponse(stream, messageBuilder, e.ErrorCode, e.Message, e.ToString());
+                return;
+            }
+            catch (OperationCanceledException)
+            {
+                // Server shutdown or TCP listener cancelled mid-handshake — nothing to log, no
+                // useful diagnostic to send (the cancel is ours, not the client's fault).
+                return;
+            }
+            catch (Exception e) when (e is IOException or EndOfStreamException)
+            {
+                // Network failure during handshake (peer closed, timeout, TLS handshake aborted).
+                // The socket is almost certainly unwritable, but log so we have forensics — without
+                // this we used to silently exit Run() with the client seeing only a closed socket.
+                if (Logger.IsInfoEnabled)
+                    Logger.Info($"Initial handshake aborted: {e.GetType().Name}: {e.Message}.", e);
+                return;
+            }
+            catch (Exception e)
+            {
+                // Anything else — unexpected internal error. Log and best-effort write a Fatal
+                // ErrorResponse so the client gets SOME diagnostic instead of a bare disconnect.
+                if (Logger.IsInfoEnabled)
+                    Logger.Info($"Unexpected internal error during initial handshake.", e);
+
+                await TryWriteHandshakeErrorResponse(stream, messageBuilder, PgErrorCodes.InternalError, "Internal error during handshake.", e.ToString());
                 return;
             }
 
@@ -314,6 +326,28 @@ namespace Raven.Server.Integrations.PostgreSQL
                 {
                     // ignored
                 }
+            }
+        }
+
+        // Best-effort: write a Fatal ErrorResponse on whichever stream the handshake was using
+        // when the failure occurred (NetworkStream pre-TLS-upgrade, SslStream post-upgrade). The
+        // socket may already be unwritable, in which case we swallow — at this point we've
+        // already logged and there's nothing else to surface.
+        private async Task TryWriteHandshakeErrorResponse(Stream stream, MessageBuilder messageBuilder, string errorCode, string message, string detail)
+        {
+            try
+            {
+                var streamForError = _activeHandshakeStream ?? stream;
+                var earlyWriter = PipeWriter.Create(streamForError);
+                await earlyWriter.WriteAsync(messageBuilder.ErrorResponse(
+                    PgSeverity.Fatal,
+                    errorCode,
+                    message,
+                    detail), _token);
+            }
+            catch
+            {
+                // best-effort: socket may already be unwritable
             }
         }
 
