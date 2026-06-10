@@ -99,6 +99,24 @@ namespace FastTests.Server.Integrations.PostgreSQL.PowerBI
             Assert.IsType<PgSqlTranslatedRqlQuery>(pgQuery);
         }
 
+        // Narrow projection + const-marker (`1 as "c0"`) — PowerBI's row-preview shape
+        // sometimes attaches a constant projection to a narrow column list. The presence of
+        // the const marker must NOT force routing through PowerBIRqlQuery (which would also
+        // add the unwanted id+json synthetic columns); PgSqlTranslatedRqlQuery now carries
+        // the const-projection plumbing too, so narrow + const stays narrow.
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
+        public void Narrow_projection_with_const_marker_routes_to_PgSqlTranslatedRqlQuery()
+        {
+            const string sql = """
+                select "_"."Company" as "Company", 1 as "c0"
+                from (from Orders) "_"
+                limit 100
+                """;
+
+            Assert.True(PowerBIFetchQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
+            Assert.IsType<PgSqlTranslatedRqlQuery>(pgQuery);
+        }
+
         // information_schema.tables and information_schema.columns now flow through
         // PgVirtualInterpreter as virtual tables; the dedicated PowerBIAllCollectionsQuery /
         // PowerBIPreviewQuery recognizers were retired. See PgVirtualInterpreterTests for

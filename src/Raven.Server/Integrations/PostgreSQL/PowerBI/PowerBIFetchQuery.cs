@@ -147,16 +147,18 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 // PowerBI's RowDescription expectations come from the OUTERMOST projection.
                 // Narrow projections (no id()/json()) must not pick up synthetic id+json, or
                 // the response widens past the asked-for column count and PowerBI bails with
-                // `Field count mismatch`. Stay on PowerBIRqlQuery only when its extra plumbing
-                // is doing work (REPLACE() rewrites or constant-marker projections — neither
-                // supported by PgSqlTranslatedRqlQuery).
-                if (WantsPowerBISyntheticColumns(selectStmt) || allReplaces != null || constProjections != null)
+                // `Field count mismatch`. Stay on PowerBIRqlQuery only when synthetic id+json
+                // are actually wanted, or when REPLACE() rewrites need the substitution
+                // machinery (PgSqlTranslatedRqlQuery doesn't carry that). Const projections
+                // are supported on BOTH paths so the routing isn't forced wide just to keep
+                // a `1 as "c0"` marker.
+                if (WantsPowerBISyntheticColumns(selectStmt) || allReplaces != null)
                 {
                     pgQuery = new PowerBIRqlQuery(newRql, parametersDataTypes, documentDatabase, allReplaces, limit: limit, constProjections: constProjections);
                 }
                 else
                 {
-                    pgQuery = new PgSqlTranslatedRqlQuery(newRql, parametersDataTypes, documentDatabase, limit: limit);
+                    pgQuery = new PgSqlTranslatedRqlQuery(newRql, parametersDataTypes, documentDatabase, limit: limit, constProjections: constProjections);
                 }
                 return true;
             }
