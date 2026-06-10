@@ -457,11 +457,10 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             // PgSqlToRqlTranslator path. We mirror that here: emit `from Coll group by <cols>
             // select <cols>` so the result is one row per distinct tuple.
             //
-            // Function-style object projection (the prior implementation) silently dropped the
-            // GROUP BY because RQL's `select { ... }` form is per-document, not per-group — so the
-            // engine returned every Orders row instead of distinct values. PowerBI's chart engine
-            // then crashed in SubstituteWithIndex because its chart-bucket index found multiple
-            // raw rows mapping to a single logical category.
+            // A per-document `select { ... }` projection would drop the GROUP BY (that form is
+            // per-document, not per-group), returning every Orders row instead of distinct values —
+            // which crashes PowerBI's chart engine in SubstituteWithIndex when its chart-bucket index
+            // finds multiple raw rows mapping to a single logical category.
             var core = q.ShallowCopy();
             core.IsDistinct = false;
             core.Filter = null;
@@ -575,59 +574,6 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             }
         }
 
-        // Builds the body of a `select { … }` object projection. Returns false when any column
-        // resists RQL identifier formatting — caller drops the shape.
-        private static bool TryBuildObjectProjectionBody(IReadOnlyList<string> projectionCols, string fromAlias, out string body)
-        {
-            body = null;
-
-            var selectParts = new List<string>(capacity: projectionCols.Count);
-            for (int i = 0; i < projectionCols.Count; i++)
-            {
-                var colName = projectionCols[i];
-                if (string.IsNullOrWhiteSpace(colName))
-                    return false;
-
-                // Synthetic columns are emitted as their RQL function calls (id(alias) / alias
-                // itself for json), but the projection key preserves whatever the user wrote —
-                // legacy `id()` / `json()` from cached PowerBI metadata or the new PG-idiomatic
-                // `id` / `json` — so the resulting column name matches the client's request.
-                if (PgSyntheticColumns.IsJsonColumn(colName))
-                {
-                    selectParts.Add($"\"{colName}\": {fromAlias}");
-                    continue;
-                }
-
-                if (PgSyntheticColumns.IsDocumentIdColumn(colName))
-                {
-                    selectParts.Add($"\"{colName}\": id({fromAlias})");
-                    continue;
-                }
-
-                var selectField = FormatRqlObjectFieldIdentifier(colName);
-                if (selectField == null)
-                    return false;
-
-                var expr = BuildFieldExpression(colName, fromAlias);
-                if (expr == null)
-                    return false;
-
-                selectParts.Add($"{selectField}: {expr}");
-            }
-
-            body = "{ " + string.Join(", ", selectParts) + " }";
-            return true;
-        }
-
-        private static string BuildFieldExpression(string fieldName, string fromAlias)
-        {
-            var id = FormatRqlIdentifier(fieldName);
-            if (id == null)
-                return null;
-
-            return string.IsNullOrWhiteSpace(fromAlias) ? id : fromAlias + "." + id;
-        }
-
         // Raven grouped RQL uses count() with no argument.
         private static bool IsCountFunction(string name) =>
             string.Equals(name, "count", StringComparison.OrdinalIgnoreCase);
@@ -649,26 +595,6 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             }
 
             return identifier;
-        }
-
-        private static string FormatRqlObjectFieldIdentifier(string identifier)
-        {
-            if (string.IsNullOrWhiteSpace(identifier))
-                return null;
-
-            var s = identifier;
-            bool plain = char.IsAsciiLetter(s[0]) || s[0] == '_';
-            for (int i = 1; i < s.Length && plain; i++)
-                plain = char.IsAsciiLetterOrDigit(s[i]) || s[i] == '_';
-
-            if (plain)
-                return s;
-
-            // Escape backslashes first so the \ we prepend to " on the next pass isn't double-escaped.
-            var escaped = s
-                .Replace("\\", "\\\\", StringComparison.Ordinal)
-                .Replace("\"", "\\\"", StringComparison.Ordinal);
-            return "\"" + escaped + "\"";
         }
     }
 }
