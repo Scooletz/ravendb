@@ -22,13 +22,26 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
     {
         private static readonly RavenLogger Logger = RavenLogManager.Instance.GetLoggerForServer(typeof(PgSqlToRqlTranslator));
 
-        private const string UnsupportedSelectAggregateMessage = "Unsupported SELECT aggregate";
-        private const string UnsupportedSelectProjectionMessage = "Unsupported SELECT projection";
-        private const string MixedAggregateAndNonAggregateMessage = "Mixing aggregates and non-aggregated columns is not supported yet.";
-        private const string UnsupportedDistinctMessage = "Unsupported DISTINCT";
-        private const string UnsupportedGroupByMessage = "Unsupported GROUP BY";
-        private const string UnsupportedOrderByForGroupByMessage = "Unsupported ORDER BY for GROUP BY";
-        private const string UnsupportedJoinMessage = "Unsupported JOIN shape";
+        // Architectural note: the translator swallows NotSupportedException inside TryParse and
+        // returns false, letting PgQuery.CreateInstance fall through to UnhandledQueryDiagnoser
+        // for user-facing classification. The re-parse cost in the diagnoser is amortized via
+        // SqlAstCache (same dispatch chain → cache hit). Throws below use PgTranslationException
+        // (a NotSupportedException subclass) so the failure carries a machine-actionable category;
+        // ad-hoc throws elsewhere still use NotSupportedException(string) until migrated.
+        private static PgTranslationException UnsupportedSelectAggregate() =>
+            new(TranslationFailureCategory.Aggregate, "Unsupported SELECT aggregate");
+        private static PgTranslationException UnsupportedSelectProjection() =>
+            new(TranslationFailureCategory.SelectProjection, "Unsupported SELECT projection");
+        private static PgTranslationException MixedAggregateAndNonAggregate() =>
+            new(TranslationFailureCategory.MixedAggregateAndNonAggregate, "Mixing aggregates and non-aggregated columns is not supported yet.");
+        private static PgTranslationException UnsupportedDistinct() =>
+            new(TranslationFailureCategory.Distinct, "Unsupported DISTINCT");
+        private static PgTranslationException UnsupportedGroupBy() =>
+            new(TranslationFailureCategory.GroupBy, "Unsupported GROUP BY");
+        private static PgTranslationException UnsupportedOrderByForGroupBy() =>
+            new(TranslationFailureCategory.OrderBy, "Unsupported ORDER BY for GROUP BY");
+        private static PgTranslationException UnsupportedJoin() =>
+            new(TranslationFailureCategory.Join, "Unsupported JOIN shape");
 
         public static bool TryParse(string sql, int[] parameterTypes, out string rql)
             => TryParse(sql, parameterTypes, documentDatabase: null, out rql, out _);
@@ -83,10 +96,15 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
             }
             catch (NotSupportedException ex)
             {
+                // Intentional swallow: PgQuery.CreateInstance falls through to
+                // UnhandledQueryDiagnoser, which surfaces a user-facing classification. The
+                // PgTranslationException subclass carries a machine-actionable Category — log it
+                // so we can correlate translator failures with diagnoser outcomes in the wild.
                 rql = null;
+                var category = (ex as PgTranslationException)?.Category ?? TranslationFailureCategory.Other;
                 var reason = string.IsNullOrWhiteSpace(ex.Message)
-                    ? "unsupported query shape"
-                    : $"unsupported query shape: {ex.Message}";
+                    ? $"unsupported query shape (category: {category})"
+                    : $"unsupported query shape (category: {category}): {ex.Message}";
                 return LogFailure(reason);
             }
         }
@@ -307,14 +325,14 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
                 throw new NotSupportedException("FROM clause with join is required");
 
             if (IsSelectStar(selectStmt.TargetList ?? []) == false)
-                throw new NotSupportedException(UnsupportedJoinMessage);
+                throw UnsupportedJoin();
 
             if (selectStmt.WhereClause != null || selectStmt.GroupClause is { Count: > 0 } || selectStmt.SortClause is { Count: > 0 } ||
                 selectStmt.LimitCount != null || selectStmt.LimitOffset != null || selectStmt.DistinctClause is { Count: > 0 })
-                throw new NotSupportedException(UnsupportedJoinMessage);
+                throw UnsupportedJoin();
 
             if (TryExtractSimpleJoinInfo(joinExpr, out var drivingCollection, out var drivingAlias, out var loadPath, out var loadAlias) == false)
-                throw new NotSupportedException(UnsupportedJoinMessage);
+                throw UnsupportedJoin();
 
             return $"from '{drivingCollection}' as {drivingAlias} load {drivingAlias}.{loadPath} as {loadAlias} select {{ {drivingAlias}: {drivingAlias}, {loadAlias}: {loadAlias} }}";
         }
@@ -415,30 +433,30 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
         private static void ApplyGroupBy(AsyncDocumentQuery<JObject> q, SelectStmt selectStmt, string fromAlias)
         {
             if (selectStmt.GroupClause is not { Count: > 0 })
-                throw new NotSupportedException(UnsupportedGroupByMessage);
+                throw UnsupportedGroupBy();
 
             var groupFieldNames = new List<string>(capacity: selectStmt.GroupClause.Count);
             foreach (var groupKeyNode in selectStmt.GroupClause)
             {
                 if (groupKeyNode.ColumnRef == null)
-                    throw new NotSupportedException(UnsupportedGroupByMessage);
+                    throw UnsupportedGroupBy();
 
                 var name = ExtractFieldName(groupKeyNode, fromAlias);
                 if (string.IsNullOrWhiteSpace(name))
-                    throw new NotSupportedException(UnsupportedGroupByMessage);
+                    throw UnsupportedGroupBy();
 
                 groupFieldNames.Add(name);
             }
 
             var targets = selectStmt.TargetList;
             if (targets == null || targets.Count == 0)
-                throw new NotSupportedException(UnsupportedGroupByMessage);
+                throw UnsupportedGroupBy();
 
             if (IsSelectStar(targets))
-                throw new NotSupportedException(UnsupportedGroupByMessage);
+                throw UnsupportedGroupBy();
 
             if (selectStmt.DistinctClause is { Count: > 0 })
-                throw new NotSupportedException(UnsupportedGroupByMessage);
+                throw UnsupportedGroupBy();
 
             bool hasAnyAggregate = false;
             foreach (var t in targets)
@@ -469,11 +487,11 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
                 {
                     var val = t.ResTarget?.Val;
                     if (val?.ColumnRef == null)
-                        throw new NotSupportedException(UnsupportedGroupByMessage);
+                        throw UnsupportedGroupBy();
 
                     var field = ExtractFieldName(val, fromAlias);
                     if (string.IsNullOrWhiteSpace(field) || groupSet.Contains(field) == false)
-                        throw new NotSupportedException(UnsupportedGroupByMessage);
+                        throw UnsupportedGroupBy();
 
                     projected.Add(field);
                 }
@@ -499,7 +517,7 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
 
             // Aggregate path: only single-column GROUP BY is representable in RQL today.
             if (groupFieldNames.Count != 1)
-                throw new NotSupportedException(UnsupportedGroupByMessage);
+                throw UnsupportedGroupBy();
 
             var groupFieldName = groupFieldNames[0];
 
@@ -508,7 +526,7 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
             {
                 var val = t.ResTarget?.Val;
                 if (val == null)
-                    throw new NotSupportedException(UnsupportedGroupByMessage);
+                    throw UnsupportedGroupBy();
 
                 projections.Add(BuildProjectionForGroupByTarget(val, groupFieldName, fromAlias, t.ResTarget?.Name));
             }
@@ -539,10 +557,10 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
                 {
                     var fieldName = ExtractFieldName(sortBy.Node, fromAlias);
                     if (string.IsNullOrWhiteSpace(fieldName))
-                        throw new NotSupportedException(UnsupportedOrderByForGroupByMessage);
+                        throw UnsupportedOrderByForGroupBy();
 
                     if (string.Equals(fieldName, groupFieldName, StringComparison.OrdinalIgnoreCase) == false)
-                        throw new NotSupportedException(UnsupportedOrderByForGroupByMessage);
+                        throw UnsupportedOrderByForGroupBy();
 
                     orderExpr = projections.First(p => string.Equals(p, groupFieldName, StringComparison.OrdinalIgnoreCase));
                 }
@@ -551,13 +569,13 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
                     var projection = BuildAggregateProjectionForGroupByOrderBy(sortBy.Node.FuncCall, fromAlias);
 
                     if (projections.Any(p => string.Equals(p, projection, StringComparison.OrdinalIgnoreCase)) == false)
-                        throw new NotSupportedException(UnsupportedOrderByForGroupByMessage);
+                        throw UnsupportedOrderByForGroupBy();
 
                     orderExpr = $"'{projections.First(p => string.Equals(p, projection, StringComparison.OrdinalIgnoreCase))}'";
                 }
                 else
                 {
-                    throw new NotSupportedException(UnsupportedOrderByForGroupByMessage);
+                    throw UnsupportedOrderByForGroupBy();
                 }
 
                 if (sortBy.SortbyDir == SortByDir.SortbyDesc)
@@ -581,10 +599,10 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
             var allAgg = targets.All(IsAggregateTarget);
 
             if (isDistinct && anyAgg)
-                throw new NotSupportedException(UnsupportedDistinctMessage);
+                throw UnsupportedDistinct();
 
             if (anyAgg && !allAgg)
-                throw new NotSupportedException(MixedAggregateAndNonAggregateMessage);
+                throw MixedAggregateAndNonAggregate();
 
             if (allAgg)
             {
@@ -594,7 +612,7 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
 
             var (projectionFields, projectionAliases) = BuildColumnProjections(targets, fromAlias);
             if (isDistinct && projectionFields.Length != 1)
-                throw new NotSupportedException(UnsupportedDistinctMessage);
+                throw UnsupportedDistinct();
 
             if (projectionFields.Length == 0)
                 return;
@@ -648,7 +666,7 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
                 var resTarget = t.ResTarget;
                 var val = resTarget?.Val;
                 if (val == null)
-                    throw new NotSupportedException(UnsupportedSelectProjectionMessage);
+                    throw UnsupportedSelectProjection();
 
                 var fieldName = TranslateSelectTargetValue(val, fromAlias);
                 if (fieldName == null)
@@ -699,7 +717,7 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
                     return literal;
             }
 
-            throw new NotSupportedException(UnsupportedSelectProjectionMessage);
+            throw UnsupportedSelectProjection();
         }
 
         // Renders the three concrete AConst kinds — Ival (integer), Fval (float), Sval
@@ -756,7 +774,7 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
             {
                 var funcCall = t.ResTarget?.Val?.FuncCall;
                 if (funcCall == null)
-                    throw new NotSupportedException(UnsupportedSelectAggregateMessage);
+                    throw UnsupportedSelectAggregate();
 
                 var funcName = GetFuncNameOrThrow(funcCall);
 
@@ -772,7 +790,7 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
                         break;
 
                     default:
-                        throw new NotSupportedException(UnsupportedSelectAggregateMessage);
+                        throw UnsupportedSelectAggregate();
                 }
             }
 
@@ -782,7 +800,7 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
         private static string GetFuncNameOrThrow(FuncCall funcCall)
         {
             if (funcCall.Funcname == null || funcCall.Funcname.Count == 0 || funcCall.Funcname[0].String == null)
-                throw new NotSupportedException(UnsupportedSelectAggregateMessage);
+                throw UnsupportedSelectAggregate();
 
             return (funcCall.Funcname[0].String.Sval ?? string.Empty).ToLowerInvariant();
         }
@@ -790,7 +808,7 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
         private static Node GetSingleArgOrThrow(FuncCall funcCall)
         {
             if (funcCall.Args == null || funcCall.Args.Count != 1)
-                throw new NotSupportedException(UnsupportedSelectAggregateMessage);
+                throw UnsupportedSelectAggregate();
 
             return funcCall.Args[0];
         }
@@ -805,25 +823,25 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
             {
                 var countFieldName = ExtractFieldName(countArg, fromAlias);
                 if (string.IsNullOrWhiteSpace(countFieldName))
-                    throw new NotSupportedException(UnsupportedSelectAggregateMessage);
+                    throw UnsupportedSelectAggregate();
                 return $"count({countFieldName})";
             }
 
             if (countArg.AConst != null)
                 return "count()";
 
-            throw new NotSupportedException(UnsupportedSelectAggregateMessage);
+            throw UnsupportedSelectAggregate();
         }
 
         private static string BuildSingleColumnAggregateProjection(string funcName, FuncCall funcCall, string fromAlias = null)
         {
             var arg0 = GetSingleArgOrThrow(funcCall);
             if (arg0?.ColumnRef == null)
-                throw new NotSupportedException(UnsupportedSelectAggregateMessage);
+                throw UnsupportedSelectAggregate();
 
             var fieldName = ExtractFieldName(arg0, fromAlias);
             if (string.IsNullOrWhiteSpace(fieldName))
-                throw new NotSupportedException(UnsupportedSelectAggregateMessage);
+                throw UnsupportedSelectAggregate();
 
             return $"{funcName}({fieldName})";
         }
@@ -834,7 +852,7 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
             {
                 var field = ExtractFieldName(val, fromAlias);
                 if (string.Equals(field, groupFieldName, StringComparison.OrdinalIgnoreCase) == false)
-                    throw new NotSupportedException(UnsupportedGroupByMessage);
+                    throw UnsupportedGroupBy();
 
                 return groupFieldName;
             }
@@ -846,7 +864,7 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
                 {
                     "count" => BuildCountProjection(val.FuncCall, fromAlias),
                     "sum" or "avg" => BuildSingleColumnAggregateProjection(funcName, val.FuncCall, fromAlias),
-                    _ => throw new NotSupportedException(UnsupportedGroupByMessage)
+                    _ => throw UnsupportedGroupBy()
                 };
 
                 // Aggregates over a group-by key collide on RQL's implicit alias rule:
@@ -865,7 +883,7 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
                 return expr;
             }
 
-            throw new NotSupportedException(UnsupportedGroupByMessage);
+            throw UnsupportedGroupBy();
         }
 
         private static string BuildAggregateProjectionForGroupByOrderBy(FuncCall funcCall, string fromAlias = null)
@@ -875,7 +893,7 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
             {
                 "count" => BuildCountProjection(funcCall, fromAlias),
                 "sum" or "avg" => BuildSingleColumnAggregateProjection(funcName, funcCall, fromAlias),
-                _ => throw new NotSupportedException(UnsupportedOrderByForGroupByMessage)
+                _ => throw UnsupportedOrderByForGroupBy()
             };
         }
 
