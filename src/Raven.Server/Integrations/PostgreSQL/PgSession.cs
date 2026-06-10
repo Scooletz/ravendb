@@ -187,6 +187,22 @@ namespace Raven.Server.Integrations.PostgreSQL
             if (_clientOptions == null)
                 return;
 
+            // Security gate: in secured mode, refuse a plaintext socket before any database
+            // lookup, so credentials are never solicited — and database existence never probed —
+            // over an unencrypted channel. A client that connects without first sending SSLRequest
+            // (Npgsql `SSL Mode=Disable` and similar) lands on the raw NetworkStream; `stream` is
+            // an SslStream only after a negotiated TLS upgrade in HandleInitialMessage.
+            if (_serverCertificateHolder.ServerCertificate != null && stream is not SslStream)
+            {
+                await writer.WriteAsync(messageBuilder.ErrorResponse(
+                    PgSeverity.Fatal,
+                    PgErrorCodes.InvalidAuthorizationSpecification,
+                    "This server requires a TLS connection for authentication. " +
+                    "Configure your client to use SSL (e.g. Npgsql 'SSL Mode=Require' " +
+                    "or 'SSL Mode=Prefer') so the password is encrypted in transit."), _token);
+                return;
+            }
+
             if (_clientOptions.TryGetValue("database", out string databaseName) == false)
             {
                 await writer.WriteAsync(messageBuilder.ErrorResponse(
@@ -231,21 +247,9 @@ namespace Raven.Server.Integrations.PostgreSQL
 
                 if (_serverCertificateHolder.ServerCertificate != null)
                 {
-                    // Authentication is required only when running in secured mode. The
-                    // ServerCertificate-only gate previously allowed the cleartext password
-                    // prompt to be emitted on a raw NetworkStream when a client connected
-                    // without first sending SSLRequest (Npgsql `SSL Mode=Disable` and similar)
-                    // — the password would then travel over plaintext. Require an SslStream
-                    // here so credentials are never solicited on an unencrypted channel.
-                    if (stream is not SslStream)
-                    {
-                        throw new PgFatalException(
-                            PgErrorCodes.InvalidAuthorizationSpecification,
-                            "This server requires a TLS connection for authentication. " +
-                            "Configure your client to use SSL (e.g. Npgsql 'SSL Mode=Require' " +
-                            "or 'SSL Mode=Prefer') so the password is encrypted in transit.");
-                    }
-
+                    // Authentication is required only when running in secured mode. The plaintext
+                    // TLS gate above already refused any non-SslStream connection in secured mode,
+                    // so reaching here guarantees the cleartext password travels encrypted.
                     await writer.WriteAsync(messageBuilder.AuthenticationCleartextPassword(), _token);
                     var authMessage = await transaction.MessageReader.GetUninitializedMessage(reader, _token);
                     await authMessage.Init(transaction.MessageReader, reader, _token);
