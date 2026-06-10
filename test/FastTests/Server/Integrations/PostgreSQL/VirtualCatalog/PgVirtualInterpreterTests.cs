@@ -43,6 +43,21 @@ namespace FastTests.Server.Integrations.PostgreSQL.VirtualCatalog
             Assert.Equal("v", table.Columns[0].Name);
         }
 
+        // format_type evaluates to NULL by design (it's only meaningfully invoked inside a
+        // parameterized ANY(...) row filter, where the row is filtered out before evaluation). As a
+        // standalone scalar projection it must still emit one NULL-valued row rather than throwing an
+        // NRE while serializing the null result.
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void Format_type_scalar_returns_single_null_row_without_throwing()
+        {
+            Assert.True(PgVirtualInterpreter.TryExecute("select format_type(23)", EmptyCtx(), out var table));
+            Assert.NotNull(table);
+            Assert.Single(table.Columns);
+            Assert.Single(table.Data);
+            var cell = table.Data[0].ColumnData.Span[0];
+            Assert.False(cell.HasValue, "format_type result is NULL");
+        }
+
         [RavenFact(RavenTestCategory.PostgreSql)]
         public void Star_projection_over_character_sets_returns_full_table()
         {

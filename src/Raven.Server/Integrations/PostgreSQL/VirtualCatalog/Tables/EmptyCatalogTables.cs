@@ -7,8 +7,7 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog.Tables
 {
     // Concrete row-less catalog table — used for catalog views where the column shape is part of
     // the contract (clients like pgAdmin and Microsoft Fabric introspect them) but RavenDB has
-    // no rows to expose. Constructor-driven so each table is one factory call below instead of
-    // its own sealed class repeating the same boilerplate.
+    // no rows to expose.
     internal sealed class EmptyCatalogTable : PgVirtualTable
     {
         public EmptyCatalogTable(string schemaName, string tableName, params PgVirtualColumn[] columns)

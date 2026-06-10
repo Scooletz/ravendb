@@ -323,6 +323,45 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
             Assert.Equal(expected, Translate(sql));
         }
 
+        // RQL's scanner treats backslash as an escape character inside single-quoted strings, so a
+        // backslash in a SQL string value must be doubled when emitted as an RQL literal. Without
+        // this, `WHERE name = 'a\b'` emits `'a\b'`, which RQL decodes as `a` + backspace (silent
+        // value corruption), and a crafted value can terminate the literal early and inject RQL
+        // once the emitted query is re-parsed.
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void WhereStringWithBackslash_EscapesBackslashByDoubling()
+        {
+            var sql = "SELECT * FROM users WHERE name = 'a\\b'";
+            var expected = "from 'users' where name = 'a\\\\b'";
+
+            Assert.Equal(expected, Translate(sql));
+        }
+
+        // Same backslash-escaping requirement on the const-projection path (TryRenderRqlLiteral),
+        // which now shares the WHERE translator's QuoteString helper.
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void ConstLiteral_StringWithBackslash_EscapesByDoubling()
+        {
+            var sql = "SELECT name, 'a\\b' AS \"note\" FROM users";
+            var expected = "from 'users' select name, 'a\\\\b' as note";
+
+            Assert.Equal(expected, Translate(sql));
+        }
+
+        // Regression: ORDER BY on the grouping key when that key is not in the SELECT list
+        // (`SELECT sum(Freight) ... GROUP BY Company ORDER BY Company`) must fall through cleanly —
+        // TryParse returns false — rather than throwing InvalidOperationException from a First()
+        // with no matching projection, which previously escaped TryParse's catch as an unhandled error.
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void GroupByOrderByOnNonProjectedKey_FailsGracefullyWithoutThrowing()
+        {
+            var sql = "SELECT sum(Freight) FROM Orders GROUP BY Company ORDER BY Company";
+
+            var translated = Raven.Server.Integrations.PostgreSQL.Translation.PgSqlToRqlTranslator.TryParse(sql, Array.Empty<int>(), out _);
+
+            Assert.False(translated);
+        }
+
         [RavenFact(RavenTestCategory.PostgreSql)]
         public void ConstLiteral_BooleanProjection_PreservesAsRqlBoolean()
         {

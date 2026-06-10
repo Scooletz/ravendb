@@ -312,7 +312,15 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
             if (s == null)
                 return "null";
 
-            return "'" + s.Replace("'", "''", StringComparison.Ordinal) + "'";
+            // RQL's scanner treats backslash as an escape character inside single-quoted strings, so
+            // backslashes must be doubled before single quotes are doubled. Otherwise a value containing
+            // a backslash is silently decoded as an escape sequence (corrupting the value), and a crafted
+            // value can terminate the literal early and inject RQL once the result is re-parsed.
+            var escaped = s
+                .Replace("\\", "\\\\", StringComparison.Ordinal)
+                .Replace("'", "''", StringComparison.Ordinal);
+
+            return "'" + escaped + "'";
         }
 
         private static string TranslateSimpleJoin(SelectStmt selectStmt)
@@ -558,6 +566,9 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
                     if (string.Equals(fieldName, groupFieldName, StringComparison.OrdinalIgnoreCase) == false)
                         throw UnsupportedOrderByForGroupBy();
 
+                    if (projections.Any(p => string.Equals(p, groupFieldName, StringComparison.OrdinalIgnoreCase)) == false)
+                        throw UnsupportedOrderByForGroupBy();
+
                     orderExpr = projections.First(p => string.Equals(p, groupFieldName, StringComparison.OrdinalIgnoreCase));
                 }
                 else if (sortBy.Node?.FuncCall != null)
@@ -716,9 +727,8 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
         // Renders the three concrete AConst kinds — Ival (integer), Fval (float), Sval
         // (string) — plus the all-null case (SQL NULL literal). Returns false for shapes the
         // RQL select clause can't accept verbatim, letting the caller fall through to the
-        // unsupported-projection error. Strings are rendered with single-quote RQL syntax
-        // and inner single quotes doubled (RQL's escape convention), matching how the WHERE
-        // translator emits its literals.
+        // unsupported-projection error. Strings are rendered via the same QuoteString helper the
+        // WHERE translator uses (inner single quotes and backslashes escaped per RQL's convention).
         private static bool TryRenderRqlLiteral(A_Const c, out string rendered)
         {
             rendered = null;
@@ -739,7 +749,7 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
 
             if (c.Sval != null && c.Sval.Sval != null)
             {
-                rendered = "'" + c.Sval.Sval.Replace("'", "''") + "'";
+                rendered = QuoteString(c.Sval.Sval);
                 return true;
             }
 

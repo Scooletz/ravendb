@@ -530,7 +530,7 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
 
             var rowData = new ReadOnlyMemory<byte>?[]
             {
-                function.PgType.ToBytes(output, PgFormat.Text),
+                output == null ? (ReadOnlyMemory<byte>?)null : function.PgType.ToBytes(output, PgFormat.Text),
             };
 
             result = new PgTable
