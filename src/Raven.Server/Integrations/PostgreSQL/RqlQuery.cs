@@ -131,6 +131,13 @@ namespace Raven.Server.Integrations.PostgreSQL
                 var query = QueryMetadata.ParseQuery(QueryString, QueryType.Select);
 
                 query.Where = null;
+                // Schema discovery samples for type inference — it must not inherit the user's
+                // narrow LIMIT/OFFSET. If the user wrote `from "Orders" where Active limit 5`
+                // and the WHERE returned 0 docs, we re-run without WHERE; clearing LIMIT/OFFSET
+                // here lets the sample scan walk up to the in-method `sampleIndex < 1000` cap
+                // instead of stopping at 5 docs and inferring types from too small a window.
+                query.Limit = null;
+                query.Offset = null;
 
                 var queryWithoutFiltering = query.ToString();
 
