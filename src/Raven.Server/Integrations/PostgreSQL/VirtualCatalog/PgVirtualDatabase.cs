@@ -22,25 +22,25 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
             RegisterTable(new InformationSchemaColumnsTable());
             RegisterTable(new InformationSchemaTableConstraintsTable());
             RegisterTable(new InformationSchemaKeyColumnUsageTable());
-            RegisterTable(new InformationSchemaReferentialConstraintsTable());
-            RegisterTable(new InformationSchemaViewsTable());
+            RegisterTable(EmptyCatalogTables.InformationSchemaReferentialConstraints);
+            RegisterTable(EmptyCatalogTables.InformationSchemaViews);
 
             RegisterTable(new PgCatalogPgTypeTable());
             RegisterTable(new PgCatalogPgProcTable());
             RegisterTable(new PgCatalogPgRangeTable());
-            RegisterTable(new PgCatalogPgEnumTable());
+            RegisterTable(EmptyCatalogTables.PgEnum);
             RegisterTable(new PgCatalogPgClassTable());
-            RegisterTable(new PgCatalogPgAttributeTable());
+            RegisterTable(EmptyCatalogTables.PgAttribute);
             RegisterTable(new PgCatalogPgNamespaceTable());
-            RegisterTable(new PgCatalogPgExtensionTable());
-            RegisterTable(new PgCatalogPgReplicationSlotsTable());
-            RegisterTable(new PgCatalogPgStatGssapiTable());
+            RegisterTable(EmptyCatalogTables.PgExtension);
+            RegisterTable(EmptyCatalogTables.PgReplicationSlots);
+            RegisterTable(EmptyCatalogTables.PgStatGssapi);
             RegisterTable(new PgCatalogPgDatabaseTable());
             RegisterTable(new PgCatalogPgRolesTable());
-            RegisterTable(new PgCatalogPgAuthMembersTable());
-            RegisterTable(new PgCatalogPgTablespaceTable());
-            RegisterTable(new PgCatalogPgShdescriptionTable());
-            RegisterTable(new PgCatalogPgDescriptionTable());
+            RegisterTable(EmptyCatalogTables.PgAuthMembers);
+            RegisterTable(EmptyCatalogTables.PgTablespace);
+            RegisterTable(EmptyCatalogTables.PgShdescription);
+            RegisterTable(EmptyCatalogTables.PgDescription);
 
             RegisterFunction(new VersionFunction());
             RegisterFunction(new CurrentSettingFunction());
