@@ -647,6 +647,10 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
             return true;
         }
 
+        // Must match what TryComputeAggregate actually implements. Widening this set without
+        // also extending TryComputeAggregate makes the outer gate accept a shape we then
+        // bail on in the compute step, returning false and surfacing a generic
+        // "Unhandled query" — the caller can't distinguish "unsupported" from "not yet impl".
         private static bool IsAggregateFunctionCall(FuncCall func)
         {
             if (func.AggStar)
@@ -654,11 +658,7 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
             if (func.Funcname is not { Count: 1 })
                 return false;
             var name = func.Funcname[0].String?.Sval;
-            return string.Equals(name, "count", StringComparison.OrdinalIgnoreCase)
-                || string.Equals(name, "sum",   StringComparison.OrdinalIgnoreCase)
-                || string.Equals(name, "min",   StringComparison.OrdinalIgnoreCase)
-                || string.Equals(name, "max",   StringComparison.OrdinalIgnoreCase)
-                || string.Equals(name, "avg",   StringComparison.OrdinalIgnoreCase);
+            return string.Equals(name, "count", StringComparison.OrdinalIgnoreCase);
         }
 
         private static bool TryComputeAggregate(string aggName, FuncCall func, List<JoinExecutor.JoinedRow> rows,
@@ -669,8 +669,10 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
                                                 out object value)
         {
             value = null;
+            // Outer IsAggregateFunctionCall gate already restricts to count / count(*). When
+            // extending to sum/min/max/avg, widen BOTH this guard and IsAggregateFunctionCall.
             if (string.Equals(aggName, "count", StringComparison.OrdinalIgnoreCase) == false && func.AggStar == false)
-                return false; // Only COUNT supported in this minimal cut — extend when needed.
+                return false;
 
             // count(*) — every filtered row counts.
             if (func.AggStar || func.Args == null || func.Args.Count == 0)
