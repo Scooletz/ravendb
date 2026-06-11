@@ -7,27 +7,15 @@ using Sparrow.Json;
 
 namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog.Tables
 {
-    // information_schema.columns: per-column metadata for every "table" the PG endpoint exposes.
-    // Used by PowerBI's data-loader and pgAdmin's schema browser to discover a collection's column
-    // shape before issuing the actual SELECT.
+    // information_schema.columns: per-column metadata PowerBI and pgAdmin read to learn a collection's
+    // column shape before the real SELECT.
     //
-    // CRITICAL: the column list we report here MUST match exactly what RqlQuery emits in its
-    // RowDescription when serving the actual data query. If they disagree (different count, order,
-    // names, or types), PowerBI's Mashup engine compares the two and raises `DataSource.Changed:
-    // The data source appears to have been modified since it was last accessed.` Specifically:
+    // The reported columns MUST match what RqlQuery emits in its RowDescription — same count, order,
+    // names, and types — or PowerBI raises DataSource.Changed. Hence: user columns in document insertion
+    // order (GetPropertyNames, not GetPropertyByIndex), bracketed by the synthetic id()/json() columns,
+    // with types mirroring RqlQuery's mapping (see MapDataType).
     //
-    //   - Order: RqlQuery uses `GetPropertyNames()` which returns properties in DOCUMENT
-    //     INSERTION ORDER (sorted by byte offset). We must do the same; `GetPropertyByIndex(i)`
-    //     gives a different (property-id / alphabetical) order and breaks the contract.
-    //   - Auto-columns: RqlQuery prepends `id()` and appends `json()` for every collection query.
-    //     We have to bracket the user properties with the same pseudo-columns.
-    //   - Types: must mirror RqlQuery's BlittableJsonToken → PgType mapping exactly (see MapDataType),
-    //     including the datetime-shaped-string → timestamp promotion. A type mismatch makes PowerBI read
-    //     a column as text from the probe but timestamp from the data query, breaking date filters.
-    //
-    // Schema/catalog identity exposed in the rows:
-    //   table_catalog = ctx.Database.Name (each RavenDB DB hosts one PG "catalog")
-    //   table_schema  = "public"          (PG default; we don't model multiple schemas)
+    // table_catalog = ctx.Database.Name; table_schema = "public" (we don't model multiple schemas).
     internal sealed class InformationSchemaColumnsTable : PgVirtualTable
     {
         private const string TableNamePredicate = "table_name";
@@ -112,14 +100,9 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog.Tables
             }
         }
 
-        // Mirrors RqlQuery.GenerateSchema's BlittableJsonToken → PgType decision tree so the
-        // data_type strings here match the PG types of the corresponding columns in RqlQuery's
-        // RowDescription. Drift here triggers PowerBI's DataSource.Changed error or — when the
-        // column-probe types disagree with the data-query types — silent type mismatches in M
-        // filters (e.g. `[OrderedAt] >= RangeStart` fails because the column reads as text).
-        // For String/CompressedString tokens we additionally peek at the value via
-        // TypeConverter, matching the same value-inspection promotion RqlQuery applies —
-        // datetime-shaped strings become timestamp, not text.
+        // Mirrors RqlQuery's BlittableJsonToken → PgType mapping so data_type here matches RqlQuery's
+        // RowDescription (see the class doc on why that must hold). For String/CompressedString, peek
+        // at the value like RqlQuery does — datetime-shaped strings map to timestamp, not text.
         private static string MapDataType(BlittableJsonToken token, object value)
         {
             var bjt = token & BlittableJsonToken.TypesMask;

@@ -24,20 +24,14 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog.Tables
         public override IEnumerable<object[]> EnumerateRows(VirtualQueryContext ctx) => Array.Empty<object[]>();
     }
 
-    // InformationSchemaTableConstraintsTable and InformationSchemaKeyColumnUsageTable live in
-    // their own files — they're now populated per Raven collection to expose the synthetic `id`
-    // primary key. PowerBI's DirectQuery mashup engine needs PK metadata to build per-row
-    // identity; an empty table_constraints view causes SubstituteWithIndex failures for any
-    // visual / slicer / relationship that needs row substitution.
-    //
-    // Everything else below is a row-less catalog view. Each factory carries the "why empty"
-    // comment for the client behavior that depends on this shape.
+    // table_constraints and key_column_usage are NOT here — they live in their own files, populated
+    // per Raven collection to expose the synthetic `id` primary key that PowerBI's DirectQuery needs.
+    // Everything below is a row-less catalog view.
     internal static class EmptyCatalogTables
     {
-        // RavenDB has no views, so this is always empty. Microsoft Fabric Copy Job UNIONs
-        // `information_schema.tables` and `information_schema.views` when populating its
-        // "Choose data" picker — without this table registered the UNION fails before the
-        // empty arm even matters. Column set matches the SQL standard's `views`.
+        // RavenDB has no views, so this is always empty. Microsoft Fabric's Copy Job "Choose data"
+        // picker UNIONs `information_schema.tables` and `information_schema.views`, so this must be
+        // registered even though it's empty. Column set matches the SQL standard's `views`.
         public static EmptyCatalogTable InformationSchemaViews => new("information_schema", "views",
             new("table_catalog",          PgName.Default,    PgFormat.Text),
             new("table_schema",           PgName.Default,    PgFormat.Text),
@@ -121,9 +115,7 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog.Tables
         // Per-object comments (schemas, tables, columns, …). pgAdmin's schema-tree probe LEFT-JOINs
         // pg_namespace against this to render schema descriptions. We don't model comments, so an
         // empty view returns NULL for `des.description` on every namespace row — exactly what pgAdmin
-        // expects when no description is set. JoinExecutor's TryParseOnCondition drops the
-        // column-to-literal arm (`des.classoid = 'pg_namespace'::regclass`), so the join key is
-        // effectively `des.objoid = nsp.oid` against zero right rows.
+        // expects when no description is set.
         public static EmptyCatalogTable PgDescription => new("pg_catalog", "pg_description",
             new("objoid",      PgOid.Default,  PgFormat.Text),
             new("classoid",    PgOid.Default,  PgFormat.Text),
