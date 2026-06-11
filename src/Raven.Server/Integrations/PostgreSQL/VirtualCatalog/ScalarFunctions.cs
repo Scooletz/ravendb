@@ -17,8 +17,6 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
 
     internal sealed class VersionFunction : ScalarFunction
     {
-        // Matches the value historically returned from NpgsqlConfig.VersionResponse
-        // (loaded from version_query.csv before the virtual-tables interpreter took over).
         private const string Version =
             "PostgreSQL 13.3, compiled by Visual C++ build 1914, 64-bit";
 

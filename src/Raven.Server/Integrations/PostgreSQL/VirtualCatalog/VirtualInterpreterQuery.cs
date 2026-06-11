@@ -7,7 +7,6 @@ using Raven.Server.Integrations.PostgreSQL.Messages;
 namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
 {
     // Wraps a PgTable produced by PgVirtualInterpreter and streams it over the wire.
-    // Structure mirrors HardcodedQuery — both are "pre-computed PgTable" shells.
     internal sealed class VirtualInterpreterQuery : PgQuery
     {
         private readonly PgTable _result;
