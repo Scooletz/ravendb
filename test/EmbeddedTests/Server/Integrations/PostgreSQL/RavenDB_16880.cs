@@ -452,6 +452,43 @@ namespace EmbeddedTests.Server.Integrations.PostgreSQL
             }
         }
 
+        // RQL works as the wire query — including a declare-function JS projection — as long as its
+        // body has no ';' (Npgsql / PowerBI split the command on ';' client-side; see the next test).
+        [Fact]
+        public async Task RqlDeclareFunctionWithoutSemicolonsWorksOverTheWire()
+        {
+            const string query = "declare function pj(o) { return { Co: o.Company } } from Orders as o select pj(o)";
+
+            using (var store = GetDocumentStore())
+            {
+                await store.Maintenance.SendAsync(new CreateSampleDataOperation());
+
+                var result = await Act(store, query);
+
+                Assert.NotNull(result);
+                Assert.NotEmpty(result.Rows);
+            }
+        }
+
+        // When a declare-function body contains ';', Npgsql / PowerBI split the command client-side and
+        // only the leading fragment (unbalanced braces, no FROM) reaches the server. That fragment must
+        // be REJECTED with an error that echoes the offending declare-function text — never silently
+        // mis-run. (The friendly "remove the semicolons" guidance is pinned by the diagnoser unit test,
+        // UnhandledQueryDiagnoserTests.JsBodyFragment_FromPowerBiSemicolonSplit_PointsAtAsiWorkaround;
+        // whether that exact wording reaches the wire depends on the client's query protocol/version.)
+        // Sending the fragment directly keeps this robust across Npgsql versions (no ';' to re-split).
+        [Fact]
+        public async Task RqlDeclareFunctionSemicolonFragmentIsRejectedOverTheWire()
+        {
+            const string fragment = "declare function pj(o) { var c = o.Company";
+
+            using (var store = GetDocumentStore())
+            {
+                var ex = await Assert.ThrowsAnyAsync<Exception>(async () => await Act(store, fragment));
+                Assert.Contains("declare function", ex.Message, StringComparison.OrdinalIgnoreCase);
+            }
+        }
+
         [Fact]
         public async Task CanGetCorrectNumberOfRecordAndFieldNameUsingMapReduceIndex()
         {
