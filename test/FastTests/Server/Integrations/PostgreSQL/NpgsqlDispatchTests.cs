@@ -4,10 +4,8 @@ using Xunit;
 
 namespace FastTests.Server.Integrations.PostgreSQL
 {
-    // Verifies that the Npgsql type-catalog probe queries each version sends on startup all reach
-    // PgVirtualInterpreter and produce a non-empty result. The legacy classifier-based dispatch
-    // (HardcodedQueryClassifier → NpgsqlQueryClassifier → pre-projected NpgsqlConfig responses)
-    // was retired across Steps B–E of the type-catalog plan.
+    // Verifies the Npgsql type-catalog probes each client version sends on startup all reach
+    // PgVirtualInterpreter and return a well-formed but empty rowset (columns present, zero rows).
     public sealed class NpgsqlDispatchTests(ITestOutputHelper output) : NoDisposalNeeded(output)
     {
         // Npgsql 5.0.0+ — "Load enum fields" probe.
