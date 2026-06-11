@@ -12,10 +12,8 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
             return rql;
         }
 
-        // Easy (10)
-
         [RavenFact(RavenTestCategory.PostgreSql)]
-        public void Easy_01_SelectAllFromUsers()
+        public void SelectAllFromUsers()
         {
             var sql = "SELECT * FROM users";
             var expected = "from 'users'";
@@ -24,7 +22,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
         }
 
         [RavenFact(RavenTestCategory.PostgreSql)]
-        public void Easy_02_WhereAmountGreaterThan()
+        public void WhereAmountGreaterThan()
         {
             var sql = "SELECT * FROM orders WHERE amount > 10";
             var expected = "from 'orders' where amount > 10";
@@ -33,7 +31,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
         }
 
         [RavenFact(RavenTestCategory.PostgreSql)]
-        public void Easy_03_WhereNameEqualsString()
+        public void WhereNameEqualsString()
         {
             var sql = "SELECT * FROM users WHERE name = 'ayende'";
             var expected = "from 'users' where name = 'ayende'";
@@ -41,9 +39,6 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
             Assert.Equal(expected, Translate(sql));
         }
 
-        // SqlWhereParser used to reject `''` (treated as falsy via string.IsNullOrEmpty), so
-        // the entire WHERE translation collapsed for queries that want to filter for empty
-        // strings — an extremely common idiom. The Sval-null guard alone is the right gate.
         [RavenFact(RavenTestCategory.PostgreSql)]
         public void WhereStringEqualsEmpty_PreservesEmptyLiteral()
         {
@@ -54,7 +49,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
         }
 
         [RavenFact(RavenTestCategory.PostgreSql)]
-        public void Easy_04_WhereActiveTrue()
+        public void WhereActiveTrue()
         {
             var sql = "SELECT * FROM users WHERE active = true";
             var expected = "from 'users' where active = true";
@@ -63,7 +58,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
         }
 
         [RavenFact(RavenTestCategory.PostgreSql)]
-        public void Easy_05_WhereStatusNotEqualsString()
+        public void WhereStatusNotEqualsString()
         {
             var sql = "SELECT * FROM orders WHERE status <> 'Cancelled'";
             var expected = "from 'orders' where status != 'Cancelled'";
@@ -72,7 +67,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
         }
 
         [RavenFact(RavenTestCategory.PostgreSql)]
-        public void Easy_06_WhereAnd()
+        public void WhereAnd()
         {
             var sql = "SELECT * FROM orders WHERE status = 'Pending' AND amount > 10";
             var expected = "from 'orders' where status = 'Pending' and amount > 10";
@@ -81,7 +76,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
         }
 
         [RavenFact(RavenTestCategory.PostgreSql)]
-        public void Easy_07_WhereOr()
+        public void WhereOr()
         {
             var sql = "SELECT * FROM orders WHERE status = 'Pending' OR status = 'Shipped'";
             var expected = "from 'orders' where status = 'Pending' or status = 'Shipped'";
@@ -90,7 +85,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
         }
 
         [RavenFact(RavenTestCategory.PostgreSql)]
-        public void Easy_08_OrderByDesc()
+        public void OrderByDesc()
         {
             var sql = "SELECT * FROM users ORDER BY name DESC";
             var expected = "from 'users' order by name desc";
@@ -99,7 +94,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
         }
 
         [RavenFact(RavenTestCategory.PostgreSql)]
-        public void Easy_09_LimitOffset()
+        public void LimitOffset()
         {
             var sql = "SELECT * FROM users LIMIT 10 OFFSET 20";
             var expected = "from 'users' limit 20, 10";
@@ -108,7 +103,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
         }
 
         [RavenFact(RavenTestCategory.PostgreSql)]
-        public void Easy_10_OrderByDescLimit()
+        public void OrderByDescLimit()
         {
             // Unquoted identifiers follow PostgreSQL semantics (folded to lowercase).
             // Users who need exact RavenDB field casing must quote the identifier.
@@ -136,11 +131,10 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
             Assert.Equal(expected, Translate(sql));
         }
 
-        // Gap #3: NOT IN. RavenDB's client query API has no WhereNotIn — instead callers flip the
-        // polarity via NegateNext() applied to the WhereIn that follows. The translator used to
-        // throw `NOT IN is not supported`; now it threads negation through correctly. NegateNext()
-        // also prepends an `exists(<field>)` clause so the negation is null-safe (RQL: rows where
-        // the field is missing don't match a negated predicate; PG's NOT IN semantics match).
+        // NOT IN: RavenDB's client query API has no WhereNotIn, so the translator flips polarity via
+        // NegateNext() on the following WhereIn. NegateNext() also prepends an `exists(<field>)` clause
+        // so the negation is null-safe (RQL: rows missing the field don't match a negated predicate;
+        // matches PG's NOT IN semantics).
         [RavenFact(RavenTestCategory.PostgreSql)]
         public void NotIn_FlipsViaNegateNext()
         {
@@ -150,9 +144,8 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
             Assert.Equal(expected, Translate(sql));
         }
 
-        // Gap #3 (continued): general NOT around a primitive predicate. NegateNext() flips the
-        // next emitted predicate; compound NOTs (e.g. NOT(a AND b)) still throw — see the
-        // explicit ParsedNot guard in PgSqlToRqlTranslator.
+        // General NOT around a primitive predicate: NegateNext() flips the next emitted predicate.
+        // Compound NOTs (e.g. NOT(a AND b)) still throw — see the ParsedNot guard in PgSqlToRqlTranslator.
         [RavenFact(RavenTestCategory.PostgreSql)]
         public void NotBinary_FlipsViaNegateNext()
         {
@@ -162,10 +155,8 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
             Assert.Equal(expected, Translate(sql));
         }
 
-        // Mid (10)
-
         [RavenFact(RavenTestCategory.PostgreSql)]
-        public void Mid_11_WhereDottedPathEquals()
+        public void WhereDottedPathEquals()
         {
             var sql = "SELECT * FROM orders WHERE ShipTo.City = 'London'";
             var expected = "from 'orders' where shipto.city = 'London'";
@@ -174,7 +165,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
         }
 
         [RavenFact(RavenTestCategory.PostgreSql)]
-        public void Mid_12_Between()
+        public void WhereBetween()
         {
             var sql = "SELECT * FROM orders WHERE amount BETWEEN 10 AND 20";
             var expected = "from 'orders' where amount between 10 and 20";
@@ -183,7 +174,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
         }
 
         [RavenFact(RavenTestCategory.PostgreSql)]
-        public void Mid_13_InList()
+        public void WhereInList()
         {
             var sql = "SELECT * FROM orders WHERE status IN ('Pending','Shipped')";
             var expected = "from 'orders' where status in ('Pending', 'Shipped')";
@@ -192,7 +183,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
         }
 
         [RavenFact(RavenTestCategory.PostgreSql)]
-        public void Mid_14_InListOnDottedPath()
+        public void WhereInListOnDottedPath()
         {
             var sql = "SELECT * FROM orders WHERE shipTo.city IN ('London','Paris')";
             var expected = "from 'orders' where shipto.city in ('London', 'Paris')";
@@ -201,7 +192,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
         }
 
         [RavenFact(RavenTestCategory.PostgreSql)]
-        public void Mid_15_ParenthesesAndOr()
+        public void WhereParenthesizedOrAndedWithComparison()
         {
             var sql = "SELECT * FROM orders WHERE (status = 'Pending' OR status = 'Shipped') AND amount > 10";
             var expected = "from 'orders' where (status = 'Pending' or status = 'Shipped') and amount > 10";
@@ -210,7 +201,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
         }
 
         [RavenFact(RavenTestCategory.PostgreSql)]
-        public void Mid_16_OrderByTwoFields()
+        public void OrderByTwoFields()
         {
             var sql = "SELECT * FROM orders ORDER BY createdAt DESC, amount ASC";
             var expected = "from 'orders' order by createdat desc, amount";
@@ -219,7 +210,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
         }
 
         [RavenFact(RavenTestCategory.PostgreSql)]
-        public void Mid_17_OrderByLimit()
+        public void WhereOrderByLimit()
         {
             var sql = "SELECT * FROM users WHERE name <> 'oren' ORDER BY name LIMIT 20";
             var expected = "from 'users' where name != 'oren' order by name limit 0, 20";
@@ -228,7 +219,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
         }
 
         [RavenFact(RavenTestCategory.PostgreSql)]
-        public void Mid_18_AndWithDottedPath()
+        public void AndWithDottedPath()
         {
             var sql = "SELECT * FROM orders WHERE status = 'Pending' AND shipTo.city = 'London'";
             var expected = "from 'orders' where status = 'Pending' and shipto.city = 'London'";
@@ -237,7 +228,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
         }
 
         [RavenFact(RavenTestCategory.PostgreSql)]
-        public void Mid_19_IsNull()
+        public void WhereIsNull()
         {
             var sql = "SELECT * FROM orders WHERE shippedAt IS NULL";
             var expected = "from 'orders' where shippedat = null";
@@ -246,7 +237,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
         }
 
         [RavenFact(RavenTestCategory.PostgreSql)]
-        public void Mid_20_AndWithParentheses()
+        public void AndWithParenthesizedOr()
         {
             var sql = "SELECT * FROM users WHERE active = true AND (name = 'ayende' OR name = 'oren')";
             var expected = "from 'users' where active = true and (name = 'ayende' or name = 'oren')";
@@ -254,15 +245,13 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
             Assert.Equal(expected, Translate(sql));
         }
 
-        // Complex (10)
-
         // The PG endpoint exposes the document identifier as `id` (the PG-idiomatic surface
         // name — see PgSyntheticColumns); under the hood it's still RQL's `id()` function.
         // The translator maps both `id` and `id()` references in user SQL to `id()` in RQL
         // so the engine reads the document identifier instead of looking for a stored field
         // literally called `id`.
         [RavenFact(RavenTestCategory.PostgreSql)]
-        public void Complex_21_SelectColumns()
+        public void SelectColumns()
         {
             var sql = "SELECT id, name FROM users";
             var expected = "from 'users' select id(), name";
@@ -271,7 +260,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
         }
 
         [RavenFact(RavenTestCategory.PostgreSql)]
-        public void Complex_22_SelectColumnsWithWhere()
+        public void SelectColumnsWithWhere()
         {
             var sql = "SELECT id, status, shipTo.city FROM orders WHERE amount > 10";
             var expected = "from 'orders' where amount > 10 select id(), status, shipto.city";
@@ -280,7 +269,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
         }
 
         [RavenFact(RavenTestCategory.PostgreSql)]
-        public void Complex_23_ScalarCountStar_IsRejected()
+        public void ScalarCountStar_IsRejected()
         {
             // Scalar count(*) with no GROUP BY has no valid RQL form (the engine rejects
             // `from t select count()` with "count may only be used in group by queries").
@@ -429,7 +418,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
         // translator now bails so PgQuery falls through to UnhandledQueryDiagnoser for a friendly
         // message instead of emitting RQL that explodes at execution time.
         [RavenFact(RavenTestCategory.PostgreSql)]
-        public void Complex_24_ScalarAggregates_AreRejected()
+        public void ScalarAggregates_AreRejected()
         {
             var sql = "SELECT COUNT(*), SUM(amount), AVG(score) FROM orders";
 
@@ -437,7 +426,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
         }
 
         [RavenFact(RavenTestCategory.PostgreSql)]
-        public void Complex_25_ScalarAvgWithWhere_IsRejected()
+        public void ScalarAvgWithWhere_IsRejected()
         {
             var sql = "SELECT AVG(amount) FROM orders WHERE status = 'Paid'";
 
@@ -445,7 +434,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
         }
 
         [RavenFact(RavenTestCategory.PostgreSql)]
-        public void Complex_26_GroupByCount()
+        public void GroupByCount()
         {
             var sql = "SELECT status, COUNT(*) FROM orders GROUP BY status";
             var expected = "from 'orders' group by status select status, count()";
@@ -453,7 +442,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
         }
 
         [RavenFact(RavenTestCategory.PostgreSql)]
-        public void Complex_27_GroupByCountOrderByCountDesc()
+        public void GroupByCountOrderByCountDesc()
         {
             var sql = "SELECT status, COUNT(*) FROM orders GROUP BY status ORDER BY COUNT(*) DESC";
             var expected = "from 'orders' group by status order by 'count()' desc select status, count()";
@@ -462,7 +451,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
         }
 
         [RavenFact(RavenTestCategory.PostgreSql)]
-        public void Complex_28_Distinct()
+        public void SelectDistinct()
         {
             var sql = "SELECT DISTINCT status FROM orders";
             var expected = "from 'orders' select distinct status";
@@ -517,7 +506,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
         }
 
         [RavenFact(RavenTestCategory.PostgreSql)]
-        public void Complex_29_IndexQueryContains()
+        public void SelectFromIndex()
         {
             var sql = "SELECT * FROM indexes.\"Users/ByName\" WHERE name = 'oren'";
             var expected = "from index 'Users/ByName' where name = 'oren'";
@@ -526,7 +515,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
         }
 
         [RavenFact(RavenTestCategory.PostgreSql)]
-        public void Complex_30_Join()
+        public void InnerJoin()
         {
             var sql = "SELECT * FROM users u JOIN orders o ON u.id = o.user_id";
             var expected = "from 'orders' as o load o.user_id as u select { o: o, u: u }";
