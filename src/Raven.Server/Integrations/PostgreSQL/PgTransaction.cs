@@ -128,9 +128,6 @@ namespace Raven.Server.Integrations.PostgreSQL
                 return true;
 
             var span = stmt.AsSpan().TrimStart();
-            // Strip a trailing semicolon if any (defensive — splitter already strips them).
-            while (span.Length > 0 && (span[^1] == ';' || char.IsWhiteSpace(span[^1])))
-                span = span[..^1];
 
             if (StartsWithKeyword(span, "set") ||
                 StartsWithKeyword(span, "show") ||
