@@ -3,9 +3,8 @@ using PgSqlParser;
 
 namespace Raven.Server.Integrations.PostgreSQL.PowerBI
 {
-    // Classifies a NormalizedWrapper into either a grouped-aggregate shape or a simple direct-query
-    // shape. Pure analysis — produces shape records that the rewriters in PowerBIDirectQuery
-    // consume to mutate the resolved RQL Query AST.
+    // Classifies a NormalizedWrapper as a grouped-aggregate or direct-query shape for
+    // PowerBIDirectQuery's rewriters.
     internal static class PowerBIShapeClassifier
     {
         // PowerBI's "top 1,000,000 + 1" convention when the wrapper has no LIMIT.
@@ -128,8 +127,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
         }
 
         // The emitter currently understands only sum + count. min/max/avg would be valid SQL but
-        // fall through to the next dispatch tier. Widen this predicate when the emitter learns to
-        // produce RQL for additional aggregate functions.
+        // fall through to the next dispatch tier.
         private static bool IsSupportedGroupedAggregateFunction(string name) =>
             string.Equals(name, "sum", StringComparison.OrdinalIgnoreCase) ||
             string.Equals(name, "count", StringComparison.OrdinalIgnoreCase);

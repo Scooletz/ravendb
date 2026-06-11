@@ -48,6 +48,9 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog.Tables
             new("is_insertable_into",     PgVarchar.Default, PgFormat.Text),
             new("is_trivially_updatable", PgVarchar.Default, PgFormat.Text));
 
+        // RavenDB has no foreign-key / referential constraints — cross-document links are modeled via
+        // document IDs and `load`, not FKs. Clients introspect this view to discover relationships;
+        // empty means "none". Column set matches the SQL standard's `referential_constraints`.
         public static EmptyCatalogTable InformationSchemaReferentialConstraints => new("information_schema", "referential_constraints",
             new("constraint_catalog",        PgName.Default, PgFormat.Text),
             new("constraint_schema",         PgName.Default, PgFormat.Text),
