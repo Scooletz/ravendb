@@ -14,7 +14,7 @@ public class RavenDB_26286 : PostgreSqlIntegrationTestBase
     {
         using (var store = GetDocumentStore())
         {
-            await store.Maintenance.SendAsync(new CreateSampleDataOperation());
+            await store.Maintenance.SendAsync(new CreateSampleDataOperation(), TestContext.Current.CancellationToken);
 
             const string sql =
                 "select *\n" +
@@ -48,7 +48,7 @@ public class RavenDB_26286 : PostgreSqlIntegrationTestBase
     {
         using (var store = GetDocumentStore())
         {
-            await store.Maintenance.SendAsync(new CreateSampleDataOperation());
+            await store.Maintenance.SendAsync(new CreateSampleDataOperation(), TestContext.Current.CancellationToken);
 
             const string sql =
                 "select *\n" +

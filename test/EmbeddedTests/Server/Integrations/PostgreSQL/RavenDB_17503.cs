@@ -14,7 +14,7 @@ public class RavenDB_17503 : PostgreSqlIntegrationTestBase
     {
         using (var store = GetDocumentStore())
         {
-            await store.Maintenance.SendAsync(new CreateSampleDataOperation());
+            await store.Maintenance.SendAsync(new CreateSampleDataOperation(), TestContext.Current.CancellationToken);
 
             const string sql = @"select ""_"".""Name"",
         ""_"".""Manager""
@@ -64,7 +64,7 @@ limit 501";
     {
         using (var store = GetDocumentStore())
         {
-            await store.Maintenance.SendAsync(new CreateSampleDataOperation());
+            await store.Maintenance.SendAsync(new CreateSampleDataOperation(), TestContext.Current.CancellationToken);
 
             const string sql = @"select ""_"".""Employee""
 from 
@@ -105,7 +105,7 @@ limit 1001";
     {
         using (var store = GetDocumentStore())
         {
-            await store.Maintenance.SendAsync(new CreateSampleDataOperation());
+            await store.Maintenance.SendAsync(new CreateSampleDataOperation(), TestContext.Current.CancellationToken);
 
             const string sql = @"select ""_"".""Company"",
     ""_"".""OrderedAt"",
@@ -152,7 +152,7 @@ limit 1000001";
 
         using (var store = GetDocumentStore())
         {
-            await store.Maintenance.SendAsync(new CreateSampleDataOperation());
+            await store.Maintenance.SendAsync(new CreateSampleDataOperation(), TestContext.Current.CancellationToken);
 
             const string sql = @"select ""_"".""Employee"",
     ""_"".""RequireAt"",
@@ -190,7 +190,7 @@ limit 1000001";
     {
         using (var store = GetDocumentStore())
         {
-            await store.Maintenance.SendAsync(new CreateSampleDataOperation());
+            await store.Maintenance.SendAsync(new CreateSampleDataOperation(), TestContext.Current.CancellationToken);
 
             const string sql = @"select ""_"".""Employee"" as ""c3"",
     ""_"".""RequireAt"" as ""c7"",
@@ -282,7 +282,7 @@ limit 501";
     {
         using (var store = GetDocumentStore())
         {
-            await store.Maintenance.SendAsync(new CreateSampleDataOperation());
+            await store.Maintenance.SendAsync(new CreateSampleDataOperation(), TestContext.Current.CancellationToken);
 
             const string sql = @"select ""_"".""Name""
 from 
@@ -320,7 +320,7 @@ limit 501";
     {
         using (var store = GetDocumentStore())
         {
-            await store.Maintenance.SendAsync(new CreateSampleDataOperation());
+            await store.Maintenance.SendAsync(new CreateSampleDataOperation(), TestContext.Current.CancellationToken);
 
             const string sql = @"select ""_"".""Name"",
         ""_"".""Title""
@@ -384,7 +384,7 @@ limit 501";
     {
         using (var store = GetDocumentStore())
         {
-            await store.Maintenance.SendAsync(new CreateSampleDataOperation());
+            await store.Maintenance.SendAsync(new CreateSampleDataOperation(), TestContext.Current.CancellationToken);
 
             const string sql = @"select ""_"".""OrderedAt"" as ""c6"",
     ""_"".""RequireAt"" as ""c7""
@@ -483,7 +483,7 @@ limit 501";
     {
         using (var store = GetDocumentStore())
         {
-            await store.Maintenance.SendAsync(new CreateSampleDataOperation());
+            await store.Maintenance.SendAsync(new CreateSampleDataOperation(), TestContext.Current.CancellationToken);
 
             const string sql = @"select ""_"".""OrderedAt"" as ""c6"",
     ""_"".""RequireAt"" as ""c7""
@@ -578,7 +578,7 @@ limit 501";
     {
         using (var store = GetDocumentStore())
         {
-            await store.Maintenance.SendAsync(new CreateSampleDataOperation());
+            await store.Maintenance.SendAsync(new CreateSampleDataOperation(), TestContext.Current.CancellationToken);
 
             const string sql = @"select ""_"".""OrderedAt"" as ""c2"",
     ""_"".""RequireAt"" as ""c3""
@@ -674,7 +674,7 @@ limit 501";
     {
         using (var store = GetDocumentStore())
         {
-            await store.Maintenance.SendAsync(new CreateSampleDataOperation());
+            await store.Maintenance.SendAsync(new CreateSampleDataOperation(), TestContext.Current.CancellationToken);
 
             const string sql = @"select ""_"".""id()""
 from
@@ -712,7 +712,7 @@ limit 501";
     {
         using (var store = GetDocumentStore())
         {
-            await store.Maintenance.SendAsync(new CreateSampleDataOperation());
+            await store.Maintenance.SendAsync(new CreateSampleDataOperation(), TestContext.Current.CancellationToken);
 
             const string sql = @"select ""_"".""json()""
 from
@@ -750,7 +750,7 @@ limit 501";
     {
         using (var store = GetDocumentStore())
         {
-            await store.Maintenance.SendAsync(new CreateSampleDataOperation());
+            await store.Maintenance.SendAsync(new CreateSampleDataOperation(), TestContext.Current.CancellationToken);
 
             const string sql = @"select ""_"".""Company"" as ""c2"",
     ""_"".""a0"" as ""a0""
@@ -804,7 +804,7 @@ limit 1001";
         // This avoids hard-coding expected values that depend on the sample dataset.
         using (var store = GetDocumentStore())
         {
-            await store.Maintenance.SendAsync(new CreateSampleDataOperation());
+            await store.Maintenance.SendAsync(new CreateSampleDataOperation(), TestContext.Current.CancellationToken);
 
             // Step 1: fetch the raw rows that will be grouped.
             // Uses the non-aggregate simple-fetch path so we get the real document values.
@@ -894,7 +894,7 @@ limit 1000001";
 
         using (var store = GetDocumentStore())
         {
-            await store.Maintenance.SendAsync(new CreateSampleDataOperation());
+            await store.Maintenance.SendAsync(new CreateSampleDataOperation(), TestContext.Current.CancellationToken);
 
             const string sql = @"select ""_"".""Employee"",
     ""_"".""RequireAt"",
@@ -935,7 +935,7 @@ limit 1000001";
         // (c) the count column values equal the number of matching documents per group.
         using (var store = GetDocumentStore())
         {
-            await store.Maintenance.SendAsync(new CreateSampleDataOperation());
+            await store.Maintenance.SendAsync(new CreateSampleDataOperation(), TestContext.Current.CancellationToken);
 
             // Step 1: fetch raw rows to compute expected counts client-side.
             const string rawSql = @"select ""_"".""Company"",
@@ -1017,7 +1017,7 @@ limit 1000001";
         // off. See EmitGroupedAggregateRql for the full note on this mapping.
         using (var store = GetDocumentStore())
         {
-            await store.Maintenance.SendAsync(new CreateSampleDataOperation());
+            await store.Maintenance.SendAsync(new CreateSampleDataOperation(), TestContext.Current.CancellationToken);
 
             // Step 1: fetch raw rows to compute expected sums and counts client-side.
             const string rawSql = @"select ""_"".""Company"",
@@ -1101,7 +1101,7 @@ limit 1000001";
     {
         using (var store = GetDocumentStore())
         {
-            await store.Maintenance.SendAsync(new CreateSampleDataOperation());
+            await store.Maintenance.SendAsync(new CreateSampleDataOperation(), TestContext.Current.CancellationToken);
 
             const string sql = @"select sum(""rows"".""Freight"") as ""a0""
 from
@@ -1133,7 +1133,7 @@ from
     {
         using (var store = GetDocumentStore())
         {
-            await store.Maintenance.SendAsync(new CreateSampleDataOperation());
+            await store.Maintenance.SendAsync(new CreateSampleDataOperation(), TestContext.Current.CancellationToken);
 
             const string sql = @"select count(distinct(""rows"".""OrderedAt"")) + max(""rows"".""08aba381d6ce4b7ca6b81ef186373995..1"") as ""a0"",
     count(distinct(""rows"".""Company"")) + max(""rows"".""08aba381d6ce4b7ca6b81ef186373995..2"") as ""a1"",

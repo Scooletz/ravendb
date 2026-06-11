@@ -13,9 +13,9 @@ public class RavenDB_26030 : PostgreSqlIntegrationTestBase
         {
             using (var session = store.OpenAsyncSession())
             {
-                await session.StoreAsync(new User { Name = "oren" }, "users/1-A");
-                await session.StoreAsync(new User { Name = "ayende" }, "users/2-A");
-                await session.SaveChangesAsync();
+                await session.StoreAsync(new User { Name = "oren" }, "users/1-A", TestContext.Current.CancellationToken);
+                await session.StoreAsync(new User { Name = "ayende" }, "users/2-A", TestContext.Current.CancellationToken);
+                await session.SaveChangesAsync(TestContext.Current.CancellationToken);
             }
 
             // Identifiers must be quoted to preserve case for RavenDB's case-sensitive field lookup.
