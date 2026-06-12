@@ -6,7 +6,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
 {
     // Recognizes PowerBI's outer-wrapper SQL and normalizes it into a NormalizedWrapper that the
     // shape classifier (PowerBIShapeClassifier) and the RQL rewriters in PowerBIDirectQuery can
-    // consume. Pure analysis — no RQL mutation, no side effects.
+    // consume.
     internal static class PowerBIWrapperRecognizer
     {
         public static bool TryNormalize(SelectStmt selectStmt, out NormalizedWrapper wrapper)
@@ -97,7 +97,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 }
             }
 
-            // Collect any WHERE clauses that PowerBI planted inside intermediate wrapper levels —
+            // Collect any WHERE clauses that PowerBI planted inside intermediate wrapper levels
             // e.g. user filters placed underneath the null-ordering CASE helpers but above the
             // distinct-grouping. The outer (top-level) WHERE is already carried via OuterWhereClause;
             // we only collect interior WHEREs here so the caller knows to translate them with the
@@ -121,7 +121,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
         // WHERE clauses found along the way, tagged with the wrapper alias that scopes the WHERE's
         // column references. Stops descending when it hits a level whose FROM isn't a recognized
         // PowerBI wrapper subselect (RangeVar / non-wrapper alias / multi-source FROM). The outermost
-        // SELECT is excluded — its WHERE is already on OuterWhereClause and uses the outermost
+        // SELECT is excluded - its WHERE is already on OuterWhereClause and uses the outermost
         // wrapper alias which the caller handles separately.
         private static List<IntermediateWhere> CollectIntermediateWheres(SelectStmt outerSelectStmt)
         {
@@ -147,7 +147,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 if (PgSqlAstHelpers.IsPowerBiWrapperAlias(nextAlias) == false)
                     break;
 
-                // A WHERE clause at THIS level references columns via `nextAlias.<column>` —
+                // A WHERE clause at THIS level references columns via `nextAlias.<column>`
                 // because nextAlias is the alias of THIS level's FROM-subquery (the source the
                 // WHERE filters).
                 if (current.WhereClause != null)
@@ -352,7 +352,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             return cols.Count > 0;
         }
 
-        // PowerBI order-helper aliases — "t<N>_0" (null-order CASE helpers) and "o<N>" (order passthroughs).
+        // PowerBI order-helper aliases - "t<N>_0" (null-order CASE helpers) and "o<N>" (order passthroughs).
         internal static bool IsPowerBIOrderHelperAlias(string name)
         {
             if (string.IsNullOrWhiteSpace(name))
@@ -503,7 +503,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
         }
 
         // Shared by recognizer + emitter. Returns the last identifier segment of a ColumnRef
-        // verbatim — both `id` (PG-idiomatic) and `id()` (legacy RQL function-call form) pass
+        // verbatim - both `id` (PG-idiomatic) and `id()` (legacy RQL function-call form) pass
         // through unchanged so the projection key the client requested is preserved in the
         // emitted RQL. Downstream comparisons against synthetic-column names go through
         // PgSyntheticColumns.IsSyntheticColumn so either form matches.
@@ -532,7 +532,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             return string.IsNullOrWhiteSpace(colName) == false;
         }
 
-        // Accepts outer "_"-qualified (wrapped shape) or unqualified (flat shape). Empty SortClause → true.
+        // Accepts outer "_"-qualified (wrapped shape) or unqualified (flat shape). Empty SortClause -> true.
         private static bool TryExtractSortClauseToOrderBy(SelectStmt selectStmt, out List<string> cols, out List<bool> descFlags)
         {
             cols = new List<string>();

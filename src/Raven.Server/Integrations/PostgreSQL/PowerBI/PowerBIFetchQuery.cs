@@ -81,7 +81,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                         wrapperReplaces.Add(levelReplaces);
                     }
 
-                    // Defer WHERE application — we need the innermost aggregate-output aliases
+                    // Defer WHERE application - we need the innermost aggregate-output aliases
                     // first to know which outer WHEREs to drop (PowerBI's post-aggregate null
                     // guards like `not "_"."a0" is null` would otherwise translate against the
                     // pre-aggregation inner query and fail).
@@ -110,7 +110,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
 
                 // currentSelect's TargetList is sanitized (real inner replaced with `select 1`
                 // so pgsqlparser can read the wrapper). Re-parse the raw inner text to recover
-                // its aggregate aliases. RQL inner fails parsing and yields an empty set —
+                // its aggregate aliases. RQL inner fails parsing and yields an empty set -
                 // RQL doesn't preserve SQL aliases anyway.
                 var aggregateOutputAliases = CollectAggregateAliasesFromInnerSql(inner.InnerText);
 
@@ -130,28 +130,22 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                     }
                 }
 
-                // PowerBI's row-preview / drill-down queries decorate the outermost SELECT with
-                // constant markers like `1 as "c0"`. The inner RQL never sees them, so without this
-                // the engine returns one column fewer than PowerBI expects (`Field count mismatch`).
-                // Collect them and pass to PowerBIRqlQuery, which appends them as synthetic columns
-                // AFTER the json append so the wire-order matches PowerBI's SQL (id, user cols, json, c0).
+                // PowerBI's row-preview / drill-down queries decorate the outermost SELECT with constant
+                // markers like `1 as "c0"` that the inner RQL doesn't produce. Collect them and pass to
+                // PowerBIRqlQuery, which appends them as synthetic columns after the json append so the
+                // wire-order matches PowerBI's SQL (id, user cols, json, c0).
                 var constProjections = TryCollectOuterConstProjections(selectStmt);
 
-                // Carry the outermost ORDER BY onto the resolved query so PowerBI's sort isn't
-                // dropped (e.g. "sort by measure": `order by "_"."a0" desc`). Without this the
-                // grouped/projected fetch returns correct rows in an arbitrary (index) order.
+                // Carry the outermost ORDER BY onto the resolved query so PowerBI's sort (e.g.
+                // "sort by measure": `order by "_"."a0" desc`) isn't dropped.
                 ApplyOuterOrderBy(selectStmt, query, aggregateOutputAliases);
 
                 var newRql = query.ToString();
 
-                // PowerBI's RowDescription expectations come from the OUTERMOST projection.
-                // Narrow projections (no id()/json()) must not pick up synthetic id+json, or
-                // the response widens past the asked-for column count and PowerBI bails with
-                // `Field count mismatch`. Stay on PowerBIRqlQuery only when synthetic id+json
-                // are actually wanted, or when REPLACE() rewrites need the substitution
-                // machinery (PgSqlTranslatedRqlQuery doesn't carry that). Const projections
-                // are supported on BOTH paths so the routing isn't forced wide just to keep
-                // a `1 as "c0"` marker.
+                // RowDescription expectations come from the outermost projection. Use PowerBIRqlQuery
+                // only when synthetic id+json are wanted (narrow projections must not pick them up) or
+                // when REPLACE() rewrites need its substitution machinery; const projections work on both
+                // paths, so a `1 as "c0"` marker alone doesn't force the wide path.
                 if (WantsPowerBISyntheticColumns(selectStmt) || allReplaces != null)
                 {
                     pgQuery = new PowerBIRqlQuery(newRql, parametersDataTypes, documentDatabase, allReplaces, limit: limit, constProjections: constProjections);
@@ -195,18 +189,11 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             }
         }
 
-        // Parses the raw inner text as SQL and collects aggregate-output aliases — projections
-        // of the form `<aggregate-func>(<args>) AS <alias>`. Outer wrapper levels often
-        // reference these aliases in their WHERE clauses (PowerBI's standard post-aggregation
-        // null guard, e.g. `where not "_"."a0" is null`); those WHEREs must be dropped because
-        // the RQL we emit already encodes the aggregation — the alias doesn't survive as a
-        // field of the underlying collection, and trying to translate the WHERE against the
-        // RQL produces an invalid `WHERE a0 != null` that explodes mid-response with
-        // `Exception while reading from stream`.
-        //
-        // If the inner text isn't parseable as SQL (e.g. it's RQL embedded inside the wrapper),
-        // returns an empty set — RQL doesn't carry SQL aliases anyway, so the outer WHERE
-        // wouldn't be referencing them by alias.
+        // Parses the raw inner text as SQL and collects aggregate-output aliases (`<agg>(...) AS
+        // <alias>`). Outer wrapper levels reference these in post-aggregation null guards (e.g.
+        // `where not "_"."a0" is null`); those WHEREs must be dropped, since the emitted RQL already
+        // encodes the aggregation and the alias isn't a real field. Returns empty for non-SQL inner
+        // text (e.g. embedded RQL), which carries no SQL aliases anyway.
         private static HashSet<string> CollectAggregateAliasesFromInnerSql(string innerText)
         {
             var aliases = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -235,7 +222,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             }
             catch
             {
-                // Inner text isn't SQL (probably RQL or some malformed shape) — leave the
+                // Inner text isn't SQL (probably RQL or some malformed shape) - leave the
                 // alias set empty. Outer WHEREs that reference aggregate aliases via this
                 // path won't occur because the alias structure only exists in SQL.
             }
@@ -245,10 +232,10 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
 
         // Applies the outermost SQL ORDER BY to the resolved RQL query. Each `_`-qualified sort
         // column maps to the query's projected output name: aggregate-output aliases are tagged
-        // `as double` (RQL sorts a projected alias numerically only with the cast — without it the
+        // `as double` (RQL sorts a projected alias numerically only with the cast - without it the
         // alias sorts lexically), group keys / plain columns use the implicit (natural) order.
-        // Best-effort: an unresolvable sort term leaves ORDER BY unset rather than failing the
-        // whole query — degrading to the prior (unsorted) behavior, never a hard error.
+        // Best-effort: an unresolvable sort term leaves ORDER BY unset (rows come back unsorted)
+        // rather than failing the whole query.
         private static void ApplyOuterOrderBy(SelectStmt outermost, Documents.Queries.AST.Query query, HashSet<string> aggregateAliases)
         {
             if (outermost?.SortClause is not { Count: > 0 } sortClause)
@@ -288,8 +275,8 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             query.OrderBy = orderBy;
         }
 
-        // Scans the outermost SELECT's TargetList for `<literal> as <alias>` projections —
-        // typically `1 as "c0"` from PowerBI's row-preview shape — and packages them as
+        // Scans the outermost SELECT's TargetList for `<literal> as <alias>` projections -
+        // typically `1 as "c0"` from PowerBI's row-preview shape - and packages them as
         // ConstProjection descriptors. Per-literal typing happens in TryBuildConstProjection.
         private static List<ConstProjection> TryCollectOuterConstProjections(SelectStmt outermost)
         {
@@ -317,7 +304,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
         }
 
         // Maps the three concrete AConst kinds plus Boolval and SQL NULL to typed wire values.
-        // Integer literals are int4 — that's PG's default inference for an unadorned `1` token
+        // Integer literals are int4 - that's PG's default inference for an unadorned `1` token
         // and what PowerBI's OLE DB type-mapping expects. Float literals are float8 (numeric
         // promotion at parse time is rare for what PowerBI emits). Strings are text. Booleans
         // are bool. All-null components emit a NULL value in the synthetic column.
@@ -329,7 +316,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
 
             if (c.Ival != null)
             {
-                // PG types `1` as int4 — narrow long to int. Out-of-range silently wraps,
+                // PG types `1` as int4 - narrow long to int. Out-of-range silently wraps,
                 // which is fine for PowerBI's row-preview markers (always small positive ints).
                 projection = new ConstProjection(alias, PgInt4.Default, (int)c.Ival.Ival);
                 return true;
@@ -354,7 +341,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 return true;
             }
 
-            // All-null components → SQL NULL. The synthetic column will encode as wire NULL
+            // All-null components -> SQL NULL. The synthetic column will encode as wire NULL
             // (no bytes, length prefix = -1) regardless of declared type.
             if (c.Ival == null && c.Fval == null && c.Sval == null && c.Boolval == null)
             {
@@ -438,9 +425,9 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             if (PgSqlToRqlTranslator.TryParse(queryText, parametersDataTypes, documentDatabase, out var rql) == false)
                 return false;
 
-            // Route to PowerBIRqlQuery only when the shape wants the synthetic id()/json() columns
+            // Route to PowerBIRqlQuery only when the shape wants the synthetic id/json columns
             // (see WantsPowerBISyntheticColumns); otherwise PgSqlTranslatedRqlQuery keeps the
-            // RowDescription column-for-column — extra columns trip PowerBI's `Field count mismatch`.
+            // RowDescription column-for-column.
             var wantsSyntheticColumns = WantsPowerBISyntheticColumns(selectStmt);
 
             pgQuery = wantsSyntheticColumns
@@ -449,15 +436,15 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             return true;
         }
 
-        // True for shapes where PowerBI expects id() and json() in the RowDescription — either
-        // `SELECT *` (implicit "all columns") or an explicit projection that names id() / json().
+        // True for shapes where PowerBI expects id and json in the RowDescription - either
+        // `SELECT *` (implicit "all columns") or an explicit projection that names id / json.
         // False for narrow projections (user columns only, DISTINCT, GROUP BY) where PowerBI
         // cares only about the exact columns it asked for.
         private static bool WantsPowerBISyntheticColumns(SelectStmt selectStmt)
         {
             var targets = selectStmt.TargetList;
             if (targets == null || targets.Count == 0)
-                return true; // No target list → SELECT *-equivalent → wants everything.
+                return true; // No target list -> SELECT *-equivalent -> wants everything.
 
             // pgsqlparser models `SELECT *` as a single ColumnRef whose first (and only) field
             // is an A_Star node. Match that shape so we don't strip synthetics for the implicit
@@ -470,8 +457,8 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                     return true;
             }
 
-            // Explicit projection: scan each target's column ref for `id()` or `json()` as the
-            // final path segment. PowerBI's standard fetch shape always names them — anything
+            // Explicit projection: scan each target's column ref for `id` or `json` as the
+            // final path segment. PowerBI's standard fetch shape always names them - anything
             // else (user columns only / slicer-distinct / aggregate output) deliberately omits
             // them, and we should mirror that to keep the RowDescription matched.
             foreach (var t in targets)
@@ -487,7 +474,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
 
                 // Accept both the new PG-idiomatic forms (`id`, `json`) and the legacy
                 // parenthesised forms (`id()`, `json()`) that older PowerBI metadata caches
-                // still send. Either signals "this is the PowerBI fetch shape — keep synthetics".
+                // still send. Either signals "this is the PowerBI fetch shape - keep synthetics".
                 if (PgSyntheticColumns.IsSyntheticColumn(last))
                     return true;
             }
