@@ -100,14 +100,12 @@ namespace EmbeddedTests.Server.Integrations.PostgreSQL
         // index table matching to the current row of the original table` on any visual that
         // needs row substitution.
         //
-        // Every Raven collection's PK is the synthetic `id` column (the PG-facing surface
-        // name for the document identifier; reporting it under the legacy RQL `id()` form
-        // breaks PowerBI's mashup parser because parens aren't a legal PG identifier character
-        // — see PgSyntheticColumns).
+        // Every Raven collection's PK is the synthetic `id` column (the PG-facing surface name for
+        // the document identifier - see PgSyntheticColumns).
         [Fact]
         public async Task InformationSchemaConstraints_reports_synthetic_id_primary_key_for_each_collection()
         {
-            // This is the literal SQL PowerBI Desktop fires per table to discover keys.
+            // A key-discovery query PowerBI Desktop fires per table (the exact SQL varies by version).
             const string postgresQuery =
                 "select i.CONSTRAINT_SCHEMA || '_' || i.CONSTRAINT_NAME as INDEX_NAME, ii.COLUMN_NAME, ii.ORDINAL_POSITION, " +
                 "case when i.CONSTRAINT_TYPE = 'PRIMARY KEY' then 'Y' else 'N' end as PRIMARY_KEY " +
@@ -135,7 +133,7 @@ namespace EmbeddedTests.Server.Integrations.PostgreSQL
                 Assert.Equal(1, (int)row["ordinal_position"]);
                 // `case when CONSTRAINT_TYPE='PRIMARY KEY' then 'Y' else 'N'` returns the literal
                 // string 'Y' typed as `text` (PG oid 25). Real PostgreSQL infers the case-when
-                // result type the same way — PG's internal `"char"` (oid 18) is only produced by
+                // result type the same way - PG's internal `"char"` (oid 18) is only produced by
                 // explicit `::char` casts. PowerBI's mashup engine refuses to decode binary-format
                 // `"char"` as text inside RetrieveKeysForTable, so this column MUST be text.
                 Assert.Equal("Y", (string)row["primary_key"]);
@@ -144,12 +142,12 @@ namespace EmbeddedTests.Server.Integrations.PostgreSQL
         }
 
         // Datetime-shaped strings in Raven documents must be reported as `timestamp without
-        // time zone` (or `timestamp with time zone` for UTC) by information_schema.columns —
+        // time zone` (or `timestamp with time zone` for UTC) by information_schema.columns,
         // not as `text`. Without this, PowerBI's column-probe types datetime columns as text,
         // and M filters like `[OrderedAt] >= RangeStart` fail with a type-mismatch error
         // because RangeStart is DateTime and the column reads as text. Pins the heuristic in
         // InformationSchemaColumnsTable.MapDataType that mirrors RqlQuery.GenerateSchema's
-        // value-inspection promotion (lines 184-194 in RqlQuery.cs).
+        // value-inspection promotion.
         [Fact]
         public async Task InformationSchemaColumns_reports_datetime_string_fields_as_timestamp()
         {
@@ -173,9 +171,9 @@ namespace EmbeddedTests.Server.Integrations.PostgreSQL
                         r => (string)r["data_type"],
                         StringComparer.OrdinalIgnoreCase);
 
-                // OrderedAt / RequireAt / ShippedAt are stored as ISO 8601 strings in the
-                // Northwind sample Orders documents — they must be reported as a timestamp
-                // type so PowerBI can compare them against DateTime parameters.
+                // RavenDB stores DateTime values as ISO 8601 strings, so OrderedAt / RequireAt /
+                // ShippedAt must be reported as a timestamp type for PowerBI to compare them
+                // against DateTime parameters.
                 foreach (var col in new[] { "OrderedAt", "RequireAt", "ShippedAt" })
                 {
                     Assert.True(dataTypeByColumn.TryGetValue(col, out var dataType),
@@ -215,10 +213,6 @@ namespace EmbeddedTests.Server.Integrations.PostgreSQL
             const string firstField = "FirstName";
             const string secondField = "LastName";
             string query = $"from Employees select {firstField}, {secondField}";
-            // The PG endpoint exposes RavenDB's document identifier under the PG-idiomatic name
-            // `id` (not the RQL-side `id()` function form) so the column parses as a valid PG
-            // identifier — required by clients that re-use information_schema names to build
-            // further SQL (PowerBI's mashup engine being the canonical example).
             const string idField = "id";
 
             using (var store = GetDocumentStore())
@@ -452,7 +446,7 @@ namespace EmbeddedTests.Server.Integrations.PostgreSQL
             }
         }
 
-        // RQL works as the wire query — including a declare-function JS projection — as long as its
+        // RQL works as the wire query - including a declare-function JS projection - as long as its
         // body has no ';' (Npgsql / PowerBI split the command on ';' client-side; see the next test).
         [Fact]
         public async Task RqlDeclareFunctionWithoutSemicolonsWorksOverTheWire()
@@ -470,13 +464,9 @@ namespace EmbeddedTests.Server.Integrations.PostgreSQL
             }
         }
 
-        // When a declare-function body contains ';', Npgsql / PowerBI split the command client-side and
-        // only the leading fragment (unbalanced braces, no FROM) reaches the server. That fragment must
-        // be REJECTED with an error that echoes the offending declare-function text — never silently
-        // mis-run. (The friendly "remove the semicolons" guidance is pinned by the diagnoser unit test,
-        // UnhandledQueryDiagnoserTests.JsBodyFragment_FromPowerBiSemicolonSplit_SuggestsRemovingSemicolons;
-        // whether that exact wording reaches the wire depends on the client's query protocol/version.)
-        // Sending the fragment directly keeps this robust across Npgsql versions (no ';' to re-split).
+        // A declare-function body with ';' gets split client-side by Npgsql/PowerBI, so only the leading
+        // fragment reaches the server. Sending that fragment directly (robust across Npgsql versions)
+        // pins that it's rejected with an error echoing the text, not silently mis-run.
         [Fact]
         public async Task RqlDeclareFunctionSemicolonFragmentIsRejectedOverTheWire()
         {
@@ -543,8 +533,6 @@ select new
                     Assert.Contains("Company", columnNames);
                     Assert.Contains("Count", columnNames);
                     Assert.Contains("Total", columnNames);
-                    // PG-facing name for the metadata-blob column is `json` (not the RQL-side
-                    // `json()` referenced by Constants.Documents.Querying.Fields.PowerBIJsonFieldName).
                     Assert.Contains("json", columnNames);
                 }
             }
