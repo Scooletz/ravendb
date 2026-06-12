@@ -4,7 +4,7 @@ using PgSqlParser;
 
 namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
 {
-    // Materializes a SELECT's FROM clause into a sequence of "joined rows" — flat arrays of
+    // Materializes a SELECT's FROM clause into a sequence of "joined rows" - flat arrays of
     // per-source rows. Supports:
     //   - Base-table FROM sources (PgVirtualTable resolved via PgVirtualDatabase) and sub-SELECT
     //     sources (resolved by an injected callback).
@@ -12,7 +12,7 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
     //     `1=1`/`true` predicate (treated as a cross product).
     //   - Implicit cross product when multiple sources appear in the top-level FROM list.
     //
-    // Bails (returns false) on shapes outside that envelope — caller falls through to the next
+    // Bails (returns false) on shapes outside that envelope - caller falls through to the next
     // dispatch tier just like every other interpreter step.
     internal sealed class JoinExecutor
     {
@@ -150,7 +150,7 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
                 var rv = node.RangeVar;
                 var alias = rv.Alias?.Aliasname ?? rv.Relname;
 
-                // Check enclosing WITH CTEs first — a `FROM cte` reference inside a WITH RECURSIVE
+                // Check enclosing WITH CTEs first - a `FROM cte` reference inside a WITH RECURSIVE
                 // recursive case should resolve to the in-progress CTE, not a real catalog table.
                 if (string.IsNullOrEmpty(rv.Schemaname) && _ctx?.Ctes != null
                     && _ctx.Ctes.TryGetValue(rv.Relname, out var cte))
@@ -207,9 +207,9 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
 
             // Compound AND. Each arm is either:
             //   - a column-to-column equality (PowerBI ReferentialConstraints: fkcon.X=fkcol.X
-            //     AND fkcon.Y=fkcol.Y) — kept as a join key.
+            //     AND fkcon.Y=fkcol.Y) - kept as a join key.
             //   - a column-to-literal equality (pgAdmin: `descr.classoid='pg_database'::regclass`)
-            //     — these are post-join row filters in real PG. We skip them here; for LEFT-JOINed
+            //     - these are post-join row filters in real PG. We skip them here; for LEFT-JOINed
             //     empty right tables (the common pgAdmin case) the missing filter doesn't change
             //     the result, and the WHERE clause typically re-applies any meaningful constraint.
             // If every arm is non-equality, we degrade to a trivial-true condition (cross/all-row
@@ -221,7 +221,7 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
                 {
                     if (TryParseEqualityNode(arg, out var eq))
                         equalities.Add(eq);
-                    // else: column-to-literal or constant predicate — silently dropped.
+                    // else: column-to-literal or constant predicate - silently dropped.
                 }
                 condition = equalities.Count > 0
                     ? new AndCondition(equalities)
@@ -303,7 +303,7 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
                 foreach (var jr in result)
                 {
                     if (src.Rows.Count == 0)
-                        continue; // empty initial source → empty result (matches INNER semantics).
+                        continue; // empty initial source -> empty result (matches INNER semantics).
                     foreach (var row in src.Rows)
                     {
                         var copy = new object[sources.Count][];
@@ -320,14 +320,14 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
         private static List<JoinedRow> ApplyJoin(List<JoinedRow> left, IReadOnlyList<SourceInfo> sourcesSoFarPlusRight, int rightIndex, JoinStep step, int totalSources)
         {
             // sourcesSoFarPlusRight has rightIndex+1 entries (we already appended `step.Right`).
-            // Each left row has totalSources slots — only slots [0..rightIndex-1] are populated.
+            // Each left row has totalSources slots - only slots [0..rightIndex-1] are populated.
             var rightRows = step.Right.Rows;
 
             var output = new List<JoinedRow>();
 
             // Build a single hash index when the ON predicate is a single equality. Compound AND
             // conditions fall back to a per-row scan checking each equality (small N for catalog
-            // tables — not worth a composite-key index here).
+            // tables - not worth a composite-key index here).
             //
             // Normalize orientation: the parser writes the ON as the user did (e.g. `ns.oid = a.x`
             // where `ns` is the right source). We re-orient so `Left` always refers to a previously
@@ -462,7 +462,7 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
         private static object ResolveValueFromLeftRow(JoinedRow leftRow, IReadOnlyList<SourceInfo> sources, int rightIndex, IReadOnlyList<string> path)
         {
             // We may be given an `alias.column` path that resolves to the right-side source we're
-            // currently joining in — flip the paths in that case by attempting both orientations.
+            // currently joining in - flip the paths in that case by attempting both orientations.
             // For the simple case, look up left-side first.
             var name = path[^1];
             string qualifier = path.Count >= 2 ? path[^2] : null;

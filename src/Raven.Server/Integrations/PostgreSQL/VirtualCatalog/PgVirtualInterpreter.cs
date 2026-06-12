@@ -38,7 +38,7 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
         private static bool TryExecuteSingle(SelectStmt selectStmt, VirtualQueryContext ctx, out PgTable result)
             => TryExecuteSingleWithOuterScope(selectStmt, ctx, outerScope: null, out result);
 
-        // outerScope is non-null only when the SELECT is a correlated subquery — its inner column
+        // outerScope is non-null only when the SELECT is a correlated subquery - its inner column
         // lookups can then walk up to the enclosing row.
         private static bool TryExecuteSingleWithOuterScope(SelectStmt selectStmt, VirtualQueryContext ctx, RowScope outerScope, out PgTable result)
         {
@@ -62,7 +62,7 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
                 // "Choose data" picker (`information_schema.tables UNION information_schema.views`)
                 // and by pgAdmin variants. UNION ALL inside a CTE body for WITH RECURSIVE is
                 // handled in TryMaterializeRecursiveCte; this branch covers the OUTERMOST set op.
-                // Must run BEFORE HasNoFromClause — a top-level UNION's outer SelectStmt has no
+                // Must run BEFORE HasNoFromClause - a top-level UNION's outer SelectStmt has no
                 // FROM clause of its own (only Larg/Rarg), so the FROM-less path would otherwise
                 // grab it and try to evaluate it as `select <expr>` with no targets.
                 if (selectStmt.Op == SetOperation.SetopUnion)
@@ -71,7 +71,7 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
                 }
                 if (selectStmt.Op != SetOperation.SetopNone)
                 {
-                    // INTERSECT / EXCEPT are not implemented — return false so the next
+                    // INTERSECT / EXCEPT are not implemented - return false so the next
                     // dispatcher arm gets a chance, and UnhandledQueryDiagnoser surfaces a
                     // targeted message instead of a generic SQL dump. Falling through to
                     // HasNoFromClause would be wrong: the outer SelectStmt has no FromClause
@@ -105,7 +105,7 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
         //     output column names which match the left arm's projection.
         //
         // We run both arms via TryExecuteAsRows to stay on the raw object[] row representation
-        // until the very end — that lets us reuse the existing sort/limit/dedupe machinery
+        // until the very end - that lets us reuse the existing sort/limit/dedupe machinery
         // before serializing to wire bytes via BuildPgTable.
         private static bool TryExecuteUnion(SelectStmt s, VirtualQueryContext ctx, RowScope outerScope, out PgTable result)
         {
@@ -120,7 +120,7 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
                 return false;
 
             // PG requires same column count across arms; we honor that. Cross-arm type coercion
-            // (e.g. promote int to numeric to match the right arm's wider type) isn't done — for
+            // (e.g. promote int to numeric to match the right arm's wider type) isn't done - for
             // the empty-views + tables case the arms are structurally identical anyway.
             if (leftTable.Columns.Count != rightTable.Columns.Count)
                 return false;
@@ -129,7 +129,7 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
             combined.AddRange(leftTable.Data);
             combined.AddRange(rightTable.Data);
 
-            // UNION (not ALL) dedupes. We key off a string-encoded form of each row — adequate
+            // UNION (not ALL) dedupes. We key off a string-encoded form of each row - adequate
             // for the catalog-list shapes that drive this code path (name/text columns, small
             // row counts). If/when this gets used for big numeric or binary payloads we'd want
             // a typed comparer instead.
@@ -257,7 +257,7 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
         // is evaluated once. For WITH RECURSIVE the body is `<base> UNION ALL <recursive>`: seed
         // with the base case, then iterate the recursive case until it produces no new rows.
         //
-        // This isn't a textbook implementation — standard PG passes only the latest iteration's
+        // This isn't a textbook implementation - standard PG passes only the latest iteration's
         // "delta" rows to the recursive case, while we just expose the full accumulated CTE. Good
         // enough for pgAdmin's role-membership probe (recursive case joins through pg_auth_members,
         // which is empty, so we terminate immediately). The MaxIterations guard keeps us safe if a
@@ -317,7 +317,7 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
                 if (materialized.Rows.Count == rowsBefore)
                     return true; // no new rows added (e.g. all returned rows were duplicates of existing)
             }
-            // Exhausted iteration cap without converging — refuse rather than loop forever.
+            // Exhausted iteration cap without converging - refuse rather than loop forever.
             return false;
         }
 
@@ -416,8 +416,8 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
             };
         }
 
-        // Resolves inline scalar function calls — `current_database()`, `pg_encoding_to_char(x)`,
-        // etc. — by looking up the function in PgVirtualDatabase and threading the per-connection
+        // Resolves inline scalar function calls - `current_database()`, `pg_encoding_to_char(x)`,
+        // etc. - by looking up the function in PgVirtualDatabase and threading the per-connection
         // VirtualQueryContext through (current_database needs ctx.Database.Name).
         private static ExpressionEvaluator.ScalarFunctionResolver MakeFunctionResolver(VirtualQueryContext ctx)
         {
@@ -431,7 +431,7 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
         }
 
         // Loose PgType inference for the no-FROM expression path. Match the value's runtime type
-        // — good enough for the scalar values we see (bool, long, string).
+        // - good enough for the scalar values we see (bool, long, string).
         private static PgType InferPgTypeFromRuntimeValue(object value)
         {
             return value switch
@@ -579,8 +579,8 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
             return true;
         }
 
-        // Detects `SELECT <aggregate>(...) [, …] FROM t [WHERE …]` with no GROUP BY and every
-        // target being an aggregate (currently only COUNT — extend when other aggregates show up).
+        // Detects `SELECT <aggregate>(...) [, ...] FROM t [WHERE ...]` with no GROUP BY and every
+        // target being an aggregate (currently only COUNT - extend when other aggregates show up).
         // Emits a single result row containing the aggregate values.
         private static bool TryExecuteAggregateWithoutGroupBy(SelectStmt s, VirtualQueryContext ctx, RowScope outerScope, out PgTable result)
         {
@@ -591,7 +591,7 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
             if (s.TargetList is not { Count: > 0 } targetList)
                 return false;
 
-            // Every target must be an aggregate FuncCall — mixing aggregates and bare columns
+            // Every target must be an aggregate FuncCall - mixing aggregates and bare columns
             // without GROUP BY is a SQL error and we don't try to recover from it.
             foreach (var t in targetList)
             {
@@ -666,9 +666,8 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
         }
 
         // Must match what TryComputeAggregate actually implements. Widening this set without
-        // also extending TryComputeAggregate makes the outer gate accept a shape we then
-        // bail on in the compute step, returning false and surfacing a generic
-        // "Unhandled query" — the caller can't distinguish "unsupported" from "not yet impl".
+        // also extending TryComputeAggregate makes the outer gate accept a shape the compute
+        // step then bails on, surfacing a generic "Unhandled query".
         private static bool IsAggregateFunctionCall(FuncCall func)
         {
             if (func.AggStar)
@@ -692,14 +691,14 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
             if (string.Equals(aggName, "count", StringComparison.OrdinalIgnoreCase) == false && func.AggStar == false)
                 return false;
 
-            // count(*) — every filtered row counts.
+            // count(*) - every filtered row counts.
             if (func.AggStar || func.Args == null || func.Args.Count == 0)
             {
                 value = (long)rows.Count;
                 return true;
             }
 
-            // count(expr) — count rows where expr evaluates to non-null.
+            // count(expr) - count rows where expr evaluates to non-null.
             long c = 0;
             foreach (var jr in rows)
             {
@@ -820,7 +819,7 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
 
         // Walks the WHERE tree and collects top-level ANDed `column = literal` equalities into a
         // dictionary keyed by the column's last-segment name (case-insensitive). Anything under OR
-        // or NOT is ignored — those don't constrain the result set the same way and would mislead
+        // or NOT is ignored - those don't constrain the result set the same way and would mislead
         // virtual tables that use this for enumeration scoping.
         private static IReadOnlyDictionary<string, object> ExtractEqualityPredicates(Node whereClause)
         {
@@ -879,8 +878,8 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
                 return null;
 
             // Fast path: subqueries whose inner FROM sources are all always-empty don't need a
-            // full pipeline run — only the column schema matters. Preserves the prior behaviour
-            // for the PowerBI ReferentialConstraints / FkCentric metadata empty-rowsets.
+            // full pipeline run - only the column schema matters. This keeps the PowerBI
+            // ReferentialConstraints / FkCentric metadata queries returning empty rowsets.
             if (TryDeriveEmptySubqueryColumns(subStmt, out var emptyColumns))
                 return (emptyColumns, Array.Empty<object[]>());
 
@@ -1045,7 +1044,7 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
                     continue;
                 }
 
-                // Expression target — use the alias if given, otherwise PG's default "?column?".
+                // Expression target - use the alias if given, otherwise PG's default "?column?".
                 var (exprPgType, exprFormat) = InferExpressionType(val, sources);
                 var exprName = string.IsNullOrWhiteSpace(rt.Name) == false ? rt.Name : "?column?";
                 projection.Add(new ProjectedTarget(val, exprName, exprPgType, exprFormat));
@@ -1141,12 +1140,12 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
             if (c.Ival != null) return PgInt4.Default;
             if (c.Boolval != null) return PgBool.Default;
             if (c.Fval != null) return PgFloat8.Default;
-            // String literals — even single-character ones like 'Y' / 'N' — must be text.
+            // String literals - even single-character ones like 'Y' / 'N' - must be text.
             // PgChar (oid 18) is PG's internal `"char"` type (single byte, used in
             // pg_catalog rows like pg_type.typtype) and is only ever produced by an
             // explicit ::char cast. Typing a `case when ... then 'Y' else 'N' end`
             // result as PgChar breaks PowerBI's mashup engine inside RetrieveKeysForTable
-            // when it decodes the PRIMARY_KEY column of our PK metadata join — the binary
+            // when it decodes the PRIMARY_KEY column of our PK metadata join - the binary
             // single byte doesn't match its text-decoder contract and crashes with
             // `Nullable object must have a value` during the PK lookup that drives
             // SupportsPaging for every imported table.

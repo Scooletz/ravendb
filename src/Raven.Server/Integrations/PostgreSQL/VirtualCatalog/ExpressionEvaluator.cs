@@ -5,7 +5,7 @@ using PgSqlParser;
 namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
 {
     // Evaluates a value expression (parser Node) against a RowScope. Mirror of PredicateEvaluator
-    // but on the raw AST — projection targets and CASE WHEN result clauses don't have a
+    // but on the raw AST - projection targets and CASE WHEN result clauses don't have a
     // ParsedWhere IR. Handles: AConst literals, ColumnRef, CaseExpr, NullTest, BoolExpr/AExpr,
     // SubLink, and a narrow FuncCall slice (the catalog scalar functions).
     internal static class ExpressionEvaluator
@@ -20,7 +20,7 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
         // EXPR_SUBLINK expects 0 or 1 element; ARRAY_SUBLINK takes the full list as an array value.
         public delegate bool ScalarSubqueryResolver(SelectStmt subquery, RowScope outerScope, out IReadOnlyList<object> values);
 
-        // A scalar-function resolver injected by the interpreter — given a function name and
+        // A scalar-function resolver injected by the interpreter - given a function name and
         // pre-evaluated args, returns the function's value. Used for inline calls like
         // `current_database()`, `pg_encoding_to_char(encoding)`, etc.
         public delegate bool ScalarFunctionResolver(string name, IReadOnlyList<object> args, out object value);
@@ -74,13 +74,13 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
 
             // SQL keyword value functions: `current_user`, `session_user`, `current_database`,
             // etc. when written without parens. PG parses these as a separate AST node, not as a
-            // FuncCall — route them through the same function resolver as parenthesized forms.
+            // FuncCall - route them through the same function resolver as parenthesized forms.
             if (node.SqlvalueFunction != null && functionResolver != null)
                 return TryEvaluateSqlValueFunction(node.SqlvalueFunction, functionResolver, out value);
 
-            // ParamRef ($N): the parameter isn't bound at interpret time — the interpreter runs at
+            // ParamRef ($N): the parameter isn't bound at interpret time - the interpreter runs at
             // Parse-time (Extended Query Protocol), before the Bind step. We resolve to NULL, which
-            // propagates through PG's three-valued logic: `oid = ANY($1)` becomes NULL → row excluded.
+            // propagates through PG's three-valued logic: `oid = ANY($1)` becomes NULL -> row excluded.
             // The net effect is an empty rowset with the right column shape, which is the correct
             // degraded behavior for pgAdmin's type-introspection probe (it falls back to showing
             // raw oids when the typname lookup returns nothing).
@@ -121,7 +121,7 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
             if (subqueryResolver(inner, scope, out var values) == false)
                 return false;
 
-            // ARRAY(...) — `ARRAY(SELECT col FROM ...)` yields the full list as an array value.
+            // ARRAY(...) - `ARRAY(SELECT col FROM ...)` yields the full list as an array value.
             // pgsqlparser models this as SubLinkType.ArraySublink.
             if (subLink.SubLinkType == SubLinkType.ArraySublink)
             {
@@ -129,19 +129,19 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
                 return true;
             }
 
-            // EXISTS — pure cardinality predicate, projection values are irrelevant. pgAdmin's
+            // EXISTS - pure cardinality predicate, projection values are irrelevant. pgAdmin's
             // schema-tree probe uses this to gate per-namespace WHERE clauses, e.g.
             // `EXISTS (SELECT 1 FROM pg_class WHERE relname='pg_class' AND relnamespace=nsp.oid)`.
             // The subquery has already executed (correlated outer columns resolved via `scope`);
             // we just need to know whether it produced any rows. NULL row values still count as
-            // existing rows in PG's EXISTS semantics — we agree by counting unconditionally.
+            // existing rows in PG's EXISTS semantics - we agree by counting unconditionally.
             if (subLink.SubLinkType == SubLinkType.ExistsSublink)
             {
                 value = values.Count > 0;
                 return true;
             }
 
-            // Scalar (EXPR_SUBLINK): 0 → null, 1 → the value, anything else → fail (we don't
+            // Scalar (EXPR_SUBLINK): 0 -> null, 1 -> the value, anything else -> fail (we don't
             // model the cardinality-violation error other PG implementations throw).
             if (values.Count == 0)
             {
@@ -160,7 +160,7 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
 
             if (funcCall.Funcname is not { Count: > 0 } parts)
                 return false;
-            // Multi-part names like pg_catalog.pg_encoding_to_char → use the last segment.
+            // Multi-part names like pg_catalog.pg_encoding_to_char -> use the last segment.
             var name = parts[^1]?.String?.Sval;
             if (string.IsNullOrEmpty(name))
                 return false;
@@ -255,7 +255,7 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
             if (caseExpr.Defresult != null)
                 return TryEvaluate(caseExpr.Defresult, scope, subqueryResolver, functionResolver, out value);
 
-            // No WHEN matched and no ELSE → SQL NULL.
+            // No WHEN matched and no ELSE -> SQL NULL.
             value = null;
             return true;
         }
@@ -332,7 +332,7 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
             if (aExpr.Kind == A_Expr_Kind.AexprIn)
                 return TryEvaluateInExpr(aExpr, scope, subqueryResolver, functionResolver, out value);
 
-            // `x op ANY(array_expr)` — true if x op element holds for any array element. The
+            // `x op ANY(array_expr)` - true if x op element holds for any array element. The
             // canonical use is `x = ANY(ARRAY(...))`, and we only handle equality here (extend
             // when other operators show up).
             if (aExpr.Kind == A_Expr_Kind.AexprOpAny)
@@ -347,7 +347,7 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
 
                 if (anyRhs is not System.Collections.IEnumerable enumerable)
                 {
-                    // NULL on the array side is SQL NULL — propagate.
+                    // NULL on the array side is SQL NULL - propagate.
                     if (anyRhs is null)
                     {
                         value = null;
@@ -398,7 +398,7 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
                 return true;
             }
 
-            // String concatenation. PG: NULL || anything → NULL (strict).
+            // String concatenation. PG: NULL || anything -> NULL (strict).
             if (op == "||")
             {
                 if (lhs is null || rhs is null)
@@ -429,9 +429,9 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
         }
 
         // Translate SQL LIKE wildcards to an anchored .NET regex.
-        //   %   → .*        (any sequence, including empty)
-        //   _   → .         (any single char)
-        //   \X  → literal X (PG default escape with standard_conforming_strings on)
+        //   %   -> .*        (any sequence, including empty)
+        //   _   -> .         (any single char)
+        //   \X  -> literal X (PG default escape with standard_conforming_strings on)
         // Regex-meta chars in the pattern are escaped so they match literally.
         private static bool MatchLikePattern(string input, string pattern, bool ignoreCase)
         {
@@ -502,7 +502,7 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
             return true;
         }
 
-        // Comparison semantics used by both = / <> / < and IN. Null on either side → null result
+        // Comparison semantics used by both = / <> / < and IN. Null on either side -> null result
         // (matches SQL three-valued logic; callers fall through to the next CASE WHEN).
         private static int? CompareValues(object lhs, object rhs)
         {

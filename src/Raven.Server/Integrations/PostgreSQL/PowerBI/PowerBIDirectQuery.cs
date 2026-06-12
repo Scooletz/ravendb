@@ -16,7 +16,7 @@ using Sparrow.Server.Logging;
 
 namespace Raven.Server.Integrations.PostgreSQL.PowerBI
 {
-    // Handles PowerBI's DirectQuery mode — outer SQL wrapping inner RQL — by recognizing the
+    // Handles PowerBI's DirectQuery mode - outer SQL wrapping inner RQL - by recognizing the
     // wrapper shape, classifying it (grouped aggregate or simple projection), and rewriting the
     // resolved Raven.Server.Documents.Queries.AST.Query in place. This class focuses on the
     // PgQuery lifecycle plus the AST rewriters; recognition and shape classification live in
@@ -40,11 +40,9 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             return null;
         }
 
-        // No AfterRow override: PowerBIRqlQuery.AfterRow chains base (RqlQuery, json-write, gated
-        // by IncludePowerBIJsonColumn — already false here) + writes const-projection cells.
-        // Suppressing it via an empty override would silently swallow const-projection cells if
-        // they ever start being passed to PowerBIDirectQuery, and saves nothing today because
-        // both base steps already short-circuit when their inputs are null/disabled.
+        // No AfterRow override: the base PowerBIRqlQuery.AfterRow chain already short-circuits here
+        // (json-write gated off by IncludePowerBIJsonColumn, no const-projection cells), so an empty
+        // override would save nothing and would risk swallowing const-projection cells if ever passed.
 
         public static bool TryParse(string queryText, int[] parametersDataTypes, DocumentDatabase documentDatabase, out PgQuery pgQuery)
         {
@@ -71,8 +69,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 // Apply WHEREs found at intermediate wrapper levels to the resolved inner query
                 // BEFORE either rewriter runs. PowerBI's DirectQuery routinely plants user filters
                 // inside nested wrappers (e.g. between the null-ordering CASE helpers and the
-                // distinct-grouping level), not at the outermost SELECT. Without this merge those
-                // filters get silently dropped and the query returns the whole collection.
+                // distinct-grouping level), not at the outermost SELECT.
                 //
                 // Both rewriters consume inner.ResolvedQuery.Where: the grouped-aggregate path
                 // preserves it via ShallowCopy, and the simple-direct path AND-merges it with the
@@ -185,7 +182,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
         }
 
         // Mutates a shallow copy of the resolved RQL AST and emits the final string via the
-        // canonical StringQueryVisitor (Query.ToString()) — no hand-rolled RQL fragments.
+        // canonical StringQueryVisitor (Query.ToString()) - no hand-rolled RQL fragments.
         // Returns null when the shape can't be expressed in the AST.
         private static string RewriteGroupedAggregateRql(Documents.Queries.AST.Query q, GroupedAggregateShape shape)
         {
@@ -258,7 +255,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
 
         // Detects intermediate WHEREs that reference aggregate-output aliases (post-grouping
         // null guards that RQL handles implicitly). Recursion must reach inside FuncCall,
-        // CaseExpr, and CoalesceExpr — PowerBI wraps the alias in `coalesce(a0, 0) > 0`,
+        // CaseExpr, and CoalesceExpr - PowerBI wraps the alias in `coalesce(a0, 0) > 0`,
         // `CASE WHEN a0 IS NULL THEN 0 ELSE 1 END`, etc. Missing those produces RQL like
         // `WHERE a0 IS NOT NULL` that the inner query rejects (a0 isn't a field of the
         // source collection, only an output alias of the aggregation).
@@ -302,7 +299,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 if (n.RelabelType?.Arg != null && Walk(n.RelabelType.Arg))
                     return true;
 
-                // Function calls — `coalesce(a0, 0)`, `nullif(a0, 0)`, `length(a0)`, etc.
+                // Function calls - `coalesce(a0, 0)`, `nullif(a0, 0)`, `length(a0)`, etc.
                 if (n.FuncCall?.Args != null)
                 {
                     foreach (var arg in n.FuncCall.Args)
@@ -329,17 +326,16 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                     if (n.CaseExpr.Defresult != null && Walk(n.CaseExpr.Defresult)) return true;
                 }
 
-                // COALESCE: PG's parser emits this as a dedicated CoalesceExpr node, NOT as a
-                // FuncCall — `coalesce(a, b, c)` becomes CoalesceExpr with Args=[a, b, c]. Without
-                // this handler, `where coalesce(a0, 0) > 0` would slip past the alias-detection
-                // and the outer-WHERE translator would target `a0` against the inner query.
+                // COALESCE: PG's parser emits this as a dedicated CoalesceExpr node, NOT a
+                // FuncCall - `coalesce(a, b, c)` becomes CoalesceExpr with Args=[a, b, c]. The alias
+                // must be caught here too, since PowerBI wraps null-guards as `coalesce(a0, 0) > 0`.
                 if (n.CoalesceExpr?.Args != null)
                 {
                     foreach (var arg in n.CoalesceExpr.Args)
                         if (Walk(arg)) return true;
                 }
 
-                // GREATEST / LEAST: same pattern as COALESCE — dedicated MinMaxExpr node, not a
+                // GREATEST / LEAST: same pattern as COALESCE - dedicated MinMaxExpr node, not a
                 // FuncCall. PowerBI occasionally uses these for null-safe comparisons.
                 if (n.MinMaxExpr?.Args != null)
                 {
@@ -348,12 +344,12 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 }
 
                 // SubLink: the testexpr is in our scope (e.g. `<x> IN (SELECT ...)`'s `<x>`).
-                // We intentionally do NOT walk the inner Subselect — its column references live
+                // We intentionally do NOT walk the inner Subselect - its column references live
                 // in their own scope and aren't aggregate-alias matches at this level.
                 if (n.SubLink?.Testexpr != null && Walk(n.SubLink.Testexpr))
                     return true;
 
-                // List items — e.g. the right side of `x IN (a, b, c)` where the list contains
+                // List items - e.g. the right side of `x IN (a, b, c)` where the list contains
                 // the candidate expressions.
                 if (n.List?.Items != null)
                 {
@@ -376,7 +372,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 return false;
 
             if (shape.OrderByCols.Count == 0)
-                return true; // null OrderBy means "no ORDER BY" — visitor skips it.
+                return true; // null OrderBy means "no ORDER BY" - visitor skips it.
 
             var list = new List<(QueryExpression, OrderByFieldType, bool)>(capacity: shape.OrderByCols.Count);
             for (int i = 0; i < shape.OrderByCols.Count; i++)
@@ -423,7 +419,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             return true;
         }
 
-        // IsValidRqlSelect kept here — it's an emitter-side validation, not recognition.
+        // IsValidRqlSelect kept here - it's an emitter-side validation, not recognition.
         private static bool IsValidRqlSelect(string rql)
         {
             try
@@ -437,12 +433,12 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             }
         }
 
-        // AST-based simple direct-query emission. RQL's `select { … }` object projection is an
+        // AST-based simple direct-query emission. RQL's `select { ... }` object projection is an
         // opaque string in the Query AST (SelectFunctionBody), so the rebuild path hand-builds
-        // that body text — but the surrounding clauses (Limit, etc.) are set through the AST and
+        // that body text - but the surrounding clauses (Limit, etc.) are set through the AST and
         // rendered by the canonical StringQueryVisitor. The rebuilt body is threaded through
         // SelectFunctionBody so the visitor emits everything in canonical order rather than us
-        // concatenating an RQL prefix with a hand-written `\nselect { … }\nlimit 0, N` tail.
+        // concatenating an RQL prefix with a hand-written `\nselect { ... }\nlimit 0, N` tail.
         private static string RewriteSimpleDirectQueryRql(Documents.Queries.AST.Query q, IReadOnlyList<string> projectionCols, int limit)
         {
             if (q == null)
@@ -453,12 +449,12 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
 
             // Direct-query shape always carries a GROUP BY (TryBuildDirectQueryShape requires it).
             // PowerBI's outer wrapper wraps the inner query with `GROUP BY <projected cols>` to ask
-            // for tuple-distinct values — the same shape we handle for flat SQL via #25's
+            // for tuple-distinct values - the same shape we handle for flat SQL via the
             // PgSqlToRqlTranslator path. We mirror that here: emit `from Coll group by <cols>
             // select <cols>` so the result is one row per distinct tuple.
             //
             // A per-document `select { ... }` projection would drop the GROUP BY (that form is
-            // per-document, not per-group), returning every Orders row instead of distinct values —
+            // per-document, not per-group), returning every Orders row instead of distinct values -
             // which crashes PowerBI's chart engine in SubstituteWithIndex when its chart-bucket index
             // finds multiple raw rows mapping to a single logical category.
             var core = q.ShallowCopy();
@@ -477,13 +473,13 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             // RQL constraint: WHERE clauses on grouped queries can only reference fields that are
             // GROUP BY keys (DynamicQueryMapping.Create throws `Field 'X' is neither an aggregation
             // operation nor part of the group by key` otherwise). PowerBI happily generates
-            // `WHERE Company = 'X' GROUP BY Freight` — pre-grouping filter semantics — which
+            // `WHERE Company = 'X' GROUP BY Freight` - pre-grouping filter semantics - which
             // violates that rule.
             //
             // Workaround: collect every field name referenced by WHERE and add it to GROUP BY
             // (without adding it to SELECT, so the RowDescription matches PowerBI's expectation).
             // For a typical chart filter like `Company = 'CompanyA'` this just produces grouping
-            // tuples `(Freight, 'CompanyA')` — collapsed back to distinct Freight values when
+            // tuples `(Freight, 'CompanyA')` - collapsed back to distinct Freight values when
             // projected. For multi-value filters (`OR`, `IN`, ranges) the projected Freight set
             // may contain duplicates across the matching Company values, which PowerBI's local
             // chart aggregation will dedupe anyway.
