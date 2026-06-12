@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Raven.Server.Documents;
 using Raven.Server.Integrations.PostgreSQL.Messages;
 using Raven.Server.Integrations.PostgreSQL.PowerBI;
+using Raven.Server.ServerWide.Context;
 using Sparrow.Json;
 
 namespace Raven.Server.Integrations.PostgreSQL.Translation
@@ -46,9 +47,9 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
             return Columns.Values;
         }
 
-        protected override void AfterRow(BlittableJsonReaderObject jsonResult, ReadOnlyMemory<byte>?[] row, short? jsonIndex)
+        protected override void AfterRow(BlittableJsonReaderObject jsonResult, ReadOnlyMemory<byte>?[] row, short? jsonIndex, DocumentsOperationContext context)
         {
-            base.AfterRow(jsonResult, row, jsonIndex);
+            base.AfterRow(jsonResult, row, jsonIndex, context);
 
             if (_constProjections == null)
                 return;

@@ -245,7 +245,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             if (query.OrderBy is { Count: > 0 })
                 return;
 
-            var orderBy = new List<(QueryExpression Expression, OrderByFieldType FieldType, bool Ascending)>(sortClause.Count);
+            var orderBy = new List<(QueryExpression Expression, OrderByFieldType FieldType, bool Ascending, NullsOrderingType NullsOrdering)>(sortClause.Count);
 
             foreach (var sortNode in sortClause)
             {
@@ -269,7 +269,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                     : OrderByFieldType.Implicit;
                 var ascending = sortBy.SortbyDir != SortByDir.SortbyDesc;
 
-                orderBy.Add((new FieldExpression(new List<StringSegment> { new StringSegment(colName) }), fieldType, ascending));
+                orderBy.Add((new FieldExpression(new List<StringSegment> { new StringSegment(colName) }), fieldType, ascending, NullsOrderingType.Implicit));
             }
 
             query.OrderBy = orderBy;

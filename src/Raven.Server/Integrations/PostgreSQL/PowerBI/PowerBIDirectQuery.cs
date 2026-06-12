@@ -361,7 +361,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             }
         }
 
-        private static bool TryBuildOrderByAst(GroupedAggregateShape shape, out List<(QueryExpression Expression, OrderByFieldType FieldType, bool Ascending)> orderBy)
+        private static bool TryBuildOrderByAst(GroupedAggregateShape shape, out List<(QueryExpression Expression, OrderByFieldType FieldType, bool Ascending, NullsOrderingType NullsOrdering)> orderBy)
         {
             orderBy = null;
 
@@ -374,7 +374,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             if (shape.OrderByCols.Count == 0)
                 return true; // null OrderBy means "no ORDER BY" - visitor skips it.
 
-            var list = new List<(QueryExpression, OrderByFieldType, bool)>(capacity: shape.OrderByCols.Count);
+            var list = new List<(QueryExpression, OrderByFieldType, bool, NullsOrderingType)>(capacity: shape.OrderByCols.Count);
             for (int i = 0; i < shape.OrderByCols.Count; i++)
             {
                 var col = shape.OrderByCols[i];
@@ -396,7 +396,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 {
                     var agg = shape.Aggregates[aggIndex];
                     var fieldType = IsCountFunction(agg.FunctionName) ? OrderByFieldType.Long : OrderByFieldType.Double;
-                    list.Add((MakeFieldExpression(agg.OutputColumn), fieldType, ascending));
+                    list.Add((MakeFieldExpression(agg.OutputColumn), fieldType, ascending, NullsOrderingType.Implicit));
                     continue;
                 }
 
@@ -406,7 +406,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 {
                     if (string.Equals(col, gb, StringComparison.OrdinalIgnoreCase))
                     {
-                        list.Add((MakeFieldExpression(gb), OrderByFieldType.Implicit, ascending));
+                        list.Add((MakeFieldExpression(gb), OrderByFieldType.Implicit, ascending, NullsOrderingType.Implicit));
                         foundGroupKey = true;
                         break;
                     }
