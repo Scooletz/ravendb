@@ -12,7 +12,7 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog.Tables
     //
     // The reported columns MUST match what RqlQuery emits in its RowDescription (same count, order,
     // names, and types) or PowerBI raises DataSource.Changed. Hence: user columns in document insertion
-    // order (GetPropertyNames, not GetPropertyByIndex), bracketed by the synthetic id()/json() columns,
+    // order (GetPropertyNames, not GetPropertyByIndex), bracketed by the synthetic id/json columns,
     // with types mirroring RqlQuery's mapping (see MapDataType).
     //
     // table_catalog = ctx.Database.Name; table_schema = "public" (we don't model multiple schemas).

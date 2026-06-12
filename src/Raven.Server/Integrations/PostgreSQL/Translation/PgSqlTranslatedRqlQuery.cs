@@ -8,8 +8,8 @@ using Sparrow.Json;
 
 namespace Raven.Server.Integrations.PostgreSQL.Translation
 {
-    // A translated-RQL query that suppresses the synthetic id()/json() columns base RqlQuery adds by
-    // default — so the response matches the columns the client named, with no extra json() blob. Two
+    // A translated-RQL query that suppresses the synthetic id/json columns base RqlQuery adds by
+    // default, so the response matches the columns the client named, with no extra json blob. Two
     // callers route here: the SQL translator's explicit-projection case (`SELECT col1, col2 FROM t`;
     // `SELECT *` stays on plain RqlQuery) and PowerBI's narrow-projection Fetch shapes. Const
     // projections (`1 as "c0"`) are supported so a narrow+const shape lands here, not on PowerBIRqlQuery.

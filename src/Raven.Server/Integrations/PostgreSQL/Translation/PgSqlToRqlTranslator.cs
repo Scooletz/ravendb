@@ -67,7 +67,7 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
         //
         // hasExplicitProjection tells the caller whether the SQL had a real projection (e.g.
         // `SELECT a, b FROM t`) or a wildcard (`SELECT * FROM t`). The caller uses it to decide
-        // whether to suppress RqlQuery's auto-included id()/json() columns — if the user
+        // whether to suppress RqlQuery's auto-included id/json columns - if the user
         // explicitly listed columns, they shouldn't get magic extras tacked on.
         public static bool TryParse(string sql, int[] parameterTypes, DocumentDatabase documentDatabase, out string rql, out bool hasExplicitProjection)
         {
