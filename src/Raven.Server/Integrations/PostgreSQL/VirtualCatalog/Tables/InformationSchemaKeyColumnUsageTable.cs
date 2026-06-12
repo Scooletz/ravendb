@@ -17,7 +17,6 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog.Tables
         public override string SchemaName => "information_schema";
         public override string TableName => "key_column_usage";
 
-        // Full standard column set — PowerBI's mashup engine reads the entire row.
         public override IReadOnlyList<PgVirtualColumn> Columns { get; } = new PgVirtualColumn[]
         {
             new("constraint_catalog",            PgName.Default, PgFormat.Text),

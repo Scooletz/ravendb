@@ -249,13 +249,6 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
     // format_type(oid, typmod): canonical PG type name (e.g. 23 → "integer", 25 → "text").
     // Used in pgAdmin's `SELECT oid, format_type(oid, NULL) AS typname FROM pg_type WHERE oid =
     // ANY($1)` probe to pretty-print result-set column types in the data grid.
-    //
-    // Note on the parameterized probe: pgAdmin's variant passes `$1`, and the interpreter runs at
-    // Parse-time before Bind populates parameters, so `oid = ANY($1)` filters to zero rows and
-    // format_type is never actually invoked there. But a direct, non-parameterized call such as
-    // `format_type(23, NULL)` reaches us with a concrete oid — map the common builtin oids to
-    // their SQL-standard display names rather than returning empty. Unknown oids fall back to the
-    // numeric oid as text (PG itself emits `???`/the oid for unknown types).
     internal sealed class FormatTypeFunction : ScalarFunction
     {
         // oid → format_type display name for the builtin types the bridge surfaces / clients probe.

@@ -7,8 +7,7 @@ using Raven.Server.ServerWide.Context;
 namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog.Tables
 {
     // Exposes one PRIMARY KEY row per Raven collection — synthetic `id` column. PowerBI's
-    // DirectQuery joins this with key_column_usage to establish per-row identity; without it
-    // the mashup engine fails with `SubstituteWithIndex detected more than one row`.
+    // DirectQuery joins this with key_column_usage to establish per-row identity.
     // PG-facing name is `id` (not RQL's `id()`) — see PgSyntheticColumns for the rationale.
     internal sealed class InformationSchemaTableConstraintsTable : PgVirtualTable
     {
@@ -20,10 +19,6 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog.Tables
         public override string SchemaName => "information_schema";
         public override string TableName => "table_constraints";
 
-        // Full standard column set (PG 15+). Even though PowerBI's join query only references
-        // a subset, the mashup engine reads the full row internally — reporting a narrower
-        // schema crashes its decoder with `Nullable object must have a value` when it tries
-        // to access fields that aren't there.
         public override IReadOnlyList<PgVirtualColumn> Columns { get; } = new PgVirtualColumn[]
         {
             new("constraint_catalog", PgName.Default,    PgFormat.Text),
