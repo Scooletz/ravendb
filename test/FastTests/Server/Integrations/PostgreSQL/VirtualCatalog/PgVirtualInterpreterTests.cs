@@ -43,7 +43,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.VirtualCatalog
             Assert.Equal("v", table.Columns[0].Name);
         }
 
-        // format_type(oid) maps a builtin type oid to its SQL-standard display name (23 → integer).
+        // format_type(oid) maps a builtin type oid to its SQL-standard display name (23 -> integer).
         // The parameterized pgAdmin probe passes $1, which is NULL at parse time and yields a NULL
         // row (that path is unchanged); a concrete oid like 23 resolves to the type name.
         [RavenFact(RavenTestCategory.PostgreSql)]
@@ -128,8 +128,8 @@ namespace FastTests.Server.Integrations.PostgreSQL.VirtualCatalog
         [RavenFact(RavenTestCategory.PostgreSql)]
         public void Self_join_with_trivial_on_produces_cartesian_row()
         {
-            // JoinExecutor evaluates joins over non-empty sources. 1 row × 1 row = 1 row,
-            // with `*` expanding to both sides → 2 columns.
+            // JoinExecutor evaluates joins over non-empty sources. 1 row x 1 row = 1 row,
+            // with `*` expanding to both sides -> 2 columns.
             Assert.True(PgVirtualInterpreter.TryExecute(
                 "select * from information_schema.character_sets a join information_schema.character_sets b on 1=1",
                 EmptyCtx(), out var table));
@@ -157,7 +157,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.VirtualCatalog
             Assert.Empty(table.Data);
         }
 
-        // ── Multi-statement batches (Npgsql startup pair) ────────────────────
+        // Multi-statement batches (Npgsql startup pair)
 
         [RavenFact(RavenTestCategory.PostgreSql)]
         public void Paired_version_and_current_setting_probe_merges_columns()
@@ -177,14 +177,14 @@ namespace FastTests.Server.Integrations.PostgreSQL.VirtualCatalog
         [RavenFact(RavenTestCategory.PostgreSql)]
         public void Multi_statement_with_unsupported_statement_falls_through()
         {
-            // First statement is fine; second targets an unknown table → reject the batch.
+            // First statement is fine; second targets an unknown table -> reject the batch.
             Assert.False(PgVirtualInterpreter.TryExecute(
                 "select version(); select * from no_such.foo",
                 EmptyCtx(), out var table));
             Assert.Null(table);
         }
 
-        // ── PowerBI PK / FK metadata empty-join shapes ────────────────────────
+        // PowerBI PK / FK metadata empty-join shapes
 
         [RavenFact(RavenTestCategory.PostgreSql)]
         public void PrimaryKeyConstraints_query_returns_empty_rowset_with_4_columns()
@@ -255,7 +255,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.VirtualCatalog
         [RavenFact(RavenTestCategory.PostgreSql)]
         public void Pgadmin_role_probe_returns_row_with_no_signal_backend()
         {
-            // pgAdmin's role-introspection probe — the most complex query we handle. Exercises:
+            // pgAdmin's role-introspection probe - the most complex query we handle. Exercises:
             // pg_roles + pg_auth_members virtual tables, current_user(), correlated subqueries
             // (the WITH RECURSIVE body's WHERE references the outer `roles.oid`), ARRAY(subquery)
             // constructor, x = ANY(array) operator, WITH RECURSIVE CTE evaluation (terminates on
@@ -364,7 +364,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.VirtualCatalog
                 ORDER BY datname
                 """;
 
-            // No DocumentDatabase wired in for this unit test — pg_database yields zero rows
+            // No DocumentDatabase wired in for this unit test - pg_database yields zero rows
             // without one. The point of this test is that the query *parses and dispatches*
             // through the interpreter; the row content is exercised end-to-end in EmbeddedTests.
             Assert.True(PgVirtualInterpreter.TryExecute(sql, new VirtualQueryContext { Username = "root" }, out var table));
@@ -380,10 +380,6 @@ namespace FastTests.Server.Integrations.PostgreSQL.VirtualCatalog
             // has_schema_privilege() function, EXISTS (SELECT 1 FROM pg_class WHERE ...) correlated
             // subqueries, deeply nested NOT (a OR b OR c) WHERE shape, LIKE with E'...' escape
             // string (NOT LIKE E'pg\_%' to hide internal pg_* schemas).
-            //
-            // Before pg_description + has_schema_privilege + ExistsSublink support landed, this
-            // query fell through every dispatch arm and surfaced as `Unhandled query` in pgAdmin's
-            // browser tree.
             const string sql = """
                 SELECT
                 nsp.oid,
@@ -423,7 +419,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.VirtualCatalog
         [RavenFact(RavenTestCategory.PostgreSql)]
         public void Pgadmin_database_probe_shape_is_accepted()
         {
-            // pgAdmin's next probe after the replication check — reads `pg_database` for the
+            // pgAdmin's next probe after the replication check - reads `pg_database` for the
             // current DB. With no database in the test context the table yields no rows, but the
             // dispatch path (inline FuncCall via ExpressionEvaluator, pg_database virtual table,
             // current_database()/pg_encoding_to_char()/has_database_privilege() functions) must
@@ -450,7 +446,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.VirtualCatalog
         [RavenFact(RavenTestCategory.PostgreSql)]
         public void Pgadmin_replication_probe_returns_null_when_no_extensions_or_slots()
         {
-            // pgAdmin sends this on connect to detect BDR / replication. RavenDB has neither —
+            // pgAdmin sends this on connect to detect BDR / replication. RavenDB has neither -
             // pg_extension and pg_replication_slots are empty virtual tables, both COUNTs are 0,
             // and the CASE falls through to ELSE NULL. Exercises: no-FROM expression path, scalar
             // subqueries, COUNT aggregate without GROUP BY.
@@ -469,18 +465,17 @@ namespace FastTests.Server.Integrations.PostgreSQL.VirtualCatalog
             Assert.Equal("type", table.Columns[0].Name);
             Assert.Single(table.Data);
             var cell = table.Data[0].ColumnData.Span[0];
-            Assert.False(cell.HasValue, "no extensions or replication slots → NULL");
+            Assert.False(cell.HasValue, "no extensions or replication slots -> NULL");
         }
 
-        // ── PowerBI information_schema.tables / .columns probes (replace retired handlers) ────
+        // PowerBI information_schema.tables / .columns probes
 
         [RavenFact(RavenTestCategory.PostgreSql)]
         public void PowerBI_all_collections_probe_accepted_with_3_columns()
         {
-            // Replaces PowerBIAllCollectionsQuery's recognizer: every variant of the all-collections
-            // probe (different WHERE filters, aliased columns, reordered columns) goes through the
-            // interpreter against InformationSchemaTablesTable. With no database the row set is
-            // empty, but the schema must still come through cleanly.
+            // Every variant of the all-collections probe (different WHERE filters, aliased columns,
+            // reordered columns) goes through the interpreter against InformationSchemaTablesTable.
+            // With no database the row set is empty, but the schema must still come through cleanly.
             const string sql =
                 "select TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE\n" +
                 "from INFORMATION_SCHEMA.tables\n" +
@@ -489,7 +484,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.VirtualCatalog
 
             Assert.True(PgVirtualInterpreter.TryExecute(sql, EmptyCtx(), out var table));
             Assert.Equal(3, table.Columns.Count);
-            // PG case-folds unquoted identifiers — TABLE_SCHEMA reaches us as table_schema.
+            // PG case-folds unquoted identifiers - TABLE_SCHEMA reaches us as table_schema.
             Assert.Equal("table_schema", table.Columns[0].Name);
             Assert.Empty(table.Data);
         }
@@ -497,9 +492,8 @@ namespace FastTests.Server.Integrations.PostgreSQL.VirtualCatalog
         [RavenFact(RavenTestCategory.PostgreSql)]
         public void PowerBI_preview_columns_probe_accepted_with_4_columns()
         {
-            // Replaces PowerBIPreviewQuery's recognizer: the columns probe with TABLE_NAME='X'
-            // equality. With no database the table introspection returns nothing (column schema
-            // still present).
+            // The columns probe with TABLE_NAME='X' equality. With no database the table
+            // introspection returns nothing (column schema still present).
             const string sql =
                 "select COLUMN_NAME, ORDINAL_POSITION, IS_NULLABLE, DATA_TYPE\n" +
                 "from INFORMATION_SCHEMA.columns\n" +
@@ -518,8 +512,8 @@ namespace FastTests.Server.Integrations.PostgreSQL.VirtualCatalog
         [RavenFact(RavenTestCategory.PostgreSql)]
         public void PowerBI_preview_columns_subset_projection_accepted()
         {
-            // The recognizer used to require all 4 columns; the interpreter accepts subsets too,
-            // since virtual tables expose all 4 and projection picks what's asked for.
+            // The interpreter accepts column subsets: virtual tables expose all 4 and projection
+            // picks what's asked for.
             const string sql =
                 "select COLUMN_NAME from INFORMATION_SCHEMA.columns where TABLE_NAME = 'Products'";
 
@@ -529,7 +523,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.VirtualCatalog
         }
 
         // PowerBI Desktop's data-loader fires this shape against every collection it's about to
-        // import — it's the gating call before any actual SELECT. Exercises CASE in the projection,
+        // import - it's the gating call before any actual SELECT. Exercises CASE in the projection,
         // LIKE pattern matching against the column's data_type, string concatenation with ||, and
         // ORDER BY on columns not in the SELECT list (TABLE_SCHEMA/TABLE_NAME come from the
         // underlying row schema). With no database the row scan yields nothing, but the query must
@@ -553,7 +547,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.VirtualCatalog
         // asks "what's the canonical PG type name for each?" via a parameterized array. The
         // parameter ($1) isn't bound at interpret time (we run at Parse-time in the extended
         // protocol), so ParamRef resolves to NULL and the WHERE filters everything out. The query
-        // must still be accepted by the interpreter with the right column shape — pgAdmin's data
+        // must still be accepted by the interpreter with the right column shape - pgAdmin's data
         // grid then just shows raw oids instead of friendly names, but the query window stays open.
         [RavenFact(RavenTestCategory.PostgreSql)]
         public void PgAdmin_format_type_type_introspection_probe_accepted_empty()
@@ -569,7 +563,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.VirtualCatalog
             Assert.Empty(table.Data);
         }
 
-        // ── Npgsql pg_catalog metadata empty-join shapes ──────────────────────
+        // Npgsql pg_catalog metadata empty-join shapes
 
         [RavenFact(RavenTestCategory.PostgreSql)]
         public void EnumTypes_query_returns_empty_rowset_with_2_columns()
@@ -608,7 +602,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.VirtualCatalog
             Assert.Null(table);
         }
 
-        // ── PowerBI ReferentialConstraints FK metadata (sub-FROM shape) ──────
+        // PowerBI ReferentialConstraints FK metadata (sub-FROM shape)
 
         [RavenFact(RavenTestCategory.PostgreSql)]
         public void ReferentialConstraints_FkCentric_query_returns_empty_rowset_with_6_columns()
@@ -665,7 +659,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.VirtualCatalog
             Assert.Equal("UTF8", DecodeCell(table, row: 0, column: 0));
         }
 
-        // ── pg_catalog data backs the Npgsql type-loading queries via the interpreter ───
+        // pg_catalog data backs the Npgsql type-loading queries via the interpreter
 
         [RavenFact(RavenTestCategory.PostgreSql)]
         public void Select_oid_typname_from_pg_type_returns_rows()
@@ -849,7 +843,7 @@ ORDER BY ord";
         [RavenFact(RavenTestCategory.PostgreSql)]
         public void Npgsql4_1_2_mid_flat_types_query_runs_through_interpreter()
         {
-            // MidFlat (Npgsql 4.1.0–4.1.2) is OldFlat + a typcategory branch in the ord CASE.
+            // MidFlat (Npgsql 4.1.0-4.1.2) is OldFlat + a typcategory branch in the ord CASE.
             // Requires pg_type.typcategory to be present.
             const string sql =
                 @"
@@ -970,7 +964,7 @@ ORDER BY ord";
         [RavenFact(RavenTestCategory.PostgreSql)]
         public void Order_by_projected_alias_sorts_after_projection()
         {
-            // ORDER BY ord references a CASE WHEN-derived column — the sort must run after the
+            // ORDER BY ord references a CASE WHEN-derived column - the sort must run after the
             // projection materializes its values, not against the original FROM source.
             const string sql =
                 "select a.oid, case when a.typtype = 'r' then 2 else 0 end as ord " +
@@ -990,9 +984,9 @@ ORDER BY ord";
             }
         }
 
-        // ── Microsoft Fabric Copy Job / Npgsql 6+ compact type-loading query ─────────────
+        // Microsoft Fabric Copy Job / Npgsql 6+ compact type-loading query
         // RavenDB-26024: Fabric's Copy Job connector sends a two-statement Simple Query
-        // batch (`SELECT version(); SELECT ns.nspname, …`) whose second statement is the
+        // batch (`SELECT version(); SELECT ns.nspname, ...`) whose second statement is the
         // Npgsql 6+ compact type-discovery shape. It is a single outer SELECT with a
         // sub-FROM inner query (one level deep, unlike Npgsql 5's two-level modern nested).
 
@@ -1055,7 +1049,7 @@ ORDER BY ord";
         [RavenFact(RavenTestCategory.PostgreSql)]
         public void Fabric_copy_job_full_batch_second_statement_is_type_query()
         {
-            // The Fabric Copy Job sends the full `SELECT version(); SELECT ns.nspname …`
+            // The Fabric Copy Job sends the full `SELECT version(); SELECT ns.nspname ...`
             // batch in a single message. After splitting, statement 2 must succeed through
             // the interpreter. Validates that SqlStatementSplitter correctly isolates the
             // second statement so the interpreter can handle it.
@@ -1084,19 +1078,17 @@ ORDER BY ord";
                 ORDER BY t.oid
                 """;
 
-            // Statement 2 must succeed on its own — that is what `Query.cs` dispatches after splitting.
+            // Statement 2 must succeed on its own - that is what `Query.cs` dispatches after splitting.
             Assert.True(PgVirtualInterpreter.TryExecute(typeSql, EmptyCtx(), out var table));
             Assert.Equal(6, table.Columns.Count);
             Assert.NotEmpty(table.Data);
         }
 
-        // ── Npgsql 7.x / 8.x type-loading query ───────────────────────────────────────
-        // Npgsql 7+ kept the two-level nested structure from 4.1.3–5.x ModernNested but
+        // Npgsql 7.x / 8.x type-loading query
+        // Npgsql 7+ kept the two-level nested structure from 4.1.3-5.x ModernNested but
         // added `'m'` (multirange) to the typtype IN list (introduced in PG 14) and broke
-        // the ord CASE into more buckets. Our pg_type CSV doesn't carry multirange rows,
-        // which is fine — they simply produce zero matches; the structural shape is what
-        // we're validating. Adding multirange rows to the CSV would make `int4multirange`
-        // & co. show up in results but isn't required for the query to be accepted.
+        // the ord CASE into more buckets. Our pg_type CSV doesn't carry multirange rows, so
+        // they produce zero matches; the structural shape is what we're validating.
 
         [RavenFact(RavenTestCategory.PostgreSql)]
         public void Npgsql7_modern_nested_with_multirange_filter_runs_through_interpreter()
@@ -1154,9 +1146,9 @@ ORDER BY ord";
             Assert.Equal("ord", table.Columns[12].Name);
             Assert.NotEmpty(table.Data);
 
-            // The `ord` column must be non-decreasing across rows — Npgsql relies on that
+            // The `ord` column must be non-decreasing across rows - Npgsql relies on that
             // order to set up its type-resolution sequence (base types must resolve before
-            // arrays of those base types). Without it the client would crash later.
+            // arrays of those base types).
             int prev = int.MinValue;
             foreach (var row in table.Data)
             {
@@ -1168,14 +1160,14 @@ ORDER BY ord";
             }
         }
 
-        // Npgsql 8.x is structurally identical to 7.x for the type-loading query — same
+        // Npgsql 8.x is structurally identical to 7.x for the type-loading query - same
         // multirange branching, same ord categorization. The version-bump didn't change
         // the query shape, but pinning it here makes intent obvious and gives us a
         // regression net if Npgsql 8.x ever quietly changes.
         [RavenFact(RavenTestCategory.PostgreSql)]
         public void Npgsql8_compatible_types_query_is_accepted_same_as_7x()
         {
-            // Same shape, just using a slightly different surface trick — Npgsql 8's
+            // Same shape, just using a slightly different surface trick - Npgsql 8's
             // GenerateLoadTypesQuery sometimes adds an explicit `t.typname NOT LIKE '\_\_%'`
             // guard on array types to skip system-internal pseudo-arrays. Mirrors the
             // Fabric compact shape's LIKE clause; verifies our LIKE handles escaped chars.
@@ -1210,10 +1202,10 @@ ORDER BY ord";
             Assert.NotEmpty(table.Data);
         }
 
-        // ── Npgsql 9.x / 10.x type-loading query ──────────────────────────────────────
+        // Npgsql 9.x / 10.x type-loading query
         // Npgsql 9 / 10 added on top of the 7/8 ModernNested shape:
         //   1. `typ.typcategory` column projected through both subquery levels.
-        //   2. A CORRELATED SCALAR SUBQUERY inside a CASE branch — the multirange case
+        //   2. A CORRELATED SCALAR SUBQUERY inside a CASE branch - the multirange case
         //      reads `(SELECT rngtypid FROM pg_range WHERE rngmultitypid = typ.oid)` to
         //      resolve the underlying range type for a multirange. This exercises both
         //      correlated-subquery resolution and scalar-subquery-as-a-value evaluation
@@ -1302,7 +1294,7 @@ ORDER BY ord";
             Assert.Equal(2, table.Columns.Count);
             Assert.Equal("table_schema", table.Columns[0].Name);
             Assert.Equal("table_name", table.Columns[1].Name);
-            // No DocumentDatabase wired in here — InformationSchemaTablesTable yields zero rows,
+            // No DocumentDatabase wired in here - InformationSchemaTablesTable yields zero rows,
             // and views is always empty, so the UNION produces no data. The point is that the
             // SHAPE is recognized and dispatched.
         }

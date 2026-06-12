@@ -36,7 +36,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.PowerBI
 
         // PowerBI's distinct-values probe (slicer / dropdown population): SELECT user_cols + GROUP BY
         // same columns. The user didn't ask for id() or json(), so the RowDescription must NOT
-        // include them — PowerBI compares its requested column count to the schema and raises
+        // include them - PowerBI compares its requested column count to the schema and raises
         // `Field count mismatch when mapping column types. N vs M` if the server adds synthetic
         // columns the SQL never named. Pinned via dispatch type: PgSqlTranslatedRqlQuery has both
         // synthetic-column flags off; PowerBIRqlQuery has them on.
@@ -54,7 +54,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.PowerBI
             Assert.IsType<PgSqlTranslatedRqlQuery>(pgQuery);
         }
 
-        // Narrow projection that doesn't name id() or json() — the user asked for specific
+        // Narrow projection that doesn't name id() or json() - the user asked for specific
         // user columns and expects the response to match column-for-column. Adding synthetic
         // id() and json() on top widens the RowDescription past the requested set and PowerBI's
         // mashup engine drops the connection. Row identity for DirectQuery comes from the PK
@@ -75,7 +75,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.PowerBI
 
         // PowerBI's standard post-aggregate fetch shape: `select _.col, _.aggAlias from (group by/aggregate) _
         // where not _.aggAlias is null`. The OUTERMOST projection is narrow user columns + an aggregate
-        // output alias, never id()/json() — so synthetic columns must not be appended or the RowDescription
+        // output alias, never id()/json() - so synthetic columns must not be appended or the RowDescription
         // widens by one and PowerBI errors out mid-query with
         // `Field count mismatch when mapping column types. 2 vs 3`. Pin via dispatch type.
         [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
@@ -99,7 +99,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.PowerBI
             Assert.IsType<PgSqlTranslatedRqlQuery>(pgQuery);
         }
 
-        // Narrow projection + const-marker (`1 as "c0"`) — PowerBI's row-preview shape
+        // Narrow projection + const-marker (`1 as "c0"`) - PowerBI's row-preview shape
         // sometimes attaches a constant projection to a narrow column list. The presence of
         // the const marker must NOT force routing through PowerBIRqlQuery (which would also
         // add the unwanted id+json synthetic columns); PgSqlTranslatedRqlQuery now carries
@@ -116,11 +116,6 @@ namespace FastTests.Server.Integrations.PostgreSQL.PowerBI
             Assert.True(PowerBIFetchQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
             Assert.IsType<PgSqlTranslatedRqlQuery>(pgQuery);
         }
-
-        // information_schema.tables and information_schema.columns now flow through
-        // PgVirtualInterpreter as virtual tables; the dedicated PowerBIAllCollectionsQuery /
-        // PowerBIPreviewQuery recognizers were retired. See PgVirtualInterpreterTests for
-        // equivalent coverage.
 
         [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void TryParse_should_match_wrapped_rql_fetch_shape_and_apply_outer_limit()
@@ -236,7 +231,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.PowerBI
             // Use the same PowerBI parsing entry point as production.
             Assert.True(PowerBIQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
 
-            // 4-level null-order-helper wrapper with inner RQL — classified as DirectQuery (non-aggregate path).
+            // 4-level null-order-helper wrapper with inner RQL - classified as DirectQuery (non-aggregate path).
             Assert.IsType<PowerBIDirectQuery>(pgQuery);
         }
 
@@ -1276,14 +1271,12 @@ SELECT {
             Assert.Equal(1000, GetLimit(pgQuery));
         }
 
-        // ── PowerBI incremental refresh ───────────────────────────────────────────────
+        // PowerBI incremental refresh
         //
-        // Incremental refresh fires repeated queries with a half-open date window —
-        // `WHERE "col" >= start AND "col" < end` — once per refresh partition. PowerBI's
-        // emitted SQL wraps the table reference in its standard `"public"."Coll" "$Table"`
-        // pattern. These tests pin the "inline literal" form (PG's `timestamp 'X'`); the
-        // parameterized form is gated on translator-level ParamRef support and is tracked
-        // in PgSqlToRqlTranslatorTests.
+        // Incremental refresh fires repeated queries with a half-open date window
+        // (`WHERE "col" >= start AND "col" < end`) once per refresh partition, wrapping the
+        // table as `"public"."Coll" "$Table"`. These tests cover both the inline `timestamp 'X'`
+        // literal and the parameterized ($1/$2) form.
 
         [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void IncrementalRefresh_WrappedTableWithDateRange_TranslatesToRangeFilter()
@@ -1305,12 +1298,12 @@ SELECT {
             Assert.NotNull(rql);
             Assert.Contains("from 'Orders'", rql, StringComparison.Ordinal);
             Assert.Contains("OrderedAt", rql, StringComparison.Ordinal);
-            // Both range ends must survive translation — the whole point of incremental
+            // Both range ends must survive translation - the whole point of incremental
             // refresh is that each partition's bounds reach RavenDB's index.
             Assert.Contains("2024-01", rql, StringComparison.Ordinal);
             Assert.Contains("2024-02", rql, StringComparison.Ordinal);
             // LIMIT is inlined into the emitted RQL by the simple-table-fetch path (rather
-            // than stored on the PgQuery instance via _limit) — check the RQL text directly.
+            // than stored on the PgQuery instance via _limit) - check the RQL text directly.
             Assert.Contains("1000", rql, StringComparison.Ordinal);
         }
 
@@ -1362,12 +1355,9 @@ SELECT {
             Assert.Contains("$2", rql, StringComparison.Ordinal);
         }
 
-        // PowerBI Desktop in DirectQuery mode plants user filters several wrapper levels deep —
-        // here `where "_"."Freight" > 50` is at the level that wraps the innermost projection,
-        // *not* at the outermost SELECT. Before the multi-level-WHERE fix, recognizer only read
-        // selectStmt.WhereClause (outermost) and silently dropped the filter, so the resulting
-        // RQL queried the entire Orders collection. This test asserts the filter makes it into
-        // the emitted RQL.
+        // PowerBI Desktop in DirectQuery mode plants user filters several wrapper levels deep -
+        // here `where "_"."Freight" > 50` wraps the innermost projection, not the outermost SELECT.
+        // The recognizer must pull it up; this test asserts the filter reaches the emitted RQL.
         [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void DirectQuery_with_intermediate_wrapper_level_where_should_apply_filter_to_inner_query()
         {
@@ -1437,11 +1427,8 @@ SELECT {
         }
 
         // The WhereClauseReferencesAnyColumn AST walker must descend into function calls,
-        // CASE expressions, and CoalesceExprs so that PowerBI's null-guard predicates wrapping
-        // aggregate-output aliases are recognized as such and skipped. Before this coverage, only
-        // bare `NOT col IS NULL` would be detected — a guard like `coalesce(a0, 0) > 0` would be
-        // translated against the inner pre-aggregation Orders query, RavenDB would reject the
-        // resulting RQL, and the whole query would fall through to "Unhandled query".
+        // CASE expressions, and CoalesceExprs so PowerBI's null-guard predicates wrapping
+        // aggregate-output aliases (e.g. `coalesce(a0, 0) > 0`) are recognized and skipped.
 
         [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void DirectQuery_with_coalesce_wrapped_aggregate_alias_in_intermediate_where_is_skipped()
@@ -1476,7 +1463,7 @@ SELECT {
 
             var rql = GetQueryString(pgQuery);
             Assert.NotNull(rql);
-            // The aggregate-alias `a0` should NOT reappear in the inner-query WHERE — the walker
+            // The aggregate-alias `a0` should NOT reappear in the inner-query WHERE - the walker
             // identified it inside coalesce(...) and the entire intermediate WHERE was dropped.
             // (RQL's GROUP BY semantics already exclude null aggregate groups, so the post-filter
             // is implicit and dropping the predicate doesn't change result semantics.)
@@ -1490,7 +1477,7 @@ SELECT {
         public void DirectQuery_with_case_wrapped_aggregate_alias_in_intermediate_where_is_skipped()
         {
             // CASE-based null guard variant: `case when "_"."a0" is null then 0 else 1 end = 1`.
-            // Same expected outcome — walker descends into CaseExpr.Args / Defresult and finds
+            // Same expected outcome - walker descends into CaseExpr.Args / Defresult and finds
             // the aggregate-alias reference.
             const string sql = """
                 select "_"."Employee" as "c2",
@@ -1520,7 +1507,7 @@ SELECT {
             var rql = GetQueryString(pgQuery);
             Assert.NotNull(rql);
             // The CASE expression wrapping `a0` should have been recognized and the whole WHERE
-            // dropped — no `case` artifacts should leak into the emitted RQL.
+            // dropped - no `case` artifacts should leak into the emitted RQL.
             Assert.DoesNotContain("case", rql, StringComparison.OrdinalIgnoreCase);
             Assert.Contains("group by", rql, StringComparison.OrdinalIgnoreCase);
         }
@@ -1547,11 +1534,6 @@ SELECT {
         }
 
         private static string Normalize(string s) => s.Replace("\r\n", "\n").Trim();
-
-        // AllCollections / Preview intent-recognition tests deleted: those exercised the retired
-        // PowerBIAllCollectionsQuery / PowerBIPreviewQuery classifier APIs. Their functional
-        // coverage moved to PgVirtualInterpreterTests, which exercises the same SQL shapes against
-        // the InformationSchemaTablesTable / InformationSchemaColumnsTable virtual tables.
 
         // ---- DirectQuery: CASE helper columns at outermost SELECT level ----
 
@@ -1636,7 +1618,7 @@ SELECT {
         {
             // The outer SELECT includes a CASE expression with a non-helper alias ("delivery_status").
             // Because the alias doesn't match the t<N>_0 / o<N> helper pattern, it must NOT be skipped.
-            // Classification must fail — we do not silently accept arbitrary expressions.
+            // Classification must fail - we do not silently accept arbitrary expressions.
             //
             // Inner levels use only helper-named columns (t<N>_0, o<N>) so the
             // projection-column walker cannot find real columns at any fallback level.
@@ -1710,7 +1692,7 @@ SELECT {
             Assert.Contains("AiringName", queryString, StringComparison.OrdinalIgnoreCase);
         }
 
-        // ── DirectQuery – grouped count ───────────────────────────────────────────────
+        // DirectQuery: grouped count
 
         [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void DirectQuery_grouped_count_flat_shape_inner_sql_should_parse_and_emit_count_with_no_argument()
@@ -1769,7 +1751,7 @@ SELECT {
             Assert.Contains("count()", queryString, StringComparison.OrdinalIgnoreCase);
         }
 
-        // ── DirectQuery – grouped AVG (sum + count) ───────────────────────────────────
+        // DirectQuery: grouped AVG (sum + count)
 
         [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void DirectQuery_grouped_avg_shape_sum_plus_count_should_parse_and_emit_both_aggregates()
@@ -1838,7 +1820,7 @@ SELECT {
             Assert.True(countIdx < sumIdx, "aggregate order should match target-list order: " + queryString);
         }
 
-        // ── DirectQuery – regression ──────────────────────────────────────────────────
+        // DirectQuery: regression
 
         [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void DirectQuery_inner_rql_non_aggregate_wrapper_should_still_parse_correctly()

@@ -887,10 +887,6 @@ limit 1000001";
         // The inner RQL filters on Company (not a group key) before grouping by Employee + RequireAt.
         // Raven grouped-RQL WHERE is a HAVING clause; it only allows group-key and aggregate expressions.
         // There is no pre-aggregate filter syntax in Raven RQL for grouped queries.
-        // from Orders
-        // where Company in ('Companies/1-A', 'Companies/2-A', 'Companies/3-A')   ← not expressible
-        // group by Employee, RequireAt
-        // select Employee, RequireAt, sum(Freight) as a0
 
         using (var store = GetDocumentStore())
         {
@@ -929,7 +925,7 @@ limit 1000001";
     [Fact]
     public async Task DirectQuery_grouped_count_flat_shape_inner_sql_should_work_end_to_end()
     {
-        // PowerBI "Count" visual: flat grouped shape — GROUP BY at outermost select level,
+        // PowerBI "Count" visual: flat grouped shape - GROUP BY at outermost select level,
         // count() aggregate, inner SQL with SELECT *.
         // Verifies: (a) TryParse succeeds, (b) Raven executes and returns rows,
         // (c) the count column values equal the number of matching documents per group.
@@ -1010,7 +1006,7 @@ limit 1000001";
         // (c) each row's sum/count matches the ground truth computed from raw rows,
         // (d) the client-side AVG (a0 / a1) equals the ground-truth average per group.
         //
-        // KNOWN LIMITATION — the "count" column here is the group's ROW count (Raven count()),
+        // KNOWN LIMITATION - the "count" column here is the group's ROW count (Raven count()),
         // not SQL's non-null count. Because the sample dataset's Freight is non-null on every
         // order, the two values coincide and AVG = SUM/COUNT is correct here. If Freight ever
         // contained nulls, the COUNT value would over-count vs. SQL semantics and AVG would be

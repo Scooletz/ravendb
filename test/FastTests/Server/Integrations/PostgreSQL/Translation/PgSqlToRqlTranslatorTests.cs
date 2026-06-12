@@ -139,7 +139,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
         }
 
         // General NOT around a primitive predicate: NegateNext() flips the next emitted predicate.
-        // Compound NOTs (e.g. NOT(a AND b)) still throw — see the ParsedNot guard in PgSqlToRqlTranslator.
+        // Compound NOTs (e.g. NOT(a AND b)) still throw - see the ParsedNot guard in PgSqlToRqlTranslator.
         [RavenFact(RavenTestCategory.PostgreSql)]
         public void NotBinary_FlipsViaNegateNext()
         {
@@ -239,11 +239,9 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
             Assert.Equal(expected, Translate(sql));
         }
 
-        // The PG endpoint exposes the document identifier as `id` (the PG-idiomatic surface
-        // name — see PgSyntheticColumns); under the hood it's still RQL's `id()` function.
-        // The translator maps both `id` and `id()` references in user SQL to `id()` in RQL
-        // so the engine reads the document identifier instead of looking for a stored field
-        // literally called `id`.
+        // The PG endpoint exposes the document identifier as `id` (PG-idiomatic; see
+        // PgSyntheticColumns), but under the hood it's RQL's `id()` function. The translator
+        // maps both `id` and `id()` in user SQL to `id()` so the engine reads the doc identifier.
         [RavenFact(RavenTestCategory.PostgreSql)]
         public void SelectColumns()
         {
@@ -273,11 +271,9 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
             Assert.False(Raven.Server.Integrations.PostgreSQL.Translation.PgSqlToRqlTranslator.TryParse(sql, Array.Empty<int>(), out _));
         }
 
-        // PowerBI's row-preview / drill-down queries decorate their projection list with
-        // constant markers (e.g. `1 as "c0"`) so the client can count back a fixed shape.
-        // The translator has to forward the literal — silently dropping the column produces
-        // a `Field count mismatch when mapping column types. N vs N-1` error PowerBI-side.
-        // The SQL alias must survive too so PowerBI's column-name lookup succeeds.
+        // PowerBI's row-preview queries decorate the projection with constant markers (e.g.
+        // `1 as "c0"`) to count back a fixed shape. The translator must forward the literal and
+        // its alias - dropping the column gives PowerBI a "Field count mismatch" error.
         [RavenFact(RavenTestCategory.PostgreSql)]
         public void ConstLiteral_IntegerProjection_WithAlias_PreservesLiteralAndAlias()
         {
@@ -296,9 +292,8 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
             Assert.Equal(expected, Translate(sql));
         }
 
-        // Single-quote inside a string literal must double up — RQL uses the same escape
-        // convention as SQL standards (and PG itself). Without this, e.g.
-        // `'O''Brien' as note` would break RQL parsing of the projection.
+        // Single-quote inside a string literal must double up - RQL uses the same escape
+        // convention as SQL/PG. Otherwise `'O''Brien' as note` breaks RQL parsing.
         [RavenFact(RavenTestCategory.PostgreSql)]
         public void ConstLiteral_StringWithSingleQuote_EscapesByDoubling()
         {
@@ -333,10 +328,9 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
             Assert.Equal(expected, Translate(sql));
         }
 
-        // Regression: ORDER BY on the grouping key when that key is not in the SELECT list
-        // (`SELECT sum(Freight) ... GROUP BY Company ORDER BY Company`) must fall through cleanly —
-        // TryParse returns false — rather than throwing InvalidOperationException from a First()
-        // with no matching projection, which previously escaped TryParse's catch as an unhandled error.
+        // ORDER BY on the grouping key when that key isn't in the SELECT list
+        // (`SELECT sum(Freight) ... GROUP BY Company ORDER BY Company`) must fall through cleanly
+        // (TryParse returns false) rather than throwing from a First() with no matching projection.
         [RavenFact(RavenTestCategory.PostgreSql)]
         public void GroupByOrderByOnNonProjectedKey_FailsGracefullyWithoutThrowing()
         {
@@ -368,18 +362,11 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
             Assert.Equal(expected, Translate(sql));
         }
 
-        // PowerBI's Top-N visual-level filter on a Clustered Bar Chart fires this exact shape
-        // (alias-qualified projection + alias-qualified count argument). Before the fromAlias
-        // fix in BuildProjectionForGroupByTarget / BuildCountProjection, ExtractFieldName
-        // returned `"rows.Freight"` for the projection and `"rows.Freight"` for the count
-        // argument, neither matching the GROUP BY key `"Freight"` (stripped via fromAlias),
-        // so the translator threw `UnsupportedGroupByMessage` and the query fell through to
-        // the factory's `Unhandled query` error.
-        // PowerBI always emits an `AS` alias on aggregate projections (`as "a0"`, `as "a1"`...).
-        // RQL's implicit alias for `count(Freight)` is `Freight`, identical to a sibling
-        // group-by-key projection of `Freight`, and RQL rejects that with
-        // `Duplicate alias 'Freight' detected`. The translator must preserve the SQL alias so
-        // the RQL becomes `count(Freight) as a0` and the implicit-alias collision is avoided.
+        // PowerBI's Top-N visual fires this shape: alias-qualified projection + alias-qualified
+        // count argument, both needing the `rows.` fromAlias stripped to match the GROUP BY key.
+        // The SQL alias on the aggregate must be preserved too: RQL's implicit alias for
+        // count(Freight) would be `Freight`, colliding with the sibling group-by-key projection
+        // (`Duplicate alias 'Freight'`), so we emit `count(Freight) as a0`.
         [RavenFact(RavenTestCategory.PostgreSql)]
         public void GroupBy_WithFromAlias_QualifiedProjectionAndAggregateArg_StripsAliasAndPreservesAggregateAlias()
         {
@@ -407,10 +394,9 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
             Assert.Equal(expected, Translate(sql));
         }
 
-        // Scalar aggregates (all-aggregate SELECT, no GROUP BY) have no valid RQL form — the engine
-        // rejects `from t select sum(x)` with "sum may only be used in group by queries". The
-        // translator now bails so PgQuery falls through to UnhandledQueryDiagnoser for a friendly
-        // message instead of emitting RQL that explodes at execution time.
+        // Scalar aggregates (all-aggregate SELECT, no GROUP BY) have no valid RQL form - the engine
+        // rejects `from t select sum(x)`. The translator bails so PgQuery falls through to
+        // UnhandledQueryDiagnoser for a friendly message instead of RQL that fails at execution.
         [RavenFact(RavenTestCategory.PostgreSql)]
         public void ScalarAggregates_AreRejected()
         {
@@ -452,12 +438,10 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
             Assert.Equal(expected, Translate(sql));
         }
 
-        // PowerBI's distinct-values probe — used when populating slicer / filter-dropdown options.
-        // Instead of `SELECT DISTINCT col1, col2 ...` it sends `SELECT col1, col2 ... GROUP BY col1, col2`.
-        // For multi-column shapes we emit `group by ... select ...` rather than `select distinct
-        // ...` because RQL's `select distinct` isn't a tuple-distinct (it dedupes by first-field
-        // semantics and leaves duplicate tuples behind, which breaks PowerBI's mashup engine
-        // with a SubstituteWithIndex match-count error).
+        // PowerBI's distinct-values probe (slicer / filter-dropdown options) sends
+        // `SELECT col1, col2 ... GROUP BY col1, col2` instead of `SELECT DISTINCT`. For multi-column
+        // shapes we emit `group by ... select ...` because RQL's `select distinct` dedupes by
+        // first-field only, leaving duplicate tuples that break PowerBI's mashup engine.
         [RavenFact(RavenTestCategory.PostgreSql)]
         public void GroupBy_WithoutAggregates_TwoColumns_TranslatesToGroupByDistinct()
         {
@@ -466,10 +450,10 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
             Assert.Equal(expected, Translate(sql));
         }
 
-        // The exact shape PowerBI Desktop fires for a two-column slicer / dropdown probe against
-        // a `public.X` table — wrapper alias on the source, both columns aliased in the SELECT,
-        // and PowerBI's 1,000,001-row sentinel limit. Pinned so the recognizer-side dispatch
-        // (PowerBIFetchQuery → PgSqlToRqlTranslator) keeps working end-to-end.
+        // The exact shape PowerBI Desktop fires for a two-column slicer probe against a
+        // `public.X` table: wrapper alias on the source, both columns aliased, and PowerBI's
+        // 1,000,001-row sentinel limit. Pinned so the recognizer dispatch
+        // (PowerBIFetchQuery -> PgSqlToRqlTranslator) keeps working end-to-end.
         [RavenFact(RavenTestCategory.PostgreSql)]
         public void GroupBy_PowerBI_DistinctValuesProbe_AliasedSource_TranslatesToGroupBy()
         {
@@ -488,9 +472,8 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
             Assert.Contains("limit 0, 1000001", rql, StringComparison.OrdinalIgnoreCase);
         }
 
-        // Existing single-column-without-aggregate case must keep working — same path that
-        // SELECT DISTINCT goes through, just via GROUP BY surface. Regression pin for the
-        // single-col branch when ApplyGroupBy was rewritten to handle multi-col.
+        // Single-column-without-aggregate must keep working - same path as SELECT DISTINCT, just
+        // via the GROUP BY surface.
         [RavenFact(RavenTestCategory.PostgreSql)]
         public void GroupBy_WithoutAggregates_SingleColumn_TranslatesToDistinct()
         {
@@ -517,11 +500,9 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
             Assert.Equal(expected, Translate(sql));
         }
 
-        // ── Identifier case handling ─────────────────────────────────────────────────
-        // Unquoted identifiers follow PostgreSQL semantics: pgsqlparser folds them to
-        // lowercase before the AST is built (SQL standard behaviour). Quoted identifiers
-        // preserve case via Sval. Users who need exact RavenDB field casing must quote
-        // the identifier in SQL. See libpg_query issue #59 for upstream background.
+        // Identifier case handling. Unquoted identifiers follow PostgreSQL semantics:
+        // pgsqlparser folds them to lowercase before the AST is built. Quoted identifiers
+        // preserve case. Users who need exact RavenDB field casing must quote the identifier.
 
         [RavenFact(RavenTestCategory.PostgreSql)]
         public void IdentifierCasing_QuotedIdentifier_PreservesCase()
@@ -546,32 +527,24 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
             Assert.DoesNotContain("Title", rql, StringComparison.Ordinal);
         }
 
-        // ── PowerBI incremental refresh / date-range filters ──────────────────────────
+        // PowerBI incremental refresh / date-range filters.
         //
-        // PowerBI's incremental refresh translates the `RangeStart`/`RangeEnd` parameters
-        // into SQL with a parameterized date-range predicate on a chosen DateTime column.
-        // The end-to-end shape is `WHERE "col" >= $1 AND "col" < $2`, with the bounds bound
-        // at Bind time via the Extended Query Protocol.
-        //
-        // We test three forms: inline `timestamp 'YYYY-MM-DD'` literals (PG-idiomatic),
-        // `'...'::timestamp` cast literals (functionally identical, different AST node
-        // arrangement), and the parameterized form. The parameterized form is the one
-        // PowerBI actually sends — it is *not* supported today: SqlWhereParser's scalar
-        // extractor only handles AConst / TypeCast literals, not ParamRef. Documenting
-        // the gap here keeps the limitation discoverable.
+        // PowerBI's incremental refresh turns the RangeStart/RangeEnd parameters into a
+        // parameterized date-range predicate on a DateTime column: `WHERE "col" >= $1 AND
+        // "col" < $2`, bound at Bind time via the Extended Query Protocol. The tests below cover
+        // the inline `timestamp 'X'` literal, the `'X'::timestamp` cast, and the parameterized form.
 
         [RavenFact(RavenTestCategory.PostgreSql)]
         public void DateRange_InlineTimestampLiteral_TranslatesBothBounds()
         {
-            // `timestamp 'X'` is PG-idiomatic typed-literal syntax — emits TypeCast in the AST.
+            // `timestamp 'X'` is PG-idiomatic typed-literal syntax - emits TypeCast in the AST.
             var sql = """SELECT * FROM orders WHERE "OrderedAt" >= timestamp '1996-08-01' AND "OrderedAt" < timestamp '1996-09-01'""";
             var rql = Translate(sql);
 
             Assert.Contains("from 'orders'", rql, StringComparison.Ordinal);
             Assert.Contains("OrderedAt", rql, StringComparison.Ordinal);
-            // Both ends of the date range must reach the emitted RQL — incremental refresh
-            // depends on RavenDB's auto-index seeing both bounds (else it scans the whole
-            // collection per partition).
+            // Both bounds must reach the emitted RQL or RavenDB's auto-index scans the whole
+            // collection per partition.
             Assert.Contains("1996-08", rql, StringComparison.Ordinal);
             Assert.Contains("1996-09", rql, StringComparison.Ordinal);
             Assert.Contains(">=", rql, StringComparison.Ordinal);
@@ -581,8 +554,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
         [RavenFact(RavenTestCategory.PostgreSql)]
         public void DateRange_CastTimestampLiteral_TranslatesBothBounds()
         {
-            // `'X'::timestamp` — same TypeCast, different ordering in source. Some tools
-            // (older PG-protocol clients) prefer this form. Should be equivalent.
+            // `'X'::timestamp` - same TypeCast, different source ordering.
             var sql = """SELECT * FROM orders WHERE "OrderedAt" >= '1996-08-01'::timestamp AND "OrderedAt" < '1996-09-01'::timestamp""";
             var rql = Translate(sql);
 
@@ -592,9 +564,8 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
             Assert.Contains("1996-09", rql, StringComparison.Ordinal);
         }
 
-        // PowerBI emits this exact shape for incremental-refresh windows. The query has
-        // a quoted column reference + half-open range. We assert TryParse returns true and
-        // the date column appears in the emitted RQL — both ends.
+        // PowerBI emits this shape for incremental-refresh windows: quoted column + half-open
+        // range. Asserts TryParse succeeds and both bounds reach the emitted RQL.
         [RavenFact(RavenTestCategory.PostgreSql)]
         public void DateRange_QuotedColumnHalfOpenWindow_TranslatesToRangeFilter()
         {
@@ -615,7 +586,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
         // The shape PowerBI actually sends for incremental refresh. A $N placeholder in a WHERE
         // value can't be inlined at translate time (Parse precedes Bind in the Extended Query
         // Protocol), so the translator emits an RQL parameter reference instead. The 1-based PG
-        // index maps straight through: SQL $1/$2 → RQL $1/$2, which PgQuery.Bind then fills in.
+        // index maps straight through: SQL $1/$2 -> RQL $1/$2, which PgQuery.Bind then fills in.
         [RavenFact(RavenTestCategory.PostgreSql)]
         public void DateRange_ParameterizedBounds_TranslatesWithParamRefs()
         {

@@ -142,11 +142,9 @@ namespace EmbeddedTests.Server.Integrations.PostgreSQL
         }
 
         // Datetime-shaped strings in Raven documents must be reported as `timestamp without
-        // time zone` (or `timestamp with time zone` for UTC) by information_schema.columns,
-        // not as `text`. Without this, PowerBI's column-probe types datetime columns as text,
-        // and M filters like `[OrderedAt] >= RangeStart` fail with a type-mismatch error
-        // because RangeStart is DateTime and the column reads as text. Pins the heuristic in
-        // InformationSchemaColumnsTable.MapDataType that mirrors RqlQuery.GenerateSchema's
+        // time zone` (or `timestamp with time zone` for UTC), not `text`, so PowerBI types them
+        // as dates and M filters like `[OrderedAt] >= RangeStart` compare correctly. Pins the
+        // InformationSchemaColumnsTable.MapDataType heuristic that mirrors RqlQuery.GenerateSchema's
         // value-inspection promotion.
         [Fact]
         public async Task InformationSchemaColumns_reports_datetime_string_fields_as_timestamp()
