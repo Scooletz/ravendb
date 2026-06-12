@@ -26,7 +26,7 @@ public sealed class PgServerConnectionLifecycleTests : RavenTestBase
             CustomSettings = new ConcurrentDictionary<string, string>
             {
                 ["Integrations.PostgreSQL.Enabled"] = "true",
-                ["Integrations.PostgreSQL.Port"] = "0", // ask the OS for a free ephemeral port
+                ["Integrations.PostgreSQL.Port"] = "0",
                 ["Features.Availability"] = "Experimental",
             }
         });
@@ -40,8 +40,7 @@ public sealed class PgServerConnectionLifecycleTests : RavenTestBase
 
         int port = pgServer.GetListenerPort();
 
-        // Churn raw TCP connect/close — no real handshake needed; the session hits EOF and exits, and
-        // cleanup fires whenever HandleConnection's task finishes.
+        // Churn raw TCP connect/close — no handshake needed; the session hits EOF and exits, triggering cleanup.
         const int churn = 25;
         for (int i = 0; i < churn; i++)
         {
@@ -50,8 +49,7 @@ public sealed class PgServerConnectionLifecycleTests : RavenTestBase
             c.Close();
         }
 
-        // Add (ListenToConnections) and remove (ContinueWith on the session task) are both async, so poll
-        // briefly; a non-zero count past this window is a cleanup regression.
+        // Add and remove are both async, so poll briefly; a non-zero count past this window is a cleanup regression.
         var sw = Stopwatch.StartNew();
         while (pgServer.InFlightConnectionCount > 0 && sw.Elapsed < TimeSpan.FromSeconds(15))
             await Task.Delay(100, TestContext.Current.CancellationToken);

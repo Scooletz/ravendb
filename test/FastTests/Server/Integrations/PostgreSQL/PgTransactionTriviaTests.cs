@@ -35,7 +35,7 @@ namespace FastTests.Server.Integrations.PostgreSQL
 
         [RavenTheory(RavenTestCategory.PostgreSql)]
         [InlineData("SELECT * FROM \"Orders\"")]
-        [InlineData("SELECT 1")]                                 // Could be a heartbeat but ambiguous — refuse loudly.
+        [InlineData("SELECT 1")]
         [InlineData("SELECT typname FROM pg_type")]
         [InlineData("UPDATE \"Orders\" SET \"Freight\" = 0")]
         [InlineData("DELETE FROM \"Orders\"")]
