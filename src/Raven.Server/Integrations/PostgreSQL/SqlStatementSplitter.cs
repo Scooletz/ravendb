@@ -3,12 +3,10 @@ using System.Collections.Generic;
 
 namespace Raven.Server.Integrations.PostgreSQL
 {
-    // Splits a SQL string into individual statements on `;`, ignoring semicolons that appear
-    // inside string literals (single quoted, with PG '' / \' escapes), quoted identifiers
-    // ("..."), line comments (-- to newline), block comments (/* ... */), or dollar-quoted
-    // strings ($tag$...$tag$). Used by the Simple Query Protocol handler so that multi-statement
-    // batches like pgAdmin's startup probe — `SET DateStyle=ISO; SET client_min_messages=notice;
-    // SELECT … ; SET client_encoding='utf-8'` — get dispatched one statement at a time.
+    // Splits a SQL string into statements on `;`, ignoring semicolons inside string literals,
+    // quoted identifiers, comments, dollar-quoted strings, and `(...)`/`{...}`. Used by the Simple
+    // Query Protocol handler to dispatch multi-statement batches (e.g. pgAdmin's startup probe)
+    // one statement at a time.
     internal static class SqlStatementSplitter
     {
         public static List<string> Split(string sql)
@@ -17,14 +15,9 @@ namespace Raven.Server.Integrations.PostgreSQL
             if (string.IsNullOrWhiteSpace(sql))
                 return result;
 
-            // RQL queries have no `;`-separator semantics — they're always a single statement
-            // on the wire — but they routinely contain `;` inside `declare function { ... }`
-            // JavaScript bodies. A SQL-shaped splitter would shred those into invalid pieces.
-            // Bypass the splitter entirely for inputs whose leading keyword is RQL.
-            //
-            // We do NOT strip a trailing `;` — that's invalid RQL and surfacing the parser
-            // error is the right behavior (the user should drop the `;`). The pass-through is
-            // about preserving the semantically-meaningful contents, not normalizing them.
+            // RQL is always a single statement, but its `declare function { ... }` JS bodies
+            // routinely contain `;` that a SQL splitter would shred. Bypass the splitter for
+            // RQL-leading input.
             if (LooksLikeRql(sql))
             {
                 result.Add(sql.Trim());
@@ -33,14 +26,8 @@ namespace Raven.Server.Integrations.PostgreSQL
 
             int start = 0;
             int i = 0;
-            // PG `;` is a top-level statement terminator; never a statement boundary inside
-            // a `(...)` subquery / function-arg list. PowerBI's schema-discovery probe wraps
-            // user SQL/RQL as `select * from (USER_QUERY) "_" limit 0` — if USER_QUERY is RQL
-            // with a `declare function { var x = ...; return ...; }` body, the JS semicolons
-            // are nested inside the outer `(...)`. Without depth tracking we'd shred the JS
-            // body into "statements" that look like garbage to the dispatcher.
-            // Brace depth is tracked separately so a `;` inside `{...}` (RQL declare-function
-            // JS body, even if not wrapped in outer parens) is also preserved.
+            // Track `(...)` and `{...}` depth so a `;` inside a subquery, function-arg list, or
+            // RQL `declare function { ... }` JS body isn't treated as a statement boundary.
             int parenDepth = 0;
             int braceDepth = 0;
             while (i < sql.Length)
@@ -56,8 +43,7 @@ namespace Raven.Server.Integrations.PostgreSQL
                     continue;
                 }
 
-                // Block comment: /* ... */ (no nesting — PG actually does allow nesting but
-                // virtually no client emits nested block comments; flat handling is fine here).
+                // Block comment: /* ... */ (nesting not handled; clients don't emit nested ones).
                 if (c == '/' && i + 1 < sql.Length && sql[i + 1] == '*')
                 {
                     i += 2;
@@ -67,8 +53,7 @@ namespace Raven.Server.Integrations.PostgreSQL
                     continue;
                 }
 
-                // Single-quoted string literal: '...'. Handles PG '' escape and the backslash
-                // escape that E'...' literals use.
+                // Single-quoted string literal: '...'. Handles `''` and `\'` (E'...') escapes.
                 if (c == '\'')
                 {
                     i++;
@@ -94,9 +79,7 @@ namespace Raven.Server.Integrations.PostgreSQL
                     continue;
                 }
 
-                // Double-quoted identifier: "..." (no escape semantics for our purposes — PG
-                // uses "" to escape a single double-quote, but we only care about not splitting
-                // on `;` inside).
+                // Double-quoted identifier: "...". Skip `;` inside; "" is an escaped quote.
                 if (c == '"')
                 {
                     i++;
@@ -183,7 +166,7 @@ namespace Raven.Server.Integrations.PostgreSQL
                         start = i;
                         continue;
                     }
-                    // Nested `;` — part of a JS body or other inner content, not a statement boundary.
+                    // Nested `;` (inside `(...)` or `{...}`): not a statement boundary.
                     i++;
                     continue;
                 }
@@ -198,11 +181,9 @@ namespace Raven.Server.Integrations.PostgreSQL
             return result;
         }
 
-        // Skips leading whitespace and SQL comments, then checks whether the first non-trivial
-        // token is an RQL-only keyword (`declare` for a JS function declaration, `from` for the
-        // standard collection query). PG SQL never starts a statement with these — `FROM` only
-        // appears mid-SELECT — so the keyword anchor is a reliable signal that the entire input
-        // is RQL and must not be `;`-split.
+        // True if the first non-trivial token (after whitespace/comments) is an RQL-only leading
+        // keyword (`declare` or `from`). SQL statements never start with these, so it reliably
+        // marks the whole input as RQL that must not be `;`-split.
         private static bool LooksLikeRql(string sql)
         {
             int i = 0;

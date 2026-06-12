@@ -12,12 +12,12 @@ namespace Raven.Server.Integrations.PostgreSQL
     /// Handles the small set of non-SELECT protocol-level statements that clients send for
     /// connection / session housekeeping rather than data:
     /// <list type="bullet">
-    ///   <item><c>DISCARD ALL</c> — resets the session; we have nothing to discard, so the response is empty.</item>
-    ///   <item><c>ROLLBACK</c> — no-op for our read-only protocol surface.</item>
-    ///   <item><c>BEGIN</c> / <c>COMMIT</c> — no-op (no transactions on this PG surface).</item>
-    ///   <item><c>SET ...</c> — silently accepted; we don't actually track session variables.</item>
-    ///   <item><c>SELECT set_config(...)</c> — pgAdmin sends this in its startup batch; treat as no-op.</item>
-    ///   <item><c>DEALLOCATE "&lt;name&gt;"</c> — frees a named prepared statement; removes it from the session.</item>
+    ///   <item><c>DISCARD ALL</c> - resets the session; we have nothing to discard, so the response is empty.</item>
+    ///   <item><c>ROLLBACK</c> - no-op for our read-only protocol surface.</item>
+    ///   <item><c>BEGIN</c> / <c>COMMIT</c> - no-op (no transactions on this PG surface).</item>
+    ///   <item><c>SET ...</c> - silently accepted; we don't actually track session variables.</item>
+    ///   <item><c>SELECT set_config(...)</c> - pgAdmin sends this in its startup batch; treat as no-op.</item>
+    ///   <item><c>DEALLOCATE "&lt;name&gt;"</c> - frees a named prepared statement; removes it from the session.</item>
     /// </list>
     /// These cannot be expressed as SQL/AST shapes so they don't fit the virtual-tables interpreter.
     /// They live in a dedicated dispatch slot at the head of <see cref="PgQuery.CreateInstance"/>.
@@ -63,7 +63,7 @@ namespace Raven.Server.Integrations.PostgreSQL
             if (StartsWithWord(normalized, Set))
             {
                 // SET DateStyle=ISO / SET client_encoding='utf-8' / SET client_min_messages=notice
-                // — we don't honour any of these but accept them so clients can finish their
+                // - we don't honour any of these but accept them so clients can finish their
                 // session handshake. Returns an empty CommandComplete.
                 query = new ProtocolCommandQuery(queryText, parametersDataTypes);
                 return true;
@@ -102,7 +102,7 @@ namespace Raven.Server.Integrations.PostgreSQL
         }
 
         // Matches `SELECT set_config(...)` (optionally with a FROM/WHERE tail) without going
-        // through the full SQL parser. Pragmatic — pgAdmin's exact probe doesn't vary much.
+        // through the full SQL parser.
         private static bool IsSelectSetConfig(string normalized)
         {
             var trimmed = normalized.TrimStart();
@@ -114,10 +114,10 @@ namespace Raven.Server.Integrations.PostgreSQL
 
         private static void HandleDeallocate(string normalized, PgSession session)
         {
-            // Expected form: DEALLOCATE "<name>" — the name is the quoted token after the keyword.
+            // Expected form: DEALLOCATE "<name>" - the name is the quoted token after the keyword.
             // Both failures below throw PgErrorException (a non-fatal ErrorResponse) rather than a generic
             // exception: in PostgreSQL, deallocating an unknown or unparseable statement is an ordinary
-            // client error, so it must surface as an error on the connection — not tear down the session.
+            // client error, so it must surface as an error on the connection - not tear down the session.
             var firstQuote = normalized.IndexOf('"');
             var lastQuote  = normalized.LastIndexOf('"');
             if (firstQuote < 0 || firstQuote == lastQuote)
@@ -127,7 +127,7 @@ namespace Raven.Server.Integrations.PostgreSQL
             if (session.NamedStatements.TryRemove(statementName, out var statement) == false)
                 throw new PgErrorException(PgErrorCodes.InvalidSqlStatementName, $"prepared statement \"{statementName}\" does not exist");
 
-            // Precaution — the query context should already be disposed by the time we hit DEALLOCATE.
+            // Precaution - the query context should already be disposed by the time we hit DEALLOCATE.
             statement.Dispose();
         }
 
@@ -136,7 +136,7 @@ namespace Raven.Server.Integrations.PostgreSQL
 
         public override async Task Execute(MessageBuilder builder, PipeWriter writer, CancellationToken token)
         {
-            // No data rows — only the CommandComplete tag.
+            // No data rows - only the CommandComplete tag.
             await writer.WriteAsync(builder.CommandComplete("SELECT 0"), token);
         }
 
