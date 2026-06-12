@@ -40,9 +40,8 @@ namespace Raven.Server.Integrations.PostgreSQL
 
         public bool Active { get; private set; }
 
-        // Exposed for tests / diagnostics: count of in-flight sessions. Should converge to 0
-        // shortly after every accepted connection closes; a steady non-zero in a quiescent
-        // server points at a regression of the ContinueWith cleanup below.
+        // Count of in-flight sessions (for tests / diagnostics). Converges to 0 after connections
+        // close; a steady non-zero points at a regression of the ContinueWith cleanup below.
         public int InFlightConnectionCount => _connections.Count;
 
         public void Execute()
@@ -191,11 +190,9 @@ namespace Raven.Server.Integrations.PostgreSQL
                         var capturedClient = client;
                         var task = HandleConnection(capturedClient);
                         _connections.TryAdd(capturedClient, task);
-                        // Remove the dictionary entry when the session finishes — without this
-                        // the (TcpClient + completed-Task) tuple stays in the map for the
-                        // lifetime of the server. Short-lived PowerBI traffic accumulates one
-                        // such tuple per connection ever made; the underlying socket IS freed
-                        // (PgSession.Run disposes it), but the wrapper objects leak.
+                        // Remove the dictionary entry when the session finishes, else the (TcpClient, Task)
+                        // tuple leaks for the server's lifetime - one per connection. The socket is freed
+                        // (PgSession.Run disposes it); the dictionary wrappers aren't.
                         _ = task.ContinueWith(static (_, state) =>
                         {
                             var (connections, key) = ((ConcurrentDictionary<TcpClient, Task>, TcpClient))state;

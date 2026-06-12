@@ -44,12 +44,9 @@ namespace Raven.Server.Integrations.PostgreSQL
 
             _currentQuery?.Dispose();
 
-            // Extended Protocol's Parse message should contain a single statement. Some clients
-            // (e.g. Npgsql-based connectors like Microsoft Fabric Copy Job) send a multi-statement
-            // batch in one Parse message anyway. We take the LAST statement and silently drop
-            // the leading ones — but only when those leading statements are known startup-probe
-            // trivia (SET / SHOW / RESET / transaction control / version probe). If any dropped
-            // statement looks like real work, refuse loudly instead of silently losing it.
+            // Extended Protocol Parse should carry one statement, but some clients (e.g. Microsoft
+            // Fabric's Copy Job) send a multi-statement batch. We keep the last statement and drop the
+            // leading ones only if they're known startup-probe trivia; otherwise refuse.
             var stmts = SqlStatementSplitter.Split(cleanQueryText);
             if (stmts.Count > 1)
             {
@@ -118,10 +115,8 @@ namespace Raven.Server.Integrations.PostgreSQL
             MessageReader = null;
         }
 
-        // Whitelist of statement shapes safe to silently drop when a client sends a multi-statement
-        // Parse. These are the shapes observed in Npgsql/Microsoft Fabric/pgAdmin startup probes,
-        // none of which produce data the application needs. Anything not on this list might be a
-        // real query whose silent drop would corrupt results — refuse loudly instead.
+        // Statement shapes safe to drop from a multi-statement Parse: startup-probe trivia
+        // (Npgsql/Fabric/pgAdmin) with no useful data. Anything else might be real work, so refuse.
         internal static bool IsTriviaStatement(string stmt)
         {
             if (string.IsNullOrWhiteSpace(stmt))

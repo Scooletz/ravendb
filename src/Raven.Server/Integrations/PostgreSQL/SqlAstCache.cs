@@ -2,19 +2,11 @@ using PgSqlParser;
 
 namespace Raven.Server.Integrations.PostgreSQL
 {
-    // Single-entry per-thread cache around pgsqlparser's Parser.Parse. PgQuery.CreateInstance
-    // dispatches a SQL query through several arms (PowerBI / virtual interpreter / SQL to RQL
-    // translator / unhandled diagnoser), each of which parses the same text independently. For
-    // a query that falls through to the diagnoser the same string gets parsed 4–6 times.
-    //
-    // The cache is keyed by reference equality on queryText. CreateInstance is synchronous so
-    // a per-thread sticky last-result is safe: the dispatch chain stays on one thread, the
-    // same `queryText` string instance is threaded through every arm, and once the next query
-    // arrives it overwrites the slot — no cross-query leakage and no unbounded memory.
-    //
-    // Result<ParseResult?> is a value-type wrapper around a managed payload (no native handles,
-    // no IDisposable), so sharing the cached value across call sites within the same dispatch
-    // is safe — every caller treats it as read-only.
+    // Per-thread, single-entry cache around pgsqlparser so PgQuery.CreateInstance's dispatch arms
+    // (PowerBI / interpreter / translator / diagnoser) don't each re-parse the same query text.
+    // Keyed by reference-equality on queryText: dispatch is synchronous on one thread and threads
+    // the same string instance through, the next query overwrites the single slot (bounded, no leak),
+    // and the cached result is read-only, so sharing it across arms is safe.
     internal static class SqlAstCache
     {
         [System.ThreadStatic]

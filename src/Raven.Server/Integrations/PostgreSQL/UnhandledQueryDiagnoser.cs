@@ -3,16 +3,10 @@ using PgSqlParser;
 
 namespace Raven.Server.Integrations.PostgreSQL
 {
-    // Classifies SQL shapes the server can't yet execute, so the wire-level error tells the
-    // client WHY rather than handing back a generic "Unhandled query: <full SQL dump>". Only
-    // consulted AFTER every TryParse dispatch arm has returned false — never in the hot path.
-    //
-    // The shapes we detect here are not bugs, they're known limitations of RavenDB's PG bridge:
-    //   - SQL JOIN over user collections has no RQL equivalent (RQL uses load/include, not joins).
-    //   - Scalar aggregate without GROUP BY (e.g. `SELECT sum(x) FROM t`) has no clean RQL form;
-    //     RQL aggregates require a group key. Wrap in GROUP BY or compute client-side.
-    // Anything else still surfaces as the generic "Unhandled query" so we don't accidentally
-    // misclassify a fixable bug as a known limitation.
+    // Classifies SQL shapes the server can't execute, so the wire error says WHY instead of a generic
+    // "Unhandled query: <SQL dump>". Consulted only after every TryParse dispatch arm returned false
+    // (never in the hot path). These are known RavenDB PG-bridge limitations, not bugs; anything not
+    // recognized here stays a generic "Unhandled query" so we don't mislabel a fixable bug.
     internal static class UnhandledQueryDiagnoser
     {
         public static bool TryDiagnose(string queryText, out string message)
@@ -21,13 +15,9 @@ namespace Raven.Server.Integrations.PostgreSQL
             if (string.IsNullOrWhiteSpace(queryText))
                 return false;
 
-            // PowerBI's PostgreSQL connector splits the M `Query=` value on `;` client-side
-            // before sending. For RQL with a `declare function {...; ...}` body, the JS-body
-            // semicolons cause it to send only the first fragment — text that begins with
-            // `declare function` and has unbalanced `{`. The fragment fails to parse as either
-            // SQL or RQL, and the generic "Unhandled query" message doesn't tell the user to
-            // remove the semicolons. Catch it first, before the parser-based checks, since the
-            // fragment fails to parse.
+            // PowerBI's connector splits the query on `;` client-side, so an RQL `declare function
+            // {...;...}` body arrives as just its leading fragment (unbalanced `{`), which won't parse.
+            // Catch it before the parser-based checks and tell the user to remove the semicolons.
             if (LooksLikeJsBodyFragment(queryText))
             {
                 message = "The query content looks like a fragment of a `declare function {...}` body. Some PostgreSQL clients split queries on `;` before sending, so only the first piece reaches the server. Remove the semicolons from the JS body.";
@@ -44,8 +34,7 @@ namespace Raven.Server.Integrations.PostgreSQL
             }
             catch
             {
-                // Parser blew up on some shape we don't recognize at all — let the generic
-                // catch-all message handle it.
+                // Parser failed on a shape we don't recognize; let the generic catch-all handle it.
                 return false;
             }
 
@@ -88,9 +77,8 @@ namespace Raven.Server.Integrations.PostgreSQL
                 return true;
             }
 
-            // A WHERE that reaches here alongside a GROUP BY is a non-key pre-aggregation filter (a
-            // WHERE on the group key translates fine and never falls through). RavenDB's map-reduce
-            // applies WHERE post-reduction, so translating it would silently change the aggregates.
+            // A WHERE here alongside GROUP BY is a non-key filter (a group-key WHERE translates fine and
+            // never reaches this point); RavenDB applies WHERE post-reduction, so it would change the aggregates.
             if (outer.GroupClause is { Count: > 0 } && outer.WhereClause != null)
             {
                 message = "A WHERE on a non-grouped field can't be combined with GROUP BY: RavenDB's map-reduce applies WHERE to the aggregated result, not the source rows, so the filter would silently change the aggregates. Filter only on a GROUP BY key, or pre-filter the data (e.g. via a dedicated index) before aggregating.";
@@ -100,17 +88,10 @@ namespace Raven.Server.Integrations.PostgreSQL
             return false;
         }
 
-        // Detects a textual fragment of a `declare function {...}` body. The fragment will
-        // have more open braces than close braces (because the client cut us off at a `;`
-        // inside the body). Pure textual check — pgsqlparser fails on the fragment, so we
-        // run this before any AST-based diagnostics. Two guards keep this from false-firing:
-        //   1) The text must START with `declare function`. Stops a SQL query that happens
-        //      to contain "declare function" inside a string literal from triggering.
-        //   2) Brace counting skips quoted regions. Stops a JS string in the body like
-        //      `return "}"` from balancing out a real open brace.
-        // We deliberately do NOT skip `--` or `/* */` style comments: the fragment is JS, not
-        // SQL, and `i--` (JS decrement) is far more common inside a function body than a
-        // SQL line comment — skipping `--` would falsely consume real characters.
+        // Textual check for a `declare function {...}` fragment: starts with `declare function` and has
+        // unbalanced `{` (the client cut it off at a `;`). Runs before AST checks since the fragment
+        // won't parse. Brace counting skips quoted regions (so `return "}"` can't balance a real brace)
+        // but not `--` / `/* */` comments - the body is JS, where `i--` is common.
         private static bool LooksLikeJsBodyFragment(string queryText)
         {
             var trimmed = queryText.AsSpan().TrimStart();
@@ -170,9 +151,8 @@ namespace Raven.Server.Integrations.PostgreSQL
             return openBraces > closeBraces;
         }
 
-        // True if the outermost SelectStmt (or any arm at the same set-op level) uses INTERSECT
-        // or EXCEPT. We deliberately don't descend into FROM-clause subselects here: only the
-        // outer combination matters for the diagnostic.
+        // True if the outer SelectStmt uses INTERSECT or EXCEPT. Doesn't descend into FROM subselects;
+        // only the outer combination matters here.
         private static bool HasIntersectOrExcept(SelectStmt selectStmt)
         {
             if (selectStmt == null)
@@ -181,10 +161,9 @@ namespace Raven.Server.Integrations.PostgreSQL
                 || selectStmt.Op == SetOperation.SetopExcept;
         }
 
-        // True if any SelectStmt in the tree has a JoinExpr in its FROM clause. Must descend
-        // into RangeSubselect.Subquery (PowerBI's standard `select * from (USER_SQL) "_"` wrap
-        // buries the user's JOIN one level deep) and into Larg/Rarg of set operations. Bounded
-        // recursion guards against pathological nesting.
+        // True if any SelectStmt in the tree has a JoinExpr in FROM. Descends into RangeSubselect.Subquery
+        // (PowerBI wraps user SQL as `select * from (...) "_"`, burying the JOIN a level deep) and set-op
+        // Larg/Rarg; recursion is depth-bounded.
         private static bool HasJoinExpr(SelectStmt selectStmt) => HasJoinExpr(selectStmt, depth: 0);
 
         private const int MaxJoinSearchDepth = 32;
@@ -217,11 +196,9 @@ namespace Raven.Server.Integrations.PostgreSQL
             return false;
         }
 
-        // True iff any target projection is a min() or max() FuncCall. We surface this BEFORE the
-        // generic scalar-aggregate-without-GROUP-BY check because min/max are unsupported in BOTH
-        // shapes (with and without GROUP BY) — RavenDB's AggregationOperation enum only models
-        // Count and Sum — and the workaround (ORDER BY + LIMIT 1) is different from the
-        // "wrap in GROUP BY" suggestion that fits sum/count/avg.
+        // True iff any projection is a min()/max() FuncCall. Surfaced before the generic scalar-aggregate
+        // check: min/max are unsupported with or without GROUP BY (RavenDB aggregates are Count/Sum only),
+        // and their workaround (ORDER BY + LIMIT 1) differs from the "wrap in GROUP BY" hint for sum/count.
         private static bool HasMinOrMaxAggregate(SelectStmt selectStmt)
         {
             if (selectStmt.TargetList is not { Count: > 0 } targets)
@@ -246,10 +223,9 @@ namespace Raven.Server.Integrations.PostgreSQL
             return false;
         }
 
-        // True iff any target projection is an avg() FuncCall. avg has no RQL grouped-SELECT form
-        // (RQL aggregates are Count and Sum only), so it's unsupported in both scalar and GROUP BY
-        // shapes — surfaced before the generic scalar-aggregate check so the message names avg and
-        // gives the sum/count workaround rather than the "wrap in GROUP BY" hint that won't help.
+        // True iff any projection is an avg() FuncCall. avg has no RQL form (aggregates are Count/Sum
+        // only), unsupported with or without GROUP BY; surfaced before the generic scalar check so the
+        // message names avg and gives the sum/count workaround.
         private static bool HasAvgAggregate(SelectStmt selectStmt)
         {
             if (selectStmt.TargetList is not { Count: > 0 } targets)
@@ -273,10 +249,9 @@ namespace Raven.Server.Integrations.PostgreSQL
             return false;
         }
 
-        // True iff every projection is an aggregate FuncCall (count/sum/avg/min/max) AND there's
-        // no GROUP BY anchoring those aggregates to a key. Mixed shapes (one aggregate + one bare
-        // column) are NOT classified here — that's a SQL error in real PG, and our existing
-        // translator already rejects it with a clearer message.
+        // True iff every projection is an aggregate FuncCall (count/sum/avg/min/max) with no GROUP BY key.
+        // Mixed shapes (aggregate + bare column) aren't classified here; that's a SQL error the translator
+        // already rejects with a clearer message.
         private static bool IsScalarAggregateWithoutGroupBy(SelectStmt selectStmt)
         {
             if (selectStmt.GroupClause is { Count: > 0 })
