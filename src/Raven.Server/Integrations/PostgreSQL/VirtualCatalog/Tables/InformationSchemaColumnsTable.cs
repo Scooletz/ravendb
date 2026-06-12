@@ -10,8 +10,8 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog.Tables
     // information_schema.columns: per-column metadata PowerBI and pgAdmin read to learn a collection's
     // column shape before the real SELECT.
     //
-    // The reported columns MUST match what RqlQuery emits in its RowDescription — same count, order,
-    // names, and types — or PowerBI raises DataSource.Changed. Hence: user columns in document insertion
+    // The reported columns MUST match what RqlQuery emits in its RowDescription (same count, order,
+    // names, and types) or PowerBI raises DataSource.Changed. Hence: user columns in document insertion
     // order (GetPropertyNames, not GetPropertyByIndex), bracketed by the synthetic id()/json() columns,
     // with types mirroring RqlQuery's mapping (see MapDataType).
     //
@@ -76,7 +76,7 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog.Tables
                 {
                     if (string.IsNullOrEmpty(name))
                         continue;
-                    // Skip RavenDB system fields (@metadata, etc.) — RqlQuery skips them too.
+                    // Skip RavenDB system fields (@metadata, etc.); RqlQuery skips them too.
                     if (name.StartsWith('@'))
                         continue;
 
@@ -89,8 +89,7 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog.Tables
                     yield return new object[] { dbName, "public", collection, name, ordinal++, Yes, dataType };
                 }
 
-                // 3) json — RqlQuery appends this as the metadata blob column (PgJson). Always
-                //    last in RowDescription, so it goes last here too. PG-facing name as above.
+                // 3) json - the metadata blob column RqlQuery appends last (PgJson).
                 yield return new object[]
                 {
                     dbName, "public", collection,
@@ -100,9 +99,9 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog.Tables
             }
         }
 
-        // Mirrors RqlQuery's BlittableJsonToken → PgType mapping so data_type here matches RqlQuery's
+        // Mirrors RqlQuery's BlittableJsonToken-to-PgType mapping so data_type here matches RqlQuery's
         // RowDescription (see the class doc on why that must hold). For String/CompressedString, peek
-        // at the value like RqlQuery does — datetime-shaped strings map to timestamp, not text.
+        // at the value like RqlQuery does: datetime-shaped strings map to timestamp, not text.
         private static string MapDataType(BlittableJsonToken token, object value)
         {
             var bjt = token & BlittableJsonToken.TypesMask;
@@ -140,7 +139,7 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog.Tables
                 BlittableJsonToken.StartArray        => "json",              // RqlQuery: PgJson
                 BlittableJsonToken.EmbeddedBlittable => "json",              // RqlQuery: PgJson
                 BlittableJsonToken.Null              => "json",              // RqlQuery: PgJson
-                _                                    => "json",              // unknown → PgJson
+                _                                    => "json",              // unknown -> PgJson
             };
         }
     }

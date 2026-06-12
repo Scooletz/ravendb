@@ -5,7 +5,7 @@ using Raven.Server.Integrations.PostgreSQL.Types;
 
 namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog.Tables
 {
-    // Concrete row-less catalog table — used for catalog views where the column shape is part of
+    // Concrete row-less catalog table - used for catalog views where the column shape is part of
     // the contract (clients like pgAdmin and Microsoft Fabric introspect them) but RavenDB has
     // no rows to expose.
     internal sealed class EmptyCatalogTable : PgVirtualTable
@@ -24,8 +24,6 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog.Tables
         public override IEnumerable<object[]> EnumerateRows(VirtualQueryContext ctx) => Array.Empty<object[]>();
     }
 
-    // table_constraints and key_column_usage are NOT here — they live in their own files, populated
-    // per Raven collection to expose the synthetic `id` primary key that PowerBI's DirectQuery needs.
     // Everything below is a row-less catalog view.
     internal static class EmptyCatalogTables
     {
@@ -42,7 +40,7 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog.Tables
             new("is_insertable_into",     PgVarchar.Default, PgFormat.Text),
             new("is_trivially_updatable", PgVarchar.Default, PgFormat.Text));
 
-        // RavenDB has no foreign-key / referential constraints — cross-document links are modeled via
+        // RavenDB has no foreign-key / referential constraints - cross-document links are modeled via
         // document IDs and `load`, not FKs. Clients introspect this view to discover relationships;
         // empty means "none". Column set matches the SQL standard's `referential_constraints`.
         public static EmptyCatalogTable InformationSchemaReferentialConstraints => new("information_schema", "referential_constraints",
@@ -56,7 +54,7 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog.Tables
             new("update_rule",               PgText.Default, PgFormat.Text),
             new("delete_rule",               PgText.Default, PgFormat.Text));
 
-        // Empty pg_catalog sources for shapes the interpreter doesn't (yet) read from real data.
+        // Empty pg_catalog sources for shapes the interpreter doesn't read from real data.
         public static EmptyCatalogTable PgEnum => new("pg_catalog", "pg_enum",
             new("oid",           PgOid.Default,    PgFormat.Text),
             new("enumtypid",     PgOid.Default,    PgFormat.Text),
@@ -90,7 +88,7 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog.Tables
             new("gss_authenticated", PgBool.Default, PgFormat.Text),
             new("encrypted",         PgBool.Default, PgFormat.Text));
 
-        // RavenDB has no PG role hierarchy — every connected user is independent. pg_auth_members
+        // RavenDB has no PG role hierarchy - every connected user is independent. pg_auth_members
         // (which lists role-group memberships) is therefore empty; pgAdmin's recursive role-membership
         // CTE iterates against this empty table and terminates with just the base case.
         public static EmptyCatalogTable PgAuthMembers => new("pg_catalog", "pg_auth_members",
@@ -100,7 +98,7 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog.Tables
             new("admin_option", PgBool.Default, PgFormat.Text));
 
         // RavenDB doesn't model tablespaces, but pgAdmin LEFT-JOINs pg_database against this view to
-        // get the spacename for display. Empty → spcname stays NULL, which is fine.
+        // get the spacename for display. Empty, so spcname stays NULL, which is fine.
         public static EmptyCatalogTable PgTablespace => new("pg_catalog", "pg_tablespace",
             new("oid",     PgOid.Default,  PgFormat.Text),
             new("spcname", PgName.Default, PgFormat.Text));
@@ -112,9 +110,9 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog.Tables
             new("classoid",    PgOid.Default,  PgFormat.Text),
             new("description", PgText.Default, PgFormat.Text));
 
-        // Per-object comments (schemas, tables, columns, …). pgAdmin's schema-tree probe LEFT-JOINs
+        // Per-object comments (schemas, tables, columns, ...). pgAdmin's schema-tree probe LEFT-JOINs
         // pg_namespace against this to render schema descriptions. We don't model comments, so an
-        // empty view returns NULL for `des.description` on every namespace row — exactly what pgAdmin
+        // empty view returns NULL for `des.description` on every namespace row - exactly what pgAdmin
         // expects when no description is set.
         public static EmptyCatalogTable PgDescription => new("pg_catalog", "pg_description",
             new("objoid",      PgOid.Default,  PgFormat.Text),
