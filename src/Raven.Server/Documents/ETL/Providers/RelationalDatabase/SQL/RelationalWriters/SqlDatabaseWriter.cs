@@ -35,9 +35,9 @@ internal sealed class SqlDatabaseWriter: RelationalDatabaseWriterBase<SqlConnect
 
     private readonly SqlEtlConfiguration _sqlEtlConfiguration;
 
-    public SqlDatabaseWriter(DocumentDatabase database, SqlEtlConfiguration configuration,
+    public SqlDatabaseWriter(DocumentDatabase database, SqlEtlConfiguration configuration, string taskName,
         RelationalDatabaseEtlMetricsCountersManager metrics, EtlProcessStatistics statistics, bool shouldConnectToTarget = true) : base(database,
-        configuration, metrics, statistics, shouldConnectToTarget)
+        configuration, taskName, metrics, statistics, shouldConnectToTarget)
     {
         _sqlEtlConfiguration = configuration;
         ParametrizeDeletes = configuration.ParameterizeDeletes;
@@ -50,6 +50,20 @@ internal sealed class SqlDatabaseWriter: RelationalDatabaseWriterBase<SqlConnect
     }
 
     public override bool ParametrizeDeletes { get; }
+
+    protected override bool ShouldAbortAndRetryTransaction(Exception e)
+    {
+        if (_providerType != SqlProvider.Npgsql)
+            return false;
+
+        if (e is not Npgsql.PostgresException pe)
+            return false;
+
+        const string dataExceptionErrorPrefix = "22";
+        const string integrityConstraintViolationPrefix = "23";
+        
+        return pe.SqlState.StartsWith(dataExceptionErrorPrefix) || pe.SqlState.StartsWith(integrityConstraintViolationPrefix);
+    }
 
     protected override string GetConnectionString(EtlConfiguration<SqlConnectionString> configuration)
     {

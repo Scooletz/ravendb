@@ -9,7 +9,7 @@ namespace Tests.Infrastructure;
 
 public class RavenFactAttribute : FactAttribute, ITraitAttribute, Xunit.v3.IFactAttribute
 {
-        string Xunit.v3.IFactAttribute.Skip => this.Skip;
+    string Xunit.v3.IFactAttribute.Skip => this.Skip;
 
     public readonly RavenTestCategory Category;
     private string _skip;
@@ -89,6 +89,12 @@ public class RavenFactAttribute : FactAttribute, ITraitAttribute, Xunit.v3.IFact
         set => Requires = value ? Requires | RavenServiceRequirement.Azure : Requires & ~RavenServiceRequirement.Azure;
     }
 
+    public bool AzureServiceBusRequired
+    {
+        get => Requires.HasFlag(RavenServiceRequirement.AzureServiceBus);
+        set => Requires = value ? Requires | RavenServiceRequirement.AzureServiceBus : Requires & ~RavenServiceRequirement.AzureServiceBus;
+    }
+
     public new string Skip
     {
         get => ShouldSkip(_skip, Category, licenseRequired: LicenseRequired, nightlyBuildRequired: NightlyBuildRequired, serviceRequirement: Requires);
@@ -134,6 +140,9 @@ public class RavenFactAttribute : FactAttribute, ITraitAttribute, Xunit.v3.IFact
         if (serviceRequirement.HasFlag(RavenServiceRequirement.Azure) && ShouldSkipAzure(out skip))
             return skip;
 
+        if (serviceRequirement.HasFlag(RavenServiceRequirement.AzureServiceBus) && ShouldSkipAzureServiceBus(out skip))
+            return skip;
+
         return null;
     }
 
@@ -159,13 +168,13 @@ public class RavenFactAttribute : FactAttribute, ITraitAttribute, Xunit.v3.IFact
 
     private static bool ShouldSkipService(Func<bool> canConnect, string serviceName, out string skipMessage)
     {
-        if (RavenTestHelper.SkipIntegrationTests)
+        if (RavenTestHelper.EnvironmentVariables.SkipIntegrationTests)
         {
             skipMessage = RavenTestHelper.SkipIntegrationMessage;
             return true;
         }
 
-        if (RavenTestHelper.IsRunningOnCI)
+        if (RavenTestHelper.EnvironmentVariables.IsRunningOnCI)
         {
             skipMessage = null;
             return false;
@@ -224,16 +233,20 @@ public class RavenFactAttribute : FactAttribute, ITraitAttribute, Xunit.v3.IFact
         return AzureRetryFactAttribute.ShouldSkip(out skipMessage);
     }
 
+    private static bool ShouldSkipAzureServiceBus(out string skipMessage)
+    {
+        return AzureServiceBusHelper.ShouldSkip(out skipMessage);
+    }
+
     internal static bool ShouldSkipLicense(out string skipMessage)
     {
-        var hasLicense = !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("RAVEN_LICENSE"));
-        if (hasLicense)
+        if (RavenTestHelper.EnvironmentVariables.HasLicense)
         {
             skipMessage = null;
             return false;
         }
 
-        skipMessage = "Requires License to be set via 'RAVEN_LICENSE' environment variable.";
+        skipMessage = $"Requires License to be set via '{RavenTestHelper.EnvironmentVariables.LicenseEnvName}' environment variable.";
         return true;
     }
 }

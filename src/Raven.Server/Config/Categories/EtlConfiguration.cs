@@ -1,6 +1,11 @@
+using System;
+using System.Collections.Generic;
 using System.ComponentModel;
+using Microsoft.Extensions.Configuration;
 using Raven.Server.Config.Attributes;
 using Raven.Server.Config.Settings;
+using Raven.Server.Documents.ETL;
+using Raven.Server.ServerWide;
 using Sparrow;
 
 namespace Raven.Server.Config.Categories
@@ -8,13 +13,13 @@ namespace Raven.Server.Config.Categories
     [ConfigurationCategory(ConfigurationCategoryType.Etl)]
     public sealed class EtlConfiguration : ConfigurationCategory
     {
-        [Description("Number of seconds after which Raven ETL load request will timeout. Default: 300 seconds. Can be overriden by setting LoadRequestTimeoutInSec property value in Raven ETL configuration.")]
+        [Description("Number of seconds after which Raven ETL load request will time out. Default: 300 seconds. Can be overridden by setting the LoadRequestTimeoutInSec property in the Raven ETL configuration.")]
         [DefaultValue(300)]
         [TimeUnit(TimeUnit.Seconds)]
         [ConfigurationEntry("ETL.Raven.LoadRequestTimeoutInSec", ConfigurationEntryScope.ServerWideOrPerDatabase)]
         public TimeSetting RavenLoadRequestTimeout { get; set; }
 
-        [Description("Number of seconds after which SQL command will timeout. Default: null (use provider default). Can be overriden by setting CommandTimeout property value in SQL ETL configuration.")]
+        [Description("Number of seconds after which SQL command will time out. Default: null (use provider default). Can be overridden by setting the CommandTimeout property in the SQL ETL configuration.")]
         [DefaultValue(null)]
         [TimeUnit(TimeUnit.Seconds)]
         [ConfigurationEntry("ETL.SQL.CommandTimeoutInSec", ConfigurationEntryScope.ServerWideOrPerDatabase)]
@@ -70,5 +75,50 @@ namespace Raven.Server.Config.Categories
         [TimeUnit(TimeUnit.Seconds)]
         [ConfigurationEntry("ETL.Queue.AzureQueueStorage.VisibilityTimeoutInSec", ConfigurationEntryScope.ServerWideOrPerDatabase)]
         public TimeSetting AzureQueueStorageVisibilityTimeout{ get; set; }
+        
+        [Description($"Weighted EWMA ratio threshold of errored items to successfully processed items above which the process health status will be set to '{nameof(EtlProcessHealthStatus.Failed)}'")]
+        [DefaultValue(0.9f)]
+        [ConfigurationEntry("ETL.ProcessHealthStatusFailedThreshold", ConfigurationEntryScope.ServerWideOrPerDatabase)]
+        public float ProcessHealthStatusFailedThreshold { get; set; }
+        
+        [Description($"Weighted ratio threshold of errored items to successfully processed items above which the process health status will be set to '{nameof(EtlProcessHealthStatus.Impaired)}'")]
+        [DefaultValue(0.1f)]
+        [ConfigurationEntry("ETL.ProcessHealthStatusImpairedThreshold", ConfigurationEntryScope.ServerWideOrPerDatabase)]
+        public float ProcessHealthStatusImpairedThreshold { get; set; }
+
+        [Description("Max ratio of inserts in a batch that can be excluded due to transaction-aborting errors. Beyond this threshold the batch fails. A small minimum number of retries is always allowed regardless of this ratio to handle tiny and medium batches.")]
+        [DefaultValue(0.05f)]
+        [ConfigurationEntry("ETL.SQL.MaxTransactionRetryRatio", ConfigurationEntryScope.ServerWideOrPerDatabase)]
+        public float MaxTransactionRetryRatio { get; set; }
+
+        public override void Initialize(IConfigurationRoot settings, HashSet<string> settingsNames, IConfigurationRoot serverWideSettings, HashSet<string> serverWideSettingsNames, ResourceType type, string resourceName)
+        {
+            base.Initialize(settings, settingsNames, serverWideSettings, serverWideSettingsNames, type, resourceName);
+
+            if (ProcessHealthStatusFailedThreshold is < 0f or > 1f)
+            {
+                throw new InvalidOperationException(
+                    $"The value of '{RavenConfiguration.GetKey(x => x.Etl.ProcessHealthStatusFailedThreshold)}' ({ProcessHealthStatusFailedThreshold}) must be between 0 and 1.");
+            }
+
+            if (ProcessHealthStatusImpairedThreshold is < 0f or > 1f)
+            {
+                throw new InvalidOperationException(
+                    $"The value of '{RavenConfiguration.GetKey(x => x.Etl.ProcessHealthStatusImpairedThreshold)}' ({ProcessHealthStatusImpairedThreshold}) must be between 0 and 1.");
+            }
+
+            if (ProcessHealthStatusFailedThreshold <= ProcessHealthStatusImpairedThreshold)
+            {
+                throw new InvalidOperationException(
+                    $"The value of '{RavenConfiguration.GetKey(x => x.Etl.ProcessHealthStatusFailedThreshold)}' ({ProcessHealthStatusFailedThreshold}) must be greater than " +
+                    $"the value of '{RavenConfiguration.GetKey(x => x.Etl.ProcessHealthStatusImpairedThreshold)}' ({ProcessHealthStatusImpairedThreshold}).");
+            }
+
+            if (MaxTransactionRetryRatio is < 0f or > 1f)
+            {
+                throw new InvalidOperationException(
+                    $"The value of '{RavenConfiguration.GetKey(x => x.Etl.MaxTransactionRetryRatio)}' ({MaxTransactionRetryRatio}) must be between 0 and 1.");
+            }
+        }
     }
 }

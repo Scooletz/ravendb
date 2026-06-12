@@ -46,6 +46,7 @@ class configurationItem {
         "Indexing.Corax.MaxAllocationsAtDictionaryTrainingInMb",
         "Indexing.Corax.Static.ComplexFieldIndexingBehavior",
         "Indexing.Corax.UnmanagedAllocationsBatchSizeLimitInMb",
+        "Indexing.Corax.VectorSearch.CacheSizeInMb",
         "Indexing.Corax.VectorSearch.DefaultMinimumSimilarity",
         "Indexing.Corax.VectorSearch.DefaultNumberOfEdges",
         "Indexing.Corax.VectorSearch.DefaultNumberOfCandidatesForIndexing",
@@ -56,8 +57,8 @@ class configurationItem {
         "Indexing.ElapsedSinceQueriedPersistIntervalInMin",
         "Indexing.Querying.UseSearchAnalyzerForDynamicFieldsIfNotSetExplicitlyInSearchQuery",
         "Indexing.Corax.VectorSearch.VectorSearchScanningThreshold",
-        "Indexing.Querying.Corax.NullFirst",
-        
+        "Indexing.Querying.Corax.NullsSortMode",
+
         // "Indexing.Static.SearchEngineType" - ignoring as we have dedicated widget to set that
         /*
             Obsolete keys:
@@ -68,6 +69,7 @@ class configurationItem {
                 "Indexing.MaxTimeForMergesToKeepRunningInSec",
                 "Indexing.MergeFactor",
                 "Indexing.NumberOfLargeSegmentsToMergeInSingleBatch",
+                "Indexing.Querying.Corax.NullFirst",
          */
     ];
 

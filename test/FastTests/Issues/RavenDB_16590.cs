@@ -85,8 +85,9 @@ namespace FastTests.Issues
                 "Indexing.Corax.UnmanagedAllocationsBatchSizeLimitInMb",
                 "Indexing.ElapsedSinceQueriedPersistIntervalInMin",
                 "Indexing.Querying.UseSearchAnalyzerForDynamicFieldsIfNotSetExplicitlyInSearchQuery",
-                "Indexing.Querying.Corax.NullFirst",
-                
+                "Indexing.Querying.Corax.NullsSortMode",
+
+                "Indexing.Corax.VectorSearch.CacheSizeInMb",
                 "Indexing.Corax.VectorSearch.DefaultMinimumSimilarity",
                 "Indexing.Corax.VectorSearch.DefaultNumberOfEdges",
                 "Indexing.Corax.VectorSearch.DefaultNumberOfCandidatesForIndexing",
@@ -94,7 +95,7 @@ namespace FastTests.Issues
                 "Indexing.Corax.VectorSearch.OrderByScoreAutomatically",
                 "Indexing.Corax.VectorSearch.MaximumConcurrentBatchesForHnswAcceleration",
                 "Indexing.Corax.VectorSearch.VectorSearchScanningThreshold",
-                
+
                 //Obsolete studio keys:
                 "Indexing.Static.SearchEngineType",
                 "Indexing.Analyzers.NGram.MaxGram",
@@ -104,6 +105,7 @@ namespace FastTests.Issues
                 "Indexing.MaxTimeForMergesToKeepRunningInSec",
                 "Indexing.MergeFactor",
                 "Indexing.NumberOfLargeSegmentsToMergeInSingleBatch",
+                "Indexing.Querying.Corax.NullFirst",
                 "Indexing.UseCompoundFileInMerging",
             };
 

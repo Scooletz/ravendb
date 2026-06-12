@@ -165,6 +165,8 @@ export type OngoingTaskKafkaSinkSharedInfo = OngoingTaskQueueSinkSharedInfo;
 
 export type OngoingTaskRabbitMqSinkSharedInfo = OngoingTaskQueueSinkSharedInfo;
 
+export type OngoingTaskAzureServiceBusSinkSharedInfo = OngoingTaskQueueSinkSharedInfo;
+
 export interface OngoingTaskQueueEtlSharedInfo extends OngoingTaskSharedInfo {
     connectionStringName: string;
     url: string;
@@ -237,6 +239,8 @@ export type OngoingTaskKafkaSinkNodeInfoDetails = OngoingTaskNodeInfoDetails;
 
 export type OngoingTaskRabbitMqSinkNodeInfoDetails = OngoingTaskNodeInfoDetails;
 
+export type OngoingTaskAzureServiceBusSinkNodeInfoDetails = OngoingTaskNodeInfoDetails;
+
 export type AnyEtlOngoingTaskInfo =
     | OngoingTaskSqlEtlInfo
     | OngoingTaskSnowflakeEtlInfo
@@ -246,7 +250,9 @@ export type AnyEtlOngoingTaskInfo =
     | OngoingTaskKafkaEtlInfo
     | OngoingTaskRabbitMqEtlInfo
     | OngoingTaskAzureQueueStorageEtlInfo
-    | OngoingTaskAmazonSqsEtlInfo;
+    | OngoingTaskAmazonSqsEtlInfo
+    | OngoingTaskGenAiInfo
+    | OngoingTaskEmbeddingsGenerationInfo;
 
 export interface OngoingTaskInfo<
     TSharded extends OngoingTaskSharedInfo = OngoingTaskSharedInfo,
@@ -342,6 +348,11 @@ export type OngoingTaskKafkaSinkInfo = OngoingTaskInfo<
 export type OngoingTaskRabbitMqSinkInfo = OngoingTaskInfo<
     OngoingTaskRabbitMqSinkSharedInfo,
     OngoingTaskNodeInfo<OngoingTaskRabbitMqSinkNodeInfoDetails>
+>;
+
+export type OngoingTaskAzureServiceBusSinkInfo = OngoingTaskInfo<
+    OngoingTaskAzureServiceBusSinkSharedInfo,
+    OngoingTaskNodeInfo<OngoingTaskAzureServiceBusSinkNodeInfoDetails>
 >;
 
 export type OngoingTaskSubscriptionInfo = OngoingTaskInfo<

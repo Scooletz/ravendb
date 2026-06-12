@@ -174,17 +174,20 @@ interface OngoingTaskActionsProps {
     onTaskOperation: (type: OngoingTaskOperationConfirmType, taskSharedInfos: OngoingTaskSharedInfo[]) => void;
     isDeleting: boolean;
     isDetailsOpen?: boolean;
+    isEtl?: boolean;
 }
 
 export function OngoingTaskActions(props: OngoingTaskActionsProps) {
-    const { canEdit, task, onEdit, toggleDetails, onTaskOperation, isDeleting, isDetailsOpen } = props;
+    const { canEdit, task, onEdit, toggleDetails, onTaskOperation, isDeleting, isDetailsOpen, isEtl } = props;
 
     return (
         <div className="actions">
             <ButtonGroup>
-                <Button variant="secondary" onClick={toggleDetails} title="Click for details">
-                    <Icon icon={isDetailsOpen ? "fold" : "unfold"} margin="m-0" />
-                </Button>
+                {!isEtl && (
+                    <Button variant="secondary" onClick={toggleDetails} title="Click for details">
+                        <Icon icon={isDetailsOpen ? "fold" : "unfold"} margin="m-0" />
+                    </Button>
+                )}
                 {!task.shared.serverWide && (
                     <Button variant="secondary" onClick={onEdit} title="Edit task">
                         <Icon icon="edit" margin="m-0" />
@@ -235,6 +238,26 @@ export function ConnectionStringItem(props: {
         <RichPanelDetailItem label="Connection String">
             <Icon icon="danger" color="danger" />
             <span className="text-danger">This connection string is not defined.</span>
+        </RichPanelDetailItem>
+    );
+}
+
+export function DestinationUrlItem({
+    destinationUrl,
+    label = "Destination URL",
+}: {
+    destinationUrl: string;
+    label?: string;
+}) {
+    if (!destinationUrl) {
+        return null;
+    }
+
+    return (
+        <RichPanelDetailItem label={label}>
+            <a href={destinationUrl} target="_blank">
+                {destinationUrl}
+            </a>
         </RichPanelDetailItem>
     );
 }
@@ -415,6 +438,7 @@ export function useNewOngoingTasks({ isAiOnly = false }: { isAiOnly?: boolean })
     const hasAmazonSqsEtl = useAppSelector(licenseSelectors.statusValue("HasQueueEtl"));
     const hasKafkaSink = useAppSelector(licenseSelectors.statusValue("HasQueueSink"));
     const hasRabbitMqSink = useAppSelector(licenseSelectors.statusValue("HasQueueSink"));
+    const hasAzureServiceBusSink = useAppSelector(licenseSelectors.statusValue("HasQueueSink"));
     const hasPeriodicBackups = useAppSelector(licenseSelectors.statusValue("HasPeriodicBackup"));
     const hasGenAi = useAppSelector(licenseSelectors.statusValue("HasGenAi"));
     const hasEmbeddingGeneration = useAppSelector(licenseSelectors.statusValue("HasEmbeddingsGeneration"));
@@ -709,6 +733,18 @@ export function useNewOngoingTasks({ isAiOnly = false }: { isAiOnly?: boolean })
                     licenseBadge: "Enterprise",
                     showLicenseBadge: !hasRabbitMqSink,
                     link: forCurrentDatabase.editRabbitMqSinkTaskUrl(),
+                    accessRequired: "DatabaseAdmin",
+                },
+                {
+                    title: "Azure Service Bus Sink",
+                    description:
+                        "Consume and process incoming JSON messages from Azure Service Bus queues to create or delete documents.",
+                    iconName: "azure",
+                    target: "AzureServiceBusSink",
+                    variant: "Sink",
+                    licenseBadge: "Enterprise",
+                    showLicenseBadge: !hasAzureServiceBusSink,
+                    link: forCurrentDatabase.editAzureServiceBusSinkTaskUrl(),
                     accessRequired: "DatabaseAdmin",
                 },
             ],

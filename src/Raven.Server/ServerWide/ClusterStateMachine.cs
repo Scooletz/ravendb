@@ -517,6 +517,8 @@ namespace Raven.Server.ServerWide
                     case nameof(ToggleSubscriptionStateCommand):
                     case nameof(UpdateSubscriptionClientConnectionTime):
                     case nameof(UpdateSnmpDatabaseIndexesMappingCommand):
+                    case nameof(UpdateSnmpDatabaseEtlsMappingCommand):
+                    case nameof(UpdateSnmpDatabaseAiTasksMappingCommand):
                     case nameof(RemoveEtlProcessStateCommand):
                     case nameof(UpdateQueueSinkProcessStateCommand):
                     case nameof(RemoveQueueSinkProcessStateCommand):
@@ -814,8 +816,8 @@ namespace Raven.Server.ServerWide
                             $"Cannot set typed value of type {type} for database {database}, because it does not exist");
                     }
 
-                    var id = updateCommand.FindFreeId(context, index);
-                    updateCommand.Execute(context, items, id, record: null, _parent.CurrentState, out _);
+                    updateCommand.SubscriptionId = updateCommand.FindFreeId(context, index);
+                    updateCommand.Execute(context, items, index, record: null, _parent.CurrentState, out _);
 
                     if (databases.Add(database))
                     {
@@ -2873,15 +2875,15 @@ namespace Raven.Server.ServerWide
         private readonly (ByteString Name, int Version, SnapshotEntryType Type)[] _snapshotEntries =
         {
             (Items.Content, ClusterCommandsVersionManager.Base40CommandsVersion, SnapshotEntryType.Command),
-            (CompareExchange.Content, ClusterCommandsVersionManager.Base40CommandsVersion,SnapshotEntryType.Command),
-            (Identities.Content, ClusterCommandsVersionManager.Base40CommandsVersion,SnapshotEntryType.Command),
+            (CompareExchange.Content, ClusterCommandsVersionManager.Base40CommandsVersion, SnapshotEntryType.Command),
+            (Identities.Content, ClusterCommandsVersionManager.Base40CommandsVersion, SnapshotEntryType.Command),
 
-            (TransactionCommands.Content, ClusterCommandsVersionManager.Base41CommandsVersion,SnapshotEntryType.Command),
-            (TransactionCommandsCountPerDatabase.Content, ClusterCommandsVersionManager.Base41CommandsVersion,SnapshotEntryType.Command),
+            (TransactionCommands.Content, ClusterCommandsVersionManager.Base41CommandsVersion, SnapshotEntryType.Command),
+            (TransactionCommandsCountPerDatabase.Content, ClusterCommandsVersionManager.Base41CommandsVersion, SnapshotEntryType.Command),
 
-            (CompareExchangeTombstones.Content, ClusterCommandsVersionManager.Base42CommandsVersion,SnapshotEntryType.Command),
-            (CertificatesSlice.Content, ClusterCommandsVersionManager.Base42CommandsVersion,SnapshotEntryType.Command),
-            (RachisLogHistory.LogHistorySlice.Content, 42_000,SnapshotEntryType.Core),
+            (CompareExchangeTombstones.Content, ClusterCommandsVersionManager.Base42CommandsVersion, SnapshotEntryType.Command),
+            (CertificatesSlice.Content, ClusterCommandsVersionManager.Base42CommandsVersion, SnapshotEntryType.Command),
+            (RachisLogHistory.LogHistorySlice.Content, 42_000, SnapshotEntryType.Core),
             (CompareExchangeExpirationStorage.CompareExchangeByExpiration.Content, 51_000, SnapshotEntryType.Command),
             (SubscriptionState.Content, 53_000, SnapshotEntryType.Command)
         };

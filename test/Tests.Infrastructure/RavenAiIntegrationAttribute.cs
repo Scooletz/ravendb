@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -61,18 +61,22 @@ public abstract class AbstractRavenAiIntegrationDataAttribute<TConfig> : RavenDa
                         if (aiConnectionStringForTesting.CanConnect.Value == false)
                         {
                             Skip = $"Test requires connection to {aiConnectionStringForTesting.AiConnectorType}.";
-                    }
-                    }
-
-                    var aiIntegrationConfiguration = aiConnectionStringForTesting.GetAiConfiguration();
-
-                    if (Data == null || Data.Length == 0)
-                    {
-                        result.Add(new TheoryDataRow(options, aiIntegrationConfiguration));
-                        continue;
+                        }
                     }
 
-                    result.Add(new TheoryDataRow(new object[] { options, aiIntegrationConfiguration }.Concat(Data).ToArray()));
+                    var skipReason = Skip;
+                    var aiIntegrationConfiguration = string.IsNullOrEmpty(skipReason)
+                        ? aiConnectionStringForTesting.GetAiConfiguration()
+                        : null;
+
+                    var row = Data == null || Data.Length == 0
+                        ? new TheoryDataRow(options, aiIntegrationConfiguration)
+                        : new TheoryDataRow(new object[] { options, aiIntegrationConfiguration }.Concat(Data).ToArray());
+
+                    if (string.IsNullOrEmpty(skipReason) == false)
+                        row.Skip = skipReason;
+
+                    result.Add(row);
                 }
             }
         }
@@ -83,26 +87,26 @@ public abstract class AbstractRavenAiIntegrationDataAttribute<TConfig> : RavenDa
 
     private bool HasSkipReason(IAiConnectorForTesting<TConfig> aiConnectorForTesting)
     {
-        if (string.IsNullOrEmpty(Skip))
+        if (string.IsNullOrEmpty(Skip) == false)
             return true;
 
-        if (RavenTestHelper.SkipAiIntegrationTests)
+        if (RavenTestHelper.EnvironmentVariables.SkipAiIntegrationTests)
         {
             Skip = RavenTestHelper.SkipAiIntegrationMessage;
             return true;
-    }
+        }
 
         if (Is32Bit)
-    {
+        {
             Skip = "AI tests are skipped on 32-bit process";
             return true;
-    }
+        }
 
-        if (RavenTestHelper.IsRunningOnCI)
+        if (RavenTestHelper.EnvironmentVariables.IsRunningOnCI)
             return false;
 
         if (aiConnectorForTesting.MissingRequiredEnvVariables(out var envVar))
-    {
+        {
             Skip = $"The environment variable {envVar} is required for {aiConnectorForTesting.AiConnectorType}, but was not set.";
             return true;
         }

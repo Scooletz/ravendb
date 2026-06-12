@@ -1,6 +1,6 @@
 ﻿import React, { useCallback, useEffect, useReducer, useState } from "react";
 import { useServices } from "hooks/useServices";
-import { OngoingTasksState, ongoingTasksReducer, ongoingTasksReducerInitializer } from "./partials/OngoingTasksReducer";
+import { ongoingTasksReducer, ongoingTasksReducerInitializer, OngoingTasksState } from "./partials/OngoingTasksReducer";
 import { ExternalReplicationPanel } from "./panels/ExternalReplicationPanel";
 import {
     OngoingTaskEmbeddingsGenerationInfo,
@@ -15,6 +15,7 @@ import {
     OngoingTaskPeriodicBackupInfo,
     OngoingTaskRabbitMqEtlInfo,
     OngoingTaskRabbitMqSinkInfo,
+    OngoingTaskAzureServiceBusSinkInfo,
     OngoingTaskRavenEtlInfo,
     OngoingTaskReplicationHubInfo,
     OngoingTaskReplicationSinkInfo,
@@ -38,7 +39,6 @@ import {
     ReplicationProgressProvider,
 } from "./partials/OngoingTaskProgressProviders";
 import { BaseOngoingTaskPanelProps, taskKey, useOngoingTasksOperations } from "../shared/shared";
-import EtlTaskProgress = Raven.Server.Documents.ETL.Stats.EtlTaskProgress;
 import "./OngoingTaskPage.scss";
 import etlScriptDefinitionCache from "models/database/stats/etlScriptDefinitionCache";
 import TaskUtils from "../../../../utils/TaskUtils";
@@ -53,6 +53,7 @@ import { OngoingTasksFilterCriteria } from "./partials/OngoingTasksFilter";
 import OngoingTaskOperationConfirm from "../shared/OngoingTaskOperationConfirm";
 import { KafkaSinkPanel } from "components/pages/database/tasks/ongoingTasks/panels/KafkaSinkPanel";
 import { RabbitMqSinkPanel } from "components/pages/database/tasks/ongoingTasks/panels/RabbitMqSinkPanel";
+import { AzureServiceBusSinkPanel } from "components/pages/database/tasks/ongoingTasks/panels/AzureServiceBusSinkPanel";
 import { CounterBadge } from "components/common/CounterBadge";
 import { getLicenseLimitReachStatus } from "components/utils/licenseLimitsUtils";
 import { useAppSelector } from "components/store";
@@ -63,8 +64,6 @@ import { AzureQueueStorageEtlPanel } from "components/pages/database/tasks/ongoi
 import { databaseSelectors } from "components/common/shell/databaseSliceSelectors";
 import { compareSets } from "common/typeUtils";
 import RichAlert from "components/common/RichAlert";
-import ReplicationTaskProgress = Raven.Server.Documents.Replication.Stats.ReplicationTaskProgress;
-import InternalReplicationTaskProgress = Raven.Server.Documents.Replication.Stats.InternalReplicationTaskProgress;
 import { OngoingTasksHeader } from "components/pages/database/tasks/ongoingTasks/partials/OngoingTasksHeader";
 import { InternalReplicationPanel } from "./panels/InternalReplicationPanel";
 import DatabaseUtils from "components/utils/DatabaseUtils";
@@ -73,10 +72,40 @@ import { SnowflakeEtlPanel } from "components/pages/database/tasks/ongoingTasks/
 import { AmazonSqsEtlPanel } from "components/pages/database/tasks/ongoingTasks/panels/AmazonSqsEtlPanel";
 import { EmbeddingsGenerationPanel } from "components/pages/database/tasks/ongoingTasks/panels/EmbeddingsGenerationPanel";
 import { GenAiPanel } from "./panels/GenAiPanel";
+import { useDatabaseWideAsync } from "components/hooks/useDatabaseWideAsync";
+import EtlTaskProgress = Raven.Server.Documents.ETL.Stats.EtlTaskProgress;
+import ReplicationTaskProgress = Raven.Server.Documents.Replication.Stats.ReplicationTaskProgress;
+import InternalReplicationTaskProgress = Raven.Server.Documents.Replication.Stats.InternalReplicationTaskProgress;
+import EtlTaskStats = Raven.Server.Documents.ETL.Stats.EtlTaskStats;
+import genUtils from "common/generalUtils";
+import { EtlErrorsWithLocation } from "components/pages/database/tasks/tasksErrors/utils/tasksErrorsUtils";
 
 interface OngoingTasksPageProps {
     isAiOnly?: boolean;
 }
+
+type EtlOrAiOngoingTaskType = Extract<
+    Raven.Client.Documents.Operations.OngoingTasks.OngoingTaskType,
+    | "RavenEtl"
+    | "SqlEtl"
+    | "OlapEtl"
+    | "ElasticSearchEtl"
+    | "QueueEtl"
+    | "SnowflakeEtl"
+    | "EmbeddingsGeneration"
+    | "GenAi"
+>;
+
+const etlAndAiTaskTypes = genUtils.exhaustiveStringTuple<EtlOrAiOngoingTaskType>()(
+    "RavenEtl",
+    "SqlEtl",
+    "OlapEtl",
+    "ElasticSearchEtl",
+    "QueueEtl",
+    "SnowflakeEtl",
+    "EmbeddingsGeneration",
+    "GenAi"
+);
 
 export function OngoingTasksPage({ isAiOnly = false }: OngoingTasksPageProps) {
     const db = useAppSelector(databaseSelectors.activeDatabase);
@@ -94,17 +123,31 @@ export function OngoingTasksPage({ isAiOnly = false }: OngoingTasksPageProps) {
         types: [],
     });
 
+    const getEtlStats = useCallback(
+        (location: databaseLocationSpecifier) => tasksService.getEtlStats(db.name, location),
+        [db.name]
+    );
+
+    const getEtlErrors = useCallback(
+        (location: databaseLocationSpecifier) => tasksService.getEtlErrors(db.name, location),
+        [db.name]
+    );
+
+    const { result: etlStatsResult } = useDatabaseWideAsync(getEtlStats);
+    const { result: etlErrorsResult } = useDatabaseWideAsync(getEtlErrors);
+
     const upgradeLicenseLink = useRavenLink({ hash: "FLDLO4", isDocs: false });
 
     const fetchTasks = useCallback(
         async (location: databaseLocationSpecifier) => {
             try {
-                const tasks = await tasksService.getOngoingTasks(db.name, location);
+                const tasks = await tasksService.getOngoingTasks(db?.name, location);
                 dispatch({
                     type: "TasksLoaded",
                     location,
                     tasks,
                 });
+                return tasks;
             } catch (e) {
                 const errorAndMessage = recentError.tryExtractMessageAndException(e.responseText);
                 dispatch({
@@ -121,14 +164,22 @@ export function OngoingTasksPage({ isAiOnly = false }: OngoingTasksPageProps) {
         // if database is sharded we need to load from both orchestrator and target node point of view
         // in case of non-sharded - we have single level: node
 
-        if (db.isSharded) {
+        if (db?.isSharded) {
             const orchestratorTasks = db.nodes.map((node) => fetchTasks({ nodeTag: node.tag }));
             await Promise.all(orchestratorTasks);
         }
 
         const loadTasks = tasks.locations.map(fetchTasks);
-        await Promise.all(loadTasks);
-    }, [tasks, fetchTasks, db]);
+        const results = await Promise.all(loadTasks);
+
+        const hasEtlOrAi = results
+            .flatMap((r) => r?.OngoingTasks ?? [])
+            .some((t) => etlAndAiTaskTypes.includes(t.TaskType as EtlOrAiOngoingTaskType));
+
+        if (hasEtlOrAi) {
+            startTrackingEtlProgress();
+        }
+    }, [tasks, fetchTasks, db, startTrackingEtlProgress]);
 
     useInterval(reload, 10_000);
 
@@ -204,6 +255,7 @@ export function OngoingTasksPage({ isAiOnly = false }: OngoingTasksPageProps) {
         amazonSqsEtls,
         kafkaSinks,
         rabbitMqSinks,
+        azureServiceBusSinks,
         elasticSearchEtls,
         embeddingsGenerations,
         genAiTasks,
@@ -230,7 +282,16 @@ export function OngoingTasksPage({ isAiOnly = false }: OngoingTasksPageProps) {
         ...amazonSqsEtls,
     ];
 
-    const sinks = [...kafkaSinks, ...rabbitMqSinks];
+    const flatEtlStats: EtlTaskStats[] = etlStatsResult.flatMap((x) => x.data ?? []);
+    const flatEtlErrors: EtlErrorsWithLocation[] = etlErrorsResult.flatMap((x) =>
+        (x.data ?? []).map((e) => ({
+            ...e,
+            nodeTag: x.location.nodeTag,
+            shardNumber: x.location.shardNumber,
+        }))
+    );
+
+    const sinks = [...kafkaSinks, ...rabbitMqSinks, ...azureServiceBusSinks];
 
     useEffect(() => {
         throttledUpdateLicenseLimitsUsage();
@@ -267,9 +328,9 @@ export function OngoingTasksPage({ isAiOnly = false }: OngoingTasksPageProps) {
         (DatabaseUtils.hasInternalReplication(db) ? 1 : 0);
 
     const refreshSubscriptionInfo = async (taskId: number, taskName: string) => {
-        const loadTasks = db.nodes.map(async (nodeInfo) => {
+        const loadTasks = (db?.nodes ?? []).map(async (nodeInfo) => {
             const nodeTag = nodeInfo.tag;
-            const task = await tasksService.getSubscriptionTaskInfo(db.name, taskId, taskName, nodeTag);
+            const task = await tasksService.getSubscriptionTaskInfo(db?.name, taskId, taskName, nodeTag);
 
             dispatch({
                 type: "SubscriptionInfoLoaded",
@@ -301,7 +362,7 @@ export function OngoingTasksPage({ isAiOnly = false }: OngoingTasksPageProps) {
             // ask only responsible node for connection details
             // if case of sharded database it points to responsible orchestrator
             const details = await tasksService.getSubscriptionConnectionDetails(
-                db.name,
+                db?.name,
                 taskId,
                 taskName,
                 targetNode.ResponsibleNode.NodeTag
@@ -322,7 +383,7 @@ export function OngoingTasksPage({ isAiOnly = false }: OngoingTasksPageProps) {
     };
 
     const dropSubscription = async (taskId: number, taskName: string, nodeTag: string, workerId: string) => {
-        await tasksService.dropSubscription(db.name, taskId, taskName, nodeTag, workerId);
+        await tasksService.dropSubscription(db?.name, taskId, taskName, nodeTag, workerId);
     };
 
     const { onTaskOperation, operationConfirm, cancelOperationConfirm, isTogglingState, isDeleting } =
@@ -460,8 +521,9 @@ export function OngoingTasksPage({ isAiOnly = false }: OngoingTasksPageProps) {
                                         {...sharedPanelProps}
                                         key={taskKey(x.shared)}
                                         data={x}
-                                        onToggleDetails={startTrackingEtlProgress}
                                         showItemPreview={showItemPreview}
+                                        etlStats={flatEtlStats}
+                                        etlErrors={flatEtlErrors}
                                     />
                                 ))}
                                 {embeddingsGenerations.map((x) => (
@@ -469,8 +531,9 @@ export function OngoingTasksPage({ isAiOnly = false }: OngoingTasksPageProps) {
                                         {...sharedPanelProps}
                                         key={taskKey(x.shared)}
                                         data={x}
-                                        onToggleDetails={startTrackingEtlProgress}
                                         showItemPreview={showItemPreview}
+                                        etlStats={flatEtlStats}
+                                        etlErrors={flatEtlErrors}
                                     />
                                 ))}
                             </div>
@@ -599,7 +662,8 @@ export function OngoingTasksPage({ isAiOnly = false }: OngoingTasksPageProps) {
                                                 {...sharedPanelProps}
                                                 key={taskKey(x.shared)}
                                                 data={x}
-                                                onToggleDetails={startTrackingEtlProgress}
+                                                etlStats={flatEtlStats}
+                                                etlErrors={flatEtlErrors}
                                                 showItemPreview={showItemPreview}
                                             />
                                         ))}
@@ -608,7 +672,8 @@ export function OngoingTasksPage({ isAiOnly = false }: OngoingTasksPageProps) {
                                                 {...sharedPanelProps}
                                                 key={taskKey(x.shared)}
                                                 data={x}
-                                                onToggleDetails={startTrackingEtlProgress}
+                                                etlStats={flatEtlStats}
+                                                etlErrors={flatEtlErrors}
                                                 showItemPreview={showItemPreview}
                                             />
                                         ))}
@@ -617,7 +682,8 @@ export function OngoingTasksPage({ isAiOnly = false }: OngoingTasksPageProps) {
                                                 {...sharedPanelProps}
                                                 key={taskKey(x.shared)}
                                                 data={x}
-                                                onToggleDetails={startTrackingEtlProgress}
+                                                etlStats={flatEtlStats}
+                                                etlErrors={flatEtlErrors}
                                                 showItemPreview={showItemPreview}
                                             />
                                         ))}
@@ -626,7 +692,8 @@ export function OngoingTasksPage({ isAiOnly = false }: OngoingTasksPageProps) {
                                                 {...sharedPanelProps}
                                                 key={taskKey(x.shared)}
                                                 data={x}
-                                                onToggleDetails={startTrackingEtlProgress}
+                                                etlStats={flatEtlStats}
+                                                etlErrors={flatEtlErrors}
                                                 showItemPreview={showItemPreview}
                                             />
                                         ))}
@@ -635,7 +702,8 @@ export function OngoingTasksPage({ isAiOnly = false }: OngoingTasksPageProps) {
                                                 {...sharedPanelProps}
                                                 key={taskKey(x.shared)}
                                                 data={x}
-                                                onToggleDetails={startTrackingEtlProgress}
+                                                etlStats={flatEtlStats}
+                                                etlErrors={flatEtlErrors}
                                                 showItemPreview={showItemPreview}
                                             />
                                         ))}
@@ -644,7 +712,8 @@ export function OngoingTasksPage({ isAiOnly = false }: OngoingTasksPageProps) {
                                                 {...sharedPanelProps}
                                                 key={taskKey(x.shared)}
                                                 data={x}
-                                                onToggleDetails={startTrackingEtlProgress}
+                                                etlStats={flatEtlStats}
+                                                etlErrors={flatEtlErrors}
                                                 showItemPreview={showItemPreview}
                                             />
                                         ))}
@@ -653,7 +722,8 @@ export function OngoingTasksPage({ isAiOnly = false }: OngoingTasksPageProps) {
                                                 {...sharedPanelProps}
                                                 key={taskKey(x.shared)}
                                                 data={x}
-                                                onToggleDetails={startTrackingEtlProgress}
+                                                etlStats={flatEtlStats}
+                                                etlErrors={flatEtlErrors}
                                                 showItemPreview={showItemPreview}
                                             />
                                         ))}
@@ -662,7 +732,8 @@ export function OngoingTasksPage({ isAiOnly = false }: OngoingTasksPageProps) {
                                                 {...sharedPanelProps}
                                                 key={taskKey(x.shared)}
                                                 data={x}
-                                                onToggleDetails={startTrackingEtlProgress}
+                                                etlStats={flatEtlStats}
+                                                etlErrors={flatEtlErrors}
                                                 showItemPreview={showItemPreview}
                                             />
                                         ))}
@@ -671,7 +742,8 @@ export function OngoingTasksPage({ isAiOnly = false }: OngoingTasksPageProps) {
                                                 {...sharedPanelProps}
                                                 key={taskKey(x.shared)}
                                                 data={x}
-                                                onToggleDetails={startTrackingEtlProgress}
+                                                etlStats={flatEtlStats}
+                                                etlErrors={flatEtlErrors}
                                                 showItemPreview={showItemPreview}
                                             />
                                         ))}
@@ -689,6 +761,13 @@ export function OngoingTasksPage({ isAiOnly = false }: OngoingTasksPageProps) {
                                         ))}
                                         {rabbitMqSinks.map((x) => (
                                             <RabbitMqSinkPanel {...sharedPanelProps} key={taskKey(x.shared)} data={x} />
+                                        ))}
+                                        {azureServiceBusSinks.map((x) => (
+                                            <AzureServiceBusSinkPanel
+                                                {...sharedPanelProps}
+                                                key={taskKey(x.shared)}
+                                                data={x}
+                                            />
                                         ))}
                                     </div>
                                 )}
@@ -730,7 +809,9 @@ function filterOngoingTask(sharedInfo: OngoingTaskSharedInfo, filter: OngoingTas
 
     const isSinkTypeMatching =
         filter.types.includes("Sink") &&
-        (sharedInfo.taskType === "KafkaQueueSink" || sharedInfo.taskType === "RabbitQueueSink");
+        (sharedInfo.taskType === "KafkaQueueSink" ||
+            sharedInfo.taskType === "RabbitQueueSink" ||
+            sharedInfo.taskType === "AzureServiceBusQueueSink");
 
     const isBackupTypeMatching = filter.types.includes("Backup") && sharedInfo.taskType === "Backup";
 
@@ -784,6 +865,9 @@ function getFilteredTasks(state: OngoingTasksState, filter: OngoingTasksFilterCr
         rabbitMqSinks: filteredTasks.filter(
             (x) => x.shared.taskType === "RabbitQueueSink"
         ) as OngoingTaskRabbitMqSinkInfo[],
+        azureServiceBusSinks: filteredTasks.filter(
+            (x) => x.shared.taskType === "AzureServiceBusQueueSink"
+        ) as OngoingTaskAzureServiceBusSinkInfo[],
         elasticSearchEtls: filteredTasks.filter(
             (x) => x.shared.taskType === "ElasticSearchEtl"
         ) as OngoingTaskElasticSearchEtlInfo[],

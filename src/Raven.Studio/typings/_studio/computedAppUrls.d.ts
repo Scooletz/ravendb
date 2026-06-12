@@ -39,6 +39,7 @@ interface computedAppUrls {
     editAmazonSqsEtl: (taskId?: number, taskName?: string) => KnockoutComputed<string>;
     editKafkaSink: (taskId?: number, taskName?: string) => KnockoutComputed<string>;
     editRabbitMqSink: (taskId?: number, taskName?: string) => KnockoutComputed<string>;
+    editAzureServiceBusSink: (taskId?: number, taskName?: string) => KnockoutComputed<string>;
     editEmbeddingsGeneration: (taskId?: number, taskName?: string) => KnockoutComputed<string>;
     editGenAi: (taskId?: number, taskName?: string) => KnockoutComputed<string>;
     query: (indexName?: string) => KnockoutComputed<string>;
@@ -68,6 +69,7 @@ interface computedAppUrls {
     editAmazonSqsEtlTaskUrl: KnockoutComputed<string>;
     editKafkaSinkTaskUrl: KnockoutComputed<string>;
     editRabbitMqSinkTaskUrl: KnockoutComputed<string>;
+    editAzureServiceBusSinkTaskUrl: KnockoutComputed<string>;
     editEmbeddingsGenerationTaskUrl: KnockoutComputed<string>;
     editGenAiTaskUrl: KnockoutComputed<string>;
     csvImportUrl: KnockoutComputed<string>;
@@ -99,6 +101,7 @@ interface computedAppUrls {
     conflictResolution: KnockoutComputed<string>;
     revisionsBinCleaner: KnockoutComputed<string>;
     remoteAttachments: KnockoutComputed<string>;
+    tasksError: KnockoutComputed<string>;
 
     about: KnockoutComputed<string>;
     whatsNew: KnockoutComputed<string>;
@@ -119,4 +122,5 @@ interface computedAppUrls {
     chatAiAgent: (id: string) => KnockoutComputed<string>;
     aiTasks: KnockoutComputed<string>;
     aiTasksStats: KnockoutComputed<string>;
+    aiTasksErrors: KnockoutComputed<string>;
 }

@@ -89,7 +89,7 @@ namespace Raven.Server.Documents
         private static readonly Slice GlobalFullChangeVectorSlice;
         private readonly Action<LogLevel, string> _addToInitLog;
 
-        private readonly RavenLogger _logger;
+        protected readonly RavenLogger _logger;
         private readonly string _name;
 
         private static readonly Slice FixCountersLastKeySlice;
@@ -650,6 +650,16 @@ namespace Raven.Server.Documents
             var tree = context.Transaction.InnerTransaction.CreateTree(GlobalTreeSlice);
             using (Slice.External(context.Allocator, (byte*)&index, sizeof(long), out Slice indexSlice))
                 tree.Add(LastCompletedClusterTransactionIndexSlice, indexSlice);
+        }
+
+        public void ResetLastCompletedClusterTransactionIndex()
+        {
+            using (ContextPool.AllocateOperationContext(out DocumentsOperationContext context))
+            using (var tx = context.OpenWriteTransaction())
+            {
+                SetLastCompletedClusterTransactionIndex(context, 0);
+                tx.Commit();
+            }
         }
 
         public static string ReadLastFixedCounterKey(Transaction tx)
