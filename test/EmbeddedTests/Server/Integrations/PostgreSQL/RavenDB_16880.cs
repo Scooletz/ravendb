@@ -474,7 +474,7 @@ namespace EmbeddedTests.Server.Integrations.PostgreSQL
         // only the leading fragment (unbalanced braces, no FROM) reaches the server. That fragment must
         // be REJECTED with an error that echoes the offending declare-function text — never silently
         // mis-run. (The friendly "remove the semicolons" guidance is pinned by the diagnoser unit test,
-        // UnhandledQueryDiagnoserTests.JsBodyFragment_FromPowerBiSemicolonSplit_PointsAtAsiWorkaround;
+        // UnhandledQueryDiagnoserTests.JsBodyFragment_FromPowerBiSemicolonSplit_SuggestsRemovingSemicolons;
         // whether that exact wording reaches the wire depends on the client's query protocol/version.)
         // Sending the fragment directly keeps this robust across Npgsql versions (no ';' to re-split).
         [Fact]

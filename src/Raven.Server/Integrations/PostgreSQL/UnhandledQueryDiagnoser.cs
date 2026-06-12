@@ -25,8 +25,8 @@ namespace Raven.Server.Integrations.PostgreSQL
             // before sending. For RQL with a `declare function {...; ...}` body, the JS-body
             // semicolons cause it to send only the first fragment — text that begins with
             // `declare function` and has unbalanced `{`. The fragment fails to parse as either
-            // SQL or RQL, and the generic "Unhandled query" message doesn't tell the user the
-            // ASI workaround. Catch it first, before the parser-based checks, since the
+            // SQL or RQL, and the generic "Unhandled query" message doesn't tell the user to
+            // remove the semicolons. Catch it first, before the parser-based checks, since the
             // fragment fails to parse.
             if (LooksLikeJsBodyFragment(queryText))
             {

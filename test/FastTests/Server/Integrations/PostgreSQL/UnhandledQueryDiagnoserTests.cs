@@ -4,11 +4,7 @@ using Xunit;
 
 namespace FastTests.Server.Integrations.PostgreSQL
 {
-    // Pins the targeted "why is this unsupported" messages we surface for the two largest known
-    // limitations (SQL JOIN over user collections; scalar aggregate without GROUP BY). The string
-    // wording is part of the user-facing contract — generic message rewrites that lose the
-    // workaround hint regress here loudly. Everything else falls through to the legacy
-    // "Unhandled query" path and TryDiagnose returns false.
+    // Pins UnhandledQueryDiagnoser's per-shape "why unsupported" messages and the shapes it must not flag.
     public sealed class UnhandledQueryDiagnoserTests(ITestOutputHelper output) : NoDisposalNeeded(output)
     {
         [RavenFact(RavenTestCategory.PostgreSql)]
@@ -39,11 +35,8 @@ namespace FastTests.Server.Integrations.PostgreSQL
             Assert.True(UnhandledQueryDiagnoser.TryDiagnose(sql, out _));
         }
 
-        // PowerBI's standard wrap shape: `SELECT * FROM (USER_SQL) "_" LIMIT N`. When USER_SQL
-        // contains a JOIN, the outer FromClause is a RangeSubselect — the JoinExpr lives one
-        // level deep. Diagnoser must descend into RangeSubselect.Subquery to find it; otherwise
-        // PowerBI users see the generic `Unhandled query` SQL dump instead of the actionable
-        // load/include hint.
+        // PowerBI wraps the user's SQL as `SELECT * FROM (USER_SQL) "_" LIMIT N`, so a JOIN ends up
+        // nested inside the wrapper — the diagnoser has to look inside it to still detect the JOIN.
         [RavenFact(RavenTestCategory.PostgreSql)]
         public void Join_InsidePowerBiWrapper_IsDetected()
         {
@@ -138,10 +131,6 @@ namespace FastTests.Server.Integrations.PostgreSQL
             Assert.False(UnhandledQueryDiagnoser.TryDiagnose(sql, out _));
         }
 
-        // Plain SELECT with no aggregates and no joins must fall through to the generic path —
-        // the diagnoser must NOT eat a query someone else might be able to handle. (In practice
-        // the diagnoser only runs AFTER every TryParse arm has returned false, so this case
-        // never reaches it in production — but the unit test pins the negative behavior anyway.)
         [RavenFact(RavenTestCategory.PostgreSql)]
         public void PlainSelect_NoClassification()
         {
@@ -169,10 +158,10 @@ namespace FastTests.Server.Integrations.PostgreSQL
 
         // PowerBI's PostgreSQL connector splits the M `Query=` value on `;` client-side, so an
         // RQL `declare function {...; ...}` arrives as just the first piece — unbalanced braces,
-        // unparseable. Diagnoser must catch this and point at the ASI workaround instead of
+        // unparseable. Diagnoser must catch this and tell the user to remove the semicolons instead of
         // dumping the fragment with a generic "Unhandled query".
         [RavenFact(RavenTestCategory.PostgreSql)]
-        public void JsBodyFragment_FromPowerBiSemicolonSplit_PointsAtAsiWorkaround()
+        public void JsBodyFragment_FromPowerBiSemicolonSplit_SuggestsRemovingSemicolons()
         {
             const string fragment = "declare function output(usage) { var r = usage.ModelLog.Response.filter(y => y.Id == usage.ModelId)";
 

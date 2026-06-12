@@ -239,10 +239,7 @@ namespace FastTests.Server.Integrations.PostgreSQL
             Assert.Contains("from 'Usages'", parts[0]);
         }
 
-        // Semicolons inside a top-level `{...}` brace block (without enclosing parens) also
-        // must not split. Belt-and-braces alongside the paren-depth tracking — covers the case
-        // where a future client sends `declare function {...} from X` directly without the
-        // PowerBI wrapper but as SQL-shaped input the RQL passthrough doesn't catch.
+        // Brace-depth tracking must also preserve `;` inside a top-level `{...}` block.
         [RavenFact(RavenTestCategory.PostgreSql)]
         public void Semicolons_inside_top_level_brace_block_do_not_split()
         {
