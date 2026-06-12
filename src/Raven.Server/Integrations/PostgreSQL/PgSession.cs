@@ -32,11 +32,9 @@ namespace Raven.Server.Integrations.PostgreSQL
         private readonly ServerStore _serverStore;
         private readonly CancellationToken _token;
         private Dictionary<string, string> _clientOptions;
-        // Tracks the stream currently in effect during the handshake — raw TcpClient stream
-        // up until TLS upgrade, then the SslStream after. Updated from HandleInitialMessage as
-        // upgrades happen so Run()'s outer error-handling catch can write ErrorResponse on the
-        // correct (possibly-encrypted) stream even when HandleInitialMessage throws after the
-        // upgrade. Async methods can't use `ref Stream` parameters, hence the field.
+        // The active handshake stream: the raw TcpClient stream before the TLS upgrade, the SslStream
+        // after. A field so Run()'s error catch can write the
+        // ErrorResponse on the correct stream even if the post-upgrade parse throws.
         private Stream _activeHandshakeStream;
 
         public PgSession(
@@ -132,7 +130,7 @@ namespace Raven.Server.Integrations.PostgreSQL
 
         // We always operate in and report UTF8 (see PgConfig.ParameterStatusList) and cannot transcode.
         // A client may still declare a different client_encoding in its startup packet. We deliberately
-        // accept it rather than reject the connection — pgAdmin / PowerBI / Microsoft Fabric rely on
+        // accept it rather than reject the connection - pgAdmin / PowerBI / Microsoft Fabric rely on
         // connecting, and a spec-compliant client honours the UTF8 we report back in ParameterStatus.
         // We log the mismatch so that, if a client ignores the reported encoding and mis-decodes results,
         // the cause is diagnosable instead of silent.
@@ -159,13 +157,8 @@ namespace Raven.Server.Integrations.PostgreSQL
 
             Stream stream = _client.GetStream();
 
-            // We need a writer that can deliver an ErrorResponse if the initial handshake fails. Without
-            // this wrapper, any exception thrown out of StartupMessage parsing propagates past Run()
-            // and the client sees the socket close with no diagnostic ("server closed the connection
-            // unexpectedly"). The catch writes on whichever stream the handshake was using at the time
-            // of the throw — raw NetworkStream pre-TLS-upgrade, SslStream post-upgrade — which the
-            // helper tracks via _activeHandshakeStream so failures during the post-TLS StartupMessage
-            // parse don't emit plaintext on an established TLS channel.
+            // A writer so a handshake/StartupMessage parse failure sends an ErrorResponse on the
+            // active stream (_activeHandshakeStream), not a bare socket close or plaintext post-TLS.
             try
             {
                 stream = await HandleInitialMessage(stream, messageBuilder);
@@ -180,14 +173,14 @@ namespace Raven.Server.Integrations.PostgreSQL
             }
             catch (OperationCanceledException)
             {
-                // Server shutdown or TCP listener cancelled mid-handshake — nothing to log, no
+                // Server shutdown or TCP listener cancelled mid-handshake - nothing to log, no
                 // useful diagnostic to send (the cancel is ours, not the client's fault).
                 return;
             }
             catch (Exception e) when (e is IOException or EndOfStreamException)
             {
                 // Network failure during handshake (peer closed, timeout, TLS handshake aborted).
-                // The socket is almost certainly unwritable, but log so we have forensics — otherwise
+                // The socket is almost certainly unwritable, but log so we have forensics - otherwise
                 // Run() exits silently and the client sees only a closed socket.
                 if (Logger.IsInfoEnabled)
                     Logger.Info($"Initial handshake aborted: {e.GetType().Name}: {e.Message}.", e);
@@ -195,8 +188,6 @@ namespace Raven.Server.Integrations.PostgreSQL
             }
             catch (Exception e)
             {
-                // Anything else — unexpected internal error. Log and best-effort write a Fatal
-                // ErrorResponse so the client gets SOME diagnostic instead of a bare disconnect.
                 if (Logger.IsInfoEnabled)
                     Logger.Info($"Unexpected internal error during initial handshake.", e);
 
@@ -210,11 +201,8 @@ namespace Raven.Server.Integrations.PostgreSQL
             if (_clientOptions == null)
                 return;
 
-            // Security gate: in secured mode, refuse a plaintext socket before any database
-            // lookup, so credentials are never solicited — and database existence never probed —
-            // over an unencrypted channel. A client that connects without first sending SSLRequest
-            // (Npgsql `SSL Mode=Disable` and similar) lands on the raw NetworkStream; `stream` is
-            // an SslStream only after a negotiated TLS upgrade in HandleInitialMessage.
+            // Security gate: in secured mode, refuse a plaintext (non-TLS) socket before any database
+            // lookup, so credentials and database existence are never probed over an unencrypted channel.
             if (_serverCertificateHolder.ServerCertificate != null && stream is not SslStream)
             {
                 await writer.WriteAsync(messageBuilder.ErrorResponse(
@@ -371,7 +359,7 @@ namespace Raven.Server.Integrations.PostgreSQL
 
         // Best-effort: write a Fatal ErrorResponse on whichever stream the handshake was using
         // when the failure occurred (NetworkStream pre-TLS-upgrade, SslStream post-upgrade). The
-        // socket may already be unwritable, in which case we swallow — at this point we've
+        // socket may already be unwritable, in which case we swallow - at this point we've
         // already logged and there's nothing else to surface.
         private async Task TryWriteHandshakeErrorResponse(Stream stream, MessageBuilder messageBuilder, string errorCode, string message, string detail)
         {
