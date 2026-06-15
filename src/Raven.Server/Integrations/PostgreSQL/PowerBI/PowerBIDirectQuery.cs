@@ -447,12 +447,8 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             if (projectionCols == null || projectionCols.Count == 0)
                 return null;
 
-            // Case A: the projection includes a synthetic id()/json() column. These can't be GROUP BY keys
-            // (id() isn't a stored field; json() is the whole document), so rebuild an explicit object
-            // projection - id() -> id(alias), json() -> the whole document, plain columns -> alias.field -
-            // and skip the grouping. A synthetic column makes each row per-document unique, so there's
-            // nothing to collapse, and PowerBI dedupes client-side; this also yields exactly the projected
-            // column set/order PowerBI expects.
+            // A synthetic id()/json() column can't be a GROUP BY key. Rebuild an explicit object
+            // projection (id() -> id(alias), json() -> the document, plain -> alias.field), no grouping.
             if (projectionCols.Any(PgSyntheticColumns.IsSyntheticColumn))
             {
                 var synthetic = q.ShallowCopy();
@@ -495,11 +491,8 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 return string.IsNullOrWhiteSpace(syntheticRql) ? null : syntheticRql;
             }
 
-            // Case B: an object-projection inner (`select { Name: name(e) }`) filtered by id(). Computed
-            // projection fields can't be GROUP BY keys and id() can't be filtered inside a grouped query,
-            // but an id() filter already pins a precise, small document set - emit the inner projection
-            // directly (PowerBI dedupes client-side). Narrow exception to the "don't drop GROUP BY for
-            // select { ... }" rule below: only id()-filtered inners, which can't return unbounded rows.
+            // id()-filtered object-projection inner: can't be grouped, but the id() filter already pins a
+            // precise set - emit the inner projection as-is (PowerBI dedupes).
             if (q.SelectFunctionBody.FunctionText != null && WhereReferencesDocumentId(q.Where))
             {
                 var passthrough = q.ShallowCopy();
