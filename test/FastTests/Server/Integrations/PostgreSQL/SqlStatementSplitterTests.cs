@@ -91,6 +91,15 @@ namespace FastTests.Server.Integrations.PostgreSQL
         }
 
         [RavenFact(RavenTestCategory.PostgreSql)]
+        public void Semicolon_inside_nested_block_comment_is_not_a_separator()
+        {
+            // PG block comments nest: the inner */ closes only the inner comment, so the ; stays
+            // inside the still-open outer comment and must not split.
+            var parts = SqlStatementSplitter.Split("SELECT /* outer /* inner */ still;here */ 1");
+            Assert.Single(parts);
+        }
+
+        [RavenFact(RavenTestCategory.PostgreSql)]
         public void Escaped_single_quote_inside_string_does_not_close_the_literal()
         {
             // PG escapes a single quote inside a string by doubling it: 'it''s'.
@@ -107,6 +116,15 @@ namespace FastTests.Server.Integrations.PostgreSQL
             Assert.Equal(2, parts.Count);
             Assert.Equal("SELECT $tag$a;b;c$tag$", parts[0]);
             Assert.Equal("SELECT 2", parts[1]);
+        }
+
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void Digit_first_dollar_tag_is_not_a_dollar_quote()
+        {
+            // $1 is a positional parameter, not a dollar-quote tag (tags follow identifier rules and
+            // can't start with a digit), so $1$ doesn't open a quote and the ; inside is a separator.
+            var parts = SqlStatementSplitter.Split("SELECT $1$a;b$1$");
+            Assert.Equal(2, parts.Count);
         }
 
         [RavenFact(RavenTestCategory.PostgreSql)]

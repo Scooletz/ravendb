@@ -43,13 +43,31 @@ namespace Raven.Server.Integrations.PostgreSQL
                     continue;
                 }
 
-                // Block comment: /* ... */ (nesting not handled; clients don't emit nested ones).
+                // Block comment: /* ... */, PG-style nestable (/* a /* b */ c */).
                 if (c == '/' && i + 1 < sql.Length && sql[i + 1] == '*')
                 {
                     i += 2;
-                    while (i + 1 < sql.Length && !(sql[i] == '*' && sql[i + 1] == '/'))
-                        i++;
-                    i = Math.Min(i + 2, sql.Length);
+                    int depth = 1;
+                    while (i + 1 < sql.Length && depth > 0)
+                    {
+                        if (sql[i] == '/' && sql[i + 1] == '*')
+                        {
+                            depth++;
+                            i += 2;
+                        }
+                        else if (sql[i] == '*' && sql[i + 1] == '/')
+                        {
+                            depth--;
+                            i += 2;
+                        }
+                        else
+                        {
+                            i++;
+                        }
+                    }
+                    // Unterminated comment: consume the rest (fail-closed).
+                    if (depth > 0)
+                        i = sql.Length;
                     continue;
                 }
 
@@ -104,28 +122,35 @@ namespace Raven.Server.Integrations.PostgreSQL
                     continue;
                 }
 
-                // Dollar-quoted string: $tag$ ... $tag$ (tag may be empty: $$...$$).
+                // Dollar-quoted string: $tag$ ... $tag$ (tag may be empty: $$...$$). The tag follows
+                // identifier rules - empty or letter/underscore first; a digit-first $N (e.g. $1) is a
+                // positional parameter, not a dollar-quote opener.
                 if (c == '$')
                 {
                     int tagEnd = i + 1;
-                    while (tagEnd < sql.Length && sql[tagEnd] != '$')
+                    bool canOpen = tagEnd < sql.Length &&
+                                   (sql[tagEnd] == '$' || char.IsLetter(sql[tagEnd]) || sql[tagEnd] == '_');
+                    if (canOpen)
                     {
-                        var ch = sql[tagEnd];
-                        if (char.IsLetterOrDigit(ch) || ch == '_')
+                        while (tagEnd < sql.Length && sql[tagEnd] != '$')
                         {
-                            tagEnd++;
-                            continue;
+                            var ch = sql[tagEnd];
+                            if (char.IsLetterOrDigit(ch) || ch == '_')
+                            {
+                                tagEnd++;
+                                continue;
+                            }
+                            break;
                         }
-                        break;
-                    }
-                    if (tagEnd < sql.Length && sql[tagEnd] == '$')
-                    {
-                        var tag = sql.Substring(i, tagEnd - i + 1);
-                        int close = sql.IndexOf(tag, tagEnd + 1, StringComparison.Ordinal);
-                        if (close > 0)
+                        if (tagEnd < sql.Length && sql[tagEnd] == '$')
                         {
-                            i = close + tag.Length;
-                            continue;
+                            var tag = sql.Substring(i, tagEnd - i + 1);
+                            int close = sql.IndexOf(tag, tagEnd + 1, StringComparison.Ordinal);
+                            if (close > 0)
+                            {
+                                i = close + tag.Length;
+                                continue;
+                            }
                         }
                     }
                     i++;
