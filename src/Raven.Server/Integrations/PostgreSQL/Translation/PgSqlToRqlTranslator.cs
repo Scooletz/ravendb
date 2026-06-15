@@ -785,7 +785,18 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
                 // doubles as the alias (matches existing single-arg SelectFields semantics where
                 // Fields[i] == Projections[i] and FieldsToFetchToken skips the `as` clause).
                 var alias = resTarget.Name;
-                projectionAliases.Add(string.IsNullOrWhiteSpace(alias) ? fieldName : alias);
+                if (string.IsNullOrWhiteSpace(alias))
+                {
+                    projectionAliases.Add(fieldName);
+                }
+                else
+                {
+                    // Explicit alias is interpolated verbatim into RQL `as <alias>` - reject non-identifiers.
+                    // PowerBI aliases columns to the synthetic id()/json() names, which are known tokens.
+                    if (IsSafeRqlIdentifier(alias) == false && PgSyntheticColumns.IsSyntheticColumn(alias) == false)
+                        throw new NotSupportedException("Unsupported SELECT alias");
+                    projectionAliases.Add(alias);
+                }
             }
 
             return (projectionFields.ToArray(), projectionAliases.ToArray());
@@ -1090,7 +1101,17 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
                 q.CloseSubclause();
         }
 
-        private static string JoinPath(IReadOnlyList<string> fieldPath) => string.Join('.', fieldPath);
+        private static string JoinPath(IReadOnlyList<string> fieldPath)
+        {
+            var joined = string.Join('.', fieldPath);
+
+            // Same guard as ExtractFieldName: reject SQL-derived names that aren't plain identifiers
+            // before they're spliced into RQL text; synthetic id()/json() are known RQL tokens.
+            if (PgSyntheticColumns.IsSyntheticColumn(joined) == false && IsSafeRqlFieldPath(joined) == false)
+                throw new NotSupportedException("Unsupported field name in WHERE clause");
+
+            return joined;
+        }
 
         // Literals pass through as-is; a $N placeholder becomes a PgBoundParameterReference marker
         // (see that record for how it survives to become an RQL parameter reference).
@@ -1224,11 +1245,32 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
                             throw new NotSupportedException("Unsupported field reference");
                         parts[i] = s;
                     }
-                    return StripAliasPrefix(string.Join('.', parts), fromAlias);
+
+                    var joined = StripAliasPrefix(string.Join('.', parts), fromAlias);
+
+                    // SQL-derived names are interpolated verbatim into RQL text (no RQL quoting on this
+                    // path), so reject anything that isn't a plain dotted identifier rather than splice
+                    // it in. Synthetic id()/json() are known RQL tokens the caller maps explicitly.
+                    if (PgSyntheticColumns.IsSyntheticColumn(joined) == false && IsSafeRqlFieldPath(joined) == false)
+                        throw new NotSupportedException("Unsupported field name");
+
+                    return joined;
                 }
             }
 
             return null;
+        }
+
+        // Every dot-separated segment must be a plain RQL identifier (nested paths like a.b.c are fine).
+        private static bool IsSafeRqlFieldPath(string path)
+        {
+            foreach (var segment in path.Split('.'))
+            {
+                if (IsSafeRqlIdentifier(segment) == false)
+                    return false;
+            }
+
+            return true;
         }
 
         private static string StripAliasPrefix(string field, string fromAlias)

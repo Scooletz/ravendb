@@ -281,6 +281,24 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
             Assert.False(Raven.Server.Integrations.PostgreSQL.Translation.PgSqlToRqlTranslator.TryParse(sql, Array.Empty<int>(), out _));
         }
 
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void Injection_via_quoted_field_name_in_where_is_rejected()
+        {
+            // A double-quoted SQL identifier can carry arbitrary characters; it must never be spliced
+            // verbatim into RQL. Reject (fall through to the diagnoser) instead of emitting injected RQL.
+            var sql = "SELECT * FROM users WHERE \"x = 1 OR y\" = 'z'";
+
+            Assert.False(Raven.Server.Integrations.PostgreSQL.Translation.PgSqlToRqlTranslator.TryParse(sql, Array.Empty<int>(), out _));
+        }
+
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void Injection_via_quoted_select_alias_is_rejected()
+        {
+            var sql = "SELECT name AS \"a b\" FROM users";
+
+            Assert.False(Raven.Server.Integrations.PostgreSQL.Translation.PgSqlToRqlTranslator.TryParse(sql, Array.Empty<int>(), out _));
+        }
+
         // PowerBI's row-preview queries decorate the projection with constant markers (e.g.
         // `1 as "c0"`) to count back a fixed shape. The translator must forward the literal and
         // its alias - dropping the column gives PowerBI a "Field count mismatch" error.
