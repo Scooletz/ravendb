@@ -73,6 +73,13 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             if (wrapper.GroupByColumns is not { Count: > 0 })
                 return false;
 
+            // Aggregate visuals (avg/min/max, or the sum/count shapes the grouped-aggregate path
+            // already rejected) must not be treated as a tuple-distinct projection: the aggregate
+            // output alias would be grouped/selected as a document field, yielding empty/garbage.
+            // Reject so they fall through to the diagnoser.
+            if (wrapper.Aggregates is { Count: > 0 })
+                return false;
+
             var limit = wrapper.Limit ?? DefaultDirectQueryLimit;
             shape = new DirectQueryShape(wrapper.OuterProjectedColumns, limit);
             return true;

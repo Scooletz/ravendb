@@ -99,8 +99,11 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
 
                     foreach (var iw in wrapper.IntermediateWheres)
                     {
+                        if (IsAggregateOutputNullGuard(iw.WhereClause, aggregateOutputNames))
+                            continue; // redundant post-grouping null-guard - RQL's GROUP BY gives it implicitly
+
                         if (WhereClauseReferencesAnyColumn(iw.WhereClause, aggregateOutputNames))
-                            continue;
+                            return false; // real measure filter on an aggregate output - can't express post-grouping; fall through
 
                         if (PowerBIOuterWhereTranslator.TryTranslateWhere(iw.WhereClause, iw.WrapperAlias, iq.From.Alias, out var whereExpression) == false)
                             return false;
@@ -253,12 +256,41 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
         private static FieldExpression MakeFieldExpression(string name)
             => new(new List<StringSegment> { new(name) });
 
-        // Detects intermediate WHEREs that reference aggregate-output aliases (post-grouping
-        // null guards that RQL handles implicitly). Recursion must reach inside FuncCall,
-        // CaseExpr, and CoalesceExpr - PowerBI wraps the alias in `coalesce(a0, 0) > 0`,
-        // `CASE WHEN a0 IS NULL THEN 0 ELSE 1 END`, etc. Missing those produces RQL like
-        // `WHERE a0 IS NOT NULL` that the inner query rejects (a0 isn't a field of the
-        // source collection, only an output alias of the aggregation).
+        // True only for a structural null-guard on an aggregate-output alias: `<alias> IS NOT NULL`
+        // or `NOT (<alias> IS NULL)`. PowerBI emits these as post-grouping guards that RQL's GROUP BY
+        // gives implicitly, so dropping them is safe. Any OTHER alias-referencing clause (e.g.
+        // `a0 > 100`, `coalesce(a0,0) > 0`) is a real measure filter and must NOT be dropped.
+        internal static bool IsAggregateOutputNullGuard(Node node, HashSet<string> aggregateOutputNames)
+        {
+            if (node == null || aggregateOutputNames is not { Count: > 0 })
+                return false;
+
+            ColumnRef colRef;
+            if (node.NullTest is { Nulltesttype: NullTestType.IsNotNull } nt)
+            {
+                colRef = nt.Arg?.ColumnRef;
+            }
+            else if (node.BoolExpr is { Boolop: BoolExprType.NotExpr, Args: { Count: 1 } } be
+                     && be.Args[0]?.NullTest is { Nulltesttype: NullTestType.IsNull } innerNt)
+            {
+                colRef = innerNt.Arg?.ColumnRef;
+            }
+            else
+            {
+                return false;
+            }
+
+            if (colRef?.Fields is not { Count: > 0 } fields)
+                return false;
+
+            var last = fields[^1]?.String?.Sval;
+            return last != null && aggregateOutputNames.Contains(last);
+        }
+
+        // True if the clause references any aggregate-output alias anywhere (inside FuncCall, CaseExpr,
+        // CoalesceExpr, etc. - PowerBI wraps the alias in `coalesce(a0,0) > 0`, `CASE WHEN a0 ...`).
+        // Callers use it to fall through on a real measure filter; pure null-guards on the alias are
+        // detected by IsAggregateOutputNullGuard and dropped instead.
         internal static bool WhereClauseReferencesAnyColumn(Node node, HashSet<string> columnNames)
         {
             if (node == null || columnNames is not { Count: > 0 })

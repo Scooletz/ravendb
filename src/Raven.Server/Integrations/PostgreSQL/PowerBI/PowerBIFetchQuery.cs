@@ -118,8 +118,11 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 {
                     foreach (var (whereClause, wrapperAlias) in deferredWheres)
                     {
+                        if (PowerBIDirectQuery.IsAggregateOutputNullGuard(whereClause, aggregateOutputAliases))
+                            continue; // redundant post-grouping null-guard - RQL's GROUP BY gives it implicitly
+
                         if (PowerBIDirectQuery.WhereClauseReferencesAnyColumn(whereClause, aggregateOutputAliases))
-                            continue;
+                            return false; // real measure filter on an aggregate output - can't express post-grouping; fall through
 
                         if (PowerBIOuterWhereTranslator.TryTranslateWhere(whereClause, wrapperAlias, query.From.Alias, out var whereExpression) == false)
                             return false;
