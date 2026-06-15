@@ -9,7 +9,9 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog.Tables
     internal abstract class CsvBackedCatalogTable : PgVirtualTable
     {
         private readonly object _gate = new();
-        private List<object[]> _rows;
+        // volatile: the lock-free fast path reads _rows outside the lock, so the reference must not
+        // publish before the list contents are visible (matters on weak memory models like ARM64).
+        private volatile List<object[]> _rows;
 
         protected abstract string CsvFileName { get; }
 
