@@ -216,10 +216,22 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 foreach (var t in innerSelect.TargetList)
                 {
                     var resTarget = t?.ResTarget;
-                    if (resTarget?.Val?.FuncCall == null)
+                    var funcCall = resTarget?.Val?.FuncCall;
+                    if (funcCall == null)
                         continue;
                     if (string.IsNullOrWhiteSpace(resTarget.Name))
                         continue;
+
+                    // Only real aggregates produce a post-grouping output alias. A scalar-function
+                    // alias (e.g. `lower(Name) as ln`) must NOT be treated as one - otherwise its
+                    // ORDER BY term gets an `as double` cast (garbage on text) and its WHERE is
+                    // misclassified as a measure filter.
+                    var funcName = funcCall.Funcname is { Count: > 0 }
+                        ? funcCall.Funcname[funcCall.Funcname.Count - 1]?.String?.Sval
+                        : null;
+                    if (IsAggregateFunctionName(funcName) == false)
+                        continue;
+
                     aliases.Add(resTarget.Name);
                 }
             }
@@ -232,6 +244,13 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
 
             return aliases;
         }
+
+        private static bool IsAggregateFunctionName(string name) =>
+            string.Equals(name, "sum", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(name, "count", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(name, "avg", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(name, "min", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(name, "max", StringComparison.OrdinalIgnoreCase);
 
         // Applies the outermost SQL ORDER BY to the resolved RQL query. Each `_`-qualified sort
         // column maps to the query's projected output name: aggregate-output aliases are tagged
