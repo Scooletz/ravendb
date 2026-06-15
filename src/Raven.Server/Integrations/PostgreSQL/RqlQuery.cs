@@ -96,12 +96,8 @@ namespace Raven.Server.Integrations.PostgreSQL
             return documentQueryResult.Results;
         }
 
-        // The IndexQueryServerSide(string, ...) constructor populates Metadata.Query but does NOT
-        // carry the parsed LIMIT / OFFSET through to PageSize / Start - only the JSON-body Create()
-        // path does. A SQL to RQL translation like `from 'Orders' select ... limit 0, 5` would
-        // otherwise stream with the default PageSize = int.MaxValue. Apply the embedded bounds here
-        // so the RQL's own LIMIT is honored, while an explicit _limit (PowerBI outer-wrapper limit,
-        // schema-gen probes) wins above this.
+        // IndexQueryServerSide(string, ...) doesn't carry the parsed LIMIT/OFFSET into PageSize/Start
+        // (only the JSON-body Create() path does), so apply the embedded bounds here.
         private void ApplyEmbeddedLimits(IndexQueryServerSide indexQuery)
         {
             if (indexQuery.Metadata.Query.Limit != null)
@@ -163,10 +159,8 @@ namespace Raven.Server.Integrations.PostgreSQL
             // Assign them null type (PgJson.Default) at the start.
             foreach (var property in uncheckedTypePropertiesNames.ToArray())
             {
-                // RQL returns the document identifier as a property literally named `id()`.
-                // The synthetic `id` column was already prepended; skip the duplicate or we'd
-                // report N+1 columns where information_schema.columns reports N, and PowerBI's
-                // mashup engine crashes in PK reconciliation.
+                // RQL surfaces the document id as a property named `id()`; the synthetic `id` column was
+                // already prepended, so skip the duplicate (a column-count mismatch crashes PowerBI).
                 if (PgSyntheticColumns.IsDocumentIdColumn(property)
                     && Columns.ContainsKey(PgSyntheticColumns.DocumentId))
                 {
@@ -264,9 +258,8 @@ namespace Raven.Server.Integrations.PostgreSQL
             }
             catch (Exception e) when (e is InvalidQueryException or QueryParser.ParseException)
             {
-                // Input is not valid RQL - leave it for the next dispatch arm (PowerBI / hardcoded /
-                // SQL to RQL translator). Any other exception type (OOM, stack overflow, ...) is a real
-                // failure and must propagate rather than be silently reclassified as "not RQL".
+                // Input is not valid RQL - leave it for the next dispatch arm (PowerBI / virtual catalog /
+                // SQL to RQL translator). Any other exception is a real failure and must propagate.
                 if (Logger.IsDebugEnabled)
                     Logger.Debug($"{nameof(RqlQuery)}.{nameof(TryParse)} rejected query as non-RQL: {e.Message}");
                 rqlQuery = null;
