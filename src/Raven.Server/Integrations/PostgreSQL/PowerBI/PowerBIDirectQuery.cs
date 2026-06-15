@@ -116,6 +116,22 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
 
                 if (PowerBIShapeClassifier.TryBuildGroupedAggregateShape(wrapper, out var aggregateShape))
                 {
+                    // A grouped RQL WHERE is post-reduction (HAVING): it may reference only group-by keys.
+                    // If the merged WHERE (inner query + wrapper filters) touches any other field, the
+                    // shape can't be expressed - fall through to the diagnoser rather than emit RQL the
+                    // engine rejects with a raw error.
+                    if (inner.ResolvedQuery.Where != null)
+                    {
+                        var groupKeys = new HashSet<string>(aggregateShape.GroupByFields, StringComparer.OrdinalIgnoreCase);
+                        var whereFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                        CollectFieldNames(inner.ResolvedQuery.Where, whereFields, inner.ResolvedQuery.From.Alias?.Value);
+                        foreach (var f in whereFields)
+                        {
+                            if (groupKeys.Contains(f) == false)
+                                return false;
+                        }
+                    }
+
                     string rewritten;
                     try
                     {

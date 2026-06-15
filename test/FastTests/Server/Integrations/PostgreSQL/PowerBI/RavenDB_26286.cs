@@ -372,6 +372,8 @@ limit 501";
         [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void DirectQuery_GroupedAggregate_InnerSql_SumWithWhereAndGroupBy_TranslatesToRql()
         {
+            // WHERE is on the group key (Company); a grouped RQL WHERE is post-reduction (HAVING) and
+            // may reference only group-by keys.
             const string sql =
                 @"select ""_"".""Company"", ""_"".""a0""
 from
@@ -381,7 +383,7 @@ from
     (
         select ""Company"", ""Freight""
         from ""public"".""Orders""
-        where ""Status"" = 'Pending'
+        where ""Company"" = 'Companies/1-A'
     ) ""rows""
     group by ""Company""
 ) ""_""
@@ -395,7 +397,7 @@ limit 1000001";
             var queryString = GetQueryString(pgQuery);
             Assert.NotNull(queryString);
             Assert.Contains("Orders", queryString, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("Pending", queryString, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("Companies/1-A", queryString, StringComparison.OrdinalIgnoreCase);
             Assert.Contains("sum", queryString, StringComparison.OrdinalIgnoreCase);
             Assert.Contains("Company", queryString, StringComparison.OrdinalIgnoreCase);
         }
@@ -403,7 +405,7 @@ limit 1000001";
         [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void DirectQuery_GroupedAggregate_InnerSql_MultiKeyGroupBy_TranslatesToRql()
         {
-            // SUM with two group-by fields.
+            // SUM with two group-by fields; WHERE is on a group key (Employee).
             const string sql =
                 @"select ""_"".""Employee"", ""_"".""RequireAt"", ""_"".""a0""
 from
@@ -415,7 +417,7 @@ from
     (
         select ""Employee"", ""RequireAt"", ""Freight""
         from ""public"".""Orders""
-        where ""Company"" = 'Companies/1-A'
+        where ""Employee"" = 'employees/1-A'
     ) ""rows""
     group by ""Employee"", ""RequireAt""
 ) ""_""
@@ -429,7 +431,7 @@ limit 1000001";
             var queryString = GetQueryString(pgQuery);
             Assert.NotNull(queryString);
             Assert.Contains("Orders", queryString, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("Companies/1-A", queryString, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("employees/1-A", queryString, StringComparison.OrdinalIgnoreCase);
             Assert.Contains("sum", queryString, StringComparison.OrdinalIgnoreCase);
             Assert.Contains("Employee", queryString, StringComparison.OrdinalIgnoreCase);
         }
@@ -464,7 +466,8 @@ limit 1000001";
         [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void DirectQuery_GroupedAggregate_InnerSql_OrderByGroupKey_TranslatesToRql()
         {
-            // ORDER BY on the group key (Company), not the aggregate output (a0).
+            // ORDER BY on the group key (Company), not the aggregate output (a0). WHERE is on the group
+            // key too, which a grouped RQL WHERE permits.
             const string sql =
                 @"select ""_"".""Company"", ""_"".""a0""
 from
@@ -474,7 +477,7 @@ from
     (
         select ""Company"", ""Freight""
         from ""public"".""Orders""
-        where ""Status"" = 'Pending'
+        where ""Company"" = 'Companies/1-A'
     ) ""rows""
     group by ""Company""
 ) ""_""
@@ -488,7 +491,7 @@ limit 1000001";
             var queryString = GetQueryString(pgQuery);
             Assert.NotNull(queryString);
             Assert.Contains("Orders", queryString, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("Pending", queryString, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("Companies/1-A", queryString, StringComparison.OrdinalIgnoreCase);
             Assert.Contains("sum", queryString, StringComparison.OrdinalIgnoreCase);
             // ORDER BY group key is emitted without "as double" modifier.
             Assert.DoesNotContain("as double", queryString, StringComparison.OrdinalIgnoreCase);

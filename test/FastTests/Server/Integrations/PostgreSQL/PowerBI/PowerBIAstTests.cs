@@ -236,8 +236,12 @@ namespace FastTests.Server.Integrations.PostgreSQL.PowerBI
         }
 
         [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
-        public void DirectQuery_desktop_grouped_sum_two_group_fields_with_outer_where_not_null_should_be_classified_as_direct_query()
+        public void DirectQuery_grouped_aggregate_with_non_group_key_pre_filter_falls_through()
         {
+            // sum(Freight) grouped by Employee+RequireAt, pre-filtered on Company (not a group key). A
+            // grouped RQL WHERE is post-reduction (HAVING) and can't express a pre-group filter on a
+            // non-key field, so recognition falls through to the diagnoser instead of emitting RQL the
+            // engine rejects at execution.
             const string sql = """
                 select "_"."Employee",
                     "_"."RequireAt",
@@ -259,8 +263,7 @@ namespace FastTests.Server.Integrations.PostgreSQL.PowerBI
                 limit 1000001
                 """;
 
-            Assert.True(PowerBIQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
-            Assert.IsType<PowerBIDirectQuery>(pgQuery);
+            Assert.False(PowerBIQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out _));
         }
 
         [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi, Skip = "Scalar aggregates are intentionally unsupported (RQL requires group by for sum). Remove/enable when scalar support is implemented.")]
