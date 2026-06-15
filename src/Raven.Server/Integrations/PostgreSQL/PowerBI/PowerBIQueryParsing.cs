@@ -206,7 +206,10 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             if (string.IsNullOrWhiteSpace(sql))
                 return false;
 
-            var parseResult = SqlAstCache.GetOrParse(sql);
+            // This method mutates the parse tree (replaces the inner subquery with `select 1`), so it
+            // must NOT use the shared, reference-cached SqlAstCache tree - parse a private copy instead,
+            // leaving the cached AST pristine for the other dispatch arms.
+            var parseResult = Parser.Parse(sql);
             if (parseResult.IsSuccess == false || parseResult.Value?.Stmts is not { Count: 1 })
                 return false;
 
