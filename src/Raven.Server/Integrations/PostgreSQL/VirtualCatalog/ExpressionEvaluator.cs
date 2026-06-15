@@ -1,5 +1,7 @@
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Text.RegularExpressions;
 using PgSqlParser;
 
 namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
@@ -434,12 +436,31 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
             return value != null;
         }
 
+        // LIKE pattern -> anchored regex, cached so a predicate evaluated over many catalog rows
+        // compiles each distinct pattern once instead of per row. Bounded to cap growth from
+        // adversarial distinct patterns; once full, misses still match correctly, just uncached.
+        private static readonly ConcurrentDictionary<(string Pattern, bool IgnoreCase), Regex> LikeRegexCache = new();
+        private const int LikeRegexCacheCap = 1024;
+
+        private static bool MatchLikePattern(string input, string pattern, bool ignoreCase)
+        {
+            var key = (pattern, ignoreCase);
+            if (LikeRegexCache.TryGetValue(key, out var regex) == false)
+            {
+                regex = BuildLikeRegex(pattern, ignoreCase);
+                if (LikeRegexCache.Count < LikeRegexCacheCap)
+                    LikeRegexCache.TryAdd(key, regex);
+            }
+
+            return regex.IsMatch(input);
+        }
+
         // Translate SQL LIKE wildcards to an anchored .NET regex.
         //   %   -> .*        (any sequence, including empty)
         //   _   -> .         (any single char)
         //   \X  -> literal X (PG default escape with standard_conforming_strings on)
         // Regex-meta chars in the pattern are escaped so they match literally.
-        private static bool MatchLikePattern(string input, string pattern, bool ignoreCase)
+        private static Regex BuildLikeRegex(string pattern, bool ignoreCase)
         {
             var sb = new System.Text.StringBuilder(pattern.Length + 4);
             sb.Append('^');
@@ -455,10 +476,12 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
                         sb.Append('.');
                         break;
                     case '\\':
+                        // A trailing escape has nothing to escape - match a literal backslash
+                        // rather than silently dropping it.
                         if (i + 1 < pattern.Length)
-                        {
-                            sb.Append(System.Text.RegularExpressions.Regex.Escape(pattern[++i].ToString()));
-                        }
+                            sb.Append(Regex.Escape(pattern[++i].ToString()));
+                        else
+                            sb.Append("\\\\");
                         break;
                     default:
                         if ("\\^$.|?*+()[]{}".IndexOf(c) >= 0)
@@ -469,11 +492,10 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
             }
             sb.Append('$');
 
-            var options = System.Text.RegularExpressions.RegexOptions.Singleline |
-                          System.Text.RegularExpressions.RegexOptions.CultureInvariant;
+            var options = RegexOptions.Singleline | RegexOptions.CultureInvariant;
             if (ignoreCase)
-                options |= System.Text.RegularExpressions.RegexOptions.IgnoreCase;
-            return System.Text.RegularExpressions.Regex.IsMatch(input, sb.ToString(), options);
+                options |= RegexOptions.IgnoreCase;
+            return new Regex(sb.ToString(), options);
         }
 
         private static bool TryEvaluateInExpr(A_Expr aExpr, RowScope scope, ScalarSubqueryResolver subqueryResolver, ScalarFunctionResolver functionResolver, out object value)
