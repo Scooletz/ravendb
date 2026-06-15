@@ -1101,16 +1101,16 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
 
         private static void TranslateOrderBy(AsyncDocumentQuery<JObject> q, Google.Protobuf.Collections.RepeatedField<Node> sortClause, string fromAlias, IReadOnlyDictionary<string, OrderingType> sortTypeMap = null)
         {
+            // Fail the translation rather than silently dropping a sort key we can't map to a column -
+            // a missing ORDER BY term returns mis-ordered rows with no error (caller falls through to the diagnoser).
             foreach (var sortNode in sortClause)
             {
-                if (sortNode.SortBy == null)
-                    continue;
+                var sortBy = sortNode.SortBy
+                             ?? throw new NotSupportedException("Unsupported ORDER BY clause (only column sort keys are supported)");
 
-                var sortBy = sortNode.SortBy;
                 var fieldName = ExtractFieldName(sortBy.Node, fromAlias);
-
                 if (string.IsNullOrEmpty(fieldName))
-                    continue;
+                    throw new NotSupportedException("Unsupported ORDER BY expression (only column sort keys are supported)");
 
                 // Pick the right ordering: type-inferred from the sampled doc when we have it,
                 // otherwise PG-style default (String / alphabetic).

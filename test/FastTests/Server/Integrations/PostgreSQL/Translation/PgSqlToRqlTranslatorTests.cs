@@ -114,6 +114,16 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
         }
 
         [RavenFact(RavenTestCategory.PostgreSql)]
+        public void OrderByNonColumnExpression_IsRejected()
+        {
+            // A sort key that isn't a plain column has no RQL form here; bail so the diagnoser
+            // fires instead of silently dropping it and returning mis-ordered rows.
+            var sql = "SELECT * FROM users ORDER BY upper(name)";
+
+            Assert.False(Raven.Server.Integrations.PostgreSQL.Translation.PgSqlToRqlTranslator.TryParse(sql, Array.Empty<int>(), out _));
+        }
+
+        [RavenFact(RavenTestCategory.PostgreSql)]
         public void QuotedExplicitProjectionWithLimit_EmitsLimitClause()
         {
             var sql = """
