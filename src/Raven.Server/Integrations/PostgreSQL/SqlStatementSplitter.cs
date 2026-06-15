@@ -53,13 +53,17 @@ namespace Raven.Server.Integrations.PostgreSQL
                     continue;
                 }
 
-                // Single-quoted string literal: '...'. Handles `''` and `\'` (E'...') escapes.
+                // Single-quoted string literal: '...'. Backslash escapes are honored only in E'...' /
+                // e'...' strings; with standard_conforming_strings=on (PG default) a plain '...' treats
+                // \ literally, so e.g. 'C:\' keeps its closing quote. `''` is always an escaped quote.
                 if (c == '\'')
                 {
+                    bool isEscapeString = i >= 1 && (sql[i - 1] == 'e' || sql[i - 1] == 'E')
+                                          && (i < 2 || (char.IsLetterOrDigit(sql[i - 2]) == false && sql[i - 2] != '_'));
                     i++;
                     while (i < sql.Length)
                     {
-                        if (sql[i] == '\\' && i + 1 < sql.Length)
+                        if (isEscapeString && sql[i] == '\\' && i + 1 < sql.Length)
                         {
                             i += 2;
                             continue;
