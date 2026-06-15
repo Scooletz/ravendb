@@ -161,8 +161,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             }
             catch (Exception e)
             {
-                if (Logger.IsDebugEnabled)
-                    Logger.Debug($"{nameof(PowerBIFetchQuery)}.{nameof(TryParseWrappedRqlFetchViaAst)} rejected query: {e.Message}");
+                PowerBIRecognizerLog.Rejected(Logger, $"{nameof(PowerBIFetchQuery)}.{nameof(TryParseWrappedRqlFetchViaAst)} rejected query.", e);
                 pgQuery = null;
                 return false;
             }

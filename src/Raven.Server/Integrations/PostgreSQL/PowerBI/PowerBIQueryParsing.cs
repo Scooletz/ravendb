@@ -79,8 +79,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 }
                 catch (Exception e)
                 {
-                    if (Logger.IsDebugEnabled)
-                        Logger.Debug($"{nameof(PowerBIInnerRqlExtractor)}: two-parsers path produced non-RQL inner text. Reason: {e.Message}");
+                    PowerBIRecognizerLog.Rejected(Logger, $"{nameof(PowerBIInnerRqlExtractor)}: two-parsers path produced non-RQL inner text.", e);
                     return null;
                 }
             }
@@ -92,8 +91,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             }
             catch (Exception e)
             {
-                if (Logger.IsDebugEnabled)
-                    Logger.Debug($"{nameof(PowerBIInnerRqlExtractor)}: inner text is not RQL, will attempt SQL to RQL translation. Reason: {e.Message}");
+                PowerBIRecognizerLog.Rejected(Logger, $"{nameof(PowerBIInnerRqlExtractor)}: inner text is not RQL, will attempt SQL to RQL translation.", e);
             }
 
             if (PgSqlToRqlTranslator.TryParse(innerText, parameterTypes: Array.Empty<int>(), out var translatedRql) == false)
@@ -105,8 +103,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             }
             catch (Exception e)
             {
-                if (Logger.IsDebugEnabled)
-                    Logger.Debug($"{nameof(PowerBIInnerRqlExtractor)}: SQL to RQL-translated query failed to re-parse as RQL. Reason: {e.Message}");
+                PowerBIRecognizerLog.Rejected(Logger, $"{nameof(PowerBIInnerRqlExtractor)}: SQL to RQL-translated query failed to re-parse as RQL.", e);
                 return null;
             }
         }

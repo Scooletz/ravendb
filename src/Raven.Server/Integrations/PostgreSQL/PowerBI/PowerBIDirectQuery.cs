@@ -139,8 +139,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                     }
                     catch (Exception e)
                     {
-                        if (Logger.IsDebugEnabled)
-                            Logger.Debug($"{nameof(PowerBIDirectQuery)}: grouped-aggregate RQL rewrite failed. Reason: {e.Message}");
+                        PowerBIRecognizerLog.Rejected(Logger, $"{nameof(PowerBIDirectQuery)}: grouped-aggregate RQL rewrite failed.", e);
                         return false;
                     }
 
@@ -193,8 +192,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             }
             catch (Exception e)
             {
-                if (Logger.IsDebugEnabled)
-                    Logger.Debug($"{nameof(PowerBIDirectQuery)}.{nameof(TryParse)} rejected query: {e.Message}");
+                PowerBIRecognizerLog.Rejected(Logger, $"{nameof(PowerBIDirectQuery)}.{nameof(TryParse)} rejected query.", e);
                 pgQuery = null;
                 return false;
             }
