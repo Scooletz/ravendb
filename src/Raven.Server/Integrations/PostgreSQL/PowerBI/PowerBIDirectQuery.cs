@@ -447,13 +447,59 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             if (projectionCols == null || projectionCols.Count == 0)
                 return null;
 
-            // Object-projection inners filtered by id() (e.g. `where id() in (...) select { Name: name(e) }`,
-            // including `select { id(): id(e) }` / `select { "json()": e }`) can't be expressed as grouped
-            // RQL: RavenDB can't GROUP BY computed projection fields, nor filter id() inside a grouped query.
-            // But an id() filter already selects a precise, small document set, so the distinct-via-GROUP BY
-            // is unnecessary - emit the inner projection directly and let PowerBI dedupe client-side. This is
-            // the narrow exception to the "don't drop GROUP BY for select { ... }" rule below: it fires only
-            // for id()-filtered inners, which can't produce the unbounded row counts that rule guards against.
+            // Case A: the projection includes a synthetic id()/json() column. These can't be GROUP BY keys
+            // (id() isn't a stored field; json() is the whole document), so rebuild an explicit object
+            // projection - id() -> id(alias), json() -> the whole document, plain columns -> alias.field -
+            // and skip the grouping. A synthetic column makes each row per-document unique, so there's
+            // nothing to collapse, and PowerBI dedupes client-side; this also yields exactly the projected
+            // column set/order PowerBI expects.
+            if (projectionCols.Any(PgSyntheticColumns.IsSyntheticColumn))
+            {
+                var synthetic = q.ShallowCopy();
+                synthetic.IsDistinct = false;
+                synthetic.Filter = null;
+                synthetic.FilterLimit = null;
+                synthetic.GroupBy = null;
+                synthetic.OrderBy = null;
+                synthetic.CachedOrderBy = null;
+                synthetic.Offset = null;
+                synthetic.Select = null;
+
+                if (synthetic.From.Alias == null)
+                    synthetic.From.Alias = "_doc";
+                var projAlias = synthetic.From.Alias.Value;
+
+                var body = new System.Text.StringBuilder("{ ");
+                for (var i = 0; i < projectionCols.Count; i++)
+                {
+                    var col = projectionCols[i];
+                    if (string.IsNullOrWhiteSpace(col))
+                        return null;
+                    if (i > 0)
+                        body.Append(", ");
+                    if (PgSyntheticColumns.IsJsonColumn(col))
+                        body.Append($"\"{col}\" : {projAlias}");
+                    else if (PgSyntheticColumns.IsDocumentIdColumn(col))
+                        body.Append($"\"{col}\" : id({projAlias})");
+                    else
+                        body.Append($"\"{col}\" : {projAlias}.{col}");
+                }
+                body.Append(" }");
+
+                synthetic.SelectFunctionBody = (body.ToString(), null, null);
+
+                if (limit >= 0)
+                    synthetic.Limit = new ValueExpression(limit.ToString(CultureInfo.InvariantCulture), ValueTokenType.Long);
+
+                var syntheticRql = synthetic.ToString();
+                return string.IsNullOrWhiteSpace(syntheticRql) ? null : syntheticRql;
+            }
+
+            // Case B: an object-projection inner (`select { Name: name(e) }`) filtered by id(). Computed
+            // projection fields can't be GROUP BY keys and id() can't be filtered inside a grouped query,
+            // but an id() filter already pins a precise, small document set - emit the inner projection
+            // directly (PowerBI dedupes client-side). Narrow exception to the "don't drop GROUP BY for
+            // select { ... }" rule below: only id()-filtered inners, which can't return unbounded rows.
             if (q.SelectFunctionBody.FunctionText != null && WhereReferencesDocumentId(q.Where))
             {
                 var passthrough = q.ShallowCopy();
