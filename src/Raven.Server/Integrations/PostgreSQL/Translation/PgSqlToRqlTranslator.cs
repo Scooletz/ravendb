@@ -335,6 +335,24 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
             return "'" + escaped + "'";
         }
 
+        // Strict ASCII identifier check for SQL-derived names interpolated verbatim into RQL text
+        // (aliases, load paths, output aliases). RQL offers no quoting for these positions, so reject
+        // anything that isn't a plain identifier rather than splice it into the generated query.
+        private static bool IsSafeRqlIdentifier(string s)
+        {
+            if (string.IsNullOrEmpty(s))
+                return false;
+            if (char.IsAsciiLetter(s[0]) == false && s[0] != '_')
+                return false;
+            for (int i = 1; i < s.Length; i++)
+            {
+                var c = s[i];
+                if (char.IsAsciiLetterOrDigit(c) == false && c != '_')
+                    return false;
+            }
+            return true;
+        }
+
         private static string TranslateSimpleJoin(SelectStmt selectStmt)
         {
             if (selectStmt.FromClause is not [{ JoinExpr: { } joinExpr }])
@@ -350,7 +368,14 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
             if (TryExtractSimpleJoinInfo(joinExpr, out var drivingCollection, out var drivingAlias, out var loadPath, out var loadAlias) == false)
                 throw UnsupportedJoin();
 
-            return $"from '{drivingCollection}' as {drivingAlias} load {drivingAlias}.{loadPath} as {loadAlias} select {{ {drivingAlias}: {drivingAlias}, {loadAlias}: {loadAlias} }}";
+            // The collection name is escaped; the alias/load-path identifiers have no RQL quoting, so
+            // reject anything that isn't a plain identifier instead of splicing it into the query text.
+            if (IsSafeRqlIdentifier(drivingAlias) == false ||
+                IsSafeRqlIdentifier(loadPath) == false ||
+                IsSafeRqlIdentifier(loadAlias) == false)
+                throw UnsupportedJoin();
+
+            return $"from {QuoteString(drivingCollection)} as {drivingAlias} load {drivingAlias}.{loadPath} as {loadAlias} select {{ {drivingAlias}: {drivingAlias}, {loadAlias}: {loadAlias} }}";
         }
 
         private static bool TryExtractSimpleJoinInfo(
@@ -929,6 +954,8 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
                 if (string.IsNullOrWhiteSpace(sqlAlias) == false &&
                     string.Equals(sqlAlias, expr, StringComparison.OrdinalIgnoreCase) == false)
                 {
+                    if (IsSafeRqlIdentifier(sqlAlias) == false)
+                        throw UnsupportedGroupBy();
                     return $"{expr} as {sqlAlias}";
                 }
 
