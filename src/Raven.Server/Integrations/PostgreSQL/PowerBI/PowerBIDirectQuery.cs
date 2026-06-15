@@ -447,6 +447,23 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             if (projectionCols == null || projectionCols.Count == 0)
                 return null;
 
+            // Object-projection inners filtered by id() (e.g. `where id() in (...) select { Name: name(e) }`,
+            // including `select { id(): id(e) }` / `select { "json()": e }`) can't be expressed as grouped
+            // RQL: RavenDB can't GROUP BY computed projection fields, nor filter id() inside a grouped query.
+            // But an id() filter already selects a precise, small document set, so the distinct-via-GROUP BY
+            // is unnecessary - emit the inner projection directly and let PowerBI dedupe client-side. This is
+            // the narrow exception to the "don't drop GROUP BY for select { ... }" rule below: it fires only
+            // for id()-filtered inners, which can't produce the unbounded row counts that rule guards against.
+            if (q.SelectFunctionBody.FunctionText != null && WhereReferencesDocumentId(q.Where))
+            {
+                var passthrough = q.ShallowCopy();
+                if (limit >= 0)
+                    passthrough.Limit = new ValueExpression(limit.ToString(CultureInfo.InvariantCulture), ValueTokenType.Long);
+
+                var passthroughRql = passthrough.ToString();
+                return string.IsNullOrWhiteSpace(passthroughRql) ? null : passthroughRql;
+            }
+
             // Direct-query shape always carries a GROUP BY (TryBuildDirectQueryShape requires it).
             // PowerBI's outer wrapper wraps the inner query with `GROUP BY <projected cols>` to ask
             // for tuple-distinct values - the same shape we handle for flat SQL via the
@@ -567,6 +584,35 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                     }
                     return;
                 // ValueExpression literals contribute no field references.
+            }
+        }
+
+        // True if the RQL WHERE tree references the document-id method id(). Such a filter pins a
+        // precise document set that can't be re-grouped (id() is neither a stored field nor a valid
+        // group key) - see the passthrough branch in RewriteSimpleDirectQueryRql.
+        private static bool WhereReferencesDocumentId(QueryExpression expr)
+        {
+            switch (expr)
+            {
+                case null:
+                    return false;
+                case MethodExpression me:
+                    if (me.Arguments is not { Count: > 0 })
+                        return string.Equals(me.Name.Value, "id", StringComparison.OrdinalIgnoreCase);
+                    foreach (var arg in me.Arguments)
+                        if (WhereReferencesDocumentId(arg))
+                            return true;
+                    return false;
+                case BinaryExpression be:
+                    return WhereReferencesDocumentId(be.Left) || WhereReferencesDocumentId(be.Right);
+                case NegatedExpression ne:
+                    return WhereReferencesDocumentId(ne.Expression);
+                case BetweenExpression bet:
+                    return WhereReferencesDocumentId(bet.Source);
+                case InExpression ie:
+                    return WhereReferencesDocumentId(ie.Source);
+                default:
+                    return false;
             }
         }
 
