@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Globalization;
 using System.Linq;
 using Raven.Server.Integrations.PostgreSQL.Messages;
 
@@ -15,7 +16,9 @@ namespace Raven.Server.Integrations.PostgreSQL.Types
         {
             if (formatCode == PgFormat.Text)
             {
-                return Utf8GetBytes(value);
+                // Format invariantly so a server under a comma-decimal locale (de-DE, pl-PL, ...) emits
+                // `3.14`, not `3,14`, on the wire.
+                return Utf8GetBytes(((float)value).ToString(CultureInfo.InvariantCulture));
             }
 
             return Enumerable.Reverse(BitConverter.GetBytes((float)value)).ToArray();
@@ -33,7 +36,7 @@ namespace Raven.Server.Integrations.PostgreSQL.Types
 
         public override object FromString(string value)
         {
-            return float.Parse(value);
+            return float.Parse(value, NumberStyles.Float, CultureInfo.InvariantCulture);
         }
     }
 }
