@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using Raven.Server.Integrations.PostgreSQL.Types;
 
 namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
@@ -293,7 +294,7 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
                 return true;
 
             if (TryGetOid(args[0], out var oid))
-                result = TypeNames.TryGetValue(oid, out var name) ? name : oid.ToString();
+                result = TypeNames.TryGetValue(oid, out var name) ? name : oid.ToString(CultureInfo.InvariantCulture);
             else
                 result = args[0].ToString();
 
@@ -307,7 +308,7 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
                 case long l: oid = l; return true;
                 case int i: oid = i; return true;
                 case short s: oid = s; return true;
-                case string str when long.TryParse(str, out var parsed): oid = parsed; return true;
+                case string str when long.TryParse(str, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed): oid = parsed; return true;
                 default: oid = 0; return false;
             }
         }

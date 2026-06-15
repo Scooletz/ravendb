@@ -319,8 +319,7 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
                 return false;
 
             // Parse as Unspecified (no TZ shift) to match the original PowerBI translator behaviour.
-            if (DateTime.TryParse(raw, CultureInfo.InvariantCulture, DateTimeStyles.None, out var dt) == false &&
-                DateTime.TryParse(raw, out dt) == false)
+            if (DateTime.TryParse(raw, CultureInfo.InvariantCulture, DateTimeStyles.None, out var dt) == false)
                 return false;
 
             value = new ParsedValue(dt.GetDefaultRavenFormat(), ParsedValueKind.Timestamp);

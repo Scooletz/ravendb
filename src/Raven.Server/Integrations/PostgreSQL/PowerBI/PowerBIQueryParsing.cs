@@ -613,7 +613,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                 case ParsedValueKind.Double:
                     if (value.Raw is double d)
                         return new ValueExpression(d.ToString("R", CultureInfo.InvariantCulture), ValueTokenType.Double);
-                    return new ValueExpression(value.Raw?.ToString(), ValueTokenType.Double);
+                    return new ValueExpression(value.Raw == null ? null : Convert.ToString(value.Raw, CultureInfo.InvariantCulture), ValueTokenType.Double);
 
                 case ParsedValueKind.Bool:
                     return (bool)value.Raw
