@@ -411,18 +411,24 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
             }
 
             var cmp = CompareValues(lhs, rhs);
-            if (cmp == null && IsEqualityOp(op) == false)
-                return false;
+            if (cmp == null)
+            {
+                // SQL three-valued logic: a NULL operand makes every comparison (including <> / !=)
+                // yield NULL, which IsTruthy treats as not-true so the row is excluded - never
+                // spuriously included, as `cmp.HasValue == false || ...` previously did for <> / !=.
+                value = null;
+                return true;
+            }
 
             value = op switch
             {
-                "="  => cmp.HasValue && cmp.Value == 0,
-                "!=" => cmp.HasValue == false || cmp.Value != 0,
-                "<>" => cmp.HasValue == false || cmp.Value != 0,
-                "<"  => cmp.HasValue && cmp.Value < 0,
-                "<=" => cmp.HasValue && cmp.Value <= 0,
-                ">"  => cmp.HasValue && cmp.Value > 0,
-                ">=" => cmp.HasValue && cmp.Value >= 0,
+                "="  => cmp.Value == 0,
+                "!=" => cmp.Value != 0,
+                "<>" => cmp.Value != 0,
+                "<"  => cmp.Value < 0,
+                "<=" => cmp.Value <= 0,
+                ">"  => cmp.Value > 0,
+                ">=" => cmp.Value >= 0,
                 _ => (object)null
             };
             return value != null;
@@ -486,16 +492,31 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
             if (aExpr.Name is { Count: 1 } && aExpr.Name[0]?.String?.Sval == "<>")
                 negated = true;
 
+            var sawNull = false;
             foreach (var item in items)
             {
                 if (TryEvaluate(item, scope, subqueryResolver, functionResolver, out var candidate) == false)
                     return false;
                 var cmp = CompareValues(lhs, candidate);
+                if (cmp == null)
+                {
+                    sawNull = true; // NULL operand -> undetermined membership (SQL 3VL)
+                    continue;
+                }
                 if (cmp == 0)
                 {
                     value = negated == false;
                     return true;
                 }
+            }
+
+            // No definite match: if any comparison was NULL (lhs or a candidate), membership is SQL
+            // NULL - excluded - so `x NOT IN (..., NULL)` / `NULL IN (...)` don't spuriously include
+            // the row. Only a fully-determined non-match yields the boolean result.
+            if (sawNull)
+            {
+                value = null;
+                return true;
             }
 
             value = negated;
@@ -552,8 +573,6 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
                     result = 0; return false;
             }
         }
-
-        private static bool IsEqualityOp(string op) => op is "=" or "!=" or "<>";
 
         public static bool IsTruthy(object value)
             => value switch

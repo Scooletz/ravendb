@@ -79,6 +79,8 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
 
             // Cartesian product of the initial sources.
             var seeded = SeedCartesian(initialSources);
+            if (seeded == null)
+                return false; // oversized product - bail to fall-through instead of OOM
 
             int sourceCount = initialSources.Count + joinSteps.Count;
             var publicSources = new List<SourceInfo>(sourceCount);
@@ -91,6 +93,8 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
             {
                 publicSources.Add(new SourceInfo(step.Right.Alias, step.Right.Columns));
                 seeded = ApplyJoin(seeded, publicSources, seenSources, step, sourceCount);
+                if (seeded == null)
+                    return false;
                 seenSources++;
             }
 
@@ -291,6 +295,13 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
             return false;
         }
 
+        // Cap on intermediate joined-row count. A legitimate pg_catalog / information_schema probe
+        // never produces a large product; refusing to materialize beyond this turns a client-driven
+        // blow-up (e.g. SELECT count(*) FROM pg_type a, pg_type b, pg_type c, pg_type d) into a
+        // graceful fall-through instead of multi-GB allocation inside the shared server process.
+        private const int MaxJoinedRows = 100_000;
+
+        // Returns null when the product would exceed MaxJoinedRows (the caller bails to fall-through).
         private static List<JoinedRow> SeedCartesian(List<SourceState> sources)
         {
             // Start with a single empty row, then expand cartesian-style for each initial source.
@@ -299,11 +310,15 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
             for (int i = 0; i < sources.Count; i++)
             {
                 var src = sources[i];
-                var next = new List<JoinedRow>(result.Count * Math.Max(1, src.Rows.Count));
+                if (src.Rows.Count == 0)
+                    return new List<JoinedRow>(); // empty source -> empty result (matches INNER semantics)
+
+                if ((long)result.Count * src.Rows.Count > MaxJoinedRows)
+                    return null;
+
+                var next = new List<JoinedRow>(result.Count * src.Rows.Count);
                 foreach (var jr in result)
                 {
-                    if (src.Rows.Count == 0)
-                        continue; // empty initial source -> empty result (matches INNER semantics).
                     foreach (var row in src.Rows)
                     {
                         var copy = new object[sources.Count][];
@@ -360,6 +375,8 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
                 {
                     any = true;
                     output.Add(MergeRight(leftRow, rr, rightIndex, totalSources));
+                    if (output.Count > MaxJoinedRows)
+                        return null; // oversized product - bail to fall-through
                 }
                 if (any == false && isLeftOuter)
                     output.Add(MergeRight(leftRow, null, rightIndex, totalSources));

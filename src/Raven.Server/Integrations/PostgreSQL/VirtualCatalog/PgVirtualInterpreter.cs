@@ -1137,7 +1137,9 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
 
         private static PgType InferConstType(A_Const c)
         {
-            if (c.Ival != null) return PgInt4.Default;
+            // Integer literals are evaluated as boxed long (ExpressionEvaluator.TryEvaluateConst), so
+            // advertise Int8 to match - PgInt4.ToBytes would unbox-cast the long and throw.
+            if (c.Ival != null) return PgInt8.Default;
             if (c.Boolval != null) return PgBool.Default;
             if (c.Fval != null) return PgFloat8.Default;
             // String literals - even single-character ones like 'Y' / 'N' - must be text.
