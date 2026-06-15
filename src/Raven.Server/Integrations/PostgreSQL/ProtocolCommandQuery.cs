@@ -31,9 +31,14 @@ namespace Raven.Server.Integrations.PostgreSQL
         private const string Set        = "SET";
         private const string Deallocate = "DEALLOCATE";
 
-        private ProtocolCommandQuery(string queryString, int[] parametersDataTypes)
+        // PG emits a command-specific CommandComplete tag (BEGIN, COMMIT, SET, ...); strict drivers
+        // assert on it, so carry the matching tag instead of always reporting "SELECT 0".
+        private readonly string _commandTag;
+
+        private ProtocolCommandQuery(string queryString, int[] parametersDataTypes, string commandTag)
             : base(queryString, parametersDataTypes)
         {
+            _commandTag = commandTag;
         }
 
         public static bool TryParse(string queryText, int[] parametersDataTypes, PgSession session, out ProtocolCommandQuery query)
@@ -44,19 +49,20 @@ namespace Raven.Server.Integrations.PostgreSQL
 
             if (normalized.StartsWith(DiscardAll, StringComparison.OrdinalIgnoreCase))
             {
-                query = new ProtocolCommandQuery(queryText, parametersDataTypes);
+                query = new ProtocolCommandQuery(queryText, parametersDataTypes, DiscardAll);
                 return true;
             }
 
             if (normalized.StartsWith(Rollback, StringComparison.OrdinalIgnoreCase))
             {
-                query = new ProtocolCommandQuery(queryText, parametersDataTypes);
+                query = new ProtocolCommandQuery(queryText, parametersDataTypes, Rollback);
                 return true;
             }
 
             if (StartsWithWord(normalized, Begin) || StartsWithWord(normalized, Commit))
             {
-                query = new ProtocolCommandQuery(queryText, parametersDataTypes);
+                var tag = StartsWithWord(normalized, Begin) ? Begin : Commit;
+                query = new ProtocolCommandQuery(queryText, parametersDataTypes, tag);
                 return true;
             }
 
@@ -64,8 +70,8 @@ namespace Raven.Server.Integrations.PostgreSQL
             {
                 // SET DateStyle=ISO / SET client_encoding='utf-8' / SET client_min_messages=notice
                 // - we don't honour any of these but accept them so clients can finish their
-                // session handshake. Returns an empty CommandComplete.
-                query = new ProtocolCommandQuery(queryText, parametersDataTypes);
+                // session handshake.
+                query = new ProtocolCommandQuery(queryText, parametersDataTypes, Set);
                 return true;
             }
 
@@ -74,15 +80,16 @@ namespace Raven.Server.Integrations.PostgreSQL
                 // pgAdmin emits `SELECT set_config('bytea_output','hex',false) FROM
                 // pg_show_all_settings() WHERE name = 'bytea_output'` as part of its startup batch.
                 // We can't honour set_config and don't model pg_show_all_settings(), but accepting
-                // the statement as a no-op unblocks the connection.
-                query = new ProtocolCommandQuery(queryText, parametersDataTypes);
+                // the statement as a no-op unblocks the connection. We send no rows, so the tag
+                // stays "SELECT 0" (consistent with the empty result set we return).
+                query = new ProtocolCommandQuery(queryText, parametersDataTypes, "SELECT 0");
                 return true;
             }
 
             if (normalized.StartsWith(Deallocate, StringComparison.OrdinalIgnoreCase))
             {
                 HandleDeallocate(normalized, session);
-                query = new ProtocolCommandQuery(queryText, parametersDataTypes);
+                query = new ProtocolCommandQuery(queryText, parametersDataTypes, Deallocate);
                 return true;
             }
 
@@ -137,7 +144,7 @@ namespace Raven.Server.Integrations.PostgreSQL
         public override async Task Execute(MessageBuilder builder, PipeWriter writer, CancellationToken token)
         {
             // No data rows - only the CommandComplete tag.
-            await writer.WriteAsync(builder.CommandComplete("SELECT 0"), token);
+            await writer.WriteAsync(builder.CommandComplete(_commandTag), token);
         }
 
         public override void Dispose()
