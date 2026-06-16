@@ -1196,23 +1196,35 @@ public sealed class CdcSinkBatchCommand : DocumentMergedTransactionCommand
             if (candidateVal is int candidateInt)
                 return existingLong == candidateInt;
             if (candidateVal is double candidateDouble)
-                return existingLong == candidateDouble;
+                return IntegralDoubleEquals(candidateDouble, existingLong);
         }
 
         if (existingVal is double existingDouble)
         {
             if (candidateVal is double candDouble)
-                return existingDouble == candDouble;
+                return existingDouble.Equals(candDouble); // exact PK identity (no epsilon); .Equals avoids the == float-compare pitfall
             if (candidateVal is long candLong)
-                return existingDouble == candLong;
+                return IntegralDoubleEquals(existingDouble, candLong);
             if (candidateVal is int candInt)
-                return existingDouble == candInt;
+                return IntegralDoubleEquals(existingDouble, candInt);
         }
 
         if (existingVal is bool existingBool && candidateVal is bool candidateBool)
             return existingBool == candidateBool;
 
         return string.Equals(existingVal.ToString(), candidateVal.ToString(), stringComparison);
+    }
+
+    // Equal only when the double is finite, within long range, and has no fractional part (so it
+    // round-trips to the same integer). Primary-key identities require exact matching — NO epsilon,
+    // since two distinct-but-close keys must never collide — and a direct long==double comparison
+    // is lossy once |value| exceeds 2^53.
+    private static bool IntegralDoubleEquals(double d, long l)
+    {
+        if (double.IsFinite(d) == false || d < -9223372036854775808.0 || d >= 9223372036854775808.0)
+            return false;
+        var asLong = (long)d;
+        return asLong == d && asLong == l;
     }
 
     /// <summary>

@@ -543,7 +543,7 @@ public abstract class CdcSinkProcess : IDisposable, ILowMemoryHandler
 
             // Stream ended — flush remaining ops, then wait for the final batch to complete
             await FlushBatch();
-            (string finalCheckpoint, int rows) = await lastBatch;
+            (string finalCheckpoint, int _) = await lastBatch;
             if (lastBatchOps != null)
             {
                 DocumentProcessor.ReturnBatchValues(lastBatchOps);
