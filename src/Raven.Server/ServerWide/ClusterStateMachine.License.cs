@@ -37,6 +37,7 @@ public sealed partial class ClusterStateMachine
     private const int MinBuildVersion60000 = 60_000;
     private const int MinBuildVersion60102 = 60_026;
     private const int MinBuildVersion60105 = 60_039;
+    private const int MinBuildVersion72000 = 72_000;
 
     private static readonly List<string> _licenseLimitsCommandsForCreateDatabase = new()
     {
@@ -594,8 +595,7 @@ public sealed partial class ClusterStateMachine
         if (databaseRecord.CdcSinks == null || databaseRecord.CdcSinks.Count == 0)
             return;
 
-        // TODO: replace MinBuildVersion60000 with a new constant for 7.2 — old servers don't know about CdcSink
-        if (CanAssertLicenseLimits(context, minBuildVersion: MinBuildVersion60000) == false)
+        if (CanAssertLicenseLimits(context, minBuildVersion: MinBuildVersion72000) == false)
             return;
 
         throw new LicenseLimitException(LimitType.CdcSink, "Your license doesn't support using the CDC sink feature.");
