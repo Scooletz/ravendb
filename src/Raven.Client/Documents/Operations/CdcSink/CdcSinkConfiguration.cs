@@ -510,11 +510,14 @@ public class CdcSinkConfiguration : IDynamicJson, IDatabaseTask
 
     private static bool HaveColumnsChanged(List<CdcColumnMapping> local, List<CdcColumnMapping> remote)
     {
-        if ((local?.Count ?? 0) != (remote?.Count ?? 0))
+        if (local == null && remote == null)
+            return false;
+
+        if (local == null || remote == null)
             return true;
 
-        if (local == null)
-            return false;
+        if (local.Count != remote.Count)
+            return true;
 
         var sortedLocal = local.OrderBy(x => x.Column, StringComparer.OrdinalIgnoreCase).ToList();
         var sortedRemote = remote.OrderBy(x => x.Column, StringComparer.OrdinalIgnoreCase).ToList();
