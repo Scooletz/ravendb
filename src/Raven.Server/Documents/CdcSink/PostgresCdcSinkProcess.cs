@@ -93,6 +93,11 @@ public class PostgresCdcSinkProcess : CdcSinkProcess
 
     private System.Text.StringBuilder _reusableSb;
 
+    // Relations that are present in the PostgreSQL publication but NOT configured in this CDC Sink
+    // task. Rows for these are skipped (drained from the stream) instead of crashing the process.
+    // Tracked so the "skipping unconfigured relation" message is logged only once per relation.
+    private readonly HashSet<uint> _unconfiguredRelations = new();
+
     public PostgresCdcSinkProcess(CdcSinkConfiguration configuration, DocumentDatabase database)
         : base(configuration, database, "public")
     {
@@ -136,6 +141,7 @@ public class PostgresCdcSinkProcess : CdcSinkProcess
         // in case of error, we'll re-learn the schema (it may have changed).
         _columnTypesCache.Clear();
         _relationProcessors.Clear();
+        _unconfiguredRelations.Clear();
         await EnsureReplicationSetup(ct);
         await EnsureReplicaIdentityForEmbeddedTables(ct);
         await HandleInitialLoad(ct);
@@ -477,12 +483,25 @@ public class PostgresCdcSinkProcess : CdcSinkProcess
             switch (message)
             {
                 case InsertMessage insert:
+                    if (IsConfiguredRelation(insert.Relation) == false)
+                    {
+                        await DrainTuple(insert.NewRow, ct);
+                        break;
+                    }
                     yield return new CdcEvent(CdcEventType.Upsert,
                         await DecodeRow(insert.Relation, insert.NewRow, CdcSinkOperation.Upsert, StreamingJsonContext, ct), null);
                     break;
                 case FullUpdateMessage fullUpdate:
                 {
-                    // Per Npgsql: OldRow MUST be consumed before NewRow (sequential replication stream).
+                    // Per Npgsql: OldRow MUST be consumed before NewRow (sequential replication stream),
+                    // so drain BOTH tuples in order even when the relation is not configured.
+                    if (IsConfiguredRelation(fullUpdate.Relation) == false)
+                    {
+                        await DrainTuple(fullUpdate.OldRow, ct);
+                        await DrainTuple(fullUpdate.NewRow, ct);
+                        break;
+                    }
+
                     var (proc, oldValues) = await DecodeRowInternal(fullUpdate.Relation, fullUpdate.OldRow, ct);
                     var newOp = await DecodeRow(fullUpdate.Relation, fullUpdate.NewRow, CdcSinkOperation.Upsert, StreamingJsonContext, ct);
 
@@ -504,14 +523,29 @@ public class PostgresCdcSinkProcess : CdcSinkProcess
                     break;
                 }
                 case UpdateMessage update:
+                    if (IsConfiguredRelation(update.Relation) == false)
+                    {
+                        await DrainTuple(update.NewRow, ct);
+                        break;
+                    }
                     yield return new CdcEvent(CdcEventType.Upsert,
                         await DecodeRow(update.Relation, update.NewRow, CdcSinkOperation.Upsert, StreamingJsonContext, ct), null);
                     break;
                 case KeyDeleteMessage keyDel:
+                    if (IsConfiguredRelation(keyDel.Relation) == false)
+                    {
+                        await DrainTuple(keyDel.Key, ct);
+                        break;
+                    }
                     yield return new CdcEvent(CdcEventType.Delete,
                         await DecodeRow(keyDel.Relation, keyDel.Key, CdcSinkOperation.Delete, StreamingJsonContext, ct), null);
                     break;
                 case FullDeleteMessage fullDel:
+                    if (IsConfiguredRelation(fullDel.Relation) == false)
+                    {
+                        await DrainTuple(fullDel.OldRow, ct);
+                        break;
+                    }
                     yield return new CdcEvent(CdcEventType.Delete,
                         await DecodeRow(fullDel.Relation, fullDel.OldRow, CdcSinkOperation.Delete, StreamingJsonContext, ct), null);
                     break;
@@ -520,6 +554,42 @@ public class PostgresCdcSinkProcess : CdcSinkProcess
                     yield return new CdcEvent(CdcEventType.TransactionCommit, null, commit.CommitLsn.ToString());
                     break;
             }
+        }
+    }
+
+    /// <summary>
+    /// Returns true if the relation is configured in this CDC Sink task. A relation can be present
+    /// in the PostgreSQL publication (e.g. the publication was created FOR ALL TABLES, or a table was
+    /// added to it later) without being part of the task configuration. Rows for such relations must
+    /// be skipped — decoding them would throw and put the task into a permanent crash/retry loop.
+    /// Logs once per relation the first time it is skipped.
+    /// </summary>
+    private bool IsConfiguredRelation(RelationMessage relation)
+    {
+        if (DocumentProcessor.TryGetProcessor(relation.Namespace, relation.RelationName, out _))
+            return true;
+
+        if (_unconfiguredRelations.Add(relation.RelationId & ~RelationIdSentinelBit) && Logger.IsInfoEnabled)
+        {
+            Logger.Info($"[{Name}] Skipping rows for relation '{relation.Namespace}.{relation.RelationName}' — " +
+                        "it is published but not configured in the CDC Sink task.");
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Consumes a replication tuple without decoding it. The pgoutput replication stream is strictly
+    /// sequential and forward-only, so a message's tuple(s) MUST be fully read before advancing to the
+    /// next message even when the relation is skipped — otherwise the stream desyncs.
+    /// </summary>
+    private static async Task DrainTuple(ReplicationTuple row, CancellationToken ct)
+    {
+        await foreach (var item in row.WithCancellation(ct))
+        {
+            // Touch the value so its bytes are consumed from the underlying stream.
+            if (item.IsDBNull == false)
+                await item.Get(ct);
         }
     }
 
