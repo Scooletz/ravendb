@@ -119,7 +119,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                     foreach (var (whereClause, wrapperAlias) in deferredWheres)
                     {
                         if (PowerBIDirectQuery.IsAggregateOutputNullGuard(whereClause, aggregateOutputAliases))
-                            continue; // redundant post-grouping null-guard - RQL's GROUP BY gives it implicitly
+                            continue; // structural null-guard on an aggregate output - drop it (PowerBI artifact, not a user filter)
 
                         if (PowerBIDirectQuery.WhereClauseReferencesAnyColumn(whereClause, aggregateOutputAliases))
                             return false; // real measure filter on an aggregate output - can't express post-grouping; fall through
@@ -226,7 +226,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                     // ORDER BY term gets an `as double` cast (garbage on text) and its WHERE is
                     // misclassified as a measure filter.
                     var funcName = funcCall.Funcname is { Count: > 0 }
-                        ? funcCall.Funcname[funcCall.Funcname.Count - 1]?.String?.Sval
+                        ? funcCall.Funcname[^1]?.String?.Sval
                         : null;
                     if (IsAggregateFunctionName(funcName) == false)
                         continue;

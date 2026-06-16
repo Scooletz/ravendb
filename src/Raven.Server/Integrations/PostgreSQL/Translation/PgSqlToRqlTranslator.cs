@@ -335,23 +335,7 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
             return "'" + escaped + "'";
         }
 
-        // Strict ASCII identifier check for SQL-derived names interpolated verbatim into RQL text
-        // (aliases, load paths, output aliases). RQL offers no quoting for these positions, so reject
-        // anything that isn't a plain identifier rather than splice it into the generated query.
-        private static bool IsSafeRqlIdentifier(string s)
-        {
-            if (string.IsNullOrEmpty(s))
-                return false;
-            if (char.IsAsciiLetter(s[0]) == false && s[0] != '_')
-                return false;
-            for (int i = 1; i < s.Length; i++)
-            {
-                var c = s[i];
-                if (char.IsAsciiLetterOrDigit(c) == false && c != '_')
-                    return false;
-            }
-            return true;
-        }
+        private static bool IsSafeRqlIdentifier(string s) => RqlIdentifier.IsSafe(s);
 
         private static string TranslateSimpleJoin(SelectStmt selectStmt)
         {

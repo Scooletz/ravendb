@@ -100,7 +100,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                     foreach (var iw in wrapper.IntermediateWheres)
                     {
                         if (IsAggregateOutputNullGuard(iw.WhereClause, aggregateOutputNames))
-                            continue; // redundant post-grouping null-guard - RQL's GROUP BY gives it implicitly
+                            continue; // structural null-guard on an aggregate output - drop it (PowerBI artifact, not a user filter)
 
                         if (WhereClauseReferencesAnyColumn(iw.WhereClause, aggregateOutputNames))
                             return false; // real measure filter on an aggregate output - can't express post-grouping; fall through
@@ -706,22 +706,6 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             string.Equals(name, "count", StringComparison.OrdinalIgnoreCase);
 
         // Plain ASCII only; anything requiring quoting returns null so the caller drops the shape.
-        private static string FormatRqlIdentifier(string identifier)
-        {
-            if (string.IsNullOrWhiteSpace(identifier))
-                return null;
-
-            if (char.IsAsciiLetter(identifier[0]) == false && identifier[0] != '_')
-                return null;
-
-            for (int i = 1; i < identifier.Length; i++)
-            {
-                var c = identifier[i];
-                if (char.IsAsciiLetterOrDigit(c) == false && c != '_')
-                    return null;
-            }
-
-            return identifier;
-        }
+        private static string FormatRqlIdentifier(string identifier) => RqlIdentifier.IsSafe(identifier) ? identifier : null;
     }
 }
