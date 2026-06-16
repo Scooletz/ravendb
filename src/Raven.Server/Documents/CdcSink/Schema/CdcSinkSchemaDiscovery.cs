@@ -18,7 +18,9 @@ namespace Raven.Server.Documents.CdcSink.Schema
         // (e.g. the CDC verify endpoint) can compare against the same identifiers instead
         // of repeating the literals.
         internal const string NpgsqlFactory = "Npgsql";
-        internal const string SystemDataSqlClientFactory = "System.Data.SqlClient";
+        // System.Data.SqlClient is intentionally NOT supported: it's the deprecated SQL Server
+        // driver, kept in SQL ETL only for back-compat. CDC is a new feature, so it requires the
+        // modern Microsoft.Data.SqlClient.
         internal const string MicrosoftDataSqlClientFactory = "Microsoft.Data.SqlClient";
         internal const string MySqlDataFactory = "MySql.Data.MySqlClient";
         internal const string MySqlConnectorFactory = "MySqlConnector.MySqlConnectorFactory";
@@ -35,7 +37,7 @@ namespace Raven.Server.Documents.CdcSink.Schema
             return factoryName switch
             {
                 NpgsqlFactory => new PostgresCdcSinkSchemaDiscovery(),
-                SystemDataSqlClientFactory or MicrosoftDataSqlClientFactory => new SqlServerCdcSinkSchemaDiscovery(),
+                MicrosoftDataSqlClientFactory => new SqlServerCdcSinkSchemaDiscovery(),
                 MySqlDataFactory or MySqlConnectorFactory => new MySqlCdcSinkSchemaDiscovery(),
                 _ => throw new InvalidOperationException(UnsupportedProviderMessage(factoryName)),
             };
@@ -50,7 +52,7 @@ namespace Raven.Server.Documents.CdcSink.Schema
         public static bool IsSupportedFactoryName(string factoryName)
         {
             return factoryName is NpgsqlFactory
-                or SystemDataSqlClientFactory or MicrosoftDataSqlClientFactory
+                or MicrosoftDataSqlClientFactory
                 or MySqlDataFactory or MySqlConnectorFactory;
         }
 
@@ -68,7 +70,7 @@ namespace Raven.Server.Documents.CdcSink.Schema
             return factoryName switch
             {
                 NpgsqlFactory => "public",
-                SystemDataSqlClientFactory or MicrosoftDataSqlClientFactory => "dbo",
+                MicrosoftDataSqlClientFactory => "dbo",
                 MySqlDataFactory or MySqlConnectorFactory
                     // Fully qualified on purpose — this shared CDC-discovery class lives outside
                     // the MySQL-specific subtrees that RavenDB_20286 exempts from its
@@ -90,7 +92,7 @@ namespace Raven.Server.Documents.CdcSink.Schema
         internal static string UnsupportedProviderMessage(string factoryName) =>
             $"CDC sink does not support provider '{factoryName}'. " +
             $"Supported providers: {NpgsqlFactory} (PostgreSQL), " +
-            $"{SystemDataSqlClientFactory} / {MicrosoftDataSqlClientFactory} (SQL Server), " +
+            $"{MicrosoftDataSqlClientFactory} (SQL Server), " +
             $"{MySqlDataFactory} / {MySqlConnectorFactory} (MySQL/MariaDB).";
     }
 }

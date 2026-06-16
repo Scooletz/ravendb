@@ -136,7 +136,7 @@ public class CdcSinkLoader : IDisposable
         return configuration.Connection?.FactoryName switch
         {
             "Npgsql" => new PostgresCdcSinkProcess(configuration, database),
-            "System.Data.SqlClient" or "Microsoft.Data.SqlClient" => new SqlServerCdcSinkProcess(configuration, database),
+            "Microsoft.Data.SqlClient" => new SqlServerCdcSinkProcess(configuration, database),
             "MySql.Data.MySqlClient" or "MySqlConnector.MySqlConnectorFactory" => new MySqlCdcSinkProcess(configuration, database),
             _ => throw new NotSupportedException($"CDC is not supported for provider '{configuration.Connection?.FactoryName}'")
         };

@@ -74,7 +74,6 @@ public static class CdcSinkSourceVerifier
                         await VerifyPostgreSqlAsync(dbConnection, schema, token);
                         break;
 
-                    case "System.Data.SqlClient":
                     case "Microsoft.Data.SqlClient":
                         await VerifySqlServerAsync(dbConnection, schema, token);
                         break;
@@ -87,7 +86,7 @@ public static class CdcSinkSourceVerifier
                     default:
                         schema.Errors.Add(
                             $"CDC is not supported for provider '{connection.FactoryName}'. " +
-                            "Supported providers: Npgsql (PostgreSQL), System.Data.SqlClient / Microsoft.Data.SqlClient (SQL Server), MySql.Data.MySqlClient / MySqlConnector (MySQL/MariaDB).");
+                            "Supported providers: Npgsql (PostgreSQL), Microsoft.Data.SqlClient (SQL Server), MySql.Data.MySqlClient / MySqlConnector (MySQL/MariaDB).");
                         break;
                 }
             }
