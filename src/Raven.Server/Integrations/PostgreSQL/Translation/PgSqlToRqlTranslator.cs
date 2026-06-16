@@ -1089,8 +1089,8 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
         {
             var joined = string.Join('.', fieldPath);
 
-            // Same guard as ExtractFieldName: reject SQL-derived names that aren't plain identifiers
-            // before they're spliced into RQL text; synthetic id()/json() are known RQL tokens.
+            // Reject SQL-derived names that aren't plain identifiers before they're spliced into RQL
+            // text; synthetic id()/json() are known RQL tokens.
             if (PgSyntheticColumns.IsSyntheticColumn(joined) == false && IsSafeRqlFieldPath(joined) == false)
                 throw new NotSupportedException("Unsupported field name in WHERE clause");
 

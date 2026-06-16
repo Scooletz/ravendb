@@ -416,8 +416,7 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
             if (cmp == null)
             {
                 // SQL three-valued logic: a NULL operand makes every comparison (including <> / !=)
-                // yield NULL, which IsTruthy treats as not-true so the row is excluded - never
-                // spuriously included, as `cmp.HasValue == false || ...` previously did for <> / !=.
+                // yield NULL, which IsTruthy treats as not-true so the row is excluded.
                 value = null;
                 return true;
             }

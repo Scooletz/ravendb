@@ -16,8 +16,6 @@ namespace Raven.Server.Integrations.PostgreSQL.Types
         {
             if (formatCode == PgFormat.Text)
             {
-                // Format invariantly so a server under a comma-decimal locale (de-DE, pl-PL, ...) emits
-                // `3.14`, not `3,14`, on the wire.
                 return Utf8GetBytes(((double)value).ToString(CultureInfo.InvariantCulture));
             }
 
