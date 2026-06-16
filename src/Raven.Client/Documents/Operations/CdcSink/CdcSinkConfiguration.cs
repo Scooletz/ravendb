@@ -344,6 +344,17 @@ public class CdcSinkConfiguration : IDynamicJson, IDatabaseTask
         if (config.Disabled != Disabled)
             differences |= CdcSinkConfigurationCompareDifferences.ConfigurationDisabled;
 
+        if (config.PinToMentorNode != PinToMentorNode)
+            differences |= CdcSinkConfigurationCompareDifferences.PinToMentorNode;
+
+        if (config.SkipInitialLoad != SkipInitialLoad)
+            differences |= CdcSinkConfigurationCompareDifferences.SkipInitialLoad;
+
+        // Publication/slot names are part of the runtime identity; a change must reset the process.
+        if (string.Equals(config.Postgres?.PublicationName, Postgres?.PublicationName, StringComparison.Ordinal) == false ||
+            string.Equals(config.Postgres?.SlotName, Postgres?.SlotName, StringComparison.Ordinal) == false)
+            differences |= CdcSinkConfigurationCompareDifferences.Postgres;
+
         return differences;
     }
 
