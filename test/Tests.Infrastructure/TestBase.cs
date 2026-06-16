@@ -771,7 +771,8 @@ namespace FastTests
             GC.SuppressFinalize(this);
 
             var exceptionAggregator = new ExceptionAggregator("Could not dispose test");
-
+            try
+            {
             var testOutcomeAnalyzer = new TestOutcomeAnalyzer(TestContext.Current?.TestState);
             var shouldSaveDebugPackage = testOutcomeAnalyzer.ShouldSaveDebugPackage();
 
@@ -826,6 +827,13 @@ namespace FastTests
             ServersForDisposal = null;
 
             RavenTestHelper.DeletePaths(_localPathsToDelete, exceptionAggregator);
+
+                exceptionAggregator.Execute(() => TryExecuteWhenNoOtherTestsAreRunning(() => DefaultRavenHttpClientFactory.Instance.Clear()));
+            }
+            finally
+            {
+                base.Dispose();
+            }
 
             exceptionAggregator.ThrowIfNeeded();
 
