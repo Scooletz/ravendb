@@ -655,36 +655,42 @@ public class MySqlCdcSinkProcess : CdcSinkProcess
             var col = columns[i];
             var value = cells[i];
 
-            values[i] = value switch
+            if (value is null or DBNull)
             {
-                null or DBNull => null,
-
+                values[i] = null;
+            }
+            else if (col.Category is MySqlColumnCategory.Boolean)
+            {
                 // tinyint(1) / bit(1) columns. MySqlCdc returns sbyte for tinyint(1) and
                 // bool[1] for bit(1); the initial-load path goes through CoerceToBoolean too,
                 // keeping a single source of truth for "what counts as a booleanish CLR value".
                 // CoerceToBoolean throws on unrecognised types so future library drift surfaces
                 // as a loud CDC process error rather than silent stringification.
-                var v when col.Category is MySqlColumnCategory.Boolean
-                    => CoerceToBoolean(v, col),
+                values[i] = CoerceToBoolean(value, col);
+            }
+            else
+            {
+                values[i] = value switch
+                {
+                    // MySqlCdc may return numeric types as strings (BCD-encoded internally).
+                    // Parse to decimal so they flow as numbers through the pipeline and patch scripts.
+                    string s when col.Category is MySqlColumnCategory.Decimal
+                        && decimal.TryParse(s, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var dec)
+                        => dec,
 
-                // MySqlCdc may return numeric types as strings (BCD-encoded internally).
-                // Parse to decimal so they flow as numbers through the pipeline and patch scripts.
-                string s when col.Category is MySqlColumnCategory.Decimal
-                    && decimal.TryParse(s, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var dec)
-                    => dec,
+                    // MySQL stores JSON in a proprietary binary format in the binlog.
+                    // Use MySqlCdc's JsonParser to convert to a JSON string.
+                    byte[] bytes when col.Category is MySqlColumnCategory.Json
+                        => MySqlCdc.Providers.MySql.JsonParser.Parse(bytes),
 
-                // MySQL stores JSON in a proprietary binary format in the binlog.
-                // Use MySqlCdc's JsonParser to convert to a JSON string.
-                byte[] bytes when col.Category is MySqlColumnCategory.Json
-                    => MySqlCdc.Providers.MySql.JsonParser.Parse(bytes),
+                    // MySQL's binlog uses the same BLOB type codes for TEXT and BLOB columns.
+                    // TEXT columns should be UTF-8 decoded; true binary columns pass through.
+                    byte[] bytes when col.Category is MySqlColumnCategory.Text
+                        => System.Text.Encoding.UTF8.GetString(bytes),
 
-                // MySQL's binlog uses the same BLOB type codes for TEXT and BLOB columns.
-                // TEXT columns should be UTF-8 decoded; true binary columns pass through.
-                byte[] bytes when col.Category is MySqlColumnCategory.Text
-                    => System.Text.Encoding.UTF8.GetString(bytes),
-
-                _ => ConvertMySqlValue(value),
-            };
+                    _ => ConvertMySqlValue(value),
+                };
+            }
         }
 
         return values;
