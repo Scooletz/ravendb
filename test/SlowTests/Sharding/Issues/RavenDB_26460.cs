@@ -10,7 +10,6 @@ using SlowTests.Core.Utils.Entities;
 using Tests.Infrastructure;
 using Tests.Infrastructure.Operations;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace SlowTests.Sharding.Issues
 {
