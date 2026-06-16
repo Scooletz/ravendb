@@ -1,3 +1,4 @@
+#if RUN_NPGSQL_TESTS
 using System;
 using System.Collections.Concurrent;
 using System.Diagnostics;
@@ -36,7 +37,7 @@ public sealed class PgServerConnectionLifecycleTests : RavenTestBase
 
         // The PG server starts asynchronously after the host comes up. Wait briefly for it.
         await WaitForValueAsync(() => pgServer.Active, true, timeout: 10_000, interval: 50);
-        Assert.True(pgServer.Active, "PgServer never activated — testing license must include PostgreSQL integration / PowerBI tier.");
+        Assert.True(pgServer.Active, "PgServer never activated - testing license must include PostgreSQL integration / PowerBI tier.");
 
         int port = pgServer.GetListenerPort();
 
@@ -57,3 +58,4 @@ public sealed class PgServerConnectionLifecycleTests : RavenTestBase
         Assert.Equal(0, pgServer.InFlightConnectionCount);
     }
 }
+#endif

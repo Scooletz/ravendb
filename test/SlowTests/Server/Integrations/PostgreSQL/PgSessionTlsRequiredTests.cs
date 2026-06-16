@@ -1,3 +1,4 @@
+#if RUN_NPGSQL_TESTS
 using System;
 using System.Buffers.Binary;
 using System.Collections.Concurrent;
@@ -39,7 +40,7 @@ public sealed class PgSessionTlsRequiredTests : RavenTestBase
         var pgServer = server.ServerStore.Server.PostgresServer;
         Assert.NotNull(pgServer);
         await WaitForValueAsync(() => pgServer.Active, true, timeout: 10_000, interval: 50);
-        Assert.True(pgServer.Active, "PgServer never activated — testing license must include PostgreSQL integration / PowerBI tier.");
+        Assert.True(pgServer.Active, "PgServer never activated - testing license must include PostgreSQL integration / PowerBI tier.");
 
         int port = pgServer.GetListenerPort();
 
@@ -120,3 +121,4 @@ public sealed class PgSessionTlsRequiredTests : RavenTestBase
         }
     }
 }
+#endif
