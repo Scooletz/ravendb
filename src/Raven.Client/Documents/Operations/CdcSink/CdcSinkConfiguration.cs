@@ -210,9 +210,10 @@ public class CdcSinkConfiguration : IDynamicJson, IDatabaseTask
                 errors.Add($"Embedded table '{embedded.SourceTableName}' under '{parentName}' must have at least one column mapping");
 
             ValidatePrimaryKeyColumnsExist(embedded.SourceTableName, embedded.PrimaryKeyColumns, embedded.Columns, errors);
-            ValidateColumnsAndPropertyNames(embedded.SourceTableName, embedded.Columns, embedded.EmbeddedTables, linkedTables: null, errors);
+            ValidateColumnsAndPropertyNames(embedded.SourceTableName, embedded.Columns, embedded.EmbeddedTables, embedded.LinkedTables, errors);
 
             ValidateEmbeddedTables(embedded.EmbeddedTables, embedded.SourceTableName, errors);
+            ValidateLinkedTables(embedded.LinkedTables, embedded.SourceTableName, errors);
         }
     }
 
@@ -438,6 +439,9 @@ public class CdcSinkConfiguration : IDynamicJson, IDatabaseTask
                 return true;
 
             if (HaveEmbeddedTablesChanged(l.EmbeddedTables, r.EmbeddedTables))
+                return true;
+
+            if (HaveLinkedTablesChanged(l.LinkedTables, r.LinkedTables))
                 return true;
         }
 
