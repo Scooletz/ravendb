@@ -486,12 +486,20 @@ public class MySqlCdcSinkProcess : CdcSinkProcess
                 options.ServerId = Random.Shared.NextInt64(2, int.MaxValue);
                 options.Blocking = true;
                 options.HeartbeatInterval = TimeSpan.FromSeconds(30);
+                // Map the connection string's SslMode (MySqlConnector) onto the binlog client's SslMode
+                // (MySqlCdc) 1:1 so the streaming connection uses the SAME trust posture as the
+                // initial-load connection (which honors the connection string directly). Every known
+                // value is mapped explicitly; an unknown value fails CLOSED (throws) rather than
+                // silently disabling SSL.
                 options.SslMode = csBuilder.SslMode switch
                 {
-                    MySqlSslMode.Required or MySqlSslMode.VerifyCA or MySqlSslMode.VerifyFull
-                        => SslMode.RequireVerifyCa,
+                    MySqlSslMode.None or MySqlSslMode.Disabled => SslMode.Disabled,
                     MySqlSslMode.Preferred => SslMode.IfAvailable,
-                    _ => SslMode.Disabled,
+                    MySqlSslMode.Required => SslMode.Require,
+                    MySqlSslMode.VerifyCA => SslMode.RequireVerifyCa,
+                    MySqlSslMode.VerifyFull => SslMode.RequireVerifyFull,
+                    _ => throw new InvalidOperationException(
+                        $"Unsupported MySQL SslMode '{csBuilder.SslMode}' for the CDC Sink streaming connection.")
                 };
 
                 var gtidToResume = savedGtid ?? _serverGtid;
