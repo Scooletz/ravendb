@@ -81,6 +81,10 @@ public class PostgresCdcSinkProcess : CdcSinkProcess
     /// Cost: one bitwise AND per row on the hot path. Rebuild only on actual schema changes.
     /// </summary>
     private const uint RelationIdSentinelBit = 0x80000000;
+
+    // PostgreSQL SQLSTATE for insufficient_privilege (e.g. the connection user lacks the
+    // REPLICATION role attribute needed to create/read a publication or replication slot).
+    private const string InsufficientPrivilegeSqlState = "42501";
     private static readonly FieldInfo RelationIdBackingField =
         typeof(RelationMessage).GetField("<RelationId>k__BackingField", BindingFlags.NonPublic | BindingFlags.Instance)
         ?? throw new InvalidOperationException(
@@ -182,7 +186,7 @@ public class PostgresCdcSinkProcess : CdcSinkProcess
                     $"CREATE PUBLICATION {quotedPubName} FOR TABLE {quotedTableList}", conn);
                 await createCmd.ExecuteNonQueryAsync(ct);
             }
-            catch (PostgresException ex) when (ex.SqlState == "42501")
+            catch (PostgresException ex) when (ex.SqlState == InsufficientPrivilegeSqlState)
             {
                 var quotedPubName = CommandBuilder.QuoteIdentifier(_publicationName);
                 throw new InvalidOperationException(
@@ -231,7 +235,7 @@ public class PostgresCdcSinkProcess : CdcSinkProcess
                 {
                     // Race condition: slot was created between our check and create
                 }
-                catch (PostgresException ex) when (ex.SqlState == "42501")
+                catch (PostgresException ex) when (ex.SqlState == InsufficientPrivilegeSqlState)
                 {
                     throw new InvalidOperationException(
                         $"""
@@ -394,7 +398,7 @@ public class PostgresCdcSinkProcess : CdcSinkProcess
                     Logger.Info($"[{Name}] Set REPLICA IDENTITY FULL on {schema}.{table} " +
                         $"(join columns {string.Join(", ", embedded.JoinColumns)} are not in the primary key)");
             }
-            catch (PostgresException ex) when (ex.SqlState == "42501")
+            catch (PostgresException ex) when (ex.SqlState == InsufficientPrivilegeSqlState)
             {
                 throw new InvalidOperationException(
                     $"""
@@ -553,10 +557,21 @@ public class PostgresCdcSinkProcess : CdcSinkProcess
         // PostgreSQL retains WAL segments until the replication slot confirms receipt.
         // We ack periodically (every maxBatchSize rows) to balance WAL retention against
         // protocol overhead.
+        //
+        // Acknowledge the DURABLE checkpoint LSN (the position just persisted to RavenDB by the
+        // completed batch) — NOT _lastLsn (the latest *decoded* position). _lastLsn may already
+        // be ahead because the next batch is decoded while this one commits; acking it would let
+        // PostgreSQL recycle WAL for changes that are not yet durable in RavenDB, losing them on
+        // crash.
+        if (string.IsNullOrEmpty(checkpoint))
+            return;
+
+        var confirmedLsn = NpgsqlTypes.NpgsqlLogSequenceNumber.Parse(checkpoint);
+
         _rowsSinceLastAck += rows;
-        _replicationConn.SetReplicationStatus(_lastLsn);
+        _replicationConn.SetReplicationStatus(confirmedLsn);
         // If rows is 0, it means the batch was empty (e.g., a transaction with no relevant changes, or all changes were filtered out).
-        // Even in this case, we want to ack the LSN to advance the replication slot and allow WAL cleanup, otherwise a stream of 
+        // Even in this case, we want to ack the LSN to advance the replication slot and allow WAL cleanup, otherwise a stream of
         // empty transactions could stall the slot indefinitely.
         if (rows is 0 || _rowsSinceLastAck >= Database.Configuration.CdcSink.MaxBatchSize)
         {
