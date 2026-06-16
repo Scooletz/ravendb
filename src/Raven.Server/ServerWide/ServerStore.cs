@@ -817,7 +817,7 @@ namespace Raven.Server.ServerWide
                             $"One or more block devices have read_ahead_kb set above {thresholdKb.Value} KB: {deviceList}. " +
                             "This can cause excessive I/O during random-access workloads. " +
                             "Consider lowering it. Please follow the documentation for guidance.",
-                            AlertType.HighReadAheadKb,
+                            AlertReason.HighReadAheadKb,
                             NotificationSeverity.Warning);
                         if (NotificationCenter.IsInitialized)
                             NotificationCenter.Add(alert);
@@ -920,7 +920,7 @@ namespace Raven.Server.ServerWide
             }
 
             if (_dismissHighReadAheadAlert)
-                NotificationCenter.Dismiss(AlertRaised.GetKey(AlertType.HighReadAheadKb, null), sendNotificationEvenIfDoesntExist: false);
+                NotificationCenter.Dismiss(AlertRaised.GetKey(AlertReason.HighReadAheadKb, null), sendNotificationEvenIfDoesntExist: false);
 
             CheckSwapOrPageFileAndRaiseNotification();
             _storeAlertForLateRaise.Clear();

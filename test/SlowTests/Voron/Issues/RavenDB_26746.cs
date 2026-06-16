@@ -168,7 +168,7 @@ namespace SlowTests.Voron.Issues
 
                     using (Slice.From(tx.Allocator, key, ByteStringType.Immutable, out Slice keySlice))
                     {
-                        Assert.True(tree.Read(keySlice) != null,
+                        Assert.True(tree.ReadStringOrDefault(keySlice) != null,
                             $"cycle {cycle}: live key '{key}' is not reachable by search (misrouted by out-of-order separators) although iteration {(seen.Contains(key) ? "sees" : "does not see")} it");
                     }
                 }
