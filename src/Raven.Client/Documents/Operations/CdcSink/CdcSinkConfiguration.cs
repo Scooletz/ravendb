@@ -456,14 +456,17 @@ public class CdcSinkConfiguration : IDynamicJson, IDatabaseTask
         {
             tables.Add(new TableInfo
             {
-                Schema = table.SourceTableSchema ?? defaultSchema,
+                // IsNullOrEmpty (not ?? ) to match CdcSinkDocumentProcessor's _tableIndex keying:
+                // an empty-string schema must also fall back to the default, else GetProcessor
+                // throws "No processor found" during initial load / tx-replay.
+                Schema = string.IsNullOrEmpty(table.SourceTableSchema) ? defaultSchema : table.SourceTableSchema,
                 TableName = table.SourceTableName,
                 PrimaryKeyColumns = table.PrimaryKeyColumns,
             });
             ForEachEmbeddedTable(table.EmbeddedTables, e =>
                 tables.Add(new TableInfo
                 {
-                    Schema = e.SourceTableSchema ?? defaultSchema,
+                    Schema = string.IsNullOrEmpty(e.SourceTableSchema) ? defaultSchema : e.SourceTableSchema,
                     TableName = e.SourceTableName,
                     PrimaryKeyColumns = e.PrimaryKeyColumns,
                 }));
