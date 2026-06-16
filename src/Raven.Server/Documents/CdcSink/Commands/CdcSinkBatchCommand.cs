@@ -15,6 +15,7 @@ using Raven.Server.Documents.Patch;
 using Raven.Server.Documents.TransactionMerger.Commands;
 using Raven.Server.Json;
 using Raven.Server.ServerWide.Context;
+using Raven.Server.Utils;
 using Sparrow.Json;
 using Sparrow.Json.Parsing;
 using Sparrow.Server.Logging;
@@ -152,7 +153,7 @@ public sealed class CdcSinkBatchCommand : DocumentMergedTransactionCommand
                     _statistics?.ConsumeSuccess(ops.Count);
                     _statsScope?.RecordProcessedMessage();
                 }
-                catch (Exception e)
+                catch (Exception e) when (IsTolerablePerDocumentError(e))
                 {
                     batchErrors++;
 
@@ -184,6 +185,21 @@ public sealed class CdcSinkBatchCommand : DocumentMergedTransactionCommand
             // statement above) throws and the TxMerger re-runs this command.
             _grouper.Clear();
         }
+    }
+
+    /// <summary>
+    /// Distinguishes an expected, deterministic per-document failure (script error, data-mapping
+    /// issue) — which we tolerate, alert on, and skip so the rest of the batch proceeds — from an
+    /// unexpected/systemic one. Unexpected failures (out of memory, disk full, cancellation) must
+    /// NOT be swallowed: swallowing them would let UpdateState advance the LSN past the dropped
+    /// group, silently losing those source rows. Letting them propagate fails the whole batch so
+    /// the TxMerger retries it without advancing the checkpoint.
+    /// </summary>
+    private static bool IsTolerablePerDocumentError(Exception e)
+    {
+        return e is OperationCanceledException == false &&
+               e.IsOutOfMemory() == false &&
+               e.IsRavenDiskFullException() == false;
     }
 
     /// <summary>
@@ -335,16 +351,7 @@ public sealed class CdcSinkBatchCommand : DocumentMergedTransactionCommand
         }
         // If document is null and we have pending embeds, create a stub
         if (currentDoc == null && pendingEmbeds is { Count: > 0 })
-        {
-            var stub = new DynamicJsonValue
-            {
-                [Constants.Documents.Metadata.Key] = new DynamicJsonValue
-                {
-                    [Constants.Documents.Metadata.Collection] = collectionName,
-                }
-            };
-            currentDoc = context.ReadObject(stub, documentId, BlittableJsonDocumentBuilder.UsageMode.None);
-        }
+            currentDoc = CreateDocumentStub(context, documentId, collectionName);
 
         currentDoc = FlushPendingEmbeds(context, documentId, currentDoc, pendingEmbeds, ref patches, includeOnDelete: true);
 
@@ -391,6 +398,22 @@ public sealed class CdcSinkBatchCommand : DocumentMergedTransactionCommand
                 DeleteAttachments(context, documentId, attachmentColumns, prefix);
             }
         }
+    }
+
+    /// <summary>
+    /// Creates an empty document with only the collection metadata set, so embedded-table ops can be
+    /// attached to a parent that does not exist yet in RavenDB.
+    /// </summary>
+    private static BlittableJsonReaderObject CreateDocumentStub(DocumentsOperationContext context, string documentId, string collectionName)
+    {
+        var stub = new DynamicJsonValue
+        {
+            [Constants.Documents.Metadata.Key] = new DynamicJsonValue
+            {
+                [Constants.Documents.Metadata.Collection] = collectionName,
+            }
+        };
+        return context.ReadObject(stub, documentId, BlittableJsonDocumentBuilder.UsageMode.None);
     }
 
     private void StoreAttachments(
@@ -519,6 +542,12 @@ public sealed class CdcSinkBatchCommand : DocumentMergedTransactionCommand
     {
         if (pendingEmbeds == null || pendingEmbeds.Count == 0)
             return currentDoc;
+
+        // The parent document may not exist yet (e.g. a group like [EmbeddedModify, Delete] arrives
+        // for a root that was never created). Embedded ops navigate/mutate the parent, so create a
+        // collection stub to attach them to — without it, ApplyEmbeddedOperation would dereference a
+        // null document and throw NullReferenceException.
+        currentDoc ??= CreateDocumentStub(context, documentId, pendingEmbeds[0].Processor.CollectionName);
 
         // Fast path: single op, no batching overhead needed
         if (pendingEmbeds.Count == 1)
