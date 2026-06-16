@@ -44,6 +44,12 @@ public abstract class CdcSinkProcess : IDisposable, ILowMemoryHandler
 
     private readonly MultipleUseFlag _lowMemoryFlag = new MultipleUseFlag();
 
+    // Set when the process is stopped/disposed. HandleDatabaseRecordChange can dispose a process
+    // (disposing _cts) before swapping it out of the loader's _processes array, so an in-flight
+    // ongoing-tasks request may still call GetConnectionStatus() on it. Reading _cts.Token after
+    // disposal throws ObjectDisposedException — guard against that with this flag.
+    private readonly MultipleUseFlag _disposed = new MultipleUseFlag();
+
     protected readonly RavenLogger Logger;
 
     private CdcSinkStatsAggregator _lastStats;
@@ -64,6 +70,22 @@ public abstract class CdcSinkProcess : IDisposable, ILowMemoryHandler
     }
 
     protected CancellationToken CancellationToken => _cts.Token;
+
+    /// <summary>
+    /// Reads the cancellation state without throwing if <see cref="_cts"/> has already been
+    /// disposed by a concurrent Stop/Dispose. A disposed token source is treated as cancelled.
+    /// </summary>
+    private bool IsCancellationRequestedSafe()
+    {
+        try
+        {
+            return _cts.IsCancellationRequested;
+        }
+        catch (ObjectDisposedException)
+        {
+            return true;
+        }
+    }
 
     public DocumentDatabase Database { get; }
 
@@ -124,7 +146,10 @@ public abstract class CdcSinkProcess : IDisposable, ILowMemoryHandler
 
     public OngoingTaskConnectionStatus GetConnectionStatus()
     {
-        if (Configuration.Disabled || CancellationToken.IsCancellationRequested)
+        // The process may be disposed concurrently (reconfiguration) while still referenced by an
+        // in-flight ongoing-tasks request — reading CancellationToken (_cts.Token) after disposal
+        // would throw. Treat a disposed process as not active.
+        if (_disposed.IsRaised() || Configuration.Disabled || IsCancellationRequestedSafe())
             return OngoingTaskConnectionStatus.NotActive;
 
         if (FallbackTime != null)
@@ -165,22 +190,24 @@ public abstract class CdcSinkProcess : IDisposable, ILowMemoryHandler
     {
         while (true)
         {
+            // Reading the token (IsCancellationRequested / WaitHandle) can throw ObjectDisposedException
+            // if Stop/Dispose disposed _cts concurrently — treat that as a cancellation and exit.
             try
             {
                 if (ct.IsCancellationRequested)
                     return;
+
+                if (FallbackTime != null)
+                {
+                    if (ct.WaitHandle.WaitOne(FallbackTime.Value))
+                        return;
+
+                    FallbackTime = null;
+                }
             }
             catch (ObjectDisposedException)
             {
                 return;
-            }
-
-            if (FallbackTime != null)
-            {
-                if (ct.WaitHandle.WaitOne(FallbackTime.Value))
-                    return;
-
-                FallbackTime = null;
             }
 
             try
@@ -240,6 +267,7 @@ public abstract class CdcSinkProcess : IDisposable, ILowMemoryHandler
 
         _cts?.Dispose();
         _cts = CancellationTokenSource.CreateLinkedTokenSource(Database.DatabaseShutdown);
+        _disposed.Lower();
 
         // Callers should re-read the InitialLoadCompleted property after this Start() returns.
         _initialLoadTcs.TrySetCanceled();
@@ -287,6 +315,9 @@ public abstract class CdcSinkProcess : IDisposable, ILowMemoryHandler
         if (longRunningWork != PoolOfThreads.LongRunningWork.Current)
             longRunningWork.Join(int.MaxValue);
 
+        // Raise BEFORE disposing _cts so a concurrent GetConnectionStatus() sees the process as
+        // not-active rather than reading the disposed token source.
+        _disposed.Raise();
         _cts.Dispose();
     }
 
