@@ -930,6 +930,10 @@ public abstract class CdcSinkProcess : IDisposable, ILowMemoryHandler
 
     public virtual void Dispose()
     {
+        // Mark disposed up front so a concurrent GetConnectionStatus() bails out before touching _cts,
+        // even on the never-started path where Stop() returns early but _cts is still disposed below.
+        _disposed.Raise();
+
         var exceptionAggregator = new ExceptionAggregator(Logger, $"Could not dispose {GetType().Name}: '{Name}'");
 
         exceptionAggregator.Execute(() => Stop("Dispose"));
