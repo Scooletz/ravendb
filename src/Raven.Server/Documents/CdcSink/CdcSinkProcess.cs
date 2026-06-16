@@ -638,54 +638,66 @@ public abstract class CdcSinkProcess : IDisposable, ILowMemoryHandler
         // is responsible for disposing it after the batch has been processed.
         var ctxHolder = Database.DocumentsStorage.ContextPool.AllocateOperationContext(out DocumentsOperationContext jsonParsingCtx);
 
-        var ops = new List<CdcSinkDocumentOp>();
-        var processor = DocumentProcessor.GetProcessor(tableInfo.Schema, tableInfo.TableName);
-
-        // On first batch for this table, set source column names from the reader if not already set
-        bool columnNamesSet = processor.SourceColumnNames != null;
-
-        while (await reader.ReadAsync(ct))
+        try
         {
-            if (columnNamesSet == false)
+            var ops = new List<CdcSinkDocumentOp>();
+            var processor = DocumentProcessor.GetProcessor(tableInfo.Schema, tableInfo.TableName);
+
+            // On first batch for this table, set source column names from the reader if not already set
+            bool columnNamesSet = processor.SourceColumnNames != null;
+
+            while (await reader.ReadAsync(ct))
             {
-                var columnNames = new string[reader.FieldCount];
+                if (columnNamesSet == false)
+                {
+                    var columnNames = new string[reader.FieldCount];
+                    for (int i = 0; i < reader.FieldCount; i++)
+                        columnNames[i] = reader.GetName(i);
+                    processor.SetSourceColumnNames(columnNames);
+                    columnNamesSet = true;
+                }
+                else
+                {
+                    string[] sourceColumnNames = processor.SourceColumnNames;
+                    if (sourceColumnNames != null && reader.FieldCount != sourceColumnNames.Length)
+                    {
+                        throw new InvalidOperationException(
+                            $"Column count mismatch for table {tableInfo.FullName}: " +
+                            $"expected {sourceColumnNames.Length} columns but SELECT * returned {reader.FieldCount}. " +
+                            "The table schema may have changed. The process will retry with updated column metadata.");
+                    }
+                }
+
+                var values = processor.RentValues();
                 for (int i = 0; i < reader.FieldCount; i++)
-                    columnNames[i] = reader.GetName(i);
-                processor.SetSourceColumnNames(columnNames);
-                columnNamesSet = true;
-            }
-            else if (reader.FieldCount != processor.SourceColumnNames.Length)
-            {
-                throw new InvalidOperationException(
-                    $"Column count mismatch for table {tableInfo.FullName}: " +
-                    $"expected {processor.SourceColumnNames.Length} columns but SELECT * returned {reader.FieldCount}. " +
-                    "The table schema may have changed. The process will retry with updated column metadata.");
+                {
+                    values[i] = reader.IsDBNull(i) ? null : ConvertInitialLoadValue(reader, i, tableInfo);
+                }
+
+                ops.Add(DocumentProcessor.ProcessRow(processor, CdcSinkOperation.Upsert, values, jsonParsingCtx));
             }
 
-            var values = processor.RentValues();
-            for (int i = 0; i < reader.FieldCount; i++)
+            // Extract last keys from the last non-null op's RawValues for keyset pagination resume.
+            string[] newLastKeys = null;
+            for (int j = ops.Count - 1; j >= 0; j--)
             {
-                values[i] = reader.IsDBNull(i) ? null : ConvertInitialLoadValue(reader, i, tableInfo);
+                if (ops[j]?.RawValues == null)
+                    continue;
+                var lastValues = ops[j].RawValues;
+                var pkIndices = ops[j].Processor.PrimaryKeyIndices;
+                newLastKeys = new string[pkColumns.Count];
+                for (int i = 0; i < pkColumns.Count; i++)
+                    newLastKeys[i] = lastValues[pkIndices[i]]?.ToString() ?? "";
+                break;
             }
 
-            ops.Add(DocumentProcessor.ProcessRow(processor, CdcSinkOperation.Upsert, values, jsonParsingCtx));
+            return (ops, newLastKeys, ctxHolder);
         }
-
-        // Extract last keys from the last non-null op's RawValues for keyset pagination resume.
-        string[] newLastKeys = null;
-        for (int j = ops.Count - 1; j >= 0; j--)
+        catch
         {
-            if (ops[j]?.RawValues == null)
-                continue;
-            var lastValues = ops[j].RawValues;
-            var pkIndices = ops[j].Processor.PrimaryKeyIndices;
-            newLastKeys = new string[pkColumns.Count];
-            for (int i = 0; i < pkColumns.Count; i++)
-                newLastKeys[i] = lastValues[pkIndices[i]]?.ToString() ?? "";
-            break;
+            ctxHolder.Dispose();
+            throw;
         }
-
-        return (ops, newLastKeys, ctxHolder);
     }
 
 
@@ -799,7 +811,6 @@ public abstract class CdcSinkProcess : IDisposable, ILowMemoryHandler
                     if (lastBatchOps != null)
                     {
                         DocumentProcessor.ReturnBatchValues(lastBatchOps);
-                        lastBatchOps = null;
                     }
                     previousBatchCtx?.Dispose();
                     previousBatchCtx = null;
