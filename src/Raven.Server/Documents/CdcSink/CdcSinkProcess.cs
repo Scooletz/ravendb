@@ -279,7 +279,7 @@ public abstract class CdcSinkProcess : IDisposable, ILowMemoryHandler
             Logger.Info(msg);
         }
 
-        _cts.Cancel();
+        _cts.SafeCancel(Logger, $"{Tag} process '{Name}'");
 
         var longRunningWork = _longRunningWork;
         _longRunningWork = null;
@@ -536,6 +536,15 @@ public abstract class CdcSinkProcess : IDisposable, ILowMemoryHandler
                         lastCheckpoint = evt.Checkpoint;
                         break;
                 }
+
+                // Bound memory: when events arrive fast enough that MoveNextAsync keeps completing
+                // synchronously, the Task.WhenAny flush path above is skipped, so `batch` would grow
+                // without bound until the source goes idle. Flush completed transactions here once the
+                // batch reaches the size limit. (A single transaction is never split; this only bounds
+                // cross-transaction accumulation. This is also a race-free flush point — no decode is
+                // in flight here, unlike the WhenAny path.)
+                if (ShouldFlushBatch(batch.Count))
+                    await FlushBatch();
             }
 
             if (pending.Count > 0 && Logger.IsDebugEnabled)
