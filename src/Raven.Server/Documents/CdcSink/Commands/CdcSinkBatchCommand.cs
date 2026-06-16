@@ -133,42 +133,57 @@ public sealed class CdcSinkBatchCommand : DocumentMergedTransactionCommand
     {
         using var _ = _statistics?.NewBatch();
         int batchErrors = 0;
+        // Per-execution success count. The TxMerger can re-run ExecuteCmd (via
+        // RunEachOperationIndependently) when a merged batch fails, so the cumulative
+        // ProcessedSuccessfully field must NOT gate LSN advancement: otherwise a previous
+        // attempt's successes could advance the checkpoint on a re-run that produced only
+        // errors, skipping past the failed items (silent data gap).
+        int processedThisExecution = 0;
 
-        foreach (var (documentId, ops) in _grouper.GroupByDocumentId(_ops))
+        try
         {
-            try
+            foreach (var (documentId, ops) in _grouper.GroupByDocumentId(_ops))
             {
-                ProcessDocumentGroup(context, documentId, ops);
-                ProcessedSuccessfully += ops.Count;
-                _statistics?.ConsumeSuccess(ops.Count);
-                _statsScope?.RecordProcessedMessage();
+                try
+                {
+                    ProcessDocumentGroup(context, documentId, ops);
+                    processedThisExecution += ops.Count;
+                    ProcessedSuccessfully += ops.Count;
+                    _statistics?.ConsumeSuccess(ops.Count);
+                    _statsScope?.RecordProcessedMessage();
+                }
+                catch (Exception e)
+                {
+                    batchErrors++;
+
+                    if (_logger?.IsErrorEnabled == true)
+                        _logger.Error($"Failed to process CDC operations for document '{documentId}'.", e);
+
+                    _statsScope?.RecordScriptProcessingError();
+
+                    // RecordPartialConsumeError tracks cumulative error/success counts and throws
+                    // InvalidOperationException when the error ratio is too high (>=100 errors AND
+                    // errors > successes), preventing LSN advancement for a poisoned stream.
+                    _statistics?.RecordPartialConsumeError(e.ToString(), documentId);
+                }
             }
-            catch (Exception e)
+
+            if (batchErrors == 0 || processedThisExecution > 0)
             {
-                batchErrors++;
-
-                if (_logger?.IsErrorEnabled == true)
-                    _logger.Error($"Failed to process CDC operations for document '{documentId}'.", e);
-
-                _statsScope?.RecordScriptProcessingError();
-
-                // RecordPartialConsumeError tracks cumulative error/success counts and throws
-                // InvalidOperationException when the error ratio is too high (>=100 errors AND
-                // errors > successes), preventing LSN advancement for a poisoned stream.
-                _statistics?.RecordPartialConsumeError(e.ToString(), documentId);
+                // Advance LSN only when THIS execution made progress: either the entire batch
+                // succeeded, or some items were processed successfully and the error ratio is
+                // still tolerable (if it weren't, RecordPartialConsumeError would have thrown above).
+                UpdateState(context);
             }
+
+            return _ops.Count;
         }
-
-        if (batchErrors == 0 || ProcessedSuccessfully > 0)
+        finally
         {
-            // Advance LSN only when the entire batch succeeded, or when some items
-            // were processed successfully and the error ratio is still tolerable
-            // (if it weren't tolerable, RecordPartialConsumeError would have thrown above).
-            UpdateState(context);
+            // Always clear so the grouper is reusable even if UpdateState (or any other
+            // statement above) throws and the TxMerger re-runs this command.
+            _grouper.Clear();
         }
-
-        _grouper.Clear();
-        return _ops.Count;
     }
 
     /// <summary>
