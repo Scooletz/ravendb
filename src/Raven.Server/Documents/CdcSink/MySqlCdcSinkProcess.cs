@@ -65,18 +65,16 @@ public class MySqlCdcSinkProcess : CdcSinkProcess
 
         /// <summary>
         /// The TableId from the last TableMapEvent that matched our expected schema.
-        /// <see cref="TableIdReplayingOldEvents"/>: replaying from an old GTID, skip mismatches (old-schema events expected).
-        /// <see cref="TableIdExpectCurrentSchema"/>: checkpoint is recent, throw on mismatch (schema changed since we started).
-        /// Any other value: cached real TableId from the last matching TableMapEvent.
+        /// <see cref="TableIdReplayingOldEvents"/>: no current-schema event seen yet — skip mismatched
+        /// TableMapEvents (old-schema events from the catch-up window are expected).
+        /// Any other value: the real TableId from the last matching TableMapEvent; a later mismatch is
+        /// then treated as a genuine schema change and throws (re-resolved via restart).
         /// </summary>
         public long ValidTableId { get; set; } = TableIdReplayingOldEvents;
     }
 
-    /// <summary>No valid schema seen yet — replaying from old GTID, skip mismatched TableMapEvents.</summary>
+    /// <summary>No current-schema event seen yet — skip mismatched (old-schema) TableMapEvents from the catch-up window.</summary>
     private const long TableIdReplayingOldEvents = -1;
-
-    /// <summary>Checkpoint is at a recent position — any TableMapEvent mismatch is a real schema change, throw.</summary>
-    private const long TableIdExpectCurrentSchema = -2;
 
     /// <summary>
     /// Maps MySQL INFORMATION_SCHEMA.DATA_TYPE strings to binlog ColumnType byte values.
@@ -160,12 +158,11 @@ public class MySqlCdcSinkProcess : CdcSinkProcess
         await ResolveColumnNames(ct);
         await HandleInitialLoad(ct);
 
-        // After initial load, the checkpoint is at a recent GTID position.
-        // Mark all tables as expecting the current schema (-2) so that
-        // TableMapEvent mismatches throw immediately instead of being
-        // silently skipped. 
-        foreach (var table in _resolvedTables.Values)
-            table.ValidTableId = TableIdExpectCurrentSchema;
+        // Tables remain in the replay state (ValidTableId == TableIdReplayingOldEvents, the default):
+        // streaming resumes from the GTID captured when initial load BEGAN, so there is always a
+        // catch-up window whose old-schema TableMapEvents must be skipped rather than crash-looping the
+        // task on an ALTER. The first current-schema TableMapEvent upgrades ValidTableId to the real id,
+        // after which a genuine schema change (mismatch) is detected and re-resolved via restart.
 
         _initialLoadTcs.TrySetResult();
         await ProcessCdcStream(ct);
