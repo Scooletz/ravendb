@@ -207,11 +207,30 @@ public class RavenFactAttribute : FactAttribute, ITraitAttribute, Xunit.v3.IFact
     private static bool ShouldSkipMsSql(out string skipMessage) =>
         ShouldSkipService(() => MsSqlConnectionString.Instance.CanConnect, "MsSQL database", out skipMessage);
 
+    // CDC readiness (engine edition + Agent running) doesn't change mid-run, so probe once per process
+    // and reuse across all CDC tests instead of opening a fresh connection on every test's Skip check.
+    private static readonly Lazy<string> MsSqlCdcReadiness = new(ProbeMsSqlCdcReadiness);
+
     private static bool ShouldSkipMsSqlCdc(out string skipMessage)
     {
         if (ShouldSkipMsSql(out skipMessage))
             return true;
 
+        // On CI the database services are required (ShouldSkipService returns "don't skip" on CI), so a
+        // CDC-readiness problem must surface as a test failure rather than a silent skip â€” otherwise a
+        // misconfigured CI (no Agent, wrong edition) hides the fact that CDC tests never actually ran.
+        if (RavenTestHelper.EnvironmentVariables.IsRunningOnCI)
+        {
+            skipMessage = null;
+            return false;
+        }
+
+        skipMessage = MsSqlCdcReadiness.Value;
+        return skipMessage != null;
+    }
+
+    private static string ProbeMsSqlCdcReadiness()
+    {
         try
         {
             using var conn = new Microsoft.Data.SqlClient.SqlConnection(MsSqlConnectionString.Instance.VerifiedConnectionString.Value);
@@ -222,29 +241,21 @@ public class RavenFactAttribute : FactAttribute, ITraitAttribute, Xunit.v3.IFact
             cmd.CommandText = "SELECT CAST(SERVERPROPERTY('EngineEdition') AS INT)";
             var engineEdition = (int)cmd.ExecuteScalar();
             if (engineEdition == 4)
-            {
-                skipMessage = "Test requires SQL Server with CDC support (Enterprise, Developer, or Standard edition — Express edition does not support CDC)";
-                return true;
-            }
+                return "Test requires SQL Server with CDC support (Enterprise, Developer, or Standard edition; Express edition does not support CDC)";
 
             // CDC capture requires the SQL Server Agent to be running
             cmd.CommandText = "SELECT COUNT(*) FROM sys.dm_exec_sessions WHERE program_name LIKE N'SQLAgent%'";
             var agentSessions = (int)cmd.ExecuteScalar();
             if (agentSessions == 0)
-            {
-                skipMessage = "Test requires SQL Server Agent to be running (needed for CDC capture jobs). " +
+                return "Test requires SQL Server Agent to be running (needed for CDC capture jobs). " +
                     "For Docker, start the container with -e 'MSSQL_AGENT_ENABLED=true' or start the SQL Server Agent service manually.";
-                return true;
-            }
         }
         catch (Exception e)
         {
-            skipMessage = $"Failed to determine SQL Server CDC readiness: {e.Message}";
-            return true;
+            return $"Failed to determine SQL Server CDC readiness: {e.Message}";
         }
 
-        skipMessage = null;
-        return false;
+        return null;
     }
 
     private static bool ShouldSkipOracleSql(out string skipMessage) =>
