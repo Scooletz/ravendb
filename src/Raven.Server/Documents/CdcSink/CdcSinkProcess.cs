@@ -465,14 +465,24 @@ public abstract class CdcSinkProcess : IDisposable, ILowMemoryHandler
         int grouperIndex = 0;
         string lastCheckpoint = null;
 
-        // Context rotation: blittable objects created by ProcessRow reference the context's
-        // memory. We allocate a new context per batch so the previous one stays alive until
-        // the TxMerger finishes writing it.
+        // Context lifetime. Blittables produced by the decode (ProcessRow/DecodeRow inside
+        // GetCdcEvents) reference the memory of whatever context was StreamingJsonContext at decode
+        // time; they live on in `pending`/`batch` until the TxMerger finishes writing the batch they
+        // end up in. We therefore allocate a fresh streaming context (rotate) ONLY at points where
+        // the current context has no live reference that would outlive the rotation:
+        //   * no row is being decoded right now — a MoveNextAsync in flight (the Task.WhenAny flush
+        //     path) is actively writing into the current context, and
+        //   * `pending` is empty — uncommitted ops still reference the current context and will be
+        //     submitted in a later batch.
+        // When either holds we keep the same context and defer the rotation to the next safe flush.
+        // A retired context (previousCtx) backs every batch submitted since the last rotation; since
+        // batches are awaited in submit order, it is safe to dispose once the most recent batch that
+        // used it (lastBatch) has completed — which is exactly the next FlushBatch's `await lastBatch`.
         IDisposable previousCtx = null;
         var currentCtx = Database.DocumentsStorage.ContextPool.AllocateOperationContext(out DocumentsOperationContext ctx);
         StreamingJsonContext = ctx;
 
-        async Task FlushBatch()
+        async Task FlushBatch(bool decodeInFlight)
         {
             (string completedCheckpoint, int rows) = await lastBatch;
             if (completedCheckpoint is not null)
@@ -487,25 +497,38 @@ public abstract class CdcSinkProcess : IDisposable, ILowMemoryHandler
                 lastBatchOps = null;
             }
 
-            // Rotate context: previous batch's blittables stay alive in previousCtx
-            // until the next FlushBatch call disposes it after awaiting lastBatch.
-            // Safe to dispose the context, since we just awaited on the previous batch's completion that used it
-            previousCtx?.Dispose();
-            previousCtx = currentCtx;
-            currentCtx = Database.DocumentsStorage.ContextPool.AllocateOperationContext(out ctx);
-            StreamingJsonContext = ctx;
-
-            if (batch.Count is 0)
+            // previousCtx (if any) backed batches that are all guaranteed complete now — we just
+            // awaited the most recent one — and it is never the live StreamingJsonContext, so it is
+            // safe to dispose. Null it out so a deferred rotation doesn't double-dispose.
+            if (previousCtx != null)
             {
-                // drop  reference to the last batch, in case it holds any resources / memory
-                lastBatch = emptyTask;
-                return;
+                previousCtx.Dispose();
+                previousCtx = null;
             }
 
-            lastBatchOps = batch;
-            lastBatch = SubmitBatch(batch, lastCheckpoint, grouper: groupers[grouperIndex]);
-            grouperIndex ^= 1; // alternate between the two groupers
-            batch = [];
+            if (batch.Count is not 0)
+            {
+                lastBatchOps = batch;
+                lastBatch = SubmitBatch(batch, lastCheckpoint, grouper: groupers[grouperIndex]);
+                grouperIndex ^= 1; // alternate between the two groupers
+                batch = [];
+            }
+            else
+            {
+                // drop reference to the last batch, in case it holds any resources / memory
+                lastBatch = emptyTask;
+            }
+
+            // Rotate only when the current context has no reference that would outlive it: no decode
+            // is mid-flight and no uncommitted ops remain. Otherwise keep it and rotate at the next
+            // safe flush; the just-submitted batch then shares the context with that deferred work,
+            // and the context is retired (and later disposed) only once we can prove no one reads it.
+            if (decodeInFlight == false && pending.Count == 0)
+            {
+                previousCtx = currentCtx;
+                currentCtx = Database.DocumentsStorage.ContextPool.AllocateOperationContext(out ctx);
+                StreamingJsonContext = ctx;
+            }
         }
 
         try
@@ -523,32 +546,45 @@ public abstract class CdcSinkProcess : IDisposable, ILowMemoryHandler
                 {
                     var moveTask = moveNext.AsTask();
 
-                    // Race: wait for either the next event or the previous batch to complete.
-                    // This allows flushing accumulated ops while the source is idle or slow.
-                    await Task.WhenAny(moveTask, lastBatch);
-
-                    if (lastBatch.IsCompleted || ShouldFlushBatch(batch.Count))
-                        await FlushBatch();
-
-                    if (moveTask.IsCompleted == false)
+                    try
                     {
-                        // Source is idle — clear array contents immediately to release
-                        // references for GC, but keep the arrays in the pool for reuse.
-                        DocumentProcessor.ClearValuePoolArrays();
+                        // Race: wait for either the next event or the previous batch to complete.
+                        // This allows flushing accumulated ops while the source is idle or slow.
+                        await Task.WhenAny(moveTask, lastBatch);
 
-                        // If still idle after 1 minute, release the pooled arrays entirely.
-                        var completed = await moveTask.WaitFor(TimeSpan.FromMinutes(1), ct);
-                        if (completed != moveTask)
-                            DocumentProcessor.ClearValuePools();
+                        // A decode (moveTask) is in flight here writing into StreamingJsonContext,
+                        // so FlushBatch must NOT rotate/free that context out from under it.
+                        if (lastBatch.IsCompleted || ShouldFlushBatch(batch.Count))
+                            await FlushBatch(decodeInFlight: true);
+
+                        if (moveTask.IsCompleted == false)
+                        {
+                            // Source is idle — clear array contents immediately to release
+                            // references for GC, but keep the arrays in the pool for reuse.
+                            DocumentProcessor.ClearValuePoolArrays();
+
+                            // If still idle after 1 minute, release the pooled arrays entirely.
+                            var completed = await moveTask.WaitFor(TimeSpan.FromMinutes(1), ct);
+                            if (completed != moveTask)
+                                DocumentProcessor.ClearValuePools();
+                        }
+
+                        moveNextResult = await moveTask;
                     }
-
-                    moveNextResult = await moveTask;
+                    catch
+                    {
+                        // The decode may still be running (e.g. FlushBatch above threw). Drain it
+                        // before unwinding so the async enumerator can be disposed and so the
+                        // streaming context is never freed while a decode is still writing into it.
+                        await DrainSafely(moveTask);
+                        throw;
+                    }
                 }
                 else
                 {
                     moveNextResult = await moveNext;
                 }
-                
+
                 if (moveNextResult is false)
                     break; // enumerator is completed (cancelled, probably)
 
@@ -575,14 +611,14 @@ public abstract class CdcSinkProcess : IDisposable, ILowMemoryHandler
                 // cross-transaction accumulation. This is also a race-free flush point — no decode is
                 // in flight here, unlike the WhenAny path.)
                 if (ShouldFlushBatch(batch.Count))
-                    await FlushBatch();
+                    await FlushBatch(decodeInFlight: false);
             }
 
             if (pending.Count > 0 && Logger.IsDebugEnabled)
                 Logger.Debug($"[{Name}] Discarding {pending.Count} pending op(s) from incomplete transaction at stream end.");
 
             // Stream ended — flush remaining ops, then wait for the final batch to complete
-            await FlushBatch();
+            await FlushBatch(decodeInFlight: false);
             (string finalCheckpoint, int _) = await lastBatch;
             if (lastBatchOps != null)
             {
@@ -594,9 +630,33 @@ public abstract class CdcSinkProcess : IDisposable, ILowMemoryHandler
         }
         finally
         {
+            // The in-flight TxMerger batch reads previousCtx/currentCtx; wait for it to finish
+            // before freeing them so the exception/cancellation path never disposes a context that
+            // is still being written. (Any in-flight decode was already drained inside the loop.)
+            await DrainSafely(lastBatch);
+
             previousCtx?.Dispose();
             currentCtx?.Dispose();
             StreamingJsonContext = null;
+        }
+    }
+
+    /// <summary>
+    /// Awaits a possibly-in-flight task, swallowing any fault/cancellation. Used on disposal/teardown
+    /// paths to ensure a batch or decode has finished touching a context before it is freed, without
+    /// masking the exception that triggered the teardown.
+    /// </summary>
+    private static async Task DrainSafely(Task task)
+    {
+        if (task is null)
+            return;
+        try
+        {
+            await task;
+        }
+        catch
+        {
+            // The task already faulted or was cancelled; disposal must still proceed.
         }
     }
 
@@ -876,6 +936,11 @@ public abstract class CdcSinkProcess : IDisposable, ILowMemoryHandler
         }
         finally
         {
+            // The in-flight submitted batch reads previousBatchCtx; wait for it to finish before
+            // disposing so the exception/cancellation path never frees a context the TxMerger is
+            // still writing. (The initial-load decode in ReadOneBatch is fully awaited before each
+            // submit, so unlike the streaming loop there is never a decode in flight here.)
+            await DrainSafely(lastBatch);
             previousBatchCtx?.Dispose();
             currentBatchCtx?.Dispose();
         }
