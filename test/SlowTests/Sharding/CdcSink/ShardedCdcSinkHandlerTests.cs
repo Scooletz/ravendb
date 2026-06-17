@@ -3,6 +3,7 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using FastTests;
 using Raven.Client.Documents.Operations;
+using Raven.Client.Documents.Operations.CdcSink;
 using Raven.Client.Documents.Operations.CdcSink.Schema;
 using Raven.Client.Documents.Operations.CdcSink.Test;
 using Raven.Client.Documents.Operations.ETL.SQL;
@@ -88,6 +89,28 @@ public class ShardedCdcSinkHandlerTests : RavenTestBase
         {
             var e = await Assert.ThrowsAsync<NotSupportedInShardingException>(
                 () => store.Maintenance.SendAsync(new GetCdcSinkPerformanceLiveOperation()));
+
+            Assert.Contains("CDC Sinks", e.Message);
+            Assert.Contains("not supported in sharding", e.Message);
+        }
+    }
+
+    [RavenFact(RavenTestCategory.Sinks | RavenTestCategory.Sharding)]
+    public async Task AddCdcSink_OnShardedDatabase_RejectsWithNotSupportedInSharding()
+    {
+        using (var store = Sharding.GetDocumentStore())
+        {
+            // The sharded add-task processor throws in OnBeforeUpdateConfiguration — before any config
+            // validation or the actual add — so a minimal configuration is enough to surface the typed
+            // exception (PUT /admin/cdc-sink).
+            var configuration = new CdcSinkConfiguration
+            {
+                Name = "cdc-sink-test",
+                ConnectionStringName = "ignored"
+            };
+
+            var e = await Assert.ThrowsAsync<NotSupportedInShardingException>(
+                () => store.Maintenance.SendAsync(new AddCdcSinkOperation(configuration)));
 
             Assert.Contains("CDC Sinks", e.Message);
             Assert.Contains("not supported in sharding", e.Message);
