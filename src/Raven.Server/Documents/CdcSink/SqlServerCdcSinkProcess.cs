@@ -174,19 +174,62 @@ public class SqlServerCdcSinkProcess : CdcSinkProcess
         }
     }
 
-    private static async Task VerifyAgentIsRunning(DbConnection conn, CancellationToken ct)
+    private async Task VerifyAgentIsRunning(DbConnection conn, CancellationToken ct)
     {
-        await using var cmd = conn.CreateCommand();
-        cmd.CommandText = "SELECT COUNT(*) FROM sys.dm_exec_sessions WHERE program_name LIKE N'SQLAgent%'";
-        var result = await cmd.ExecuteScalarAsync(ct);
-        if (result is int count && count > 0)
+        // Azure SQL Database (EngineEdition 5) has no classic SQL Server Agent — its CDC change
+        // capture runs on a managed scheduler — so the Agent-session check does not apply there.
+        const int azureSqlDatabaseEngineEdition = 5;
+        try
+        {
+            await using var editionCmd = conn.CreateCommand();
+            editionCmd.CommandText = "SELECT CAST(SERVERPROPERTY('EngineEdition') AS int)";
+            if (await editionCmd.ExecuteScalarAsync(ct) is int engineEdition && engineEdition == azureSqlDatabaseEngineEdition)
+                return;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // Couldn't read the engine edition — fall through to the best-effort Agent check.
+            if (Logger.IsInfoEnabled)
+                Logger.Info($"[{Name}] Could not read SQL Server EngineEdition while checking the Agent; continuing. {ex.Message}");
+        }
+
+        int agentSessions;
+        try
+        {
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = "SELECT COUNT(*) FROM sys.dm_exec_sessions WHERE program_name LIKE N'SQLAgent%'";
+            agentSessions = await cmd.ExecuteScalarAsync(ct) as int? ?? 0;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // Reading sys.dm_exec_sessions needs VIEW SERVER STATE; an under-privileged login can't
+            // see Agent sessions even when the Agent is running. We can't verify — don't block.
+            if (Logger.IsInfoEnabled)
+                Logger.Info($"[{Name}] Could not verify SQL Server Agent status (insufficient permissions?); continuing. {ex.Message}");
+            return;
+        }
+
+        if (agentSessions > 0)
             return;
 
-        throw new InvalidOperationException(
-            "SQL Server Agent is not running. CDC change capture requires the Agent to process " +
-            "capture jobs that populate the change tables. Without it, no CDC events will be delivered. " +
-            "For Docker containers, start with: -e 'MSSQL_AGENT_ENABLED=true'. " +
-            "For on-premises installations, start the SQL Server Agent service.");
+        // The Agent isn't visible. On-prem this usually means it is genuinely stopped, but an
+        // under-privileged login may simply not see the session. Warn instead of failing the task so
+        // capture can still proceed if the Agent is in fact running; without it the change tables just
+        // won't be populated and the counts won't advance, which the alert explains.
+        var alert = AlertRaised.Create(
+            Database.Name, Tag,
+            "SQL Server Agent does not appear to be running (or is not visible to this login). CDC change " +
+            "capture relies on the Agent to process the capture jobs that populate the change tables; if it " +
+            "is genuinely stopped, no CDC events will be delivered. For Docker containers start with " +
+            "-e 'MSSQL_AGENT_ENABLED=true'; for on-premises installations start the SQL Server Agent service.",
+            AlertReason.CdcSink_Error,
+            NotificationSeverity.Warning,
+            key: $"{Tag}/{Name}/sql-agent-not-running");
+
+        Database.NotificationCenter.Add(alert);
+
+        if (Logger.IsInfoEnabled)
+            Logger.Info($"[{Name}] SQL Server Agent not detected; proceeding (capture may not advance if it is truly stopped).");
     }
 
     protected override async IAsyncEnumerable<CdcEvent> GetCdcEvents([EnumeratorCancellation] CancellationToken ct)
