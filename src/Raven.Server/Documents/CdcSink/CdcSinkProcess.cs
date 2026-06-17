@@ -710,7 +710,14 @@ public abstract class CdcSinkProcess : IDisposable, ILowMemoryHandler
     /// </summary>
     protected abstract object ConvertInitialLoadValue(DbDataReader reader, int ordinal, CdcSinkConfiguration.TableInfo tableInfo);
 
-    private async Task<(List<CdcSinkDocumentOp> Ops, string[] LastKeys, IDisposable Context)> ReadOneBatch(
+    /// <summary>
+    /// Result of a single initial-load batch read: the decoded ops, the keyset-pagination resume
+    /// keys, and the context whose memory the ops' blittables reference (the caller disposes it once
+    /// the batch has been written).
+    /// </summary>
+    private readonly record struct InitialLoadBatch(List<CdcSinkDocumentOp> Ops, string[] LastKeys, IDisposable Context);
+
+    private async Task<InitialLoadBatch> ReadOneBatch(
         DbConnection conn, CdcSinkConfiguration.TableInfo tableInfo, List<string> pkColumns,
         string[] lastKeys, int maxBatchSize, CancellationToken ct)
     {
@@ -782,7 +789,7 @@ public abstract class CdcSinkProcess : IDisposable, ILowMemoryHandler
                 break;
             }
 
-            return (ops, newLastKeys, ctxHolder);
+            return new InitialLoadBatch(ops, newLastKeys, ctxHolder);
         }
         catch
         {
