@@ -515,11 +515,10 @@ public class MySqlCdcSinkProcess : CdcSinkProcess
                 }
             });
 
-            var defaultSchema = GetDefaultSchema();
-
             // MySQL streams binlog events for ALL databases on the server, not just ours.
-            // Only cache TableMapEvents for configured tables in our database — row events
-            // for uncached table IDs are skipped automatically by the TryGetValue check.
+            // Only cache TableMapEvents for configured tables — matched by (schema, name) against
+            // _resolvedTables, so tables on a non-default schema stream too. Row events for uncached
+            // table IDs are skipped automatically by the TryGetValue check.
             var tableMapCache = new Dictionary<long, TableInfo>();
 
             await foreach (var (header, binlogEvent) in client.Replicate(ct))
@@ -531,8 +530,7 @@ public class MySqlCdcSinkProcess : CdcSinkProcess
                 switch (binlogEvent)
                 {
                     case TableMapEvent tableMap:
-                        if (string.Equals(tableMap.DatabaseName, defaultSchema, StringComparison.OrdinalIgnoreCase)
-                            && _resolvedTables.TryGetValue((tableMap.DatabaseName, tableMap.TableName), out var info))
+                        if (_resolvedTables.TryGetValue((tableMap.DatabaseName, tableMap.TableName), out var info))
                         {
                             // Schema change detection via TableId tracking + prefix comparison.
                             //
