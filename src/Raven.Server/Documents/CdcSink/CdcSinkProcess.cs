@@ -21,6 +21,7 @@ using Raven.Server.Json;
 using Sparrow.Json;
 using Raven.Server.NotificationCenter.Notifications;
 using Raven.Server.NotificationCenter.Notifications.Details;
+using Raven.Server.ServerWide.Commands.CdcSink;
 using Raven.Server.ServerWide.Context;
 using Raven.Server.Utils;
 using Sparrow;
@@ -188,6 +189,12 @@ public abstract class CdcSinkProcess : IDisposable, ILowMemoryHandler
 
     private async Task RunWithRetryAsync(CancellationToken ct)
     {
+        // Record which node owns this CDC Sink so the mentor-node resolution keeps it sticky to this
+        // node across topology changes. Once per start is enough — unlike ETL/QueueSink we don't persist
+        // progress in this state (the LSN/GTID checkpoint lives in the CdcSinkTaskState document), so
+        // there is nothing to refresh per batch.
+        await TryUpdateProcessStateForStickiness();
+
         while (true)
         {
             // Reading the token (IsCancellationRequested / WaitHandle) can throw ObjectDisposedException
@@ -244,6 +251,33 @@ public abstract class CdcSinkProcess : IDisposable, ILowMemoryHandler
                 EnterFallbackMode();
                 Statistics.RecordConsumeError(e.ToString());
             }
+        }
+    }
+
+    // Records which node currently owns this CDC Sink so the mentor-node resolution keeps the task
+    // sticky to it (UpdateCdcSinkProcessStateCommand's apply rejects writes from a node that isn't the
+    // responsible one). Best-effort: a transient failure must not stop the task — on failover the new
+    // owner records its own state on start.
+    private async Task TryUpdateProcessStateForStickiness()
+    {
+        try
+        {
+            var state = new CdcSinkProcessState
+            {
+                ConfigurationName = Configuration.Name,
+                NodeTag = Database.ServerStore.NodeTag
+            };
+
+            var command = new UpdateCdcSinkProcessStateCommand(
+                Database.Name, state, Database.ServerStore.LicenseManager.HasHighlyAvailableTasks(), RaftIdGenerator.NewId());
+
+            var (index, _) = await Database.ServerStore.SendToLeaderAsync(command);
+            await Database.RachisLogIndexNotifications.WaitForIndexNotification(index, Database.ServerStore.Engine.OperationTimeout);
+        }
+        catch (Exception e)
+        {
+            if (Logger.IsInfoEnabled)
+                Logger.Info($"[{Name}] Could not record CDC Sink process state for node stickiness; the task still runs. {e}");
         }
     }
 
