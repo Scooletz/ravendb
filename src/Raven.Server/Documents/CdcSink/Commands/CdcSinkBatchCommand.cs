@@ -35,6 +35,7 @@ public sealed class CdcSinkBatchCommand : DocumentMergedTransactionCommand
     private readonly List<CdcSinkDocumentOp> _ops;
     private readonly string _configurationName;
     private readonly string _lastLsn;
+    private readonly string _defaultSchema;
     private readonly Dictionary<string, CdcSinkTableLoadState> _tableLoadUpdates;
     private readonly PatchRequest _patchRequest;
     private readonly CdcSinkStatsScope _statsScope;
@@ -116,12 +117,14 @@ public sealed class CdcSinkBatchCommand : DocumentMergedTransactionCommand
         CdcSinkStatsScope statsScope,
         CdcSinkProcessStatistics statistics,
         RavenLogger logger,
+        string defaultSchema = null,
         DocumentGrouper grouper = null)
     {
         _database = database;
         _ops = ops;
         _configurationName = configurationName;
         _lastLsn = lastLsn;
+        _defaultSchema = defaultSchema;
         _tableLoadUpdates = tableLoadUpdates;
         _patchRequest = patchRequest;
         _statsScope = statsScope;
@@ -1597,6 +1600,7 @@ public sealed class CdcSinkBatchCommand : DocumentMergedTransactionCommand
             Ops = serializedOps,
             ConfigurationName = _configurationName,
             LastLsn = _lastLsn,
+            DefaultSchema = _defaultSchema,
             TableLoadUpdates = _tableLoadUpdates,
         };
     }
@@ -1623,6 +1627,13 @@ public sealed class CdcSinkBatchCommand : DocumentMergedTransactionCommand
         public List<SerializedCdcSinkOp> Ops { get; set; }
         public string ConfigurationName { get; set; }
         public string LastLsn { get; set; }
+
+        /// <summary>
+        /// The provider default schema resolved when the batch was created, persisted so tx-log
+        /// replay can rebuild the document processor with the correct schema even when the live
+        /// process is gone (re-deriving from it would yield "" and mis-key the processors).
+        /// </summary>
+        public string DefaultSchema { get; set; }
         public Dictionary<string, CdcSinkTableLoadState> TableLoadUpdates { get; set; }
 
         public DocumentMergedTransactionCommand ToCommand(DocumentsOperationContext context, DocumentDatabase database)
@@ -1636,7 +1647,9 @@ public sealed class CdcSinkBatchCommand : DocumentMergedTransactionCommand
                     $"Cannot replay CDC Sink batch: configuration '{ConfigurationName}' was not found. " +
                     "It may have been deleted since the batch was originally executed.");
             var process = database.CdcSinkLoader.Processes.FirstOrDefault(p => string.Equals(p.Name, ConfigurationName, StringComparison.OrdinalIgnoreCase));
-            var defaultSchema = process?.DefaultSchema ?? "";
+            // Prefer the schema persisted in the Dto — during tx-log replay the live process may be
+            // gone, so re-deriving from it would yield "" and mis-key the rebuilt processors.
+            var defaultSchema = DefaultSchema ?? process?.DefaultSchema ?? "";
             var docProcessor = new CdcSinkDocumentProcessor(config, defaultSchema);
 
             var ops = new List<CdcSinkDocumentOp>(Ops.Count);
@@ -1684,7 +1697,7 @@ public sealed class CdcSinkBatchCommand : DocumentMergedTransactionCommand
 
             return new CdcSinkBatchCommand(database, ops, ConfigurationName, LastLsn,
                 tableLoadUpdates: TableLoadUpdates, patchRequest: docProcessor.CombinedPatchRequest,
-                statsScope: null, statistics: null, logger: null);
+                statsScope: null, statistics: null, logger: null, defaultSchema: defaultSchema);
         }
     }
 }

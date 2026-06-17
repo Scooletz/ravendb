@@ -362,7 +362,7 @@ public abstract class CdcSinkProcess : IDisposable, ILowMemoryHandler
             tableLoadUpdates: tableLoadUpdates,
             patchRequest: DocumentProcessor.CombinedPatchRequest,
             statsScope: null, statistics: Statistics, logger: Logger,
-            grouper: grouper);
+            grouper: grouper, defaultSchema: DefaultSchema);
 
         var start = Stopwatch.GetTimestamp();
         await Database.TxMerger.Enqueue(command);
