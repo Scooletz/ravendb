@@ -1,5 +1,4 @@
 using System;
-using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Data.Common;
 using System.Buffers;
@@ -60,36 +59,15 @@ public class PostgresCdcSinkProcess : CdcSinkProcess
     private uint _vectorOid = uint.MaxValue; // pgvector extension OID, resolved at setup time. MaxValue = not installed.
 
     /// <summary>
-    /// Lightweight per-relation state: type categories for value decoding and the processor
-    /// for column mapping. Keyed by the real (un-sentinel'd) RelationId.
-    /// Rebuilt when Npgsql calls Populate() on the RelationMessage (schema change).
+    /// Lightweight per-relation state: type categories for value decoding and the processor for column
+    /// mapping, keyed by the relation's real OID. (Re)built from the RelationMessage that pgoutput sends
+    /// before a relation's rows and again on a schema change (see the RelationMessage case in GetCdcEvents).
     /// </summary>
     private readonly Dictionary<uint, (PostgresTypeCategory[] Types, CdcSinkTableProcessor Processor)> _relationProcessors = new();
-
-    /// <summary>
-    /// Schema change detection via RelationId sentinel bit.
-    ///
-    /// Npgsql reuses the same RelationMessage object per table and calls Populate() to update
-    /// it in-place only when PostgreSQL sends a new Relation message (schema change or first
-    /// encounter). We exploit this:
-    ///
-    /// After processing a RelationMessage, we flip the high bit of RelationId via reflection.
-    /// On subsequent rows, if the high bit is set, the schema hasn't changed (fast path).
-    /// If Populate() was called (schema change), it overwrites RelationId with the real value
-    /// (high bit clear) — we detect this and rebuild the column mapping.
-    ///
-    /// Cost: one bitwise AND per row on the hot path. Rebuild only on actual schema changes.
-    /// </summary>
-    private const uint RelationIdSentinelBit = 0x80000000;
 
     // PostgreSQL SQLSTATE for insufficient_privilege (e.g. the connection user lacks the
     // REPLICATION role attribute needed to create/read a publication or replication slot).
     private const string InsufficientPrivilegeSqlState = "42501";
-    private static readonly FieldInfo RelationIdBackingField =
-        typeof(RelationMessage).GetField("<RelationId>k__BackingField", BindingFlags.NonPublic | BindingFlags.Instance)
-        ?? throw new InvalidOperationException(
-            "Cannot find RelationMessage.RelationId backing field. " +
-            "This may indicate an incompatible Npgsql version.");
 
     private System.Text.StringBuilder _reusableSb;
 
@@ -482,6 +460,13 @@ public class PostgresCdcSinkProcess : CdcSinkProcess
 
             switch (message)
             {
+                case RelationMessage relation:
+                    // pgoutput sends a RelationMessage before a relation's rows and re-sends it on a schema
+                    // change. (Re)build the column mapping now, keyed by the real OID, so row decoding is a
+                    // plain dictionary lookup — no high-bit sentinel that would collide with OIDs >= 2^31.
+                    if (IsConfiguredRelation(relation))
+                        BuildRelationMapping(relation);
+                    break;
                 case InsertMessage insert:
                     if (IsConfiguredRelation(insert.Relation) == false)
                     {
@@ -569,7 +554,7 @@ public class PostgresCdcSinkProcess : CdcSinkProcess
         if (DocumentProcessor.TryGetProcessor(relation.Namespace, relation.RelationName, out _))
             return true;
 
-        if (_unconfiguredRelations.Add(relation.RelationId & ~RelationIdSentinelBit) && Logger.IsInfoEnabled)
+        if (_unconfiguredRelations.Add(relation.RelationId) && Logger.IsInfoEnabled)
         {
             Logger.Info($"[{Name}] Skipping rows for relation '{relation.Namespace}.{relation.RelationName}' — " +
                         "it is published but not configured in the CDC Sink task.");
@@ -658,6 +643,27 @@ public class PostgresCdcSinkProcess : CdcSinkProcess
     }
 
     /// <summary>
+    /// (Re)builds the per-relation decode state (type categories + processor + source column names) from a
+    /// RelationMessage and caches it keyed by the relation's real OID. Called when a RelationMessage arrives
+    /// (first encounter or schema change) and as a lazy fallback from DecodeRowInternal.
+    /// </summary>
+    private (PostgresTypeCategory[] Types, CdcSinkTableProcessor Processor) BuildRelationMapping(RelationMessage relation)
+    {
+        var typeCategories = PostgresColumnTypeMapping.BuildTypeCategoriesFromRelation(relation, _vectorOid);
+
+        var columnNames = new string[relation.Columns.Count];
+        for (int i = 0; i < relation.Columns.Count; i++)
+            columnNames[i] = relation.Columns[i].ColumnName;
+
+        var processor = DocumentProcessor.GetProcessor(relation.Namespace, relation.RelationName);
+        processor.SetSourceColumnNames(columnNames);
+
+        var entry = (typeCategories, processor);
+        _relationProcessors[relation.RelationId] = entry;
+        return entry;
+    }
+
+    /// <summary>
     /// Resolves the processor for a relation, decodes a replication tuple into raw column values,
     /// and returns both. Used by <see cref="DecodeRow"/> and by the reparent detection path
     /// (which needs the raw values without calling ProcessRow).
@@ -665,33 +671,12 @@ public class PostgresCdcSinkProcess : CdcSinkProcess
     private async Task<(CdcSinkTableProcessor Processor, object[] Values)> DecodeRowInternal(
         RelationMessage relation, ReplicationTuple row, CancellationToken ct)
     {
-        var relationId = relation.RelationId;
+        // The RelationMessage that precedes a relation's rows (and is re-sent on schema change) builds the
+        // mapping in GetCdcEvents; fall back to building it here if a row is somehow decoded first.
+        if (_relationProcessors.TryGetValue(relation.RelationId, out var entry) == false)
+            entry = BuildRelationMapping(relation);
 
-        if ((relationId & RelationIdSentinelBit) == 0)
-        {
-            // RelationId doesn't have our sentinel bit — either first time seeing this relation,
-            // or Npgsql called Populate() because PostgreSQL sent a new RelationMessage (schema change).
-            // (Re)build the column mapping from the current RelationMessage contents.
-            var realId = relationId;
-
-            var typeCategories = PostgresColumnTypeMapping.BuildTypeCategoriesFromRelation(relation, _vectorOid);
-
-            var columnNames = new string[relation.Columns.Count];
-            for (int i = 0; i < relation.Columns.Count; i++)
-                columnNames[i] = relation.Columns[i].ColumnName;
-
-            var processor = DocumentProcessor.GetProcessor(relation.Namespace, relation.RelationName);
-            processor.SetSourceColumnNames(columnNames);
-
-            _relationProcessors[realId] = (typeCategories, processor);
-
-            // Set the sentinel bit via reflection so subsequent rows skip this rebuild.
-            // Npgsql's Populate() will overwrite RelationId with the real value on schema change,
-            // clearing our sentinel and triggering a rebuild on the next row.
-            RelationIdBackingField.SetValue(relation, realId | RelationIdSentinelBit);
-        }
-
-        var (types, proc) = _relationProcessors[relationId & ~RelationIdSentinelBit];
+        var (types, proc) = entry;
 
         var values = proc.RentValues();
         int columnIndex = 0;
