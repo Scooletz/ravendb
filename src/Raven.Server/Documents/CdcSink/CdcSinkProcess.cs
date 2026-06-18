@@ -108,6 +108,12 @@ public abstract class CdcSinkProcess : IDisposable, ILowMemoryHandler
     /// </summary>
     internal Exception LastProcessException { get; private set; }
 
+    /// <summary>
+    /// True once the process hit a permanent configuration/schema error (a <see cref="CdcSinkFaultedException"/>)
+    /// and stopped retrying. Correcting the configuration recreates the process, which clears this.
+    /// </summary>
+    public bool IsFaulted { get; private set; }
+
     public CdcSinkProcessStatistics Statistics { get; }
 
     public long TaskId => Configuration.TaskId;
@@ -221,6 +227,34 @@ public abstract class CdcSinkProcess : IDisposable, ILowMemoryHandler
             {
                 await RunInternalAsync(ct);
             }
+            catch (Exception e) when (IsPermanentFault(e))
+            {
+                // A permanent configuration/schema error (e.g. a configured table that doesn't resolve in the
+                // processor mapping). Retrying can't fix it, so move to a faulted state and STOP the loop instead
+                // of falling back and hammering the source forever. Correcting the configuration recreates the
+                // process (CdcSinkLoader.HandleDatabaseRecordChange) for a fresh, un-faulted start.
+                IsFaulted = true;
+                LastProcessException = e;
+
+                // Unlike the transient path below, a faulted process will not retry — so initial-load waiters
+                // must observe the failure here rather than hang forever.
+                _initialLoadTcs.TrySetException(e);
+                ProcessError?.Invoke(e);
+
+                if (Logger.IsErrorEnabled)
+                    Logger.Error($"[{Name}] CDC Sink process faulted; it will not retry until the configuration is corrected.", e);
+
+                Database.NotificationCenter.Add(AlertRaised.Create(
+                    Database.Name, Tag,
+                    $"[{Name}] CDC Sink process faulted (configuration error): {e.Message}",
+                    AlertReason.CdcSink_Error,
+                    NotificationSeverity.Error,
+                    key: $"{Tag}/{Name}",
+                    details: new ExceptionDetails(e)));
+
+                Statistics.RecordConsumeError(e.ToString());
+                return;
+            }
             catch (OperationCanceledException)
             {
                 _initialLoadTcs.TrySetCanceled();
@@ -252,6 +286,19 @@ public abstract class CdcSinkProcess : IDisposable, ILowMemoryHandler
                 Statistics.RecordConsumeError(e.ToString());
             }
         }
+    }
+
+    // A CdcSinkFaultedException anywhere in the exception chain marks a permanent configuration/schema error
+    // that retrying cannot fix; everything else is treated as transient and retried after fallback.
+    private static bool IsPermanentFault(Exception e)
+    {
+        for (var current = e; current != null; current = current.InnerException)
+        {
+            if (current is CdcSinkFaultedException)
+                return true;
+        }
+
+        return false;
     }
 
     // Records which node currently owns this CDC Sink so the mentor-node resolution keeps the task
@@ -773,7 +820,20 @@ public abstract class CdcSinkProcess : IDisposable, ILowMemoryHandler
         try
         {
             var ops = new List<CdcSinkDocumentOp>();
-            var processor = DocumentProcessor.GetProcessor(tableInfo.Schema, tableInfo.TableName);
+            CdcSinkTableProcessor processor;
+            try
+            {
+                processor = DocumentProcessor.GetProcessor(tableInfo.Schema, tableInfo.TableName);
+            }
+            catch (InvalidOperationException e)
+            {
+                // A configured table that doesn't resolve in the mapping is a permanent configuration error,
+                // not a transient failure — fault the process so it stops retrying until the config is fixed,
+                // rather than re-running the initial load forever against a mapping that can never match.
+                throw new CdcSinkFaultedException(
+                    $"Initial load cannot start for table '{tableInfo.Schema}.{tableInfo.TableName}': it does not resolve " +
+                    "in the task's table mapping. Fix the table configuration; the task will restart.", e);
+            }
 
             // On first batch for this table, set source column names from the reader if not already set
             bool columnNamesSet = processor.SourceColumnNames != null;
