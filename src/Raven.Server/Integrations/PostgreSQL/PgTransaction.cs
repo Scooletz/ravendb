@@ -71,7 +71,7 @@ namespace Raven.Server.Integrations.PostgreSQL
             {
                 State = TransactionState.InTransaction;
                 if (Session.NamedStatements.TryGetValue(statementName, out _currentQuery) == false)
-                    throw new KeyNotFoundException($"Expected named statement '{statementName}' wasn't found.");
+                    throw new PgErrorException(PgErrorCodes.InvalidSqlStatementName, $"prepared statement \"{statementName}\" does not exist");
             }
             _currentQuery.Bind(parameters, parameterFormatCodes, resultColumnFormatCodes);
         }
