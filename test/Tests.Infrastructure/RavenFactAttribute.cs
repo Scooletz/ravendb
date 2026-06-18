@@ -106,6 +106,18 @@ public class RavenFactAttribute : FactAttribute, ITraitAttribute, Xunit.v3.IFact
         get => Requires.HasFlag(RavenServiceRequirement.MsSqlCdc);
         set => Requires = value ? Requires | RavenServiceRequirement.MsSqlCdc : Requires & ~RavenServiceRequirement.MsSqlCdc;
     }
+
+    public bool NpgSqlCdcRequired
+    {
+        get => Requires.HasFlag(RavenServiceRequirement.NpgSqlCdc);
+        set => Requires = value ? Requires | RavenServiceRequirement.NpgSqlCdc : Requires & ~RavenServiceRequirement.NpgSqlCdc;
+    }
+
+    public bool MySqlCdcRequired
+    {
+        get => Requires.HasFlag(RavenServiceRequirement.MySqlCdc);
+        set => Requires = value ? Requires | RavenServiceRequirement.MySqlCdc : Requires & ~RavenServiceRequirement.MySqlCdc;
+    }
     public new string Skip
     {
         get => ShouldSkip(_skip, Category, licenseRequired: LicenseRequired, nightlyBuildRequired: NightlyBuildRequired, serviceRequirement: Requires);
@@ -156,6 +168,12 @@ public class RavenFactAttribute : FactAttribute, ITraitAttribute, Xunit.v3.IFact
 
 
         if (serviceRequirement.HasFlag(RavenServiceRequirement.MsSqlCdc) && ShouldSkipMsSqlCdc(out skip))
+            return skip;
+
+        if (serviceRequirement.HasFlag(RavenServiceRequirement.NpgSqlCdc) && ShouldSkipNpgSqlCdc(out skip))
+            return skip;
+
+        if (serviceRequirement.HasFlag(RavenServiceRequirement.MySqlCdc) && ShouldSkipMySqlCdc(out skip))
             return skip;
         return null;
     }
@@ -253,6 +271,98 @@ public class RavenFactAttribute : FactAttribute, ITraitAttribute, Xunit.v3.IFact
         catch (Exception e)
         {
             return $"Failed to determine SQL Server CDC readiness: {e.Message}";
+        }
+
+        return null;
+    }
+
+    // PostgreSQL CDC readiness (wal_level) doesn't change mid-run, so probe once per process.
+    private static readonly Lazy<string> NpgSqlCdcReadiness = new(ProbeNpgSqlCdcReadiness);
+
+    private static bool ShouldSkipNpgSqlCdc(out string skipMessage)
+    {
+        if (ShouldSkipNpgSql(out skipMessage))
+            return true;
+
+        // Mirror ShouldSkipMsSqlCdc: on CI the DB services are required, so a CDC-readiness problem
+        // must surface as a test failure rather than a silent skip - otherwise a misconfigured CI
+        // (wal_level != logical) hides the fact that the CDC streaming tests never actually ran.
+        if (RavenTestHelper.EnvironmentVariables.IsRunningOnCI)
+        {
+            skipMessage = null;
+            return false;
+        }
+
+        skipMessage = NpgSqlCdcReadiness.Value;
+        return skipMessage != null;
+    }
+
+    private static string ProbeNpgSqlCdcReadiness()
+    {
+        try
+        {
+            using var conn = new Npgsql.NpgsqlConnection(NpgSqlConnectionString.Instance.VerifiedConnectionString.Value);
+            conn.Open();
+            using var cmd = conn.CreateCommand();
+
+            // CDC streams via logical replication (pgoutput), which requires wal_level = logical.
+            cmd.CommandText = "SHOW wal_level";
+            var walLevel = cmd.ExecuteScalar()?.ToString();
+            if (string.Equals(walLevel, "logical", StringComparison.OrdinalIgnoreCase) == false)
+                return $"Test requires PostgreSQL configured for logical replication (wal_level = logical, found '{walLevel}'). " +
+                    "For Docker, start the container with -c wal_level=logical.";
+        }
+        catch (Exception e)
+        {
+            return $"Failed to determine PostgreSQL CDC readiness: {e.Message}";
+        }
+
+        return null;
+    }
+
+    // MySQL/MariaDB CDC readiness (binlog) doesn't change mid-run, so probe once per process.
+    private static readonly Lazy<string> MySqlCdcReadiness = new(ProbeMySqlCdcReadiness);
+
+    private static bool ShouldSkipMySqlCdc(out string skipMessage)
+    {
+        if (ShouldSkipMySql(out skipMessage))
+            return true;
+
+        if (RavenTestHelper.EnvironmentVariables.IsRunningOnCI)
+        {
+            skipMessage = null;
+            return false;
+        }
+
+        skipMessage = MySqlCdcReadiness.Value;
+        return skipMessage != null;
+    }
+
+    private static string ProbeMySqlCdcReadiness()
+    {
+        try
+        {
+            using var conn = new MySqlConnector.MySqlConnection(MySqlConnectionString.Instance.VerifiedConnectionString.Value);
+            conn.Open();
+            using var cmd = conn.CreateCommand();
+
+            // CDC streams from the binary log, which must be enabled in ROW format.
+            cmd.CommandText = "SELECT @@log_bin, @@binlog_format";
+            using var reader = cmd.ExecuteReader();
+            if (reader.Read() == false)
+                return "Failed to determine MySQL CDC readiness: server returned no row for @@log_bin / @@binlog_format.";
+
+            var logBinEnabled = Convert.ToInt64(reader.GetValue(0)) != 0;
+            var binlogFormat = reader.GetValue(1)?.ToString();
+            if (logBinEnabled == false)
+                return "Test requires MySQL/MariaDB with the binary log enabled (log_bin = ON). " +
+                    "For Docker, start the container with --log-bin --binlog-format=ROW.";
+            if (string.Equals(binlogFormat, "ROW", StringComparison.OrdinalIgnoreCase) == false)
+                return $"Test requires MySQL/MariaDB binlog_format = ROW (found '{binlogFormat}').";
+        }
+        catch (Exception e)
+        {
+            return $"Failed to determine MySQL CDC readiness: {e.Message}";
         }
 
         return null;
