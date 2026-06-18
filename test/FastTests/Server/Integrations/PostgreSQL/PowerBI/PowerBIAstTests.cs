@@ -1496,6 +1496,56 @@ SELECT {
 
             Assert.False(PowerBIQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out _));
         }
+        
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
+        public void Two_measure_grouped_aggregate_with_or_of_null_guards_is_handled()
+        {
+            const string sql = """
+                select "_"."Category", "_"."a0", "_"."a1"
+                from
+                (
+                    select "rows"."Category" as "Category",
+                        sum("rows"."UnitsOnOrder") as "a0",
+                        sum("rows"."UnitsInStock") as "a1"
+                    from "public"."Products" "rows"
+                    group by "Category"
+                ) "_"
+                where not "_"."a0" is null or not "_"."a1" is null
+                limit 1000001
+                """;
+
+            Assert.True(PowerBIQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
+
+            var queryString = GetQueryString(pgQuery);
+            Assert.NotNull(queryString);
+            Assert.Contains("group by Category", queryString, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("sum(UnitsOnOrder)", queryString, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("sum(UnitsInStock)", queryString, StringComparison.OrdinalIgnoreCase);
+            // The structural null-guard must be dropped, not translated into a WHERE.
+            Assert.DoesNotContain("where", queryString, StringComparison.OrdinalIgnoreCase);
+        }
+
+        // Guard against over-broadening the drop: a real measure filter (a1 > 5) OR'd with a null-guard is
+        // a post-grouping HAVING that RQL can't express - it must fall through, not be silently dropped.
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
+        public void Two_measure_grouped_aggregate_with_real_measure_filter_falls_through()
+        {
+            const string sql = """
+                select "_"."Category", "_"."a0", "_"."a1"
+                from
+                (
+                    select "rows"."Category" as "Category",
+                        sum("rows"."UnitsOnOrder") as "a0",
+                        sum("rows"."UnitsInStock") as "a1"
+                    from "public"."Products" "rows"
+                    group by "Category"
+                ) "_"
+                where not "_"."a0" is null or "_"."a1" > 5
+                limit 1000001
+                """;
+
+            Assert.False(PowerBIQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out _));
+        }
 
         private static string GetQueryString(PgQuery pgQuery)
         {

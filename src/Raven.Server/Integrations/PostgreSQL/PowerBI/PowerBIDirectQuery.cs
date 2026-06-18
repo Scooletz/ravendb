@@ -270,14 +270,27 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
         private static FieldExpression MakeFieldExpression(string name)
             => new(new List<StringSegment> { new(name) });
 
-        // True only for a structural null-guard on an aggregate-output alias: `<alias> IS NOT NULL`
-        // or `NOT (<alias> IS NULL)`. PowerBI emits these as post-grouping guards that RQL's GROUP BY
-        // gives implicitly, so dropping them is safe. Any OTHER alias-referencing clause (e.g.
-        // `a0 > 100`, `coalesce(a0,0) > 0`) is a real measure filter and must NOT be dropped.
+        // True only for a structural null-guard on aggregate-output aliases: `<alias> IS NOT NULL`,
+        // `NOT (<alias> IS NULL)`, or an AND/OR of such guards across measures (a two-measure visual
+        // emits `not a0 is null or not a1 is null`). PowerBI emits these as post-grouping guards that
+        // RQL's GROUP BY gives implicitly, so dropping them is safe. Any OTHER alias-referencing clause
+        // (e.g. `a0 > 100`, `coalesce(a0,0) > 0`, or a guard OR'd with a real predicate) is a real
+        // measure filter and must NOT be dropped.
         internal static bool IsAggregateOutputNullGuard(Node node, HashSet<string> aggregateOutputNames)
         {
             if (node == null || aggregateOutputNames is not { Count: > 0 })
                 return false;
+
+            // AND/OR of guards - droppable only if every branch is itself a guard on an aggregate output.
+            if (node.BoolExpr is { Boolop: BoolExprType.AndExpr or BoolExprType.OrExpr, Args: { Count: > 0 } } boolExpr)
+            {
+                foreach (var arg in boolExpr.Args)
+                {
+                    if (IsAggregateOutputNullGuard(arg, aggregateOutputNames) == false)
+                        return false;
+                }
+                return true;
+            }
 
             ColumnRef colRef;
             if (node.NullTest is { Nulltesttype: NullTestType.IsNotNull } nt)
