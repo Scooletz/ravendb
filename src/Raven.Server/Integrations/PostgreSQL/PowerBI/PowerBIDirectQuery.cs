@@ -524,7 +524,11 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                     else if (PgSyntheticColumns.IsDocumentIdColumn(col))
                         body.Append($"\"{col}\" : id({projAlias})");
                     else
+                    {
+                        if (RqlIdentifier.IsSafe(col) == false)
+                            return null;
                         body.Append($"\"{col}\" : {projAlias}.{col}");
+                    }
                 }
                 body.Append(" }");
 
