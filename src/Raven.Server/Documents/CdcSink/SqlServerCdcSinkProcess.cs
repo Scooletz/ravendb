@@ -510,8 +510,6 @@ public class SqlServerCdcSinkProcess : CdcSinkProcess
         public string Query;
         /// <summary>Column names in the same order as the SELECT list (excludes CDC metadata columns).</summary>
         public string[] Columns;
-        /// <summary>True if a newer capture instance exists for this table (we're draining the old one).</summary>
-        public bool HasNewerInstance;
     }
 
     private async Task<List<CaptureInstanceInfo>> ResolveCaptureInstances(CancellationToken ct)
@@ -523,12 +521,14 @@ public class SqlServerCdcSinkProcess : CdcSinkProcess
 
         foreach (var tableInfo in allTables)
         {
-            // Find all capture instances for this table, ordered oldest first.
-            // We drain the oldest before switching to newer ones.
+            // Read from the OLDEST capture instance. After a schema change adds a second capture
+            // instance, this sink keeps reading the old one — changes to the original columns keep
+            // flowing, but newly added columns are NOT captured until an admin drops the old instance
+            // (sys.sp_cdc_disable_table @capture_instance), after which the new one becomes the oldest
+            // and is picked up here. Automatic drain-old-then-switch handoff is a planned follow-up.
             var instances = await SqlServerCdcCatalogQueries.FetchCaptureInstancesAsync(conn, tableInfo.Schema, tableInfo.TableName, ct);
 
             var captureInstance = instances.Count > 0 ? instances[0] : $"{tableInfo.Schema}_{tableInfo.TableName}";
-            var hasNewerInstance = instances.Count > 1;
 
             // Fetch the captured column names so we can build an explicit SELECT
             // and read by ordinal instead of calling GetName()/skipping __$ at runtime
@@ -567,7 +567,6 @@ public class SqlServerCdcSinkProcess : CdcSinkProcess
                 CaptureInstance = captureInstance,
                 Query = query,
                 Columns = columnsArray,
-                HasNewerInstance = hasNewerInstance,
             });
 
             DocumentProcessor.SetSourceColumnNames(tableInfo.Schema, tableInfo.TableName, columnsArray);
