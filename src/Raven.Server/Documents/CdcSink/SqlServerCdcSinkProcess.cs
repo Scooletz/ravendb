@@ -368,10 +368,16 @@ public class SqlServerCdcSinkProcess : CdcSinkProcess
 
                 foreach (var (_, _, _, evt) in buffer)
                     yield return evt;
-
-                yield return new CdcEvent(CdcEventType.TransactionCommit, null, Convert.ToHexString(lsnInfo.MaxLsn));
-                lastLsn = lsnInfo.MaxLsn;
             }
+
+            // Advance the checkpoint to MaxLsn even when the configured tables had no changes in this
+            // range. We only reach here when the source LSN moved (FromLsn <= MaxLsn, guarded above), so
+            // an empty buffer means other CDC tables (or none) moved the database-wide LSN. Persisting
+            // past the empty range stops a restart from re-scanning it and keeps the saved position ahead
+            // of the CDC cleanup horizon — otherwise a long idle stretch risks the purge gap that
+            // VerifyNoGapsInLsn can only detect after the fact.
+            yield return new CdcEvent(CdcEventType.TransactionCommit, null, Convert.ToHexString(lsnInfo.MaxLsn));
+            lastLsn = lsnInfo.MaxLsn;
         }
     }
 
