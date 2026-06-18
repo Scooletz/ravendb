@@ -17,7 +17,7 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
             _result = result;
         }
 
-        public override Task<ICollection<PgColumn>> Init(bool allowMultipleStatements = false)
+        public override Task<ICollection<PgColumn>> Init()
         {
             if (IsEmptyQuery)
                 return Task.FromResult<ICollection<PgColumn>>(null);

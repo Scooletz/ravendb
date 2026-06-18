@@ -62,7 +62,7 @@ namespace Raven.Server.Integrations.PostgreSQL
             _limit = limit;
         }
 
-        public override async Task<ICollection<PgColumn>> Init(bool allowMultipleStatements = false)
+        public override async Task<ICollection<PgColumn>> Init()
         {
             if (IsEmptyQuery)
                 return default;
@@ -172,7 +172,7 @@ namespace Raven.Server.Integrations.PostgreSQL
             }
 
             // Go through results - we'll try to find all properties types.
-            for (int sampleIndex = 0; sampleIndex < _samples.Count && sampleIndex < 1000; sampleIndex++)
+            for (int sampleIndex = 0; sampleIndex < _samples.Count; sampleIndex++)
             {
                 Document sample = _samples[sampleIndex];
 

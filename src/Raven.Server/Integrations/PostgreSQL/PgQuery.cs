@@ -102,7 +102,7 @@ namespace Raven.Server.Integrations.PostgreSQL
             };
         }
 
-        public abstract Task<ICollection<PgColumn>> Init(bool allowMultipleStatements = false);
+        public abstract Task<ICollection<PgColumn>> Init();
 
         public abstract Task Execute(MessageBuilder builder, PipeWriter writer, CancellationToken token);
 

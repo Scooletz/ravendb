@@ -138,7 +138,7 @@ namespace Raven.Server.Integrations.PostgreSQL
             statement.Dispose();
         }
 
-        public override Task<ICollection<PgColumn>> Init(bool allowMultipleStatements = false)
+        public override Task<ICollection<PgColumn>> Init()
             => Task.FromResult<ICollection<PgColumn>>(Array.Empty<PgColumn>());
 
         public override async Task Execute(MessageBuilder builder, PipeWriter writer, CancellationToken token)

@@ -35,7 +35,7 @@ namespace Raven.Server.Integrations.PostgreSQL.Messages
             {
                 using var query = PgQuery.CreateInstance(stmt, null, transaction.DocumentDatabase, transaction.Session, transaction.Username);
 
-                var schema = await query.Init(true);
+                var schema = await query.Init();
                 if (schema != null && schema.Count != 0)
                 {
                     await writer.WriteAsync(messageBuilder.RowDescription(schema), token);
