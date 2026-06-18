@@ -82,6 +82,13 @@ export default function EditCdcSinkTaskTestPanel({ editForm, path }: EditCdcSink
         handleSubmit();
     }, [path]);
 
+    // A sibling table removal re-indexes the array, so this panel's frozen path can point past the end
+    // (table is undefined). Don't dereference a missing table — EditCdcSinkTaskTableEditor closes the
+    // sheet when the active table goes away; this just guards the render until that happens.
+    if (!table) {
+        return null;
+    }
+
     return (
         <ViewSheet className="h-100">
             <InnerForm onSubmit={handleSubmit} className="vstack h-100">
