@@ -59,6 +59,13 @@ namespace FastTests.Server.Integrations.PostgreSQL.VirtualCatalog
             Assert.Equal("integer", DecodeCell(table, row: 0, column: 0));
         }
 
+        // A non-oid arg must fall through, not echo a bogus type name back as if it resolved.
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void Format_type_unresolvable_oid_falls_through()
+        {
+            Assert.False(PgVirtualInterpreter.TryExecute("select format_type('not_an_oid')", EmptyCtx(), out _));
+        }
+
         [RavenFact(RavenTestCategory.PostgreSql)]
         public void Star_projection_over_character_sets_returns_full_table()
         {

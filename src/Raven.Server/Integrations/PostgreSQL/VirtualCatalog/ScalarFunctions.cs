@@ -293,11 +293,10 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
             if (args[0] == null)
                 return true;
 
-            if (TryGetOid(args[0], out var oid))
-                result = TypeNames.TryGetValue(oid, out var name) ? name : oid.ToString(CultureInfo.InvariantCulture);
-            else
-                result = args[0].ToString();
+            if (TryGetOid(args[0], out var oid) == false)
+                return false; // not a resolvable oid - fall through instead of echoing a bogus type name
 
+            result = TypeNames.TryGetValue(oid, out var name) ? name : oid.ToString(CultureInfo.InvariantCulture);
             return true;
         }
 
