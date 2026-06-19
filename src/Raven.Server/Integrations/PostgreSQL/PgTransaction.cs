@@ -25,6 +25,10 @@ namespace Raven.Server.Integrations.PostgreSQL
         public string Username { get; private set; }
         
         internal PgQuery _currentQuery;
+        // True when _currentQuery is a borrowed reference to a statement cached in Session.NamedStatements
+        // (a named/prepared statement) rather than an unnamed transient this transaction owns. Borrowed
+        // statements live until DEALLOCATE or session teardown, so they must not be disposed on reset.
+        private bool _currentQueryIsNamed;
         internal PgSession Session { get; init; }
         
         public PgTransaction(DocumentDatabase documentDatabase, MessageReader messageReader, string username, PgSession session)
@@ -42,7 +46,7 @@ namespace Raven.Server.Integrations.PostgreSQL
             MessageReader?.Dispose();
             MessageReader = new MessageReader();
 
-            _currentQuery?.Dispose();
+            ReleaseCurrentQuery();
 
             // Extended Protocol Parse should carry one statement, but some clients (e.g. Microsoft
             // Fabric's Copy Job) send a multi-statement batch. We keep the last statement and drop the
@@ -65,6 +69,25 @@ namespace Raven.Server.Integrations.PostgreSQL
             _currentQuery = PgQuery.CreateInstance(cleanQueryText, parametersDataTypes, DocumentDatabase, Session, Username);
         }
 
+        // Caches the just-Parsed _currentQuery under a name so later Bind/Execute can reuse it, and marks
+        // it borrowed so Sync()/Close() won't dispose it out from under the cache.
+        public void RegisterNamedStatement(string statementName)
+        {
+            if (Session.NamedStatements.TryAdd(statementName, _currentQuery) == false)
+                throw new ArgumentException($"Failed to store statement under the name '{statementName}', there is already a statement with such name.");
+            _currentQueryIsNamed = true;
+        }
+
+        // Disposes _currentQuery only when the transaction owns it (an unnamed transient). A borrowed named
+        // statement is left alone here - it's disposed by DEALLOCATE or session teardown (Dispose).
+        private void ReleaseCurrentQuery()
+        {
+            if (_currentQueryIsNamed == false)
+                _currentQuery?.Dispose();
+            _currentQuery = null;
+            _currentQueryIsNamed = false;
+        }
+
         public void Bind(ICollection<byte[]> parameters, short[] parameterFormatCodes, short[] resultColumnFormatCodes, string statementName = null)
         {
             if (statementName.IsNullOrWhiteSpace() == false)
@@ -72,6 +95,7 @@ namespace Raven.Server.Integrations.PostgreSQL
                 State = TransactionState.InTransaction;
                 if (Session.NamedStatements.TryGetValue(statementName, out _currentQuery) == false)
                     throw new PgErrorException(PgErrorCodes.InvalidSqlStatementName, $"prepared statement \"{statementName}\" does not exist");
+                _currentQueryIsNamed = true; // borrowed from NamedStatements - don't dispose on Sync/Close
             }
             _currentQuery.Bind(parameters, parameterFormatCodes, resultColumnFormatCodes);
         }
@@ -94,22 +118,34 @@ namespace Raven.Server.Integrations.PostgreSQL
         public void Close()
         {
             State = TransactionState.Idle;
-
-            _currentQuery?.Dispose();
-            _currentQuery = null;
+            ReleaseCurrentQuery();
         }
 
         public void Sync()
         {
             State = TransactionState.Idle;
-            _currentQuery?.Dispose();
-            _currentQuery = null;
+            ReleaseCurrentQuery();
         }
 
         public void Dispose()
         {
-            _currentQuery?.Dispose();
+            // Dispose the owned (unnamed) current query here; a borrowed named statement is one of the
+            // NamedStatements entries drained just below, so skip it to avoid a double dispose.
+            if (_currentQueryIsNamed == false)
+                _currentQuery?.Dispose();
             _currentQuery = null;
+            _currentQueryIsNamed = false;
+
+            // Named prepared statements are owned by the session and normally removed only by DEALLOCATE.
+            // Clients usually just disconnect, so drain them here or every prepared PgQuery (and any open
+            // QueryOperationContext it holds) leaks.
+            var named = Session?.NamedStatements;
+            if (named != null)
+            {
+                foreach (var statement in named.Values)
+                    statement?.Dispose();
+                named.Clear();
+            }
 
             MessageReader?.Dispose();
             MessageReader = null;
