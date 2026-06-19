@@ -285,7 +285,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                     continue;
 
                 var name = func.Funcname is { Count: > 0 }
-                    ? func.Funcname[0].String?.Sval
+                    ? func.Funcname[^1].String?.Sval // last segment: schema-qualified calls are [schema, name]
                     : null;
 
                 if (string.IsNullOrWhiteSpace(name))
