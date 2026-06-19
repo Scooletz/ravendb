@@ -20,7 +20,7 @@ internal sealed class CdcSinkHandlerProcessorForSchema : AbstractCdcSinkHandlerP
 
     public override async ValueTask ExecuteAsync()
     {
-        // Same per-request cancellation as PostScriptTest — a slow remote discovery should
+        // Same per-request cancellation as PostScriptTest - a slow remote discovery should
         // not survive the client closing the HTTP connection.
         using (var cts = CancellationTokenSource.CreateLinkedTokenSource(RequestHandler.Database.DatabaseShutdown, HttpContext.RequestAborted))
         using (ContextPool.AllocateOperationContext(out DocumentsOperationContext context))
@@ -76,7 +76,7 @@ internal sealed class CdcSinkHandlerProcessorForSchema : AbstractCdcSinkHandlerP
         catch (Exception e)
         {
             // Surface the driver's full message (host / port / internal code) to the admin
-            // caller — they need the details to diagnose source-side problems. Logger.Warn for
+            // caller - they need the details to diagnose source-side problems. Logger.Warn for
             // the stack trace.
             result.Errors.Add("Schema discovery against the source database failed: " + e);
             if (Logger.IsWarnEnabled)
@@ -84,7 +84,7 @@ internal sealed class CdcSinkHandlerProcessorForSchema : AbstractCdcSinkHandlerP
             return result;
         }
 
-        // Discovery succeeded — fold connection-level + per-table verification into the same
+        // Discovery succeeded - fold connection-level + per-table verification into the same
         // response so callers don't need a second round-trip. Verification runs only after a
         // successful discovery; on discovery failure we already returned above with a single
         // structured error.
@@ -103,7 +103,7 @@ internal sealed class CdcSinkHandlerProcessorForSchema : AbstractCdcSinkHandlerP
     }
 
     /// <summary>
-    /// Inline <see cref="CdcSinkSchemaRequest.Connection"/> takes precedence — Studio's Task
+    /// Inline <see cref="CdcSinkSchemaRequest.Connection"/> takes precedence - Studio's Task
     /// Creation view sends raw credentials because the connection-string named record may
     /// not exist in <c>databaseRecord.SqlConnectionStrings</c> yet. Falls back to the named
     /// lookup for post-save callers.
