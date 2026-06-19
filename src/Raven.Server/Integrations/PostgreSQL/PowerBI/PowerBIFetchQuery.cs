@@ -389,7 +389,7 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                     continue;
 
                 var funcName = funcCall.Funcname is { Count: > 0 }
-                    ? funcCall.Funcname[0].String?.Sval
+                    ? funcCall.Funcname[^1].String?.Sval // last segment: schema-qualified calls are [schema, name]
                     : null;
 
                 if (string.Equals(funcName, "replace", StringComparison.OrdinalIgnoreCase) == false)
