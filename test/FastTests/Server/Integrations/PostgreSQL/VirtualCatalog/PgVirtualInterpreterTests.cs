@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+using System.Reflection;
 using System.Text;
 using Raven.Server.Integrations.PostgreSQL.VirtualCatalog;
 using Tests.Infrastructure;
@@ -1337,6 +1340,39 @@ ORDER BY ord";
             Assert.Equal(2, table.Data.Count);
             Assert.Equal("a", DecodeCell(table, row: 0, column: 0));
             Assert.Equal("b", DecodeCell(table, row: 1, column: 0));
+        }
+
+        // count(DISTINCT x) isn't implemented - it must fall through, not silently return the
+        // non-distinct count(x). Plain count is still handled.
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void Count_distinct_falls_through_instead_of_counting_non_distinct()
+        {
+            Assert.False(PgVirtualInterpreter.TryExecute("select count(distinct typname) from pg_type", EmptyCtx(), out _));
+            Assert.True(PgVirtualInterpreter.TryExecute("select count(typname) from pg_type", EmptyCtx(), out _));
+        }
+
+        // ORDER BY over a column with mixed runtime types must sort without throwing. {2, 10, "15x"} is an
+        // intransitivity witness for naive numeric-or-ordinal comparison; List.Sort (introsort) throws
+        // "IComparer.Compare() inconsistent results" unless CompareCells is a total order. A large mixed
+        // list forces the quicksort path that detects inconsistency.
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void CompareCells_is_a_total_order_across_mixed_types()
+        {
+            var method = typeof(PgVirtualInterpreter).GetMethod("CompareCells", BindingFlags.NonPublic | BindingFlags.Static);
+            Assert.NotNull(method);
+            Comparison<object> cmp = (a, b) => (int)method.Invoke(null, new[] { a, b });
+
+            var items = new List<object>();
+            for (var i = 0; i < 5; i++)
+            {
+                items.Add(2L); items.Add(10L); items.Add("15x"); items.Add("abc");
+                items.Add(7); items.Add(3.5); items.Add(null); items.Add(true); items.Add("10");
+            }
+
+            items.Sort(cmp); // must not throw
+
+            for (var i = 1; i < items.Count; i++)
+                Assert.True(cmp(items[i - 1], items[i]) <= 0);
         }
 
         private static VirtualQueryContext EmptyCtx() => new();

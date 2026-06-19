@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using PgSqlParser;
 using Raven.Server.Integrations.PostgreSQL.Messages;
@@ -670,6 +671,10 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
         // step then bails on, surfacing a generic "Unhandled query".
         private static bool IsAggregateFunctionCall(FuncCall func)
         {
+            // count(DISTINCT x) is not implemented by TryComputeAggregate (it would return the
+            // non-distinct count - silently wrong). Fall through so it's diagnosed/translated elsewhere.
+            if (func.AggDistinct)
+                return false;
             if (func.AggStar)
                 return true; // count(*)
             if (func.Funcname is not { Count: 1 })
@@ -1241,29 +1246,36 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
             return rows;
         }
 
+        // Establishes a TOTAL order. List.Sort uses introsort, which throws "IComparer.Compare()
+        // inconsistent results" the moment the comparator is intransitive - and a column holding mixed
+        // runtime types (e.g. a CASE projecting a long in one branch and a string in another) makes naive
+        // numeric-or-lexicographic comparison intransitive (witness {2L, 10L, "15x"}). So bucket by
+        // category - null(0) < number(1) < bool(2) < other(3) - ordering across categories by rank, and
+        // inside each category by one consistent rule.
         private static int CompareCells(object a, object b)
         {
-            if (a is null && b is null) return 0;
-            if (a is null) return -1;
-            if (b is null) return 1;
-            if (a is IComparable ca && a.GetType() == b.GetType())
-                return ca.CompareTo(b);
-            // Best-effort numeric coercion.
-            if (TryNumericCompare(a, b, out var nc))
-                return nc;
-            return string.CompareOrdinal(a.ToString(), b.ToString());
+            var (rankA, numA) = Classify(a);
+            var (rankB, numB) = Classify(b);
+            if (rankA != rankB)
+                return rankA.CompareTo(rankB);
+
+            return rankA switch
+            {
+                1 => numA.CompareTo(numB),                              // both numeric (incl. numeric strings)
+                2 => ((bool)a).CompareTo((bool)b),                      // both bool
+                3 => string.CompareOrdinal(a.ToString(), b.ToString()), // both other - one consistent rule
+                _ => 0                                                  // both null
+            };
         }
 
-        private static bool TryNumericCompare(object a, object b, out int result)
+        // Category rank plus, for numbers, the coerced value. Numeric strings sort as numbers (matching
+        // ExpressionEvaluator's coercion); everything else compares as a string.
+        private static (int Rank, double Num) Classify(object v)
         {
-            result = 0;
-            double da = 0, db = 0;
-            if (TryToDouble(a, out da) && TryToDouble(b, out db))
-            {
-                result = da.CompareTo(db);
-                return true;
-            }
-            return false;
+            if (v is null) return (0, 0);
+            if (v is bool) return (2, 0);
+            if (TryToDouble(v, out var d)) return (1, d);
+            return (3, 0);
         }
 
         private static bool TryToDouble(object v, out double d)
@@ -1275,6 +1287,8 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
                 case long l: d = l; return true;
                 case int i: d = i; return true;
                 case short s: d = s; return true;
+                case string str when double.TryParse(str, NumberStyles.Float, CultureInfo.InvariantCulture, out var p):
+                    d = p; return true;
                 default: d = 0; return false;
             }
         }
