@@ -1246,12 +1246,12 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
             return rows;
         }
 
-        // Establishes a TOTAL order. List.Sort uses introsort, which throws "IComparer.Compare()
-        // inconsistent results" the moment the comparator is intransitive - and a column holding mixed
-        // runtime types (e.g. a CASE projecting a long in one branch and a string in another) makes naive
-        // numeric-or-lexicographic comparison intransitive (witness {2L, 10L, "15x"}). So bucket by
-        // category - null(0) < number(1) < bool(2) < other(3) - ordering across categories by rank, and
-        // inside each category by one consistent rule.
+        // ORDER BY comparator. Must give a consistent ordering for EVERY pair of values, or List.Sort
+        // throws. The catch: a column can hold mixed types (e.g. a CASE that returns a number in one row
+        // and a string in another), and comparing those without care can contradict itself - say a < b
+        // and b < c but c < a - which is what makes List.Sort throw. To stay consistent we first order by
+        // type group (null < number < bool < other); only values in the SAME group are compared directly,
+        // and always the same way: numbers numerically, everything else as an ordinal string.
         private static int CompareCells(object a, object b)
         {
             var (rankA, numA) = Classify(a);

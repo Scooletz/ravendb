@@ -112,10 +112,7 @@ namespace Raven.Server.Integrations.PostgreSQL
         {
             _resultColumnFormatCodes = resultColumnFormatCodes;
 
-            // Re-binding a cached named/prepared statement re-runs this on the same instance (Npgsql
-            // auto-prepare / Prepare()). Parameters is allocated once in the ctor, so without clearing,
-            // the 2nd Add of key "1" throws ArgumentException - not a PgErrorException, so it tears down
-            // the whole connection. Clear before re-populating.
+            // A cached prepared statement is re-bound on the same instance, so reset before re-populating.
             Parameters.Clear();
 
             PgFormat? defaultParamDataFormat = parameterFormatCodes.Length switch
