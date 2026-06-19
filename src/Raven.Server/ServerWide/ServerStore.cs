@@ -823,7 +823,7 @@ namespace Raven.Server.ServerWide
                             "High read_ahead_kb Detected",
                             $"One or more block devices have read_ahead_kb set above {thresholdKb.Value} KB: {deviceList}. " +
                             "This can cause excessive I/O during random-access workloads. " +
-                            "Consider lowering it. Please follow the documentation for guidance.",
+                            "Check the device(s) backing RavenDB's data and consider lowering it there. Please follow the documentation for guidance.",
                             AlertReason.HighReadAheadKb,
                             NotificationSeverity.Warning);
                         if (NotificationCenter.IsInitialized)
@@ -840,7 +840,7 @@ namespace Raven.Server.ServerWide
             catch (Exception e)
             {
                 if (Logger.IsInfoEnabled)
-                    Logger.Info("An error occurred while trying to check read_ahead_kb values for block devices", e);
+                    Logger.Info("An error occurred while raising the high read_ahead_kb alert", e);
             }
 
             options.SchemaVersion = SchemaUpgrader.CurrentVersion.ServerVersion;
