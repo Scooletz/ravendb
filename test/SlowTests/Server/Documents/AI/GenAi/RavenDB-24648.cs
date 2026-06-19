@@ -148,7 +148,6 @@ public class RavenDB_24648(ITestOutputHelper output) : RavenTestBase(output)
 
     }
 
-
     [RavenTheory(RavenTestCategory.Ai)]
     [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi, DatabaseMode = RavenDatabaseMode.Single)]
     public async Task GenAiTestModeWithAttachments(Options options, GenAiConfiguration config)
@@ -259,6 +258,122 @@ for(const comment of this.Comments)
         outputDoc.Comments[1].AuthorDescription = marker;
         Assert.Equal(post1, outputDoc);
     }
+    
+   [RavenTheory(RavenTestCategory.Ai)]
+    [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi, DatabaseMode = RavenDatabaseMode.Single)]
+    public async Task GenAiTestModeWithAttachments_2(Options options, GenAiConfiguration config)
+    {
+        using var store = GetDocumentStore(options);
+        await store.Maintenance.SendAsync(new PutConnectionStringOperation<AiConnectionString>(config.Connection));
+
+        config.Prompt = "Describe the following images." + NonEmptyAnswerHint;
+        config.Collection = "Posts";
+        config.SampleObject = JsonConvert.SerializeObject(
+            new { PhotoDescription = "Description of the photo" });
+
+        config.UpdateScript = @"
+const comments = this.Comments.filter(c => c.ProfileImage == $input.Name);
+for(const comment of comments)
+{
+    comment.AuthorDescription = $output.PhotoDescription;
+}
+";
+
+        config.GenAiTransformation = new GenAiTransformation
+        {
+            Script = @"
+var attachments = getAttachments();
+for(const attachment of attachments)
+{
+    let img = loadAttachment(attachment.Name);
+    if(!img)
+        continue;
+    ai.genContext({Name: attachment.Name}).withPng(img);
+}"
+        };
+
+        var marker = "None" + Guid.NewGuid();
+        var post1 = new Post("Hello World!",
+            new Comment[]
+            {
+                new Comment(id: "Comment1", author: "Shahar Heart", authorDescription: marker, content: "Hey!", profileImage: "heart.png"),
+                new Comment(id: "Comment2", author: "Omer Star", authorDescription: marker, content: "Hello!", profileImage: "star.png"),
+                new Comment(id: "Comment3", author: "Aviv Rachmany", authorDescription: marker, content: "Hello", profileImage: "none.png")
+            });
+
+        using (var session = store.OpenAsyncSession())
+        {
+            await session.StoreAsync(post1, "Post/1");
+
+            await using var heart = GetFileAsStream("heart.png");
+            await using var star = GetFileAsStream("star.png");
+
+            session.Advanced.Attachments.Store("Post/1", "heart.png", heart);
+            session.Advanced.Attachments.Store("Post/1", "star.png", star);
+
+            await session.SaveChangesAsync();
+        }
+
+        var database = await GetDocumentDatabaseInstanceFor(store);
+        using var _ = database.DocumentsStorage.ContextPool.AllocateOperationContext(out DocumentsOperationContext context);
+
+        // Stage 1 : Create Gen Ai Contexts
+        // test-doc (sending new doc - doesn't exist)
+        var document = store.Conventions.Serialization.DefaultConverter.ToBlittable(post1, context);
+        var createCtx2 = await store.Maintenance.SendAsync(context, new TestCreateGenAiContextOperation(document, config));
+        Assert.Equal(0, createCtx2.Results.Count);
+
+
+        // Existing doc with attachments
+        var createCtx = await store.Maintenance.SendAsync(context, new TestCreateGenAiContextOperation("Post/1", config));
+        var genAiContexts = createCtx.Results;
+        Assert.Equal(2, genAiContexts.Count);
+        Assert.NotNull(genAiContexts[0].ContextOutput.Context);
+        Assert.NotNull(genAiContexts[1].ContextOutput.Context);
+        Assert.Equal(1, genAiContexts[0].ContextOutput.Attachments.Count);
+        Assert.Equal(1, genAiContexts[1].ContextOutput.Attachments.Count);
+        Assert.Equal("heart.png", genAiContexts[0].ContextOutput.Attachments.FirstOrDefault()?.Name);
+        Assert.Equal("star.png", genAiContexts[1].ContextOutput.Attachments.FirstOrDefault()?.Name);
+        Assert.Equal("image/png", genAiContexts[0].ContextOutput.Attachments.FirstOrDefault()?.Type);
+        Assert.Equal("image/png", genAiContexts[1].ContextOutput.Attachments.FirstOrDefault()?.Type);
+        Assert.NotNull(genAiContexts[0].ContextOutput.Attachments.FirstOrDefault()?.Data);
+        Assert.NotNull(genAiContexts[1].ContextOutput.Attachments.FirstOrDefault()?.Data);
+
+        // Stage 2 : Send to model
+        var sendToModel = await store.Maintenance.SendAsync(context, new TestGenAiSendToModelOperation(genAiContexts, config));
+        var contextsAndOutputs = sendToModel.Results;
+        Assert.Equal(2, contextsAndOutputs.Count);
+        Assert.NotNull(contextsAndOutputs[0].ContextOutput.Context);
+        Assert.NotNull(contextsAndOutputs[1].ContextOutput.Context);
+        Assert.Equal(0, contextsAndOutputs[0].ContextOutput.Attachments.Count);
+        Assert.Equal(0, contextsAndOutputs[1].ContextOutput.Attachments.Count);
+        Assert.NotNull(contextsAndOutputs[0].ModelOutput?.Output);
+        Assert.NotNull(contextsAndOutputs[1].ModelOutput?.Output);
+        
+        // Stage 3 : Update Script
+        // doc id
+        var updateScriptRes = await store.Maintenance.SendAsync(context, new TestGenAiUpdateScriptOperation("Post/1", contextsAndOutputs, config));
+        var inputDoc = ToPost(updateScriptRes.InputDocument);
+        Assert.Equal(post1, inputDoc);
+        var outputDoc = ToPost(updateScriptRes.OutputDocument);
+        Assert.NotEqual(marker, outputDoc.Comments[0].AuthorDescription);
+        Assert.NotEqual(marker, outputDoc.Comments[1].AuthorDescription);
+        outputDoc.Comments[0].AuthorDescription = marker;
+        outputDoc.Comments[1].AuthorDescription = marker;
+        Assert.Equal(post1, outputDoc);
+        
+        // doc
+        updateScriptRes = await store.Maintenance.SendAsync(context, new TestGenAiUpdateScriptOperation(document, contextsAndOutputs, config));
+        inputDoc = ToPost(updateScriptRes.InputDocument);
+        Assert.Equal(post1, inputDoc);
+        outputDoc = ToPost(updateScriptRes.OutputDocument);
+        Assert.NotEqual(marker, outputDoc.Comments[0].AuthorDescription);
+        Assert.NotEqual(marker, outputDoc.Comments[1].AuthorDescription);
+        outputDoc.Comments[0].AuthorDescription = marker;
+        outputDoc.Comments[1].AuthorDescription = marker;
+        Assert.Equal(post1, outputDoc);
+    }
+    
 
     [RavenTheory(RavenTestCategory.Ai)]
     [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi, DatabaseMode = RavenDatabaseMode.Single)]
