@@ -8,9 +8,7 @@ namespace Raven.Server.Documents.CdcSink.Handlers;
 
 /// <summary>
 /// Shared validation + connection-resolution helpers used by the CDC sink admin endpoints
-/// (<c>/admin/cdc-sink/test</c>, <c>/admin/cdc-sink/schema</c>). Pulled out of
-/// <see cref="CdcSinkHandler"/> so the per-database-mode processors can call into the same
-/// gate without duplicating the regex, the row cap, or the inline-vs-named connection lookup.
+/// (<c>/admin/cdc-sink/test</c>, <c>/admin/cdc-sink/schema</c>).
 /// </summary>
 internal static class CdcSinkRequestValidation
 {
@@ -25,10 +23,8 @@ internal static class CdcSinkRequestValidation
     /// Identifier shape gate. Both endpoints interpolate user-supplied identifiers into raw
     /// SQL (the migrator's <c>QuoteTable</c> / <c>QuoteColumn</c> for table and column names
     /// in the test endpoint, and Postgres' <c>INFORMATION_SCHEMA</c> filter for schema names
-    /// in the schema-discovery endpoint). The proper provider-side quoting fix is tracked on
-    /// RavenDB-26636 (Postgres returns raw identifiers; SQL Server and MySQL escape brackets
-    /// / backticks incorrectly); until then, reject anything outside the standard SQL
-    /// identifier shape so a typo or malicious value can't break out of the quoted context.
+    /// in the schema-discovery endpoint). Reject anything outside the standard SQL identifier
+    /// shape so a typo or malicious value can't break out of the quoted context.
     /// </summary>
     private static readonly Regex IdentifierPattern = new("^[A-Za-z_][A-Za-z0-9_]*$", RegexOptions.Compiled);
 
@@ -36,7 +32,7 @@ internal static class CdcSinkRequestValidation
     {
         // Schema fields can legitimately be empty (default-schema fallback handles it). For
         // table / PK / column identifiers, empty would flow into ORDER BY / WHERE generation
-        // as a SQL syntax error — callers in those positions pass allowEmpty: false.
+        // as a SQL syntax error - callers in those positions pass allowEmpty: false.
         if (string.IsNullOrEmpty(value))
         {
             if (allowEmpty)
@@ -63,7 +59,7 @@ internal static class CdcSinkRequestValidation
     /// Inline <paramref name="inline"/> (a fully-populated <see cref="SqlConnectionString"/>)
     /// wins when present; otherwise <paramref name="connectionStringName"/> is looked up in
     /// <c>databaseRecord.SqlConnectionStrings</c>. The two field-name parameters only affect
-    /// the error-message text — each endpoint shows the property name its own request DTO uses.
+    /// the error-message text - each endpoint shows the property name its own request DTO uses.
     /// </summary>
     internal static SqlConnectionString ResolveSqlConnection(
         DocumentDatabase database,

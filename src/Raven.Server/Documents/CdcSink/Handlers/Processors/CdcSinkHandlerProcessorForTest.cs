@@ -25,7 +25,7 @@ internal sealed class CdcSinkHandlerProcessorForTest : AbstractCdcSinkHandlerPro
     public override async ValueTask ExecuteAsync()
     {
         // Link the per-request abort with the server shutdown so a client that closes the
-        // connection mid-call cancels the upstream FetchRowsAsync — the source-DB query can
+        // connection mid-call cancels the upstream FetchRowsAsync - the source-DB query can
         // otherwise hang the request for minutes on a slow remote driver.
         using (var cts = CancellationTokenSource.CreateLinkedTokenSource(RequestHandler.Database.DatabaseShutdown, HttpContext.RequestAborted))
         using (ContextPool.AllocateOperationContext(out DocumentsOperationContext context))
@@ -63,9 +63,7 @@ internal sealed class CdcSinkHandlerProcessorForTest : AbstractCdcSinkHandlerPro
         }
         // C# enums are int-backed and accept arbitrary numeric values from the JSON body. Reject
         // out-of-range values here so downstream branches (PK validation block, row-fetch mode
-        // ternary, runner's Delete/Upsert branch) only see defined cases. Without this, an
-        // unknown RowSelector silently fell through to ByPrimaryKey without the PK guard
-        // running, and an unknown Operation silently became Upsert.
+        // ternary, runner's Delete/Upsert branch) only see defined cases.
         if (Enum.IsDefined(typeof(TestCdcSinkRowSelector), request.RowSelector) == false)
         {
             result.Errors.Add($"'{nameof(TestCdcSinkMappingRequest.RowSelector)}' value '{(int)request.RowSelector}' is not a valid {nameof(TestCdcSinkRowSelector)}. Allowed values: {string.Join(", ", Enum.GetNames<TestCdcSinkRowSelector>())}.");
@@ -87,9 +85,9 @@ internal sealed class CdcSinkHandlerProcessorForTest : AbstractCdcSinkHandlerPro
             return result;
         }
 
-        // Reject any user-supplied identifier that doesn't match the standard SQL shape — these
-        // flow into raw SQL via the provider's QuoteTable / QuoteColumn (see RavenDB-26636 for the
-        // deeper provider-side fix). Same gate applied to the schema-discovery endpoint below.
+        // Reject any user-supplied identifier that doesn't match the standard SQL shape - these
+        // flow into raw SQL via the provider's QuoteTable / QuoteColumn. Same gate applied to the
+        // schema-discovery endpoint below.
         // SourceTableSchema can be empty (default-schema fallback handles it); the resolved
         // targetSchema is validated separately below. SourceTableName must not be empty.
         if (CdcSinkRequestValidation.TryValidateIdentifier(request.SourceTableSchema, nameof(TestCdcSinkMappingRequest.SourceTableSchema), schemaResult: null, testResult: result) == false ||
@@ -120,13 +118,11 @@ internal sealed class CdcSinkHandlerProcessorForTest : AbstractCdcSinkHandlerPro
         // CDC runtime substitutes a provider-default schema ("public" / "dbo" / DB name) when a
         // saved config left SourceTableSchema empty. Studio's /admin/cdc-sink/schema response
         // always carries explicit schemas, so the request side may pass "public" against a config
-        // that left the field empty — or vice versa. Resolve the default once and apply it to
+        // that left the field empty - or vice versa. Resolve the default once and apply it to
         // both sides of the comparison + the runner so the test endpoint mirrors what the
         // runtime would do.
         // MySQL's ResolveDefaultSchema parses the user-supplied connection string via
-        // MySqlConnectionStringBuilder, which throws on malformed input. Without this catch
-        // the failure escaped ExecuteTestMappingAsync as HTTP 500 — inconsistent with every
-        // other failure on the endpoint. Mirror the row-fetch / schema-discovery catch shape:
+        // MySqlConnectionStringBuilder, which throws on malformed input. Catch it and surface
         // structured Errors with the full driver exception detail, Logger.Warn for the stack.
         string defaultSchema;
         try
@@ -143,7 +139,7 @@ internal sealed class CdcSinkHandlerProcessorForTest : AbstractCdcSinkHandlerPro
         var targetSchema = string.IsNullOrEmpty(request.SourceTableSchema) ? defaultSchema : request.SourceTableSchema;
 
         // Validate the resolved value, not just the raw request field. For MySQL the default
-        // schema is pulled from the connection string's Database key (user-controlled) — a
+        // schema is pulled from the connection string's Database key (user-controlled) - a
         // malformed value would bypass the request/config-side gates and reach QuoteTable. The
         // resolved targetSchema is what actually flows into raw SQL, so the gate belongs here.
         if (CdcSinkRequestValidation.TryValidateIdentifier(targetSchema, "targetSchema", schemaResult: null, testResult: result, allowEmpty: false) == false)
@@ -235,8 +231,8 @@ internal sealed class CdcSinkHandlerProcessorForTest : AbstractCdcSinkHandlerPro
         }
         catch (Exception e)
         {
-            // The admin caller is interested in the full driver message — host, port, internal
-            // error code — so they can diagnose the source-side problem directly. Log a warning
+            // The admin caller is interested in the full driver message - host, port, internal
+            // error code - so they can diagnose the source-side problem directly. Log a warning
             // for the stack trace and include the message text in the structured response.
             result.Errors.Add("Failed to fetch rows from the source database: " + e);
             if (Logger.IsWarnEnabled)

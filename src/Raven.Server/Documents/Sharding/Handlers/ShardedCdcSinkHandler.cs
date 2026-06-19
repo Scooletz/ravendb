@@ -8,10 +8,7 @@ namespace Raven.Server.Documents.Sharding.Handlers;
 /// Sharded counterpart to <see cref="Documents.CdcSink.Handlers.CdcSinkHandler"/>. CDC sinks
 /// are not supported on sharded databases as of yet, so every route here rejects callers
 /// with <see cref="Raven.Client.Exceptions.Sharding.NotSupportedInShardingException"/>
-/// via <see cref="NotSupportedInShardingProcessor"/>. Without these <see cref="RavenShardedActionAttribute"/>
-/// entries, the routing layer falls back to the generic "no sharded route is defined" path
-/// in <see cref="Routing.RouteInformation.TryGetHandler"/> — a misleading 500 rather than a
-/// typed sharding error.
+/// via <see cref="NotSupportedInShardingProcessor"/>.
 /// </summary>
 public sealed class ShardedCdcSinkHandler : ShardedDatabaseRequestHandler
 {
