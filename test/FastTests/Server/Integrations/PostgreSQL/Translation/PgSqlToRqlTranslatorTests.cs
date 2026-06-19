@@ -22,6 +22,22 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
         }
 
         [RavenFact(RavenTestCategory.PostgreSql)]
+        public void IndexQueryWithSlashInName_Translates()
+        {
+            // RavenDB index names legitimately contain '/'; they must translate, not be rejected.
+            Assert.Equal("from index 'Orders/Totals'", Translate("SELECT * FROM \"indexes\".\"Orders/Totals\""));
+        }
+
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void IndexNameWithQuote_FallsThrough()
+        {
+            // A quote/backslash in the index name would break the emitted `from index '...'` literal
+            // (the collection path is escaped by FromToken; the index path is not) - reject it.
+            Assert.False(Raven.Server.Integrations.PostgreSQL.Translation.PgSqlToRqlTranslator.TryParse(
+                "SELECT * FROM \"indexes\".\"Bad'Name\"", Array.Empty<int>(), out _));
+        }
+
+        [RavenFact(RavenTestCategory.PostgreSql)]
         public void WhereAmountGreaterThan()
         {
             var sql = "SELECT * FROM orders WHERE amount > 10";

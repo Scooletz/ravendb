@@ -142,6 +142,13 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
                 throw new NotSupportedException("FROM clause with collection or index name is required");
 
             var isIndex = string.Equals(rangeVar.Schemaname, "indexes", StringComparison.OrdinalIgnoreCase);
+
+            // The index name is emitted into the RQL `from index '...'` literal unescaped (unlike the
+            // collection path, which FromToken escapes). Index names legitimately contain '/', so reject
+            // only the characters that would break the literal rather than gating through RqlIdentifier.IsSafe.
+            if (isIndex && (relname.Contains('\'') || relname.Contains('\\')))
+                throw new NotSupportedException("Unsupported index name");
+
             var isGroupBy = selectStmt.GroupClause != null && selectStmt.GroupClause.Count > 0;
             var q = new AsyncDocumentQuery<JObject>(session: null, indexName: isIndex ? relname : null, collectionName: isIndex ? null : relname, isGroupBy: isGroupBy);
             var fromAlias = rangeVar.Alias?.Aliasname;
