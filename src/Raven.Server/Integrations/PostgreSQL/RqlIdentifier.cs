@@ -2,9 +2,10 @@ namespace Raven.Server.Integrations.PostgreSQL
 {
     internal static class RqlIdentifier
     {
-        // A bare RQL identifier (field, alias, load path) is spliced into query text unquoted, so it must be
-        // identifier-shaped - letter/underscore then letters/digits/underscores, with Unicode letters to match
-        // the RQL scanner. Names needing quoting (spaces, punctuation) are rejected; RQL can't quote identifiers.
+        // Guards names spliced where RQL/JS quoting isn't applied: verbatim grouped/aggregate RQL that is also
+        // matched case-insensitively, and JavaScript projection members/values (`select { a: a }`, `alias.field`).
+        // Must be identifier-shaped - letter/underscore then letters/digits/underscores (Unicode letters allowed).
+        // Other RQL positions quote untrusted names via QueryFieldUtil.EscapeIfNecessary.
         public static bool IsSafe(string s)
         {
             if (string.IsNullOrWhiteSpace(s))

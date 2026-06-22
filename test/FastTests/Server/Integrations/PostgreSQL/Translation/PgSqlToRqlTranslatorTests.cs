@@ -300,9 +300,9 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
         [RavenFact(RavenTestCategory.PostgreSql)]
         public void Injection_via_quoted_field_name_in_where_is_rejected()
         {
-            // A double-quoted SQL identifier can carry arbitrary characters; it must never be spliced
-            // verbatim into RQL. Reject (fall through to the diagnoser) instead of emitting injected RQL.
-            var sql = "SELECT * FROM users WHERE \"x = 1 OR y\" = 'z'";
+            // A SQL identifier carrying ' or \ could break out of RQL's single-quoted string (the builder
+            // wraps other characters but doesn't escape these). Reject - fall through to the diagnoser.
+            var sql = "SELECT * FROM users WHERE \"x' OR '1'='1\" = 'z'";
 
             Assert.False(Raven.Server.Integrations.PostgreSQL.Translation.PgSqlToRqlTranslator.TryParse(sql, Array.Empty<int>(), out _));
         }
@@ -310,9 +310,30 @@ namespace FastTests.Server.Integrations.PostgreSQL.Translation
         [RavenFact(RavenTestCategory.PostgreSql)]
         public void Injection_via_quoted_select_alias_is_rejected()
         {
-            var sql = "SELECT name AS \"a b\" FROM users";
+            // An alias carrying ' or \ is rejected rather than spliced (same break-out risk as fields).
+            var sql = "SELECT name AS \"a' OR '1\" FROM users";
 
             Assert.False(Raven.Server.Integrations.PostgreSQL.Translation.PgSqlToRqlTranslator.TryParse(sql, Array.Empty<int>(), out _));
+        }
+
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void WhereField_WithSpaces_IsQuotedNotRejected()
+        {
+            // A field name with spaces has no break-out characters, so it is quoted (via the builder)
+            // rather than rejected.
+            Assert.Equal("from 'users' where 'Unit Price' > 10", Translate("SELECT * FROM users WHERE \"Unit Price\" > 10"));
+        }
+
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void SelectField_WithSpaces_IsQuoted()
+        {
+            Assert.Equal("from 'users' select 'Unit Price'", Translate("SELECT \"Unit Price\" FROM users"));
+        }
+
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void SelectAlias_WithSpaces_IsQuoted()
+        {
+            Assert.Equal("from 'users' select name as 'a b'", Translate("SELECT name AS \"a b\" FROM users"));
         }
 
         // PowerBI's row-preview queries decorate the projection with constant markers (e.g.

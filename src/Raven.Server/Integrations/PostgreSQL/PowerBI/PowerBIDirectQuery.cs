@@ -212,18 +212,6 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
             if (shape.GroupByFields is not { Count: > 0 } groupByFields)
                 return null;
 
-            // FormatRqlIdentifier is strict (ASCII plain only). Returns null to drop the shape so
-            // a query like `count("Field With Space") as a0` falls through instead of producing
-            // RQL the downstream parser won't accept.
-            foreach (var f in groupByFields)
-                if (FormatRqlIdentifier(f) == null)
-                    return null;
-            foreach (var agg in aggregates)
-            {
-                if (FormatRqlIdentifier(agg.FieldName) == null) return null;
-                if (FormatRqlIdentifier(agg.OutputColumn) == null) return null;
-            }
-
             // Mutate a shallow copy so the inner query AST passed in isn't disturbed.
             var core = q.ShallowCopy();
             core.IsDistinct = false;
@@ -538,6 +526,8 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
                         body.Append($"\"{col}\" : id({projAlias})");
                     else
                     {
+                        // The projection body is JavaScript; `alias.col` is member access that can't be
+                        // RQL-quoted, so drop the shape unless the column is a bare identifier.
                         if (RqlIdentifier.IsSafe(col) == false)
                             return null;
                         body.Append($"\"{col}\" : {projAlias}.{col}");
@@ -722,7 +712,5 @@ namespace Raven.Server.Integrations.PostgreSQL.PowerBI
         private static bool IsCountFunction(string name) =>
             string.Equals(name, "count", StringComparison.OrdinalIgnoreCase);
 
-        // Plain ASCII only; anything requiring quoting returns null so the caller drops the shape.
-        private static string FormatRqlIdentifier(string identifier) => RqlIdentifier.IsSafe(identifier) ? identifier : null;
     }
 }

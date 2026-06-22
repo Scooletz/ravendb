@@ -6,8 +6,8 @@ namespace FastTests.Server.Integrations.PostgreSQL
 {
     public sealed class RqlIdentifierTests(ITestOutputHelper output) : NoDisposalNeeded(output)
     {
-        // Identifier-shaped names are safe to splice into RQL unquoted - including non-ASCII letters, which
-        // the RQL scanner accepts (char.IsLetter is Unicode-aware).
+        // Identifier-shaped names are safe to splice unquoted - including non-ASCII letters (char.IsLetter
+        // is Unicode-aware; they're also valid JS identifiers).
         [RavenTheory(RavenTestCategory.PostgreSql)]
         [InlineData("Company")]
         [InlineData("_id")]
@@ -18,8 +18,8 @@ namespace FastTests.Server.Integrations.PostgreSQL
         [InlineData("名前")]
         public void Identifier_shaped_names_are_safe(string name) => Assert.True(RqlIdentifier.IsSafe(name));
 
-        // Anything that would need quoting (RQL has no identifier quoting) must be rejected so the caller
-        // falls through instead of emitting broken RQL.
+        // Anything that would need quoting must be rejected so the caller falls through instead of
+        // emitting broken output on the unquoted paths.
         [RavenTheory(RavenTestCategory.PostgreSql)]
         [InlineData("Field With Space")]
         [InlineData("a'b")]

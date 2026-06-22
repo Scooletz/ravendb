@@ -171,6 +171,31 @@ namespace FastTests.Server.Integrations.PostgreSQL.PowerBI
         }
 
         [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
+        public void DirectQuery_grouped_aggregate_with_spaced_field_names_should_be_accepted()
+        {
+            // Field/alias names with spaces have no break-out characters and are quoted by the AST
+            // visitor that renders the grouped RQL, so the shape is accepted, not dropped by a guard.
+            const string sql = """
+                select "_"."Unit Price",
+                    "_"."a0"
+                from
+                (
+                    select "rows"."Unit Price" as "Unit Price",
+                        sum("rows"."Net Amount") as "a0"
+                    from
+                    (
+                        from Orders
+                    ) "rows"
+                    group by "Unit Price"
+                ) "_"
+                limit 1000
+                """;
+
+            Assert.True(PowerBIQuery.TryParse(sql, Array.Empty<int>(), documentDatabase: null, out var pgQuery));
+            Assert.IsType<PowerBIDirectQuery>(pgQuery);
+        }
+
+        [RavenFact(RavenTestCategory.PostgreSql | RavenTestCategory.PowerBi)]
         public void DirectQuery_group_by_with_typecast_should_be_accepted()
         {
             // Item B relax #2: GROUP BY through TypeCast/RelabelType must unwrap to the underlying

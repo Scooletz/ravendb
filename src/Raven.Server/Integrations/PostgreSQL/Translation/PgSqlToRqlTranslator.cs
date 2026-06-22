@@ -359,8 +359,8 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
             if (TryExtractSimpleJoinInfo(joinExpr, out var drivingCollection, out var drivingAlias, out var loadPath, out var loadAlias) == false)
                 throw UnsupportedJoin();
 
-            // The collection name is escaped; the alias/load-path identifiers have no RQL quoting, so
-            // reject anything that isn't a plain identifier instead of splicing it into the query text.
+            // The aliases are reused as JavaScript projection values (`select { alias: alias }`), where a
+            // quoted name would become a string literal, so require bare identifiers here.
             if (IsSafeRqlIdentifier(drivingAlias) == false ||
                 IsSafeRqlIdentifier(loadPath) == false ||
                 IsSafeRqlIdentifier(loadAlias) == false)
@@ -544,7 +544,7 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
 
                 if (groupFieldNames.Count == 1)
                 {
-                    q.SelectFields<JObject>(projected.ToArray());
+                    q.SelectFields<JObject>(projected.Select(EscapeProjectionField).ToArray());
                     q.Distinct();
                 }
                 else
@@ -556,7 +556,7 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
                         ? groupFieldNames.GetRange(1, groupFieldNames.Count - 1).ToArray()
                         : Array.Empty<string>();
                     q.GroupBy(firstKey, restKeys);
-                    q.SelectFields<JObject>(projected.ToArray());
+                    q.SelectFields<JObject>(projected.Select(EscapeProjectionField).ToArray());
                 }
                 return;
             }
@@ -782,11 +782,9 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
                 }
                 else
                 {
-                    // Explicit alias is interpolated verbatim into RQL `as <alias>` - reject non-identifiers.
-                    // PowerBI aliases columns to the synthetic id()/json() names, which are known tokens.
-                    if (IsSafeRqlIdentifier(alias) == false && PgSyntheticColumns.IsSyntheticColumn(alias) == false)
-                        throw new NotSupportedException("Unsupported SELECT alias");
-                    projectionAliases.Add(alias);
+                    // SelectFields splices the `as <alias>` name verbatim; quote when needed. PowerBI
+                    // aliases columns to the synthetic id()/json() names, which are known tokens.
+                    projectionAliases.Add(EscapeProjectionField(alias));
                 }
             }
 
@@ -811,7 +809,7 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
                 if (PgSyntheticColumns.IsDocumentIdColumn(fieldName))
                     return "id()";
 
-                return fieldName;
+                return EscapeProjectionField(fieldName);
             }
 
             // PowerBI's row-preview queries decorate their projection list with constant
@@ -901,6 +899,10 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
                 var countFieldName = ExtractFieldName(countArg, fromAlias);
                 if (string.IsNullOrWhiteSpace(countFieldName))
                     throw UnsupportedSelectAggregate();
+                // Aggregate args go into a verbatim RQL string that is also matched for order-by, so
+                // restrict to bare identifiers rather than quoting.
+                if (IsSafeRqlFieldPath(countFieldName) == false)
+                    throw UnsupportedSelectAggregate();
                 return $"count({countFieldName})";
             }
 
@@ -920,6 +922,9 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
             if (string.IsNullOrWhiteSpace(fieldName))
                 throw UnsupportedSelectAggregate();
 
+            if (IsSafeRqlFieldPath(fieldName) == false)
+                throw UnsupportedSelectAggregate();
+
             return $"{funcName}({fieldName})";
         }
 
@@ -929,6 +934,9 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
             {
                 var field = ExtractFieldName(val, fromAlias);
                 if (string.Equals(field, groupFieldName, StringComparison.OrdinalIgnoreCase) == false)
+                    throw UnsupportedGroupBy();
+                
+                if (IsSafeRqlFieldPath(groupFieldName) == false)
                     throw UnsupportedGroupBy();
 
                 return groupFieldName;
@@ -1096,12 +1104,29 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
         {
             var joined = string.Join('.', fieldPath);
 
-            // Reject SQL-derived names that aren't plain identifiers before they're spliced into RQL
-            // text; synthetic id()/json() are known RQL tokens.
-            if (PgSyntheticColumns.IsSyntheticColumn(joined) == false && IsSafeRqlFieldPath(joined) == false)
-                throw new NotSupportedException("Unsupported field name in WHERE clause");
+            // Raw name: WHERE predicates go through the query builder, which quotes the field. Only
+            // ' and \ can break out of that quoting, so reject those.
+            RejectQuoteBreakout(joined);
 
             return joined;
+        }
+
+        // Untrusted SQL identifiers reach RQL via the query builder (which quotes them) or a verbatim
+        // SELECT field (quoted here). Both wrap spaces and punctuation but do NOT escape ' or \, which
+        // would break out of RQL's single-quoted string - so reject those two characters.
+        private static void RejectQuoteBreakout(string name)
+        {
+            if (name.Contains('\'') || name.Contains('\\'))
+                throw new NotSupportedException("Unsupported identifier");
+        }
+
+        // SelectFields splices projection fields verbatim, so quote when needed; synthetic id()/json() stay raw.
+        private static string EscapeProjectionField(string name)
+        {
+            if (PgSyntheticColumns.IsSyntheticColumn(name))
+                return name;
+            RejectQuoteBreakout(name);
+            return QueryFieldUtil.EscapeIfNecessary(name, isPath: true);
         }
 
         // Literals pass through as-is; a $N placeholder becomes a PgBoundParameterReference marker
@@ -1239,11 +1264,10 @@ namespace Raven.Server.Integrations.PostgreSQL.Translation
 
                     var joined = StripAliasPrefix(string.Join('.', parts), fromAlias);
 
-                    // SQL-derived names are interpolated verbatim into RQL text (no RQL quoting on this
-                    // path), so reject anything that isn't a plain dotted identifier rather than splice
-                    // it in. Synthetic id()/json() are known RQL tokens the caller maps explicitly.
-                    if (PgSyntheticColumns.IsSyntheticColumn(joined) == false && IsSafeRqlFieldPath(joined) == false)
-                        throw new NotSupportedException("Unsupported field name");
+                    // Raw name: the query builder quotes Where/OrderBy/GroupBy fields, SELECT emitters
+                    // quote explicitly, and callers compare names case-insensitively. Only ' and \ can
+                    // break out of the quoting, so reject those.
+                    RejectQuoteBreakout(joined);
 
                     return joined;
                 }
