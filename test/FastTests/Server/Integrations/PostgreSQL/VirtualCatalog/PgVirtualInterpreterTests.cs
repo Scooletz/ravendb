@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Text;
+using System.Text.RegularExpressions;
 using Raven.Server.Integrations.PostgreSQL.VirtualCatalog;
 using Tests.Infrastructure;
 using Xunit;
@@ -1380,6 +1381,17 @@ ORDER BY ord";
 
             for (var i = 1; i < items.Count; i++)
                 Assert.True(cmp(items[i - 1], items[i]) <= 0);
+        }
+
+        // The LIKE regex must carry a finite MatchTimeout; a real timeout can't be tripped (the generated
+        // regex is linear), so assert the cap is wired rather than try to trip it.
+        [RavenFact(RavenTestCategory.PostgreSql)]
+        public void Like_regex_carries_a_match_timeout()
+        {
+            var method = typeof(ExpressionEvaluator).GetMethod("BuildLikeRegex", BindingFlags.NonPublic | BindingFlags.Static);
+            Assert.NotNull(method);
+            var regex = (Regex)method.Invoke(null, new object[] { "abc%def_", false });
+            Assert.NotEqual(Regex.InfiniteMatchTimeout, regex.MatchTimeout);
         }
 
         private static VirtualQueryContext EmptyCtx() => new();

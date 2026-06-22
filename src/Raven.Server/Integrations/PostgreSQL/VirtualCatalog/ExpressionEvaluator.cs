@@ -4,6 +4,7 @@ using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
 using PgSqlParser;
+using Raven.Server.Integrations.PostgreSQL.Exceptions;
 
 namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
 {
@@ -443,6 +444,7 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
         // adversarial distinct patterns; once full, misses still match correctly, just uncached.
         private static readonly ConcurrentDictionary<(string Pattern, bool IgnoreCase), Regex> LikeRegexCache = new();
         private const int LikeRegexCacheCap = 1024;
+        private static readonly System.TimeSpan LikeMatchTimeout = System.TimeSpan.FromSeconds(1);
 
         private static bool MatchLikePattern(string input, string pattern, bool ignoreCase)
         {
@@ -454,7 +456,14 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
                     LikeRegexCache.TryAdd(key, regex);
             }
 
-            return regex.IsMatch(input);
+            try
+            {
+                return regex.IsMatch(input);
+            }
+            catch (RegexMatchTimeoutException)
+            {
+                throw new PgErrorException(PgErrorCodes.StatementTooComplex, $"LIKE pattern took too long to evaluate: {pattern}");
+            }
         }
 
         // Translate SQL LIKE wildcards to an anchored .NET regex.
@@ -497,7 +506,7 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
             var options = RegexOptions.Singleline | RegexOptions.CultureInvariant;
             if (ignoreCase)
                 options |= RegexOptions.IgnoreCase;
-            return new Regex(sb.ToString(), options);
+            return new Regex(sb.ToString(), options, LikeMatchTimeout);
         }
 
         private static bool TryEvaluateInExpr(A_Expr aExpr, RowScope scope, ScalarSubqueryResolver subqueryResolver, ScalarFunctionResolver functionResolver, out object value)
