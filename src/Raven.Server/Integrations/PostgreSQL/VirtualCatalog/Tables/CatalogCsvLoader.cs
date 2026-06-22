@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
-using Microsoft.VisualBasic.FileIO;
+using CsvHelper;
+using CsvHelper.Configuration;
 using Raven.Server.Integrations.PostgreSQL.Types;
 
 namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog.Tables
@@ -15,42 +17,27 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog.Tables
             using var stream = assembly.GetManifestResourceStream(resourceName)
                                ?? throw new FileNotFoundException($"Catalog CSV resource not found: {resourceName}");
 
+            using var reader = new StreamReader(stream);
+            using var csv = new CsvReader(reader, new CsvConfiguration(CultureInfo.InvariantCulture) { Delimiter = "," });
+
+            if (csv.Read() == false || csv.ReadHeader() == false)
+                throw new InvalidDataException($"Catalog CSV {fileName} has no header row.");
+
+            var header = csv.HeaderRecord;
+            var columnIndex = new int[columns.Count];
+            for (int i = 0; i < columns.Count; i++)
+            {
+                columnIndex[i] = Array.FindIndex(header, h => string.Equals(h, columns[i].Name, StringComparison.OrdinalIgnoreCase));
+                if (columnIndex[i] < 0)
+                    throw new InvalidDataException($"Column '{columns[i].Name}' missing from CSV header in {fileName}.");
+            }
+
             var rows = new List<object[]>();
-            using var parser = new TextFieldParser(stream)
+            while (csv.Read())
             {
-                TextFieldType = FieldType.Delimited,
-                HasFieldsEnclosedInQuotes = true,
-            };
-            parser.SetDelimiters(",");
-
-            string[] header = null;
-            int[] columnIndex = null;
-
-            while (!parser.EndOfData)
-            {
-                var fields = parser.ReadFields();
-                if (fields == null)
-                    continue;
-
-                if (header == null)
-                {
-                    header = fields;
-                    columnIndex = new int[columns.Count];
-                    for (int i = 0; i < columns.Count; i++)
-                    {
-                        columnIndex[i] = Array.FindIndex(header, h => string.Equals(h, columns[i].Name, StringComparison.OrdinalIgnoreCase));
-                        if (columnIndex[i] < 0)
-                            throw new InvalidDataException($"Column '{columns[i].Name}' missing from CSV header in {fileName}.");
-                    }
-                    continue;
-                }
-
                 var row = new object[columns.Count];
                 for (int i = 0; i < columns.Count; i++)
-                {
-                    var raw = fields[columnIndex[i]];
-                    row[i] = ParseCell(raw, columns[i].PgType);
-                }
+                    row[i] = ParseCell(csv.GetField(columnIndex[i]), columns[i].PgType);
                 rows.Add(row);
             }
 
