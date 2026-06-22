@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
 using PgSqlParser;
 
@@ -35,6 +36,8 @@ namespace Raven.Server.Integrations.PostgreSQL.VirtualCatalog
 
         public static bool TryEvaluate(Node node, RowScope scope, ScalarSubqueryResolver subqueryResolver, ScalarFunctionResolver functionResolver, out object value)
         {
+            RuntimeHelpers.EnsureSufficientExecutionStack();
+
             value = null;
             if (node == null)
                 return false;

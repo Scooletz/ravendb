@@ -81,6 +81,10 @@ namespace Raven.Server.Integrations.PostgreSQL
                     PgErrorCodes.StatementTooComplex,
                     $"Unhandled query:{Environment.NewLine}{queryText}");
             }
+            catch (InsufficientExecutionStackException)
+            {
+                throw new PgErrorException(PgErrorCodes.StatementTooComplex, $"Query is too deeply nested to evaluate:{Environment.NewLine}{queryText}");
+            }
             catch (Exception e)
             {
                 if (_log.IsInfoEnabled)
