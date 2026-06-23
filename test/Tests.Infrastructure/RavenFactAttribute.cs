@@ -234,9 +234,6 @@ public class RavenFactAttribute : FactAttribute, ITraitAttribute, Xunit.v3.IFact
         if (ShouldSkipMsSql(out skipMessage))
             return true;
 
-        // On CI the database services are required (ShouldSkipService returns "don't skip" on CI), so a
-        // CDC-readiness problem must surface as a test failure rather than a silent skip — otherwise a
-        // misconfigured CI (no Agent, wrong edition) hides the fact that CDC tests never actually ran.
         if (RavenTestHelper.EnvironmentVariables.IsRunningOnCI)
         {
             skipMessage = null;
@@ -284,9 +281,6 @@ public class RavenFactAttribute : FactAttribute, ITraitAttribute, Xunit.v3.IFact
         if (ShouldSkipNpgSql(out skipMessage))
             return true;
 
-        // Mirror ShouldSkipMsSqlCdc: on CI the DB services are required, so a CDC-readiness problem
-        // must surface as a test failure rather than a silent skip - otherwise a misconfigured CI
-        // (wal_level != logical) hides the fact that the CDC streaming tests never actually ran.
         if (RavenTestHelper.EnvironmentVariables.IsRunningOnCI)
         {
             skipMessage = null;

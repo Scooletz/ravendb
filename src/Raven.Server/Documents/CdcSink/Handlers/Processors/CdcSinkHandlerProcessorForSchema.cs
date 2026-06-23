@@ -20,8 +20,6 @@ internal sealed class CdcSinkHandlerProcessorForSchema : AbstractCdcSinkHandlerP
 
     public override async ValueTask ExecuteAsync()
     {
-        // Same per-request cancellation as PostScriptTest - a slow remote discovery should
-        // not survive the client closing the HTTP connection.
         using (var cts = CancellationTokenSource.CreateLinkedTokenSource(RequestHandler.Database.DatabaseShutdown, HttpContext.RequestAborted))
         using (ContextPool.AllocateOperationContext(out DocumentsOperationContext context))
         {
@@ -75,9 +73,6 @@ internal sealed class CdcSinkHandlerProcessorForSchema : AbstractCdcSinkHandlerP
         }
         catch (Exception e)
         {
-            // Surface the driver's full message (host / port / internal code) to the admin
-            // caller - they need the details to diagnose source-side problems. Logger.Warn for
-            // the stack trace.
             result.Errors.Add("Schema discovery against the source database failed: " + e);
             if (Logger.IsWarnEnabled)
                 Logger.Warn("CDC schema discovery failed", e);

@@ -25,7 +25,7 @@ public static class CdcSinkSourceVerifier
     /// </summary>
     internal static async Task AnnotateAsync(SqlConnectionString connection, CdcSinkSourceSchema schema, CancellationToken token = default)
     {
-        // Reject providers we can't do CDC for before any connection work — no point creating or
+        // Reject providers we can't do CDC for before any connection work - no point creating or
         // opening a connection to a source we will not verify.
         if (connection.FactoryName is not ("Npgsql" or "Microsoft.Data.SqlClient" or "MySql.Data.MySqlClient" or "MySqlConnector.MySqlConnectorFactory"))
         {

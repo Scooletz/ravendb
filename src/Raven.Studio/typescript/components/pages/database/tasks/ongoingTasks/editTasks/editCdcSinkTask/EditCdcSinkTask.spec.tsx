@@ -189,9 +189,7 @@ describe("Edit CDC Sink task", () => {
         await fireClick((await screen.findByText(/^Test$/)).closest("button"));
         expect(await screen.findByText("Test mapping")).toBeInTheDocument();
 
-        // Remove the table via its actions menu while the test panel is still open. Before the fix the
-        // panel kept its now out-of-range index path (tables.0 against an empty array) and crashed
-        // dereferencing the missing table.
+        // Remove the table via its actions menu while the test panel is still open.
         await act(async () => {
             await user.click(screen.getByTitle("Table actions"));
         });

@@ -460,9 +460,6 @@ public class CdcSinkConfiguration : IDynamicJson, IDatabaseTask
         {
             tables.Add(new TableInfo
             {
-                // IsNullOrEmpty (not ?? ) to match CdcSinkDocumentProcessor's _tableIndex keying:
-                // an empty-string schema must also fall back to the default, else GetProcessor
-                // throws "No processor found" during initial load / tx-replay.
                 Schema = string.IsNullOrEmpty(table.SourceTableSchema) ? defaultSchema : table.SourceTableSchema,
                 TableName = table.SourceTableName,
                 PrimaryKeyColumns = table.PrimaryKeyColumns,

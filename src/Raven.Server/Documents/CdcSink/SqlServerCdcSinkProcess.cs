@@ -176,8 +176,8 @@ public class SqlServerCdcSinkProcess : CdcSinkProcess
 
     private async Task VerifyAgentIsRunning(DbConnection conn, CancellationToken ct)
     {
-        // Azure SQL Database (EngineEdition 5) has no classic SQL Server Agent — its CDC change
-        // capture runs on a managed scheduler — so the Agent-session check does not apply there.
+        // Azure SQL Database (EngineEdition 5) has no classic SQL Server Agent - its CDC change
+        // capture runs on a managed scheduler - so the Agent-session check does not apply there.
         const int azureSqlDatabaseEngineEdition = 5;
         try
         {
@@ -188,7 +188,7 @@ public class SqlServerCdcSinkProcess : CdcSinkProcess
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            // Couldn't read the engine edition — fall through to the best-effort Agent check.
+            // Couldn't read the engine edition - fall through to the best-effort Agent check.
             if (Logger.IsInfoEnabled)
                 Logger.Info($"[{Name}] Could not read SQL Server EngineEdition while checking the Agent; continuing. {ex.Message}");
         }
@@ -203,7 +203,7 @@ public class SqlServerCdcSinkProcess : CdcSinkProcess
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             // Reading sys.dm_exec_sessions needs VIEW SERVER STATE; an under-privileged login can't
-            // see Agent sessions even when the Agent is running. We can't verify — don't block.
+            // see Agent sessions even when the Agent is running. We can't verify - don't block.
             if (Logger.IsInfoEnabled)
                 Logger.Info($"[{Name}] Could not verify SQL Server Agent status (insufficient permissions?); continuing. {ex.Message}");
             return;
@@ -374,7 +374,7 @@ public class SqlServerCdcSinkProcess : CdcSinkProcess
             // range. We only reach here when the source LSN moved (FromLsn <= MaxLsn, guarded above), so
             // an empty buffer means other CDC tables (or none) moved the database-wide LSN. Persisting
             // past the empty range stops a restart from re-scanning it and keeps the saved position ahead
-            // of the CDC cleanup horizon — otherwise a long idle stretch risks the purge gap that
+            // of the CDC cleanup horizon - otherwise a long idle stretch risks the purge gap that
             // VerifyNoGapsInLsn can only detect after the fact.
             yield return new CdcEvent(CdcEventType.TransactionCommit, null, Convert.ToHexString(lsnInfo.MaxLsn));
             lastLsn = lsnInfo.MaxLsn;
@@ -522,10 +522,10 @@ public class SqlServerCdcSinkProcess : CdcSinkProcess
         foreach (var tableInfo in allTables)
         {
             // Read from the OLDEST capture instance. After a schema change adds a second capture
-            // instance, this sink keeps reading the old one — changes to the original columns keep
+            // instance, this sink keeps reading the old one - changes to the original columns keep
             // flowing, but newly added columns are NOT captured until an admin drops the old instance
             // (sys.sp_cdc_disable_table @capture_instance), after which the new one becomes the oldest
-            // and is picked up here. Automatic drain-old-then-switch handoff is a planned follow-up.
+            // and is picked up here.
             var instances = await SqlServerCdcCatalogQueries.FetchCaptureInstancesAsync(conn, tableInfo.Schema, tableInfo.TableName, ct);
 
             var captureInstance = instances.Count > 0 ? instances[0] : $"{tableInfo.Schema}_{tableInfo.TableName}";

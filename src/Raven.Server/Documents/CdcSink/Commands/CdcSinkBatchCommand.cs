@@ -192,7 +192,7 @@ public sealed class CdcSinkBatchCommand : DocumentMergedTransactionCommand
 
     /// <summary>
     /// Distinguishes an expected, deterministic per-document failure (script error, data-mapping
-    /// issue) — which we tolerate, alert on, and skip so the rest of the batch proceeds — from an
+    /// issue) - which we tolerate, alert on, and skip so the rest of the batch proceeds - from an
     /// unexpected/systemic one. Unexpected failures (out of memory, disk full, cancellation) must
     /// NOT be swallowed: swallowing them would let UpdateState advance the LSN past the dropped
     /// group, silently losing those source rows. Letting them propagate fails the whole batch so
@@ -548,7 +548,7 @@ public sealed class CdcSinkBatchCommand : DocumentMergedTransactionCommand
 
         // The parent document may not exist yet (e.g. a group like [EmbeddedModify, Delete] arrives
         // for a root that was never created). Embedded ops navigate/mutate the parent, so create a
-        // collection stub to attach them to — without it, ApplyEmbeddedOperation would dereference a
+        // collection stub to attach them to - without it, ApplyEmbeddedOperation would dereference a
         // null document and throw NullReferenceException.
         currentDoc ??= CreateDocumentStub(context, documentId, pendingEmbeds[0].Processor.CollectionName);
 
@@ -1248,8 +1248,8 @@ public sealed class CdcSinkBatchCommand : DocumentMergedTransactionCommand
     }
 
     // Equal only when the double is finite, within long range, and has no fractional part (so it
-    // round-trips to the same integer). Primary-key identities require exact matching — NO epsilon,
-    // since two distinct-but-close keys must never collide — and a direct long==double comparison
+    // round-trips to the same integer). Primary-key identities require exact matching - NO epsilon,
+    // since two distinct-but-close keys must never collide - and a direct long==double comparison
     // is lossy once |value| exceeds 2^53.
     private static bool IntegralDoubleEquals(double d, long l)
     {

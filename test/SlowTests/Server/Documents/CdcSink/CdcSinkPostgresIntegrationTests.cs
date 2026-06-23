@@ -124,9 +124,9 @@ namespace SlowTests.Server.Documents.CdcSink
         [RavenFact(RavenTestCategory.Sinks, NpgSqlCdcRequired = true)]
         public async Task InitialLoad_GuidPrimaryKey_GeneratesDocIdFromGuid()
         {
-            // Regression coverage (Lwiel issue comment): the initial load must derive document IDs from
-            // a non-serial primary key. A UUID PK exercises the GUID->string doc-ID path (vs. the common
-            // SERIAL case) - each row must map to "{Collection}/{guid}".
+            // The initial load must derive document IDs from a non-serial primary key. A UUID PK
+            // exercises the GUID->string doc-ID path (vs. the common SERIAL case) - each row must
+            // map to "{Collection}/{guid}".
             using var store = GetDocumentStore();
             using var _ = WithSqlDatabase(Raven.Server.SqlMigration.MigrationProvider.NpgSQL, out var connectionString, out var schemaName, dataSet: null, includeData: false);
 

@@ -17,7 +17,7 @@ namespace SlowTests.Sharding.CdcSink;
 
 /// <summary>
 /// Pins the routing wiring for the CDC sink admin endpoints on sharded databases. CDC sinks
-/// are not supported on sharded databases as of yet - every endpoint must return a typed
+/// are not supported on sharded databases - every endpoint must return a typed
 /// <see cref="NotSupportedInShardingException"/> with a clear message.
 /// </summary>
 public class ShardedCdcSinkHandlerTests : RavenTestBase
@@ -31,9 +31,6 @@ public class ShardedCdcSinkHandlerTests : RavenTestBase
     {
         using (var store = Sharding.GetDocumentStore())
         {
-            // Request contents are intentionally minimal: the sharded handler throws at
-            // processor entry before the body is read, so the typed exception must surface
-            // regardless of payload validity.
             var request = new TestCdcSinkMappingRequest
             {
                 Connection = new SqlConnectionString { FactoryName = "Npgsql", ConnectionString = "Host=ignored" }
@@ -97,9 +94,6 @@ public class ShardedCdcSinkHandlerTests : RavenTestBase
     {
         using (var store = Sharding.GetDocumentStore())
         {
-            // The sharded add-task processor throws in OnBeforeUpdateConfiguration - before any config
-            // validation or the actual add - so a minimal configuration is enough to surface the typed
-            // exception (PUT /admin/cdc-sink).
             var configuration = new CdcSinkConfiguration
             {
                 Name = "cdc-sink-test",
@@ -119,8 +113,6 @@ public class ShardedCdcSinkHandlerTests : RavenTestBase
         public RavenCommand GetCommand(Raven.Client.Documents.Conventions.DocumentConventions conventions, JsonOperationContext context)
             => new GetCdcSinkPerformanceCommand("/cdc-sink/performance");
 
-        // Shared shell command - only the path differs between the two GET endpoints; the
-        // sharded server's typed-exception behavior is what's being asserted on.
         public sealed class GetCdcSinkPerformanceCommand : RavenCommand
         {
             private readonly string _path;

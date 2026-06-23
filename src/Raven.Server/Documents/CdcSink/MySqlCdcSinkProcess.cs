@@ -65,7 +65,7 @@ public class MySqlCdcSinkProcess : CdcSinkProcess
 
         /// <summary>
         /// The TableId from the last TableMapEvent that matched our expected schema.
-        /// <see cref="TableIdReplayingOldEvents"/>: no current-schema event seen yet — skip mismatched
+        /// <see cref="TableIdReplayingOldEvents"/>: no current-schema event seen yet - skip mismatched
         /// TableMapEvents (old-schema events from the catch-up window are expected).
         /// Any other value: the real TableId from the last matching TableMapEvent; a later mismatch is
         /// then treated as a genuine schema change and throws (re-resolved via restart).
@@ -73,7 +73,7 @@ public class MySqlCdcSinkProcess : CdcSinkProcess
         public long ValidTableId { get; set; } = TableIdReplayingOldEvents;
     }
 
-    /// <summary>No current-schema event seen yet — skip mismatched (old-schema) TableMapEvents from the catch-up window.</summary>
+    /// <summary>No current-schema event seen yet - skip mismatched (old-schema) TableMapEvents from the catch-up window.</summary>
     private const long TableIdReplayingOldEvents = -1;
 
     /// <summary>

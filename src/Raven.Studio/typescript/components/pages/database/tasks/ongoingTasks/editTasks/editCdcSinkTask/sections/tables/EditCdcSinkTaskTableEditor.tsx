@@ -29,7 +29,7 @@ export default function EditCdcSinkTaskTableEditor() {
     const viewSheet = useViewSheet();
 
     // The test panel lives in the global split-view sheet, opened for the active root table. When no
-    // table is active anymore — e.g. one was removed, which clears the selection — close the sheet so it
+    // table is active anymore - e.g. one was removed, which clears the selection - close the sheet so it
     // can't linger with a frozen index path that now points past the end (crash) or at a shifted table.
     useEffect(() => {
         if (!activeTable) {

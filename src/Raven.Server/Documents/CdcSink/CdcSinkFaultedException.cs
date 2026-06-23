@@ -3,7 +3,7 @@ using System;
 namespace Raven.Server.Documents.CdcSink
 {
     /// <summary>
-    /// Signals a permanent CDC Sink configuration/schema error that retrying cannot fix — e.g. a
+    /// Signals a permanent CDC Sink configuration/schema error that retrying cannot fix - e.g. a
     /// configured table that does not resolve in the process's table mapping. The retry loop
     /// (<see cref="CdcSinkProcess.RunWithRetryAsync"/>) treats this differently from a transient
     /// failure: instead of entering fallback and retrying forever, it moves the process to a faulted

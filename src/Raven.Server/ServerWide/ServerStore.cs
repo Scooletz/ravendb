@@ -2606,7 +2606,7 @@ namespace Raven.Server.ServerWide
 
                 var sqlConnectionStrings = rawRecord.SqlConnectionStrings;
                 if (string.IsNullOrEmpty(cdcSink.ConnectionStringName))
-                    cdcSinkErr.Add($"'{nameof(cdcSink.ConnectionStringName)}' is required."); // avoid Dictionary.TryGetValue(null) -> ArgumentNullException -> HTTP 500
+                    cdcSinkErr.Add($"'{nameof(cdcSink.ConnectionStringName)}' is required.");
                 else if (sqlConnectionStrings == null || sqlConnectionStrings.TryGetValue(cdcSink.ConnectionStringName, out _) == false)
                     cdcSinkErr.Add($"Could not find connection string named '{cdcSink.ConnectionStringName}'. Please supply an existing connection string.");
 

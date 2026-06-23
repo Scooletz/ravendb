@@ -18,9 +18,6 @@ namespace Raven.Server.Documents.CdcSink.Schema
         // (e.g. the CDC verify endpoint) can compare against the same identifiers instead
         // of repeating the literals.
         internal const string NpgsqlFactory = "Npgsql";
-        // System.Data.SqlClient is intentionally NOT supported: it's the deprecated SQL Server
-        // driver, kept in SQL ETL only for back-compat. CDC is a new feature, so it requires the
-        // modern Microsoft.Data.SqlClient.
         internal const string MicrosoftDataSqlClientFactory = "Microsoft.Data.SqlClient";
         internal const string MySqlDataFactory = "MySql.Data.MySqlClient";
         internal const string MySqlConnectorFactory = "MySqlConnector.MySqlConnectorFactory";

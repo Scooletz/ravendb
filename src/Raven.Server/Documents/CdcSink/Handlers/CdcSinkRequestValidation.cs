@@ -7,8 +7,7 @@ using Raven.Client.Documents.Operations.ETL.SQL;
 namespace Raven.Server.Documents.CdcSink.Handlers;
 
 /// <summary>
-/// Shared validation + connection-resolution helpers used by the CDC sink admin endpoints
-/// (<c>/admin/cdc-sink/test</c>, <c>/admin/cdc-sink/schema</c>).
+/// Shared validation + connection-resolution helpers used by the CDC sink admin endpoints.
 /// </summary>
 internal static class CdcSinkRequestValidation
 {
@@ -20,11 +19,10 @@ internal static class CdcSinkRequestValidation
     internal const int MaxAllowedTestRows = 5000;
 
     /// <summary>
-    /// Identifier shape gate. Both endpoints interpolate user-supplied identifiers into raw
-    /// SQL (the migrator's <c>QuoteTable</c> / <c>QuoteColumn</c> for table and column names
-    /// in the test endpoint, and Postgres' <c>INFORMATION_SCHEMA</c> filter for schema names
-    /// in the schema-discovery endpoint). Reject anything outside the standard SQL identifier
-    /// shape so a typo or malicious value can't break out of the quoted context.
+    /// Identifier shape gate. Callers interpolate user-supplied identifiers into raw SQL
+    /// (the migrator's <c>QuoteTable</c> / <c>QuoteColumn</c> for table and column names, and
+    /// Postgres' <c>INFORMATION_SCHEMA</c> filter for schema names). Reject anything outside the
+    /// standard SQL identifier shape so a typo or malicious value can't break out of the quoted context.
     /// </summary>
     private static readonly Regex IdentifierPattern = new("^[A-Za-z_][A-Za-z0-9_]*$", RegexOptions.Compiled);
 

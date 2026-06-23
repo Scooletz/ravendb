@@ -463,7 +463,7 @@ public class PostgresCdcSinkProcess : CdcSinkProcess
                 case RelationMessage relation:
                     // pgoutput sends a RelationMessage before a relation's rows and re-sends it on a schema
                     // change. (Re)build the column mapping now, keyed by the real OID, so row decoding is a
-                    // plain dictionary lookup — no high-bit sentinel that would collide with OIDs >= 2^31.
+                    // plain dictionary lookup - no high-bit sentinel that would collide with OIDs >= 2^31.
                     if (IsConfiguredRelation(relation))
                         BuildRelationMapping(relation);
                     break;
@@ -546,7 +546,7 @@ public class PostgresCdcSinkProcess : CdcSinkProcess
     /// Returns true if the relation is configured in this CDC Sink task. A relation can be present
     /// in the PostgreSQL publication (e.g. the publication was created FOR ALL TABLES, or a table was
     /// added to it later) without being part of the task configuration. Rows for such relations must
-    /// be skipped — decoding them would throw and put the task into a permanent crash/retry loop.
+    /// be skipped - decoding them would throw and put the task into a permanent crash/retry loop.
     /// Logs once per relation the first time it is skipped.
     /// </summary>
     private bool IsConfiguredRelation(RelationMessage relation)
@@ -566,7 +566,7 @@ public class PostgresCdcSinkProcess : CdcSinkProcess
     /// <summary>
     /// Consumes a replication tuple without decoding it. The pgoutput replication stream is strictly
     /// sequential and forward-only, so a message's tuple(s) MUST be fully read before advancing to the
-    /// next message even when the relation is skipped — otherwise the stream desyncs.
+    /// next message even when the relation is skipped - otherwise the stream desyncs.
     /// </summary>
     private static async Task DrainTuple(ReplicationTuple row, CancellationToken ct)
     {
@@ -614,7 +614,7 @@ public class PostgresCdcSinkProcess : CdcSinkProcess
         // protocol overhead.
         //
         // Acknowledge the DURABLE checkpoint LSN (the position just persisted to RavenDB by the
-        // completed batch) — NOT _lastLsn (the latest *decoded* position). _lastLsn may already
+        // completed batch) - NOT _lastLsn (the latest *decoded* position). _lastLsn may already
         // be ahead because the next batch is decoded while this one commits; acking it would let
         // PostgreSQL recycle WAL for changes that are not yet durable in RavenDB, losing them on
         // crash.

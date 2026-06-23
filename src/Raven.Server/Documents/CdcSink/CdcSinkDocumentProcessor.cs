@@ -258,7 +258,7 @@ public class CdcSinkDocumentProcessor
     /// <summary>
     /// Like <see cref="GetProcessor"/> but returns false instead of throwing when the table is not
     /// configured in this CDC Sink task. Used by streaming providers (e.g. PostgreSQL) where the
-    /// source may publish rows for tables that are not part of the task configuration — those rows
+    /// source may publish rows for tables that are not part of the task configuration - those rows
     /// must be skipped, not crash the process.
     /// </summary>
     public bool TryGetProcessor(string schema, string table, out CdcSinkTableProcessor processor)

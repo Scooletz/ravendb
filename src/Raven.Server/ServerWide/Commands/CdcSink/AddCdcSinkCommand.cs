@@ -44,9 +44,8 @@ namespace Raven.Server.ServerWide.Commands.CdcSink
         /// <summary>
         /// Auto-fills PublicationName and SlotName when the user didn't provide them.
         /// Derives both from the raft <paramref name="etag"/> (the task id) so the names are
-        /// identical on every cluster node: this runs inside the deterministic Raft apply path,
-        /// where <c>Guid.NewGuid()</c> would produce a different value per node and diverge the
-        /// state machine. The etag is unique per command, and "rvn_cdc_p_" + etag stays well
+        /// identical on every cluster node: this runs inside the deterministic Raft apply path.
+        /// The etag is unique per command, and "rvn_cdc_p_" + etag stays well
         /// within PostgreSQL's 63-character identifier limit. Only applies to PostgreSQL connections.
         /// </summary>
         private void AutoFillPostgresSettings(DatabaseRecord record, long etag)

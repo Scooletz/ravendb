@@ -409,8 +409,8 @@ namespace Raven.Server.Dashboard
             long azureServiceBusSinkCountOnNode = GetTaskCountOnNode<Client.Documents.Operations.QueueSink.QueueSinkConfiguration>(database, dbRecord, serverStore, database.QueueSinkLoader.Sinks,
                 task => QueueSinkLoader.GetProcessState(task.Scripts, database, task.Name), task => task.BrokerType == QueueBrokerType.AzureServiceBus);
 
-            var cdcSinkCount = database.CdcSinkLoader.Sinks?.Count ?? 0;
-            long cdcSinkCountOnNode = GetTaskCountOnNode<Client.Documents.Operations.CdcSink.CdcSinkConfiguration>(database, dbRecord, serverStore, database.CdcSinkLoader.Sinks ?? Enumerable.Empty<Client.Documents.Operations.CdcSink.CdcSinkConfiguration>(),
+            var cdcSinkCount = database.CdcSinkLoader.Sinks.Count;
+            long cdcSinkCountOnNode = GetTaskCountOnNode<Client.Documents.Operations.CdcSink.CdcSinkConfiguration>(database, dbRecord, serverStore, database.CdcSinkLoader.Sinks,
                 task => CdcSinkProcess.GetProcessState(database, task.Name));
 
             ongoingTasksCount = extRepCount + replicationHubCount + replicationSinkCount +

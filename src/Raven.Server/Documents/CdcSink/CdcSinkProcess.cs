@@ -48,7 +48,7 @@ public abstract class CdcSinkProcess : IDisposable, ILowMemoryHandler
     // Set when the process is stopped/disposed. HandleDatabaseRecordChange can dispose a process
     // (disposing _cts) before swapping it out of the loader's _processes array, so an in-flight
     // ongoing-tasks request may still call GetConnectionStatus() on it. Reading _cts.Token after
-    // disposal throws ObjectDisposedException — guard against that with this flag.
+    // disposal throws ObjectDisposedException - guard against that with this flag.
     private readonly MultipleUseFlag _disposed = new MultipleUseFlag();
 
     protected readonly RavenLogger Logger;
@@ -154,7 +154,7 @@ public abstract class CdcSinkProcess : IDisposable, ILowMemoryHandler
     public OngoingTaskConnectionStatus GetConnectionStatus()
     {
         // The process may be disposed concurrently (reconfiguration) while still referenced by an
-        // in-flight ongoing-tasks request — reading CancellationToken (_cts.Token) after disposal
+        // in-flight ongoing-tasks request - reading CancellationToken (_cts.Token) after disposal
         // would throw. Treat a disposed process as not active.
         if (_disposed.IsRaised() || Configuration.Disabled || IsCancellationRequestedSafe())
             return OngoingTaskConnectionStatus.NotActive;
@@ -196,7 +196,7 @@ public abstract class CdcSinkProcess : IDisposable, ILowMemoryHandler
     private async Task RunWithRetryAsync(CancellationToken ct)
     {
         // Record which node owns this CDC Sink so the mentor-node resolution keeps it sticky to this
-        // node across topology changes. Once per start is enough — unlike ETL/QueueSink we don't persist
+        // node across topology changes. Once per start is enough - unlike ETL/QueueSink we don't persist
         // progress in this state (the LSN/GTID checkpoint lives in the CdcSinkTaskState document), so
         // there is nothing to refresh per batch.
         await TryUpdateProcessStateForStickiness();
@@ -204,7 +204,7 @@ public abstract class CdcSinkProcess : IDisposable, ILowMemoryHandler
         while (true)
         {
             // Reading the token (IsCancellationRequested / WaitHandle) can throw ObjectDisposedException
-            // if Stop/Dispose disposed _cts concurrently — treat that as a cancellation and exit.
+            // if Stop/Dispose disposed _cts concurrently - treat that as a cancellation and exit.
             try
             {
                 if (ct.IsCancellationRequested)
@@ -236,7 +236,7 @@ public abstract class CdcSinkProcess : IDisposable, ILowMemoryHandler
                 IsFaulted = true;
                 LastProcessException = e;
 
-                // Unlike the transient path below, a faulted process will not retry — so initial-load waiters
+                // Unlike the transient path below, a faulted process will not retry - so initial-load waiters
                 // must observe the failure here rather than hang forever.
                 _initialLoadTcs.TrySetException(e);
                 ProcessError?.Invoke(e);
@@ -303,7 +303,7 @@ public abstract class CdcSinkProcess : IDisposable, ILowMemoryHandler
 
     // Records which node currently owns this CDC Sink so the mentor-node resolution keeps the task
     // sticky to it (UpdateCdcSinkProcessStateCommand's apply rejects writes from a node that isn't the
-    // responsible one). Best-effort: a transient failure must not stop the task — on failover the new
+    // responsible one). Best-effort: a transient failure must not stop the task - on failover the new
     // owner records its own state on start.
     private async Task TryUpdateProcessStateForStickiness()
     {
@@ -551,14 +551,14 @@ public abstract class CdcSinkProcess : IDisposable, ILowMemoryHandler
         // time; they live on in `pending`/`batch` until the TxMerger finishes writing the batch they
         // end up in. We therefore allocate a fresh streaming context (rotate) ONLY at points where
         // the current context has no live reference that would outlive the rotation:
-        //   * no row is being decoded right now — a MoveNextAsync in flight (the Task.WhenAny flush
+        //   * no row is being decoded right now - a MoveNextAsync in flight (the Task.WhenAny flush
         //     path) is actively writing into the current context, and
-        //   * `pending` is empty — uncommitted ops still reference the current context and will be
+        //   * `pending` is empty - uncommitted ops still reference the current context and will be
         //     submitted in a later batch.
         // When either holds we keep the same context and defer the rotation to the next safe flush.
         // A retired context (previousCtx) backs every batch submitted since the last rotation; since
         // batches are awaited in submit order, it is safe to dispose once the most recent batch that
-        // used it (lastBatch) has completed — which is exactly the next FlushBatch's `await lastBatch`.
+        // used it (lastBatch) has completed - which is exactly the next FlushBatch's `await lastBatch`.
         IDisposable previousCtx = null;
         var currentCtx = Database.DocumentsStorage.ContextPool.AllocateOperationContext(out DocumentsOperationContext ctx);
         StreamingJsonContext = ctx;
@@ -578,8 +578,8 @@ public abstract class CdcSinkProcess : IDisposable, ILowMemoryHandler
                 lastBatchOps = null;
             }
 
-            // previousCtx (if any) backed batches that are all guaranteed complete now — we just
-            // awaited the most recent one — and it is never the live StreamingJsonContext, so it is
+            // previousCtx (if any) backed batches that are all guaranteed complete now - we just
+            // awaited the most recent one - and it is never the live StreamingJsonContext, so it is
             // safe to dispose. Null it out so a deferred rotation doesn't double-dispose.
             if (previousCtx != null)
             {
@@ -640,7 +640,7 @@ public abstract class CdcSinkProcess : IDisposable, ILowMemoryHandler
 
                         if (moveTask.IsCompleted == false)
                         {
-                            // Source is idle — clear array contents immediately to release
+                            // Source is idle - clear array contents immediately to release
                             // references for GC, but keep the arrays in the pool for reuse.
                             DocumentProcessor.ClearValuePoolArrays();
 
@@ -689,7 +689,7 @@ public abstract class CdcSinkProcess : IDisposable, ILowMemoryHandler
                 // synchronously, the Task.WhenAny flush path above is skipped, so `batch` would grow
                 // without bound until the source goes idle. Flush completed transactions here once the
                 // batch reaches the size limit. (A single transaction is never split; this only bounds
-                // cross-transaction accumulation. This is also a race-free flush point — no decode is
+                // cross-transaction accumulation. This is also a race-free flush point - no decode is
                 // in flight here, unlike the WhenAny path.)
                 if (ShouldFlushBatch(batch.Count))
                     await FlushBatch(decodeInFlight: false);
@@ -828,7 +828,7 @@ public abstract class CdcSinkProcess : IDisposable, ILowMemoryHandler
             catch (InvalidOperationException e)
             {
                 // A configured table that doesn't resolve in the mapping is a permanent configuration error,
-                // not a transient failure — fault the process so it stops retrying until the config is fixed,
+                // not a transient failure - fault the process so it stops retrying until the config is fixed,
                 // rather than re-running the initial load forever against a mapping that can never match.
                 throw new CdcSinkFaultedException(
                     $"Initial load cannot start for table '{tableInfo.Schema}.{tableInfo.TableName}': it does not resolve " +

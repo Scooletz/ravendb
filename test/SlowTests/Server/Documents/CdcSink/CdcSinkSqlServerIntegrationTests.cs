@@ -387,9 +387,9 @@ namespace SlowTests.Server.Documents.CdcSink
         [RavenFact(RavenTestCategory.Sinks, MsSqlRequired = true, MsSqlCdcRequired = true)]
         public async Task InitialLoad_GuidPrimaryKey_GeneratesDocIdFromGuid()
         {
-            // Regression coverage (Lwiel issue comment): the initial load must derive document IDs from
-            // a non-serial primary key. A UNIQUEIDENTIFIER PK exercises the GUID->string doc-ID path
-            // (vs. the common INT IDENTITY case) - each row must map to "{Collection}/{guid}".
+            // The initial load must derive document IDs from a non-serial primary key. A UNIQUEIDENTIFIER
+            // PK exercises the GUID->string doc-ID path (vs. the common INT IDENTITY case) - each row must
+            // map to "{Collection}/{guid}".
             using var store = GetDocumentStore();
             var schema = CreateTestSchema();
 
