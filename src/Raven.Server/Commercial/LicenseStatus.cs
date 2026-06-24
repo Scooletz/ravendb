@@ -348,6 +348,7 @@ namespace Raven.Server.Commercial
                 [nameof(HasPullReplicationAsHub)] = HasPullReplicationAsHub,
                 [nameof(HasPullReplicationAsSink)] = HasPullReplicationAsSink,
                 [nameof(HasEncryptedBackups)] = HasEncryptedBackups,
+                [nameof(HasSso)] = HasSso,
                 [nameof(CanAutoRenewLetsEncryptCertificate)] = CanAutoRenewLetsEncryptCertificate,
                 [nameof(IsCloud)] = IsCloud,
                 [nameof(HasDocumentsCompression)] = HasDocumentsCompression,
