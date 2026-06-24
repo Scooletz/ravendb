@@ -76,4 +76,5 @@ public enum LicenseAttribute
     RemoteAttachments,
     AiAssistant,
     Sso,
+    CdcSink,
 }

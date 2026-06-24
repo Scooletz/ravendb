@@ -50,6 +50,7 @@ using Raven.Server.ServerWide.Commands.ETL;
 using Raven.Server.ServerWide.Commands.Indexes;
 using Raven.Server.ServerWide.Commands.Monitoring.Snmp;
 using Raven.Server.ServerWide.Commands.PeriodicBackup;
+using Raven.Server.ServerWide.Commands.CdcSink;
 using Raven.Server.ServerWide.Commands.QueueSink;
 using Raven.Server.ServerWide.Commands.Sharding;
 using Raven.Server.ServerWide.Commands.Sorters;
@@ -459,6 +460,7 @@ namespace Raven.Server.ServerWide
                     case nameof(AddElasticSearchEtlCommand):
                     case nameof(AddQueueEtlCommand):
                     case nameof(AddQueueSinkCommand):
+                    case nameof(AddCdcSinkCommand):
                     case nameof(AddSnowflakeEtlCommand):
                     case nameof(AddEmbeddingsGenerationCommand):
                     case nameof(AddOrUpdateAiAgentCommand):
@@ -469,6 +471,7 @@ namespace Raven.Server.ServerWide
                     case nameof(UpdateElasticSearchEtlCommand):
                     case nameof(UpdateQueueEtlCommand):
                     case nameof(UpdateQueueSinkCommand):
+                    case nameof(UpdateCdcSinkCommand):
                     case nameof(UpdateSnowflakeEtlCommand):
                     case nameof(UpdateEmbeddingsGenerationCommand):
                     case nameof(DeleteOngoingTaskCommand):
@@ -522,6 +525,8 @@ namespace Raven.Server.ServerWide
                     case nameof(RemoveEtlProcessStateCommand):
                     case nameof(UpdateQueueSinkProcessStateCommand):
                     case nameof(RemoveQueueSinkProcessStateCommand):
+                    case nameof(UpdateCdcSinkProcessStateCommand):
+                    case nameof(RemoveCdcSinkProcessStateCommand):
                         SetValueForTypedDatabaseCommand(context, type, cmd, index, out result);
 
                         if (result != null)
@@ -1770,6 +1775,7 @@ namespace Raven.Server.ServerWide
             nameof(DatabaseRecord.QueueEtls),
             nameof(DatabaseRecord.SnowflakeEtls),
             nameof(DatabaseRecord.QueueSinks),
+            nameof(DatabaseRecord.CdcSinks),
             nameof(DatabaseRecord.EmbeddingsGenerations),
             nameof(DatabaseRecord.GenAis),
             nameof(DatabaseRecord.AiAgents)
@@ -2803,8 +2809,9 @@ namespace Raven.Server.ServerWide
                 case nameof(AddOlapEtlCommand):
                 case nameof(AddQueueEtlCommand):
                 case nameof(AddQueueSinkCommand):
+                case nameof(AddCdcSinkCommand):
                 case nameof(AddSnowflakeEtlCommand):
-                case nameof(AddEmbeddingsGenerationCommand): 
+                case nameof(AddEmbeddingsGenerationCommand):
                 case nameof(AddGenAiCommand):
                 case nameof(AddOrUpdateAiAgentCommand):
                 case nameof(DeleteAiAgentCommand):
@@ -2853,6 +2860,7 @@ namespace Raven.Server.ServerWide
                 case nameof(UpdatePeriodicBackupCommand):
                 case nameof(UpdateQueueEtlCommand):
                 case nameof(UpdateQueueSinkCommand):
+                case nameof(UpdateCdcSinkCommand):
                 case nameof(UpdateSnowflakeEtlCommand):
                 case nameof(UpdateEmbeddingsGenerationCommand):
                 case nameof(UpdateRavenEtlCommand):

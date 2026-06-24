@@ -114,6 +114,10 @@ namespace Raven.Server.NotificationCenter.Notifications
         
         Etl_HealthStatusChange = 72,
 
-        HighReadAheadKb = 73 // 72 is used in 7.2
+        HighReadAheadKb = 73, // 72 is used in 7.2
+
+        CdcSink_Error = 74,
+        CdcSink_ScriptError = 75,
+        CdcSink_ConsumeError = 76
     }
 }

@@ -268,6 +268,8 @@ namespace Raven.Server.Commercial
 
         public bool HasQueueSink => Enabled(LicenseAttribute.QueueSink);
 
+        public bool HasCdcSink => Enabled(LicenseAttribute.CdcSink);
+
         public bool HasDataArchival => Enabled(LicenseAttribute.DataArchival);
 
         public bool HasRevisionsInSubscriptions => Enabled(LicenseAttribute.RevisionsInSubscriptions);
@@ -374,6 +376,7 @@ namespace Raven.Server.Commercial
                 [nameof(HasClientConfiguration)] = HasClientConfiguration,
                 [nameof(HasStudioConfiguration)] = HasStudioConfiguration,
                 [nameof(HasQueueSink)] = HasQueueSink,
+                [nameof(HasCdcSink)] = HasCdcSink,
                 [nameof(HasDataArchival)] = HasDataArchival,
                 [nameof(HasRevisionsInSubscriptions)] = HasRevisionsInSubscriptions,
                 [nameof(HasMultiNodeSharding)] = HasMultiNodeSharding,

@@ -439,6 +439,7 @@ export function useNewOngoingTasks({ isAiOnly = false }: { isAiOnly?: boolean })
     const hasKafkaSink = useAppSelector(licenseSelectors.statusValue("HasQueueSink"));
     const hasRabbitMqSink = useAppSelector(licenseSelectors.statusValue("HasQueueSink"));
     const hasAzureServiceBusSink = useAppSelector(licenseSelectors.statusValue("HasQueueSink"));
+    const hasCdcSink = useAppSelector(licenseSelectors.statusValue("HasCdcSink"));
     const hasPeriodicBackups = useAppSelector(licenseSelectors.statusValue("HasPeriodicBackup"));
     const hasGenAi = useAppSelector(licenseSelectors.statusValue("HasGenAi"));
     const hasEmbeddingGeneration = useAppSelector(licenseSelectors.statusValue("HasEmbeddingsGeneration"));
@@ -745,6 +746,18 @@ export function useNewOngoingTasks({ isAiOnly = false }: { isAiOnly?: boolean })
                     licenseBadge: "Enterprise",
                     showLicenseBadge: !hasAzureServiceBusSink,
                     link: forCurrentDatabase.editAzureServiceBusSinkTaskUrl(),
+                    accessRequired: "DatabaseAdmin",
+                },
+                {
+                    title: "CDC Sink",
+                    description:
+                        "Consume Change Data Capture streams from relational databases and apply inserts, updates, and deletes to documents in RavenDB.",
+                    iconName: "sql-etl",
+                    target: "CdcSink",
+                    variant: "Sink",
+                    licenseBadge: "Enterprise",
+                    showLicenseBadge: !hasCdcSink,
+                    link: forCurrentDatabase.editCdcSinkTaskUrl(),
                     accessRequired: "DatabaseAdmin",
                 },
             ],

@@ -13,6 +13,7 @@ using Raven.Server.ServerWide.Commands.ETL;
 using Raven.Server.ServerWide.Commands.Indexes;
 using Raven.Server.ServerWide.Commands.Monitoring.Snmp;
 using Raven.Server.ServerWide.Commands.PeriodicBackup;
+using Raven.Server.ServerWide.Commands.CdcSink;
 using Raven.Server.ServerWide.Commands.QueueSink;
 using Raven.Server.ServerWide.Commands.Sharding;
 using Raven.Server.ServerWide.Commands.Sorters;
@@ -180,7 +181,7 @@ namespace Raven.Server.ServerWide
             [nameof(UpdateServerPublishedUrlsCommand)] = 60_000,
             [nameof(PutShardedSubscriptionBatchCommand)] = 60_000,
             
-            [nameof(AddQueueSinkCommand)] = 60_000,            
+            [nameof(AddQueueSinkCommand)] = 60_000,
             [nameof(UpdateQueueSinkCommand)] = 60_000,
             [nameof(RemoveQueueSinkProcessStateCommand)] = 60_000,
             [nameof(UpdateQueueSinkProcessStateCommand)] = 60_000,
@@ -211,9 +212,14 @@ namespace Raven.Server.ServerWide
 
             [nameof(EditRemoteAttachmentsCommand)] = EditRemoteAttachmentsCommand.CommandVersion,
             [nameof(EditSchemaValidationConfigurationCommand)] = 72_000,
-            [nameof(UpdateSnmpDatabaseEtlsMappingCommand)] =  72_000,
 
-            [nameof(UpdateSnmpDatabaseAiTasksMappingCommand)] = 72_000
+            [nameof(UpdateSnmpDatabaseEtlsMappingCommand)] =  72_000,
+            [nameof(UpdateSnmpDatabaseAiTasksMappingCommand)] = 72_000,
+
+            [nameof(AddCdcSinkCommand)] = 72_001,
+            [nameof(UpdateCdcSinkCommand)] = 72_001,
+            [nameof(RemoveCdcSinkProcessStateCommand)] = 72_001,
+            [nameof(UpdateCdcSinkProcessStateCommand)] = 72_001,
         };
 
         public bool CanPutCommand(string command)
