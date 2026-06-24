@@ -75,5 +75,6 @@ public enum LicenseAttribute
     SchemaValidation,
     RemoteAttachments,
     AiAssistant,
+    Sso,
     CdcSink,
 }

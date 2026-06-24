@@ -149,6 +149,7 @@ export class LicenseStubs {
             MaxNumberOfCustomAnalyzersPerDatabase: null,
             MaxNumberOfCustomAnalyzersPerCluster: null,
             CanSetupDefaultRevisionsConfiguration: true,
+            HasSso: true,
         };
     }
 
