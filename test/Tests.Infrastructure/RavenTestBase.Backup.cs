@@ -934,7 +934,6 @@ namespace FastTests
 
                 return onGoingTaskInfo;
             }
-            
         }
     }
 }

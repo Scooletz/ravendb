@@ -309,16 +309,13 @@ namespace Raven.Server.ServerWide.Commands
                 throw new InvalidOperationException($"Cannot use '{nameof(ClusterTransactionCommand)}' with a sharded database ('{databaseName}').");
         }
 
-        internal static void ValidateCommands(ArraySegment<BatchRequestParser.CommandData> parsedCommands, bool disableAtomicDocumentWrites, bool disallowControlCharacters)
+        internal static void ValidateCommands(ArraySegment<BatchRequestParser.CommandData> parsedCommands, bool disableAtomicDocumentWrites)
         {
             foreach (var document in parsedCommands)
             {
                 switch (document.Type)
                 {
                     case CommandType.CompareExchangePUT:
-                        if (disallowControlCharacters)
-                            DocumentIdWorker.CheckAndThrowContainsControlCharacters(document.Id, "Compare Exchange Key");
-                        goto case CommandType.CompareExchangeDELETE;
                     case CommandType.CompareExchangeDELETE:
                         if (disableAtomicDocumentWrites == false)
                         {
@@ -327,9 +324,6 @@ namespace Raven.Server.ServerWide.Commands
                         }
                         break;
                     case CommandType.PUT:
-                        if (disallowControlCharacters)
-                            DocumentIdWorker.CheckAndThrowContainsControlCharacters(document.Id, "Document ID");
-                        
                         if (document.SeenAttachments)
                             throw new NotSupportedException($"The document {document.Id} has attachments, this is not supported in cluster wide transaction.");
 

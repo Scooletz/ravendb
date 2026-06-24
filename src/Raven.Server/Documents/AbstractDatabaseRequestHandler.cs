@@ -62,6 +62,4 @@ public abstract class AbstractDatabaseRequestHandler<TOperationContext> : Reques
             handler._context = null;
         }
     }
-    
-    public abstract SupportedFeature GetSupportedFeature();
 }

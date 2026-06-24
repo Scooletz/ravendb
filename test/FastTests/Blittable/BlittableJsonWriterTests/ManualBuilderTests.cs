@@ -7,7 +7,6 @@ using Sparrow.Collections;
 using Sparrow.Json;
 using Sparrow.Json.Parsing;
 using Sparrow.Threading;
-using Sparrow.Utils;
 using Tests.Infrastructure;
 using Xunit;
 using Xunit.Abstractions;
@@ -779,11 +778,11 @@ namespace FastTests.Blittable.BlittableJsonWriterTests
                     var lsvStringBytes = Encoding.UTF8.GetBytes(lsvString);
                     fixed (byte* b = lsvStringBytes)
                     {
-                        var escapePositionsMaxSize = StringUtils.FindMaxEscapePositionSize(lsvString);
+                        var escapePositionsMaxSize = JsonParserState.FindMaxEscapePositionAndControlCharSize(lsvString, out _);
                         var lsv = context.AllocateStringValue(null, b, lsvStringBytes.Length);
                         var escapePositions = new FastList<int>();
                         var len = lsvStringBytes.Length;
-                        StringUtils.FindEscapedPositions(escapePositions, b,  len, escapePositionsMaxSize);
+                        JsonParserState.FindEscapedPositionsAndEscapeControls(escapePositions, b, ref len, escapePositionsMaxSize);
                         lsv.EscapePositions = escapePositions.ToArray();
 
                         builder.WritePropertyName("LSVString");

@@ -852,13 +852,13 @@ namespace Raven.Server.Smuggler.Documents
                         if (attachmentsStorage.AttachmentExists(context, hash) == false)
                             _documentIdsOfMissingAttachments.Add(document.Id);
 
-                        attachmentsStorage.PutAttachment(context, document.Id, name, contentType, hash, updateDocument: false, source: AttachmentsStorage.AttachmentSource.FromSmuggler);
+                        attachmentsStorage.PutAttachment(context, document.Id, name, contentType, hash, updateDocument: false, fromSmuggler: true);
                         continue;
                     }
 
                     using (DocumentIdWorker.GetLoweredIdSliceFromId(_context, document.Id, out Slice lowerDocumentId))
-                    using (DocumentIdWorker.GetLowerIdSliceAndStorageKeyForBackwardCompatibility(_context, name, out Slice lowerName, out Slice nameSlice))
-                    using (DocumentIdWorker.GetLowerIdSliceAndStorageKeyForBackwardCompatibility(_context, contentType, out Slice lowerContentType, out Slice contentTypeSlice))
+                    using (DocumentIdWorker.GetLowerIdSliceAndStorageKey(_context, name, out Slice lowerName, out Slice nameSlice))
+                    using (DocumentIdWorker.GetLowerIdSliceAndStorageKey(_context, contentType, out Slice lowerContentType, out Slice contentTypeSlice))
                     using (Slice.External(_context.Allocator, hash, out Slice base64Hash))
                     using (Slice.From(_context.Allocator, document.ChangeVector, out Slice cv))
                     using (AttachmentsStorage.AttachmentKey.GetKey(_context, lowerDocumentId.Content.Ptr, lowerDocumentId.Size, lowerName.Content.Ptr, lowerName.Size,

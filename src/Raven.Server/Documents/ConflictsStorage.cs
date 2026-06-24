@@ -481,7 +481,7 @@ namespace Raven.Server.Documents
 
             var fromSmuggler = nonPersistentFlags.Contain(NonPersistentDocumentFlags.FromSmuggler);
 
-            using (DocumentIdWorker.GetLowerIdSliceAndStorageKeyForBackwardCompatibility(context, id, out Slice lowerId, out Slice idPtr))
+            using (DocumentIdWorker.GetLowerIdSliceAndStorageKey(context, id, out Slice lowerId, out Slice idPtr))
             {
                 CollectionName collectionName;
 
