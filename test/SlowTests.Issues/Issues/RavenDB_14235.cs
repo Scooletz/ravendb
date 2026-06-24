@@ -7,7 +7,6 @@ using Raven.Client.Documents;
 using Raven.Client.Documents.Linq;
 using Raven.Client.Documents.Operations.Attachments;
 using Raven.Client.Documents.Session;
-using Sparrow.Utils;
 using Tests.Infrastructure;
 using Xunit;
 using Xunit.Abstractions;
@@ -51,7 +50,7 @@ namespace SlowTests.Issues
 
                 var str = new string(chars);
 
-                using (var store = GetDocumentStore(AllowControlCharactersInIdentifier()))
+                using (var store = GetDocumentStore())
                 {
                     using (var session = store.OpenAsyncSession())
                     {
@@ -101,7 +100,7 @@ namespace SlowTests.Issues
                 str += new string(chars);
                 str += new string(Enumerable.Repeat(abc, partialSize).Select(s => s[random.Next(s.Length)]).ToArray());
 
-                using (var store = GetDocumentStore(AllowControlCharactersInIdentifier()))
+                using (var store = GetDocumentStore())
                 {
                     using (var session = store.OpenAsyncSession())
                     {
@@ -151,11 +150,10 @@ namespace SlowTests.Issues
                 str += new string(chars);
                 str += new string(Enumerable.Repeat(abc, partialSize).Select(s => s[random.Next(s.Length)]).ToArray());
 
-                using var store = GetDocumentStore(AllowControlCharactersInIdentifier());
-                string expectedCollection = StringUtils.HasControlCharacters(str) ? new string('a', str.Length) : str;
+                using var store = GetDocumentStore();
                 await store.Commands().PutAsync(str, null, new { WeirdName = str }, new Dictionary<string, object>
                 {
-                    { "@collection", expectedCollection }
+                    { "@collection", str }
                 });
 
                 using var session = store.OpenAsyncSession();
@@ -165,7 +163,7 @@ namespace SlowTests.Issues
 
                 Assert.Equal(str, u.WeirdName);
                 Assert.Equal(str, id);
-                Assert.Equal(expectedCollection, collection);
+                Assert.Equal(str, collection);
             }
         }
 

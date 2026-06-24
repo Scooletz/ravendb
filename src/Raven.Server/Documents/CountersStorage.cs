@@ -295,13 +295,13 @@ namespace Raven.Server.Documents
             return PutOrIncrementCounter(context, documentId, collection, name, delta, out exists);
         }
 
-        public string PutCounter(DocumentsOperationContext context, string documentId, string collection, string name, long delta, bool validate = true)
+        public string PutCounter(DocumentsOperationContext context, string documentId, string collection, string name, long delta)
         {
-            return PutOrIncrementCounter(context, documentId, collection, name, delta, out _, overrideExisting: true, validate: validate);
+            return PutOrIncrementCounter(context, documentId, collection, name, delta, out _, overrideExisting: true);
         }
 
         public string PutOrIncrementCounter(DocumentsOperationContext context, string documentId, string collection, string name, long delta, out bool exists,
-            bool overrideExisting = false, bool validate = true)
+            bool overrideExisting = false)
         {
             if (context.Transaction == null)
             {
@@ -309,8 +309,10 @@ namespace Raven.Server.Documents
                 Debug.Assert(false); // never hit
             }
 
-            if(validate)
-                ValidateCounterName(name);
+            if (name.Length > DocumentIdWorker.MaxIdSize)
+            {
+                ThrowCounterNameTooBig(name);
+            }
 
             try
             {
@@ -383,7 +385,7 @@ namespace Raven.Server.Documents
                                 }
 
                                 // now we retry and know that we have enough space
-                                return PutOrIncrementCounter(context, documentId, collection, name, delta, out exists, overrideExisting, false);
+                                return PutOrIncrementCounter(context, documentId, collection, name, delta, out exists, overrideExisting);
                             }
 
                             CreateNewCounterOrOverrideExisting(context, lowerName, dbIdIndex, value, counterEtag, counters);
@@ -457,15 +459,6 @@ namespace Raven.Server.Documents
             }
         }
 
-        private void ValidateCounterName(string name)
-        {
-            if (name.Length > DocumentIdWorker.MaxIdSize)
-                ThrowCounterNameTooBig(name);
-
-            if (_documentDatabase.SupportedFeatures.SupportedFeatureTypes.ThrowControlCharactersInIdentifier)
-                DocumentIdWorker.CheckAndThrowContainsControlCharacters(name, "Counter name");
-        }
-        
         [DoesNotReturn]
         internal static void ThrowMissingProperty(Slice counterKeySlice, string property)
         {

@@ -67,7 +67,5 @@ namespace Raven.Server.Documents.Handlers.Processors.Batches
                 options,
                 raftRequestId);
         }
-
-        protected override SupportedFeature GetSupportedFeatures() => RequestHandler.Database.SupportedFeatures;
     }
 }
