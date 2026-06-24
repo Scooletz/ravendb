@@ -163,8 +163,7 @@ internal sealed class CdcSinkHandlerProcessorForTest : AbstractCdcSinkHandlerPro
         if (matches.Count > 1)
         {
             // Two same-name-different-case entries in the config (e.g. "Customers" and "customers").
-            // FirstOrDefault would silently pick one; surface the ambiguity instead so Studio can
-            // flag the duplicate before the user saves the CDC task.
+            // Surface the ambiguity so Studio can flag the duplicate before the user saves the CDC task.
             result.Errors.Add($"Configuration has {matches.Count} tables matching '{targetSchema}.{request.SourceTableName}' " +
                               "(case-insensitive). Remove the duplicates from Tables[] before testing.");
             return result;

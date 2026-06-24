@@ -70,7 +70,7 @@ namespace SlowTests.Server.Documents.CdcSink
             Assert.Equal(new[] { "order_id", "line_no" }, items.PrimaryKeyColumns);
         }
 
-        [RavenFact(RavenTestCategory.Sinks, MsSqlRequired = true)]
+        [RavenFact(RavenTestCategory.Sinks, MsSqlCdcRequired = true)]
         public async Task FlagsCdcEnrollmentPerTableAndPerColumn()
         {
             using var teardown = WithSqlDatabase(MigrationProvider.MsSQL, out var connectionString, out _, dataSet: null, includeData: false);

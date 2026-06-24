@@ -266,8 +266,7 @@ namespace Raven.Server.Commercial
 
         public bool HasQueueSink => Enabled(LicenseAttribute.QueueSink);
 
-        // TODO: Remove hardcoding once we have the attribute in place and enabled for relevant licenses
-        public bool HasCdcSink => true; // Enabled(LicenseAttribute.CdcSink); 
+        public bool HasCdcSink => Enabled(LicenseAttribute.CdcSink);
 
         public bool HasDataArchival => Enabled(LicenseAttribute.DataArchival);
 
